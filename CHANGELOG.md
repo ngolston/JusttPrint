@@ -4,6 +4,13 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Security:**
+- Removed the old `getSetting`, `saveSetting` and `quitApp` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
+
+**Changes:**
+- Declining the Terms of Service logs that browser out instead of shutting down the server
+- `main.js` is being split into modules under `src/server/ipc/` (printers, print events, parts, filaments, AI tagging); no behavior change
+
 ## [3.0.0] - 2026-10-03
 
 **Printventory is now a Docker-only web app.** The Electron desktop app and the Windows, macOS and Linux installers are gone.

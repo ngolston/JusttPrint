@@ -723,7 +723,6 @@
     'commitTransaction': 'database:commit-transaction',
     'rollbackTransaction': 'database:rollback-transaction',
     'getAllModelReferences': 'get-all-model-references',
-    'quitApp': 'quitApp',
     'showContextMenu': 'show-context-menu',
     'executeContextMenuAction': 'execute-context-menu-action',
     'pull3MFMetadata': 'pull-3mf-metadata',

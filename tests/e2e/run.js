@@ -186,6 +186,9 @@ async function apiChecks(base, wsUrl) {
   const version = require(path.join(ROOT, 'package.json')).version;
   check('WS with login, same origin', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['currentVersion'])).result === version);
   check('secret settings hidden', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['serverPasswordHash'])).result === null);
+  for (const channel of ['getSetting', 'saveSetting', 'quitApp']) {
+    check(`${channel} channel removed`, !!(await invoke(wsUrl, { cookie, origin }, channel, ['serverPasswordHash'])).error);
+  }
 
   console.log('\n# Path guard');
   const refused = (res, pattern) => typeof res.error === 'string' && pattern.test(res.error);

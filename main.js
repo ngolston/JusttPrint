@@ -7902,35 +7902,6 @@ async function getGroupTagsHandler(event, modelIds) {
 }
 ipcMain.handle('get-group-tags', getGroupTagsHandler);
 
-// Add these handlers
-ipcMain.handle('quitApp', () => {
-  app.quit();
-});
-
-ipcMain.handle('getSetting', async (event, key) => {
-  try {
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    return row ? row.value : null;
-  } catch (error) {
-    console.error('Error getting setting:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('saveSetting', async (event, key, value) => {
-  try {
-    database.db.prepare(`
-      INSERT INTO settings (key, value)
-      VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(key, value);
-    return true;
-  } catch (error) {
-    console.error('Error saving setting:', error);
-    throw error;
-  }
-});
-
 // Browser extension / MCP local HTTP server control (normal mode)
 ipcMain.handle('start-extension-server', async (event, port) => {
   return { success: true, running: true, message: 'Server mode already listening' };
