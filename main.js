@@ -25,10 +25,10 @@ const serverTls = require('./server-tls');
 const extensionInbox = require('./extension-inbox');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
-const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
+const { SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases, PROJECT_URL } = require('./src/server/releases');
-const { createClientDialogs, RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./src/server/client-dialogs');
+const { RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./src/server/client-dialogs');
 
 const { dedupePathList, excludeDirectoriesSettingIsEmpty, getLibraryRootPaths, getScanExcludeNames, isUrlModel, parseExcludePathList, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('./src/core/library-paths');
 
@@ -44,8 +44,7 @@ const { deleteTagHandler, generateTagsHandler, getAllTagsHandler, renameTagForMc
 
 const { countModelsNeedingHash, generateMissingHashesHandler, getDuplicatesHandler, hashGenerationRunning, scheduleBackgroundHashGeneration } = require('./src/server/ipc/hashes');
 
-// Message boxes and prompts the server shows in the browser that made the request.
-const clientDialogs = createClientDialogs();
+const { clientDialogs } = require('./src/server/dialogs');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -65,6 +64,8 @@ const {
   runOrganizePlan,
   pathsAreSame
 } = require('./organize-library');
+
+const { getServerAuth } = require('./src/server/auth');
 
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
@@ -1205,26 +1206,6 @@ function stopHttpServer() {
       }
     }, 5000);
   });
-}
-
-let serverAuth = null;
-
-/** Login, API token and download tokens for the HTTP/WebSocket server. */
-function getServerAuth() {
-  if (!serverAuth) {
-    serverAuth = createServerAuth({
-      getSetting: (key) => getSettingValueOr(key, null),
-      setSetting: (key, value) => {
-        database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
-      },
-      extraOrigins: () => {
-        const origins = String(process.env.PRINTVENTORY_ALLOWED_ORIGINS || '')
-          .split(',').map((origin) => origin.trim()).filter(Boolean);
-        return origins;
-      }
-    });
-  }
-  return serverAuth;
 }
 
 /** Only hand out web assets from the app folder (never server code, config or secrets). */
