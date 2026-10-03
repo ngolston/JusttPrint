@@ -241,6 +241,17 @@ async function apiChecks(base, wsUrl) {
   const both = await names({ searchTokens: [term('cube'), { t: 'op', op: 'AND' }, term('box')] });
   check('search: AND with no match', both === '', both);
 
+  const tag = (await ask('save-tag', ['e2e-tag'])).result;
+  check('tag saved and listed', !!tag && ((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id), JSON.stringify(tag));
+  if (tag) {
+    await ask('rename-tag', [tag.id, 'e2e-renamed']);
+    const renamed = ((await ask('get-all-tags')).result || []).find((t) => t.id === tag.id);
+    check('tag renamed', renamed && renamed.name === 'e2e-renamed', JSON.stringify(renamed));
+    check('tag model count', (await ask('get-tag-model-count', [tag.id])).result === 0);
+    await ask('delete-tag', [tag.id]);
+    check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
+  }
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);

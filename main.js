@@ -37,6 +37,10 @@ const { applyThumbnailFlags, getDefaultThumbnail, getThumbnailImagePayload, load
 
 const { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany } = require('./src/core/extract-temp');
 
+const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelJunctionRows, deleteModelsByFilePaths, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable, replaceModelFilaments } = require('./src/core/models');
+
+const { deleteTagHandler, generateTagsHandler, getAllTagsHandler, renameTagForMcp, resolveTagForMcp, saveTagHandler } = require('./src/server/ipc/tags');
+
 // Message boxes and prompts the server shows in the browser that made the request.
 const clientDialogs = createClientDialogs();
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
@@ -1552,50 +1556,6 @@ function getModelTagNamesForMcp(modelId) {
   `).all(modelId).map((row) => row.name);
 }
 
-function resolveTagForMcp(args) {
-  if (!args) throw new Error('Provide tag id or name');
-  if (args.id != null && args.id !== '') {
-    const id = Number(args.id);
-    if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid tag id');
-    const tag = database.db.prepare('SELECT id, name FROM tags WHERE id = ?').get(id);
-    if (!tag) throw new Error(`Tag not found for id: ${id}`);
-    return tag;
-  }
-  const name = String(args.name || '').trim();
-  if (!name) throw new Error('Provide tag id or name');
-  const tag = database.db.prepare('SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE').get(name);
-  if (!tag) throw new Error(`Tag not found: ${name}`);
-  return tag;
-}
-
-function renameTagForMcp(args) {
-  const tag = resolveTagForMcp(args);
-  const newName = String(args && args.newName || '').trim();
-  if (!newName) throw new Error('newName is required');
-  if (newName.toLowerCase() === String(tag.name).toLowerCase()) {
-    if (newName !== tag.name) {
-      database.db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(newName, tag.id);
-    }
-    return { success: true, id: tag.id, name: newName, merged: false };
-  }
-  const existing = database.db.prepare('SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE').get(newName);
-  if (existing && existing.id !== tag.id) {
-    database.db.transaction(() => {
-      const rows = database.db.prepare('SELECT model_id FROM model_tags WHERE tag_id = ?').all(tag.id);
-      const insert = database.db.prepare('INSERT OR IGNORE INTO model_tags (model_id, tag_id) VALUES (?, ?)');
-      for (const row of rows) insert.run(row.model_id, existing.id);
-      database.db.prepare('DELETE FROM model_tags WHERE tag_id = ?').run(tag.id);
-      database.db.prepare('DELETE FROM tags WHERE id = ?').run(tag.id);
-      if (existing.name !== newName) {
-        database.db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(newName, existing.id);
-      }
-    })();
-    return { success: true, id: existing.id, name: newName, merged: true, deletedId: tag.id };
-  }
-  database.db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(newName, tag.id);
-  return { success: true, id: tag.id, name: newName, merged: false };
-}
-
 const MCP_METADATA_TYPES = new Set(['designer', 'parentModel', 'license']);
 
 function renameMetadataForMcp(args) {
@@ -2497,41 +2457,6 @@ async function compressExistingThumbnailsInBackground(reason) {
   }
 }
 
-const MODEL_DETAIL_COLUMNS = 'id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind';
-
-/** List queries omit thumbnail blobs; these flags are computed without returning the column. */
-const MODEL_LIST_THUMB_FLAGS =
-  "CASE WHEN thumbnail IS NOT NULL AND thumbnail != '' AND thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
-  "CASE WHEN thumbnail IS NOT NULL AND INSTR(thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
-const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
-  "CASE WHEN models.thumbnail IS NOT NULL AND models.thumbnail != '' AND models.thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
-  "CASE WHEN models.thumbnail IS NOT NULL AND INSTR(models.thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
-const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
-const MODEL_LIST_COLUMNS_QUALIFIED =
-  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
-
-function getModelByFilePath(filePath, { includeThumbnail = false } = {}) {
-  if (!database.db || !filePath) return null;
-  const row = database.db.prepare(`SELECT ${MODEL_DETAIL_COLUMNS} FROM models WHERE filePath = ?`).get(filePath);
-  if (!row) return null;
-  if (includeThumbnail) {
-    row.thumbnail = loadThumbnailForModel(filePath);
-    applyThumbnailFlags(row);
-  }
-  return row;
-}
-
-function getModelById(modelId, { includeThumbnail = false } = {}) {
-  if (!database.db || modelId == null) return null;
-  const row = database.db.prepare(`SELECT ${MODEL_DETAIL_COLUMNS} FROM models WHERE id = ?`).get(modelId);
-  if (!row) return null;
-  if (includeThumbnail) {
-    row.thumbnail = loadThumbnailForModel(row.filePath);
-    applyThumbnailFlags(row);
-  }
-  return row;
-}
-
 function scheduleBackgroundHashGeneration(reason) {
   if (isGeneratingHashes || isHashGenerationScheduled) return;
   isHashGenerationScheduled = true;
@@ -3235,13 +3160,6 @@ function clearFailurePlaceholderThumbnails() {
   }
 }
 
-function normalizeModelRating(value) {
-  const n = parseInt(value, 10);
-  if (Number.isNaN(n) || n < 0) return 0;
-  if (n > 5) return 5;
-  return n;
-}
-
 // Add this function to clean up any database objects referencing models_old
 function cleanupModelsOldReferences() {
   try {
@@ -3311,15 +3229,6 @@ function cleanupModelsOldReferences() {
     return true;
   } catch (error) {
     console.error('Error cleaning up models_old references:', error);
-    return false;
-  }
-}
-
-function repairModelTagsTable() {
-  try {
-    return repairModelTags(database.db).ok;
-  } catch (error) {
-    console.error('Error repairing model_tags table:', error);
     return false;
   }
 }
@@ -4241,47 +4150,6 @@ ipcMain.handle('get-parent-models', async () => {
   }
 });
 
-async function getAllTagsHandler() {
-  try {
-    return database.db.prepare(`
-      SELECT 
-        t.id,
-        t.name,
-        COUNT(DISTINCT mt.model_id) as model_count
-      FROM tags t
-      LEFT JOIN model_tags mt ON t.id = mt.tag_id
-      WHERE t.name != ''
-      GROUP BY t.id, t.name
-      ORDER BY t.name
-    `).all();
-  } catch (error) {
-    console.error('Error getting tags:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-all-tags', getAllTagsHandler);
-
-async function saveTagHandler(event, tagName) {
-  try {
-    database.db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)').run(tagName);
-    return database.db.prepare('SELECT id, name FROM tags WHERE name = ?').get(tagName);
-  } catch (error) {
-    console.error('Error saving tag:', error);
-    throw error;
-  }
-}
-ipcMain.handle('save-tag', saveTagHandler);
-
-async function renameTagHandler(event, tagId, newName) {
-  try {
-    return renameTagForMcp({ id: tagId, newName });
-  } catch (error) {
-    console.error('Error renaming tag:', error);
-    throw error;
-  }
-}
-ipcMain.handle('rename-tag', renameTagHandler);
-
 
 function normalizeFilamentIds(raw) {
   if (raw === undefined || raw === null) return null;
@@ -4297,68 +4165,6 @@ function normalizeFilamentIds(raw) {
     ids.push(id);
   }
   return ids;
-}
-
-function replaceModelFilaments(modelId, filamentIds) {
-  database.db.prepare('DELETE FROM model_filaments WHERE model_id = ?').run(modelId);
-  if (!filamentIds || filamentIds.length === 0) return;
-  const insert = database.db.prepare('INSERT OR IGNORE INTO model_filaments (model_id, filament_id) VALUES (?, ?)');
-  const exists = database.db.prepare('SELECT 1 FROM filaments WHERE id = ?');
-  for (const id of filamentIds) {
-    if (exists.get(id)) insert.run(modelId, id);
-  }
-}
-
-function deleteModelJunctionRows(modelId) {
-  database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
-  database.db.prepare('DELETE FROM model_filaments WHERE model_id = ?').run(modelId);
-  printEvents.deletePrintRowsForModel(database.db, modelId);
-}
-
-function deleteModelsByIds(modelIds) {
-  const ids = [];
-  const seen = new Set();
-  for (const raw of modelIds || []) {
-    const id = Number(raw);
-    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
-    seen.add(id);
-    ids.push(id);
-  }
-  if (!ids.length) return;
-  const batchSize = 500;
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
-    const placeholders = batch.map(() => '?').join(',');
-    printEvents.deletePrintRowsForModels(database.db, batch);
-    database.db.prepare(`DELETE FROM model_tags WHERE model_id IN (${placeholders})`).run(...batch);
-    database.db.prepare(`DELETE FROM model_filaments WHERE model_id IN (${placeholders})`).run(...batch);
-    database.db.prepare(`DELETE FROM models WHERE id IN (${placeholders})`).run(...batch);
-  }
-}
-
-function deleteModelsByFilePaths(filePaths) {
-  const paths = Array.isArray(filePaths) ? filePaths.filter((p) => typeof p === 'string' && p) : [];
-  const removed = [];
-  const found = new Set();
-  if (!paths.length) return { removed, missing: [] };
-  database.db.transaction(() => {
-    const batchSize = 500;
-    const ids = [];
-    for (let i = 0; i < paths.length; i += batchSize) {
-      const batch = paths.slice(i, i + batchSize);
-      const placeholders = batch.map(() => '?').join(',');
-      const rows = database.db.prepare(
-        `SELECT id, filePath, fileName FROM models WHERE filePath IN (${placeholders})`
-      ).all(...batch);
-      for (const row of rows) {
-        found.add(row.filePath);
-        ids.push(row.id);
-        removed.push({ id: row.id, filePath: row.filePath, fileName: row.fileName });
-      }
-    }
-    deleteModelsByIds(ids);
-  })();
-  return { removed, missing: paths.filter((filePath) => !found.has(filePath)) };
 }
 
 function upsertImportedFilament(filament) {
@@ -5340,36 +5146,6 @@ ipcMain.handle('fetch-thangs-page', async (event, url) => {
     throw error;
   }
 });
-
-async function deleteTagHandler(event, tagId) {
-  try {
-    return database.db.transaction(() => {
-      // First delete from model_tags (child table)
-      database.db.prepare('DELETE FROM model_tags WHERE tag_id = ?').run(tagId);
-          
-          // Then delete the tag itself
-      database.db.prepare('DELETE FROM tags WHERE id = ?').run(tagId);
-      
-      return true;
-    })();
-  } catch (error) {
-    console.error('Error deleting tag:', error);
-    throw error;
-  }
-}
-ipcMain.handle('delete-tag', deleteTagHandler);
-
-async function getTagModelCountHandler(event, tagId) {
-  return new Promise((resolve, reject) => {
-    const row = database.db.prepare('SELECT COUNT(*) as count FROM model_tags WHERE tag_id = ?').get(tagId);
-    if (row) {
-      resolve(row.count);
-    } else {
-      reject(new Error('Tag not found'));
-    }
-  });
-}
-ipcMain.handle('get-tag-model-count', getTagModelCountHandler);
 
 ipcMain.handle('get-all-metadata', async () => {
   try {
@@ -7021,43 +6797,6 @@ async function deleteFile(filePath) {
     return false;
   }
 }
-
-// Update the handler name to match the convention
-async function getModelTagsHandler(event, modelId) {
-  try {
-    return database.db.prepare(`
-      SELECT t.* 
-      FROM tags t 
-      JOIN model_tags mt ON mt.tag_id = t.id 
-      WHERE mt.model_id = ?
-    `).all(modelId);
-  } catch (error) {
-    console.error('Error getting model tags:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-model-tags', getModelTagsHandler);
-
-async function getGroupTagsHandler(event, modelIds) {
-  try {
-    const ids = (Array.isArray(modelIds) ? modelIds : [])
-      .map((id) => Number(id))
-      .filter((id) => Number.isInteger(id) && id > 0);
-    if (!ids.length) return [];
-    const placeholders = ids.map(() => '?').join(',');
-    return database.db.prepare(`
-      SELECT DISTINCT t.name AS name
-      FROM tags t
-      JOIN model_tags mt ON mt.tag_id = t.id
-      WHERE mt.model_id IN (${placeholders})
-      ORDER BY t.name COLLATE NOCASE
-    `).all(...ids).map((row) => row.name).filter(Boolean);
-  } catch (error) {
-    console.error('Error getting group tags:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-group-tags', getGroupTagsHandler);
 
 // Browser extension / MCP local HTTP server control (normal mode)
 ipcMain.handle('start-extension-server', async (event, port) => {
@@ -9416,106 +9155,6 @@ ipcMain.handle('getTotalModelCount', async () => {
 
 
 
-async function generateTagsHandler(event, filePath) {
-  try {
-    const aitagging = require('./aitagging');
-    const settings = getAISettings();
-    
-    // Create puter IPC handler if service is puter
-    // Pass event so it can route to the correct client (WebSocket in server mode, IPC in normal mode)
-    const puterIPCHandler = settings.aiService === 'puter' ? createPuterIPCHandler(event) : null;
-    
-    // Initialize OpenAI with the API key
-    aitagging.initializeOpenAI(settings.apiKey, settings.apiEndpoint, settings.aiService, puterIPCHandler);
-    
-    // Get the model from the database to access its thumbnail
-    const model = getModelByFilePath(filePath, { includeThumbnail: true });
-    
-    if (!model) {
-      console.log(`Model not found in database: ${filePath}`);
-      return [];
-    }
-    
-    // Get the model tags from the database
-    const modelTagRows = database.db.prepare(`
-      SELECT t.name 
-      FROM tags t
-      JOIN model_tags mt ON mt.tag_id = t.id
-      WHERE mt.model_id = ?
-    `).all(model.id);
-    
-    const modelTags = modelTagRows.map(row => row.name);
-    
-    // Check if model already has the "AI Tagged" tag (unless retagging is allowed)
-    if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
-      console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
-      return [];
-    }
-    
-    // Prepare tag generation options (read aiTagPrompt from DB so we always have latest)
-    const aiTagPromptValue = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('aiTagPrompt')?.value ?? null;
-    const tagOptions = {
-      maxTags: settings.aiTagMaxTags,
-      useCategories: settings.aiTagUseCategories,
-      useJsonResponse: settings.aiTagUseJsonResponse,
-      detailLevel: settings.aiTagDetailLevel,
-      folderLevels: settings.aiTagFolderLevels,
-      notes: model.notes || '',
-      customPrompt: (aiTagPromptValue != null && String(aiTagPromptValue).trim() !== '') ? String(aiTagPromptValue).trim() : null
-    };
-
-    if (!model.thumbnail) {
-      // If no thumbnail exists, we need to generate one or use a default image
-      console.log('No thumbnail found for model, using default image');
-      try {
-        const fs = require('fs').promises;
-        const defaultImagePath = './logo.png'; // Use a default image that's guaranteed to be in PNG format
-        const data = await fs.readFile(defaultImagePath, { encoding: 'base64' });
-        const tags = await aitagging.generateTagsForImage(data, settings.aiModel, tagOptions, 2000, 5, filePath);
-        return tags;
-      } catch (error) {
-        console.error(`Error generating tags with default image:`, error);
-        // Re-throw rate limit errors so user is notified
-        if (error.message && error.message.includes('Rate limit')) {
-          throw error;
-        }
-        return []; // Return empty tags array instead of throwing
-      }
-    }
-    
-    // Use default thumb only — multi-thumb strings are joined with `::`
-    const imagePayload = getThumbnailImagePayload(model.thumbnail);
-    
-    if (!imagePayload) {
-      console.error('Invalid thumbnail format');
-      return []; // Return empty tags instead of throwing
-    }
-    
-    try {
-      const tags = await aitagging.generateTagsForImage(
-        imagePayload.base64,
-        settings.aiModel,
-        { ...tagOptions, mimeType: imagePayload.mimeType },
-        2000,
-        5,
-        filePath
-      );
-      return tags;
-    } catch (error) {
-      console.error('Error generating tags:', error);
-      // Re-throw rate limit errors so user is notified
-      if (error.message && error.message.includes('Rate limit')) {
-        throw error;
-      }
-      return []; // Return empty tags array instead of throwing
-    }
-  } catch (error) {
-    console.error('Error generating tags:', error);
-    throw error;
-  }
-}
-ipcMain.handle('generate-tags', generateTagsHandler);
-
 // Add this helper function (if it doesn't already exist) near the top of main.js
 function applyFolderTagsToModels(filePaths, levels) {
   return applyFolderTagsInDb(database.db, filePaths, levels);
@@ -10182,22 +9821,6 @@ async function updateModelsBatch(modelDataBatch) {
     console.error('Error updating models batch:', error);
     return false;
   }
-}
-
-/** Returns true when user-editable model fields differ (used to clear isNew only on real edits). */
-function modelUserFieldsChanged(existing, finals) {
-  if (!existing || !finals) return false;
-  const norm = (v) => (v == null || String(v).trim() === '' ? null : v);
-  return (
-    finals.fileName !== existing.fileName ||
-    norm(finals.designer) !== norm(existing.designer) ||
-    norm(finals.source) !== norm(existing.source) ||
-    norm(finals.notes) !== norm(existing.notes) ||
-    Number(finals.printed ? 1 : 0) !== Number(existing.printed ? 1 : 0) ||
-    String(finals.print_status || '') !== String(existing.print_status || '') ||
-    norm(finals.parentModel) !== norm(existing.parentModel) ||
-    norm(finals.license) !== norm(existing.license)
-  );
 }
 
 function sortedTagNames(tags) {
