@@ -4088,7 +4088,6 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
   }
 }
 ipcMain.handle('scan-directory', scanDirectoryHandler);
-ipcHandlerRegistry.set('scan-directory', scanDirectoryHandler);
 
 ipcMain.handle('get-model', async (event, filePath) => {
   try {
@@ -4245,7 +4244,6 @@ const selectCols = MODEL_LIST_COLUMNS;
   }
 };
 ipcMain.handle('get-all-models', getAllModelsHandler);
-ipcHandlerRegistry.set('get-all-models', getAllModelsHandler);
 
 /** Normalize filter payload: single string or array of strings */
 function normalizeFilterValueList(primaryArr, legacyStr) {
@@ -4999,7 +4997,6 @@ const selectCols = MODEL_LIST_COLUMNS_QUALIFIED;
   }
 };
 ipcMain.handle('get-models-filtered', getModelsFilteredHandler);
-ipcHandlerRegistry.set('get-models-filtered', getModelsFilteredHandler);
 
 ipcMain.handle('get-parent-models', async () => {
   try {
@@ -5030,7 +5027,6 @@ async function getAllTagsHandler() {
   }
 }
 ipcMain.handle('get-all-tags', getAllTagsHandler);
-ipcHandlerRegistry.set('get-all-tags', getAllTagsHandler);
 
 async function saveTagHandler(event, tagName) {
   try {
@@ -5042,7 +5038,6 @@ async function saveTagHandler(event, tagName) {
   }
 }
 ipcMain.handle('save-tag', saveTagHandler);
-ipcHandlerRegistry.set('save-tag', saveTagHandler);
 
 async function renameTagHandler(event, tagId, newName) {
   try {
@@ -5053,7 +5048,6 @@ async function renameTagHandler(event, tagId, newName) {
   }
 }
 ipcMain.handle('rename-tag', renameTagHandler);
-ipcHandlerRegistry.set('rename-tag', renameTagHandler);
 
 const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler, syncSpoolmanFilamentsHandler } = require('./src/server/ipc/filaments');
 
@@ -5185,7 +5179,6 @@ async function getAdditionalFileTypesCatalogHandler() {
   return ADDITIONAL_FILE_TYPES_CATALOG;
 }
 ipcMain.handle('get-additional-file-types-catalog', getAdditionalFileTypesCatalogHandler);
-ipcHandlerRegistry.set('get-additional-file-types-catalog', getAdditionalFileTypesCatalogHandler);
 
 /** Get extensions (e.g. ['.obj']) for catalog ids (e.g. ['obj']). Used to find/remove models by file type. */
 function getExtensionsForCatalogIds(catalogIds) {
@@ -5244,7 +5237,6 @@ const getSettingHandler = async (event, key) => {
   }
 };
 ipcMain.handle('get-setting', getSettingHandler);
-ipcHandlerRegistry.set('get-setting', getSettingHandler);
 
 // Add handler to get app version directly (fallback for server mode)
 ipcMain.handle('get-app-version', async () => {
@@ -5276,7 +5268,6 @@ const saveSettingHandler = async (event, key, value) => {
   }
 };
 ipcMain.handle('save-setting', saveSettingHandler);
-ipcHandlerRegistry.set('save-setting', saveSettingHandler);
 
 ipcMain.handle('purge-thumbnails', async () => {
   try {
@@ -6230,7 +6221,6 @@ async function deleteTagHandler(event, tagId) {
   }
 }
 ipcMain.handle('delete-tag', deleteTagHandler);
-ipcHandlerRegistry.set('delete-tag', deleteTagHandler);
 
 async function getTagModelCountHandler(event, tagId) {
   return new Promise((resolve, reject) => {
@@ -6243,7 +6233,6 @@ async function getTagModelCountHandler(event, tagId) {
   });
 }
 ipcMain.handle('get-tag-model-count', getTagModelCountHandler);
-ipcHandlerRegistry.set('get-tag-model-count', getTagModelCountHandler);
 
 ipcMain.handle('get-all-metadata', async () => {
   try {
@@ -6701,7 +6690,6 @@ const purgeModelsHandler = async (event, options = {}) => {
   }
 };
 ipcMain.handle('purge-models', purgeModelsHandler);
-ipcHandlerRegistry.set('purge-models', purgeModelsHandler);
 
 const clearNewFlagsHandler = async () => {
   try {
@@ -7870,8 +7858,6 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
 };
 
 ipcMain.handle('execute-context-menu-action', executeContextMenuActionHandler);
-// Register in handler registry for direct WebSocket invocation
-ipcHandlerRegistry.set('execute-context-menu-action', executeContextMenuActionHandler);
 
 // Update the deleteFile function
 async function deleteFile(filePath) {
@@ -7918,7 +7904,6 @@ async function getModelTagsHandler(event, modelId) {
   }
 }
 ipcMain.handle('get-model-tags', getModelTagsHandler);
-ipcHandlerRegistry.set('get-model-tags', getModelTagsHandler);
 
 async function getGroupTagsHandler(event, modelIds) {
   try {
@@ -7940,7 +7925,6 @@ async function getGroupTagsHandler(event, modelIds) {
   }
 }
 ipcMain.handle('get-group-tags', getGroupTagsHandler);
-ipcHandlerRegistry.set('get-group-tags', getGroupTagsHandler);
 
 // Add these handlers
 ipcMain.handle('quitApp', () => {
@@ -9425,8 +9409,6 @@ const readModelFileHandler = async (event, filePath) => {
   }
 };
 ipcMain.handle('read-model-file', readModelFileHandler);
-// Register in handler registry for direct WebSocket invocation
-ipcHandlerRegistry.set('read-model-file', readModelFileHandler);
 
 // Parse 3MF preview handler
 const parse3mfPreviewHandler = async (event, filePath, requestId) => {
@@ -9598,8 +9580,6 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
 };
 
 ipcMain.handle('parse-3mf-preview', parse3mfPreviewHandler);
-// Register in handler registry for direct WebSocket invocation
-ipcHandlerRegistry.set('parse-3mf-preview', parse3mfPreviewHandler);
 
 ipcMain.handle('cancel-3mf-preview', async (event, requestId) => {
   const entry = preview3mfWorkers.get(requestId);
@@ -9783,9 +9763,6 @@ ipcMain.handle('delete-temp-file', async (event, filePath) => {
     return false;
   }
 });
-ipcHandlerRegistry.set('delete-temp-file', async (event, filePath) => {
-  return await cleanupExtractTempFile(filePath);
-});
 
 // Add handler to extract zip archive
 ipcMain.handle('extract-zip-archive', async (event, filePath, destinationPath) => {
@@ -9897,7 +9874,6 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
   throw lastError;
 };
 ipcMain.handle('get-duplicates', getDuplicatesHandler);
-ipcHandlerRegistry.set('get-duplicates', getDuplicatesHandler);
 
 function countModelsNeedingHash({ includeSha256 = false, filters = null } = {}) {
   const hashClause = includeSha256
@@ -10123,7 +10099,6 @@ const generateMissingHashesHandler = async (event, filters = null) => {
   return { started: true, total };
 };
 ipcMain.handle('generateMissingHashes', generateMissingHashesHandler);
-ipcHandlerRegistry.set('generateMissingHashes', generateMissingHashesHandler);
 
 const getModelsWithoutHashHandler = async (event, filters = null) => {
   try {
@@ -10135,7 +10110,6 @@ const getModelsWithoutHashHandler = async (event, filters = null) => {
   }
 };
 ipcMain.handle('getModelsWithoutHash', getModelsWithoutHashHandler);
-ipcHandlerRegistry.set('getModelsWithoutHash', getModelsWithoutHashHandler);
 
 // Add IPC handler to check if hash generation is in progress
 ipcMain.handle('is-generating-hashes', async () => {
@@ -11037,7 +11011,6 @@ async function generateTagsHandler(event, filePath) {
   }
 }
 ipcMain.handle('generate-tags', generateTagsHandler);
-ipcHandlerRegistry.set('generate-tags', generateTagsHandler);
 
 // Add this helper function (if it doesn't already exist) near the top of main.js
 function applyFolderTagsToModels(filePaths, levels) {
@@ -11346,8 +11319,6 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
 };
 
 ipcMain.handle('clear-and-save-slicers', clearAndSaveSlicersHandler);
-// Register in handler registry for WebSocket/Server mode
-ipcHandlerRegistry.set('clear-and-save-slicers', clearAndSaveSlicersHandler);
 
 const openFileInSlicerHandler = async (event, options = {}) => {
   const { filePaths, slicerId, slicerName } = options || {};
@@ -11404,7 +11375,6 @@ const openFileInSlicerHandler = async (event, options = {}) => {
 };
 
 ipcMain.handle('open-file-in-slicer', openFileInSlicerHandler);
-ipcHandlerRegistry.set('open-file-in-slicer', openFileInSlicerHandler);
 
 const getFileStatsHandler = async (event, filePath) => {
   try {
@@ -11454,7 +11424,6 @@ const getFileStatsHandler = async (event, filePath) => {
   }
 };
 ipcMain.handle('get-file-stats', getFileStatsHandler);
-ipcHandlerRegistry.set('get-file-stats', getFileStatsHandler);
 
 // IPC handler for executing commands on client machine (for server mode Electron clients)
 // Note: In server mode, browser clients receive this as an event and handle it in renderer.js
@@ -11516,8 +11485,6 @@ const executeClientCommandHandler = async (event, commandData) => {
 };
 
 ipcMain.handle('execute-client-command', executeClientCommandHandler);
-// Register in handler registry for WebSocket/Server mode (though it should be sent as event, not IPC call)
-ipcHandlerRegistry.set('execute-client-command', executeClientCommandHandler);
 
 ipcMain.handle('get-all-model-references', async () => {
   try {
@@ -12166,7 +12133,6 @@ async function saveModel(modelData) {
 }
 
 // Register save-model for Chrome extension (WebSocket works in normal and server mode)
-ipcHandlerRegistry.set('save-model', async (event, modelData) => await saveModel(modelData));
 
 
 // Add this function before saveModel
