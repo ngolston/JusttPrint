@@ -46,10 +46,12 @@ docs/        GUIDE.md, guide/ images
 - [x] **Check the origin of WebSocket connections and require auth on them.** Open sockets are also closed when the password changes.
 - [x] **Replace `Access-Control-Allow-Origin: *`** with same-origin plus `PRINTVENTORY_ALLOWED_ORIGINS`, and refuse cross-site state-changing requests.
 - [x] **Stop serving the whole app folder as static files.** `support-webhook.json`, `package.json`, `main.js` and `node_modules` were public. Only web assets are served now.
-- [ ] **Validate every path the web UI sends**, for scan, delete, move and organize. Reject anything outside the library folders.
-- [ ] **Replace `xmldom`.** It has a critical vulnerability with no fix (the package is abandoned). Switch to `@xmldom/xmldom` and rebuild `vendor/xmldom-worker-bundle.js`.
-- [ ] **Fix the remaining vulnerable dependencies** (`npm audit`: 16 high, 4 moderate), which come from `puppeteer`, `ws`, `express`, `acme-client` and `fflate`. Start with `npm audit fix`.
-- [ ] **Add security headers to the web UI**: Content Security Policy, `X-Content-Type-Options`, `frame-ancestors`.
+- [x] **Validate every path the web UI and MCP send.** One guard checks the path arguments of 30 IPC channels and 14 MCP tools: files must be in the library, moves stay in the library, new scan and organize folders cannot be system, app or data folders, and MCP backups/exports only write to the library or data folder. "Open on server" actions are desktop only.
+- [x] **Replace `xmldom`** with `@xmldom/xmldom` 0.9, and rebuild `vendor/xmldom-worker-bundle.js`.
+- [x] **Fix the vulnerable dependencies**: `npm audit fix`, Puppeteer 24 → 25, and removed the `overrides` that pinned the vulnerable `basic-ftp` 5.3.1. Down from 21 to 2.
+- [ ] **`node-forge` (via `acme-client`)**: no fixed release exists yet (1.4.0 is the latest). Only used to create Let's Encrypt requests, not to verify untrusted signatures. Update when a fix ships.
+- [x] **Add security headers**: `frame-ancestors`/`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `object-src 'none'`, `base-uri`, `form-action`; removed `X-Powered-By`.
+- [ ] **Add `script-src` to the Content Security Policy.** Needs the inline `<script>` blocks and `onclick=` attributes moved into files first (fits with splitting `renderer.js`, section 5).
 - [ ] **Resolve symlinks before the library-folder check.** A symlink inside a library folder can still point outside it.
 - [ ] **Make the login rate limit work behind a reverse proxy.** It counts failures per IP, so behind a proxy all users share one counter. Use `X-Forwarded-For` only when a trusted-proxy setting is on.
 - [ ] **Decide on the legacy `/api/extension-upload` route.** Older extension builds that upload over HTTP have no token and now get 401. Remove the route or let the extension send the API token.
@@ -72,7 +74,7 @@ docs/        GUIDE.md, guide/ images
 
 ## 🟠 3. High: container fixes
 
-- [ ] **Fix the image build from a clean clone.** The Dockerfile copies and requires `support-webhook.json`, but that file is in `.gitignore`, so the build fails for anyone but you. Make it optional.
+- [x] **Fix the image build from a clean clone.** `support-webhook.json` is optional in the Dockerfile and the Docker distribution script.
 - [ ] **Run as a non-root user**, with `PUID`/`PGID` support so files on mounted libraries and NAS shares get the right owner.
 - [ ] **Add a `HEALTHCHECK` to the Dockerfile.** The `/api/health` endpoint exists (no login needed).
 - [ ] **Make all configuration available through environment variables**: port, data directory, library paths, admin password, TLS.
@@ -140,6 +142,7 @@ This is the main refactor, and the folder reorganization above happens as part o
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [ ] **Update docs**: the README says version 2.2.9; rewrite the install section with Docker first.
+- [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)

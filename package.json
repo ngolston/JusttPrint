@@ -242,30 +242,10 @@
   },
   "overrides": {
     "tar": "^6.2.1",
-    "node-abi": "^3.94.0",
-    "@puppeteer/browsers": {
-      "basic-ftp": "5.3.1"
-    },
-    "basic-ftp": {
-      "basic-ftp": "5.3.1"
-    },
-    "get-uri": {
-      "basic-ftp": "5.3.1"
-    },
-    "pac-proxy-agent": {
-      "basic-ftp": "5.3.1"
-    },
-    "proxy-agent": {
-      "basic-ftp": "5.3.1"
-    },
-    "puppeteer": {
-      "basic-ftp": "5.3.1"
-    },
-    "puppeteer-core": {
-      "basic-ftp": "5.3.1"
-    }
+    "node-abi": "^3.94.0"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
     "acme-client": "^5.4.0",
     "better-sqlite3": "^12.11.1",
     "chart.js": "^4.4.0",
@@ -279,10 +259,9 @@
     "node-stream-zip": "^1.15.0",
     "occt-import-js": "^0.0.23",
     "openai": "^6.9.1",
-    "puppeteer": "^24.31.0",
+    "puppeteer": "^25.12.0",
     "selfsigned": "^5.5.0",
     "three": "^0.181.2",
-    "ws": "^8.14.2",
-    "xmldom": "^0.6.0"
+    "ws": "^8.14.2"
   }
 }

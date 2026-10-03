@@ -128,7 +128,7 @@ Server Mode requires a password. Browsers log in once and stay logged in for 30 
 - **Send to Slicer helper**: links carry a download token that expires after 15 minutes. Helpers installed before login was added must be reinstalled from **Settings → Slicer**.
 - **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `PRINTVENTORY_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
 
-The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates.
+The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates. From the browser and MCP, deleting, moving and reading files works only inside the library, and system folders (such as `/etc`, `/usr` or the app's own folders) cannot be scanned or used as an Organize Library destination.
 
 ### Important Requirements
 

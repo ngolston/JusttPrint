@@ -10,6 +10,10 @@ All notable changes contributed via pull request are documented in this file.
 - The server no longer serves server code, `node_modules`, `package.json` or the support webhook file
 - WebSocket connections and state-changing requests from other websites are refused
 - Send to Slicer links carry a short-lived download token. Reinstall the helper from Settings → Slicer
+- Browser and MCP requests can only read, delete or move files inside the library folders. Scans and Organize Library cannot target system or app folders, and MCP backups and exports only write to the library or data folder
+- Security headers on every response, and `X-Powered-By` removed
+- Replaced the abandoned `xmldom` with `@xmldom/xmldom`, updated Puppeteer to 25, and applied the other dependency security fixes
+- The Docker image builds without `support-webhook.json`; Send Support Logs then uses `DISCORD_WEBHOOK_URL`
 - Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
 - The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
 

@@ -262,7 +262,7 @@ class Simple3MFLoader {
   }
 
   parseWithDom(modelXmlParts, modelEntries, unzipped) {
-    const parser = new (require('xmldom').DOMParser)();
+    const parser = new (require('@xmldom/xmldom').DOMParser)();
     const textDecoder = new TextDecoder();
     const modelDocs = modelEntries.map((path, i) => {
       const xmlDoc = parser.parseFromString(modelXmlParts[i], 'text/xml');

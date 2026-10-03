@@ -710,6 +710,7 @@ function listToolDefinitions() {
 
 async function callTool(name, args, ctx) {
   const a = args && typeof args === 'object' ? args : {};
+  if (typeof ctx.assertToolArgs === 'function') ctx.assertToolArgs(name, a);
   switch (name) {
     case 'search_models':
       return ctx.searchModels({

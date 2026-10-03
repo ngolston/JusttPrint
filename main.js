@@ -24,7 +24,7 @@ const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH } = require('./server-auth');
-const { isServableStaticPath, isLibraryPathAllowed } = require('./server-paths');
+const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
   shouldSkipDirectoryName,
@@ -576,6 +576,15 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   // Same-origin CORS, login, then everything else requires a session or API token.
   const auth = getServerAuth();
   auth.ensureCredentials();
+  expressApp.disable('x-powered-by');
+  expressApp.use((req, res, next) => {
+    // No script-src yet: the UI still relies on inline scripts and onclick handlers.
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    next();
+  });
   expressApp.use(auth.cors);
   expressApp.use(auth.rejectForeignOrigins);
   expressApp.get('/api/health', (req, res) => {
@@ -1181,6 +1190,15 @@ ${bridgeCode}
           return; // Don't try to handle as IPC call
         }
 
+        // Browsers may only pass paths inside the library (see server-paths.js).
+        try {
+          assertNetworkIpcArgs(channel, args || [], networkPathContext());
+        } catch (guardError) {
+          console.warn(`[Server] Refused ${channel}: ${guardError.message}`);
+          ws.send(JSON.stringify({ id, type: 'error', error: guardError.message }));
+          return;
+        }
+
         // Call IPC handlers directly instead of through hidden window
         // This is more reliable and faster
         try {
@@ -1604,17 +1622,29 @@ function staticWebAssetsOnly(staticHandler) {
   return (req, res, next) => (isServableStaticPath(req.path) ? staticHandler(req, res, next) : next());
 }
 
-/** /api/file and /api/download only serve library files, plus backups and exports. */
-function libraryPathAllowed(filePath) {
+/** Library roots and folders that network callers (browser, MCP) are checked against. */
+function networkPathContext() {
   let generatedDir = '';
   try {
     generatedDir = path.dirname(getDatabasePath());
   } catch (_) { /* db not ready */ }
-  return isLibraryPathAllowed(filePath, {
+  let dataDir = '';
+  try {
+    dataDir = app.getPath('userData');
+  } catch (_) { /* app not ready */ }
+  return {
     roots: [...getLibraryRootPaths(), ...readScannedDirectorySetting()],
     generatedDir,
+    appDir: __dirname,
+    dataDir,
+    isExtractTemp: (candidate) => isPrintventoryExtractTempPath(candidate),
     isKnownModel: (candidate) => !!(db && db.prepare('SELECT 1 FROM models WHERE filePath = ? LIMIT 1').get(candidate))
-  });
+  };
+}
+
+/** /api/file and /api/download only serve library files, plus backups and exports. */
+function libraryPathAllowed(filePath) {
+  return isLibraryPathAllowed(filePath, networkPathContext());
 }
 
 let extensionInboxTimer = null;
@@ -2017,6 +2047,8 @@ function removeModelsFromLibraryByPaths(filePaths) {
 
 function getMcpToolContext() {
   return {
+    // MCP is always a network caller: same path rules as the browser.
+    assertToolArgs: (name, args) => assertMcpToolArgs(name, args, networkPathContext()),
     getVersion: () => version,
     searchModels: async (filters) => {
       const models = await getModelsFilteredHandler(null, {
@@ -7867,7 +7899,7 @@ ipcMain.handle('fetch-thangs-page', async (event, url) => {
     console.log('Fetching Thangs page:', url);
     
     const browser = await puppeteer.launch({
-      headless: 'new'  // Use new headless mode
+      headless: true
     });
     
     const page = await browser.newPage();

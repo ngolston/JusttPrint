@@ -73,7 +73,6 @@ const filesToCopy = [
   'stl-sanity.js',
   'ai-rate-limit.js',
   'support-logs.js',
-  'support-webhook.json',
   'parse-worker.js',
   'preview-3mf-worker-node.js',
   'threemf-loader-simple.js',
@@ -114,6 +113,11 @@ if (missingFiles.length) {
 filesToCopy.forEach((file) => {
   fs.copyFileSync(file, path.join(dockerDistDir, file));
 });
+
+// Optional: not in the repository. Without it, Send Support Logs needs DISCORD_WEBHOOK_URL.
+if (fs.existsSync('support-webhook.json')) {
+  fs.copyFileSync('support-webhook.json', path.join(dockerDistDir, 'support-webhook.json'));
+}
 
 // Copy assets
 console.log('Copying assets...');
