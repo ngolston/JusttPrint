@@ -20,6 +20,10 @@ All notable changes contributed via pull request are documented in this file.
 - The Docker container runs as a regular user. Set `PUID`/`PGID` to the owner of your library files (default 1000:1000; `PUID=0` keeps root). The data folder is re-owned on first start
 - The Docker image includes Electron instead of downloading it on every new container's first start
 - Docker reports the container as healthy or unhealthy (`HEALTHCHECK`)
+- New Docker settings: `PRINTVENTORY_ENABLE_ZIP`, `PRINTVENTORY_FILE_TYPES`, `PRINTVENTORY_SCAN_EXCLUDE` and `PRINTVENTORY_AI_*` (applied on every start)
+- Setting values, including API keys, are no longer written to the log
+- `docker stop` closes the database cleanly before exiting, and the quit backup is taken after a checkpoint
+- `npm run docker:hub:multiarch` publishes one image for Intel/AMD and ARM (Raspberry Pi, Apple Silicon, many NAS boxes)
 - Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
 - The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
 

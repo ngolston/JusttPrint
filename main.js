@@ -24,6 +24,7 @@ const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy } = require('./server-auth');
+const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -1642,6 +1643,40 @@ function libraryPathAllowed(filePath) {
   return isLibraryPathAllowed(filePath, networkPathContext());
 }
 
+let databaseClosedOnQuit = false;
+
+/**
+ * Last step of every normal quit (docker stop, closing the window, Ctrl+C): Chromium turns
+ * SIGTERM/SIGINT into an app quit, so Node signal handlers never run. will-quit handlers are
+ * synchronous and finish before exit. Statements are synchronous too, so no write is cut off.
+ */
+function closeDatabaseOnQuit() {
+  if (databaseClosedOnQuit) return;
+  databaseClosedOnQuit = true;
+  try {
+    if (serverThumbnailJob.status === 'running') serverThumbnailJob.cancelRequested = true;
+  } catch (_) { /* job state not initialized */ }
+  try {
+    if (wsClients) wsClients.forEach((client) => { try { client.close(1001, 'Server shutting down'); } catch (_) { /* ignore */ } });
+    if (httpServer) httpServer.close();
+  } catch (error) {
+    console.warn('[Quit] Closing connections:', error.message);
+  }
+  try {
+    if (db && db.open) {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+      // A plain copy is consistent only after the checkpoint and close.
+      fs.copyFileSync(getDatabasePath(), path.join(app.getPath('userData'), 'backup_printventory.db'));
+      console.log('[Quit] Database closed and backed up.');
+    }
+  } catch (error) {
+    console.error('[Quit] Closing the database:', error);
+  }
+}
+
+app.on('will-quit', closeDatabaseOnQuit);
+
 let extensionInboxTimer = null;
 let extensionInboxImporting = false;
 
@@ -3128,6 +3163,7 @@ if (!gotTheLock) {
       applyStlHomeEnvIfNeeded(process.env.STL_HOME);
       applyStlHomeExcludeEnvIfNeeded(process.env.STL_HOME_EXCLUDE);
       applyDockerEnvSettingIfNeeded('serverHttpPort', process.env.PRINTVENTORY_PORT);
+      applyEnvSettings();
 
       // Clear leftover zip-extract temps off the critical path (can readdir a busy OS temp)
       setImmediate(() => {
@@ -3246,10 +3282,7 @@ if (!gotTheLock) {
 
   // Add this function to handle app updates
   app.on('ready', () => {
-    // Store the user data path before any potential uninstall
-    const userDataPath = app.getPath('userData');
-    
-    // Create a backup of the database before updates
+    // Stop listeners and temp files on quit. The database backup happens in will-quit.
     app.on('before-quit', async () => {
       try {
         await stopPort80Server();
@@ -3265,15 +3298,6 @@ if (!gotTheLock) {
         await cleanupExtractTempDirectory({ maxAgeMs: 0 });
       } catch (error) {
         console.warn('Extract temp cleanup on quit failed:', error.message);
-      }
-      try {
-        const dbPath = getDatabasePath();
-        const backupPath = path.join(userDataPath, 'backup_printventory.db');
-        if (fs.existsSync(dbPath)) {
-          await fs.promises.copyFile(dbPath, backupPath);
-        }
-      } catch (error) {
-        console.error('Error creating backup:', error);
       }
     });
   });
@@ -6707,9 +6731,8 @@ ipcMain.handle('remove-models-by-file-type-ids', async (event, catalogIds) => {
 const getSettingHandler = async (event, key) => {
   try {
     if (SECRET_SETTING_KEYS.has(key)) return null;
-    console.log('Main Process - Getting setting:', key);
+    // Values are not logged: some are API keys, and reads happen constantly.
     const result = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    console.log('Main Process - Setting value:', result?.value);
     return result?.value || null;
   } catch (error) {
     console.error('Error getting setting:', error);
@@ -6735,22 +6758,13 @@ const saveSettingHandler = async (event, key, value) => {
     if (SECRET_SETTING_KEYS.has(key)) {
       throw new Error(`Setting ${key} can only be changed under Server Access`);
     }
-    console.log('Main Process - Saving setting:', key, value);
-    
-    // Ensure database is initialized
     if (!db) {
       console.error('Database not initialized when saving setting');
       return false;
     }
-    
-    // Execute the database update
-    const result = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
-    console.log('Database update result:', result);
-    
-    // Verify the save worked
-    const verify = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    console.log(`Verified setting '${key}' saved as:`, verify?.value);
-    
+    // Log the key only: values can be API keys.
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+    console.log('Saved setting:', key);
     return true;
   } catch (error) {
     console.error('Error saving setting:', error);
@@ -10095,6 +10109,20 @@ function migrateLegacyServerDbIfNeeded(persistedPath) {
  * Apply Docker/env defaults without clobbering user-saved settings on every restart.
  * Set PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1 to always apply env (old behavior).
  */
+/** PRINTVENTORY_ENABLE_ZIP, PRINTVENTORY_FILE_TYPES, PRINTVENTORY_AI_* and friends (env-settings.js). */
+function applyEnvSettings() {
+  if (!db) return;
+  const { settings, errors } = settingsFromEnv(process.env, {
+    fileTypeIds: ADDITIONAL_FILE_TYPES_CATALOG.map((entry) => entry.id)
+  });
+  const save = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  for (const { env, key, value } of settings) {
+    save.run(key, value);
+    console.log(`Startup env applied setting ${key} from ${env}:`, SECRET_ENV.has(env) ? '(hidden)' : value);
+  }
+  for (const error of errors) console.error(`Ignored environment variable ${error}`);
+}
+
 function applyDockerEnvSettingIfNeeded(key, envValue) {
   if (!db || !envValue || !String(envValue).trim()) return;
   const trimmed = String(envValue).trim();

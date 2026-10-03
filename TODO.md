@@ -78,9 +78,9 @@ docs/        GUIDE.md, guide/ images
 - [x] **Run as a non-root user** with `PUID`/`PGID` (default 1000:1000, `PUID=0` for root). The data folder is re-owned on start only when needed; the app keeps the right to bind port 80 for Let's Encrypt.
 - [x] **Bake the Electron binary into the image.** `npm install --ignore-scripts` skipped it, so every new container downloaded ~100 MB from GitHub at startup.
 - [x] **Add a `HEALTHCHECK` to the Dockerfile.** `healthcheck.js` asks `/api/health` on the port and scheme the server actually listens on.
-- [ ] **Make all configuration available through environment variables**: port, data directory, library paths, admin password, TLS.
-- [ ] **Shut down cleanly on `docker stop`**: close the database and let in-progress scans finish or roll back.
-- [ ] **Publish a multi-arch image** (amd64 and arm64) for Raspberry Pi, Apple Silicon and many NAS boxes.
+- [x] **Make configuration available through environment variables.** Port, password, library paths, TLS and the database path already had variables; added zip support, extra file types, scan exclusions and AI settings (`env-settings.js`), documented in the README table. Setting values (including API keys) are no longer written to the log.
+- [x] **Shut down cleanly on `docker stop`.** On every quit (`docker stop`, closing the window, Ctrl+C) a `will-quit` handler cancels the thumbnail job, closes connections, checkpoints and closes the database, then copies the backup. Tested by stopping the container in the middle of a 22,000-model thumbnail job: database intact.
+- [x] **Publish a multi-arch image.** `npm run docker:hub:multiarch` builds `linux/amd64` and `linux/arm64` with Buildx and pushes one tag (`PRINTVENTORY_PLATFORMS` to change the list).
 
 ## 🟡 4. Medium: standalone server (remove Electron from the container)
 

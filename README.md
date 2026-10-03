@@ -538,8 +538,22 @@ docker compose up -d
 
 ##### Environment variables
 
+Variables marked **every start** win over the UI each time the container starts. The rest only fill a setting that is empty, unless `PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1`.
+
 | Variable | Purpose |
 |----------|---------|
+| `PUID` / `PGID` | User and group the app runs as, and the owner of files it writes. Match the owner of your library (`id -u`, `id -g`). Default `1000`/`1000`; `PUID=0` runs as root. |
+| `PRINTVENTORY_PASSWORD` | Web UI login password (**every start**). Unset: a random one is printed once in the log. |
+| `PRINTVENTORY_PORT` | Listen port inside the container (default `5000`). Map the same port in `ports:`. |
+| `PRINTVENTORY_ALLOWED_ORIGINS` | Extra browser addresses allowed to connect, comma separated (reverse proxies that rewrite `Host`). |
+| `PRINTVENTORY_TRUST_PROXY` | Number of reverse proxies in front (`1`), `true`, or their addresses, so the login rate limit sees real client addresses. |
+| `PRINTVENTORY_ENABLE_ZIP` | `true`/`false`: scan models inside zip archives (**every start**). |
+| `PRINTVENTORY_FILE_TYPES` | Extra file types to scan, comma separated: `obj`, `step`, `ply`, `3ds`, `amf`, `blender`, `chitubox`, `dae`, `dwg`, `dxf`, `f3d`, `f3z`, `fbx`, `gcode`, `igs`, `lys`, `svg`, `voxl`, `x3d` (**every start**). |
+| `PRINTVENTORY_SCAN_EXCLUDE` | Folder names to skip while scanning, comma separated (**every start**). |
+| `PRINTVENTORY_AI_SERVICE` | AI tagging service: `openai`, `claude`, `gemini`, `puter` or `custom` (**every start**). |
+| `PRINTVENTORY_AI_API_KEY` | API key for that service (**every start**; never written to the log). |
+| `PRINTVENTORY_AI_MODEL` / `PRINTVENTORY_AI_ENDPOINT` | AI model name, and endpoint URL for `custom` or self-hosted services (**every start**). |
+| `DISCORD_WEBHOOK_URL` | Where **Send Support Logs** uploads (only needed when the image has no `support-webhook.json`). |
 | `STL_HOME` | STL Home scan directories on start (Linux paths inside the container). One path, or several separated by commas, semicolons, or newlines, or a JSON array. |
 | `STL_HOME_EXCLUDE` | Directories STL Home scans skip. Comma, semicolon, or newline separated container paths, or a JSON array. Same empty-vs-override rules as `STL_HOME`. |
 | `PRINTVENTORY_ENV_OVERRIDES_SETTINGS` | Set to `1` to re-apply env settings on every start (legacy). By default, env fills unset DB settings only. |

@@ -160,6 +160,39 @@ function pushImage(tag = null) {
   console.log(`  https://hub.docker.com/r/${dockerHubUsername}/${imageName}`);
 }
 
+// Build for several CPU architectures and push one multi-platform tag (Docker Buildx).
+// Each machine pulls the image for its own CPU: Intel/AMD PCs and NAS boxes, Raspberry Pi,
+// Apple Silicon. Override the list with PRINTVENTORY_PLATFORMS (comma separated).
+function buildAndPushMultiArch() {
+  const runtime = containerRuntime.getRuntime();
+  if (runtime.endsWith('podman')) {
+    console.error('Multi-architecture builds use Docker Buildx. Run this with Docker, not Podman.');
+    process.exit(1);
+  }
+  const platforms = (process.env.PRINTVENTORY_PLATFORMS || 'linux/amd64,linux/arm64').replace(/\s+/g, '');
+  const builder = 'printventory-multiarch';
+
+  // The default "docker" driver cannot build several platforms at once; use a container builder.
+  try {
+    execSync(`${runtime} buildx inspect ${builder}`, { stdio: 'ignore' });
+  } catch (_) {
+    console.log(`Creating Buildx builder "${builder}"...`);
+    if (!exec(`${runtime} buildx create --name ${builder} --driver docker-container`)) process.exit(1);
+  }
+
+  console.log(`Building ${fullImageName} for ${platforms} and pushing ${versionTag} and ${latestTag}...`);
+  console.log('Platforms other than this machine\'s are emulated, so expect this to take a while.');
+  const ok = exec(
+    `${runtime} buildx build --builder ${builder} --platform ${platforms} ` +
+    `-t ${versionTag} -t ${latestTag} --push .`
+  );
+  if (!ok) {
+    printPushAuthHelp();
+    process.exit(1);
+  }
+  console.log(`✓ Pushed ${versionTag} and ${latestTag} for ${platforms}`);
+}
+
 // Main command handler
 const command = process.argv[2];
 
@@ -182,6 +215,10 @@ switch (command) {
     
   case 'push-latest':
     pushImage(latestTag);
+    break;
+
+  case 'multiarch':
+    buildAndPushMultiArch();
     break;
     
   case 'all':
@@ -214,6 +251,7 @@ switch (command) {
     console.log('  push-version   Push only the version tag to Docker Hub');
     console.log('  push-latest    Push only the latest tag to Docker Hub');
     console.log('  all            Complete workflow: build, tag, and push');
+    console.log('  multiarch      Build amd64 + arm64 (Buildx) and push version and latest tags');
     console.log('');
     console.log('Environment Variables:');
     console.log('  DOCKER_HUB_USERNAME  Your Docker Hub username (required)');

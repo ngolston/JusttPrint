@@ -100,6 +100,7 @@ const filesToCopy = [
   'server-tls.js',
   'server-auth.js',
   'server-paths.js',
+  'env-settings.js',
   'extension-inbox.js'
 ];
 

@@ -44,6 +44,7 @@ $rootFiles = @(
     "server-tls.js",
     "server-auth.js",
     "server-paths.js",
+    "env-settings.js",
     "mcp-server.js",
     "scan-worker.js",
     "parse-worker.js",

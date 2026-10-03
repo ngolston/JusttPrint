@@ -80,6 +80,15 @@ services:
       # - PRINTVENTORY_PASSWORD=change-me-please
       # Extra browser origins allowed to connect, e.g. behind a reverse proxy that rewrites Host.
       # - PRINTVENTORY_ALLOWED_ORIGINS=https://library.example.com
+      # Number of reverse proxies in front, so the login rate limit sees real client addresses.
+      # - PRINTVENTORY_TRUST_PROXY=1
+      # Library and AI settings. These win over the UI on every start (README: Environment variables).
+      # - PRINTVENTORY_ENABLE_ZIP=true
+      # - PRINTVENTORY_FILE_TYPES=obj,step
+      # - PRINTVENTORY_SCAN_EXCLUDE=cache,renders
+      # - PRINTVENTORY_AI_SERVICE=openai
+      # - PRINTVENTORY_AI_API_KEY=sk-...
+      # - PRINTVENTORY_AI_MODEL=gpt-5-nano
       # Listen port inside the container (Settings → HTTPS / SSL). Default 5000. Map the same
       # port in `ports:` above. PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1 makes this win every start.
       # - PRINTVENTORY_PORT=5001

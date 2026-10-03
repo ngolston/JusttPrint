@@ -19,6 +19,7 @@
     "docker:push:version": "node scripts/docker-hub-push.js push-version",
     "docker:push:latest": "node scripts/docker-hub-push.js push-latest",
     "docker:hub:all": "node scripts/docker-hub-push.js all",
+    "docker:hub:multiarch": "node scripts/docker-hub-push.js multiarch",
     "docker:local": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env up -d --build && echo Printventory is starting at http://localhost:5055",
     "docker:local:logs": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env logs -f",
     "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env down",
@@ -51,6 +52,7 @@
     "test:support-logs": "node support-logs.test.js",
     "test:server-auth": "node server-auth.test.js",
     "test:server-paths": "node server-paths.test.js",
+    "test:env-settings": "node env-settings.test.js",
     "test:full": "playwright test full-app-e2e.spec.js",
     "test:dedup-stress": "node tests/dedup-stress-test.js"
   },
@@ -225,6 +227,7 @@
       "server-tls.js",
       "server-auth.js",
       "server-paths.js",
+      "env-settings.js",
       "extension-inbox.js",
       "mcp-server.js",
       "installer.nsh",
