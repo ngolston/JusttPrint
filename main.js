@@ -294,14 +294,7 @@ function validateUncPath(path, operation = 'operation') {
 
 // Helper function to safely get BrowserWindow from event (returns null in server mode)
 function getWindowFromEvent(event) {
-  if (isServerMode) {
-    return null;
-  }
-  try {
-    return BrowserWindow.fromWebContents(event.sender);
-  } catch (error) {
-    return null;
-  }
+  return null;
 }
 
 function getTlsCertsDir() {
@@ -898,7 +891,7 @@ ${bridgeCode}
         if (useTls) {
           console.log(`TLS enabled (source: ${tlsResolved.source}): browser will use wss:// for the Printventory bridge (same port).`);
         }
-        if (isServerMode && !localhostOnly) {
+        if (!localhostOnly) {
           syncPort80Server().catch((err) => {
             console.warn('[TLS] Port 80 listener:', err.message);
           });
@@ -1033,14 +1026,14 @@ ${bridgeCode}
           // These are events that should be broadcast to all clients
           // In server mode, broadcast to all WebSocket clients
           // In normal mode, trigger the ipcMain.on() handler which sends to the renderer
-          if (isServerMode && global.broadcastEvent) {
+          if (global.broadcastEvent) {
             // Broadcast to all WebSocket clients (they'll receive as type: 'event')
             global.broadcastEvent(channel, ...(args || []));
           } else {
             // In normal mode, trigger the ipcMain.on() handler
             // Create a mock event object to trigger the handler
             const mockEvent = {
-              sender: mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null
+              sender: null
             };
             
             // Get all listeners for this channel and trigger them
@@ -1053,9 +1046,6 @@ ${bridgeCode}
                   console.error(`Error in ipcMain.on('${channel}') handler:`, error);
                 }
               });
-            } else if (mainWindow && !mainWindow.isDestroyed()) {
-              // If no listeners, send directly to the renderer
-              mainWindow.webContents.send(channel, ...(args || []));
             }
           }
           return; // Don't try to handle as IPC call
@@ -1078,7 +1068,7 @@ ${bridgeCode}
             sender: {
               send: (eventChannel, ...eventArgs) => {
                 // Broadcast event to all WebSocket clients in server mode
-                if (isServerMode && global.broadcastEvent) {
+                if (global.broadcastEvent) {
                   global.broadcastEvent(eventChannel, ...eventArgs);
                 } else {
                   // Send event back via WebSocket to this specific client
@@ -1091,7 +1081,7 @@ ${bridgeCode}
               }
             },
             // Add wsClient for server mode so createPuterIPCHandler can use it
-            wsClient: isServerMode ? ws : null,
+            wsClient: ws,
             // Set for every call that arrives over the network (any mode)
             fromNetwork: true
           };
@@ -1146,87 +1136,7 @@ ${bridgeCode}
               }));
             }
           } else {
-            // Fallback: Try to find handler using Electron's internal mechanism
-            // This is for handlers that weren't registered in our registry
-            // Use the hidden window as fallback if direct call doesn't work
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              // Wait if window is still loading
-              if (mainWindow.webContents.isLoading()) {
-                await new Promise(resolve => {
-                  const timeout = setTimeout(resolve, 5000);
-                  mainWindow.webContents.once('did-finish-load', () => {
-                    clearTimeout(timeout);
-                    resolve();
-                  });
-                });
-              }
-              
-              // Stringify args for safe injection into JavaScript code
-              const argsJson = JSON.stringify(args || []);
-              
-              const result = await mainWindow.webContents.executeJavaScript(`
-                (async () => {
-                  try {
-                    if (window.electron) {
-                      const args = ${argsJson};
-                      
-                      // Convert channel name to method name (e.g., 'save-setting' -> 'saveSetting')
-                      const methodName = '${channel}'.split('-').map((word, i) => 
-                        i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
-                      ).join('');
-                      
-                      // Use the specific method if it exists (e.g., saveSetting, getSetting, purgeModels)
-                      // This ensures all arguments are passed correctly
-                      if (window.electron[methodName] && typeof window.electron[methodName] === 'function') {
-                        // Call the method with the appropriate number of arguments
-                        const result = args.length === 0 
-                          ? await window.electron[methodName]()
-                          : await window.electron[methodName](...args);
-                        return result;
-                      } else if (window.electron.invoke && typeof window.electron.invoke === 'function') {
-                        // Fallback: use window.electron.invoke (available through preload script)
-                        // Note: preload.js invoke only accepts one data argument, so we pass args as an array
-                        const result = await window.electron.invoke('${channel}', args);
-                        return result;
-                      } else {
-                        throw new Error('window.electron methods not available');
-                      }
-                    } else {
-                      throw new Error('window.electron not available');
-                    }
-                  } catch (error) {
-                    console.error('Hidden window - invoke error:', error);
-                    throw error;
-                  }
-                })()
-              `);
-              // Convert ArrayBuffer to base64 for WebSocket transmission
-              let serializedResult = result;
-              if (result instanceof ArrayBuffer) {
-                const buffer = Buffer.from(result);
-                serializedResult = {
-                  __arrayBuffer: true,
-                  data: buffer.toString('base64'),
-                  byteLength: result.byteLength
-                };
-              } else if (result && result.buffer instanceof ArrayBuffer) {
-                // Handle TypedArray (Uint8Array, etc.)
-                const buffer = Buffer.from(result.buffer, result.byteOffset, result.byteLength);
-                serializedResult = {
-                  __arrayBuffer: true,
-                  data: buffer.toString('base64'),
-                  byteLength: result.byteLength
-                };
-              }
-              
-              ws.send(jsonStringifyForWs({
-                id,
-                type: 'result',
-                result: serializedResult
-              }));
-            } else {
-              throw new Error(`IPC handler '${channel}' not found`);
-            }
+            throw new Error(`IPC handler '${channel}' not found`);
           }
         } catch (error) {
           console.error('Error executing IPC call:', error);
@@ -1286,7 +1196,7 @@ ${bridgeCode}
   
   // Helper function to send events (works in both normal and server mode)
   global.sendEvent = function(event, channel, ...args) {
-    if (isServerMode && global.broadcastEvent) {
+    if (global.broadcastEvent) {
       global.broadcastEvent(channel, ...args);
     } else if (event && event.sender) {
       event.sender.send(channel, ...args);
@@ -1520,8 +1430,6 @@ async function runExtensionInboxImport(reason) {
       try {
         if (typeof global.broadcastEvent === 'function') {
           global.broadcastEvent('refresh-grid');
-        } else if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('refresh-grid');
         }
       } catch (e) {
         console.warn('[Extension inbox] refresh-grid failed:', e.message);
@@ -1577,12 +1485,11 @@ function getServerListenPort() {
 }
 
 function getAppListenPort() {
-  return isServerMode ? getServerListenPort() : getConfiguredHttpPort();
+  return getServerListenPort();
 }
 
 function localHttpServerShouldRun() {
-  if (isServerMode) return true;
-  return getSettingValueOr('enableMcpServer', '0') === '1';
+  return true;
 }
 
 function getHttpServerListenPort() {
@@ -1608,50 +1515,26 @@ function collectLanAddresses() {
 }
 
 async function syncLocalHttpServer(port) {
-  if (isServerMode) {
-    return { success: true, running: true, port: getHttpServerListenPort() || getAppListenPort() };
-  }
-  const portNum = parseInt(port, 10) || getConfiguredHttpPort();
-  if (!localHttpServerShouldRun()) {
-    if (httpServer) await stopHttpServer();
-    return { success: true, running: false, port: portNum };
-  }
-  const currentPort = getHttpServerListenPort();
-  if (httpServer && currentPort === portNum) {
-    return { success: true, running: true, port: portNum };
-  }
-  try {
-    if (httpServer) await stopHttpServer();
-    console.log('[Local HTTP] Starting server on port', portNum, '...');
-    await startHttpServer(portNum, true);
-    return { success: true, running: true, port: portNum };
-  } catch (error) {
-    console.error('[Local HTTP] Failed to start server:', error.message);
-    return { success: false, running: false, port: portNum, message: error?.message || 'Failed to start' };
-  }
+  return { success: true, running: true, port: getHttpServerListenPort() || getAppListenPort() };
 }
 
 function getMcpConnectionInfo() {
   const port = getHttpServerListenPort() || getConfiguredHttpPort();
-  const enabled = isServerMode || getSettingValueOr('enableMcpServer', '0') === '1';
-  const running = isServerMode ? !!httpServer : (!!httpServer && enabled);
-  const lanAddresses = isServerMode ? collectLanAddresses() : [];
+  const enabled = true;
+  const running = !!httpServer;
+  const lanAddresses = collectLanAddresses();
   const scheme = resolveAppTls().options ? 'https' : 'http';
   const localUrl = `${scheme}://127.0.0.1:${port}/mcp`;
-  const urls = isServerMode
-    ? [`${scheme}://<server-host>:${port}/mcp`, localUrl, ...lanAddresses.map((ip) => `${scheme}://${ip}:${port}/mcp`)]
-    : [localUrl];
-  const primaryUrl = isServerMode
-    ? (lanAddresses[0] ? `${scheme}://${lanAddresses[0]}:${port}/mcp` : `${scheme}://0.0.0.0:${port}/mcp`)
-    : localUrl;
+  const urls = [`${scheme}://<server-host>:${port}/mcp`, localUrl, ...lanAddresses.map((ip) => `${scheme}://${ip}:${port}/mcp`)];
+  const primaryUrl = (lanAddresses[0] ? `${scheme}://${lanAddresses[0]}:${port}/mcp` : `${scheme}://0.0.0.0:${port}/mcp`);
   return {
-    serverMode: isServerMode,
+    serverMode: true,
     enabled,
     running,
     port,
     url: primaryUrl,
     urls,
-    clientConfig: buildMcpClientConfig(isServerMode ? `${scheme}://<server-host>:${port}/mcp` : localUrl, getServerAuth().apiToken()),
+    clientConfig: buildMcpClientConfig(`${scheme}://<server-host>:${port}/mcp`, getServerAuth().apiToken()),
     tools: listToolDefinitions().map((t) => t.name),
     serverName: MCP_SERVER_NAME
   };
@@ -1994,8 +1877,8 @@ function pathExistsOnDisk(filePath) {
 function removeModelsFromLibraryByPaths(filePaths) {
   const { removed, missing } = deleteModelsByFilePaths(filePaths);
   if (removed.length) {
-    if (isServerMode && global.broadcastEvent) global.broadcastEvent('refresh-grid');
-    else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('refresh-grid');
+    if (global.broadcastEvent)
+      global.broadcastEvent('refresh-grid');
   }
   return { success: true, removedCount: removed.length, removed, missing };
 }
@@ -2180,8 +2063,8 @@ function getMcpToolContext() {
       const model = resolveModelForMcp(args);
       await saveThumbnail(model.filePath, args.image);
       const payload = { filePath: model.filePath, thumbnailCount: 1, hasMultiple: false, newImageIsDefault: true };
-      if (isServerMode && global.broadcastEvent) global.broadcastEvent('thumbnail-added', payload);
-      else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('thumbnail-added', payload);
+      if (global.broadcastEvent)
+        global.broadcastEvent('thumbnail-added', payload);
       return { success: true, id: model.id, filePath: model.filePath };
     },
     addThumbnail: async (args) => {
@@ -2200,8 +2083,8 @@ function getMcpToolContext() {
       await saveThumbnail(model.filePath, updated);
       const thumbs = parseThumbnails(updated);
       const payload = { filePath: model.filePath, thumbnailCount: thumbs.length, defaultChanged: true };
-      if (isServerMode && global.broadcastEvent) global.broadcastEvent('thumbnail-default-changed', payload);
-      else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('thumbnail-default-changed', payload);
+      if (global.broadcastEvent)
+        global.broadcastEvent('thumbnail-default-changed', payload);
       return { success: true, id: model.id, filePath: model.filePath, thumbnailCount: thumbs.length };
     },
     deleteThumbnail: async (args) => {
@@ -2217,8 +2100,8 @@ function getMcpToolContext() {
       thumbnails.splice(index, 1);
       await saveThumbnail(model.filePath, thumbnails.join('::'));
       const payload = { filePath: model.filePath, thumbnailCount: thumbnails.length };
-      if (isServerMode && global.broadcastEvent) global.broadcastEvent('thumbnail-deleted', payload);
-      else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('thumbnail-deleted', payload);
+      if (global.broadcastEvent)
+        global.broadcastEvent('thumbnail-deleted', payload);
       return { success: true, id: model.id, filePath: model.filePath, thumbnailCount: thumbnails.length };
     },
     findDuplicates: async (args) => {
@@ -2474,8 +2357,8 @@ function getMcpToolContext() {
         db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, filePath);
         moved.push({ from: filePath, to: newDestination });
       }
-      if (isServerMode && global.broadcastEvent) global.broadcastEvent('refresh-grid');
-      else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('refresh-grid');
+      if (global.broadcastEvent)
+        global.broadcastEvent('refresh-grid');
       return { success: true, moved };
     },
     exportLibrary: async (args) => {
@@ -2517,7 +2400,7 @@ function listenWithTimeout(startPromise, ms) {
 }
 
 async function restartHttpServerNow() {
-  const localhostOnly = !isServerMode;
+  const localhostOnly = false;
   const port = getAppListenPort();
   console.log('[Server] Restarting listener on', localhostOnly ? '127.0.0.1' : '0.0.0.0', port);
   await stopHttpServer();
@@ -2528,9 +2411,7 @@ async function restartHttpServerNow() {
     const scheme = resolveAppTls().options ? 'https' : 'http';
     return {
       success: true,
-      message: isServerMode
-        ? `Server restarted at ${scheme}://<host>:${port}. Reopen the UI with that scheme.`
-        : `Local listener restarted at ${scheme}://127.0.0.1:${port}.`
+      message: `Server restarted at ${scheme}://<host>:${port}. Reopen the UI with that scheme.`
     };
   } catch (error) {
     console.error('[Server] Restart bind failed:', error.message);
@@ -2569,7 +2450,6 @@ async function restartHttpServer() {
 }
 
 let db;
-let mainWindow;
 let isGeneratingHashes = false; // Track hash generation state
 let isHashGenerationScheduled = false;
 let isCompressingThumbnailsBackground = false;
@@ -2768,7 +2648,6 @@ function getModelById(modelId, { includeThumbnail = false } = {}) {
 }
 
 function scheduleBackgroundHashGeneration(reason) {
-  if (!isServerMode) return;
   if (isGeneratingHashes || isHashGenerationScheduled) return;
   isHashGenerationScheduled = true;
   // Defer well past first paint / initial thumb wave so UNC I/O is not contended at cold start.
@@ -2791,14 +2670,11 @@ function scheduleBackgroundHashGeneration(reason) {
 
 // IPC handler to expose server mode
 ipcMain.handle('is-server-mode', () => {
-  return isServerMode;
+  return true;
 });
 
 // IPC handler to restart server
 ipcMain.handle('restart-server', async () => {
-  if (!isServerMode) {
-    return { success: false, message: 'Not in server mode' };
-  }
   return await restartHttpServer();
 });
 
@@ -2821,7 +2697,7 @@ function persistTlsSettingsFromPayload(payload) {
   persistSetting('tlsAgreeTos', payload.tlsAgreeTos ? '1' : '0');
   persistSetting('tlsUseStaging', payload.tlsUseStaging ? '1' : '0');
   persistSetting('tlsRedirectHttp', payload.tlsRedirectHttp ? '1' : '0');
-  if (isServerMode && payload.serverHttpPort != null && payload.serverHttpPort !== '') {
+  if (payload.serverHttpPort != null && payload.serverHttpPort !== '') {
     persistSetting('serverHttpPort', String(parseListenPort(payload.serverHttpPort, getServerListenPort())));
   }
   flushSettingsToDisk();
@@ -2832,25 +2708,15 @@ function getTlsStatusForUi() {
   const payload = serverTls.getTlsStatusPayload({
     getSetting: getSettingValueOr,
     certsDir: getTlsCertsDir(),
-    serverMode: isServerMode,
+    serverMode: true,
     scheme: resolved.options ? 'https' : 'http',
     appPort: getAppListenPort()
   });
-  payload.portEnvOverride = !!(isServerMode && getEnvServerListenPort() && envOverridesSettings());
+  payload.portEnvOverride = !!(getEnvServerListenPort() && envOverridesSettings());
   return payload;
 }
 
 async function reloadTlsHttpListener() {
-  if (!isServerMode && !localHttpServerShouldRun()) {
-    if (httpServer) await stopHttpServer();
-    await syncPort80Server().catch(() => {});
-    return {
-      success: true,
-      running: false,
-      port: getAppListenPort(),
-      message: 'TLS settings saved. Enable MCP Server to start the localhost HTTPS listener.'
-    };
-  }
   const port = getAppListenPort();
   const scheme = resolveAppTls().options ? 'https' : 'http';
   setTimeout(() => {
@@ -2930,7 +2796,7 @@ ipcMain.handle('apply-tls-settings', async (_event, payload = {}) => {
 
   try {
     const mode = String(payload.tlsMode || serverTls.TLS_MODES.OFF);
-    if (isServerMode && payload.serverHttpPort != null && String(payload.serverHttpPort).trim() !== '') {
+    if (payload.serverHttpPort != null && String(payload.serverHttpPort).trim() !== '') {
       const requested = parseInt(payload.serverHttpPort, 10);
       if (!Number.isInteger(requested) || requested < 1 || requested > 65535) {
         throw new Error('Listen port must be between 1 and 65535.');
@@ -3014,7 +2880,7 @@ ipcMain.handle('generate-self-signed-cert', async (_event, payload = {}) => {
     if (payload.tlsRedirectHttp != null) {
       persistSetting('tlsRedirectHttp', payload.tlsRedirectHttp ? '1' : '0');
     }
-    if (isServerMode && payload.serverHttpPort != null && payload.serverHttpPort !== '') {
+    if (payload.serverHttpPort != null && payload.serverHttpPort !== '') {
       persistSetting('serverHttpPort', String(parseListenPort(payload.serverHttpPort, getServerListenPort())));
     }
     flushSettingsToDisk();
@@ -3041,27 +2907,14 @@ if (!gotTheLock) {
   console.log('Another instance is already running. Quitting...');
   app.quit();
 } else {
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // Someone tried to run a second instance — show + focus our window.
-    // Must call show(): a window created with show:false that never painted is
-    // not minimized, so restore()/focus() alone leave it invisible.
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (!mainWindow.isVisible()) mainWindow.show();
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
+  app.on('second-instance', (event, commandLine, workingDirectory) => {});
 
   // Create the main window and initialize the app
   app.whenReady().then(async () => {
     try {
       // Initialize database first
       if (!initializeDatabase()) {
-        if (isServerMode) {
-          console.error('Database Error: Failed to initialize database. The application will now quit.');
-        } else {
-          dialog.showErrorBox('Database Error', 'Failed to initialize database. The application will now quit.');
-        }
+        console.error('Database Error: Failed to initialize database. The application will now quit.');
         app.quit();
         return;
       }
@@ -3699,7 +3552,7 @@ ipcMain.handle('open-file-dialog', async () => {
   if (testPath && typeof testPath === 'string') {
     return [testPath];
   }
-  const result = await dialog.showOpenDialog(mainWindow, {
+  const result = await dialog.showOpenDialog(null, {
     properties: ['openDirectory']
   });
   if (result.canceled) {
@@ -3952,7 +3805,7 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
       // Get the window to show dialog - use provided window, mainWindow, or any available window
       let dialogWindow = window;
       if (!dialogWindow) {
-        dialogWindow = mainWindow;
+        dialogWindow = null;
       }
       if (!dialogWindow) {
         const windows = BrowserWindow.getAllWindows();
@@ -3967,44 +3820,13 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
         return fileName;
       }).join('\n');
       const moreFiles = filesToDelete.length > 20 ? `\n... and ${filesToDelete.length - 20} more file(s)` : '';
-      
-      // In server mode or test mode, avoid blocking dialog
-      if (isServerMode) {
-        // Auto-remove in server mode - use transaction for better performance
-        db.transaction(() => {
-          deleteModelsByIds(filesToDelete.map((file) => file.id));
-        })();
-        console.log(`Server mode: Removed ${filesToDelete.length} missing or skipped files from library`);
-        return filesToDelete.length; // Return early in server mode to avoid duplicate deletion
-      } else if (process.env.PRINTVENTORY_TEST_SCAN_PATH) {
-        // Test mode: skip dialog and skip removal so tests don't hang
-        console.log(`Test mode: skipping removal of ${filesToDelete.length} non-existent files from directory ${scanDirectoryPath}`);
-        return 0;
-      } else {
-        const skippedCount = filesToDelete.filter((f) => f.reason === 'skipped').length;
-        const missingCount = filesToDelete.length - skippedCount;
-        let removalMessage = `The scan found ${filesToDelete.length} file${filesToDelete.length === 1 ? '' : 's'} in the library that no longer exist on disk.`;
-        if (skippedCount && !missingCount) {
-          removalMessage = `The scan skipped ${skippedCount} file${skippedCount === 1 ? '' : 's'} in hidden or excluded folders.`;
-        } else if (skippedCount && missingCount) {
-          removalMessage = `The scan found ${missingCount} missing file${missingCount === 1 ? '' : 's'} and ${skippedCount} file${skippedCount === 1 ? '' : 's'} in hidden or excluded folders.`;
-        }
-        const result = await dialog.showMessageBox(dialogWindow || undefined, {
-          type: 'warning',
-          title: 'Confirm File Removal',
-          message: removalMessage,
-          detail: `These files will be removed from the library (files are not deleted from disk):\n\n${fileList}${moreFiles}\n\nDo you want to proceed?`,
-          buttons: ['Remove from Library', 'Skip'],
-          defaultId: 0,
-          cancelId: 1,
-        });
 
-        // If user clicked "Skip", return 0 without deleting
-        if (result.response === 1) {
-          console.log(`User skipped removal of ${filesToDelete.length} non-existent files from directory ${scanDirectoryPath}`);
-          return 0;
-        }
-      }
+      // Auto-remove in server mode - use transaction for better performance
+      db.transaction(() => {
+        deleteModelsByIds(filesToDelete.map((file) => file.id));
+      })();
+      console.log(`Server mode: Removed ${filesToDelete.length} missing or skipped files from library`);
+      return filesToDelete.length; // Return early in server mode to avoid duplicate deletion
     }
 
     // Proceed with deletion if user confirmed or if there were no files to delete
@@ -4085,7 +3907,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
     
     // First, remove any non-existent files from the scanned directory
     // Pass the window so we can show a confirmation dialog if needed (null in server mode)
-    const window = isServerMode ? null : BrowserWindow.fromWebContents(event.sender);
+    const window = null;
     const removedCount = await removeNonExistentFiles(directoryPath, window, excludeDirectories);
     if (removedCount > 0) {
       event.sender.send('db-cleanup', {
@@ -4250,7 +4072,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
             // Send refresh-grid event to update the UI after scanning completes
             // Use setTimeout to ensure the promise resolves first and database is fully updated
             setTimeout(() => {
-              if (isServerMode && global.broadcastEvent) {
+              if (global.broadcastEvent) {
                 global.broadcastEvent('refresh-grid');
               } else {
                 event.sender.send('refresh-grid');
@@ -5892,14 +5714,14 @@ let serverThumbnailJob = {
 };
 
 function broadcastThumbnailJobEvent(channel, payload) {
-  if (isServerMode && global.broadcastEvent) {
+  if (global.broadcastEvent) {
     global.broadcastEvent(channel, payload);
   }
 }
 
 function thumbnailWorkerReady() {
   if (isServerShim) return !!(thumbnailWorkerWs && thumbnailWorkerWs.readyState === WebSocket.OPEN);
-  return !!(mainWindow && !mainWindow.isDestroyed());
+  return false;
 }
 
 function sendToThumbnailWorker(channel, ...args) {
@@ -5908,16 +5730,10 @@ function sendToThumbnailWorker(channel, ...args) {
     thumbnailWorkerWs.send(jsonStringifyForWs({ type: 'event', channel, args }));
     return;
   }
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    throw new Error('Server thumbnail worker window is not ready');
-  }
-  mainWindow.webContents.send(channel, ...args);
+  throw new Error('Server thumbnail worker window is not ready');
 }
 
 async function startServerThumbnailJobInternal(mode) {
-  if (!isServerMode) {
-    return { success: false, error: 'Not in server mode' };
-  }
   if (serverThumbnailJob.status === 'running') {
     return { success: false, error: 'A thumbnail job is already running' };
   }
@@ -6263,39 +6079,37 @@ ipcMain.handle('show-message', async (event, title, message, buttons = ['OK']) =
 
 // Update the backup-database handler
 ipcMain.handle('backup-database', async () => {
-  if (isServerMode) {
+  try {
+    const dbPath = getDatabasePath();
+    const dbDir = path.dirname(dbPath);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(dbDir, `printventory-backup-${timestamp}.db`);
+
+    if (db.open) {
+      db.close();
+    }
+
+    await fs.promises.copyFile(dbPath, backupPath);
+
+    db = new Database(dbPath, { 
+      verbose: DEBUG ? console.log : null 
+    });
+
+    return { success: true, filePath: backupPath };
+  } catch (error) {
+    console.error('Backup error:', error);
     try {
       const dbPath = getDatabasePath();
-      const dbDir = path.dirname(dbPath);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupPath = path.join(dbDir, `printventory-backup-${timestamp}.db`);
-
-      if (db.open) {
-        db.close();
-      }
-
-      await fs.promises.copyFile(dbPath, backupPath);
-
       db = new Database(dbPath, { 
         verbose: DEBUG ? console.log : null 
       });
-
-      return { success: true, filePath: backupPath };
-    } catch (error) {
-      console.error('Backup error:', error);
-      try {
-        const dbPath = getDatabasePath();
-        db = new Database(dbPath, { 
-          verbose: DEBUG ? console.log : null 
-        });
-      } catch (reopenError) {
-        console.error('Error reopening database:', reopenError);
-      }
-      return { success: false, message: error.message };
+    } catch (reopenError) {
+      console.error('Error reopening database:', reopenError);
     }
+    return { success: false, message: error.message };
   }
 
-  const result = await dialog.showSaveDialog(mainWindow, {
+  const result = await dialog.showSaveDialog(null, {
     title: 'Save Database Backup',
     defaultPath: 'printventory-backup.db',
     filters: [
@@ -6339,7 +6153,7 @@ ipcMain.handle('backup-database', async () => {
 
 // Update the restore-database handler
 ipcMain.handle('restore-database', async (event, payload = null) => {
-  if (isServerMode && payload && payload.base64) {
+  if (payload && payload.base64) {
     try {
       const dbPath = getDatabasePath();
       const buffer = Buffer.from(payload.base64, 'base64');
@@ -6353,10 +6167,6 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
       db = new Database(dbPath, { 
         verbose: DEBUG ? console.log : null 
       });
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('refresh-grid');
-      }
 
       return { success: true };
     } catch (error) {
@@ -6373,49 +6183,7 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
     }
   }
 
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Restore Database from Backup',
-    filters: [
-      { name: 'Database Files', extensions: ['db'] }
-    ],
-    properties: ['openFile']
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    try {
-      // Get the current database path
-      const dbPath = getDatabasePath();
-
-      // Close the current database connection
-      db.close();
-
-      // Copy the backup file over the existing database
-      await fs.promises.copyFile(result.filePaths[0], dbPath);
-
-      // Reopen the database
-      db = new Database(dbPath, { 
-        verbose: DEBUG ? console.log : null 
-      });
-
-      // Notify renderer to refresh the view
-      mainWindow.webContents.send('refresh-grid');
-
-      return true;
-    } catch (error) {
-      console.error('Restore error:', error);
-      // Make sure we reopen the database even if there's an error
-      try {
-        const dbPath = getDatabasePath();
-        db = new Database(dbPath, { 
-          verbose: DEBUG ? console.log : null 
-        });
-      } catch (reopenError) {
-        console.error('Error reopening database:', reopenError);
-      }
-      throw error;
-    }
-  }
-  return false;
+  return { success: false, message: 'Upload a backup file to restore.' };
 });
 
 // Export library handler
@@ -6654,22 +6422,19 @@ function buildLibraryExportData() {
 }
 
 ipcMain.handle('export-library', async () => {
-
-  if (isServerMode) {
-    try {
-      const exportData = buildLibraryExportData();
-      const exportDir = path.dirname(getDatabasePath());
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const exportPath = path.join(exportDir, `printventory-library-${timestamp}.json`);
-      await fs.promises.writeFile(exportPath, JSON.stringify(exportData, null, 2), 'utf8');
-      return { success: true, filePath: exportPath };
-    } catch (error) {
-      console.error('Export library error:', error);
-      return { success: false, message: error.message };
-    }
+  try {
+    const exportData = buildLibraryExportData();
+    const exportDir = path.dirname(getDatabasePath());
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const exportPath = path.join(exportDir, `printventory-library-${timestamp}.json`);
+    await fs.promises.writeFile(exportPath, JSON.stringify(exportData, null, 2), 'utf8');
+    return { success: true, filePath: exportPath };
+  } catch (error) {
+    console.error('Export library error:', error);
+    return { success: false, message: error.message };
   }
 
-  const result = await dialog.showSaveDialog(mainWindow, {
+  const result = await dialog.showSaveDialog(null, {
     title: 'Export Library',
     defaultPath: 'printventory-library.json',
     filters: [
@@ -6770,14 +6535,10 @@ ipcMain.handle('import-library', async (event, payload = null) => {
       event.sender.send('close-progress-dialog');
     }
 
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('refresh-grid');
-    }
-
     return { success: true, imported: importedCount, updated: updatedCount };
   };
 
-  if (isServerMode && payload && payload.json) {
+  if (payload && payload.json) {
     try {
       const importData = JSON.parse(payload.json);
       return await importLibraryData(importData);
@@ -6790,7 +6551,7 @@ ipcMain.handle('import-library', async (event, payload = null) => {
     }
   }
 
-  const result = await dialog.showOpenDialog(mainWindow, {
+  const result = await dialog.showOpenDialog(null, {
     title: 'Import Library',
     filters: [
       { name: 'JSON Files', extensions: ['json'] }
@@ -7157,7 +6918,7 @@ async function collectServerGpuInfo() {
 
   const result = {
     available: false,
-    serverMode: isServerMode,
+    serverMode: true,
     glBackend,
     nvidiaVisibleDevices: process.env.NVIDIA_VISIBLE_DEVICES || null,
     nvidiaDriverCapabilities: process.env.NVIDIA_DRIVER_CAPABILITIES || null,
@@ -7255,7 +7016,7 @@ async function collectServerGpuInfo() {
     result.warnings.push(`Electron GPU info unavailable: ${electronGpuErr.message || electronGpuErr}`);
   }
 
-  if (isServerMode && glBackend === 'swiftshader') {
+  if (glBackend === 'swiftshader') {
     result.warnings.push(
       'Container is using SwiftShader (CPU WebGL). Set PRINTVENTORY_GPU=nvidia (or auto with a working NVIDIA device) to attempt hardware WebGL.'
     );
@@ -7269,7 +7030,7 @@ ipcMain.handle('get-gpu-info', async () => {
     return await collectServerGpuInfo();
   } catch (error) {
     console.error('Error getting GPU info:', error);
-    return { available: false, serverMode: isServerMode, error: error.message };
+    return { available: false, serverMode: true, error: error.message };
   }
 });
 
@@ -7534,7 +7295,7 @@ function isPreviewableModelFile(filePath) {
 }
 
 function sendPreviewBundleEvent(event, payload) {
-  if (isServerMode && global.broadcastEvent) {
+  if (global.broadcastEvent) {
     global.broadcastEvent('preview-bundle-models', payload);
   } else if (event && event.sender) {
     event.sender.send('preview-bundle-models', payload);
@@ -7544,7 +7305,7 @@ function sendPreviewBundleEvent(event, payload) {
 }
 
 function sendPreviewModelEvent(event, filePath) {
-  if (isServerMode && global.broadcastEvent) {
+  if (global.broadcastEvent) {
     global.broadcastEvent('preview-model', filePath);
   } else if (event && event.sender) {
     event.sender.send('preview-model', filePath);
@@ -7575,11 +7336,11 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   if (filePaths.length === 1) {
     event.sender.send('select-model-by-filepath', filePaths[0]);
   }
-  
+
   // Check if any file is a zip entry
   const isZipEntry = filePaths.length === 1 && filePaths[0].includes('::');
   const pathInfo = filePaths.length === 1 ? parseZipPath(filePaths[0]) : null;
-  
+
   let menuItems = [];
 
   // Add "Preview" option at the top (single model or full bundle/group)
@@ -7643,9 +7404,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     });
     menuItems.push({ type: 'separator' });
   }
-  
+
   // Add "Download" option for server mode at the top
-  if (isServerMode && filePaths.length === 1) {
+  if (filePaths.length === 1) {
     menuItems.push({
       label: 'Download',
       click: async () => {
@@ -7677,67 +7438,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     });
     menuItems.push({ type: 'separator' });
   }
-  
-  // Add "Open File" option (only in normal mode, not server mode)
-  if (!isServerMode) {
-    menuItems.push({
-      label: 'Open File',
-      enabled: filePaths.length === 1,
-      click: async () => {
-        try {
-          // Normal mode: open with system default application
-          if (isZipEntry && pathInfo) {
-            // Extract to OS temp, open, then schedule cleanup
-            const tempPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-            await shell.openPath(tempPath);
-            scheduleExtractTempCleanup(tempPath);
-          } else {
-            await shell.openPath(filePaths[0]);
-          }
-        } catch (error) {
-          console.error('Error opening file:', error);
-          const win = getWindowFromEvent(event);
-          if (win && !win.isDestroyed()) {
-            dialog.showMessageBox(win, {
-              type: 'error',
-              title: 'Error',
-              message: 'Could not open file',
-              detail: error.message
-            });
-          }
-        }
-      }
-    });
-  }
-  
-  // Add "Open Directory" only if NOT in server mode
-  if (!isServerMode) {
-    menuItems.push({
-      label: 'Open Directory',
-      enabled: filePaths.length === 1,
-      click: async () => {
-        try {
-          if (isZipEntry && pathInfo) {
-            // For zip entries, open the zip file's directory
-            await shell.showItemInFolder(pathInfo.zipPath);
-          } else {
-            await shell.showItemInFolder(filePaths[0]);
-          }
-        } catch (error) {
-          console.error('Error opening directory:', error);
-          dialog.showMessageBox({
-            type: 'error',
-            title: 'Error',
-            message: 'Could not open directory',
-            detail: error.message
-          });
-        }
-      }
-    });
-  }
-  
+
   // Add extract options for zip entries (disabled in server mode)
-  if (isZipEntry && pathInfo && filePaths.length === 1 && !isServerMode) {
+  if (isZipEntry && pathInfo && filePaths.length === 1 && false) {
     menuItems.push(
       { type: 'separator' },
       {
@@ -7815,10 +7518,10 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   } catch (error) {
     console.error('Error getting slicers:', error);
   }
-  
+
   // Server mode hands the files to the local helper via printventory://.
   // Desktop mode launches the slicer here, and only for a single selection.
-  if (slicers.length > 0 && filePaths.length >= 1 && (isServerMode || filePaths.length === 1)) {
+  if (slicers.length > 0 && filePaths.length >= 1 && (true)) {
     const slicerSubmenu = {
       label: 'Open in Slicer',
       submenu: slicers.map(slicer => ({
@@ -7827,8 +7530,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         slicerPath: slicer.path,
         click: async () => {
           try {
-            // Browser clients launch the helper. Do not start a slicer inside Docker.
-            if (isServerMode) {
+            {
               const commandPayload = {
                 type: 'open-in-slicer',
                 filePaths: filePaths.slice(),
@@ -7847,7 +7549,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               }
               return;
             }
-            
+
             // For hidden Electron window or normal mode, check Docker/Windows path compatibility
             const inDocker = isDockerContainer();
             if (inDocker) {
@@ -7878,7 +7580,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 return; // Exit early - don't try to execute
               }
             }
-            
+
             // Execute slicer command (only in normal mode, not server mode)
             const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
             if (invalidSlicer) {
@@ -7887,12 +7589,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             }
 
             let modelPath = filePaths[0]; // Use the first file selected
-            
+
             // If it's a zip entry, extract to OS temp first
             if (isZipEntry && pathInfo) {
               modelPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
             }
-            
+
             // Final safety check: if we're in Docker and path looks like Windows, don't execute
             if (inDocker && (/^[A-Za-z]:[\\/]/.test(slicer.path) || /^\\\\/.test(slicer.path))) {
               console.error('[Slicer] Blocked Windows path execution in Docker:', slicer.path);
@@ -7929,7 +7631,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       const win = getWindowFromEvent(event);
       const configuredLevels = clampFolderLevels(getSettings().aiTagFolderLevels);
       const levels = configuredLevels > 0 ? configuredLevels : 1;
-      if (win && !win.isDestroyed() && !isServerMode) {
+      if (win && !win.isDestroyed() && false) {
         const confirm = await dialog.showMessageBox(win, {
           type: 'question',
           title: 'Tag from Folder',
@@ -7943,7 +7645,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       }
       try {
         const result = applyFolderTagsToModels(filePaths, levels);
-        if (isServerMode && global.broadcastEvent) {
+        if (global.broadcastEvent) {
           global.broadcastEvent('refresh-grid');
         } else if (event.sender && event.sender.send) {
           event.sender.send('refresh-grid');
@@ -7951,7 +7653,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         const summary = result.tagsAdded > 0
           ? `Added ${result.tagsAdded} tag${result.tagsAdded === 1 ? '' : 's'} on ${result.updated} model${result.updated === 1 ? '' : 's'}.`
           : 'No new folder tags were added. Those tags may already be on the models, or the files have no usable parent folder.';
-        if (win && !win.isDestroyed() && !isServerMode) {
+        if (win && !win.isDestroyed() && false) {
           await dialog.showMessageBox(win, {
             type: 'info',
             title: 'Tag from Folder',
@@ -7962,7 +7664,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         }
       } catch (error) {
         console.error('Error tagging from folder:', error);
-        if (win && !win.isDestroyed() && !isServerMode) {
+        if (win && !win.isDestroyed() && false) {
           await dialog.showMessageBox(win, {
             type: 'error',
             title: 'Tag from Folder',
@@ -7977,14 +7679,14 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   // Check if API key exists in settings
   const apiKeyRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('apiKey');
   const apiKey = apiKeyRow ? apiKeyRow.value : null;
-  
+
   // Check AI service type
   const aiServiceRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('aiService');
   const aiService = aiServiceRow ? aiServiceRow.value : 'openai';
   const apiEndpointRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('apiEndpoint');
   const apiEndpoint = apiEndpointRow ? apiEndpointRow.value : null;
   const aitaggingForMenu = require('./aitagging');
-  
+
   // Add "Generate Tags" when a key is set, or when the selected service/endpoint does not need one
   // (Puter, Custom, and local OpenAI-compatible servers such as Ollama / LM Studio)
   if (apiKey || !aitaggingForMenu.requiresApiKey(aiService, apiEndpoint)) {
@@ -8041,8 +7743,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           // Start tag generation - show review dialog immediately for both single and multiple files
           if (filesToProcess.length > 1) {
             // Send all file paths so the dialog can show all models immediately
-            console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length, 'isServerMode:', isServerMode);
-            if (isServerMode && global.broadcastEvent) {
+            console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length, 'isServerMode:', true);
+            if (global.broadcastEvent) {
               // In server mode, use broadcastEvent to send to all WebSocket clients
               console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
               global.broadcastEvent('start-batch-tag-generation', filesToProcess.length, filesToProcess);
@@ -8087,8 +7789,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 existingTags: modelTags
               };
               
-              console.log('[Generate Tags] Sending start-single-tag-generation event, isServerMode:', isServerMode);
-              if (isServerMode && global.broadcastEvent) {
+              console.log('[Generate Tags] Sending start-single-tag-generation event, isServerMode:', true);
+              if (global.broadcastEvent) {
                 // In server mode, use broadcastEvent to send to all WebSocket clients
                 console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
                 global.broadcastEvent('start-single-tag-generation', filesToProcess[0], modelData);
@@ -8133,7 +7835,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           const processFile = async (filePath, index) => {
             if (rateLimitStopped) {
               completed++;
-              if (isServerMode && global.broadcastEvent) {
+              if (global.broadcastEvent) {
                 global.broadcastEvent('tags-generated', filePath, [], rateLimitSkipMessage);
               } else if (eventSender && eventSender.send) {
                 eventSender.send('tags-generated', filePath, [], rateLimitSkipMessage);
@@ -8148,7 +7850,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 console.log(`Model not found in database: ${filePath}, skipping`);
                 completed++;
                       // Send empty tags for skipped models so they appear in the review dialog
-                      if (isServerMode && global.broadcastEvent) {
+                      if (global.broadcastEvent) {
                         global.broadcastEvent('tags-generated', filePath, [], null);
                       } else if (eventSender && eventSender.send) {
                         eventSender.send('tags-generated', filePath, [], null);
@@ -8171,7 +7873,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
               completed++;
               // Send empty tags for already-tagged models so they appear in the review dialog
-              if (isServerMode && global.broadcastEvent) {
+              if (global.broadcastEvent) {
                 global.broadcastEvent('tags-generated', filePath, [], null);
               } else if (eventSender && eventSender.send) {
                 eventSender.send('tags-generated', filePath, [], null);
@@ -8209,7 +7911,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                   if (error.message && error.message.includes('Rate limit')) {
                     rateLimitStopped = true;
                     // Send error info with empty tags
-                    if (isServerMode && global.broadcastEvent) {
+                    if (global.broadcastEvent) {
                       global.broadcastEvent('tags-generated', filePath, [], error.message);
                     } else if (eventSender && eventSender.send) {
                       eventSender.send('tags-generated', filePath, [], error.message);
@@ -8244,7 +7946,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                     if (error.message && error.message.includes('Rate limit')) {
                       rateLimitStopped = true;
                       // Send error info with empty tags
-                      if (isServerMode && global.broadcastEvent) {
+                      if (global.broadcastEvent) {
                         global.broadcastEvent('tags-generated', filePath, [], error.message);
                       } else if (eventSender && eventSender.send) {
                         eventSender.send('tags-generated', filePath, [], error.message);
@@ -8257,7 +7959,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               }
               
               // Send the generated tags back to the renderer process
-              if (isServerMode && global.broadcastEvent) {
+              if (global.broadcastEvent) {
                 global.broadcastEvent('tags-generated', filePath, tags, null);
               } else if (eventSender && eventSender.send) {
                 eventSender.send('tags-generated', filePath, tags, null);
@@ -8273,14 +7975,14 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               if (error.message && error.message.includes('Rate limit')) {
                 rateLimitStopped = true;
                 // Send error info with empty tags
-                if (isServerMode && global.broadcastEvent) {
+                if (global.broadcastEvent) {
                   global.broadcastEvent('tags-generated', filePath, [], error.message);
                 } else if (eventSender && eventSender.send) {
                   eventSender.send('tags-generated', filePath, [], error.message);
                 }
               } else {
                 // Send empty tags for failed models so they appear in the review dialog
-                if (isServerMode && global.broadcastEvent) {
+                if (global.broadcastEvent) {
                   global.broadcastEvent('tags-generated', filePath, []);
                 } else if (eventSender && eventSender.send) {
                   eventSender.send('tags-generated', filePath, []);
@@ -8299,7 +8001,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           
           // Signal batch completion for multiple files
           if (totalFiles > 1) {
-            if (isServerMode && global.broadcastEvent) {
+            if (global.broadcastEvent) {
               global.broadcastEvent('batch-tag-generation-complete');
             } else if (eventSender && eventSender.send) {
               eventSender.send('batch-tag-generation-complete');
@@ -8309,7 +8011,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           console.error('Error generating tags:', error);
 
           if (filePaths.length > 1) {
-            if (isServerMode && global.broadcastEvent) {
+            if (global.broadcastEvent) {
               global.broadcastEvent('batch-tag-generation-complete');
             } else if (eventSender && eventSender.send) {
               eventSender.send('batch-tag-generation-complete');
@@ -8370,7 +8072,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     }
     return ext === '.3mf';
   });
-  
+
   // Add "Pull Metadata" option for 3MF files
   if (has3MFFiles) {
     menuItems.push({
@@ -8556,56 +8258,11 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Add Image',
       click: async () => {
         try {
-          if (isServerMode) {
-            // In server mode: send event to renderer to show file input dialog (pass all paths for multi-edit)
-            if (global.broadcastEvent) {
-              global.broadcastEvent('add-image-request', filePaths);
-            } else {
-              event.sender.send('add-image-request', filePaths);
-            }
+          // In server mode: send event to renderer to show file input dialog (pass all paths for multi-edit)
+          if (global.broadcastEvent) {
+            global.broadcastEvent('add-image-request', filePaths);
           } else {
-            // Normal mode: use native file dialog
-            const win = BrowserWindow.fromWebContents(event.sender);
-            const result = await dialog.showOpenDialog(win, {
-              title: 'Select Image File',
-              properties: ['openFile'],
-              filters: [
-                { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
-                { name: 'All Files', extensions: ['*'] }
-              ]
-            });
-            
-            if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-              const imagePath = result.filePaths[0];
-              
-              // Read the image file and convert to data URL
-              const imageData = await fs.promises.readFile(imagePath);
-              const ext = path.extname(imagePath).toLowerCase().slice(1);
-              let mimeType = 'image/png';
-              if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-              else if (ext === 'gif') mimeType = 'image/gif';
-              else if (ext === 'webp') mimeType = 'image/webp';
-              
-              const base64Data = imageData.toString('base64');
-              const dataUrl = `data:${mimeType};base64,${base64Data}`;
-              
-              // Add the same image to each selected model
-              for (const filePath of filePaths) {
-                const currentThumbnail = readThumbnailColumn(filePath);
-                const thumbnailsWithNew = addThumbnailToModel(currentThumbnail, dataUrl);
-                const thumbnails = parseThumbnails(thumbnailsWithNew);
-                const newImageIndex = thumbnails.length - 1;
-                const updatedThumbnail = setDefaultThumbnailIndex(thumbnailsWithNew, newImageIndex);
-                await saveThumbnail(filePath, updatedThumbnail);
-                const finalThumbnails = parseThumbnails(readThumbnailColumn(filePath) || '');
-                event.sender.send('thumbnail-added', {
-                  filePath: filePath,
-                  thumbnailCount: finalThumbnails.length,
-                  hasMultiple: finalThumbnails.length > 1,
-                  newImageIsDefault: true
-                });
-              }
-            }
+            event.sender.send('add-image-request', filePaths);
           }
         } catch (error) {
           console.error('Error adding image:', error);
@@ -8649,7 +8306,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         }
         
         // Send event to renderer to show manage thumbnails modal
-        if (isServerMode && global.broadcastEvent) {
+        if (global.broadcastEvent) {
           global.broadcastEvent('manage-thumbnails-request', filePaths[0]);
         } else {
           event.sender.send('manage-thumbnails-request', filePaths[0]);
@@ -8675,76 +8332,24 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   // Add Move and new file operations
   // Note: "Move" is excluded in server mode
   const fileOperationItems = [];
-  
-  // Add "Move" only if NOT in server mode
-  if (!isServerMode) {
-    fileOperationItems.push({
-      label: 'Move',
-      click: async () => {
-        const win = BrowserWindow.fromWebContents(event.sender);
-        const result = await dialog.showOpenDialog(win, {
-          title: 'Select Destination Folder',
-          properties: ['openDirectory']
-        });
-        if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-          const destinationFolder = result.filePaths[0];
-          for (const fp of filePaths) {
-            const newDestination = path.join(destinationFolder, path.basename(fp));
-            try {
-              await fs.promises.rename(fp, newDestination);
-              db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, fp);
-            } catch (error) {
-              await dialog.showMessageBox(win, {
-                type: 'error',
-                title: 'Error Moving File',
-                message: `Failed to move file ${fp}: ${error.message}`
-              });
-            }
-          }
-          event.sender.send('refresh-grid');
-        }
-      }
-    });
-  }
-  
+
   menuItems.push(
     ...fileOperationItems,
     {
       label: 'Remove from Library',
       click: async () => {
         // In server mode (Docker/browser), no native dialog - proceed and broadcast refresh
-        let confirmed = isServerMode;
-        if (!isServerMode) {
-          const maxFilesToShow = 20;
-          const fileList = filePaths.slice(0, maxFilesToShow).map(fp => path.basename(fp)).join('\n');
-          const moreFiles = filePaths.length > maxFilesToShow ? `\n... and ${filePaths.length - maxFilesToShow} more file${filePaths.length - maxFilesToShow === 1 ? '' : 's'}` : '';
-          const confirm = await dialog.showMessageBox({
-            type: 'warning',
-            title: 'Confirm Remove',
-            message: `Are you sure you want to remove ${filePaths.length} file${filePaths.length === 1 ? '' : 's'} from the library?\nFiles will remain on disk but will be removed from Printventory.\n\nFiles:\n${fileList}${moreFiles}`,
-            buttons: ['Yes', 'No'],
-            defaultId: 1,
-            cancelId: 1,
-          });
-          confirmed = confirm.response === 0;
-        }
+        let confirmed = true;
         if (confirmed) {
           try {
             deleteModelsByFilePaths(filePaths);
-            if (isServerMode && global.broadcastEvent) {
+            if (global.broadcastEvent) {
               global.broadcastEvent('refresh-grid');
             } else {
               event.sender.send('refresh-grid');
             }
           } catch (error) {
             console.error('Error removing from library:', error);
-            if (!isServerMode) {
-              await dialog.showMessageBox({
-                type: 'error',
-                title: 'Error',
-                message: `An error occurred while removing from library: ${error.message}`
-              });
-            }
           }
         }
       }
@@ -8753,26 +8358,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Delete from Disk',  // Renamed from just "Delete"
       click: async () => {
         // In server mode (Docker/browser), no native dialog - proceed and broadcast refresh
-        let confirmed = isServerMode;
-        if (!isServerMode) {
-          const maxFilesToShow = 20;
-          const fileList = filePaths.slice(0, maxFilesToShow).map(fp => path.basename(fp)).join('\n');
-          const moreFiles = filePaths.length > maxFilesToShow ? `\n... and ${filePaths.length - maxFilesToShow} more file${filePaths.length - maxFilesToShow === 1 ? '' : 's'}` : '';
-          const confirm = await dialog.showMessageBox({
-            type: 'warning',
-            title: 'Confirm Delete',
-            message: `Are you sure you want to DELETE ${filePaths.length} file${filePaths.length === 1 ? '' : 's'} from disk?\nThis will permanently delete the files and cannot be undone!\n\nFiles:\n${fileList}${moreFiles}`,
-            buttons: ['Yes', 'No'],
-            defaultId: 1,
-            cancelId: 1,
-          });
-          confirmed = confirm.response === 0;
-        }
+        let confirmed = true;
         if (confirmed) {
           for (const fp of filePaths) {
             try {
               const success = await deleteFile(fp);
-              if (!success && !isServerMode) {
+              if (!success && false) {
                 await dialog.showMessageBox({
                   type: 'error',
                   title: 'Error',
@@ -8781,16 +8372,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               }
             } catch (error) {
               console.error('Error deleting file:', error);
-              if (!isServerMode) {
-                await dialog.showMessageBox({
-                  type: 'error',
-                  title: 'Error',
-                  message: `An error occurred: ${error.message}`
-                });
-              }
             }
           }
-          if (isServerMode && global.broadcastEvent) {
+          if (global.broadcastEvent) {
             global.broadcastEvent('refresh-grid');
           } else {
             event.sender.send('refresh-grid');
@@ -8801,12 +8385,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   );
 
   const menu = Menu.buildFromTemplate(menuItems);
-  
+
   // Get the window - use helper function that handles server mode
   const win = getWindowFromEvent(event);
-  
+
   // Test mode or server mode without window: return HTML menu so Playwright can assert on it
-  const useHtmlMenu = (process.env.PRINTVENTORY_TEST_SCAN_PATH && process.env.PRINTVENTORY_TEST_SCAN_PATH.length > 0) || (isServerMode && !win);
+  const useHtmlMenu = (process.env.PRINTVENTORY_TEST_SCAN_PATH && process.env.PRINTVENTORY_TEST_SCAN_PATH.length > 0) || (!win);
   if (useHtmlMenu) {
     // Generate unique request ID for this context menu
     const requestId = `ctx_${++contextMenuRequestIdCounter}_${Date.now()}`;
@@ -8846,7 +8430,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             index: index,
             subIndex: subIndex
           };
-          if (isServerMode && subItem.slicerPath) {
+          if (subItem.slicerPath) {
             entry.clientAction = {
               type: 'open-in-slicer',
               slicerName: subItem.slicerName || subItem.label,
@@ -8869,18 +8453,15 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       filePaths: filePaths
     };
   }
-  
+
   // In Docker/server mode, use mainWindow if available, or popup without window parameter
   if (win) {
     menu.popup({ window: win });
-  } else if (mainWindow && !mainWindow.isDestroyed()) {
-    // Fallback to mainWindow in server mode
-    menu.popup({ window: mainWindow });
   } else {
     // Last resort: popup without window (uses current focused window)
     menu.popup();
   }
-  
+
   // Return null for normal mode (menu already shown)
   return null;
 });
@@ -8924,7 +8505,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
     console.log('[Context Menu] Created mockEvent for submenu click handler:', {
       hasSender: !!mockEvent.sender,
       hasWsClient: !!mockEvent.wsClient,
-      isServerMode
+      true: true
     });
     
     // Execute the submenu item's click handler
@@ -8967,7 +8548,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
     console.log('[Context Menu] Created mockEvent for click handler:', {
       hasSender: !!mockEvent.sender,
       hasWsClient: !!mockEvent.wsClient,
-      isServerMode
+      true: true
     });
     
     // Execute the menu item's click handler
@@ -9106,13 +8687,11 @@ ipcMain.handle('saveSetting', async (event, key, value) => {
 
 // Browser extension / MCP local HTTP server control (normal mode)
 ipcMain.handle('start-extension-server', async (event, port) => {
-  if (isServerMode) return { success: true, running: true, message: 'Server mode already listening' };
-  return syncLocalHttpServer(port);
+  return { success: true, running: true, message: 'Server mode already listening' };
 });
 
 ipcMain.handle('stop-extension-server', async () => {
-  if (isServerMode) return { success: false, message: 'Not available in server mode' };
-  return syncLocalHttpServer(getConfiguredHttpPort());
+  return { success: false, message: 'Not available in server mode' };
 });
 
 ipcMain.handle('sync-local-http-server', async (event, port) => {
@@ -9146,7 +8725,7 @@ function copySqliteDbFiles(srcBase, destBase) {
  * If the persisted userData DB does not exist yet, copy from that legacy file once.
  */
 function migrateLegacyServerDbIfNeeded(persistedPath) {
-  if (!isServerMode || fs.existsSync(persistedPath)) return;
+  if (fs.existsSync(persistedPath)) return;
   const legacy = path.join(__dirname, 'printventory.db');
   if (!fs.existsSync(legacy)) return;
   try {
@@ -10664,7 +10243,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
       const { ok, json, error, type, message: statusMessage } = message || {};
       if (type === 'status') {
         // Use global.sendEvent for server mode compatibility
-        if (isServerMode && global.broadcastEvent) {
+        if (global.broadcastEvent) {
           global.broadcastEvent('3mf-preview-status', requestId, statusMessage);
         } else if (event && event.sender) {
           event.sender.send('3mf-preview-status', requestId, statusMessage);
@@ -10949,7 +10528,7 @@ function parseDuplicatesRequest(includeZipOrOptions) {
 // Add a new IPC handler for getting duplicates
 const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
   const { includeZip, filters } = parseDuplicatesRequest(includeZipOrOptions);
-  const maxRetries = isServerMode && isGeneratingHashes ? 5 : 1;
+  const maxRetries = isGeneratingHashes ? 5 : 1;
   const retryDelayMs = 150;
   let lastError;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -11040,7 +10619,7 @@ function countModelsNeedingHash({ includeSha256 = false, filters = null } = {}) 
 }
 
 function emitHashGenerationProgress(event, payload) {
-  if (isServerMode && global.broadcastEvent) {
+  if (global.broadcastEvent) {
     global.broadcastEvent('hash-generation-progress', payload);
   } else if (event && event.sender) {
     event.sender.send('hash-generation-progress', payload);
@@ -11048,7 +10627,7 @@ function emitHashGenerationProgress(event, payload) {
 }
 
 function emitHashGenerationComplete(event, payload) {
-  if (isServerMode && global.broadcastEvent) {
+  if (global.broadcastEvent) {
     global.broadcastEvent('hash-generation-complete', payload);
   } else if (event && event.sender) {
     event.sender.send('hash-generation-complete', payload);
@@ -11102,7 +10681,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
 
     // Process files in parallel with concurrency limit
     // Keep Docker/server concurrency low — high parallelism + thumb renders saturates UNC/CIFS.
-    const concurrencyLimit = isServerMode ? 4 : 50;
+    const concurrencyLimit = 4;
     
     // Helper function to calculate hash with retry and timeout
     const calculateFileHashWithRetry = async (filePath, maxRetries = 2) => {
@@ -11110,7 +10689,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           // Add timeout for file operations (especially important for network files in Docker)
-          const timeoutMs = isServerMode ? 300000 : 60000; // 5 min for server mode, 1 min for normal
+          const timeoutMs = 300000; // 5 min for server mode, 1 min for normal
           const hashPromise = calculateFileHash(filePath);
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error(`Hash calculation timeout after ${timeoutMs}ms`)), timeoutMs)
@@ -11344,7 +10923,7 @@ ipcMain.handle('add-thumbnail', async (event, filePath, imageDataUrl) => {
     
     // Send message to renderer to refresh the grid with updated thumbnail
     // In server mode always broadcast so browser clients get the update (invoke may come via hidden window)
-    if (isServerMode && global.broadcastEvent) {
+    if (global.broadcastEvent) {
       global.broadcastEvent('thumbnail-added', {
         filePath: filePath,
         thumbnailCount: finalThumbnails.length,
@@ -11455,7 +11034,7 @@ ipcMain.handle('set-default-thumbnail', async (event, filePath, index) => {
       thumbnailCount: thumbs.length,
       defaultChanged: true
     };
-    if (isServerMode && global.broadcastEvent) {
+    if (global.broadcastEvent) {
       global.broadcastEvent('thumbnail-default-changed', payload);
     } else if (event && event.sender) {
       event.sender.send('thumbnail-default-changed', payload);
@@ -11500,7 +11079,7 @@ ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
         filePath: filePath,
         thumbnailCount: thumbnails.length
       });
-    } else if (isServerMode && global.broadcastEvent) {
+    } else if (global.broadcastEvent) {
       global.broadcastEvent('thumbnail-deleted', {
         filePath: filePath,
         thumbnailCount: thumbnails.length
@@ -11606,7 +11185,7 @@ ipcMain.handle('open-folder-dialog', async (event, titleOrOptions) => {
     win = null;
   }
   if (!win || win.isDestroyed()) {
-    win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+    win = null;
   }
   const dialogOptions = {
     title: options.title || 'Select Directory',
@@ -11932,40 +11511,6 @@ ipcMain.handle('organize-library-run', async (event, payload) => {
   }
 });
 
-ipcMain.on('open-dedup', (event) => {
-  mainWindow.webContents.send('open-dedup');
-});
-
-ipcMain.on('open-organize-library', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('open-organize-library');
-  }
-});
-
-ipcMain.on('open-tag-manager', (event) => {
-  mainWindow.webContents.send('open-tag-manager');
-});
-
-ipcMain.on('open-filament-manager', (event) => {
-  mainWindow.webContents.send('open-filament-manager');
-});
-
-ipcMain.on('open-printer-management', (event) => {
-  mainWindow.webContents.send('open-printer-management');
-});
-
-ipcMain.on('open-parts-stock', (event) => {
-  mainWindow.webContents.send('open-parts-stock');
-});
-
-ipcMain.on('open-metadata-editor', (event) => {
-  mainWindow.webContents.send('open-metadata-editor');
-});
-
-ipcMain.on('start-print-roulette', (event) => {
-  mainWindow.webContents.send('start-print-roulette');
-});
-
 // Add this new IPC handler at the end to open external URLs using the system's default browser
 ipcMain.handle('open-external', async (event, url) => {
   try {
@@ -12005,7 +11550,7 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
     baseURL, 
     isPuterService,
     hasEvent: !!event,
-    isServerMode,
+    true: true,
     apiKeyLength: apiKey ? apiKey.length : 0,
     model
   });
@@ -12075,13 +11620,13 @@ function createPuterIPCHandler(event = null) {
       wsClient = event.wsClient;
       console.log('[Puter IPC Handler] Found wsClient from event.wsClient');
     } else {
-      console.log('[Puter IPC Handler] No wsClient found in event, isServerMode:', isServerMode);
+      console.log('[Puter IPC Handler] No wsClient found in event, isServerMode:', true);
     }
   } else {
     console.log('[Puter IPC Handler] No event provided');
   }
   
-  console.log('[Puter IPC Handler] Extracted:', { hasWebContents: !!webContents, hasWsClient: !!wsClient, isServerMode });
+  console.log('[Puter IPC Handler] Extracted:', { hasWebContents: !!webContents, hasWsClient: !!wsClient, true: true });
   
   return async (prompt, imageUrl, model) => {
     const requestId = crypto.randomUUID();
@@ -12091,7 +11636,7 @@ function createPuterIPCHandler(event = null) {
       
       // In server mode with WebSocket client, send via WebSocket
       // This routes to the browser client where Puter.js is loaded and can show the captcha
-      if (isServerMode && wsClient) {
+      if (wsClient) {
         console.log('[Puter AI] Sending request to browser client via WebSocket (captcha will appear in browser window)');
         wsClient.send(JSON.stringify({
           type: 'event',
@@ -12101,9 +11646,6 @@ function createPuterIPCHandler(event = null) {
       } else if (webContents) {
         // Normal mode: use the webContents from the event
         webContents.send('puter-ai-chat-request', requestId, prompt, imageUrl, model);
-      } else if (mainWindow && !mainWindow.isDestroyed()) {
-        // Fallback: use mainWindow (for backward compatibility)
-        mainWindow.webContents.send('puter-ai-chat-request', requestId, prompt, imageUrl, model);
       } else {
         reject(new Error('No valid client available for Puter AI request'));
         return;
@@ -12553,12 +12095,7 @@ const openFileInSlicerHandler = async (event, options = {}) => {
   }
 
   const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
-  if (!isServerMode && invalidSlicer) {
-    presentInvalidSlicer(getWindowFromEvent(event), invalidSlicer);
-    return { success: false, error: invalidSlicer.message };
-  }
-
-  if (isServerMode) {
+  {
     const firstPath = paths[0];
     const pathInfo = parseZipPath(firstPath);
     const commandPayload = {
