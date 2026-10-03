@@ -141,11 +141,9 @@ contextBridge.exposeInMainWorld('electron', {
   getDefaultExtensionInboxDirectory: () => ipcRenderer.invoke('get-default-extension-inbox-directory'),
   getMcpConnectionInfo: () => ipcRenderer.invoke('get-mcp-connection-info'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-  checkCollectUsage: () => ipcRenderer.invoke('check-collect-usage'),
   purgeThumbnails: () => ipcRenderer.invoke('purge-thumbnails'),
   onOpenSettings: (callback) => ipcRenderer.on('open-settings', callback),
   onOpenGuide: (callback) => ipcRenderer.on('open-guide', callback),
-  trackEvent: (category, action, label, value) => ipcRenderer.invoke('track-event', category, action, label, value),
   onOpenAbout: (callback) => {
     ipcRenderer.on('open-about', async () => {
       await callback();

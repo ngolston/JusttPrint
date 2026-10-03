@@ -6180,27 +6180,6 @@ function bindAboutCloseButton() {
   });
 }
 
-// Define the collect usage change handler as a named function so we can remove it
-async function collectUsageChangeHandler(e) {
-  const newValue = e.target.checked ? '1' : '0';
-  console.log('About dialog - Saving CollectUsage value:', newValue);
-  
-  // Save the setting
-  await window.electron.saveSetting('CollectUsage', newValue);
-  
-  // Verify the setting was saved correctly
-  const verifiedValue = await window.electron.checkCollectUsage();
-  console.log('Verified CollectUsage value from database:', verifiedValue);
-  
-  // Update the checkbox state to match the database value
-  e.target.checked = verifiedValue === '1';
-  
-  // Toggle analytics based on the verified value
-  if (typeof window.toggleAnalytics === 'function') {
-    window.toggleAnalytics(verifiedValue === '1');
-  }
-}
-
 async function initializeAboutDialog() {
   const versionElement = document.getElementById('about-version');
   const dialog = document.getElementById('about-dialog');
@@ -6223,17 +6202,13 @@ async function initializeAboutDialog() {
     if (versionElement) versionElement.textContent = 'Version: Unknown';
   }
 
-  // Analytics checkbox: optional, don't block dialog load
-  try {
-    const collectUsageCheckbox = document.getElementById('collect-usage');
-    if (collectUsageCheckbox && typeof window.electron?.getSetting === 'function') {
-      const collectUsage = await window.electron.getSetting('CollectUsage').catch(() => null);
-      collectUsageCheckbox.checked = collectUsage === '1';
-      collectUsageCheckbox.removeEventListener('change', collectUsageChangeHandler);
-      collectUsageCheckbox.addEventListener('change', collectUsageChangeHandler);
-    }
-  } catch (e) {
-    console.error('About dialog CollectUsage:', e);
+  const autoUpdateCheckbox = document.getElementById('auto-update-check');
+  if (autoUpdateCheckbox && typeof window.electron?.getSetting === 'function') {
+    const autoUpdateCheck = await window.electron.getSetting('autoUpdateCheck').catch(() => null);
+    autoUpdateCheckbox.checked = autoUpdateCheck !== '0';
+    autoUpdateCheckbox.onchange = (e) => {
+      window.electron.saveSetting('autoUpdateCheck', e.target.checked ? '1' : '0');
+    };
   }
 
   // Close X is handled by inline onclick in HTML; bind for any extra behavior
@@ -11076,6 +11051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add these functions at an appropriate location
   async function checkForUpdates(silent = false) {
     try {
+      if (silent && (await window.electron.getSetting('autoUpdateCheck')) === '0') return;
       const currentVersion = await window.electron.getSetting('currentVersion');
       const isBeta = (await window.electron.getSetting('betaOptIn')) === 'true';
       const lastDeclinedVersion = await window.electron.getSetting('lastDeclinedVersion');
@@ -13977,76 +13953,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressBar.style.width = `${progress}%`;
     progressText.textContent = `${generatedThumbnailsCount}/${totalThumbnailsToGenerate} (${progress}%)`;
   }
-
-  // Add this to your existing DOMContentLoaded event listener
-  document.addEventListener('DOMContentLoaded', async () => {
-    // ... existing code ...
-
-    // Initialize analytics checkbox
-    const collectUsageCheckbox = document.getElementById('collect-usage');
-    if (collectUsageCheckbox) {
-      // Get initial value
-      const collectUsage = await window.electron.getSetting('CollectUsage');
-      console.log('Initial CollectUsage value:', collectUsage);
-      
-      // Set checkbox state based on the actual value
-      collectUsageCheckbox.checked = collectUsage === '1';
-      
-      // Handle changes using the same handler as in the about dialog
-      collectUsageCheckbox.addEventListener('change', collectUsageChangeHandler);
-
-      // Initialize analytics state with current setting
-      toggleAnalytics(collectUsage === '1');
-    }
-  });
-
-  // GoatCounter usage reporting — only loads when CollectUsage is enabled
-  const GOATCOUNTER_ENDPOINT = 'https://printventory.goatcounter.com/count';
-  const GOATCOUNTER_SCRIPT_SRC = 'https://gc.zgo.at/count.js';
-  const GOATCOUNTER_SCRIPT_ID = 'goatcounter-script';
-
-  function toggleAnalytics(enable) {
-    console.log('Toggling analytics:', enable);
-
-    const existing = document.getElementById(GOATCOUNTER_SCRIPT_ID);
-
-    if (enable) {
-      console.log('Enabling GoatCounter');
-
-      const alreadyLoaded = existing && window.goatcounter && typeof window.goatcounter.count === 'function';
-      if (alreadyLoaded) {
-        window.goatcounter.allow_local = true;
-        try {
-          window.goatcounter.count();
-        } catch (e) {
-          console.warn('GoatCounter count() failed:', e);
-        }
-        return;
-      }
-
-      // allow_local: Electron may load via file:// or localhost
-      // Replace (don't merge) so a prior disable stub cannot leave no_onload set
-      window.goatcounter = { allow_local: true };
-
-      if (existing) existing.remove();
-
-      const script = document.createElement('script');
-      script.id = GOATCOUNTER_SCRIPT_ID;
-      script.async = true;
-      script.setAttribute('data-goatcounter', GOATCOUNTER_ENDPOINT);
-      script.src = GOATCOUNTER_SCRIPT_SRC;
-      document.head.appendChild(script);
-    } else {
-      console.log('Disabling GoatCounter');
-      if (existing) existing.remove();
-      // Neuter any already-loaded GoatCounter so further counts are no-ops
-      window.goatcounter = {
-        no_onload: true,
-        count: function () {}
-      };
-    }
-  }
-  window.toggleAnalytics = toggleAnalytics;
 
   // Add function for generating thumbnails for multiple models
   async function generateThumbnailsForModels(models, options = {}) {
@@ -20597,9 +20503,13 @@ async function initializeAppOnce() {
     
     // Check if version check was already performed by main process
     const versionCheckPerformed = await window.electron.getSetting('versionCheckPerformedOnStartup');
+    const autoUpdateCheck = await window.electron.getSetting('autoUpdateCheck');
     let latestVersion;
     
-    if (versionCheckPerformed === 'true') {
+    if (autoUpdateCheck === '0') {
+      console.log('5. Automatic update check is off, skipping');
+      latestVersion = null;
+    } else if (versionCheckPerformed === 'true') {
       console.log('5. Version check already performed by main process, retrieving stored version');
       // Get the latest version from the database instead of making another HTTP request
       latestVersion = await window.electron.getSetting('latestVersion');

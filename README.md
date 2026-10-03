@@ -65,6 +65,15 @@ Download the latest release for your platform:
 
 The database and thumbnails are preserved during updates. Backups are automatically created before updates.
 
+### Network Connections
+
+Printventory does not collect usage data. It only connects to outside services in these cases:
+
+- **Update check**: on startup, after the terms are accepted, it fetches the latest version number from `printventory.com`. Turn this off under **About → Updates**.
+- **AI tagging**: when you use it, the model's thumbnail, file name and folder names go to the AI service you configured (OpenAI-compatible endpoint or Puter).
+- **Support logs**: only when you choose **Send Support Logs** and confirm. API keys and webhook URLs are removed from the logs before upload.
+- **Page imports and Spoolman**: when you import from a model website or sync filaments, it contacts that site or your Spoolman server.
+
 ## Server Mode
 
 Printventory can run in **Server Mode**, allowing you to access your 3D model library from any device on your local network through a web browser. This is particularly useful for accessing your collection from multiple computers or devices without installing the application on each one.

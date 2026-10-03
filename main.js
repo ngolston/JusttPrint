@@ -241,98 +241,6 @@ function getExtensionsForFileTypeFilter(fileTypeValue) {
 const express = require('express');
 const WebSocket = require('ws');
 
-// GoatCounter usage reporting (gated by CollectUsage setting)
-const GOATCOUNTER_ENDPOINT = 'https://printventory.goatcounter.com/count';
-
-const analytics = {
-  isUsageEnabled() {
-    if (!db || !db.prepare) return false;
-    try {
-      const collectUsage = db.prepare('SELECT value FROM settings WHERE key = ?').get('CollectUsage');
-      return !!(collectUsage && collectUsage.value === '1');
-    } catch (error) {
-      console.error('Error checking CollectUsage for analytics:', error);
-      return false;
-    }
-  },
-
-  async sendHit({ path, title, event = false } = {}) {
-    try {
-      if (!this.isUsageEnabled()) {
-        console.log('Usage tracking disabled, skipping analytics');
-        return false;
-      }
-
-      if (!path) {
-        console.warn('GoatCounter hit skipped: path is required');
-        return false;
-      }
-
-      const url = new URL(GOATCOUNTER_ENDPOINT);
-      url.searchParams.set('p', path);
-      if (title) url.searchParams.set('t', title);
-      if (event) url.searchParams.set('e', 'true');
-      url.searchParams.set('rnd', String(Date.now()));
-
-      console.log(`Tracking GoatCounter ${event ? 'event' : 'pageview'}: ${path}${title ? ` (${title})` : ''}`);
-
-      return new Promise((resolve) => {
-        const req = https.get(url.toString(), {
-          headers: {
-            'User-Agent': `Printventory/${typeof version !== 'undefined' ? version : 'unknown'} (${process.platform})`
-          }
-        }, (res) => {
-          res.on('data', () => {});
-          res.on('end', () => {
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              console.log('GoatCounter hit sent successfully');
-              resolve(true);
-            } else {
-              console.error(`Error sending GoatCounter hit: ${res.statusCode}`);
-              resolve(false);
-            }
-          });
-        });
-
-        req.on('error', (error) => {
-          console.error('Error sending GoatCounter hit:', error);
-          resolve(false);
-        });
-      });
-    } catch (error) {
-      console.error('Error in analytics.sendHit:', error);
-      return false;
-    }
-  },
-
-  async event(_clientId, category, action, options = {}) {
-    try {
-      const label = options.evLabel || '';
-      const pathParts = [category, action].filter(Boolean).map(String);
-      const path = `/${pathParts.join('/')}`.replace(/\s+/g, '-');
-      const title = label
-        ? `${category} / ${action}: ${label}`
-        : `${category} / ${action}`;
-
-      console.log(`Tracking event: ${category} - ${action} - ${label}`);
-      await this.sendHit({ path, title, event: true });
-      console.log('Analytics event sent');
-    } catch (error) {
-      console.error('Error in analytics.event:', error);
-    }
-  },
-
-  async pageview(_clientId, path, title) {
-    try {
-      console.log(`Tracking pageview: ${path} - ${title}`);
-      await this.sendHit({ path: path || '/', title: title || 'Printventory' });
-      console.log('Analytics pageview sent');
-    } catch (error) {
-      console.error('Error in analytics.pageview:', error);
-    }
-  }
-};
-
 // Near the top of the file, add this line
 const { version } = require('./package.json');
 
@@ -3179,9 +3087,14 @@ if (!gotTheLock) {
 
         createApplicationMenu();
 
-        // Version check after first window paint (HTTPS can block for seconds)
+        // Version check after first window paint (HTTPS can block for seconds).
+        // Nothing is sent before the terms are accepted or when automatic checks are off.
         setImmediate(() => {
-          checkForUpdates().catch((updateError) => {
+          if (!getSettingValueOr('tosAcceptedDate', null) || getSettingValueOr('autoUpdateCheck', '1') === '0') {
+            return;
+          }
+          const isBeta = getSettingValueOr('betaOptIn', 'false') === 'true';
+          checkForUpdates(isBeta).catch((updateError) => {
             console.error('Error checking version on startup:', updateError);
           });
         });
@@ -3199,12 +3112,6 @@ if (!gotTheLock) {
       
       startExtensionInboxWatcher();
 
-      // Track application usage after initialization (skip in server mode; do not block ready)
-      if (!isServerMode) {
-        setImmediate(() => {
-          trackAppUsage().catch((e) => console.error('trackAppUsage:', e));
-        });
-      }
     } catch (error) {
       console.error('Error during app initialization:', error);
       if (isServerMode) {
@@ -3727,10 +3634,9 @@ function initializeDefaultSettings() {
       { key: 'maxThumbnailSize', value: '300' },
       { key: 'maxConcurrentRenders', value: '3' },
       { key: 'lastVersionCheck', value: new Date().toISOString() },
-      { key: 'CollectUsage', value: '1' }, // Default to opt-in for analytics
-      { key: 'ClientId', value: crypto.randomUUID() }, // Generate a unique client ID
       { key: 'currentVersion', value: version }, // Use imported version from package.json
       { key: 'versionCheckPerformedOnStartup', value: 'false' }, // New setting for version check tracking
+      { key: 'autoUpdateCheck', value: '1' }, // '0' turns off the automatic version check
       { key: 'enableZipArchives', value: '0' }, // ZIP archive support disabled by default
       { key: 'scanAdditionalFileTypes', value: '[]' }, // JSON array of catalog ids for additional scan types (e.g. ["obj","step"])
       { key: 'scanExcludeFolders', value: '' }, // Extra folder names to skip while scanning, one per line
@@ -3767,7 +3673,10 @@ function initializeDefaultSettings() {
     for (const setting of defaultSettings) {
       insertStmt.run(setting.key, setting.value);
     }
-    
+
+    // Usage tracking was removed; drop its settings from older databases.
+    db.prepare("DELETE FROM settings WHERE key IN ('CollectUsage', 'ClientId')").run();
+
     console.log('Default settings initialized');
     return true;
   } catch (error) {
@@ -6697,23 +6606,6 @@ const saveSettingHandler = async (event, key, value) => {
       return false;
     }
     
-    // If this is the CollectUsage setting being changed, track the change
-    if (key === 'CollectUsage') {
-      const oldValue = db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
-      console.log('CollectUsage - Old value:', oldValue, 'New value:', value);
-      
-      // If turning on analytics and it was previously off, track this event
-      if (value === '1' && oldValue !== '1') {
-        // Track that the user enabled analytics
-        const clientId = getClientId();
-        await analytics.event(clientId, 'Settings', 'EnableAnalytics', {
-          evLabel: `Version ${version}`,
-          evValue: 1,
-          os_platform: process.platform
-        });
-      }
-    }
-    
     // Execute the database update
     const result = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
     console.log('Database update result:', result);
@@ -6721,12 +6613,6 @@ const saveSettingHandler = async (event, key, value) => {
     // Verify the save worked
     const verify = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
     console.log(`Verified setting '${key}' saved as:`, verify?.value);
-    
-    // Verify the update
-    if (key === 'CollectUsage') {
-      const newValue = db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
-      console.log('CollectUsage - Verified new value in database:', newValue);
-    }
     
     return true;
   } catch (error) {
@@ -13719,60 +13605,6 @@ function getDb() {
     return db; // Return the initialized database instance
 }
 
-// Add this function to track application usage
-async function trackAppUsage() {
-  try {
-    if (!analytics.isUsageEnabled()) {
-      console.log('Usage tracking disabled, skipping analytics');
-      return;
-    }
-
-    console.log('Usage tracking enabled, sending analytics data');
-
-    let modelCount = 0;
-    try {
-      const row = db.prepare('SELECT COUNT(*) AS total FROM models').get();
-      modelCount = row ? row.total : 0;
-    } catch (error) {
-      console.error('Error getting model count for startup tracking:', error);
-    }
-
-    const osPlatform = process.platform;
-    console.log('Startup tracking:');
-    console.log(`  - OS Platform: ${osPlatform}`);
-    console.log(`  - Printventory Version: ${version}`);
-    console.log(`  - Model Count: ${modelCount}`);
-
-    await analytics.sendHit({
-      path: `/app/open?v=${version}&os=${osPlatform}`,
-      title: `Printventory ${version} (${osPlatform}, ${modelCount} models)`
-    });
-  } catch (error) {
-    console.error('Error tracking app usage:', error);
-  }
-}
-
-// Add this IPC handler for tracking events from the renderer process
-ipcMain.handle('track-event', async (event, category, action, label, value) => {
-  try {
-    // Get the persistent client ID
-    const clientId = getClientId();
-    
-    // Track the event using the updated analytics implementation
-    await analytics.event(clientId, category, action, {
-      evLabel: label,
-      evValue: value,
-      app_version: version,
-      os_platform: process.platform
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error tracking event:', error);
-    return false;
-  }
-});
-
 // Add this function after the saveModel function
 async function saveModelBatch(modelDataBatch) {
   try {
@@ -14518,52 +14350,3 @@ function ensureFilamentsTablesExist() {
     return false;
   }
 }
-
-// Add this function to get or create a persistent client ID
-function getClientId() {
-  try {
-    if (!db || !db.prepare) {
-      console.error('Database not initialized, generating temporary client ID');
-      return crypto.randomUUID();
-    }
-    
-    // Try to get the client ID from the database
-    const clientIdSetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('ClientId');
-    
-    if (clientIdSetting && clientIdSetting.value) {
-      return clientIdSetting.value;
-    }
-    
-    // If no client ID exists, generate a new one and store it
-    const newClientId = crypto.randomUUID();
-    
-    // Check if the settings table has the ClientId key
-    const existingKey = db.prepare('SELECT key FROM settings WHERE key = ?').get('ClientId');
-    
-    if (existingKey) {
-      // Update the existing key
-      db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(newClientId, 'ClientId');
-    } else {
-      // Insert a new key
-      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('ClientId', newClientId);
-    }
-    
-    return newClientId;
-  } catch (error) {
-    console.error('Error getting/creating client ID:', error);
-    return crypto.randomUUID(); // Fallback to a temporary ID
-  }
-}
-
-// Add a new handler to check the CollectUsage setting directly from the database
-ipcMain.handle('check-collect-usage', async (event) => {
-  try {
-    console.log('Main Process - Checking CollectUsage setting directly from database');
-    const result = db.prepare('SELECT value FROM settings WHERE key = ?').get('CollectUsage');
-    console.log('CollectUsage direct check result:', result);
-    return result?.value || null;
-  } catch (error) {
-    console.error('Error checking CollectUsage setting:', error);
-    return null;
-  }
-});
