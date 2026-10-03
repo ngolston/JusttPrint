@@ -88,7 +88,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [x] **Keep a migration path**: same data path (`/root/.config/printventory`) and database, so existing volumes keep working.
 - [x] **Remove Electron completely.** `electron` and `electron-builder` are gone from `package.json`, along with the desktop window, menus, hidden worker window, preload, native input dialog and model viewer. `npm start` runs `src/server/index.js` on plain Node, and the DB tests run on plain Node. Text prompts use an in-page dialog. Since then the rewrite removed the remaining desktop branches, windows and native dialogs from `main.js`, and the Electron stand-in became `src/server/runtime.js` (paths, lifecycle, IPC registry, trash), required directly.
 - [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper and the Chrome extension.
-- [ ] **Rewrite `main.js` to be cleaner and lighter.** Split it (~13.3k lines) into small modules under `src/core/` and `src/server/`, and delete what isn't used: dead IPC handlers, legacy settings and migrations, duplicate helpers, debug logging. Work one area at a time and test after each step: unit tests, the container test suite (security, path guard, health), and a browser check of the grid, previews and thumbnails. This replaces the "move logic out of `main.js`" item below.
+- [ ] **Rewrite `main.js` to be cleaner and lighter.** Split it (~12.6k lines) into small modules under `src/core/` and `src/server/`, and delete what isn't used: dead IPC handlers, legacy settings and migrations, duplicate helpers, debug logging. Work one area at a time and test after each step: unit tests, the container test suite (security, path guard, health), and a browser check of the grid, previews and thumbnails. This replaces the "move logic out of `main.js`" item below.
 - [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers ask for a container path until the folder browser exists.
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
@@ -109,7 +109,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 
 ## 🟡 5. Medium: web UI can do everything
 
-- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** Start after the `main.js` rewrite and the HTTP API (section 4), so the new screens call clear endpoints instead of the IPC-over-WebSocket bridge. Mount React into parts of the existing page so the app keeps working throughout:
+- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** First choose the new project name and do the rename (section 7). Start after the `main.js` rewrite and the HTTP API (section 4), so the new screens call clear endpoints instead of the IPC-over-WebSocket bridge. Mount React into parts of the existing page so the app keeps working throughout:
   - First a self-contained dialog (Server Access or Settings), to set up Vite, TypeScript and the build in the Docker image.
   - Then the model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber).
   - Then the remaining dialogs and managers (tags, filament, printers, parts, dedup, organize).
@@ -137,12 +137,17 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [x] **Add end-to-end tests that drive the web UI.** `npm run test:e2e` starts the server on plain Node with `tests/fixtures/library` and runs 53 checks (API, security, path guard, MCP, backup, trash, and the browser UI).
 - [ ] **Run `npm run test:e2e` against the built Docker image too** (same checks, server in the container).
 - [ ] **Rebuild the performance checks on the e2e harness**: large-grid scrolling and 3MF preview stress. The old scripts predated the login and were removed.
-- [ ] **Make the database tests (`print-events`, `printer-manager`) run in the same runtime as the server.** `better-sqlite3` is currently built for Electron, so they fail on plain Node. This fixes itself once the server runs on plain Node.
+- [x] **Make the database tests (`print-events`, `printer-manager`) run in the same runtime as the server.** They run on plain Node since Electron was removed.
 - [ ] **Move CI from Node 20 to Node 22+.**
 - [ ] **Standardize on one test runner.** Vitest/TestDriver and Playwright overlap.
 
 ## 🔵 7. Cleanup
 
+- [ ] **Rename and rebrand the project.** Choose the new name first, then change it everywhere:
+  - Name, logo, icons and wording in the web UI, PWA manifest, login page, README, GUIDE and CHANGELOG.
+  - `package.json` name, GitHub repository name, Docker image and container names, and the release zip.
+  - Technical names: `PRINTVENTORY_*` environment variables, the `/root/.config/printventory` data path, the `printventory://` slicer helper protocol, cookies and log prefixes. Keep reading the old names for a release or two so existing installs keep working.
+  - Best done before the React rewrite (section 5), so new screens use the new name from the start.
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
 - [ ] **Remove unneeded dependencies:**
   - `fs`: an empty placeholder package.
