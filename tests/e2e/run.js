@@ -315,6 +315,20 @@ async function browserChecks(base, wsUrl, session) {
     }
     await page.evaluate(() => document.getElementById('metadata-editor-dialog')?.close());
 
+    // Server-initiated confirmation (Pull Metadata over existing details) shows in this browser.
+    const box3mf = path.join(LIBRARY, 'Designer B', 'box.3mf');
+    await invoke(wsUrl, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
+    const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
+    const confirmDialog = await page.waitForSelector('dialog[open] button:text-is("No")', { timeout: 15000 }).catch(() => null);
+    check('server confirmation appears in the browser', !!confirmDialog);
+    if (confirmDialog) {
+      await confirmDialog.click();
+      const pullResult = await pull.catch((error) => ({ error: error.message }));
+      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, JSON.stringify(pullResult));
+      const kept = await invoke(wsUrl, session, 'get-model', [box3mf]);
+      check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
+    }
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     check('API token shown', (await page.inputValue('#server-access-api-token')).startsWith('pv_'));

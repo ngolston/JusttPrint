@@ -198,7 +198,7 @@
   };
   window.electron.send = sendFunction;
 
-  function showBrowserMessage(title, message, buttons = ['OK']) {
+  function showBrowserMessage(title, message, buttons = ['OK'], cancelIndex = buttons.length > 1 ? buttons.length - 1 : 0) {
     return new Promise((resolve) => {
       const dialog = document.createElement('dialog');
       const dialogId = `browser-message-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -251,6 +251,13 @@
           resolve({ label, index });
         });
         buttonRow.appendChild(btn);
+      });
+
+      // Escape answers with the Cancel button instead of leaving the caller waiting.
+      dialog.addEventListener('cancel', (event) => {
+        event.preventDefault();
+        cleanup();
+        resolve({ label: buttons[cancelIndex], index: cancelIndex });
       });
 
       dialog.appendChild(titleEl);
@@ -411,6 +418,22 @@
               pendingRequests.delete(data.id);
               pending.reject(new Error(data.error));
             }
+          } else if (data.type === 'event' && data.channel === 'server-dialog-request') {
+            // The server asks this browser to show a dialog and waits for the answer.
+            const [dialogId, kind, options] = data.args || [];
+            const answer = kind === 'input'
+              ? showBrowserInput(options).then((value) => ({ value }))
+              : showBrowserMessage(
+                options.title || 'Printventory',
+                [options.message, options.detail].filter(Boolean).join('\n\n'),
+                options.buttons,
+                options.cancelId
+              ).then((result) => ({ response: result.index }));
+            answer.then((result) => {
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'event', channel: 'server-dialog-response', args: [dialogId, result] }));
+              }
+            });
           } else if (data.type === 'event') {
             // Handle events (like 'refresh-grid', 'scan-progress', etc.)
             if (BRIDGE_DEBUG) console.log('[Bridge] Received event:', data.channel, 'with args:', data.args);
@@ -648,8 +671,6 @@
     'reportServerThumbnailProgress': 'report-server-thumbnail-progress',
     'reportServerThumbnailComplete': 'report-server-thumbnail-complete',
     'reportServerThumbnailError': 'report-server-thumbnail-error',
-    'showMessage': 'show-message',
-    'showMessageBox': 'show-message-box',
     'backupDatabase': 'backup-database',
     'restoreDatabase': 'restore-database',
     'exportLibrary': 'export-library',

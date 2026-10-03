@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, dialog, Menu, shell, contextBridge, isServerShim } = require('electron');
+const { app, ipcMain, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
@@ -23,6 +23,10 @@ const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases, PROJECT_URL } = require('./src/server/releases');
+const { createClientDialogs, RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./src/server/client-dialogs');
+
+// Message boxes and prompts the server shows in the browser that made the request.
+const clientDialogs = createClientDialogs();
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -292,10 +296,6 @@ function validateUncPath(path, operation = 'operation') {
 }
 
 
-// Helper function to safely get BrowserWindow from event (returns null in server mode)
-function getWindowFromEvent(event) {
-  return null;
-}
 
 function getTlsCertsDir() {
   try {
@@ -977,12 +977,19 @@ ${bridgeCode}
       const { id, channel, args, type } = parsed;
 
       // Fire-and-forget sends / special events: handle immediately (no IPC slot).
-      const isFireAndForget = type === 'send' || (type === 'event' && channel === 'puter-ai-chat-response');
+      const isFireAndForget = type === 'send' || (type === 'event' && (channel === 'puter-ai-chat-response' || channel === DIALOG_RESPONSE_CHANNEL));
       if (!isFireAndForget) {
         await acquireWsIpcSlot();
       }
 
       try {
+        // A browser answered a dialog the server asked it to show.
+        if (type === 'event' && channel === DIALOG_RESPONSE_CHANNEL) {
+          const [dialogId, dialogResult] = args || [];
+          clientDialogs.handleResponse(ws, dialogId, dialogResult);
+          return;
+        }
+
         // Handle puter-ai-chat-response events from WebSocket clients (server mode)
         if (type === 'event' && channel === 'puter-ai-chat-response') {
           const [requestId, result] = args || [];
@@ -1164,6 +1171,7 @@ ${bridgeCode}
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
       wsClients.delete(ws);
+      clientDialogs.dropClient(ws);
       if (thumbnailWorkerWs === ws) thumbnailWorkerWs = null;
     });
 
@@ -1360,7 +1368,7 @@ let databaseClosedOnQuit = false;
 function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
-  if (isServerShim) stopThumbnailWorkerBrowser();
+  stopThumbnailWorkerBrowser();
   try {
     if (serverThumbnailJob.status === 'running') serverThumbnailJob.cancelRequested = true;
   } catch (_) { /* job state not initialized */ }
@@ -1762,7 +1770,7 @@ function thumbnailWorkerChromiumArgs() {
 }
 
 async function startThumbnailWorkerBrowser() {
-  if (!isServerShim || thumbnailWorkerBrowser) return;
+  if (thumbnailWorkerBrowser) return;
   const port = getHttpServerListenPort();
   if (!port) return;
   const scheme = resolveAppTls().options ? 'https' : 'http';
@@ -3154,9 +3162,7 @@ function initializeDatabase() {
     return true;
   } catch (err) {
     console.error('Error initializing database:', err);
-    dialog.showErrorBox('Database Error', 
-      `Failed to initialize database: ${err.message}\n\nPath: ${getDatabasePath()}\n\nPlease ensure the application has write permissions to its directory.`
-    );
+    console.error(`Database Error: failed to initialize the database at ${getDatabasePath()}: ${err.message}. Check that the data folder is writable (PUID/PGID).`);
     return false;
   }
 }
@@ -3546,20 +3552,14 @@ ipcMain.handle('save-directory', async (event, directoryPath) => {
   }
 });
 
-ipcMain.handle('open-file-dialog', async () => {
+ipcMain.handle('open-file-dialog', async (event) => {
   // Test mode: use fixed path so Playwright/Cline can run scan without native dialog (desktop: C:\temp, server/docker: /test)
   const testPath = process.env.PRINTVENTORY_TEST_SCAN_PATH;
   if (testPath && typeof testPath === 'string') {
     return [testPath];
   }
-  const result = await dialog.showOpenDialog(null, {
-    properties: ['openDirectory']
-  });
-  if (result.canceled) {
-    return null;
-  } else {
-    return result.filePaths;
-  }
+  const folder = await askForFolder(event, { title: 'Scan Directory' });
+  return folder ? [folder] : null;
 });
 
 // Update the calculateFileHash function to be more robust and handle zip entries
@@ -3802,25 +3802,6 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
 
     // If there are files to delete, show confirmation dialog
     if (filesToDelete.length > 0) {
-      // Get the window to show dialog - use provided window, mainWindow, or any available window
-      let dialogWindow = window;
-      if (!dialogWindow) {
-        dialogWindow = null;
-      }
-      if (!dialogWindow) {
-        const windows = BrowserWindow.getAllWindows();
-        if (windows.length > 0) {
-          dialogWindow = windows[0];
-        }
-      }
-
-      // Prepare file list for display (limit to first 20 files, show just filename)
-      const fileList = filesToDelete.slice(0, 20).map(f => {
-        const fileName = path.basename(f.filePath);
-        return fileName;
-      }).join('\n');
-      const moreFiles = filesToDelete.length > 20 ? `\n... and ${filesToDelete.length - 20} more file(s)` : '';
-
       // Auto-remove in server mode - use transaction for better performance
       db.transaction(() => {
         deleteModelsByIds(filesToDelete.map((file) => file.id));
@@ -4210,23 +4191,7 @@ ipcMain.handle('get-models-by-designer', async (event, designer) => {
   }
 });
 
-ipcMain.handle('show-message-box', async (event, options) => {
-  try {
-    // Test mode: auto-dismiss "New models found, would you like to see them?" so tests don't hang
-    if (process.env.PRINTVENTORY_TEST_SCAN_PATH && options.title === 'New Models Found') {
-      return { response: 1 };
-    }
-    if (process.env.PRINTVENTORY_TEST_SCAN_PATH && options.title === 'Files Skipped') {
-      return { response: 0 };
-    }
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const result = await dialog.showMessageBox(window || undefined, options);
-    return result;
-  } catch (error) {
-    console.error('Error showing message box:', error);
-    throw error;
-  }
-});
+
 
 const getAllModelsHandler = async (event, sortOption, limit = 0) => {
   try {
@@ -5720,17 +5685,13 @@ function broadcastThumbnailJobEvent(channel, payload) {
 }
 
 function thumbnailWorkerReady() {
-  if (isServerShim) return !!(thumbnailWorkerWs && thumbnailWorkerWs.readyState === WebSocket.OPEN);
-  return false;
+  return !!(thumbnailWorkerWs && thumbnailWorkerWs.readyState === WebSocket.OPEN);
 }
 
 function sendToThumbnailWorker(channel, ...args) {
-  if (isServerShim) {
-    if (!thumbnailWorkerReady()) throw new Error('Thumbnail worker is not connected yet');
-    thumbnailWorkerWs.send(jsonStringifyForWs({ type: 'event', channel, args }));
-    return;
-  }
-  throw new Error('Server thumbnail worker window is not ready');
+  if (!thumbnailWorkerReady()) throw new Error('Thumbnail worker is not connected yet');
+  thumbnailWorkerWs.send(jsonStringifyForWs({ type: 'event', channel, args }));
+  return;
 }
 
 async function startServerThumbnailJobInternal(mode) {
@@ -6049,31 +6010,7 @@ ipcMain.handle('open-path', async (event, path) => {
   }
 });
 
-ipcMain.handle('show-message', async (event, title, message, buttons = ['OK']) => {
-  let parent = null;
-  try {
-    parent = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null;
-  } catch (_) {
-    parent = null;
-  }
-  if (!parent || parent.isDestroyed()) {
-    parent = BrowserWindow.getFocusedWindow()
-      || BrowserWindow.getAllWindows().find((win) => win && !win.isDestroyed())
-      || null;
-  }
-  if (parent && !parent.isDestroyed()) {
-    if (parent.isMinimized()) parent.restore();
-    parent.show();
-    parent.focus();
-  }
-  const result = await dialog.showMessageBox(parent || undefined, {
-    type: 'info',
-    title: title,
-    message: message,
-    buttons: buttons
-  });
-  return buttons[result.response];
-});
+
 
 
 
@@ -6108,47 +6045,6 @@ ipcMain.handle('backup-database', async () => {
     }
     return { success: false, message: error.message };
   }
-
-  const result = await dialog.showSaveDialog(null, {
-    title: 'Save Database Backup',
-    defaultPath: 'printventory-backup.db',
-    filters: [
-      { name: 'Database Files', extensions: ['db'] }
-    ]
-  });
-
-  if (!result.canceled && result.filePath) {
-    try {
-      // Get the current database path
-      const dbPath = getDatabasePath();
-
-      // Close the current database connection
-      db.close();
-
-      // Copy the database file
-      await fs.promises.copyFile(dbPath, result.filePath);
-
-      // Reopen the database
-      db = new Database(dbPath, { 
-        verbose: DEBUG ? console.log : null 
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Backup error:', error);
-      // Make sure we reopen the database even if there's an error
-      try {
-        const dbPath = getDatabasePath();
-        db = new Database(dbPath, { 
-          verbose: DEBUG ? console.log : null 
-        });
-      } catch (reopenError) {
-        console.error('Error reopening database:', reopenError);
-      }
-      throw error;
-    }
-  }
-  return false;
 });
 
 // Update the restore-database handler
@@ -6433,26 +6329,6 @@ ipcMain.handle('export-library', async () => {
     console.error('Export library error:', error);
     return { success: false, message: error.message };
   }
-
-  const result = await dialog.showSaveDialog(null, {
-    title: 'Export Library',
-    defaultPath: 'printventory-library.json',
-    filters: [
-      { name: 'JSON Files', extensions: ['json'] }
-    ]
-  });
-
-  if (!result.canceled && result.filePath) {
-    try {
-      const exportData = buildLibraryExportData();
-      await fs.promises.writeFile(result.filePath, JSON.stringify(exportData, null, 2), 'utf8');
-      return true;
-    } catch (error) {
-      console.error('Export library error:', error);
-      throw error;
-    }
-  }
-  return false;
 });
 
 // Import library handler
@@ -6550,29 +6426,6 @@ ipcMain.handle('import-library', async (event, payload = null) => {
       return { success: false, message: error.message };
     }
   }
-
-  const result = await dialog.showOpenDialog(null, {
-    title: 'Import Library',
-    filters: [
-      { name: 'JSON Files', extensions: ['json'] }
-    ],
-    properties: ['openFile']
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    try {
-      const fileContent = await fs.promises.readFile(result.filePaths[0], 'utf8');
-      const importData = JSON.parse(fileContent);
-      return await importLibraryData(importData);
-    } catch (error) {
-      console.error('Import library error:', error);
-      if (event && event.sender) {
-        event.sender.send('close-progress-dialog');
-      }
-      throw error;
-    }
-  }
-  return false;
 });
 
 // Update these handlers to remove Promise wrappers and use synchronous API
@@ -7216,7 +7069,7 @@ const purgeModelsHandler = async (event, options = {}) => {
     let doPurge = fromWebSocket || confirmedInDialog;
 
     if (!doPurge) {
-      const result = await dialog.showMessageBox({
+      const result = await clientDialogs.messageBox(event, {
         type: 'warning',
         title: 'Purge Models',
         message: 'Are you sure you want to purge all models?',
@@ -7356,15 +7209,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         } catch (error) {
           console.error('Error triggering preview:', error);
           if (event && event.sender) {
-            const win = BrowserWindow.fromWebContents(event.sender);
-            if (win) {
-              dialog.showMessageBox(win, {
-                type: 'error',
-                title: 'Error',
-                message: 'Could not preview file',
-                detail: error.message
-              });
-            }
+            clientDialogs.messageBox(event, {
+              type: 'error',
+              title: 'Error',
+              message: 'Could not preview file',
+              detail: error.message
+            });
           }
         }
       }
@@ -7389,15 +7239,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         } catch (error) {
           console.error('Error triggering bundle preview:', error);
           if (event && event.sender) {
-            const win = BrowserWindow.fromWebContents(event.sender);
-            if (win) {
-              dialog.showMessageBox(win, {
-                type: 'error',
-                title: 'Error',
-                message: 'Could not preview bundle',
-                detail: error.message
-              });
-            }
+            clientDialogs.messageBox(event, {
+              type: 'error',
+              title: 'Error',
+              message: 'Could not preview bundle',
+              detail: error.message
+            });
           }
         }
       }
@@ -7424,84 +7271,16 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           }
         } catch (error) {
           console.error('Error triggering download:', error);
-          const win = BrowserWindow.fromWebContents(event.sender);
-          if (win) {
-            dialog.showMessageBox(win, {
-              type: 'error',
-              title: 'Error',
-              message: 'Could not download file',
-              detail: error.message
-            });
-          }
+          clientDialogs.messageBox(event, {
+            type: 'error',
+            title: 'Error',
+            message: 'Could not download file',
+            detail: error.message
+          });
         }
       }
     });
     menuItems.push({ type: 'separator' });
-  }
-
-  // Add extract options for zip entries (disabled in server mode)
-  if (isZipEntry && pathInfo && filePaths.length === 1 && false) {
-    menuItems.push(
-      { type: 'separator' },
-      {
-        label: 'Extract Model',
-        click: async () => {
-          try {
-            const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
-              properties: ['openDirectory'],
-              title: 'Select destination folder for extraction'
-            });
-            
-            if (!result.canceled && result.filePaths.length > 0) {
-              const destPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath, result.filePaths[0]);
-              dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
-                type: 'info',
-                title: 'Extraction Complete',
-                message: 'Model extracted successfully',
-                detail: `Extracted to: ${destPath}`
-              });
-            }
-          } catch (error) {
-            console.error('Error extracting model:', error);
-            dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
-              type: 'error',
-              title: 'Error',
-              message: 'Could not extract model',
-              detail: error.message
-            });
-          }
-        }
-      },
-      {
-        label: 'Extract Zip Archive',
-        click: async () => {
-          try {
-            const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
-              properties: ['openDirectory'],
-              title: 'Select destination folder for extraction'
-            });
-            
-            if (!result.canceled && result.filePaths.length > 0) {
-              const destPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath, result.filePaths[0]);
-              dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
-                type: 'info',
-                title: 'Extraction Complete',
-                message: 'Archive extracted successfully',
-                detail: `Extracted to: ${destPath}`
-              });
-            }
-          } catch (error) {
-            console.error('Error extracting archive:', error);
-            dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
-              type: 'error',
-              title: 'Error',
-              message: 'Could not extract archive',
-              detail: error.message
-            });
-          }
-        }
-      }
-    );
   }
 
   // Get all configured slicers from the database
@@ -7560,23 +7339,18 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               
               if (isWindowsPath) {
                 console.error('[Slicer] Cannot execute Windows slicer in Docker:', slicer.path);
-                const win = getWindowFromEvent(event);
                 const errorMessage = `The slicer path "${slicer.path}" is a Windows path, but the application is running in a Docker container (Linux).\n\n` +
                   `In Docker/Server mode, slicer paths must be:\n` +
                   `- Linux executable paths (e.g., /usr/bin/slicer)\n` +
                   `- Paths accessible from within the container\n\n` +
                   `If you need to use a Windows slicer, you must run Printventory in normal mode (not Docker/Server mode).`;
-                
-                if (win && !win.isDestroyed()) {
-                  dialog.showMessageBox(win, {
-                    type: 'warning',
-                    title: 'Slicer Path Not Compatible',
-                    message: 'Cannot execute Windows executable in Docker container',
-                    detail: errorMessage
-                  });
-                } else {
-                  console.error('[Slicer] Slicer Path Not Compatible:', errorMessage);
-                }
+
+                clientDialogs.messageBox(event, {
+                  type: 'warning',
+                  title: 'Slicer Path Not Compatible',
+                  message: 'Cannot execute Windows executable in Docker container',
+                  detail: errorMessage
+                });
                 return; // Exit early - don't try to execute
               }
             }
@@ -7584,7 +7358,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             // Execute slicer command (only in normal mode, not server mode)
             const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
             if (invalidSlicer) {
-              presentInvalidSlicer(getWindowFromEvent(event), invalidSlicer);
+              presentInvalidSlicer(event, invalidSlicer);
               return;
             }
 
@@ -7604,19 +7378,15 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             await runSlicerWithModelPaths(slicer, [modelPath]);
           } catch (error) {
             console.error('Error slicing model:', error);
-            const win = getWindowFromEvent(event);
             if (error && error.code === 'INVALID_SLICER') {
-              presentInvalidSlicer(win, error);
-            } else if (win && !win.isDestroyed()) {
-              dialog.showMessageBox(win, {
+              presentInvalidSlicer(event, error);
+            } else {
+              clientDialogs.messageBox(event, {
                 type: 'error',
                 title: 'Error',
                 message: 'Could not slice model',
                 detail: error.message
               });
-            } else {
-              // In server mode without a window, re-throw so it gets sent to client via WebSocket
-              throw error;
             }
           }
         }
@@ -7628,21 +7398,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   menuItems.push({
     label: 'Tag from Folder',
     click: async () => {
-      const win = getWindowFromEvent(event);
       const configuredLevels = clampFolderLevels(getSettings().aiTagFolderLevels);
       const levels = configuredLevels > 0 ? configuredLevels : 1;
-      if (win && !win.isDestroyed() && false) {
-        const confirm = await dialog.showMessageBox(win, {
-          type: 'question',
-          title: 'Tag from Folder',
-          message: `Add folder names as tags for ${filePaths.length} model${filePaths.length === 1 ? '' : 's'}?`,
-          detail: `Uses the closest ${levels} folder name${levels === 1 ? '' : 's'} above each file. Change how many in Settings > AI Configuration.`,
-          buttons: ['Tag', 'Cancel'],
-          defaultId: 0,
-          cancelId: 1
-        });
-        if (confirm.response !== 0) return;
-      }
       try {
         const result = applyFolderTagsToModels(filePaths, levels);
         if (global.broadcastEvent) {
@@ -7653,25 +7410,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         const summary = result.tagsAdded > 0
           ? `Added ${result.tagsAdded} tag${result.tagsAdded === 1 ? '' : 's'} on ${result.updated} model${result.updated === 1 ? '' : 's'}.`
           : 'No new folder tags were added. Those tags may already be on the models, or the files have no usable parent folder.';
-        if (win && !win.isDestroyed() && false) {
-          await dialog.showMessageBox(win, {
-            type: 'info',
-            title: 'Tag from Folder',
-            message: summary
-          });
-        } else {
-          console.log('[Tag from Folder]', summary);
-        }
+        console.log('[Tag from Folder]', summary);
       } catch (error) {
         console.error('Error tagging from folder:', error);
-        if (win && !win.isDestroyed() && false) {
-          await dialog.showMessageBox(win, {
-            type: 'error',
-            title: 'Tag from Folder',
-            message: 'Could not add folder tags',
-            detail: error.message
-          });
-        }
       }
     }
   });
@@ -8017,16 +7758,16 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               eventSender.send('batch-tag-generation-complete');
             }
           }
-          
+
           // Close progress dialog if open
           if (filePaths.length > 1 && eventSender && eventSender.send) {
             eventSender.send('close-progress-dialog');
           }
-          
+
           // Provide more user-friendly error messages
           let errorMessage = 'Could not generate tags';
           let errorDetail = error.message || 'An unknown error occurred';
-          
+
           if (error.message && error.message.includes('Authentication failed')) {
             errorMessage = 'Authentication Error';
             errorDetail = 'Your API key is invalid or has insufficient permissions. Please check your AI configuration settings.';
@@ -8044,14 +7785,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             errorMessage = 'Invalid Request';
             errorDetail = error.message;
           }
-          
-          const win = getWindowFromEvent(event);
-          if (win && !win.isDestroyed()) {
-            if (win.isMinimized()) win.restore();
-            win.show();
-            win.focus();
-          }
-          dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, {
+
+          clientDialogs.messageBox(event, {
             type: 'error',
             title: errorMessage,
             message: errorDetail,
@@ -8116,13 +7851,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           }
           
           // Show confirmation dialog if any models have existing data
-          const win = BrowserWindow.fromWebContents(event.sender);
           if (modelsWithData.length > 0) {
             const message = modelsWithData.length === 1
               ? `This will overwrite existing metadata for:\n\n${modelsWithData[0].fileName}\n\nExisting data:\n${modelsWithData[0].designer ? `Designer: ${modelsWithData[0].designer}\n` : ''}${modelsWithData[0].parentModel ? `Parent Model: ${modelsWithData[0].parentModel}\n` : ''}${modelsWithData[0].notes ? `Notes: ${modelsWithData[0].notes.substring(0, 50)}${modelsWithData[0].notes.length > 50 ? '...' : ''}\n` : ''}${modelsWithData[0].license ? `License: ${modelsWithData[0].license}\n` : ''}\n\nContinue?`
               : `This will overwrite existing metadata for ${modelsWithData.length} model(s).\n\nContinue?`;
             
-            const confirm = await dialog.showMessageBox(win, {
+            const confirm = await clientDialogs.messageBox(event, {
               type: 'warning',
               title: 'Confirm Metadata Overwrite',
               message: message,
@@ -8233,15 +7967,14 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             message = 'No files processed.';
           }
           
-          await dialog.showMessageBox(win, {
+          await clientDialogs.messageBox(event, {
             type: 'info',
             title: 'Metadata Pull Complete',
             message: message
           });
         } catch (error) {
           console.error('Error pulling metadata:', error);
-          const win = BrowserWindow.fromWebContents(event.sender);
-          await dialog.showMessageBox(win, {
+          await clientDialogs.messageBox(event, {
             type: 'error',
             title: 'Error',
             message: 'Could not pull metadata',
@@ -8266,15 +7999,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           }
         } catch (error) {
           console.error('Error adding image:', error);
-          const win = BrowserWindow.fromWebContents(event.sender);
-          if (win) {
-            dialog.showMessageBox(win, {
-              type: 'error',
-              title: 'Error',
-              message: 'Could not add image',
-              detail: error.message
-            });
-          }
+          clientDialogs.messageBox(event, {
+            type: 'error',
+            title: 'Error',
+            message: 'Could not add image',
+            detail: error.message
+          });
         }
       }
     });
@@ -8293,15 +8023,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         const thumbnails = storedThumbnail ? parseThumbnails(storedThumbnail).filter(t => t && t !== '3d.png' && t.length > 0 && t.startsWith('data:image')) : [];
         
         if (thumbnails.length === 0) {
-          const win = BrowserWindow.fromWebContents(event.sender);
-          if (win) {
-            await dialog.showMessageBox(win, {
-              type: 'info',
-              title: 'No Thumbnails',
-              message: 'This model has no thumbnails to manage.',
-              detail: 'Please add an image first using "Add Image".'
-            });
-          }
+          await clientDialogs.messageBox(event, {
+            type: 'info',
+            title: 'No Thumbnails',
+            message: 'This model has no thumbnails to manage.',
+            detail: 'Please add an image first using "Add Image".'
+          });
           return;
         }
         
@@ -8313,15 +8040,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         }
       } catch (error) {
         console.error('Error opening manage thumbnails:', error);
-        const win = BrowserWindow.fromWebContents(event.sender);
-        if (win) {
-          dialog.showMessageBox(win, {
-            type: 'error',
-            title: 'Error',
-            message: 'Could not open thumbnail manager',
-            detail: error.message
-          });
-        }
+        clientDialogs.messageBox(event, {
+          type: 'error',
+          title: 'Error',
+          message: 'Could not open thumbnail manager',
+          detail: error.message
+        });
       }
     }
   });
@@ -8363,13 +8087,6 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           for (const fp of filePaths) {
             try {
               const success = await deleteFile(fp);
-              if (!success && false) {
-                await dialog.showMessageBox({
-                  type: 'error',
-                  title: 'Error',
-                  message: `Failed to delete file: ${fp}`
-                });
-              }
             } catch (error) {
               console.error('Error deleting file:', error);
             }
@@ -8384,14 +8101,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     }
   );
 
-  const menu = Menu.buildFromTemplate(menuItems);
-
-  // Get the window - use helper function that handles server mode
-  const win = getWindowFromEvent(event);
-
-  // Test mode or server mode without window: return HTML menu so Playwright can assert on it
-  const useHtmlMenu = (process.env.PRINTVENTORY_TEST_SCAN_PATH && process.env.PRINTVENTORY_TEST_SCAN_PATH.length > 0) || (!win);
-  if (useHtmlMenu) {
+  // The browser renders the menu; clicks come back through execute-context-menu-action.
+  {
     // Generate unique request ID for this context menu
     const requestId = `ctx_${++contextMenuRequestIdCounter}_${Date.now()}`;
     
@@ -8453,17 +8164,6 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       filePaths: filePaths
     };
   }
-
-  // In Docker/server mode, use mainWindow if available, or popup without window parameter
-  if (win) {
-    menu.popup({ window: win });
-  } else {
-    // Last resort: popup without window (uses current focused window)
-    menu.popup();
-  }
-
-  // Return null for normal mode (menu already shown)
-  return null;
 });
 
 // IPC handler to execute context menu actions (for server mode browser access)
@@ -9226,18 +8926,28 @@ function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
   return slicers[0];
 }
 
-function presentInvalidSlicer(win, error) {
-  const options = {
+/**
+ * The server cannot open a folder picker on the user's computer, so it asks the browser for a
+ * path inside the container. (A folder browser for mounted volumes is planned.)
+ */
+async function askForFolder(event, { title, defaultPath } = {}) {
+  const value = await clientDialogs.input(event, {
+    title: title || 'Select Directory',
+    message: 'Folder path inside the container (for example /mnt/models/sorted):',
+    defaultValue: defaultPath ? String(defaultPath) : '',
+    placeholder: '/mnt/models'
+  });
+  const folder = value ? value.trim() : '';
+  return folder || null;
+}
+
+function presentInvalidSlicer(event, error) {
+  return clientDialogs.messageBox(event, {
     type: 'error',
     title: 'Slicer path is not valid',
     message: 'Could not open the slicer',
     detail: error.message
-  };
-  if (win && !win.isDestroyed()) {
-    dialog.showMessageBox(win, options);
-    return;
-  }
-  dialog.showMessageBox(options);
+  });
 }
 
 function runSlicerWithModelPaths(slicer, modelPaths) {
@@ -10358,12 +10068,11 @@ ipcMain.handle('pull-3mf-metadata', async (event, filePaths) => {
     
     // Show confirmation dialog if any models have existing data
     if (modelsWithData.length > 0) {
-      const win = BrowserWindow.fromWebContents(event.sender);
       const message = modelsWithData.length === 1
         ? `This will overwrite existing metadata for:\n\n${modelsWithData[0].fileName}\n\nExisting data:\n${modelsWithData[0].designer ? `Designer: ${modelsWithData[0].designer}\n` : ''}${modelsWithData[0].parentModel ? `Parent Model: ${modelsWithData[0].parentModel}\n` : ''}${modelsWithData[0].notes ? `Notes: ${modelsWithData[0].notes.substring(0, 50)}${modelsWithData[0].notes.length > 50 ? '...' : ''}\n` : ''}${modelsWithData[0].license ? `License: ${modelsWithData[0].license}\n` : ''}\n\nContinue?`
         : `This will overwrite existing metadata for ${modelsWithData.length} model(s).\n\nContinue?`;
-      
-      const confirm = await dialog.showMessageBox(win, {
+
+      const confirm = await clientDialogs.messageBox(event, {
         type: 'warning',
         title: 'Confirm Metadata Overwrite',
         message: message,
@@ -10371,7 +10080,7 @@ ipcMain.handle('pull-3mf-metadata', async (event, filePaths) => {
         defaultId: 1,
         cancelId: 1
       });
-      
+
       if (confirm.response !== 0) {
         return { success: false, cancelled: true };
       }
@@ -11178,24 +10887,8 @@ ipcMain.handle('open-update-page', async (event, isBeta) => {
 // Add new IPC handler for opening folder dialog
 ipcMain.handle('open-folder-dialog', async (event, titleOrOptions) => {
   const options = titleOrOptions && typeof titleOrOptions === 'object' ? titleOrOptions : { title: titleOrOptions };
-  let win = null;
-  try {
-    if (event && event.sender) win = BrowserWindow.fromWebContents(event.sender);
-  } catch (e) {
-    win = null;
-  }
-  if (!win || win.isDestroyed()) {
-    win = null;
-  }
-  const dialogOptions = {
-    title: options.title || 'Select Directory',
-    properties: ['openDirectory']
-  };
-  if (options.defaultPath) dialogOptions.defaultPath = String(options.defaultPath);
-  const result = win
-    ? await dialog.showOpenDialog(win, dialogOptions)
-    : await dialog.showOpenDialog(dialogOptions);
-  return result;
+  const folder = await askForFolder(event, { title: options.title, defaultPath: options.defaultPath });
+  return folder ? { canceled: false, filePaths: [folder] } : { canceled: true, filePaths: [] };
 });
 
 // Add new IPC handler for moving multiple files
@@ -12129,10 +11822,7 @@ const openFileInSlicerHandler = async (event, options = {}) => {
     // Launch failed — remove any extracts we just created
     scheduleExtractTempCleanupMany(modelPaths, 0);
     console.error('Error opening file in slicer:', error);
-    const win = getWindowFromEvent(event);
-    if (win && !win.isDestroyed()) {
-      dialog.showErrorBox('Send to Slicer', error.message);
-    }
+    clientDialogs.messageBox(event, { type: 'error', title: 'Send to Slicer', message: error.message });
     throw error;
   }
 };
@@ -12227,18 +11917,15 @@ const executeClientCommandHandler = async (event, commandData) => {
       }
 
       if (!modelPaths.length) {
-        const win = getWindowFromEvent(event);
         const detail = isZipEntry && zipPath && entryPath
           ? `To open ${entryPath} from ${zipPath}:\n\n1. Extract ${entryPath} from the ZIP file\n2. Open the extracted file in ${slicerName}`
           : `Could not resolve local model paths for the slicer.`;
-        if (win && !win.isDestroyed()) {
-          dialog.showMessageBox(win, {
-            type: 'info',
-            title: 'Send to Slicer',
-            message: 'Cannot open these models in slicer from here',
-            detail
-          });
-        }
+        clientDialogs.messageBox(event, {
+          type: 'info',
+          title: 'Send to Slicer',
+          message: 'Cannot open these models in slicer from here',
+          detail
+        });
         return { success: false, message: 'No resolvable model paths' };
       }
 
