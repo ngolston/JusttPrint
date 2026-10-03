@@ -98,6 +98,8 @@ const filesToCopy = [
   'spoolman.js',
   'mcp-server.js',
   'server-tls.js',
+  'server-auth.js',
+  'server-paths.js',
   'extension-inbox.js'
 ];
 

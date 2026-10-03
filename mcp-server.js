@@ -694,12 +694,12 @@ function clampLimit(value, fallback, max) {
   return Math.min(n, max);
 }
 
-function buildMcpClientConfig(url) {
+function buildMcpClientConfig(url, apiToken) {
+  const server = { url };
+  if (apiToken) server.headers = { Authorization: `Bearer ${apiToken}` };
   return {
     mcpServers: {
-      printventory: {
-        url
-      }
+      printventory: server
     }
   };
 }

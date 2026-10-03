@@ -46,6 +46,8 @@
     "test:dedup-preferred": "node dedup-preferred.test.js",
     "test:organize-library": "node organize-library.test.js",
     "test:support-logs": "node support-logs.test.js",
+    "test:server-auth": "node server-auth.test.js",
+    "test:server-paths": "node server-paths.test.js",
     "test:full": "playwright test full-app-e2e.spec.js",
     "test:dedup-stress": "node tests/dedup-stress-test.js"
   },
@@ -218,6 +220,8 @@
       "vendor/**/*",
       "server-bridge.js",
       "server-tls.js",
+      "server-auth.js",
+      "server-paths.js",
       "extension-inbox.js",
       "mcp-server.js",
       "installer.nsh",

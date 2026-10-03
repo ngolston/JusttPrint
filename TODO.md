@@ -41,25 +41,29 @@ docs/        GUIDE.md, guide/ images
 
 ## 🔴 1. Critical: server security
 
-- [ ] **Add authentication to server mode** (a login with a session cookie, plus API tokens for MCP and the extension). Anyone who can reach the container can control it today.
-- [ ] **Restrict `/api/file/*` and `/api/download/*`** ([main.js:798](main.js#L798)). They return any file in the container (e.g. `/api/file//etc/passwd`). Only serve files inside configured library folders.
-- [ ] **Check the origin of WebSocket connections and require auth on them** ([main.js:1135](main.js#L1135)). Any web page can connect and call every IPC handler, including `delete-file`.
-- [ ] **Replace `Access-Control-Allow-Origin: *`** ([main.js:670](main.js#L670)) with an allowlist.
+- [x] **Add authentication to server mode**: password login with a signed session cookie, an API token for MCP, and short-lived download tokens for the slicer helper (`server-auth.js`).
+- [x] **Restrict `/api/file/*` and `/api/download/*`** to library folders, stored model paths, and backups/exports (`server-paths.js`).
+- [x] **Check the origin of WebSocket connections and require auth on them.** Open sockets are also closed when the password changes.
+- [x] **Replace `Access-Control-Allow-Origin: *`** with same-origin plus `PRINTVENTORY_ALLOWED_ORIGINS`, and refuse cross-site state-changing requests.
+- [x] **Stop serving the whole app folder as static files.** `support-webhook.json`, `package.json`, `main.js` and `node_modules` were public. Only web assets are served now.
 - [ ] **Validate every path the web UI sends**, for scan, delete, move and organize. Reject anything outside the library folders.
 - [ ] **Replace `xmldom`.** It has a critical vulnerability with no fix (the package is abandoned). Switch to `@xmldom/xmldom` and rebuild `vendor/xmldom-worker-bundle.js`.
 - [ ] **Fix the remaining vulnerable dependencies** (`npm audit`: 16 high, 4 moderate), which come from `puppeteer`, `ws`, `express`, `acme-client` and `fflate`. Start with `npm audit fix`.
 - [ ] **Add security headers to the web UI**: Content Security Policy, `X-Content-Type-Options`, `frame-ancestors`.
+- [ ] **Resolve symlinks before the library-folder check.** A symlink inside a library folder can still point outside it.
+- [ ] **Make the login rate limit work behind a reverse proxy.** It counts failures per IP, so behind a proxy all users share one counter. Use `X-Forwarded-For` only when a trusted-proxy setting is on.
+- [ ] **Decide on the legacy `/api/extension-upload` route.** Older extension builds that upload over HTTP have no token and now get 401. Remove the route or let the extension send the API token.
 
 ## 🟠 2. High: remove usage tracking, and privacy
 
-- [ ] **Remove GoatCounter completely:**
-  - [ ] `main.js`: the `analytics` object (~244–335), the `track-event` handler (~13720–13770), the settings-change tracking (~6700), and the `CollectUsage: '1'` default (~3730).
-  - [ ] `renderer.js` ~14004: it loads a remote script from `gc.zgo.at`.
-  - [ ] `preload.js:148` (`trackEvent`) and `server-bridge.js:562` (`track-event`).
-  - [ ] The "Collect usage" option in the About dialog (`renderer.js` ~6186–6230).
-  - [ ] Mentions in the README, guide and privacy text.
-- [ ] **Delete the `CollectUsage` setting from existing databases** with a migration.
-- [ ] **Review the other outgoing connections:**
+- [x] **Remove GoatCounter completely:**
+  - [x] `main.js`: the `analytics` object (~244–335), the `track-event` handler (~13720–13770), the settings-change tracking (~6700), and the `CollectUsage: '1'` default (~3730).
+  - [x] `renderer.js` ~14004: it loads a remote script from `gc.zgo.at`.
+  - [x] `preload.js:148` (`trackEvent`) and `server-bridge.js:562` (`track-event`).
+  - [x] The "Collect usage" option in the About dialog (`renderer.js` ~6186–6230).
+  - [x] Mentions in the README, guide and privacy text.
+- [x] **Delete the `CollectUsage` and `ClientId` settings from existing databases.**
+- [x] **Review the other outgoing connections** (documented under *Network Connections* in the README; the update check can be turned off under About → Updates and waits for the terms):
   - The version check to printventory.com: keep it, but make it optional.
   - Puter AI.
   - The support-log webhook.
@@ -70,7 +74,7 @@ docs/        GUIDE.md, guide/ images
 
 - [ ] **Fix the image build from a clean clone.** The Dockerfile copies and requires `support-webhook.json`, but that file is in `.gitignore`, so the build fails for anyone but you. Make it optional.
 - [ ] **Run as a non-root user**, with `PUID`/`PGID` support so files on mounted libraries and NAS shares get the right owner.
-- [ ] **Add a `HEALTHCHECK`** and a `/api/health` endpoint.
+- [ ] **Add a `HEALTHCHECK` to the Dockerfile.** The `/api/health` endpoint exists (no login needed).
 - [ ] **Make all configuration available through environment variables**: port, data directory, library paths, admin password, TLS.
 - [ ] **Shut down cleanly on `docker stop`**: close the database and let in-progress scans finish or roll back.
 - [ ] **Publish a multi-arch image** (amd64 and arm64) for Raspberry Pi, Apple Silicon and many NAS boxes.
@@ -115,7 +119,7 @@ This is the main refactor, and the folder reorganization above happens as part o
 
 ## 🟡 6. Medium: bugs, tests and CI
 
-- [ ] **Fix the version check.** It reports "latest version 2.2.2" while the app is at 2.2.16.
+- [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [ ] **Run the unit tests (`test:*` scripts) in CI.** `.github/workflows/testdriver.yml` only runs the TestDriver tests.
 - [ ] **Build the Docker image in CI and smoke-test it**: start it, log in, scan a fixture library, load the web UI.
 - [ ] **Add Playwright end-to-end tests that drive the web UI against the container.**
@@ -136,6 +140,7 @@ This is the main refactor, and the folder reorganization above happens as part o
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [ ] **Update docs**: the README says version 2.2.9; rewrite the install section with Docker first.
+- [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)
 

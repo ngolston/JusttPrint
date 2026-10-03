@@ -383,8 +383,8 @@ async function handleUrl(rawUrl) {
   for (let i = 0; i < request.filePaths.length; i++) {
     const filePath = request.filePaths[i];
     const dest = path.join(jobDir, fileNameFromModelPath(filePath, i));
-    const downloadUrl = protocol.buildModelDownloadUrl(origin, filePath);
-    log('download ' + downloadUrl);
+    const downloadUrl = protocol.buildModelDownloadUrl(origin, filePath, request.downloadToken);
+    log('download ' + filePath);
     await downloadFile(downloadUrl, dest, { tlsInsecure: config.tlsInsecure, allowedOrigin: origin });
     localPaths.push(dest);
   }

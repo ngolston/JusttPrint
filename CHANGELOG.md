@@ -4,6 +4,15 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+- Server Mode requires a login. Set the password with `PRINTVENTORY_PASSWORD`, or use the one printed in the server log on first start, and change it under Tools → Server Access
+- MCP clients authenticate with an API token; the MCP client config includes it
+- The file and download endpoints only serve files inside the library folders, plus backups and exports. The live database and certificates can no longer be downloaded
+- The server no longer serves server code, `node_modules`, `package.json` or the support webhook file
+- WebSocket connections and state-changing requests from other websites are refused
+- Send to Slicer links carry a short-lived download token. Reinstall the helper from Settings → Slicer
+- Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
+- The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
+
 ## [2.2.16] - 2026-10-02
 
 - Organize Library copies models from a scanned folder into a folder structure you choose, checks free space, and removes each original only after the copy is verified. Zip archives can move packed when zip support is on

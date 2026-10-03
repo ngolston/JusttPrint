@@ -117,6 +117,19 @@ For example, if your computer's IP address is `192.168.1.100`:
 http://192.168.1.100:5000
 ```
 
+### Logging In
+
+Server Mode requires a password. Browsers log in once and stay logged in for 30 days.
+
+- **First start**: if no password is set, Printventory creates one and prints it in the server log (`docker logs printventory`). It is shown only once.
+- **Set it yourself**: start with the `PRINTVENTORY_PASSWORD` environment variable. It replaces the stored password on every start, which is also how to reset a forgotten password.
+- **Change it**: **Tools → Server Access** (password at least 8 characters). Changing it logs out every browser.
+- **MCP clients and scripts**: send `Authorization: Bearer <API token>`. The token is shown under **Tools → Server Access**, and the client config under **MCP Server → Settings** already includes it.
+- **Send to Slicer helper**: links carry a download token that expires after 15 minutes. Helpers installed before login was added must be reinstalled from **Settings → Slicer**.
+- **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `PRINTVENTORY_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
+
+The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates.
+
 ### Important Requirements
 
 - **Path Requirements**: 
@@ -127,7 +140,7 @@ http://192.168.1.100:5000
     - Network shares must be mounted into the container (see [Docker Deployment](#docker-deployment-linux-server-mode))
 - **Network Access**: The server listens on all network interfaces (0.0.0.0) on port 5000
 - **Firewall**: You may need to allow Printventory through your firewall to access it from other devices
-- **Network Security**: Server Mode is designed for local network use. For production deployments, consider additional security measures
+- **Network Security**: Server Mode is designed for local network use. It requires a login (see [Logging In](#logging-in)), but use HTTPS whenever it is reachable from outside your network
 - **HTTPS / SSL**: Open **Settings → HTTPS / SSL** to use custom PEM files, a self-signed LAN certificate, or Let's Encrypt (public DNS + inbound port 80). In server/Docker mode you can also set the **listen port** (default 5000; `https://` and `wss://` on that port). `PRINTVENTORY_PORT` seeds the port when unset. `PRINTVENTORY_TLS_*` environment variables override the certificate UI. Reverse proxies should leave in-app TLS off and upgrade WebSockets.
 - **STL Home Setting**: The STL Home setting follows the same path format rules as regular scanning. See the [STL Home Setting](#stl-home-setting-server-mode) section below for details on automatic and periodic scanning.
 

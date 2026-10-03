@@ -23,6 +23,8 @@ const extensionInbox = require('./extension-inbox');
 const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
+const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH } = require('./server-auth');
+const { isServableStaticPath, isLibraryPathAllowed } = require('./server-paths');
 const {
   normalizeExcludeNames,
   shouldSkipDirectoryName,
@@ -571,18 +573,16 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   const HOST = localhostOnly ? '127.0.0.1' : '0.0.0.0';
   const forcePlainHttp = !!(options && options.forcePlainHttp);
 
-  // Enable CORS for remote access
-  expressApp.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID');
-    res.header('Access-Control-Expose-Headers', 'Mcp-Session-Id, MCP-Protocol-Version');
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-    } else {
-      next();
-    }
+  // Same-origin CORS, login, then everything else requires a session or API token.
+  const auth = getServerAuth();
+  auth.ensureCredentials();
+  expressApp.use(auth.cors);
+  expressApp.use(auth.rejectForeignOrigins);
+  expressApp.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', version });
   });
+  auth.registerRoutes(expressApp, express);
+  expressApp.use(auth.requireAuth);
 
   // JSON body parser for extension upload (large payloads for base64 file)
   expressApp.use(express.json({ limit: '50mb' }));
@@ -669,7 +669,7 @@ ${bridgeCode}
 
   // Now register static file serving AFTER the route handler
   // This ensures the route handler takes precedence for the root path
-  expressApp.use(express.static(appDir, {
+  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
         res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
@@ -686,7 +686,7 @@ ${bridgeCode}
         res.setHeader('Cache-Control', 'no-cache');
       }
     }
-  }));
+  })));
 
   // Extension upload: accept file bytes + metadata, write to configured directory (e.g. NAS), then saveModel
   expressApp.post('/api/extension-upload', async (req, res) => {
@@ -707,6 +707,10 @@ ${bridgeCode}
     try {
       // Extract file path from URL (everything after /api/file/)
       const filePath = decodeURIComponent(req.path.replace('/api/file/', ''));
+      if (!libraryPathAllowed(filePath)) {
+        res.status(403).send('File is outside the library folders');
+        return;
+      }
       
       // Validate path (UNC paths on Windows, absolute paths in Docker)
       if (isDockerContainer()) {
@@ -797,6 +801,10 @@ ${bridgeCode}
       
       // Check if this is a zip entry
       const pathInfo = parseZipPath(filePath);
+      if (!libraryPathAllowed(pathInfo.isZipEntry ? pathInfo.zipPath : filePath)) {
+        res.status(403).send('File is outside the library folders');
+        return;
+      }
       let actualFilePath = filePath;
       let fileName = path.basename(filePath);
       let fileData = null;
@@ -926,7 +934,7 @@ ${bridgeCode}
   });
 
   // Serve static assets
-  expressApp.use(express.static(appDir, {
+  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
     setHeaders: (res, filePath) => {
       // Set proper MIME types
       const ext = path.extname(filePath).toLowerCase();
@@ -957,7 +965,7 @@ ${bridgeCode}
         res.setHeader('Cache-Control', 'no-cache');
       }
     }
-  }));
+  })));
 
   // Handle 404 - serve index.html for SPA routing (with bridge injection)
   expressApp.get('*', (req, res) => {
@@ -1040,7 +1048,14 @@ ${bridgeCode}
   });
 
   // Create WebSocket server for IPC bridge
-  wss = new WebSocket.Server({ server: httpServer });
+  wss = new WebSocket.Server({
+    server: httpServer,
+    verifyClient: (info, done) => {
+      const result = getServerAuth().verifyUpgrade(info.req);
+      if (!result.ok) console.warn(`[Server] WebSocket rejected: ${result.reason}`);
+      done(result.ok, result.status, result.reason);
+    }
+  });
   const pendingRequests = new Map();
   wsClients = new Set(); // Track all connected clients
 
@@ -1187,7 +1202,9 @@ ${bridgeCode}
               }
             },
             // Add wsClient for server mode so createPuterIPCHandler can use it
-            wsClient: isServerMode ? ws : null
+            wsClient: isServerMode ? ws : null,
+            // Set for every call that arrives over the network (any mode)
+            fromNetwork: true
           };
           
           // Check if handler exists in registry (for direct invocation)
@@ -1405,7 +1422,7 @@ function startElectronUiServer() {
   expressApp.use(express.json({ limit: '50mb' }));
   registerPuterAiProxyRoute(expressApp);
 
-  expressApp.use(express.static(appDir, {
+  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
     setHeaders: (res, filePath) => {
       const ext = path.extname(filePath).toLowerCase();
       const mimeTypes = {
@@ -1435,7 +1452,7 @@ function startElectronUiServer() {
         res.setHeader('Cache-Control', 'no-cache');
       }
     }
-  }));
+  })));
 
   expressApp.get('*', (req, res) => {
     if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|bmp|webp|json|webmanifest|map)$/)) {
@@ -1557,6 +1574,47 @@ function getSettingValueOr(key, fallback) {
     if (row && row.value != null && row.value !== '') return row.value;
   } catch (_) { /* ignore */ }
   return fallback;
+}
+
+let serverAuth = null;
+
+/** Login, API token and download tokens for the HTTP/WebSocket server. */
+function getServerAuth() {
+  if (!serverAuth) {
+    serverAuth = createServerAuth({
+      getSetting: (key) => getSettingValueOr(key, null),
+      setSetting: (key, value) => {
+        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+      },
+      extraOrigins: () => {
+        const origins = String(process.env.PRINTVENTORY_ALLOWED_ORIGINS || '')
+          .split(',').map((origin) => origin.trim()).filter(Boolean);
+        if (electronUiPort) {
+          origins.push(`http://127.0.0.1:${electronUiPort}`, `http://localhost:${electronUiPort}`);
+        }
+        return origins;
+      }
+    });
+  }
+  return serverAuth;
+}
+
+/** Only hand out web assets from the app folder (never server code, config or secrets). */
+function staticWebAssetsOnly(staticHandler) {
+  return (req, res, next) => (isServableStaticPath(req.path) ? staticHandler(req, res, next) : next());
+}
+
+/** /api/file and /api/download only serve library files, plus backups and exports. */
+function libraryPathAllowed(filePath) {
+  let generatedDir = '';
+  try {
+    generatedDir = path.dirname(getDatabasePath());
+  } catch (_) { /* db not ready */ }
+  return isLibraryPathAllowed(filePath, {
+    roots: [...getLibraryRootPaths(), ...readScannedDirectorySetting()],
+    generatedDir,
+    isKnownModel: (candidate) => !!(db && db.prepare('SELECT 1 FROM models WHERE filePath = ? LIMIT 1').get(candidate))
+  });
 }
 
 let extensionInboxTimer = null;
@@ -1735,11 +1793,42 @@ function getMcpConnectionInfo() {
     port,
     url: primaryUrl,
     urls,
-    clientConfig: buildMcpClientConfig(isServerMode ? `${scheme}://<server-host>:${port}/mcp` : localUrl),
+    clientConfig: buildMcpClientConfig(isServerMode ? `${scheme}://<server-host>:${port}/mcp` : localUrl, getServerAuth().apiToken()),
     tools: listToolDefinitions().map((t) => t.name),
     serverName: MCP_SERVER_NAME
   };
 }
+
+ipcMain.handle('get-server-access-info', async () => ({
+  apiToken: getServerAuth().apiToken(),
+  passwordFromEnv: !!process.env.PRINTVENTORY_PASSWORD,
+  minPasswordLength: MIN_PASSWORD_LENGTH
+}));
+
+ipcMain.handle('set-server-password', async (event, currentPassword, newPassword) => {
+  if (process.env.PRINTVENTORY_PASSWORD) {
+    throw new Error('The password is set by PRINTVENTORY_PASSWORD. Change it there and restart.');
+  }
+  const auth = getServerAuth();
+  // The desktop window may reset a forgotten password; browsers must know the current one.
+  if (event && event.fromNetwork && !auth.verifyPassword(currentPassword)) {
+    throw new Error('Current password is wrong');
+  }
+  auth.setPassword(newPassword);
+  // Open sockets were authorized with the old password; drop them so every browser logs in again.
+  setTimeout(() => {
+    if (wsClients) {
+      wsClients.forEach((client) => {
+        try { client.close(4001, 'Password changed'); } catch (_) { /* ignore */ }
+      });
+    }
+  }, 1500);
+  return { success: true };
+});
+
+ipcMain.handle('regenerate-server-api-token', async () => ({
+  apiToken: getServerAuth().regenerateApiToken()
+}));
 
 function resolveModelForMcp(args) {
   if (!args) throw new Error('Provide id or filePath');
@@ -3714,13 +3803,18 @@ async function createWindow() {
   });
   // mainWindow.webContents.openDevTools() // Disabled - prevents auto-opening debug console on load
   
-  // Allow puter.com API requests (handle CORS if needed)
+  // One listener per session: puter.com headers, plus the API token for this app's own
+  // local HTTP server (the desktop window fetches UNC files from it).
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
-    { urls: ['https://api.puter.com/*', 'https://js.puter.com/*'] },
+    { urls: ['https://api.puter.com/*', 'https://js.puter.com/*', '*://localhost/*', '*://127.0.0.1/*'] },
     (details, callback) => {
-      // Add headers for puter.com API requests
-      details.requestHeaders['Origin'] = 'https://puter.com';
-      details.requestHeaders['Referer'] = 'https://puter.com/';
+      const url = new URL(details.url);
+      if (url.hostname.endsWith('puter.com')) {
+        details.requestHeaders['Origin'] = 'https://puter.com';
+        details.requestHeaders['Referer'] = 'https://puter.com/';
+      } else if (httpServer && Number(url.port) === getHttpServerListenPort()) {
+        details.requestHeaders['Authorization'] = `Bearer ${getServerAuth().apiToken()}`;
+      }
       callback({ requestHeaders: details.requestHeaders });
     }
   );
@@ -3823,6 +3917,14 @@ async function createWindow() {
               click: () => {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('open-https-settings');
+                }
+              }
+            },
+            {
+              label: 'Server Access',
+              click: () => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('open-server-access');
                 }
               }
             }
@@ -4143,6 +4245,14 @@ function createApplicationMenu() {
               click: () => {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   mainWindow.webContents.send('open-https-settings');
+                }
+              }
+            },
+            {
+              label: 'Server Access',
+              click: () => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('open-server-access');
                 }
               }
             }
@@ -6573,6 +6683,7 @@ ipcMain.handle('remove-models-by-file-type-ids', async (event, catalogIds) => {
 
 const getSettingHandler = async (event, key) => {
   try {
+    if (SECRET_SETTING_KEYS.has(key)) return null;
     console.log('Main Process - Getting setting:', key);
     const result = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
     console.log('Main Process - Setting value:', result?.value);
@@ -6598,6 +6709,9 @@ ipcMain.handle('get-app-version', async () => {
 // Add error handling to the saveSetting handler
 const saveSettingHandler = async (event, key, value) => {
   try {
+    if (SECRET_SETTING_KEYS.has(key)) {
+      throw new Error(`Setting ${key} can only be changed under Server Access`);
+    }
     console.log('Main Process - Saving setting:', key, value);
     
     // Ensure database is initialized
@@ -8632,6 +8746,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 filePath: filePaths[0],
                 slicerName: slicer.name,
                 slicerPath: slicer.path,
+                downloadToken: getServerAuth().issueDownloadToken(),
                 isZipEntry: Boolean(isZipEntry),
                 zipPath: isZipEntry && pathInfo ? pathInfo.zipPath : null,
                 entryPath: isZipEntry && pathInfo ? pathInfo.entryPath : null
@@ -9647,6 +9762,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               type: 'open-in-slicer',
               slicerName: subItem.slicerName || subItem.label,
               slicerPath: subItem.slicerPath,
+              downloadToken: getServerAuth().issueDownloadToken(),
               filePaths: filePaths
             };
           }
@@ -13417,6 +13533,7 @@ const openFileInSlicerHandler = async (event, options = {}) => {
       filePath: firstPath,
       slicerName: slicer.name,
       slicerPath: slicer.path,
+      downloadToken: getServerAuth().issueDownloadToken(),
       isZipEntry: pathInfo.isZipEntry,
       zipPath: pathInfo.isZipEntry ? pathInfo.zipPath : null,
       entryPath: pathInfo.isZipEntry ? pathInfo.entryPath : null

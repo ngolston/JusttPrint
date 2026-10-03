@@ -107,6 +107,11 @@ test('buildMcpClientConfig uses streamable HTTP url', () => {
   assert.strictEqual(cfg.mcpServers.printventory.url, 'http://127.0.0.1:5000/mcp');
 });
 
+test('buildMcpClientConfig adds the API token as a bearer header', () => {
+  const cfg = buildMcpClientConfig('http://127.0.0.1:5000/mcp', 'pv_abc');
+  assert.deepStrictEqual(cfg.mcpServers.printventory.headers, { Authorization: 'Bearer pv_abc' });
+});
+
 test('toDataUrl accepts data URLs and raw base64', () => {
   assert.strictEqual(toDataUrl('data:image/png;base64,abc'), 'data:image/png;base64,abc');
   assert.ok(toDataUrl('iVBORw0KGgo').startsWith('data:image/png;base64,'));

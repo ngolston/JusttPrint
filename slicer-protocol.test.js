@@ -50,6 +50,21 @@ test('download URL stays on the allowed origin', () => {
   assert.strictEqual(url, 'https://nas.local:8443/api/download/' + encodeURIComponent('/library/a b.stl'));
 });
 
+test('download token travels in the link and onto each download URL', () => {
+  const href = protocol.buildPrintventoryOpenUrl({
+    origin: 'https://nas.local:8443',
+    slicerPath: 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe',
+    filePaths: ['/library/a.stl'],
+    downloadToken: 'dl.123.sig'
+  });
+  const parsed = protocol.parsePrintventoryProtocolUrl(href);
+  assert.strictEqual(parsed.downloadToken, 'dl.123.sig');
+  assert.strictEqual(
+    protocol.buildModelDownloadUrl(parsed.origin, parsed.filePaths[0], parsed.downloadToken),
+    'https://nas.local:8443/api/download/' + encodeURIComponent('/library/a.stl') + '?token=dl.123.sig'
+  );
+});
+
 test('unknown servers are rejected', () => {
   assert.throws(
     () => protocol.assertOriginAllowed(['http://nas.local:5000'], 'http://evil.example'),

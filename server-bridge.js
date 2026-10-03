@@ -269,6 +269,20 @@
     });
   }
   
+  // The server refuses the WebSocket without a session (expired, or the password changed).
+  function redirectToLoginIfLoggedOut() {
+    if (!/^https?:$/.test(window.location.protocol)) return;
+    fetch('/api/auth/status', { credentials: 'same-origin' })
+      .then((response) => response.json())
+      .then((status) => {
+        if (status && status.authenticated === false) {
+          const next = window.location.pathname + window.location.search;
+          window.location.href = '/login?next=' + encodeURIComponent(next);
+        }
+      })
+      .catch(() => { /* server unreachable: keep reconnecting */ });
+  }
+
   function connect() {
     try {
       // Avoid stacking sockets: concurrent makeIpcCall used to overwrite `ws` while CONNECTING,
@@ -387,6 +401,7 @@
           if (!connectionReadyResolve) {
             resetConnectionReady();
           }
+          redirectToLoginIfLoggedOut();
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++;
             console.log('[Bridge] Reconnect attempt', reconnectAttempts, 'in', 1000 * reconnectAttempts, 'ms');
@@ -550,6 +565,9 @@
     'getSetting': 'get-setting',
     'saveSetting': 'save-setting',
     'getMcpConnectionInfo': 'get-mcp-connection-info',
+    'getServerAccessInfo': 'get-server-access-info',
+    'setServerPassword': 'set-server-password',
+    'regenerateServerApiToken': 'regenerate-server-api-token',
     'syncLocalHttpServer': 'sync-local-http-server',
     'importExtensionInbox': 'import-extension-inbox',
     'getDefaultExtensionInboxDirectory': 'get-default-extension-inbox-directory',

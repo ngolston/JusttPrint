@@ -21,7 +21,7 @@
     return '';
   }
 
-  function buildPrintventoryOpenUrl({ origin, slicerName, slicerPath, filePaths }) {
+  function buildPrintventoryOpenUrl({ origin, slicerName, slicerPath, filePaths, downloadToken }) {
     const files = (Array.isArray(filePaths) ? filePaths : [filePaths]).filter(Boolean);
     if (!origin) throw new Error('Missing Printventory server address');
     if (!slicerPath) throw new Error('Missing slicer path');
@@ -32,6 +32,7 @@
     url.searchParams.set('origin', new URL(origin).origin);
     url.searchParams.set('slicer', slicerName || 'Slicer');
     url.searchParams.set('slicerPath', slicerPath);
+    if (downloadToken) url.searchParams.set('token', downloadToken);
     files.forEach((filePath) => url.searchParams.append('file', filePath));
     const href = url.toString();
     if (href.length > MAX_URL_LENGTH) {
@@ -59,6 +60,7 @@
       origin: new URL(origin).origin,
       slicerName: url.searchParams.get('slicer') || 'Slicer',
       slicerPath: url.searchParams.get('slicerPath') || '',
+      downloadToken: url.searchParams.get('token') || '',
       filePaths
     };
   }
@@ -127,9 +129,10 @@
     };
   }
 
-  function buildModelDownloadUrl(origin, filePath) {
+  function buildModelDownloadUrl(origin, filePath, downloadToken) {
     const base = new URL(origin);
-    return base.origin + '/api/download/' + encodeURIComponent(filePath);
+    const url = base.origin + '/api/download/' + encodeURIComponent(filePath);
+    return downloadToken ? url + '?token=' + encodeURIComponent(downloadToken) : url;
   }
 
   function commandFilePaths(commandData) {
@@ -148,7 +151,8 @@
       origin: window.location.origin,
       slicerName: commandData && commandData.slicerName,
       slicerPath: commandData && commandData.slicerPath,
-      filePaths: commandFilePaths(commandData)
+      filePaths: commandFilePaths(commandData),
+      downloadToken: commandData && commandData.downloadToken
     });
     const now = Date.now();
     if (href === launchFromCommand.lastHref && now - (launchFromCommand.lastAt || 0) < 4000) {

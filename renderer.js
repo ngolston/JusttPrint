@@ -80,7 +80,7 @@ const earlyEventChannels = [
   'open-slicer-settings', 'open-browser-extension-settings', 'open-mcp-server-settings', 'open-https-settings', 'open-purge-models',
   'open-metadata-editor', 'open-system-report', 'open-manage-thumbnails',
   'open-settings', 'open-guide', 'open-about', 'open-keyboard-shortcuts',
-  'open-server-mode-info',
+  'open-server-mode-info', 'open-server-access',
   'puter-ai-chat-request',
   'tags-generated', 'start-single-tag-generation', 'start-batch-tag-generation', 'batch-tag-generation-complete',
   'thumbnail-job-progress', 'thumbnail-job-complete', 'thumbnail-job-error',
@@ -6972,6 +6972,12 @@ async function createServerMenuBar() {
         console.error('Error restarting server:', error);
         alert('Failed to restart server: ' + (error.message || 'Unknown error'));
       }
+    }},
+    { label: 'Server Access', action: async () => {
+      if (typeof window.openServerAccess === 'function') await window.openServerAccess();
+    }},
+    { label: 'Log Out', action: async () => {
+      if (typeof window.logOutOfServer === 'function') await window.logOutOfServer();
     }}
   ]);
   
@@ -12056,6 +12062,99 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('cancel-mcp-server-settings')?.addEventListener('click', () => {
     document.getElementById('mcp-server-settings-dialog')?.close();
   });
+
+  function setServerAccessStatus(text) {
+    const statusEl = document.getElementById('server-access-status');
+    if (statusEl) statusEl.textContent = text || '';
+  }
+
+  window.openServerAccess = async function openServerAccess() {
+    const dialog = document.getElementById('server-access-dialog');
+    if (!dialog) return;
+    setServerAccessStatus('');
+    ['server-access-current-password', 'server-access-new-password', 'server-access-confirm-password'].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
+    let info = {};
+    try {
+      info = await window.electron.getServerAccessInfo() || {};
+    } catch (err) {
+      setServerAccessStatus('Could not load server access settings: ' + (err.message || err));
+    }
+    dialog._minPasswordLength = info.minPasswordLength || 8;
+    const tokenInput = document.getElementById('server-access-api-token');
+    if (tokenInput) tokenInput.value = info.apiToken || '';
+    const passwordGroup = document.getElementById('server-access-password-group');
+    const envNote = document.getElementById('server-access-env-note');
+    if (passwordGroup) passwordGroup.hidden = !!info.passwordFromEnv;
+    if (envNote) envNote.hidden = !info.passwordFromEnv;
+    // The desktop window can reset a forgotten password without the current one.
+    const fromBrowser = !!window._electronBridgeReady;
+    const currentLabel = document.getElementById('server-access-current-label');
+    const currentInput = document.getElementById('server-access-current-password');
+    if (currentLabel) currentLabel.hidden = !fromBrowser;
+    if (currentInput) currentInput.hidden = !fromBrowser;
+    dialog.showModal();
+  };
+
+  document.getElementById('server-access-change-password')?.addEventListener('click', async () => {
+    const dialog = document.getElementById('server-access-dialog');
+    const current = document.getElementById('server-access-current-password')?.value || '';
+    const next = document.getElementById('server-access-new-password')?.value || '';
+    const confirmValue = document.getElementById('server-access-confirm-password')?.value || '';
+    const minLength = dialog?._minPasswordLength || 8;
+    if (next.length < minLength) {
+      setServerAccessStatus('The new password must be at least ' + minLength + ' characters.');
+      return;
+    }
+    if (next !== confirmValue) {
+      setServerAccessStatus('The new passwords do not match.');
+      return;
+    }
+    try {
+      await window.electron.setServerPassword(current, next);
+      setServerAccessStatus('Password changed. Browsers need to log in again.');
+    } catch (err) {
+      setServerAccessStatus(String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
+    }
+  });
+
+  document.getElementById('server-access-copy-token')?.addEventListener('click', async () => {
+    const token = document.getElementById('server-access-api-token')?.value || '';
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(token);
+      setServerAccessStatus('Token copied.');
+    } catch (_) {
+      document.getElementById('server-access-api-token')?.select();
+      setServerAccessStatus('Select the token and copy it.');
+    }
+  });
+
+  document.getElementById('server-access-regenerate-token')?.addEventListener('click', async () => {
+    if (!confirm('Regenerate the API token? MCP clients using the old token stop working until you update them.')) return;
+    try {
+      const result = await window.electron.regenerateServerApiToken();
+      const tokenInput = document.getElementById('server-access-api-token');
+      if (tokenInput) tokenInput.value = (result && result.apiToken) || '';
+      setServerAccessStatus('New token created.');
+    } catch (err) {
+      setServerAccessStatus('Could not regenerate the token: ' + (err.message || err));
+    }
+  });
+
+  window.logOutOfServer = async function logOutOfServer() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } finally {
+      window.location.href = '/login';
+    }
+  };
+
+  window._electronRealEventHandlers['open-server-access'] = async function() {
+    await window.openServerAccess();
+  };
 
   const refreshMcpDialogPreview = () => {
     const dialog = document.getElementById('mcp-server-settings-dialog');

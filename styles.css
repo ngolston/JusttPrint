@@ -6970,6 +6970,14 @@ dialog:not([open]) {
   background-image: none;
   padding-right: 16px;
 }
+#server-access-dialog input[type="text"],
+#server-access-dialog input[type="password"] {
+  background-image: none;
+  padding-right: 16px;
+}
+#server-access-dialog [hidden] {
+  display: none;
+}
 #https-settings-dialog .checkbox-container label a {
   pointer-events: auto;
   color: #7eb8f7;

@@ -70,6 +70,11 @@ services:
       # container paths (or a JSON array). Relative paths are resolved against STL Home.
       # Applied when the exclude list is empty, or always when PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1.
       # - STL_HOME_EXCLUDE=/mnt/test_files/cache,/mnt/test_files/derivatives
+      # Login password for the web UI. Unset: a random password is printed once in `docker logs`.
+      # When set, it replaces the stored password on every start (also how to reset a lost one).
+      # - PRINTVENTORY_PASSWORD=change-me-please
+      # Extra browser origins allowed to connect, e.g. behind a reverse proxy that rewrites Host.
+      # - PRINTVENTORY_ALLOWED_ORIGINS=https://library.example.com
       # Listen port inside the container (Settings → HTTPS / SSL). Default 5000. Map the same
       # port in `ports:` above. PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1 makes this win every start.
       # - PRINTVENTORY_PORT=5001
