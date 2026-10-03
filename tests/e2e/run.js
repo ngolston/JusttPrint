@@ -241,6 +241,14 @@ async function apiChecks(base, wsUrl) {
   const both = await names({ searchTokens: [term('cube'), { t: 'op', op: 'AND' }, term('box')] });
   check('search: AND with no match', both === '', both);
 
+  const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
+  const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
+  check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
+  if (typeof extracted === 'string') {
+    const cleaned = (await ask('delete-temp-file', [extracted])).result;
+    check('extracted temp file cleaned up', cleaned !== false && !fs.existsSync(extracted), String(cleaned));
+  }
+
   const sources = (await ask('list-organize-sources')).result || [];
   check('organize sources list the library', JSON.stringify(sources).includes(LIBRARY), JSON.stringify(sources));
   const previewReply = await ask('organize-library-preview', [{ sourceDir: LIBRARY, destDir: '/tmp/pv-e2e-organize-preview' /* preview only: never created */ }]);

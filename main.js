@@ -33,6 +33,10 @@ const { dedupePathList, excludeDirectoriesSettingIsEmpty, getLibraryRootPaths, g
 
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions, sqlAndFilterConditions } = require('./src/core/model-filters');
 
+const { applyThumbnailFlags, getDefaultThumbnail, getThumbnailImagePayload, loadThumbnailForModel, parseThumbnails, readThumbnailColumn } = require('./src/core/thumbnails');
+
+const { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany } = require('./src/core/extract-temp');
+
 // Message boxes and prompts the server shows in the browser that made the request.
 const clientDialogs = createClientDialogs();
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
@@ -2406,12 +2410,6 @@ function scheduleBackgroundThumbnailCompression(reason) {
   }, THUMBNAIL_MIGRATION_DELAY_MS);
 }
 
-function getThumbnailStoredLength(filePath) {
-  if (!database.db || !filePath) return 0;
-  const row = database.db.prepare('SELECT LENGTH(thumbnail) AS len FROM models WHERE filePath = ?').get(filePath);
-  return row?.len ?? 0;
-}
-
 function clearThumbnailForPath(filePath, reason) {
   if (!database.db || !filePath) return false;
   try {
@@ -2442,22 +2440,6 @@ function purgeCorruptThumbnailsOnly(maxChars = THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS
   } catch (error) {
     console.error('Failed to clear corrupt thumbnails:', error);
     return 0;
-  }
-}
-
-function readThumbnailColumn(filePath, { allowOversized = false } = {}) {
-  if (!database.db || !filePath) return null;
-  const storedLength = getThumbnailStoredLength(filePath);
-  if (storedLength <= 0) return null;
-  if (!allowOversized && storedLength > THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS) {
-    return null;
-  }
-  try {
-    const row = database.db.prepare('SELECT thumbnail FROM models WHERE filePath = ?').get(filePath);
-    return row?.thumbnail ?? null;
-  } catch (error) {
-    console.error(`Failed to read thumbnail for ${filePath}:`, error);
-    return null;
   }
 }
 
@@ -2515,30 +2497,6 @@ async function compressExistingThumbnailsInBackground(reason) {
   }
 }
 
-function ensureThumbnailCompressedOnLoad(filePath, thumbnailString) {
-  try {
-    const { value, changed } = compressThumbnailBlob(thumbnailString);
-    if (changed) {
-      database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(value, filePath);
-    }
-    return value;
-  } catch (error) {
-    console.error(`Failed to compress thumbnail for ${filePath}:`, error);
-    return thumbnailString;
-  }
-}
-
-function loadThumbnailForModel(filePath) {
-  try {
-    const thumbnail = readThumbnailColumn(filePath);
-    if (!thumbnail) return null;
-    return ensureThumbnailCompressedOnLoad(filePath, thumbnail);
-  } catch (error) {
-    console.error(`Failed to load thumbnail for ${filePath}:`, error);
-    return null;
-  }
-}
-
 const MODEL_DETAIL_COLUMNS = 'id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind';
 
 /** List queries omit thumbnail blobs; these flags are computed without returning the column. */
@@ -2551,14 +2509,6 @@ const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
 const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
 const MODEL_LIST_COLUMNS_QUALIFIED =
   `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
-
-function applyThumbnailFlags(row) {
-  if (!row) return row;
-  const t = row.thumbnail;
-  row.hasThumbnail = !!(t && t !== '' && t !== '3d.png');
-  row.hasMultipleThumbnails = !!(t && typeof t === 'string' && t.includes('::'));
-  return row;
-}
 
 function getModelByFilePath(filePath, { includeThumbnail = false } = {}) {
   if (!database.db || !filePath) return null;
@@ -4746,39 +4696,6 @@ async function scanDirectory(directoryPath, isValidFile) {
   files.push(...result.files);
   
   return { files, totalFiles, cancelScan };
-}
-
-// Helper functions for managing multiple thumbnails
-function parseThumbnails(thumbnailString) {
-  if (!thumbnailString || thumbnailString === '3d.png' || !thumbnailString.includes('::')) {
-    return [thumbnailString].filter(Boolean);
-  }
-  return thumbnailString.split('::').filter(Boolean);
-}
-
-function getDefaultThumbnail(thumbnailString, defaultIndex = 0) {
-  const thumbnails = parseThumbnails(thumbnailString);
-  if (thumbnails.length === 0) return null;
-  const index = Math.max(0, Math.min(defaultIndex, thumbnails.length - 1));
-  return thumbnails[index];
-}
-
-/** First stored thumbnail as { base64, mimeType } for AI tagging (handles multi-thumb `::` joins). */
-function getThumbnailImagePayload(thumbnailString) {
-  const thumb = getDefaultThumbnail(thumbnailString);
-  if (!thumb || typeof thumb !== 'string' || !thumb.startsWith('data:image')) {
-    return null;
-  }
-  const commaIndex = thumb.indexOf(',');
-  if (commaIndex === -1) return null;
-  const header = thumb.slice(0, commaIndex);
-  const base64 = thumb.slice(commaIndex + 1).replace(/\s/g, '');
-  if (!base64) return null;
-  const mimeMatch = header.match(/^data:([^;]+)/i);
-  return {
-    base64,
-    mimeType: (mimeMatch && mimeMatch[1]) || 'image/png'
-  };
 }
 
 function addThumbnailToModel(thumbnailString, newThumbnail) {
@@ -7388,102 +7305,8 @@ function isLikelyValidZipBuffer(data) {
   return data[0] === 0x50 && data[1] === 0x4B; // PK
 }
 
-/** Dedicated OS-temp folder for zip-entry extracts — never the library / STL home. */
-const EXTRACT_TEMP_DIR_NAME = 'printventory-extracts';
-const EXTRACT_TEMP_FILE_PREFIX = 'printventory_';
-/** Slicer may still be reading the file after launch; delay cleanup. */
-const EXTRACT_TEMP_SLICER_CLEANUP_MS = 10 * 60 * 1000;
-const pendingExtractTempCleanups = new Set();
-
-function getOsTempRoot() {
-  try {
-    if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
-      return app.getPath('temp');
-    }
-  } catch (_) { /* use os.tmpdir */ }
-  return os.tmpdir();
-}
-
-function getExtractTempDir() {
-  const osDir = path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME);
-  // Guard: if TEMP is mounted inside the library (common Docker misconfig), use userData instead
-  try {
-    if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady() && database.db) {
-      const resolvedDir = path.resolve(osDir);
-      for (const home of readStlHomeDirectories()) {
-        const stlHome = path.resolve(String(home));
-        if (resolvedDir === stlHome || resolvedDir.startsWith(stlHome + path.sep)) {
-          return path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME);
-        }
-      }
-    }
-  } catch (_) { /* keep OS temp */ }
-  return osDir;
-}
-
-function ensureExtractTempDir() {
-  const dir = getExtractTempDir();
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-}
-
-function isPrintventoryExtractTempPath(filePath) {
-  if (!filePath || typeof filePath !== 'string') return false;
-  try {
-    const resolved = path.resolve(filePath);
-    const base = path.basename(resolved);
-    if (!base.startsWith(EXTRACT_TEMP_FILE_PREFIX)) return false;
-
-    const allowedRoots = [
-      path.resolve(getExtractTempDir()),
-      path.resolve(path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)),
-      path.resolve(getOsTempRoot())
-    ];
-    try {
-      if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
-        allowedRoots.push(path.resolve(path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME)));
-      }
-    } catch (_) { /* ignore */ }
-
-    const parent = path.resolve(path.dirname(resolved));
-    return allowedRoots.some((root) => parent === root || resolved.startsWith(root + path.sep));
-  } catch (_) {
-    return false;
-  }
-}
-
 function isPrintventoryExtractTempFileName(fileName) {
   return typeof fileName === 'string' && fileName.startsWith(EXTRACT_TEMP_FILE_PREFIX);
-}
-
-async function cleanupExtractTempFile(filePath) {
-  if (!isPrintventoryExtractTempPath(filePath)) return false;
-  try {
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
-    }
-    pendingExtractTempCleanups.delete(filePath);
-    return true;
-  } catch (err) {
-    console.warn('Failed to clean up extract temp file:', filePath, err.message);
-    return false;
-  }
-}
-
-function scheduleExtractTempCleanup(filePath, delayMs = EXTRACT_TEMP_SLICER_CLEANUP_MS) {
-  if (!isPrintventoryExtractTempPath(filePath)) return;
-  pendingExtractTempCleanups.add(filePath);
-  setTimeout(() => {
-    cleanupExtractTempFile(filePath).catch(() => {});
-  }, Math.max(0, delayMs));
-}
-
-function scheduleExtractTempCleanupMany(filePaths, delayMs = EXTRACT_TEMP_SLICER_CLEANUP_MS) {
-  for (const fp of filePaths || []) {
-    scheduleExtractTempCleanup(fp, delayMs);
-  }
 }
 
 /** Remove leftover extract temps (startup / quit). Optionally only files older than maxAgeMs. */
