@@ -4,6 +4,14 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-03
+
+**Before upgrading a Docker install:**
+- Set `PRINTVENTORY_PASSWORD`, or read the generated password with `docker logs` after the first start.
+- The container now runs as user 1000:1000. Set `PUID`/`PGID` to the owner of your library files if that differs.
+- Reinstall the Send to Slicer helper from Settings → Slicer.
+- Behind a reverse proxy that rewrites the host name, set `PRINTVENTORY_ALLOWED_ORIGINS`.
+
 - Server Mode requires a login. Set the password with `PRINTVENTORY_PASSWORD`, or use the one printed in the server log on first start, and change it under Tools → Server Access
 - MCP clients authenticate with an API token; the MCP client config includes it
 - The file and download endpoints only serve files inside the library folders, plus backups and exports. The live database and certificates can no longer be downloaded

@@ -157,7 +157,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [ ] **Remove redundant code**, e.g. the JS content-type middleware where both branches do the same thing ([main.js:746](main.js#L746)).
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
-- [ ] **Update docs**: the README says version 2.2.9; rewrite the install section with Docker first.
+- [ ] **Update docs**: rewrite the README install section for Docker only (the version number was fixed in 2.3.0).
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
