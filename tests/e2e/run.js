@@ -266,6 +266,13 @@ async function apiChecks(base, wsUrl) {
     check('slicer deleted', !((await ask('get-slicers')).result || []).some((s) => s.id === slicer.id));
   }
 
+  const preview3mf = await ask('parse-3mf-preview', [box, 'e2e-preview']);
+  check('3MF preview parsed by the worker', !!preview3mf.result && !preview3mf.error, preview3mf.error);
+  const images = await ask('get3MFImages', [box]);
+  check('3MF images read', Array.isArray(images.result), images.error);
+  const meta = await ask('get-all-metadata');
+  check('metadata lists load', !!meta.result && !meta.error, meta.error);
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
