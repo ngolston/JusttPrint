@@ -1,5 +1,8 @@
 const database = require('./src/core/database');
+const { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting } = require('./src/core/settings');
 const { app, ipcMain, shell } = require('./src/server/runtime');
+const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler, syncSpoolmanFilamentsHandler } = require('./src/server/ipc/filaments');
+const { createPuterIPCHandler, getAISettings, puterPendingRequests } = require('./src/server/ipc/ai');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
@@ -299,10 +302,6 @@ function loadOptionalServerTlsOptions() {
   return resolveAppTls().options || null;
 }
 
-function persistSetting(key, value) {
-  if (!database.db) throw new Error('Database is not initialized');
-  database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value == null ? '' : String(value));
-}
 
 function formatPort80BindError(err) {
   if (!err) return 'Failed to bind port 80.';
@@ -1278,15 +1277,6 @@ function stopHttpServer() {
   });
 }
 
-function getSettingValueOr(key, fallback) {
-  try {
-    if (!database.db) return fallback;
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    if (row && row.value != null && row.value !== '') return row.value;
-  } catch (_) { /* ignore */ }
-  return fallback;
-}
-
 let serverAuth = null;
 
 /** Login, API token and download tokens for the HTTP/WebSocket server. */
@@ -1459,11 +1449,6 @@ function getEnvServerListenPort() {
   if (raw == null || String(raw).trim() === '') return null;
   const parsed = parseListenPort(raw, 0);
   return parsed > 0 ? parsed : null;
-}
-
-function envOverridesSettings() {
-  return process.env.PRINTVENTORY_ENV_OVERRIDES_SETTINGS === '1'
-    || process.env.PRINTVENTORY_ENV_OVERRIDES_SETTINGS === 'true';
 }
 
 function getServerListenPort() {
@@ -2664,14 +2649,6 @@ ipcMain.handle('is-server-mode', () => {
 ipcMain.handle('restart-server', async () => {
   return await restartHttpServer();
 });
-
-function flushSettingsToDisk() {
-  try {
-    if (!database.db) return;
-    database.db.pragma('synchronous = FULL');
-    database.db.prepare('PRAGMA wal_checkpoint(FULL)').run();
-  } catch (_) { /* ignore */ }
-}
 
 function persistTlsSettingsFromPayload(payload) {
   const mode = String(payload.tlsMode || serverTls.TLS_MODES.OFF);
@@ -5038,7 +5015,6 @@ async function renameTagHandler(event, tagId, newName) {
 }
 ipcMain.handle('rename-tag', renameTagHandler);
 
-const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler, syncSpoolmanFilamentsHandler } = require('./src/server/ipc/filaments');
 
 function normalizeFilamentIds(raw) {
   if (raw === undefined || raw === null) return null;
@@ -5214,49 +5190,7 @@ ipcMain.handle('remove-models-by-file-type-ids', async (event, catalogIds) => {
   }
 });
 
-const getSettingHandler = async (event, key) => {
-  try {
-    if (SECRET_SETTING_KEYS.has(key)) return null;
-    // Values are not logged: some are API keys, and reads happen constantly.
-    const result = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    return result?.value || null;
-  } catch (error) {
-    console.error('Error getting setting:', error);
-    return null;
-  }
-};
-ipcMain.handle('get-setting', getSettingHandler);
-
-// Add handler to get app version directly (fallback for server mode)
-ipcMain.handle('get-app-version', async () => {
-  try {
-    return version;
-  } catch (error) {
-    console.error('Error getting app version:', error);
-    return null;
-  }
-});
-
-// Add error handling to the saveSetting handler
-const saveSettingHandler = async (event, key, value) => {
-  try {
-    if (SECRET_SETTING_KEYS.has(key)) {
-      throw new Error(`Setting ${key} can only be changed under Server Access`);
-    }
-    if (!database.db) {
-      console.error('Database not initialized when saving setting');
-      return false;
-    }
-    // Log the key only: values can be API keys.
-    database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
-    console.log('Saved setting:', key);
-    return true;
-  } catch (error) {
-    console.error('Error saving setting:', error);
-    return false;
-  }
-};
-ipcMain.handle('save-setting', saveSettingHandler);
+require('./src/server/ipc/settings');
 
 ipcMain.handle('purge-thumbnails', async () => {
   try {
@@ -10723,7 +10657,6 @@ ipcMain.handle('getTotalModelCount', async () => {
 
 
 
-const { createPuterIPCHandler, getAISettings, puterPendingRequests } = require('./src/server/ipc/ai');
 
 async function generateTagsHandler(event, filePath) {
   try {
