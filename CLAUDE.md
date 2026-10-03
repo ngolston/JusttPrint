@@ -1,5 +1,9 @@
 # Printventory
 
+## Never send anything to TechJeeper/Printventory
+
+Never push, open pull requests, create releases or issues, call the API, or run scripts that target https://github.com/TechJeeper/Printventory. Work goes to the fork, https://github.com/ngolston/Printventory (`origin`). `scripts/upload-to-github.ps1` and `scripts/push-printventory-github.ps1` push there, so do not run them. A local `.git/hooks/pre-push` hook also refuses those URLs.
+
 ## `todo:` shortcut
 
 A message that starts with `todo:` is a request to add an item to [TODO.md](TODO.md), not to do the work.
