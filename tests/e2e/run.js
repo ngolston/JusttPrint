@@ -252,6 +252,12 @@ async function apiChecks(base, wsUrl) {
     check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
   }
 
+  const cubeHash = (await ask('calculate-file-hash', [cube])).result;
+  const expectedHash = require('crypto').createHash('md5').update(fs.readFileSync(cube)).digest('hex');
+  check('file hash is the MD5 of the file', cubeHash === expectedHash, `${cubeHash} vs ${expectedHash}`);
+  const duplicates = await ask('get-duplicates', [false]);
+  check('duplicates query runs', Array.isArray(duplicates.result), duplicates.error);
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
