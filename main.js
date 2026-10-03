@@ -18,7 +18,6 @@ const {
 } = require('./mcp-server');
 const serverTls = require('./server-tls');
 const extensionInbox = require('./extension-inbox');
-const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
@@ -43,20 +42,6 @@ const {
   runOrganizePlan,
   pathsAreSame
 } = require('./organize-library');
-
-// macOS: Chromium can refuse WebGL for blocklisted GPUs or strict context options.
-// Must be set before app ready so Three.js thumbnail rendering can create a context.
-if (process.platform === 'darwin') {
-  app.commandLine.appendSwitch('ignore-gpu-blocklist');
-  app.commandLine.appendSwitch('enable-webgl');
-}
-
-// AppImage FUSE mounts cannot give chrome-sandbox the setuid bit Chromium requires.
-// Opt out before the zygote starts when this process was launched from an AppImage.
-if (process.platform === 'linux' && (process.env.APPIMAGE || process.env.APPDIR)) {
-  app.commandLine.appendSwitch('no-sandbox');
-  app.commandLine.appendSwitch('disable-setuid-sandbox');
-}
 
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
@@ -246,15 +231,6 @@ const WebSocket = require('ws');
 // Near the top of the file, add this line
 const { version } = require('./package.json');
 
-let isDev = false;
-try {
-  const electronIsDev = require('electron-is-dev');
-  isDev = electronIsDev;
-} catch (error) {
-  // If electron-is-dev is not available, determine dev mode through other means
-  isDev = process.env.NODE_ENV === 'development' || /[\\/]electron/i.test(process.execPath);
-}
-
 const DEBUG = false; // Set to true for development/debugging
 const PING_INTERVAL = 30000; // 30 seconds
 
@@ -295,16 +271,6 @@ function registerIpcHandler(channel, handler) {
   ipcMain.handle(channel, handler);
 }
 
-// UNC Path Validation Functions
-function isUncPath(path) {
-  if (!path || typeof path !== 'string') {
-    return false;
-  }
-  // UNC paths on Windows start with \\
-  // They cannot be local drive paths (C:\, D:\, etc.)
-  return path.startsWith('\\\\') && !/^[A-Za-z]:/.test(path);
-}
-
 // Check if running in Docker container
 function isDockerContainer() {
   // Check for Docker environment indicators
@@ -315,28 +281,13 @@ function isDockerContainer() {
   return result;
 }
 
-/** Docker, Linux and macOS servers use normal absolute paths; only Windows needs UNC paths. */
-function usesPosixServerPaths() {
-  return isDockerContainer() || process.platform !== 'win32';
-}
-
+/** Library files are absolute container paths (e.g. /mnt/models/part.stl). */
 function validateUncPath(path, operation = 'operation') {
   if (isUrlModel(path)) {
     return; // URL-only models (from extension) have no file path to validate
   }
-  if (isServerMode) {
-    // Docker, Linux and macOS: absolute paths (mounted shares)
-    if (usesPosixServerPaths()) {
-      // Allow absolute paths starting with / (Linux-style)
-      if (!path.startsWith('/') && !isUncPath(path)) {
-        throw new Error(`Server mode in Docker requires absolute paths (e.g., /mnt/network-share/path/to/file.stl) or UNC paths. The path "${path}" is not valid.`);
-      }
-    } else {
-      // On Windows, require UNC paths
-      if (!isUncPath(path)) {
-        throw new Error(`Server mode requires UNC paths. The path "${path}" is not a valid UNC path. UNC paths must start with \\\\ (e.g., \\\\server\\share\\path\\to\\file.stl).`);
-      }
-    }
+  if (typeof path !== 'string' || !path.startsWith('/')) {
+    throw new Error(`${operation}: expected an absolute path inside the container (e.g. /mnt/models/part.stl), got "${path}".`);
   }
 }
 
@@ -681,24 +632,10 @@ ${bridgeCode}
         return;
       }
       
-      // Validate path (UNC paths on Windows, absolute paths in Docker)
-      if (usesPosixServerPaths()) {
-        // In Docker, require absolute paths starting with /. Client paths (e.g. C:\ from extension) are not on the server.
-        if (!filePath.startsWith('/') && !isUncPath(filePath)) {
-          res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not on server (path is on client). Use extension "Use upload for server" to add files to the server.');
-          return;
-        }
-      } else {
-        // On Windows, allow both UNC paths and drive letter paths
-        // In server mode, require UNC paths; in non-server mode, allow both
-        if (!isUncPath(filePath) && !/^[A-Za-z]:/.test(filePath)) {
-          if (isServerMode) {
-            res.status(400).send('Invalid path: Server mode requires UNC paths');
-          } else {
-            res.status(400).send('Invalid path: Must be a UNC path (\\\\server\\share\\path) or drive letter path (C:\\path)');
-          }
-          return;
-        }
+      // Library paths are absolute container paths. A client path (e.g. C:\ from the extension) is not on the server.
+      if (!filePath.startsWith('/')) {
+        res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not on server (the path is on another computer).');
+        return;
       }
       
       // Check if file exists
@@ -791,46 +728,12 @@ ${bridgeCode}
         }
       }
       
-      // Validate path (UNC paths on Windows, absolute paths in Docker)
-      // Normalize temp dir path for comparison
-      const normalizedTempDir = os.tmpdir().replace(/\\/g, '/');
-      const normalizedFilePath = actualFilePath.replace(/\\/g, '/');
-      let isServerManagedPath = false;
-      try {
-        const resolvedFilePath = path.resolve(actualFilePath);
-        const resolvedUserData = path.resolve(app.getPath('userData'));
-        const resolvedDbDir = path.resolve(path.dirname(getDatabasePath()));
-        isServerManagedPath =
-          resolvedFilePath === resolvedDbDir ||
-          resolvedFilePath.startsWith(resolvedUserData + path.sep) ||
-          resolvedFilePath.startsWith(resolvedDbDir + path.sep);
-      } catch (error) {
-        isServerManagedPath = false;
+      // Library, backup and extract-temp paths are all absolute container paths.
+      if (!actualFilePath.startsWith('/')) {
+        res.status(400).send('Invalid path: expected an absolute path');
+        return;
       }
-      const isTempFile = normalizedFilePath.includes(normalizedTempDir);
-      
-      if (usesPosixServerPaths()) {
-        // In Docker, require absolute paths starting with /
-        if (!normalizedFilePath.startsWith('/') && !isUncPath(actualFilePath)) {
-          // For temp files from zip extraction, allow them
-          if (!isTempFile) {
-            res.status(400).send('Invalid path: Docker server mode requires absolute paths');
-            return;
-          }
-        }
-      } else {
-        // On Windows, allow both UNC paths and drive letter paths (except temp files)
-        // In server mode, require UNC paths; in non-server mode, allow both
-        if (!isUncPath(actualFilePath) && !/^[A-Za-z]:/.test(actualFilePath) && !isTempFile && !isServerManagedPath) {
-          if (isServerMode) {
-            res.status(400).send('Invalid path: Server mode requires UNC paths');
-          } else {
-            res.status(400).send('Invalid path: Must be a UNC path (\\\\server\\share\\path) or drive letter path (C:\\path)');
-          }
-          return;
-        }
-      }
-      
+
       // Check if file exists
       if (!fs.existsSync(actualFilePath)) {
         res.status(404).send('File not found');
@@ -4192,54 +4095,8 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
 
     return new Promise((resolve, reject) => {
       // Use scan-worker.js for scanning (supports zip files)
-      // Handle asar archive case - worker threads can't load from inside asar
-      let workerPath = path.join(__dirname, 'scan-worker.js');
-      
-      // Check if we're in an asar archive (worker threads can't load from asar)
-      if (__dirname.includes('.asar')) {
-        // scan-worker.js should be unpacked to app.asar.unpacked
-        const unpackedPath = __dirname.replace('.asar', '.asar.unpacked');
-        const unpackedWorkerPath = path.join(unpackedPath, 'scan-worker.js');
-        if (fs.existsSync(unpackedWorkerPath)) {
-          workerPath = unpackedWorkerPath;
-          console.log(`[Main] Using unpacked worker from: ${unpackedWorkerPath}`);
-        } else {
-          // Fallback: try using process.resourcesPath (for built apps)
-          if (process.resourcesPath) {
-            const resourcesWorkerPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'scan-worker.js');
-            if (fs.existsSync(resourcesWorkerPath)) {
-              workerPath = resourcesWorkerPath;
-              console.log(`[Main] Using worker from resourcesPath: ${resourcesWorkerPath}`);
-            } else {
-              // Last resort: copy to temp directory (shouldn't be needed if unpacked correctly)
-              console.warn(`[Main] WARNING: scan-worker.js not found in app.asar.unpacked, copying to temp as fallback`);
-              const tempDir = path.join(os.tmpdir(), 'printventory-worker');
-              if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
-              }
-              const tempWorkerPath = path.join(tempDir, 'scan-worker.js');
-              // Only copy if it doesn't exist
-              if (!fs.existsSync(tempWorkerPath)) {
-                try {
-                  // Read from asar using fs.readFileSync (this works even from asar)
-                  const asarWorkerPath = path.join(__dirname, 'scan-worker.js');
-                  const workerContent = fs.readFileSync(asarWorkerPath);
-                  fs.writeFileSync(tempWorkerPath, workerContent);
-                } catch (error) {
-                  console.error('Error copying scan-worker.js from asar:', error);
-                  reject(new Error(`Failed to load scan-worker.js: ${error.message}`));
-                  return;
-                }
-              }
-              workerPath = tempWorkerPath;
-            }
-          } else {
-            reject(new Error(`scan-worker.js not found in app.asar.unpacked and process.resourcesPath is not available`));
-            return;
-          }
-        }
-      }
-      
+      const workerPath = path.join(__dirname, 'scan-worker.js');
+
       // Verify the worker file exists before creating the worker
       if (!fs.existsSync(workerPath)) {
         reject(new Error(`scan-worker.js not found at: ${workerPath}`));
@@ -4423,70 +4280,8 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
       });
 
       // Start the worker - pass node_modules path so worker can find dependencies
-      // When in asar, node_modules is typically in app.asar.unpacked/node_modules
-      // When not in asar, node_modules is in the app directory
-      let nodeModulesPath;
-      
-      // Use process.resourcesPath if available (Electron provides this in built apps)
-      // It points to the Resources directory where app.asar.unpacked is located
-      if (process.resourcesPath) {
-        // In built Electron app, resourcesPath points to Resources directory
-        // app.asar.unpacked is at Resources/app.asar.unpacked
-        const unpackedNodeModules = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules');
-        if (fs.existsSync(unpackedNodeModules)) {
-          nodeModulesPath = unpackedNodeModules;
-        } else {
-          // Fallback: try Resources/app/node_modules
-          const appNodeModules = path.join(process.resourcesPath, 'app', 'node_modules');
-          if (fs.existsSync(appNodeModules)) {
-            nodeModulesPath = appNodeModules;
-          }
-        }
-      }
-      
-      // If resourcesPath didn't work, try based on __dirname
-      if (!nodeModulesPath || !fs.existsSync(nodeModulesPath)) {
-        if (__dirname.includes('.asar')) {
-          // In asar archive, node_modules should be in app.asar.unpacked
-          const unpackedPath = __dirname.replace('.asar', '.asar.unpacked');
-          nodeModulesPath = path.join(unpackedPath, 'node_modules');
-          // If that doesn't exist, try app/node_modules (for macOS)
-          if (!fs.existsSync(nodeModulesPath)) {
-            const appPath = path.dirname(__dirname.replace('.asar', ''));
-            nodeModulesPath = path.join(appPath, 'node_modules');
-          }
-          // Also try Resources/app/node_modules (macOS app bundle structure)
-          if (!fs.existsSync(nodeModulesPath)) {
-            const resourcesPath = path.join(path.dirname(__dirname.replace('.asar', '')), '..', 'Resources');
-            const macNodeModules = path.join(resourcesPath, 'app', 'node_modules');
-            if (fs.existsSync(macNodeModules)) {
-              nodeModulesPath = macNodeModules;
-            }
-          }
-        } else {
-          // Not in asar, node_modules is in the app directory
-          nodeModulesPath = path.join(__dirname, 'node_modules');
-        }
-      }
-      
-      console.log(`[Main] Sending node_modules path to worker: ${nodeModulesPath}`);
-      console.log(`[Main] node_modules exists: ${fs.existsSync(nodeModulesPath)}`);
-      if (nodeModulesPath && fs.existsSync(path.join(nodeModulesPath, 'node-stream-zip'))) {
-        console.log(`[Main] node-stream-zip found in node_modules`);
-      } else {
-        console.warn(`[Main] WARNING: node-stream-zip not found in ${nodeModulesPath}`);
-        // Try to find it in common locations for debugging
-        const debugPaths = [
-          path.join(process.resourcesPath || '', 'app.asar.unpacked', 'node_modules', 'node-stream-zip'),
-          path.join(__dirname.replace('.asar', '.asar.unpacked'), 'node_modules', 'node-stream-zip'),
-        ];
-        for (const debugPath of debugPaths) {
-          if (fs.existsSync(debugPath)) {
-            console.log(`[Main] Found node-stream-zip at: ${debugPath}`);
-          }
-        }
-      }
-      
+      const nodeModulesPath = path.join(__dirname, 'node_modules');
+
       worker.postMessage({ 
         directoryPath, 
         maxFileSize, 
@@ -9541,21 +9336,7 @@ function getDatabasePath() {
       return resolved;
     }
 
-    // Local dev (Electron .npm start): keep a single DB in the repo. Server/Docker/docker-entrypoint
-    // runs unpackaged Electron which sets isDev, but we must still use userData so compose volumes work.
-    if (isDev && !isServerMode) {
-      return path.join(__dirname, 'printventory.db');
-    }
-
-    // Handle different OS paths
-    let userDataPath;
-    if (process.platform === 'darwin') { // macOS
-      userDataPath = path.join(app.getPath('userData'), 'data');
-    } else if (process.platform === 'win32') { // Windows
-      userDataPath = path.join(process.env.LOCALAPPDATA, 'Printventory', 'data');
-    } else { // Linux and other Unix-like systems
-      userDataPath = path.join(app.getPath('userData'), 'data');
-    }
+    const userDataPath = path.join(app.getPath('userData'), 'data');
 
     // Ensure the directory exists
     if (!fs.existsSync(userDataPath)) {
@@ -12207,32 +11988,7 @@ ipcMain.handle('getTotalModelCount', async () => {
   }
 });
 
-// NEW: Add new IPC handler for opening a slicer dialog with proper filters based on platform
-ipcMain.handle('open-slicer-dialog', async (event, title) => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  if (process.platform === 'win32') {
-    const result = await dialog.showOpenDialog(win, {
-      title: title || 'Select Slicer Executable',
-      filters: [{ name: 'Executable', extensions: ['exe'] }],
-      properties: ['openFile']
-    });
-    return result;
-  } else if (process.platform === 'darwin') {
-    const result = await dialog.showOpenDialog(win, {
-      title: title || 'Select Slicer Application',
-      filters: [{ name: 'Applications', extensions: ['app'] }],
-      properties: ['openFile'],
-      treatPackagesAsDirectories: false
-    });
-    return result;
-  } else {
-    const result = await dialog.showOpenDialog(win, {
-      title: title || 'Select Slicer Application',
-      properties: ['openFile']
-    });
-    return result;
-  }
-});
+
 
 // Add IPC handlers for AI Config
 const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
@@ -12651,15 +12407,7 @@ let fetch;
   fetch = (await import('node-fetch')).default;
 })();
 
-// Add these new IPC handlers
-ipcMain.handle('detect-slicers', async () => {
-  try {
-    return detectInstalledSlicers();
-  } catch (error) {
-    console.error('Error detecting slicers:', error);
-    throw error;
-  }
-});
+
 
 ipcMain.handle('get-slicers', () => {
   try {

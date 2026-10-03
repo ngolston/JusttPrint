@@ -7968,21 +7968,12 @@ dialog:not([open]) {
   margin: 0;
 }
 
-#slicer-detect-status {
-  margin: 0 0 0.75rem;
-}
-
 #slicer-helper-install {
   margin: 0 0 0.75rem;
 }
 
 #slicer-helper-install .full-width-button {
   margin-top: 0.5rem;
-}
-
-#detect-slicers-button:disabled {
-  opacity: 0.65;
-  cursor: wait;
 }
 
 #slicer-list {

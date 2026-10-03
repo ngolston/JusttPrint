@@ -44,7 +44,6 @@ const filesToCopy = [
   'organize-library.css',
   'notes-markdown.css',
   'printer-manager.js',
-  'slicer-detect.js',
   'printer-management.js',
   'printer-management.css',
   'parts-stock.js',

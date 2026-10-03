@@ -36,7 +36,6 @@ desktop.ini
 
 # Test files
 *.spec.js
-playwright.config.js
 verify.spec.js
 
 # Development files
@@ -56,7 +55,6 @@ data-docker-ipc-test/
 CLEANUP/
 thumbs/
 backups/
-dist-linux-out/
 dist-temp/
 tests/smoke-user-data/
 tests/smoke-native-userdata/
@@ -78,9 +76,4 @@ chrome-extension/
 .github/
 .claude/
 demos/
-installer-sidebar.bmp
-installer.nsh
-logo.icns
-logo.ico
-Dockerfile.build-linux
 *.test.js
