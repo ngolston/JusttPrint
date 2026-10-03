@@ -264,6 +264,11 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     return token;
   }
 
+  /** Session cookie value for a client the server starts itself (the thumbnail worker). */
+  function issueSessionToken() {
+    return makeSignedToken(signingSecret(), 'session', SESSION_TTL_MS, now());
+  }
+
   function issueDownloadToken() {
     return makeSignedToken(signingSecret(), 'dl', DOWNLOAD_TOKEN_TTL_MS, now());
   }
@@ -437,6 +442,7 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     apiToken,
     regenerateApiToken,
     issueDownloadToken,
+    issueSessionToken,
     isAuthenticated,
     isDownloadAuthorized,
     requireAuth,

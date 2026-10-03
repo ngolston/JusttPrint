@@ -73,3 +73,16 @@ tests/test-user-data/
 *.log
 .cache/
 
+
+# Not needed in the server image (the Dockerfile copies the rest with COPY . .)
+tests/
+chrome-extension/
+.github/
+.claude/
+demos/
+installer-sidebar.bmp
+installer.nsh
+logo.icns
+logo.ico
+Dockerfile.build-linux
+*.test.js

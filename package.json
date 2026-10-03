@@ -53,6 +53,8 @@
     "test:server-auth": "node server-auth.test.js",
     "test:server-paths": "node server-paths.test.js",
     "test:env-settings": "node env-settings.test.js",
+    "test:electron-shim": "node src/server/electron-shim.test.js",
+    "start:server:node": "node src/server/index.js",
     "test:full": "playwright test full-app-e2e.spec.js",
     "test:dedup-stress": "node tests/dedup-stress-test.js"
   },

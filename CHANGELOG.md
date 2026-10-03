@@ -24,6 +24,8 @@ All notable changes contributed via pull request are documented in this file.
 - Setting values, including API keys, are no longer written to the log
 - `docker stop` closes the database cleanly before exiting, and the quit backup is taken after a checkpoint
 - `npm run docker:hub:multiarch` publishes one image for Intel/AMD and ARM (Raspberry Pi, Apple Silicon, many NAS boxes)
+- The Docker image runs the server on plain Node.js instead of Electron (2.46 GB → 1.11 GB). Thumbnails render in headless Chromium inside the container; STL Home scans run in the server. Existing data volumes keep working
+- Server mode on Linux and macOS hosts (outside Docker) accepts normal absolute paths; only Windows requires UNC paths
 - Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
 - The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
 

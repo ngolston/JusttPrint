@@ -350,6 +350,8 @@ Run `npm run docker:local` again after code changes to rebuild. Use a copy of yo
 
 Printventory can be deployed as a Docker container for easy server mode deployment on Linux systems. This is ideal for headless servers or containerized environments.
 
+The image runs the server on plain Node.js (no Electron, no virtual display). Thumbnails are rendered by a headless Chromium inside the container, using software WebGL by default or an NVIDIA GPU (see below).
+
 ### Distribution Options
 
 **Option 1: Pre-built Distribution Package (Recommended)**
@@ -477,13 +479,6 @@ services:
       # Custom PEM files (optional). Let's Encrypt / self-signed certs live in ./data.
       # - ./certs:/certs:ro
     environment:
-      # Headless Chromium / Electron (set by the image; usually leave as-is)
-      - DISPLAY=:99
-      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-      - DCONF_DISABLE=1
-      - GIO_USE_VFS=local
-      - GIO_USE_VOLUME_MONITOR=unix
       - DBUS_FATAL_WARNINGS=0
 
       # Auto-configure STL Home (must match a mounted volume).

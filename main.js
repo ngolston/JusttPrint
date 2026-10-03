@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, dialog, Menu, shell, contextBridge } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, dialog, Menu, shell, contextBridge, isServerShim } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const supportLogs = require('./support-logs').createCapture();
@@ -23,7 +23,7 @@ const extensionInbox = require('./extension-inbox');
 const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
-const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy } = require('./server-auth');
+const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
@@ -318,13 +318,18 @@ function isDockerContainer() {
   return result;
 }
 
+/** Docker, Linux and macOS servers use normal absolute paths; only Windows needs UNC paths. */
+function usesPosixServerPaths() {
+  return isDockerContainer() || process.platform !== 'win32';
+}
+
 function validateUncPath(path, operation = 'operation') {
   if (isUrlModel(path)) {
     return; // URL-only models (from extension) have no file path to validate
   }
   if (isServerMode) {
-    // In Docker, allow Linux-style absolute paths (mounted shares)
-    if (isDockerContainer()) {
+    // Docker, Linux and macOS: absolute paths (mounted shares)
+    if (usesPosixServerPaths()) {
       // Allow absolute paths starting with / (Linux-style)
       if (!path.startsWith('/') && !isUncPath(path)) {
         throw new Error(`Server mode in Docker requires absolute paths (e.g., /mnt/network-share/path/to/file.stl) or UNC paths. The path "${path}" is not valid.`);
@@ -711,7 +716,7 @@ ${bridgeCode}
       }
       
       // Validate path (UNC paths on Windows, absolute paths in Docker)
-      if (isDockerContainer()) {
+      if (usesPosixServerPaths()) {
         // In Docker, require absolute paths starting with /. Client paths (e.g. C:\ from extension) are not on the server.
         if (!filePath.startsWith('/') && !isUncPath(filePath)) {
           res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not on server (path is on client). Use extension "Use upload for server" to add files to the server.');
@@ -838,7 +843,7 @@ ${bridgeCode}
       }
       const isTempFile = normalizedFilePath.includes(normalizedTempDir);
       
-      if (isDockerContainer()) {
+      if (usesPosixServerPaths()) {
         // In Docker, require absolute paths starting with /
         if (!normalizedFilePath.startsWith('/') && !isUncPath(actualFilePath)) {
           // For temp files from zip extraction, allow them
@@ -1063,9 +1068,11 @@ ${bridgeCode}
   const pendingRequests = new Map();
   wsClients = new Set(); // Track all connected clients
 
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
+  wss.on('connection', (ws, req) => {
+    const isThumbnailWorker = isThumbnailWorkerRequest(req);
+    console.log(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
     wsClients.add(ws);
+    if (isThumbnailWorker) thumbnailWorkerWs = ws;
 
     // Bound concurrent IPC work per client. Unbounded Promise.all-style floods
     // (tens of thousands of getThumbnail calls) otherwise stall past client timeouts.
@@ -1378,6 +1385,7 @@ ${bridgeCode}
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
       wsClients.delete(ws);
+      if (thumbnailWorkerWs === ws) thumbnailWorkerWs = null;
     });
 
     ws.on('error', (error) => {
@@ -1653,6 +1661,7 @@ let databaseClosedOnQuit = false;
 function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
+  if (isServerShim) stopThumbnailWorkerBrowser();
   try {
     if (serverThumbnailJob.status === 'running') serverThumbnailJob.cancelRequested = true;
   } catch (_) { /* job state not initialized */ }
@@ -2014,6 +2023,133 @@ function requireMcpConfirm(args, action) {
 
 function mcpIpcEvent() {
   return { sender: { send() {} } };
+}
+
+/** Event for work the server starts itself: progress goes to every connected browser. */
+function serverIpcEvent() {
+  return {
+    sender: {
+      send(channel, ...args) {
+        if (global.broadcastEvent) global.broadcastEvent(channel, ...args);
+      }
+    }
+  };
+}
+
+let serverStlHomeTimer = null;
+let serverStlHomeScanRunning = false;
+
+/** STL Home scan run by the server (on Node there is no hidden window to start it). */
+async function runServerStlHomeScan(reason) {
+  if (serverStlHomeScanRunning) return;
+  const dirs = readStlHomeDirectories();
+  if (!dirs.length) return;
+  serverStlHomeScanRunning = true;
+  try {
+    let newModels = 0;
+    for (const dir of dirs) {
+      try {
+        const result = await scanDirectoryHandler(serverIpcEvent(), dir, { isStlHomeScan: true });
+        const found = Number(result && result.newFilesCount) || 0;
+        newModels += found;
+        console.log(`[STL Home] ${reason} scan of ${dir}: ${found} new`);
+      } catch (error) {
+        console.error(`[STL Home] ${reason} scan of ${dir} failed:`, error.message);
+      }
+    }
+    if (global.broadcastEvent) global.broadcastEvent('refresh-grid');
+    if (newModels > 0 && thumbnailWorkerReady() && serverThumbnailJob.status !== 'running') {
+      startServerThumbnailJobInternal('missing').catch((error) => console.error('[STL Home] thumbnail job:', error.message));
+    }
+  } finally {
+    serverStlHomeScanRunning = false;
+  }
+}
+
+// --- Thumbnail worker on Node: headless Chromium running the web UI as a worker client ---
+const THUMBNAIL_WORKER_COOKIE = 'pv_worker';
+const thumbnailWorkerSecret = crypto.randomBytes(24).toString('hex');
+let thumbnailWorkerWs = null;
+let thumbnailWorkerBrowser = null;
+let thumbnailWorkerRestartTimer = null;
+
+function isThumbnailWorkerRequest(req) {
+  const cookies = parseCookies(req && req.headers && req.headers.cookie);
+  const value = cookies[THUMBNAIL_WORKER_COOKIE];
+  return !!value && value.length === thumbnailWorkerSecret.length
+    && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(thumbnailWorkerSecret));
+}
+
+/** Chromium flags: software WebGL (SwiftShader) unless PRINTVENTORY_CHROMIUM_ARGS replaces them. */
+function thumbnailWorkerChromiumArgs() {
+  const custom = String(process.env.PRINTVENTORY_CHROMIUM_ARGS || '').trim();
+  const gpu = custom
+    ? custom.split(/\s+/)
+    : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', ...gpu];
+}
+
+async function startThumbnailWorkerBrowser() {
+  if (!isServerShim || thumbnailWorkerBrowser) return;
+  const port = getHttpServerListenPort();
+  if (!port) return;
+  const scheme = resolveAppTls().options ? 'https' : 'http';
+  const origin = `${scheme}://127.0.0.1:${port}`;
+  try {
+    const executablePath = process.env.PRINTVENTORY_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath,
+      acceptInsecureCerts: true,
+      args: thumbnailWorkerChromiumArgs()
+    });
+    thumbnailWorkerBrowser = browser;
+    browser.on('disconnected', () => {
+      thumbnailWorkerBrowser = null;
+      thumbnailWorkerWs = null;
+      if (databaseClosedOnQuit) return;
+      console.warn('[Thumbnail worker] Chromium stopped; restarting in 10 seconds');
+      clearTimeout(thumbnailWorkerRestartTimer);
+      thumbnailWorkerRestartTimer = setTimeout(() => {
+        startThumbnailWorkerBrowser().catch((error) => console.error('[Thumbnail worker] restart:', error.message));
+      }, 10000);
+    });
+    const page = await browser.newPage();
+    page.on('pageerror', (error) => console.error('[Thumbnail worker] page error:', error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') console.error('[Thumbnail worker]', message.text().slice(0, 300));
+    });
+    await browser.setCookie(
+      { name: SESSION_COOKIE_NAME, value: getServerAuth().issueSessionToken(), domain: '127.0.0.1', path: '/', httpOnly: true },
+      { name: THUMBNAIL_WORKER_COOKIE, value: thumbnailWorkerSecret, domain: '127.0.0.1', path: '/', httpOnly: true }
+    );
+    await page.goto(`${origin}/?pv-thumbnail-worker=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    console.log('[Thumbnail worker] Headless Chromium started');
+  } catch (error) {
+    thumbnailWorkerBrowser = null;
+    console.error('[Thumbnail worker] Could not start Chromium:', error.message);
+  }
+}
+
+function stopThumbnailWorkerBrowser() {
+  clearTimeout(thumbnailWorkerRestartTimer);
+  const browser = thumbnailWorkerBrowser;
+  thumbnailWorkerBrowser = null;
+  if (browser) {
+    try {
+      const child = browser.process();
+      if (child) child.kill('SIGKILL');
+    } catch (_) { /* already gone */ }
+  }
+}
+
+/** First scan at startup, then every stlHomeUpdateFrequency minutes (default 60). */
+function startServerStlHomeScans() {
+  runServerStlHomeScan('startup').catch((error) => console.error('[STL Home] startup scan:', error));
+  const minutes = parseInt(getSettingValueOr('stlHomeUpdateFrequency', '60'), 10) || 60;
+  serverStlHomeTimer = setInterval(() => {
+    runServerStlHomeScan('scheduled').catch((error) => console.error('[STL Home] scheduled scan:', error));
+  }, minutes * 60 * 1000);
 }
 
 function filtersFromMcpArgs(args) {
@@ -3188,8 +3324,15 @@ if (!gotTheLock) {
             console.warn('[TLS] Startup renewal skipped:', renewErr.message);
           });
         });
-        // Create a hidden BrowserWindow to handle IPC (preload script needs a window)
-        await createHiddenWindow();
+        // Under Electron, a hidden window renders thumbnails. On plain Node (src/server) there is none yet.
+        if (isServerShim) {
+          console.log('[Server] Running on Node without Electron; thumbnails render in headless Chromium.');
+          // The hidden window used to render thumbnails and start STL Home scans; the server does both now.
+          await startThumbnailWorkerBrowser();
+          startServerStlHomeScans();
+        } else {
+          await createHiddenWindow();
+        }
         // Schedule background hash generation for any existing models with missing hashes
         scheduleBackgroundHashGeneration('startup');
         scheduleBackgroundThumbnailCompression('startup');
@@ -6800,7 +6943,17 @@ function broadcastThumbnailJobEvent(channel, payload) {
   }
 }
 
+function thumbnailWorkerReady() {
+  if (isServerShim) return !!(thumbnailWorkerWs && thumbnailWorkerWs.readyState === WebSocket.OPEN);
+  return !!(mainWindow && !mainWindow.isDestroyed());
+}
+
 function sendToThumbnailWorker(channel, ...args) {
+  if (isServerShim) {
+    if (!thumbnailWorkerReady()) throw new Error('Thumbnail worker is not connected yet');
+    thumbnailWorkerWs.send(jsonStringifyForWs({ type: 'event', channel, args }));
+    return;
+  }
   if (!mainWindow || mainWindow.isDestroyed()) {
     throw new Error('Server thumbnail worker window is not ready');
   }
@@ -6814,8 +6967,8 @@ async function startServerThumbnailJobInternal(mode) {
   if (serverThumbnailJob.status === 'running') {
     return { success: false, error: 'A thumbnail job is already running' };
   }
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return { success: false, error: 'Server thumbnail worker window is not ready' };
+  if (!thumbnailWorkerReady()) {
+    return { success: false, error: 'Server thumbnail worker is not ready' };
   }
 
   const jobMode = mode === 'all' ? 'all' : 'missing';
@@ -6864,6 +7017,8 @@ ipcMain.handle('report-server-thumbnail-progress', async (_event, progress) => {
 });
 
 ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
+  const info = result || {};
+  console.log(`[Server thumbnails] Job ${info.cancelled ? 'cancelled' : 'finished'}: ${Number(info.count) || 0} rendered`);
   serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
   broadcastThumbnailJobEvent('thumbnail-job-complete', result || {});
   if (global.broadcastEvent) {
@@ -6873,6 +7028,7 @@ ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
 });
 
 ipcMain.handle('report-server-thumbnail-error', async (_event, errorInfo) => {
+  console.error('[Server thumbnails] Job failed:', (errorInfo && errorInfo.message) || 'unknown error');
   serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
   const message = (errorInfo && (errorInfo.message || errorInfo.error)) || String(errorInfo || 'Thumbnail job failed');
   broadcastThumbnailJobEvent('thumbnail-job-error', { error: message });

@@ -19,12 +19,13 @@
     return;
   }
 
-  // Browser clients are never the server-side WebGL thumbnail worker.
+  // Browser tabs are not the thumbnail worker. On Node, the server opens headless Chromium
+  // at /?pv-thumbnail-worker=1; the server only sends jobs to that connection (worker cookie).
   if (!window.electron) {
     window.electron = {};
   }
   window.electron.isServerThumbnailWorker = function() {
-    return Promise.resolve(false);
+    return Promise.resolve(new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1');
   };
   
   // CRITICAL: Initialize window.electron immediately, before anything else
@@ -575,6 +576,9 @@
     'startServerThumbnailJob': 'start-server-thumbnail-job',
     'cancelServerThumbnailJob': 'cancel-server-thumbnail-job',
     'getServerThumbnailJobStatus': 'get-server-thumbnail-job-status',
+    'reportServerThumbnailProgress': 'report-server-thumbnail-progress',
+    'reportServerThumbnailComplete': 'report-server-thumbnail-complete',
+    'reportServerThumbnailError': 'report-server-thumbnail-error',
     'showMessage': 'show-message',
     'showMessageBox': 'show-message-box',
     'backupDatabase': 'backup-database',

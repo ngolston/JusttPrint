@@ -134,6 +134,11 @@ console.log('Copying assets...');
   }
 });
 
+if (fs.existsSync('src')) {
+  console.log('Copying src directory...');
+  fs.cpSync('src', path.join(dockerDistDir, 'src'), { recursive: true });
+}
+
 if (fs.existsSync('helper')) {
   console.log('Copying helper directory...');
   fs.cpSync('helper', path.join(dockerDistDir, 'helper'), { recursive: true });

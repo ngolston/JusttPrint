@@ -84,9 +84,17 @@ docs/        GUIDE.md, guide/ images
 
 ## 🟡 4. Medium: standalone server (remove Electron from the container)
 
-This is the main refactor, and the folder reorganization above happens as part of it.
+The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` with `src/server/electron-shim.js` in place of Electron, so the same code serves both. The remaining items replace that bridge with real modules over time.
 
-- [ ] **Move non-Electron logic out of `main.js`** (~14.5k lines, 171 IPC handlers) into `src/core/`, one area at a time:
+- [x] **Create `src/server/`**: `node src/server/index.js` runs server mode with no Electron (Electron stand-in: app paths and events, IPC registry, dialogs that answer Cancel, freedesktop trash, no windows).
+- [x] **Generate thumbnails without Electron or Xvfb.** The server starts headless Chromium (Puppeteer, system Chromium) on the web UI as a worker client, identified by a secret cookie, and sends it the thumbnail jobs. It restarts after a crash. NVIDIA WebGL still works via `PRINTVENTORY_GPU`.
+- [x] **Run STL Home scans in the server.** They were started by the hidden Electron window; the server now scans at startup and on the configured interval, then renders thumbnails for new models.
+- [x] **Slim the Docker image**: no Electron, Xvfb, D-Bus, GTK or X11; production dependencies only. 2.46 GB → 1.11 GB.
+- [x] **Keep a migration path**: same data path (`/root/.config/printventory`) and database, so existing volumes keep working.
+- [ ] **Server-initiated dialogs in the browser.** On Node, native confirmations answer Cancel (e.g. Pull Metadata on models that already have details stops instead of asking). Send them to the browser that asked and wait for the answer (pairs with section 5).
+- [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
+- [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
+- [ ] **Move non-Electron logic out of `main.js`** (~14.5k lines) into `src/core/`, one area at a time, until the Electron stand-in is no longer needed for the server:
   - database and migrations
   - scanning
   - thumbnails
@@ -98,12 +106,8 @@ This is the main refactor, and the folder reorganization above happens as part o
   - printers
   - AI tagging
   - backup/restore
-- [ ] **Create `src/server/`**: a plain Node entry point that starts Express, the API and the WebSocket using `src/core/`, with **no Electron**.
 - [ ] **Replace the IPC-over-WebSocket shim with a proper HTTP API** (REST or JSON-RPC), so each action is a defined endpoint with auth and validation.
-- [ ] **Generate thumbnails without Electron or Xvfb**, using a server-side renderer (e.g. headless WebGL or a Node rasterizer), or in the browser and upload the result.
-- [ ] **Replace Puppeteer** (Thangs/MakerWorld scraping) with plain HTTP and site APIs where possible. Keep headless Chromium only as an optional fallback.
-- [ ] **Slim the Docker image**: drop Electron, Xvfb, GTK and X11 once the server no longer needs them.
-- [ ] **Keep a migration path**: the new server opens existing `./data` databases and thumbnails unchanged.
+- [ ] **Replace Puppeteer scraping** (Thangs/MakerWorld) with plain HTTP and site APIs where possible. Chromium stays in the image for thumbnails either way.
 
 ## 🟡 5. Medium: web UI can do everything
 
@@ -143,6 +147,7 @@ This is the main refactor, and the folder reorganization above happens as part o
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [ ] **Update docs**: the README says version 2.2.9; rewrite the install section with Docker first.
+- [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 
