@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, screen, dialog, Menu, shell, contextBridge, isServerShim } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const supportLogs = require('./support-logs').createCapture();
-supportLogs.beginCapture();
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const puppeteer = require('puppeteer');
@@ -25,7 +23,7 @@ const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = re
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
-const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases } = require('./src/server/releases');
+const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases, PROJECT_URL } = require('./src/server/releases');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -3267,11 +3265,6 @@ if (!gotTheLock) {
   // Create the main window and initialize the app
   app.whenReady().then(async () => {
     try {
-      supportLogs.openLogDirectory(app.getPath('logs'));
-      app.on('web-contents-created', (_event, contents) => {
-        supportLogs.attachWebContents(contents);
-      });
-
       // Initialize database first
       if (!initializeDatabase()) {
         if (isServerMode) {
@@ -3968,15 +3961,6 @@ function initializeDefaultSettings() {
   }
 }
 
-function sendSupportLogsFromMenu() {
-  const parent = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
-  return supportLogs.confirmAndSend({
-    dialog,
-    parentWindow: parent,
-    version
-  });
-}
-
 async function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
@@ -4214,21 +4198,9 @@ async function createWindow() {
         },
         { type: 'separator' },
         {
-          label: 'Discord',
-          click: async () => {
-            await shell.openExternal('https://discord.gg/JXcZHT77ua');
-          }
-        },
-        {
-          label: 'Patreon',
-          click: async () => {
-            await shell.openExternal('https://patreon.com/Printventory');
-          }
-        },
-        {
           label: 'GitHub',
           click: async () => {
-            await shell.openExternal('https://github.com/TechJeeper/Printventory');
+            await shell.openExternal(PROJECT_URL);
           }
         },
         { type: 'separator' },
@@ -4247,13 +4219,7 @@ async function createWindow() {
         {
           label: 'Server Mode Info',
           click: async () => {
-            await shell.openExternal('https://github.com/TechJeeper/Printventory?tab=readme-ov-file#server-mode');
-          }
-        },
-        {
-          label: 'Send Logs',
-          click: () => {
-            sendSupportLogsFromMenu();
+            await shell.openExternal(`${PROJECT_URL}?tab=readme-ov-file#server-mode`);
           }
         },
         {
@@ -4530,21 +4496,9 @@ function createApplicationMenu() {
         },
         { type: 'separator' },
         {
-          label: 'Discord',
-          click: async () => {
-            await shell.openExternal('https://discord.gg/JXcZHT77ua');
-          }
-        },
-        {
-          label: 'Patreon',
-          click: async () => {
-            await shell.openExternal('https://patreon.com/Printventory');
-          }
-        },
-        {
           label: 'GitHub',
           click: async () => {
-            await shell.openExternal('https://github.com/TechJeeper/Printventory');
+            await shell.openExternal(PROJECT_URL);
           }
         },
         { type: 'separator' },
@@ -4563,13 +4517,7 @@ function createApplicationMenu() {
         {
           label: 'Server Mode Info',
           click: async () => {
-            await shell.openExternal('https://github.com/TechJeeper/Printventory?tab=readme-ov-file#server-mode');
-          }
-        },
-        {
-          label: 'Send Logs',
-          click: () => {
-            sendSupportLogsFromMenu();
+            await shell.openExternal(`${PROJECT_URL}?tab=readme-ov-file#server-mode`);
           }
         },
         {

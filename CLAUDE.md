@@ -1,8 +1,8 @@
 # Printventory
 
-## Never send anything to TechJeeper/Printventory
+## Only push to ngolston/Printventory
 
-Never push, open pull requests, create releases or issues, call the API, or run scripts that target https://github.com/TechJeeper/Printventory. Work goes to the fork, https://github.com/ngolston/Printventory (`origin`). `scripts/upload-to-github.ps1` and `scripts/push-printventory-github.ps1` push there, so do not run them. A local `.git/hooks/pre-push` hook also refuses those URLs.
+All work goes to https://github.com/ngolston/Printventory (`origin`). Never push, open pull requests, create releases or issues, or call the API on any other GitHub repository, including the upstream project this was forked from. A local `.git/hooks/pre-push` hook also refuses pushes to the upstream repository.
 
 ## `todo:` shortcut
 

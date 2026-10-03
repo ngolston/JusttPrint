@@ -1,5 +1,5 @@
 /**
- * Stress DeDup at large-library scale (the Discord 100k+ crash case).
+ * Stress DeDup at large-library scale (a reported crash with 100k+ models).
  *
  * Seeds an isolated SQLite DB with N duplicate groups (2 files each),
  * launches Electron against it, then measures:

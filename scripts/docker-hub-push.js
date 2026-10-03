@@ -236,7 +236,7 @@ switch (command) {
     console.log('=== Complete ===');
     console.log('');
     console.log('Your Printventory Docker image is now available on Docker Hub!');
-    console.log('Pull it with: docker pull printventory/printventory:latest');
+    console.log(`Pull it with: docker pull ${latestTag}`);
     break;
     
   default:

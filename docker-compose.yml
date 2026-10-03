@@ -1,6 +1,6 @@
 services:
   printventory:
-    image: printventory/printventory:latest
+    image: printventory:latest
     build:
       context: .
       dockerfile: Dockerfile

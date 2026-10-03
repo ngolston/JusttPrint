@@ -23,7 +23,7 @@ const STATIC_BLOCKED_TOP = new Set([
 
 const STATIC_BLOCKED_FILES = new Set([
   'main.js', 'preload.js', 'input-dialog-preload.js', 'db-repair.js', 'server-auth.js',
-  'server-paths.js', 'server-tls.js', 'mcp-server.js', 'support-logs.js', 'scan-worker.js',
+  'server-paths.js', 'server-tls.js', 'mcp-server.js', 'scan-worker.js',
   'extension-inbox.js', 'playwright.config.js', 'vitest.config.js'
 ]);
 

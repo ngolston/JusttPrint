@@ -6220,7 +6220,7 @@ async function initializeAboutDialog() {
     if (licenseLink && typeof window.electron?.openExternal === 'function') {
       licenseLink.addEventListener('click', async (e) => {
         e.preventDefault();
-        await window.electron.openExternal('https://github.com/TechJeeper/Printventory/blob/main/LICENSE.txt');
+        await window.electron.openExternal('https://github.com/ngolston/Printventory/blob/main/LICENSE.txt');
       });
     }
   } catch (e) {
@@ -7040,14 +7040,8 @@ async function createServerMenuBar() {
       }
     }},
     { label: '---', action: null },
-    { label: 'Discord', action: () => {
-      window.electron.openExternal('https://discord.gg/JXcZHT77ua');
-    }},
-    { label: 'Patreon', action: () => {
-      window.electron.openExternal('https://patreon.com/Printventory');
-    }},
     { label: 'GitHub', action: () => {
-      window.electron.openExternal('https://github.com/TechJeeper/Printventory');
+      window.electron.openExternal('https://github.com/ngolston/Printventory');
     }},
     { label: '---', action: null },
     { label: 'Library Stats', action: () => {
@@ -7061,7 +7055,7 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Server Mode Info', action: () => {
-      window.electron.openExternal('https://github.com/TechJeeper/Printventory?tab=readme-ov-file#server-mode');
+      window.electron.openExternal('https://github.com/ngolston/Printventory?tab=readme-ov-file#server-mode');
     }}
   ]);
   

@@ -1,9 +1,0 @@
-{
-  "discord": {
-    "guildId": "1331093666915156059",
-    "channelId": "1331101902196310018",
-    "downloadBaseUrl": "https://printventory.techjeeper.com",
-    "betaTestersRoleName": "beta-testers",
-    "botCredentialsFile": ".discord"
-  }
-}

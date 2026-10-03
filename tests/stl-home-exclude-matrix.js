@@ -19,7 +19,7 @@ const FILES = path.join(WORK, 'files');
 const CUBE = path.join(__dirname, 'test-fixtures', 'scan-me', 'cube.stl');
 const CONTAINER = 'printventory-stl-home-matrix';
 const HOST_PORT = '15021';
-const IMAGE = 'printventory/printventory:latest';
+const IMAGE = process.env.PRINTVENTORY_IMAGE || 'printventory:latest';
 const MOUNT = '/mnt/homes';
 
 const HOME_A = 'home-a';

@@ -23,9 +23,9 @@ test('web assets are served', () => {
 
 test('secrets, server code and dependencies are not served', () => {
   for (const p of [
-    '/support-webhook.json', '/package.json', '/package-lock.json', '/.env', '/.git/config',
+    '/secrets.json', '/package.json', '/package-lock.json', '/.env', '/.git/config',
     '/main.js', '/preload.js', '/server-auth.js', '/mcp-server.js', '/printventory.db',
-    '/node_modules/express/index.js', '/scripts/publish-beta-release.js', '/tests/test-utils.js',
+    '/node_modules/express/index.js', '/scripts/docker-hub-push.js', '/tests/test-utils.js',
     '/helper/printventory-helper.js', '/data/printventory.db', '/server-auth.test.js',
     '/vendor/..%2Fmain.js', '/%2e%2e/etc/passwd', '/vendor/%5c..%5cmain.js'
   ]) {

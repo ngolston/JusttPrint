@@ -56,7 +56,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent feature additions and migration note
 Download the latest release for your platform:
 - **Windows**: `Printventory-Setup-2.3.0.exe` (NSIS installer)
 - **macOS**: Universal binary (Intel and Apple Silicon) DMG
-- **Linux/Docker**: `printventory/printventory:latest` on Docker Hub (or `printventory-docker-2.3.0.zip`)
+- **Docker**: build the image from this repository (see [Docker Deployment](#docker-deployment-linux-server-mode)), or use `printventory-docker-2.3.0.zip`
 
 ### Data Storage
 
@@ -71,7 +71,6 @@ Printventory does not collect usage data. It only connects to outside services i
 
 - **Update check**: on startup, after the terms are accepted, it asks GitHub for the latest release of `ngolston/Printventory`. Turn this off under **About → Updates**.
 - **AI tagging**: when you use it, the model's thumbnail, file name and folder names go to the AI service you configured (OpenAI-compatible endpoint or Puter).
-- **Support logs**: only when you choose **Send Support Logs** and confirm. API keys and webhook URLs are removed from the logs before upload.
 - **Page imports and Spoolman**: when you import from a model website or sync filaments, it contacts that site or your Spoolman server.
 
 ## Server Mode
@@ -366,28 +365,21 @@ The image runs the server on plain Node.js (no Electron, no virtual display). Th
 - Pull and run the pre-built image from Docker Hub
 - No need to build from source - see "Pulling from Docker Hub" section below
 
-### Pulling from Docker Hub
-
-If the Printventory Docker image has been published to Docker Hub, you can pull and run it directly without building from source.
+### Getting the Image
 
 #### Prerequisites
 
 - [Docker](https://www.docker.com/get-started) installed
 - Docker Desktop running (if on Windows/Mac)
 
-#### Pulling the Image
+#### Building the Image
 
-**Pull the latest version:**
+From a clone of the repository:
 ```bash
-docker pull printventory/printventory:latest
+docker build -t printventory:latest .
 ```
 
-**Pull a specific version:**
-```bash
-docker pull printventory/printventory:1.23.0
-```
-
-The image is available on Docker Hub at: [https://hub.docker.com/r/printventory/printventory](https://hub.docker.com/r/printventory/printventory)
+The examples below run `printventory:latest`. To publish the image to your own Docker Hub account for Intel/AMD and ARM, set `DOCKER_HUB_USERNAME` and run `npm run docker:hub:multiarch`; then use `<your-username>/printventory:latest` in place of `printventory:latest`.
 
 #### Running with Docker Run
 
@@ -398,7 +390,7 @@ docker run -d \
   -p 5000:5000 \
   -v ./data:/root/.config/printventory \
   --restart unless-stopped \
-  printventory/printventory:latest
+  printventory:latest
 ```
 
 **With network share mounted (Windows - mapped drive):**
@@ -415,7 +407,7 @@ docker run -d \
   -v Z:/:/mnt/network-share:ro \
   -e STL_HOME=/mnt/network-share/models \
   --restart unless-stopped \
-  printventory/printventory:latest
+  printventory:latest
 
 # Step 3: Use Linux-style paths in Printventory
 # Example: /mnt/network-share/models/myfile.stl
@@ -437,7 +429,7 @@ docker run -d \
   -v /mnt/network-share:/mnt/network-share:ro \
   -e STL_HOME=/mnt/network-share/models \
   --restart unless-stopped \
-  printventory/printventory:latest
+  printventory:latest
 
 # Step 3: Use Linux-style paths in Printventory
 # Example: /mnt/network-share/models/myfile.stl
@@ -453,11 +445,11 @@ version: '3.8'
 
 services:
   printventory:
-    image: printventory/printventory:latest
-    # Optional: build from source instead of pulling
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+    image: printventory:latest
+    # Built from this repository's Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: printventory-server
     ports:
       - "5000:5000"
@@ -520,8 +512,8 @@ docker compose up -d
 
 | Option | What it does |
 |--------|----------------|
-| `image` | Image to run (`printventory/printventory:latest` or a version tag). |
-| `build` | Build from the local `Dockerfile` instead of (or in addition to) pulling. |
+| `image` | Image name (`printventory:latest` when built locally, or `<your-username>/printventory:latest` when published). |
+| `build` | Build from the local `Dockerfile`. |
 | `container_name` | Fixed container name (`printventory-server`) for easy `docker logs` / `docker exec`. |
 | `ports` | Maps host → container. `5000:5000` is the app (HTTP or HTTPS). Publish `80:80` for Let's Encrypt HTTP-01. Optional `443:5000` when TLS is on. |
 | `volumes` → `./data:...` | Persists the SQLite DB and app config on the host so updates/recreates keep your library. |
@@ -548,7 +540,6 @@ Variables marked **every start** win over the UI each time the container starts.
 | `PRINTVENTORY_AI_SERVICE` | AI tagging service: `openai`, `claude`, `gemini`, `puter` or `custom` (**every start**). |
 | `PRINTVENTORY_AI_API_KEY` | API key for that service (**every start**; never written to the log). |
 | `PRINTVENTORY_AI_MODEL` / `PRINTVENTORY_AI_ENDPOINT` | AI model name, and endpoint URL for `custom` or self-hosted services (**every start**). |
-| `DISCORD_WEBHOOK_URL` | Where **Send Support Logs** uploads (only needed when the image has no `support-webhook.json`). |
 | `STL_HOME` | STL Home scan directories on start (Linux paths inside the container). One path, or several separated by commas, semicolons, or newlines, or a JSON array. |
 | `STL_HOME_EXCLUDE` | Directories STL Home scans skip. Comma, semicolon, or newline separated container paths, or a JSON array. Same empty-vs-override rules as `STL_HOME`. |
 | `PRINTVENTORY_ENV_OVERRIDES_SETTINGS` | Set to `1` to re-apply env settings on every start (legacy). By default, env fills unset DB settings only. |
@@ -573,7 +564,7 @@ Server-side thumbnail jobs render with WebGL inside the container. By default th
 ```yaml
 services:
   printventory:
-    image: printventory/printventory:latest
+    image: printventory:latest
     gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -636,28 +627,22 @@ docker stop printventory-server
 docker rm printventory-server
 ```
 
-**Update to latest version:**
+**Update to the latest version:**
 ```bash
-docker pull printventory/printventory:latest
+git pull
+docker build -t printventory:latest .
 docker stop printventory-server
 docker rm printventory-server
-docker run -d --name printventory-server -p 5000:5000 -v ./data:/root/.config/printventory --restart unless-stopped printventory/printventory:latest
+docker run -d --name printventory-server -p 5000:5000 -v ./data:/root/.config/printventory --restart unless-stopped printventory:latest
 ```
 
 #### Using Network Paths
 
-When running from Docker Hub, remember:
+When running in Docker, remember:
 - **Windows UNC paths** (`\\server\share\path`) won't work directly
 - **Mount network shares** into the container first (see [Path Mapping Guide](#path-mapping-guide) above)
 - **Use Linux-style paths** inside the container: `/mnt/network-share/path/to/file`
 - **For automatic scanning**: Configure STL Home using the container path (see [STL Home Setting](#stl-home-setting) section)
-
-#### Docker Hub Repository
-
-The Printventory Docker image is available on Docker Hub at:
-```
-https://hub.docker.com/r/printventory/printventory
-```
 
 ### Prerequisites
 
@@ -783,7 +768,7 @@ version: '3.8'
 
 services:
   printventory:
-    image: printventory/printventory:latest
+    image: printventory:latest
     container_name: printventory-server
     ports:
       - "5000:5000"
@@ -1104,11 +1089,6 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 If you encounter any issues or have questions:
 - File an issue on the GitHub repository
 - Check the [GUIDE.md](GUIDE.md) for detailed usage instructions
-- Join the Discord community (mentioned in the application)
-
-## Author
-
-**TechJeeper Designs**
 
 ---
 

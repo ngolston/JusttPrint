@@ -6,6 +6,7 @@
  */
 
 const RELEASES_REPO = 'ngolston/Printventory';
+const PROJECT_URL = `https://github.com/${RELEASES_REPO}`;
 
 function releasesApiUrl(isBeta) {
   return isBeta
@@ -15,8 +16,8 @@ function releasesApiUrl(isBeta) {
 
 function releasesPageUrl(isBeta) {
   return isBeta
-    ? `https://github.com/${RELEASES_REPO}/releases`
-    : `https://github.com/${RELEASES_REPO}/releases/latest`;
+    ? `${PROJECT_URL}/releases`
+    : `${PROJECT_URL}/releases/latest`;
 }
 
 /**
@@ -34,4 +35,4 @@ function latestVersionFromReleases(body, isBeta) {
   return null;
 }
 
-module.exports = { RELEASES_REPO, releasesApiUrl, releasesPageUrl, latestVersionFromReleases };
+module.exports = { RELEASES_REPO, PROJECT_URL, releasesApiUrl, releasesPageUrl, latestVersionFromReleases };

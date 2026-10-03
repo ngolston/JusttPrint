@@ -40,7 +40,7 @@ docs/        GUIDE.md, guide/ images
 - [x] **Restrict `/api/file/*` and `/api/download/*`** to library folders, stored model paths, and backups/exports (`server-paths.js`).
 - [x] **Check the origin of WebSocket connections and require auth on them.** Open sockets are also closed when the password changes.
 - [x] **Replace `Access-Control-Allow-Origin: *`** with same-origin plus `PRINTVENTORY_ALLOWED_ORIGINS`, and refuse cross-site state-changing requests.
-- [x] **Stop serving the whole app folder as static files.** `support-webhook.json`, `package.json`, `main.js` and `node_modules` were public. Only web assets are served now.
+- [x] **Stop serving the whole app folder as static files.** Secret config files, `package.json`, `main.js` and `node_modules` were public. Only web assets are served now.
 - [x] **Validate every path the web UI and MCP send.** One guard checks the path arguments of 30 IPC channels and 14 MCP tools: files must be in the library, moves stay in the library, new scan and organize folders cannot be system, app or data folders, and MCP backups/exports only write to the library or data folder. "Open on server" actions are desktop only.
 - [x] **Replace `xmldom`** with `@xmldom/xmldom` 0.9, and rebuild `vendor/xmldom-worker-bundle.js`.
 - [x] **Fix the vulnerable dependencies**: `npm audit fix`, Puppeteer 24 → 25, and removed the `overrides` that pinned the vulnerable `basic-ftp` 5.3.1. Down from 21 to 2.
@@ -61,15 +61,15 @@ docs/        GUIDE.md, guide/ images
   - [x] Mentions in the README, guide and privacy text.
 - [x] **Delete the `CollectUsage` and `ClientId` settings from existing databases.**
 - [x] **Review the other outgoing connections** (documented under *Network Connections* in the README; the update check can be turned off under About → Updates and waits for the terms):
-  - The version check: optional, and since 2.3.0 it reads GitHub Releases (printventory.com is no longer used).
+  - The version check: optional, and since 2.3.0 it reads GitHub Releases (the old website is no longer used).
   - Puter AI.
-  - The support-log webhook.
+  - Support-log uploads (removed in 2.3.x along with the rest of the original project's services).
 
   Document each one, and send nothing before the terms of service are accepted.
 
 ## 🟠 3. High: container fixes
 
-- [x] **Fix the image build from a clean clone.** `support-webhook.json` is optional in the Dockerfile and the Docker distribution script.
+- [x] **Fix the image build from a clean clone.** It no longer needs files that aren't in the repository.
 - [x] **Run as a non-root user** with `PUID`/`PGID` (default 1000:1000, `PUID=0` for root). The data folder is re-owned on start only when needed; the app keeps the right to bind port 80 for Let's Encrypt.
 - [x] **Bake the Electron binary into the image.** `npm install --ignore-scripts` skipped it, so every new container downloaded ~100 MB from GitHub at startup.
 - [x] **Add a `HEALTHCHECK` to the Dockerfile.** `healthcheck.js` asks `/api/health` on the port and scheme the server actually listens on.
@@ -159,7 +159,6 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [ ] **Update docs**: rewrite the README install section for Docker only (the version number was fixed in 2.3.0).
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
-- [ ] **Update the Discord beta announcement** (`scripts/publish-beta-release.js`): it links desktop installers on printventory.techjeeper.com, which a Docker-only project no longer builds. Link the GitHub release and Docker image instead.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 

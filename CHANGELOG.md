@@ -4,9 +4,9 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-- printventory.com is no longer used. The update check reads GitHub Releases of ngolston/Printventory (beta users include pre-releases), and the update button opens the release page
-- Removed the FAQ and Support Printventory menu items, which opened printventory.com pages; the About link points to the GitHub repository
-- The beta release script and workflow no longer update the Printventory-Website repository; they only post the Discord announcement
+- The old project website is no longer used. The update check reads GitHub Releases of ngolston/Printventory (beta users include pre-releases), and the update button opens the release page
+- Removed the FAQ and Support Printventory menu items, which opened pages on the old website; the About link points to the GitHub repository
+- Removed everything tied to the upstream project and its services: the beta release and community-chat announcement scripts and workflow, the push scripts for its GitHub repository, the community-chat and Patreon menu items, and Send Support Logs (it uploaded to that chat). GitHub links point to ngolston/Printventory
 
 ## [2.3.0] - 2026-10-03
 
@@ -19,13 +19,13 @@ All notable changes contributed via pull request are documented in this file.
 - Server Mode requires a login. Set the password with `PRINTVENTORY_PASSWORD`, or use the one printed in the server log on first start, and change it under Tools → Server Access
 - MCP clients authenticate with an API token; the MCP client config includes it
 - The file and download endpoints only serve files inside the library folders, plus backups and exports. The live database and certificates can no longer be downloaded
-- The server no longer serves server code, `node_modules`, `package.json` or the support webhook file
+- The server no longer serves server code, `node_modules` or `package.json`
 - WebSocket connections and state-changing requests from other websites are refused
 - Send to Slicer links carry a short-lived download token. Reinstall the helper from Settings → Slicer
 - Browser and MCP requests can only read, delete or move files inside the library folders. Scans and Organize Library cannot target system or app folders, and MCP backups and exports only write to the library or data folder
 - Security headers on every response, and `X-Powered-By` removed
 - Replaced the abandoned `xmldom` with `@xmldom/xmldom`, updated Puppeteer to 25, and applied the other dependency security fixes
-- The Docker image builds without `support-webhook.json`; Send Support Logs then uses `DISCORD_WEBHOOK_URL`
+- The Docker image builds from a clean clone of the repository
 - Symlinks inside the library cannot be used to read or write files outside it
 - `PRINTVENTORY_TRUST_PROXY` lets the login rate limit see real client addresses behind a reverse proxy
 - Removed the legacy `/api/extension-upload` route and its upload-directory setting (`EXTENSION_UPLOAD_DIR`). The extension uses the inbox folder
@@ -121,18 +121,18 @@ All notable changes contributed via pull request are documented in this file.
 
 ### Added
 
-- **Tag Manager rename** — Click a tag to rename it across the library (for example a typo). Clear the name and press Enter to delete it ([#82](https://github.com/TechJeeper/Printventory/issues/82)).
+- **Tag Manager rename** — Click a tag to rename it across the library (for example a typo). Clear the name and press Enter to delete it.
 - Multi-Edit **Edit Tags** opens Tag Manager. Untag from selected models stays on that panel.
 
 ### Changed
 
-- Preview tiles show filenames without hovering ([#81](https://github.com/TechJeeper/Printventory/issues/81)).
+- Preview tiles show filenames without hovering.
 - Click an expanded folder or ZIP group to collapse it. Click empty grid space to deselect the selected model.
 - **AI Tagging** — Local OpenAI-compatible servers (Custom, Ollama, LM Studio, and similar) no longer require an API key.
 
 ### Fixed
 
-- Tag Manager Full Screen resizes the dialog and keeps existing tags visible ([#80](https://github.com/TechJeeper/Printventory/issues/80)).
+- Tag Manager Full Screen resizes the dialog and keeps existing tags visible.
 - The library grid no longer stays empty on launch until you switch views.
 
 ## [2.2.5] - 2026-09-11
@@ -165,7 +165,7 @@ All notable changes contributed via pull request are documented in this file.
 - **Print lifecycle and history** — Status is no longer a Printed checkbox. Each model has Unprinted / Want / Queued / Printing / Printed / Failed, plus an append-only print log (date, Printed/Failed/Cancelled, quantity, notes, filaments used). Click a card badge to log a print (reprints increment `Printed ×N`); Shift-click changes status only. Details panel has a status dropdown, Log a print, and a deletable history list. Filters include each status plus Ever printed / Never printed (from successful logs). Sort by last printed, print count, or status. Existing `printed = 1` rows keep Printed with “No logged prints yet” — no fake history is invented. Send to Slicer does not auto-log a print.
 - **Folder-tree library explorer** — A Folders filter (roots + recent) with a ☰ popover tree of scanned directories (counts, ZIP bundles highlighted). Click a folder to set the existing Directory chip. Optional Folders rail next to the grid for hopping between folders. The tree is a picker for a filter you already have; it does not replace the grid.
 - **Sidebar layout** — Search and sort stay pinned. The long filter stack auto-collapses when model details open so the details panel can use the remaining height. Sidebar and Folders panel (popover and rail) are drag-resizable; last widths are remembered.
-- **De-Dup on the current view** — De-Dup can hash/compare the current library filters (designer, tags, query builder, search, and other chips) instead of always scanning the entire collection ([#61](https://github.com/TechJeeper/Printventory/issues/61)).
+- **De-Dup on the current view** — De-Dup can hash/compare the current library filters (designer, tags, query builder, search, and other chips) instead of always scanning the entire collection.
 - **Filament catalog and Spoolman** — Assign filaments to models (vendor, material, color). Filter the library by filament. Optional pull-only Spoolman sync of the filament catalog (URL + API token; Test Connection / Sync Now). Filament chips pre-fill on Log a print.
 - **MCP Server (experimental)** — Connect a local AI agent (Cursor, Claude Desktop, VS Code, and similar) to the library over Streamable HTTP at `/mcp` while Printventory is running. Desktop: Tools → MCP Server enables a localhost listener (same port as the Browser Extension, default 5000); copy URL or client `mcpServers` JSON from the dialog. Docker/server mode: `/mcp` is always available on the host — no toggle. Tools: `search_models`, `get_model`, `update_model`, `get_library_stats`, `get_folder_tree`, `list_tags`, `add_tag`, `list_designers`, `list_licenses`, `get_models_missing_thumbnails`, `get_thumbnails`, `set_thumbnail`, `add_thumbnail`. Agents can list models missing thumbnails, render images locally, and write PNG/JPEG back with `set_thumbnail`. Any client that can reach the endpoint can read and change library data; use on trusted networks only.
 
