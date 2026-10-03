@@ -257,23 +257,10 @@ let letsEncryptRenewInFlight = false;
 const pendingContextMenus = new Map();
 let contextMenuRequestIdCounter = 0;
 
-// Handler registry for WebSocket IPC calls in server mode
-// This allows us to directly invoke handlers without going through the renderer
-const ipcHandlerRegistry = new Map();
+// The handlers the WebSocket dispatcher calls: every ipcMain.handle(...), from any module,
+// lands in this one map, whatever order the modules load in.
+const ipcHandlerRegistry = ipcMain._handlers;
 
-// Auto-register every ipcMain.handle into the WebSocket registry.
-// Without this, Docker/server-mode falls back to executeJavaScript on the hidden
-// window for unregistered channels (e.g. getThumbnail) — which hangs/times out.
-const _ipcMainHandle = ipcMain.handle.bind(ipcMain);
-ipcMain.handle = (channel, handler) => {
-  ipcHandlerRegistry.set(channel, handler);
-  return _ipcMainHandle(channel, handler);
-};
-
-// Helper function to register IPC handlers and add them to the registry
-function registerIpcHandler(channel, handler) {
-  ipcMain.handle(channel, handler);
-}
 
 // Check if running in Docker container
 function isDockerContainer() {
@@ -5343,167 +5330,9 @@ async function deletePartHandler(event, partId) {
 }
 ipcMain.handle('delete-part', deletePartHandler);
 
-async function getPrintEventsHandler(event, modelId) {
-  try {
-    return printEvents.getPrintEvents(database.db, modelId);
-  } catch (error) {
-    console.error('Error getting print events:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-print-events', getPrintEventsHandler);
+require('./src/server/ipc/print-events');
 
-async function logPrintEventHandler(event, payload) {
-  try {
-    return printEvents.logPrintEvent(database.db, payload || {});
-  } catch (error) {
-    console.error('Error logging print event:', error);
-    throw error;
-  }
-}
-ipcMain.handle('log-print-event', logPrintEventHandler);
-
-async function logPrintEventsBatchHandler(event, payload) {
-  try {
-    return printEvents.logPrintEventsBatch(database.db, payload || {});
-  } catch (error) {
-    console.error('Error logging print events batch:', error);
-    throw error;
-  }
-}
-ipcMain.handle('log-print-events-batch', logPrintEventsBatchHandler);
-
-async function deletePrintEventHandler(event, eventId) {
-  try {
-    return printEvents.deletePrintEvent(database.db, eventId);
-  } catch (error) {
-    console.error('Error deleting print event:', error);
-    throw error;
-  }
-}
-ipcMain.handle('delete-print-event', deletePrintEventHandler);
-
-async function setPrintStatusHandler(event, payload) {
-  try {
-    return printEvents.setPrintStatus(database.db, payload || {});
-  } catch (error) {
-    console.error('Error setting print status:', error);
-    throw error;
-  }
-}
-ipcMain.handle('set-print-status', setPrintStatusHandler);
-
-async function setPrintStatusBatchHandler(event, payload) {
-  try {
-    return printEvents.setPrintStatusBatch(database.db, payload || {});
-  } catch (error) {
-    console.error('Error setting print status batch:', error);
-    throw error;
-  }
-}
-ipcMain.handle('set-print-status-batch', setPrintStatusBatchHandler);
-
-async function getAllPrintersHandler() {
-  try {
-    return printerManager.getAllPrinters(database.db);
-  } catch (error) {
-    console.error('Error getting printers:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-all-printers', getAllPrintersHandler);
-
-async function savePrinterHandler(event, printer) {
-  try {
-    return printerManager.savePrinter(database.db, printer);
-  } catch (error) {
-    console.error('Error saving printer:', error);
-    throw error;
-  }
-}
-ipcMain.handle('save-printer', savePrinterHandler);
-
-async function deletePrinterHandler(event, printerId) {
-  try {
-    return printerManager.deletePrinter(database.db, printerId);
-  } catch (error) {
-    console.error('Error deleting printer:', error);
-    throw error;
-  }
-}
-ipcMain.handle('delete-printer', deletePrinterHandler);
-
-async function getPrinterMaintenanceLogsHandler(event, printerId) {
-  try {
-    return printerManager.getPrinterMaintenanceLogs(database.db, printerId);
-  } catch (error) {
-    console.error('Error getting printer maintenance logs:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-printer-maintenance-logs', getPrinterMaintenanceLogsHandler);
-
-async function savePrinterMaintenanceLogHandler(event, logEntry) {
-  try {
-    return printerManager.savePrinterMaintenanceLog(database.db, logEntry);
-  } catch (error) {
-    console.error('Error saving printer maintenance log:', error);
-    throw error;
-  }
-}
-ipcMain.handle('save-printer-maintenance-log', savePrinterMaintenanceLogHandler);
-
-async function deletePrinterMaintenanceLogHandler(event, logId) {
-  try {
-    return printerManager.deletePrinterMaintenanceLog(database.db, logId);
-  } catch (error) {
-    console.error('Error deleting printer maintenance log:', error);
-    throw error;
-  }
-}
-ipcMain.handle('delete-printer-maintenance-log', deletePrinterMaintenanceLogHandler);
-
-async function getPrinterRemindersHandler(event, printerId) {
-  try {
-    return printerManager.getPrinterReminders(database.db, printerId);
-  } catch (error) {
-    console.error('Error getting printer reminders:', error);
-    throw error;
-  }
-}
-ipcMain.handle('get-printer-reminders', getPrinterRemindersHandler);
-
-async function savePrinterReminderHandler(event, reminder) {
-  try {
-    return printerManager.savePrinterReminder(database.db, reminder);
-  } catch (error) {
-    console.error('Error saving printer reminder:', error);
-    throw error;
-  }
-}
-ipcMain.handle('save-printer-reminder', savePrinterReminderHandler);
-
-async function deletePrinterReminderHandler(event, reminderId) {
-  try {
-    return printerManager.deletePrinterReminder(database.db, reminderId);
-  } catch (error) {
-    console.error('Error deleting printer reminder:', error);
-    throw error;
-  }
-}
-ipcMain.handle('delete-printer-reminder', deletePrinterReminderHandler);
-
-async function completePrinterReminderHandler(event, payload) {
-  try {
-    const reminderId = typeof payload === 'object' ? payload?.id : payload;
-    const notes = typeof payload === 'object' ? payload?.notes : null;
-    return printerManager.completePrinterReminder(database.db, reminderId, notes);
-  } catch (error) {
-    console.error('Error completing printer reminder:', error);
-    throw error;
-  }
-}
-ipcMain.handle('complete-printer-reminder', completePrinterReminderHandler);
+require('./src/server/ipc/printers');
 
 function readSpoolmanSettings(urlOverride, tokenOverride) {
   const urlRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('spoolmanUrl');
@@ -11216,7 +11045,7 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
 };
 
 // Register handler for both IPC and WebSocket (server mode)
-registerIpcHandler('test-ai-config', testAIConfigHandler);
+ipcMain.handle('test-ai-config', testAIConfigHandler);
 
 ipcMain.handle('get-default-ai-prompt', async () => {
   const settings = getSettings();

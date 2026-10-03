@@ -212,6 +212,22 @@ async function apiChecks(base, wsUrl) {
   });
   check('MCP backup outside data folder refused', /Can only write/.test(await backupMcp.text()));
 
+  console.log('\n# Inventory');
+  const ask = (channel, args) => invoke(wsUrl, { cookie, origin }, channel, args);
+  const printer = (await ask('save-printer', [{ nickname: 'E2E Printer', firmwareType: 'Klipper' }])).result;
+  const printers = (await ask('get-all-printers')).result || [];
+  check('printer saved and listed', !!printer && printers.some((p) => p.id === printer.id && p.nickname === 'E2E Printer'));
+  if (printer) {
+    await ask('save-printer-maintenance-log', [{ printer_id: printer.id, title: 'Nozzle swap', maintenance_type: 'nozzle' }]);
+    const logs = (await ask('get-printer-maintenance-logs', [printer.id])).result || [];
+    check('printer maintenance log saved', logs.some((l) => l.title === 'Nozzle swap'));
+    const removed = (await ask('delete-printer', [printer.id])).result;
+    check('printer deleted', removed === true && !((await ask('get-all-printers')).result || []).some((p) => p.id === printer.id));
+  }
+  const logged = (await ask('log-print-event', [{ filePath: cube, outcome: 'printed', quantity: 1 }])).result;
+  const events = logged && logged.eventId && (await ask('get-print-events', [logged.model && logged.model.id])).result;
+  check('print event logged and listed', Array.isArray(events) && events.some((e) => e.id === logged.eventId), JSON.stringify(logged));
+
   console.log('\n# Backup and trash');
   const backup = await invoke(wsUrl, { cookie, origin }, 'backup-database');
   const backupPath = backup.result && backup.result.filePath;
