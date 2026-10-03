@@ -231,6 +231,16 @@ async function apiChecks(base, wsUrl) {
   check('part saved and listed', !!savedPart && ((await ask('get-all-parts')).result || []).some((p) => p.id === savedPart.id && p.quantity === 12));
   const filament = (await ask('save-filament', [{ name: 'E2E PLA', material: 'PLA', color_hex: 'ff0000' }])).result;
   check('filament saved and listed', !!filament && ((await ask('get-all-filaments')).result || []).some((f) => f.id === filament.id && f.name === 'E2E PLA'));
+  const names = async (filters) => ((await ask('get-models-filtered', [filters])).result || []).map((m) => m.fileName).sort().join(',');
+  const term = (value) => ({ t: 'clause', field: 'all', value });
+  check('search: one word', await names({ search: 'cube' }) === 'cube.stl', await names({ search: 'cube' }));
+  const either = await names({ searchTokens: [term('cube'), { t: 'op', op: 'OR' }, term('box')] });
+  check('search: OR', either === 'box.3mf,cube.stl', either);
+  const notCube = await names({ searchTokens: [{ t: 'not' }, term('cube')] });
+  check('search: NOT', notCube.length > 0 && !notCube.includes('cube.stl'), notCube);
+  const both = await names({ searchTokens: [term('cube'), { t: 'op', op: 'AND' }, term('box')] });
+  check('search: AND with no match', both === '', both);
+
   const sources = (await ask('list-organize-sources')).result || [];
   check('organize sources list the library', JSON.stringify(sources).includes(LIBRARY), JSON.stringify(sources));
   const previewReply = await ask('organize-library-preview', [{ sourceDir: LIBRARY, destDir: '/tmp/pv-e2e-organize-preview' /* preview only: never created */ }]);
