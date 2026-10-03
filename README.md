@@ -1,6 +1,6 @@
 # Printventory
 
-**Version 2.3.0**
+**Version 3.0.0**
 
 Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -179,17 +179,16 @@ The image runs the server on plain Node.js (no Electron, no virtual display). Th
 
 ### Distribution Options
 
-**Option 1: Pre-built Distribution Package (Recommended)**
-- Download `printventory-docker-${version}.zip` from releases
-- Extract and run: `docker-compose up -d`
+**Option 1: Release package (recommended)**
+- Download `printventory-docker-<version>.zip` from [GitHub Releases](https://github.com/ngolston/Printventory/releases) and unzip it
+- Put your models in the `models` folder next to `docker-compose.yml` (or change that mount to your models folder), and set `PRINTVENTORY_PASSWORD` in `docker-compose.yml`
+- Run `docker compose up -d --build`, then open `http://<server-ip>:5000`
 
-**Option 2: Build from Source**
-- Clone the repository and build the Docker image yourself
-- See "Building the Docker Image" section below
+**Option 2: Build from source**
+- Clone the repository and build the image yourself (see [Building the Image](#building-the-image))
 
-**Option 3: Docker Hub (Recommended for Quick Deployment)**
-- Pull and run the pre-built image from Docker Hub
-- No need to build from source - see "Pulling from Docker Hub" section below
+**Option 3: Your own Docker Hub image**
+- Publish the image to your Docker Hub account for Intel/AMD and ARM with `npm run docker:hub:multiarch`, then pull it on your servers
 
 ### Getting the Image
 

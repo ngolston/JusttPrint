@@ -18,7 +18,9 @@ services:
       # Server mode stores the SQLite DB at /root/.config/printventory/data/printventory.db
       # (host path: ./data/data/printventory.db). Optional: PRINTVENTORY_DB_PATH to override.
       - ./data:/root/.config/printventory
-      - C:/test_files:/mnt/test_files
+      # Your models (read-only). Change ./models to your models folder, or remove :ro to allow
+      # delete, move and Organize Library.
+      - ./models:/mnt/models:ro
       # Mount network shares for accessing files
       # For Windows Docker Desktop:
       # 1. Map network share to drive: net use Z: \\msi\folder1 /persistent:yes
@@ -55,11 +57,11 @@ services:
       # PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1). One path, or several separated by commas,
       # semicolons, or newlines, or a JSON array. Use Linux paths inside the container.
       # - STL_HOME=/mnt/models,/mnt/archive
-      - STL_HOME=/mnt/test_files
+      - STL_HOME=/mnt/models
       # Optional: directories STL Home scans skip. Comma, semicolon, or newline separated
       # container paths (or a JSON array). Relative paths are resolved against STL Home.
       # Applied when the exclude list is empty, or always when PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1.
-      # - STL_HOME_EXCLUDE=/mnt/test_files/cache,/mnt/test_files/derivatives
+      # - STL_HOME_EXCLUDE=/mnt/models/cache,/mnt/models/derivatives
       # User and group that own files the app writes (database, moved and organized models).
       # Match the owner of your library folder (`id -u` / `id -g` on the host; Synology is often 1026/100).
       # Default 1000/1000. PUID=0 runs as root like older versions.

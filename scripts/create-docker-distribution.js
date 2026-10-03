@@ -23,128 +23,28 @@ if (fs.existsSync(dockerDistDir)) {
 }
 fs.mkdirSync(dockerDistDir, { recursive: true });
 
-// Files to copy
-const filesToCopy = [
-  'Dockerfile',
-  'docker-compose.yml',
-  'docker-entrypoint.sh',
-  'healthcheck.js',
-  '.dockerignore',
-  'package.json',
-  'package-lock.json',
-  'main.js',
-  'db-repair.js',
-  'bundle-keys.js',
-  'zip-extract.js',
-  'renderer.js',
-  'notes-markdown.js',
-  'dedup-preferred.js',
-  'organize-library.js',
-  'organize-library-ui.js',
-  'organize-library.css',
-  'notes-markdown.css',
-  'printer-manager.js',
-  'printer-management.js',
-  'printer-management.css',
-  'parts-stock.js',
-  'parts-stock.css',
-  'index.html',
-  'favicon.ico',
-  'manifest.webmanifest',
-  'sw.js',
-  'pwa.js',
-  'mobile-ui.js',
-  'mobile-ui.css',
-  'styles.css',
-  'theme.css',
-  'preview-wall.css',
-  'thumbnail-progress.css',
-  'thumbnail-progress.js',
-  'server-bridge.js',
-  'scan-worker.js',
-  'scan-skip.js',
-  'slicer-launch.js',
-  'slicer-protocol.js',
-  'library-context.js',
-  'folder-tags.js',
-  'stl-sanity.js',
-  'ai-rate-limit.js',
-  'parse-worker.js',
-  'preview-3mf-worker-node.js',
-  'threemf-loader-simple.js',
-  'threemf-mesh-extract.js',
-  'preview.js',
-  'query-builder.js',
-  'aitagging.js',
-  'thumbnail-compress.js',
-  'extract-lys-preview.js',
-  'parse-lys-geometry.js',
-  'step-assembly.js',
-  'slicer.js',
-  'guide.js',
-  'search.js',
-  'grid-refresh.js',
-  'sidebar-layout.js',
-  'folder-tree.js',
-  'folder-tree-lib.js',
-  'filament.js',
-  'print-events.js',
-  'print-history.js',
-  'spoolman.js',
-  'mcp-server.js',
-  'server-tls.js',
-  'server-auth.js',
-  'server-paths.js',
-  'env-settings.js',
-  'extension-inbox.js'
-];
+// Everything the Docker build needs: all files tracked by git except the ones the image
+// does not use (same intent as .dockerignore). No hand-maintained list to fall out of date.
+const EXCLUDED_PREFIXES = ['tests/', 'chrome-extension/', '.github/', '.claude/', 'scripts/', 'demos/'];
+const EXCLUDED_FILES = new Set(['CLAUDE.md', 'TODO.md', 'docker-compose.local.yml', '.gitignore', '.gitattributes']);
+const filesToCopy = execSync('git ls-files -z', { encoding: 'utf8' })
+  .split('\0')
+  .filter(Boolean)
+  .filter((file) => !EXCLUDED_PREFIXES.some((prefix) => file.startsWith(prefix)))
+  .filter((file) => !EXCLUDED_FILES.has(file) && !file.endsWith('.test.js'))
+  .filter((file) => fs.existsSync(file));
 
-// Copy files
-console.log('Copying files...');
-const missingFiles = filesToCopy.filter((file) => !fs.existsSync(file));
-if (missingFiles.length) {
-  console.error('Missing required files for Docker distribution:');
-  missingFiles.forEach((file) => console.error(`  - ${file}`));
-  process.exit(1);
+console.log(`Copying ${filesToCopy.length} files...`);
+for (const file of filesToCopy) {
+  const target = path.join(dockerDistDir, file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(file, target);
 }
-filesToCopy.forEach((file) => {
-  fs.copyFileSync(file, path.join(dockerDistDir, file));
-});
-
-
-// Copy assets
-console.log('Copying assets...');
-['*.png', '*.jpg', '*.bmp'].forEach(pattern => {
-  try {
-    const files = fs.readdirSync('.').filter(f => f.match(new RegExp(pattern.replace('*', '.*'))));
-    files.forEach(file => {
-      fs.copyFileSync(file, path.join(dockerDistDir, file));
-    });
-  } catch (err) {
-    // Ignore errors
+for (const required of ['Dockerfile', 'docker-entrypoint.sh', '.npmrc', 'package.json', 'package-lock.json', 'main.js', 'src/server/index.js']) {
+  if (!fs.existsSync(path.join(dockerDistDir, required))) {
+    console.error(`Missing required file in the distribution: ${required}`);
+    process.exit(1);
   }
-});
-
-if (fs.existsSync('src')) {
-  console.log('Copying src directory...');
-  fs.cpSync('src', path.join(dockerDistDir, 'src'), { recursive: true });
-}
-
-if (fs.existsSync('helper')) {
-  console.log('Copying helper directory...');
-  fs.cpSync('helper', path.join(dockerDistDir, 'helper'), { recursive: true });
-}
-
-// Copy guide directory
-if (fs.existsSync('guide')) {
-  console.log('Copying guide directory...');
-  fs.cpSync('guide', path.join(dockerDistDir, 'guide'), { recursive: true });
-}
-
-// Copy vendor (3D loaders, parse-worker importScripts)
-if (fs.existsSync('vendor')) {
-  console.log('Copying vendor directory...');
-  fs.cpSync('vendor', path.join(dockerDistDir, 'vendor'), { recursive: true });
 }
 
 // Create README
@@ -160,12 +60,16 @@ This package contains everything needed to run Printventory in server mode using
    cd printventory-docker-*
    \`\`\`
 
-2. **Build and run with Docker Compose:**
+2. **Add your models and a password:**
+   Put your models in the \`models\` folder (or change the \`./models\` mount in \`docker-compose.yml\`),
+   and set \`PRINTVENTORY_PASSWORD\` in \`docker-compose.yml\`.
+
+3. **Build and run with Docker Compose:**
    \`\`\`bash
-   docker-compose up -d
+   docker compose up -d --build
    \`\`\`
 
-3. **Access the server:**
+4. **Access the server:**
    Open your browser to: http://localhost:5000 (or https:// if you enable TLS)
 
 ## HTTPS in Docker (optional)
@@ -211,17 +115,9 @@ fs.writeFileSync(path.join(dockerDistDir, 'README.md'), readmeContent);
 // Create zip archive
 console.log('Creating zip archive...');
 try {
-  // Try using native zip command (Unix) or PowerShell (Windows)
-  if (process.platform === 'win32') {
-    // Use PowerShell Compress-Archive
-    if (fs.existsSync(dockerDistZip)) {
-      fs.unlinkSync(dockerDistZip);
-    }
-    execSync(`powershell -Command "Compress-Archive -Path '${dockerDistDir}\\*' -DestinationPath '${dockerDistZip}' -Force"`, { stdio: 'inherit' });
-  } else {
-    // Use zip command
-    execSync(`cd ${dockerDistDir} && zip -r ../printventory-docker-${version}.zip .`, { stdio: 'inherit' });
-  }
+  // Zip the folder itself, so unzipping gives printventory-docker-<version>/.
+  if (fs.existsSync(dockerDistZip)) fs.unlinkSync(dockerDistZip);
+  execSync(`zip -qr ${path.basename(dockerDistZip)} ${path.basename(dockerDistDir)}`, { cwd: distDir, stdio: 'inherit' });
 } catch (err) {
   console.error('Error creating zip archive:', err.message);
   console.log('Files are ready in:', dockerDistDir);

@@ -4,17 +4,28 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-03
+
+**Printventory is now a Docker-only web app.** The Electron desktop app and the Windows, macOS and Linux installers are gone.
+
+**Before upgrading:**
+- Desktop users: run Printventory in Docker instead (see the README). To keep your library, stop the desktop app and copy its `data/printventory.db` (Windows: `%LOCALAPPDATA%\Printventory\data`, macOS: `~/Library/Application Support/printventory/data`) into the container's data volume as `data/printventory.db`. Paths in that database must match the folders as mounted in the container.
+- Send Support Logs, the Discord and Patreon menu items, slicer Auto Detect and the old website links are removed.
+- Docker installs from 2.3.0 need no changes.
+
+**Changes:**
 - Confirmations and errors from the server (Pull Metadata, Purge Models, Tag from Folder, Send to Slicer errors and more) show in your browser and wait for your answer; before, they were answered Cancel or never shown
-- Folder pickers (Organize Library Browse, Scan Directory) ask for a folder path inside the container
-- The Update button opens the release page in your browser
-- Printventory is Docker-only. The Electron desktop app, the Windows/macOS/Linux installers and their build tooling are removed; `npm start` runs the server on plain Node
 - Text prompts (Metadata Manager rename, group tags) open an in-page dialog; in Docker they opened an invisible native window and never returned
+- Folder pickers (Organize Library Browse, Scan Directory) ask for a folder path inside the container
 - Slicer **Browse** opens the browser's file chooser again (it did nothing on the Node-based image); **Auto Detect** is removed because it searched the container, not your computer
-- `src/` is no longer served as static files (server code was downloadable)
-- `npm test` runs every unit test; `npm run test:e2e` starts the server with a fixture library and checks the API, security rules and the web UI in a browser
-- The old project website is no longer used. The update check reads GitHub Releases of ngolston/Printventory (beta users include pre-releases), and the update button opens the release page
+- The update check reads GitHub Releases of ngolston/Printventory (beta users include pre-releases), and the Update button opens the release page in your browser. The old project website is no longer used
 - Removed the FAQ and Support Printventory menu items, which opened pages on the old website; the About link points to the GitHub repository
 - Removed everything tied to the upstream project and its services: the beta release and community-chat announcement scripts and workflow, the push scripts for its GitHub repository, the community-chat and Patreon menu items, and Send Support Logs (it uploaded to that chat). GitHub links point to ngolston/Printventory
+- `src/` is no longer served as static files (server code was downloadable)
+- The release zip (`printventory-docker-<version>.zip`) contains every file the image needs (it was missing `.npmrc`, so `npm ci` failed) and unzips into its own folder
+- `docker-compose.yml` mounts `./models` as the library by default instead of a leftover `C:/test_files` test path
+- `npm start` runs the server on plain Node; the code no longer depends on Electron (`main.js` is about 2,000 lines shorter)
+- `npm test` runs every unit test; `npm run test:e2e` starts the server with a fixture library and checks the API, security rules and the web UI in a browser (58 checks)
 
 ## [2.3.0] - 2026-10-03
 
