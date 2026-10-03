@@ -289,6 +289,32 @@ async function browserChecks(base, wsUrl, session) {
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
     }
 
+    // Rename a designer through the in-page input dialog (Metadata Manager).
+    const cube = path.join(LIBRARY, 'Designer A', 'cube.stl');
+    await invoke(wsUrl, session, 'update-models-batch', [[{ filePath: cube, designer: 'Old Designer' }]]);
+    await page.evaluate(() => window.electron.send('open-metadata-editor'));
+    await page.waitForSelector('#metadata-editor-dialog[open]', { timeout: 15000 }).catch(() => {});
+    const renameButton = await page.waitForSelector(
+      '#metadata-editor-dialog .metadata-item:has-text("Old Designer") .metadata-rename', { timeout: 15000 }
+    ).catch(() => null);
+    if (renameButton) {
+      await renameButton.click();
+      const prompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      check('rename opens an in-page input dialog', !!prompt);
+      if (prompt) {
+        await prompt.fill('New Designer');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+        const renamed = await waitFor(async () => {
+          const model = await invoke(wsUrl, session, 'get-model', [cube]);
+          return model.result && model.result.designer === 'New Designer';
+        }, 15000, 'designer rename').catch(() => false);
+        check('designer renamed on the server', renamed === true);
+      }
+    } else {
+      check('Metadata Manager lists the designer', false, 'rename button not found');
+    }
+    await page.evaluate(() => document.getElementById('metadata-editor-dialog')?.close());
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     check('API token shown', (await page.inputValue('#server-access-api-token')).startsWith('pv_'));

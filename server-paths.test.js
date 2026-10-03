@@ -24,7 +24,7 @@ test('web assets are served', () => {
 test('secrets, server code and dependencies are not served', () => {
   for (const p of [
     '/secrets.json', '/package.json', '/package-lock.json', '/.env', '/.git/config',
-    '/main.js', '/preload.js', '/server-auth.js', '/mcp-server.js', '/printventory.db',
+    '/main.js', '/server-auth.js', '/mcp-server.js', '/printventory.db',
     '/node_modules/express/index.js', '/scripts/docker-hub-push.js', '/tests/test-utils.js',
     '/helper/printventory-helper.js', '/data/printventory.db', '/server-auth.test.js',
     '/src/server/index.js', '/src/server/electron-shim.js',

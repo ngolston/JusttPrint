@@ -269,6 +269,75 @@
       dialog.showModal();
     });
   }
+
+  /** In-page text prompt. Resolves to the entered text, or null when cancelled. */
+  function showBrowserInput(options = {}) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'browser-input-dialog';
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.style.cssText = `
+        background: #2d2d2d;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 6px;
+        min-width: 320px;
+        max-width: 520px;
+        padding: 16px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      `;
+
+      const form = document.createElement('form');
+      form.method = 'dialog';
+
+      const titleEl = document.createElement('div');
+      titleEl.textContent = options.title || 'Input';
+      titleEl.style.cssText = 'font-weight: 600; margin-bottom: 8px; font-size: 14px;';
+
+      const label = document.createElement('label');
+      label.textContent = options.message || '';
+      label.style.cssText = 'display: block; font-size: 13px; line-height: 1.4; margin-bottom: 8px; white-space: pre-wrap;';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = options.defaultValue || '';
+      input.placeholder = options.placeholder || '';
+      input.style.cssText = 'width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 16px; border: 1px solid #555; border-radius: 4px; background: #1e1e1e; color: #fff; font-size: 13px;';
+      label.appendChild(input);
+
+      const buttonRow = document.createElement('div');
+      buttonRow.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
+      const makeButton = (text, primary) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.cssText = `padding: 6px 12px; border: 1px solid #555; border-radius: 4px; background: ${primary ? '#007bff' : '#444'}; color: #fff; cursor: pointer; font-size: 13px;`;
+        return btn;
+      };
+      const ok = makeButton('OK', true);
+      ok.type = 'submit';
+      const cancel = makeButton('Cancel', false);
+      cancel.type = 'button';
+      buttonRow.appendChild(cancel);
+      buttonRow.appendChild(ok);
+
+      let answer = null;
+      form.addEventListener('submit', () => { answer = input.value; });
+      cancel.addEventListener('click', () => dialog.close());
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve(answer);
+      });
+
+      form.appendChild(titleEl);
+      form.appendChild(label);
+      form.appendChild(buttonRow);
+      dialog.appendChild(form);
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      input.select();
+    });
+  }
   
   // The server refuses the WebSocket without a session (expired, or the password changed).
   function redirectToLoginIfLoggedOut() {
@@ -634,7 +703,6 @@
     'commitTransaction': 'database:commit-transaction',
     'rollbackTransaction': 'database:rollback-transaction',
     'getAllModelReferences': 'get-all-model-references',
-    'showInputDialog': 'show-input-dialog',
     'openSlicerDialog': 'open-slicer-dialog',
     'openExternal': 'open-external',
     'quitApp': 'quitApp',
@@ -963,6 +1031,10 @@
       response: result.index,
       checkboxChecked: false
     }));
+  };
+
+  window.electron.showInputDialog = function(options) {
+    return showBrowserInput(options || {});
   };
 
   window.electron.openExternal = function(url) {

@@ -141,7 +141,9 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [ ] **Run the unit tests (`test:*` scripts) in CI.** `.github/workflows/testdriver.yml` only runs the TestDriver tests.
 - [ ] **Build the Docker image in CI and smoke-test it**: start it, log in, scan a fixture library, load the web UI.
-- [ ] **Add Playwright end-to-end tests that drive the web UI against the container.**
+- [x] **Add end-to-end tests that drive the web UI.** `npm run test:e2e` starts the server on plain Node with `tests/fixtures/library` and runs 53 checks (API, security, path guard, MCP, backup, trash, and the browser UI).
+- [ ] **Run `npm run test:e2e` against the built Docker image too** (same checks, server in the container).
+- [ ] **Rebuild the performance checks on the e2e harness**: large-grid scrolling and 3MF preview stress. The old scripts predated the login and were removed.
 - [ ] **Make the database tests (`print-events`, `printer-manager`) run in the same runtime as the server.** `better-sqlite3` is currently built for Electron, so they fail on plain Node. This fixes itself once the server runs on plain Node.
 - [ ] **Move CI from Node 20 to Node 22+.**
 - [ ] **Standardize on one test runner.** Vitest/TestDriver and Playwright overlap.

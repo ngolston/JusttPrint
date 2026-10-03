@@ -269,8 +269,6 @@ const isServerMode = process.argv.includes('--server');
 let httpServer = null;
 let httpServerEpoch = 0;
 let http80Server = null;
-let electronUiServer = null;
-let electronUiPort = null;
 let wss = null; // WebSocket server
 let wsClients = null; // WebSocket clients Set
 let letsEncryptRenewInFlight = false;
@@ -342,37 +340,6 @@ function validateUncPath(path, operation = 'operation') {
   }
 }
 
-// Create a hidden window in server mode for IPC handling
-function createHiddenWindow() {
-  return new Promise((resolve) => {
-    const hiddenWindow = new BrowserWindow({
-      width: 1,
-      height: 1,
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js'),
-        spellcheck: false,
-        sandbox: false,
-        enableWebSQL: false,
-        webSecurity: true
-      }
-    });
-
-    // Store reference to hidden window
-    mainWindow = hiddenWindow;
-    
-    // Wait for window to be ready before resolving
-    hiddenWindow.webContents.once('did-finish-load', () => {
-      console.log('Hidden window ready for IPC handling in server mode');
-      resolve();
-    });
-    
-    // Load the HTML file so preload script is injected
-    hiddenWindow.loadFile('index.html');
-  });
-}
 
 // Helper function to safely get BrowserWindow from event (returns null in server mode)
 function getWindowFromEvent(event) {
@@ -1431,84 +1398,7 @@ ${bridgeCode}
  * Serve the Electron desktop UI over http://127.0.0.1 so third-party scripts (e.g. Puter.js)
  * are not loaded from file://, which they reject and replace with an intrusive error page.
  */
-function startElectronUiServer() {
-  if (electronUiServer && electronUiPort) {
-    return Promise.resolve(electronUiPort);
-  }
 
-  const expressApp = express();
-  const appDir = __dirname;
-
-  expressApp.use(express.json({ limit: '50mb' }));
-  registerPuterAiProxyRoute(expressApp);
-
-  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
-    setHeaders: (res, filePath) => {
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        '.html': 'text/html',
-        '.css': 'text/css',
-        '.js': 'application/javascript',
-        '.json': 'application/json',
-        '.webmanifest': 'application/manifest+json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-        '.bmp': 'image/bmp',
-        '.webp': 'image/webp',
-        '.wasm': 'application/wasm'
-      };
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
-      if (path.basename(filePath) === 'sw.js') {
-        res.setHeader('Service-Worker-Allowed', '/');
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-      if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-    }
-  })));
-
-  expressApp.get('*', (req, res) => {
-    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|bmp|webp|json|webmanifest|map)$/)) {
-      res.status(404).type('text/plain').send('Not Found');
-      return;
-    }
-    res.sendFile(path.join(appDir, 'index.html'));
-  });
-
-  return new Promise((resolve, reject) => {
-    electronUiServer = expressApp.listen(0, '127.0.0.1', () => {
-      electronUiPort = electronUiServer.address().port;
-      console.log(`[Electron UI] Serving desktop window at http://127.0.0.1:${electronUiPort}/`);
-      resolve(electronUiPort);
-    });
-    electronUiServer.on('error', (err) => {
-      electronUiServer = null;
-      electronUiPort = null;
-      reject(err);
-    });
-  });
-}
-
-function stopElectronUiServer() {
-  return new Promise((resolve) => {
-    if (!electronUiServer) {
-      resolve();
-      return;
-    }
-    electronUiServer.close(() => {
-      electronUiServer = null;
-      electronUiPort = null;
-      resolve();
-    });
-  });
-}
 
 // Stop HTTP server function
 function stopHttpServer() {
@@ -1609,9 +1499,6 @@ function getServerAuth() {
       extraOrigins: () => {
         const origins = String(process.env.PRINTVENTORY_ALLOWED_ORIGINS || '')
           .split(',').map((origin) => origin.trim()).filter(Boolean);
-        if (electronUiPort) {
-          origins.push(`http://127.0.0.1:${electronUiPort}`, `http://localhost:${electronUiPort}`);
-        }
         return origins;
       }
     });
@@ -3305,114 +3192,35 @@ if (!gotTheLock) {
         });
       });
 
-      // Server mode: start HTTP server and create hidden window for IPC
-      if (isServerMode) {
-        try {
-          await startHttpServer(getAppListenPort(), false); // Full server mode - listen on all interfaces
-        } catch (err) {
-          console.error('Server mode: failed to bind:', err.message);
-          process.exit(1);
-        }
-        setImmediate(() => {
-          maybeRenewLetsEncryptCertificate().catch((renewErr) => {
-            console.warn('[TLS] Startup renewal skipped:', renewErr.message);
-          });
-        });
-        // Under Electron, a hidden window renders thumbnails. On plain Node (src/server) there is none yet.
-        if (isServerShim) {
-          console.log('[Server] Running on Node without Electron; thumbnails render in headless Chromium.');
-          // The hidden window used to render thumbnails and start STL Home scans; the server does both now.
-          await startThumbnailWorkerBrowser();
-          startServerStlHomeScans();
-        } else {
-          await createHiddenWindow();
-        }
-        // Schedule background hash generation for any existing models with missing hashes
-        scheduleBackgroundHashGeneration('startup');
-        scheduleBackgroundThumbnailCompression('startup');
-        setTimeout(() => {
-          try {
-            verifyDatabaseIntegrity();
-          } catch (e) {
-            console.error('Deferred database integrity check failed:', e);
-          }
-        }, 3000);
-        // Don't quit when all windows are closed in server mode
-        app.on('window-all-closed', () => {
-          // Keep the app running in server mode
-        });
-      } else {
-        // Normal mode: start localhost-only HTTP server when MCP is enabled
-        const extPort = getConfiguredHttpPort();
-        if (localHttpServerShouldRun()) {
-          const mcpOn = getSettingValueOr('enableMcpServer', '0') === '1';
-          console.log('[Local HTTP] Starting at startup on port', extPort, '(mcp:', mcpOn, ')');
-          startHttpServer(extPort, true).then(() => {
-            console.log('[Local HTTP] Server started successfully at startup');
-            setImmediate(() => {
-              maybeRenewLetsEncryptCertificate().catch((renewErr) => {
-                console.warn('[TLS] Startup renewal skipped:', renewErr.message);
-              });
-            });
-          }).catch((err) => {
-            console.error('[Local HTTP] Failed to start server at startup:', err.message);
-            console.error('[Local HTTP] Run from Terminal to see this, or check entitlements (com.apple.security.network.server) and rebuild.');
-            if (dialog && dialog.showErrorBox) {
-              dialog.showErrorBox('Local HTTP Server', `Could not start server on port ${extPort}: ${err.message}\n\nOn macOS, the app needs the "Allow incoming network connections" entitlement. Rebuild the app after adding com.apple.security.network.server to build/entitlements.mac.plist.`);
-            }
-          });
-        }
-        // Normal mode: create window (UI served over localhost HTTP for Puter.js compatibility)
-        await createWindow();
-
-        app.on('activate', () => {
-          if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow().catch((err) => {
-              console.error('Failed to recreate main window:', err);
-            });
-          }
-        });
-
-        createApplicationMenu();
-
-        // Version check after first window paint (HTTPS can block for seconds).
-        // Nothing is sent before the terms are accepted or when automatic checks are off.
-        setImmediate(() => {
-          if (!getSettingValueOr('tosAcceptedDate', null) || getSettingValueOr('autoUpdateCheck', '1') === '0') {
-            return;
-          }
-          const isBeta = getSettingValueOr('betaOptIn', 'false') === 'true';
-          checkForUpdates(isBeta).catch((updateError) => {
-            console.error('Error checking version on startup:', updateError);
-          });
-        });
-
-        // PRAGMA integrity_check + orphan cleanup can be slow on huge DBs — defer past cold start
-        setTimeout(() => {
-          try {
-            verifyDatabaseIntegrity();
-          } catch (e) {
-            console.error('Deferred database integrity check failed:', e);
-          }
-        }, 3000);
-        scheduleBackgroundThumbnailCompression('startup');
+      try {
+        await startHttpServer(getAppListenPort(), false); // listen on all interfaces
+      } catch (err) {
+        console.error('Server mode: failed to bind:', err.message);
+        process.exit(1);
       }
-      
+      setImmediate(() => {
+        maybeRenewLetsEncryptCertificate().catch((renewErr) => {
+          console.warn('[TLS] Startup renewal skipped:', renewErr.message);
+        });
+      });
+      // Thumbnails render in headless Chromium; STL Home scans run in the server.
+      await startThumbnailWorkerBrowser();
+      startServerStlHomeScans();
+      // Schedule background hash generation for any existing models with missing hashes
+      scheduleBackgroundHashGeneration('startup');
+      scheduleBackgroundThumbnailCompression('startup');
+      setTimeout(() => {
+        try {
+          verifyDatabaseIntegrity();
+        } catch (e) {
+          console.error('Deferred database integrity check failed:', e);
+        }
+      }, 3000);
+
       startExtensionInboxWatcher();
 
     } catch (error) {
-      console.error('Error during app initialization:', error);
-      if (isServerMode) {
-        console.error('Startup Error: Failed to start application properly.');
-      } else {
-        dialog.showErrorBox('Startup Error', 'Failed to start application properly.');
-      }
-      app.quit();
-    }
-  });
-
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
+      console.error('Startup Error: Failed to start application properly:', error);
       app.quit();
     }
   });
@@ -3425,11 +3233,6 @@ if (!gotTheLock) {
         await stopPort80Server();
       } catch (error) {
         console.error('Error stopping TLS HTTP-01 listener:', error);
-      }
-      try {
-        await stopElectronUiServer();
-      } catch (error) {
-        console.error('Error stopping Electron UI server:', error);
       }
       try {
         await cleanupExtractTempDirectory({ maxAgeMs: 0 });
@@ -3961,576 +3764,7 @@ function initializeDefaultSettings() {
   }
 }
 
-async function createWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  mainWindow = new BrowserWindow({
-    width: Math.min(1600, width),
-    height: Math.min(1000, height),
-    backgroundColor: '#1e1e2e', // Match app's dark theme to prevent white flash
-    show: false, // Don't show until ready to prevent white flash
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      spellcheck: false,
-      // Add these settings for clipboard access
-      sandbox: false,
-      enableWebSQL: false,
-      webSecurity: true // Keep web security enabled, but allow puter.com API calls
-    }
-  });
-  // mainWindow.webContents.openDevTools() // Disabled - prevents auto-opening debug console on load
-  
-  // One listener per session: puter.com headers, plus the API token for this app's own
-  // local HTTP server (the desktop window fetches UNC files from it).
-  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
-    { urls: ['https://api.puter.com/*', 'https://js.puter.com/*', '*://localhost/*', '*://127.0.0.1/*'] },
-    (details, callback) => {
-      const url = new URL(details.url);
-      if (url.hostname.endsWith('puter.com')) {
-        details.requestHeaders['Origin'] = 'https://puter.com';
-        details.requestHeaders['Referer'] = 'https://puter.com/';
-      } else if (httpServer && Number(url.port) === getHttpServerListenPort()) {
-        details.requestHeaders['Authorization'] = `Bearer ${getServerAuth().apiToken()}`;
-      }
-      callback({ requestHeaders: details.requestHeaders });
-    }
-  );
 
-  const template = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Reload',
-          click: () => mainWindow.webContents.reload()
-        },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'pasteAndMatchStyle' },
-        { role: 'delete' },
-        { role: 'selectAll' }
-      ]
-    },
-    {
-      label: 'Settings',
-      submenu: [
-        {
-          label: 'AI Config',
-          click: () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('open-ai-config');
-            }
-          }
-        },
-        {
-          label: 'File Type',
-          click: () => mainWindow.webContents.send('open-file-type-settings')
-        },
-        {
-          label: 'Performance',
-          click: () => mainWindow.webContents.send('open-performance-settings')
-        },
-        {
-          label: 'Slicer Path',
-          click: () => mainWindow.webContents.send('open-slicer-settings')
-        },
-        {
-          label: 'STL Home',
-          click: () => mainWindow.webContents.send('open-stl-home')
-        },
-        {
-          label: 'Theme',
-          click: () => mainWindow.webContents.send('open-theme-settings')
-        }
-      ]
-    },
-    {
-      label: 'Tools',
-      submenu: [
-        {
-          label: 'Print Roulette',
-          click: () => mainWindow.webContents.send('start-print-roulette')
-        },
-        {
-          label: 'De-Dup',
-          click: () => {
-            mainWindow.webContents.send('open-dedup');
-          }
-        },
-        {
-          label: 'Organize Library',
-          click: () => {
-            mainWindow.webContents.send('open-organize-library');
-          }
-        },
-        ...(isServerMode ? [] : [{
-          label: 'Browser Extension',
-          click: () => mainWindow.webContents.send('open-browser-extension-settings')
-        }]),
-        {
-          label: 'MCP Server',
-          submenu: [
-            {
-              label: 'Settings',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-mcp-server-settings');
-                }
-              }
-            },
-            {
-              label: 'HTTPS / SSL',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-https-settings');
-                }
-              }
-            },
-            {
-              label: 'Server Access',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-server-access');
-                }
-              }
-            }
-          ]
-        },
-        { type: 'separator' },
-        {
-          label: 'Filament Manager',
-          click: () => mainWindow.webContents.send('open-filament-manager')
-        },
-        {
-          label: 'Printer Manager',
-          click: () => mainWindow.webContents.send('open-printer-management')
-        },
-        {
-          label: 'Parts Manager',
-          click: () => mainWindow.webContents.send('open-parts-stock')
-        },
-        {
-          label: 'Tag Manager',
-          click: () => mainWindow.webContents.send('open-tag-manager')
-        },
-        {
-          label: 'Metadata Manager',
-          click: () => mainWindow.webContents.send('open-metadata-editor')
-        },
-        { type: 'separator' },
-        {
-          label: 'Clear New Flag',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('clear-new-flags');
-            } else {
-              mainWindow.webContents.send('clear-new-flags');
-            }
-          }
-        },
-        {
-          label: 'Regenerate Thumbnails',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('regenerate-thumbnails');
-            } else {
-              mainWindow.webContents.send('regenerate-thumbnails');
-            }
-          }
-        },
-        {
-          label: 'Generate Missing Thumbnails',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('generate-missing-thumbnails');
-            } else {
-              mainWindow.webContents.send('generate-missing-thumbnails');
-            }
-          }
-        },
-        {
-          label: 'Purge Models',
-          click: () => mainWindow.webContents.send('open-purge-models')
-        },
-        { type: 'separator' },
-        {
-          label: 'Backup/Restore',
-          click: () => mainWindow.webContents.send('open-backup-restore')
-        }
-      ]
-    },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'Quick Start Guide',
-          click: () => {
-            mainWindow.webContents.send('open-guide');
-          }
-        },
-        {
-          label: 'Keyboard Shortcuts',
-          click: () => {
-            mainWindow.webContents.send('open-keyboard-shortcuts');
-          }
-        },
-        {
-          label: 'About',
-          click: async () => {
-            // Send event to renderer to open the about dialog
-            mainWindow.webContents.send('open-about');
-            
-            // Log for debugging
-            console.log('About menu item clicked');
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'GitHub',
-          click: async () => {
-            await shell.openExternal(PROJECT_URL);
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Library Stats',
-          click: () => {
-            mainWindow.webContents.send('open-stats');
-          }
-        },
-        ...(isServerMode ? [{
-          label: 'System Report',
-          click: () => {
-            mainWindow.webContents.send('open-system-report');
-          }
-        }] : []),
-        {
-          label: 'Server Mode Info',
-          click: async () => {
-            await shell.openExternal(`${PROJECT_URL}?tab=readme-ov-file#server-mode`);
-          }
-        },
-        {
-          label: 'Debug Console',
-          click: () => mainWindow.webContents.openDevTools()
-        }
-      ]
-    }
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-
-  // Register before loadURL — localhost static server can finish before await returns,
-  // so attaching ready-to-show after loadURL misses the event and the window stays hidden.
-  let mainWindowShown = false;
-  let forceShowTimer = null;
-  const showMainWindowWhenReady = () => {
-    if (mainWindowShown || !mainWindow || mainWindow.isDestroyed()) return;
-    mainWindowShown = true;
-    if (forceShowTimer) {
-      clearTimeout(forceShowTimer);
-      forceShowTimer = null;
-    }
-    mainWindow.show();
-  };
-  mainWindow.once('ready-to-show', showMainWindowWhenReady);
-
-  // Never leave a hidden window if load hangs (CDN, AV, network). Post-install
-  // users otherwise see processes in Task Manager with no GUI until they kill them.
-  forceShowTimer = setTimeout(() => {
-    if (!mainWindowShown) {
-      console.warn('[Electron UI] Forcing window show after load timeout');
-      showMainWindowWhenReady();
-    }
-  }, 3000);
-
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    if (!isMainFrame) return;
-    console.error(`[Electron UI] did-fail-load (${errorCode}): ${errorDescription} url=${validatedURL}`);
-    // Don't navigate here — createWindow's catch already falls back to loadFile.
-    // Just ensure the window becomes visible so the user isn't stuck with a hidden process.
-    showMainWindowWhenReady();
-  });
-
-  try {
-    const uiPort = await startElectronUiServer();
-    const loadUrl = `http://127.0.0.1:${uiPort}/`;
-    const LOAD_TIMEOUT_MS = 8000;
-    await Promise.race([
-      mainWindow.loadURL(loadUrl),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`UI load timed out after ${LOAD_TIMEOUT_MS}ms`)), LOAD_TIMEOUT_MS);
-      })
-    ]);
-  } catch (err) {
-    console.error('[Electron UI] Failed to load UI over localhost, falling back to file://:', err);
-    try {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        await mainWindow.loadFile('index.html');
-      }
-    } catch (fileErr) {
-      console.error('[Electron UI] file:// fallback failed:', fileErr);
-    }
-  }
-
-  if (!mainWindowShown) {
-    showMainWindowWhenReady();
-  }
-
-  // Set up keep-alive ping
-  setInterval(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('ping');
-    }
-  }, PING_INTERVAL);
-}
-
-function createApplicationMenu() {
-  const template = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Reload',
-          click: () => mainWindow.webContents.reload()
-        },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'pasteAndMatchStyle' },
-        { role: 'delete' },
-        { role: 'selectAll' }
-      ]
-    },
-    {
-      label: 'Settings',
-      submenu: [
-        {
-          label: 'AI Config',
-          click: () => mainWindow.webContents.send('open-ai-config')
-        },
-        {
-          label: 'File Type',
-          click: () => mainWindow.webContents.send('open-file-type-settings')
-        },
-        {
-          label: 'Performance',
-          click: () => mainWindow.webContents.send('open-performance-settings')
-        },
-        {
-          label: 'Slicer Path',
-          click: () => mainWindow.webContents.send('open-slicer-settings')
-        },
-        {
-          label: 'STL Home',
-          click: () => mainWindow.webContents.send('open-stl-home')
-        },
-        {
-          label: 'Theme',
-          click: () => mainWindow.webContents.send('open-theme-settings')
-        }
-      ]
-    },
-    {
-      label: 'Tools',
-      submenu: [
-        {
-          label: 'Print Roulette',
-          click: () => mainWindow.webContents.send('start-print-roulette')
-        },
-        {
-          label: 'De-Dup',
-          click: () => {
-            mainWindow.webContents.send('open-dedup');
-          }
-        },
-        {
-          label: 'Organize Library',
-          click: () => {
-            mainWindow.webContents.send('open-organize-library');
-          }
-        },
-        ...(isServerMode ? [] : [{
-          label: 'Browser Extension',
-          click: () => mainWindow.webContents.send('open-browser-extension-settings')
-        }]),
-        {
-          label: 'MCP Server',
-          submenu: [
-            {
-              label: 'Settings',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-mcp-server-settings');
-                }
-              }
-            },
-            {
-              label: 'HTTPS / SSL',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-https-settings');
-                }
-              }
-            },
-            {
-              label: 'Server Access',
-              click: () => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('open-server-access');
-                }
-              }
-            }
-          ]
-        },
-        { type: 'separator' },
-        {
-          label: 'Filament Manager',
-          click: () => mainWindow.webContents.send('open-filament-manager')
-        },
-        {
-          label: 'Printer Manager',
-          click: () => mainWindow.webContents.send('open-printer-management')
-        },
-        {
-          label: 'Parts Manager',
-          click: () => mainWindow.webContents.send('open-parts-stock')
-        },
-        {
-          label: 'Tag Manager',
-          click: () => mainWindow.webContents.send('open-tag-manager')
-        },
-        {
-          label: 'Metadata Manager',
-          click: () => mainWindow.webContents.send('open-metadata-editor')
-        },
-        { type: 'separator' },
-        {
-          label: 'Clear New Flag',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('clear-new-flags');
-            } else {
-              mainWindow.webContents.send('clear-new-flags');
-            }
-          }
-        },
-        {
-          label: 'Regenerate Thumbnails',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('regenerate-thumbnails');
-            } else {
-              mainWindow.webContents.send('regenerate-thumbnails');
-            }
-          }
-        },
-        {
-          label: 'Generate Missing Thumbnails',
-          click: () => {
-            if (isServerMode && global.broadcastEvent) {
-              global.broadcastEvent('generate-missing-thumbnails');
-            } else {
-              mainWindow.webContents.send('generate-missing-thumbnails');
-            }
-          }
-        },
-        {
-          label: 'Purge Models',
-          click: () => mainWindow.webContents.send('open-purge-models')
-        },
-        { type: 'separator' },
-        {
-          label: 'Backup/Restore',
-          click: () => mainWindow.webContents.send('open-backup-restore')
-        }
-      ]
-    },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'Quick Start Guide',
-          click: () => {
-            mainWindow.webContents.send('open-guide');
-          }
-        },
-        {
-          label: 'Keyboard Shortcuts',
-          click: () => {
-            mainWindow.webContents.send('open-keyboard-shortcuts');
-          }
-        },
-        {
-          label: 'About',
-          click: async () => {
-            // Send event to renderer to open the about dialog
-            mainWindow.webContents.send('open-about');
-            
-            // Log for debugging
-            console.log('About menu item clicked');
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'GitHub',
-          click: async () => {
-            await shell.openExternal(PROJECT_URL);
-          }
-        },
-        { type: 'separator' },
-        {
-          label: 'Library Stats',
-          click: () => {
-            mainWindow.webContents.send('open-stats');
-          }
-        },
-        ...(isServerMode ? [{
-          label: 'System Report',
-          click: () => {
-            mainWindow.webContents.send('open-system-report');
-          }
-        }] : []),
-        {
-          label: 'Server Mode Info',
-          click: async () => {
-            await shell.openExternal(`${PROJECT_URL}?tab=readme-ov-file#server-mode`);
-          }
-        },
-        {
-          label: 'Debug Console',
-          click: () => mainWindow.webContents.openDevTools()
-        }
-      ]
-    }
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
 
 ipcMain.handle('load-directory', async () => {
   try {
@@ -7230,65 +6464,7 @@ ipcMain.handle('show-message', async (event, title, message, buttons = ['OK']) =
   return buttons[result.response];
 });
 
-ipcMain.handle('show-input-dialog', async (event, options) => {
-  const { title, message, defaultValue = '', placeholder = '' } = options;
-  const senderWindow = BrowserWindow.fromWebContents(event.sender);
-  
-  // Create a simple input dialog window
-  const inputWindow = new BrowserWindow({
-    width: 400,
-    height: 200,
-    resizable: false,
-    modal: true,
-    parent: senderWindow,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: path.join(__dirname, 'input-dialog-preload.js'),
-      webSecurity: true
-    },
-    title: title || 'Input',
-    show: false,
-    backgroundColor: '#2d2d2d'
-  });
 
-  await inputWindow.loadFile(path.join(__dirname, 'input-dialog.html'), {
-    query: {
-      message: message || 'Enter value:',
-      placeholder: placeholder || '',
-      defaultValue: defaultValue || ''
-    }
-  });
-  if (!inputWindow.isDestroyed()) {
-    inputWindow.show();
-  }
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      ipcMain.removeListener('input-dialog-response', responseHandler);
-      resolve(value || null);
-      if (!inputWindow.isDestroyed()) {
-        inputWindow.close();
-      }
-    };
-
-    const responseHandler = (responseEvent, value) => {
-      if (responseEvent.sender === inputWindow.webContents) {
-        finish(value);
-      }
-    };
-
-    ipcMain.on('input-dialog-response', responseHandler);
-
-    inputWindow.on('closed', () => {
-      finish(null);
-    });
-  });
-});
 
 // Update the backup-database handler
 ipcMain.handle('backup-database', async () => {
@@ -13466,30 +12642,8 @@ ipcMain.handle('fetch-makerworld-page', async (event, url) => {
   }
 });
 
-// Add this function to create the viewer window
-function createViewerWindow(filePath) {
-  const viewerWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true
-    }
-  });
 
-  viewerWindow.loadFile('viewer.html');
-  
-  viewerWindow.webContents.on('did-finish-load', () => {
-    viewerWindow.webContents.send('load-model', filePath);
-  });
-}
 
-// Add this IPC handler
-ipcMain.handle('open-model-viewer', async (event, filePath) => {
-  createViewerWindow(filePath);
-});
 
 // Add this near the top after other imports
 let fetch;

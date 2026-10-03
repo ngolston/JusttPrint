@@ -22,7 +22,7 @@ const STATIC_BLOCKED_TOP = new Set([
 ]);
 
 const STATIC_BLOCKED_FILES = new Set([
-  'main.js', 'preload.js', 'input-dialog-preload.js', 'db-repair.js', 'server-auth.js',
+  'main.js', 'db-repair.js', 'server-auth.js',
   'server-paths.js', 'server-tls.js', 'mcp-server.js', 'scan-worker.js',
   'extension-inbox.js', 'playwright.config.js', 'vitest.config.js'
 ]);
@@ -161,8 +161,7 @@ const NETWORK_IPC_PATH_RULES = {
   'organize-library-preview': [[0, 'organize']],
   'organize-library-run': [[0, 'organize']],
   'show-item-in-folder': 'blocked',
-  'open-path': 'blocked',
-  'open-model-viewer': 'blocked'
+  'open-path': 'blocked'
 };
 
 /** Same idea for MCP tools, keyed by argument name. `dest` is a file the tool writes. */
