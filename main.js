@@ -236,14 +236,7 @@ const WebSocket = require('ws');
 // Near the top of the file, add this line
 const { version } = require('./package.json');
 
-const DEBUG = false; // Set to true for development/debugging
 const PING_INTERVAL = 30000; // 30 seconds
-
-function debugLog(...args) {
-  if (DEBUG) {
-    console.log(...args);
-  }
-}
 
 // Server mode detection
 let httpServer = null;
@@ -3559,7 +3552,6 @@ async function calculateFileHash(filePath) {
       const zipPath = resolveReadableDiskPath(pathInfo.zipPath) || pathInfo.zipPath;
       const entryData = await extractZipEntryBuffer(zipPath, pathInfo.entryPath);
       const fileHash = crypto.createHash('md5').update(entryData).digest('hex');
-      debugLog(`Generated hash for ${filePath}: ${fileHash}`);
       return fileHash;
     } catch (error) {
       console.error(`Error extracting zip entry for hashing: ${filePath}`, error);
@@ -3590,7 +3582,6 @@ async function calculateFileHash(filePath) {
     stream.on('end', () => {
       try {
         const fileHash = hash.digest('hex');
-        debugLog(`Generated hash for ${filePath}: ${fileHash}`);
         resolve(fileHash);
       } catch (err) {
         console.error(`Error generating final hash for file: ${filePath}`, err);
@@ -3773,7 +3764,6 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
         }
         
         if (!fileExists) {
-          debugLog(`File marked as non-existent: ${model.filePath}`);
           filesToDelete.push({
             filePath: model.filePath,
             id: model.id,
@@ -3856,7 +3846,6 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
     }
     
     rememberScannedDirectory(directoryPath);
-    debugLog('Starting directory scan:', directoryPath);
     const maxFileSize = await getMaxFileSize();
     const excludeDirectories = stlHomeExcludeDirectoriesForScan(directoryPath, options);
     
@@ -5431,7 +5420,6 @@ async function scanDirectory(directoryPath, isValidFile) {
         if (entry.isDirectory()) {
           // Skip system directories
           if (!shouldProcessDirectory(entry.name)) {
-            debugLog(`Skipping system directory: ${entry.name}`);
             return { files: [], count: 0 };
           }
           
@@ -5605,18 +5593,14 @@ ipcMain.handle('backup-database', async () => {
 
     await fs.promises.copyFile(dbPath, backupPath);
 
-    database.db = new Database(dbPath, { 
-      verbose: DEBUG ? console.log : null 
-    });
+    database.db = new Database(dbPath);
 
     return { success: true, filePath: backupPath };
   } catch (error) {
     console.error('Backup error:', error);
     try {
       const dbPath = getDatabasePath();
-      database.db = new Database(dbPath, { 
-        verbose: DEBUG ? console.log : null 
-      });
+      database.db = new Database(dbPath);
     } catch (reopenError) {
       console.error('Error reopening database:', reopenError);
     }
@@ -5637,18 +5621,14 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
 
       await fs.promises.writeFile(dbPath, buffer);
 
-      database.db = new Database(dbPath, { 
-        verbose: DEBUG ? console.log : null 
-      });
+      database.db = new Database(dbPath);
 
       return { success: true };
     } catch (error) {
       console.error('Restore error:', error);
       try {
         const dbPath = getDatabasePath();
-        database.db = new Database(dbPath, { 
-          verbose: DEBUG ? console.log : null 
-        });
+        database.db = new Database(dbPath);
       } catch (reopenError) {
         console.error('Error reopening database:', reopenError);
       }
@@ -6660,9 +6640,7 @@ const purgeModelsHandler = async (event, options = {}) => {
       // Check if database is open, if not reopen it
       if (!database.db.open) {
         const dbPath = getDatabasePath();
-        database.db = new Database(dbPath, {
-          verbose: DEBUG ? console.log : null
-        });
+        database.db = new Database(dbPath);
       }
 
       try {
@@ -6695,9 +6673,7 @@ const clearNewFlagsHandler = async () => {
   try {
     if (!database.db || !database.db.open) {
       const dbPath = getDatabasePath();
-      database.db = new Database(dbPath, {
-        verbose: DEBUG ? console.log : null
-      });
+      database.db = new Database(dbPath);
     }
     const result = database.db.prepare('UPDATE models SET isNew = 0 WHERE isNew = 1').run();
     return { success: true, cleared: result.changes || 0 };
@@ -8181,7 +8157,6 @@ function getDatabasePath() {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      debugLog('Using database path from PRINTVENTORY_DB_PATH:', resolved);
       return resolved;
     }
 
@@ -8194,7 +8169,6 @@ function getDatabasePath() {
 
     const dbPath = path.join(userDataPath, 'printventory.db');
     migrateLegacyServerDbIfNeeded(dbPath);
-    debugLog('Using database path:', dbPath);
     return dbPath;
   } catch (error) {
     console.error('Error setting up database path:', error);
