@@ -1,6 +1,6 @@
 # Printventory - 3D Model Manager
 
-Printventory is a desktop application for managing your 3D printing model collection.
+Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker and you use it from any browser on your network.
 
 ## Features
 
@@ -94,16 +94,15 @@ Printventory is a desktop application for managing your 3D printing model collec
 - **MCP Server**: Experimental Streamable HTTP endpoint at `/mcp` so a local AI agent can search the library, update metadata, and write thumbnails (Tools → MCP Server)
 
 ## Data Persistence
-- User data is stored in `%LOCALAPPDATA%\Printventory` on Windows
-- Database and thumbnails are preserved during updates
-- Backups are automatically created before updates
-- Manual backups can be created through the Backup/Restore menu
-- **Important**: Create a manual backup before uninstalling the application
+- The database and thumbnails live in the container's data folder (`/root/.config/printventory`); mount it as a volume so it survives updates
+- A backup copy (`backup_printventory.db`) is written every time the server stops
+- Manual backups can be downloaded through the Backup/Restore menu
+- **Important**: Keep a manual backup before removing the container or its data volume
 
 ## Getting Started
 
-1. Launch Printventory
-2. Click "Select Directory" to choose your models folder
+1. Start the container and open `http://<server-ip>:5000` in a browser, then log in
+2. Click "Scan Directory" to choose your models folder (a folder mounted into the container), or set STL Home
 3. Wait for the initial scan to complete
 4. (Optional) Configure settings:
    - **File Type**: Adjust max file size or enable ZIP archive support if needed
@@ -182,7 +181,7 @@ Printventory offers comprehensive settings to customize your experience:
 - Configure one or more slicer applications (name + path)
 - **Open in Slicer** from the right-click context menu
 - **Send to Slicer** from the 3D preview dialog (single model or full bundle)
-- On macOS, each send opens a **new slicer instance** so models load even when the slicer is already open
+- On a Mac, the helper opens a **new slicer instance** for each send so models load even when the slicer is already open
 
 ### Bundle groups (folders and ZIP archives)
 
@@ -212,8 +211,7 @@ When a scan finds **two or more** STL/3MF files in the same folder or inside the
 
 ### MCP Server
 - Experimental: by using MCP Server you assume the risk; it may change, break, or expose library data to clients that can reach the endpoint
-- Desktop: enable a localhost MCP listener while Printventory is running (Tools → MCP Server, under Browser Extension)
-- Docker/Server: MCP is always available at `http://<host>:5000/mcp` — the same settings dialog shows the URL and client config
+- MCP is always available at `http://<host>:5000/mcp`; Tools → MCP Server shows the URL and a client config that includes the API token
 - Agents can search the library, read model details (including on-disk `filePath`), update metadata, and set thumbnails with a PNG or JPEG
 
 ## Tips

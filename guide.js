@@ -18,7 +18,7 @@ const guidePages = [
   {
     title: "Scanning for Models",
     content: `🚀 Ready to dive into your 3D model collection? Click the <strong>Scan Directory</strong> button to effortlessly scan for your 3D models! 🌟 
-    You can also set up a <strong>STL Home</strong> in <strong>Settings</strong> to automatically scan a folder every time you launch Printventory. 
+    You can also set up a <strong>STL Home</strong> in <strong>Settings</strong> to automatically scan a folder every time the server starts and on a schedule. 
     <p><strong style="color: Green;">Pro Tip:</strong><br> 
     <span style="color: Green;">Scan multiple directories to build your ultimate library of 3D models!</span>`,
     image: "guide/guide-scan.png"

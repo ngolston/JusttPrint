@@ -2,7 +2,7 @@
 
 **Version 2.3.0**
 
-Printventory is an Electron-based desktop application for managing your 3D printing model collection. It helps you organize, catalog, and manage STL and 3MF files with powerful features including automatic scanning, thumbnail generation, tagging, and duplicate detection.
+Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
 ![Printventory Logo](logo.png)
 
@@ -26,7 +26,7 @@ Printventory is an Electron-based desktop application for managing your 3D print
 - **License Tracking**: Assign licenses to models
 
 ### Advanced Features
-- **Server Mode**: Run Printventory as a web server accessible from any device on your local network (see [Server Mode](#server-mode) section for details)
+- **Web app**: Use your library from any browser on your network, including phones and tablets
 - **MCP Server**: Connect a local AI agent to search the library, read model details, and write thumbnails (see [MCP Server](#mcp-server))
 - **Multi-Edit Mode**: Select and edit multiple models simultaneously for batch operations
 - **Duplicate Detection**: Find duplicate files based on content hash with visual comparison, optionally limited to the current library filters
@@ -49,21 +49,27 @@ For a complete list of features and detailed usage instructions, see the [GUIDE.
 
 See [CHANGELOG.md](CHANGELOG.md) for recent feature additions and migration notes.
 
-## Installation
+## Running Printventory
 
-### Pre-built Releases
+Printventory runs as a Docker container. Build the image from this repository and start it with your models folder mounted:
 
-Download the latest release for your platform:
-- **Windows**: `Printventory-Setup-2.3.0.exe` (NSIS installer)
-- **macOS**: Universal binary (Intel and Apple Silicon) DMG
-- **Docker**: build the image from this repository (see [Docker Deployment](#docker-deployment-linux-server-mode)), or use `printventory-docker-2.3.0.zip`
+```bash
+docker build -t printventory:latest .
+docker run -d --name printventory-server \
+  -p 5000:5000 \
+  -v ./data:/root/.config/printventory \
+  -v /path/to/your/models:/mnt/models:ro \
+  -e STL_HOME=/mnt/models \
+  -e PRINTVENTORY_PASSWORD='choose-a-password' \
+  --restart unless-stopped \
+  printventory:latest
+```
+
+Then open `http://<server-ip>:5000` and log in. See [Docker Deployment](#docker-deployment-linux-server-mode) for Compose, network shares, HTTPS, GPUs and all settings.
 
 ### Data Storage
 
-- **Windows**: `%LOCALAPPDATA%\Printventory`
-- **macOS**: `~/Library/Application Support/Printventory`
-
-The database and thumbnails are preserved during updates. Backups are automatically created before updates.
+Everything the app stores (database, thumbnails, backups, certificates) lives in the container's data folder, `/root/.config/printventory`. Mount it as a volume (`./data` above) so it survives updates and container rebuilds.
 
 ### Network Connections
 
@@ -73,48 +79,9 @@ Printventory does not collect usage data. It only connects to outside services i
 - **AI tagging**: when you use it, the model's thumbnail, file name and folder names go to the AI service you configured (OpenAI-compatible endpoint or Puter).
 - **Page imports and Spoolman**: when you import from a model website or sync filaments, it contacts that site or your Spoolman server.
 
-## Server Mode
+## Using the Web App
 
-Printventory can run in **Server Mode**, allowing you to access your 3D model library from any device on your local network through a web browser. This is particularly useful for accessing your collection from multiple computers or devices without installing the application on each one.
-
-### What is Server Mode?
-
-Server Mode runs Printventory as an HTTP server on port 5000, making it accessible from any device on your local network through a web browser. The application interface is served via HTTP, and all functionality remains available remotely.
-
-### Starting Server Mode
-
-To start Printventory in Server Mode, launch it with the `--server` flag:
-
-**Windows:**
-```bash
-printventory.exe --server
-```
-
-**Command Line:**
-```bash
-printventory --server
-```
-
-The server will start and continue running until you close the application. You'll see console output indicating the server is running:
-```
-Printventory server mode started
-Server running at http://0.0.0.0:5000
-Access from remote browsers: http://<your-ip>:5000
-Server mode requires UNC paths for all file operations
-```
-
-### Accessing the Server
-
-Once started, you can access Printventory from any browser on your network:
-
-```
-http://<your-computer-ip>:5000
-```
-
-For example, if your computer's IP address is `192.168.1.100`:
-```
-http://192.168.1.100:5000
-```
+Printventory serves its interface over HTTP on port 5000 (or HTTPS when enabled), so every device on your network can use the same library.
 
 ### Logging In
 
@@ -132,97 +99,35 @@ The file endpoints only serve files inside your library folders (scanned directo
 
 ### Important Requirements
 
-- **Path Requirements**: 
-  - **Windows Server Mode**: Requires UNC (Universal Naming Convention) paths for all file operations
-    - UNC paths use the format: `\\server\share\path\to\file`
-    - Local drive paths (C:\, D:\, etc.) will **not work** in Server Mode
-  - **Docker/Linux Server Mode**: Uses Linux-style absolute paths (e.g., `/mnt/network-share/path/to/file`)
-    - Network shares must be mounted into the container (see [Docker Deployment](#docker-deployment-linux-server-mode))
-- **Network Access**: The server listens on all network interfaces (0.0.0.0) on port 5000
-- **Firewall**: You may need to allow Printventory through your firewall to access it from other devices
-- **Network Security**: Server Mode is designed for local network use. It requires a login (see [Logging In](#logging-in)), but use HTTPS whenever it is reachable from outside your network
-- **HTTPS / SSL**: Open **Settings → HTTPS / SSL** to use custom PEM files, a self-signed LAN certificate, or Let's Encrypt (public DNS + inbound port 80). In server/Docker mode you can also set the **listen port** (default 5000; `https://` and `wss://` on that port). `PRINTVENTORY_PORT` seeds the port when unset. `PRINTVENTORY_TLS_*` environment variables override the certificate UI. Reverse proxies should leave in-app TLS off and upgrade WebSockets.
-- **STL Home Setting**: The STL Home setting follows the same path format rules as regular scanning. See the [STL Home Setting](#stl-home-setting-server-mode) section below for details on automatic and periodic scanning.
-
-### Use Cases
-
-- Access your model library from multiple computers on the same network
-- Browse your collection from tablets or mobile devices
-- Share your library with others on your local network
-- Centralized model management for a team or workshop
-
-### Docker Deployment
-
-Printventory can also be deployed as a Docker container for Linux server mode deployment. See the [Docker Deployment](#docker-deployment-linux-server-mode) section for detailed instructions.
+- **Paths**: model paths are paths inside the container, such as `/mnt/models/part.stl`. Mount network shares on the host and into the container (see [Docker Deployment](#docker-deployment-linux-server-mode)).
+- **Network Access**: the server listens on all network interfaces on port 5000. You may need to allow it through your firewall.
+- **Network Security**: Printventory is designed for your local network. It requires a login (see [Logging In](#logging-in)), but use HTTPS whenever it is reachable from outside your network.
+- **HTTPS / SSL**: open **Settings → HTTPS / SSL** to use custom PEM files, a self-signed LAN certificate, or Let's Encrypt (public DNS + inbound port 80). You can also set the **listen port** (default 5000; `https://` and `wss://` on that port). `PRINTVENTORY_PORT` seeds the port when unset. `PRINTVENTORY_TLS_*` environment variables override the certificate UI. Reverse proxies should leave in-app TLS off and upgrade WebSockets.
 
 ### STL Home Setting
 
-The STL Home setting allows automatic scanning of one or more directories on startup and, in server mode, periodic scanning for new files. This is particularly useful for keeping your library up-to-date automatically.
+STL Home folders are scanned when the server starts and then on a schedule, so new files show up on their own.
 
-#### Setting STL Home in Server Mode
+1. Open **Settings → STL Home** (or set `STL_HOME`, see [Environment variables](#environment-variables))
+2. Add each folder as a container path (e.g. `/mnt/models`); add a row for each extra library
+3. Set the **Update Frequency** (default 60 minutes; 1 to 1440)
+4. Click **Save**
 
-1. Access the Printventory web interface at `http://<your-ip>:5000`
-2. Navigate to **Settings → STL Home**
-3. Add each directory:
-   - **Windows Server Mode**: Use UNC path format (e.g., `\\server\share\models`)
-   - The path must be accessible from the server machine
-   - Add another row for each extra library
-4. Configure the **Update Frequency** (default: 60 minutes):
-   - This determines how often the STL Home directories are automatically scanned for new files
-   - Range: 1-1440 minutes (1 minute to 24 hours)
-5. Click **Save**
-
-#### How It Works
-
-- **On Startup**: When Printventory starts in server mode, it automatically scans every configured STL Home directory
-- **Periodic Scanning**: In server mode, Printventory scans each STL Home directory at the configured interval
-- **Path Requirements**: STL Home paths follow the same format rules as regular scanning:
-  - **Windows Server Mode**: Must use UNC paths (`\\server\share\path`)
-  - Paths are validated when saved
-- **Background Scanning**: Periodic scans run in the background and won't disrupt the web interface
-
-#### Clearing STL Home
-
-To disable automatic scanning, remove every directory from the list and save. This stops both startup and periodic scanning.
-
-### Getting Help
-
-For more information about Server Mode, use the **Help > Server Mode Info** menu item in the application, which provides detailed information and instructions including Docker deployment options.
+New models found by a scan get thumbnails in the background. To stop automatic scanning, remove every folder from the list and save.
 
 ## MCP Server
 
-Printventory can expose a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) endpoint so a local AI agent (Cursor, Claude Desktop, VS Code Copilot, and similar) can search the library, manage tags and filaments, find duplicates, scan folders, update metadata, record print history, and write thumbnails from outside the app.
+Printventory exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) endpoint so an AI agent (Cursor, Claude Desktop, VS Code Copilot, and similar) can search the library, manage tags and filaments, find duplicates, scan folders, update metadata, record print history, and write thumbnails.
 
-This is an **experimental** feature. By enabling or using it, you assume the risk: the API may change or break, and any client that can reach the endpoint can read and change library data.
+This is an **experimental** feature. By using it, you assume the risk: the API may change or break, and any client with the API token can read and change library data.
 
-The transport is **Streamable HTTP** at `/mcp`.
-
-### Desktop
-
-1. Open **Tools → MCP Server** (listed under Browser Extension)
-2. Enable **MCP Server** and Save — Printventory starts a localhost listener while the app is running (default port `5000`)
-3. Optional: **Settings → HTTPS / SSL** so the MCP listener uses `https://` (use `https://127.0.0.1:5000/mcp` in the client config)
-4. Copy the client config from the dialog into your MCP client
-
-```json
-{
-  "mcpServers": {
-    "printventory": {
-      "url": "http://127.0.0.1:5000/mcp"
-    }
-  }
-}
-```
-
-Disable MCP Server (or quit Printventory) to stop the listener.
-
-### Docker / Server mode
-
-The MCP endpoint is always available while the server is running — there is no toggle. Open **Tools → MCP Server** for the URL and client config.
+The transport is **Streamable HTTP** at `/mcp`, always available while the server runs:
 
 ```
 http://<your-host>:5000/mcp
 ```
+
+Open **Tools → MCP Server** for the URL and a client config that already includes the API token.
 
 ### Tools
 
@@ -230,100 +135,21 @@ Agents can call the library, tag, filament, print-history, thumbnail, DeDup, sca
 
 To generate thumbnails outside Printventory: list models with `get_models_missing_thumbnails`, open each `filePath` on disk, render an image, then call `set_thumbnail` with a PNG or JPEG data URL or raw base64.
 
-## Building from Source
+## Development
 
-### Prerequisites
-
-Before building Printventory from source, ensure you have the following installed:
-
-- [Node.js](https://nodejs.org/) (v16.x or later recommended)
-- [npm](https://www.npmjs.com/) (v8.x or later)
-- [Git](https://git-scm.com/)
-- Platform-specific build tools:
-  - **Windows**: Visual Studio Build Tools with C++ development workload
-  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
-
-### Clone the Repository
+Requires [Node.js](https://nodejs.org/) 22 or later and a C++ toolchain for `better-sqlite3`.
 
 ```bash
-git clone https://github.com/yourusername/printventory.git
-cd printventory
-```
-
-### Install Dependencies
-
-Install all required dependencies:
-
-```bash
+git clone https://github.com/ngolston/Printventory.git
+cd Printventory
 npm install
+PRINTVENTORY_PASSWORD=dev-password STL_HOME=/path/to/models npm start
 ```
 
-This will also run the `postinstall` script to install app-specific dependencies (including native modules like `better-sqlite3`).
+`npm start` runs the server on plain Node (`src/server/index.js`) at `http://localhost:5000`. Thumbnails need a Chromium-based browser; set `PRINTVENTORY_CHROMIUM` to its path if Puppeteer's own download is missing.
 
-### Development Mode
-
-To run the application in development mode:
-
-```bash
-npm start
-```
-
-This will launch the Electron application.
-
-### Building for Production
-
-#### Build for All Platforms
-
-To build the application for both macOS and Windows:
-
-```bash
-npm run build
-```
-
-#### Build for macOS Only
-
-To build a universal macOS application (Intel and Apple Silicon):
-
-```bash
-npm run build:mac
-```
-
-#### Build for Windows Only
-
-To build for Windows:
-
-```bash
-npm run build:win
-```
-
-#### Build for Linux AppImage (from Windows)
-
-To build a Linux AppImage from Windows, you need either WSL (Windows Subsystem for Linux) or Docker:
-
-**Prerequisites:**
-- **Option 1 (Recommended)**: WSL with Node.js installed
-  - Install WSL: `wsl --install`
-  - Install Node.js in WSL: `wsl sudo apt-get update && wsl sudo apt-get install -y nodejs npm`
-- **Option 2**: Docker Desktop
-  - Install from: https://www.docker.com/products/docker-desktop
-
-**Build Command:**
-
-```bash
-npm run build:linux
-```
-
-Or using PowerShell:
-
-```powershell
-.\scripts\build-linux-appimage.ps1
-```
-
-The script will automatically detect and use WSL if available, otherwise it will fall back to Docker. The AppImage will be generated in the `dist` directory.
-
-**Note**: The first build may take longer as dependencies need to be installed in the Linux environment.
-
-All build outputs will be generated in the `dist` directory.
+- `npm test` runs every unit test (`*.test.js`).
+- `npm run test:e2e` starts the server with `tests/fixtures/library` and checks the API, security rules and the web UI in a browser (`CHROME_PATH` selects the browser; on macOS Google Chrome is found automatically).
 
 ## Testing Locally
 
@@ -1028,35 +854,35 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ## Application Structure
 
-### Core Files
-- `main.js` - Main Electron process and application logic
-- `renderer.js` - Renderer process for UI interactions and model management
-- `preload.js` - Preload script for secure IPC communication between main and renderer
-- `index.html` - Main application UI structure
-- `styles.css` - Application styling
-
-### Feature Modules
-- `aitagging.js` - AI-powered tagging functionality
-- `search.js` - Search and filtering implementation
-- `folder-tree.js` / `folder-tree-lib.js` - Folder tree picker and catalog folder forest
-- `sidebar-layout.js` - Collapsible sidebar filters vs model details; drag-resize sidebar and Folders panel widths
-- `slicer.js` - 3D model slicing and thumbnail generation
-- `guide.js` - Interactive guide system
+### Server
+- `src/server/index.js` - Entry point (`npm start`); runs `main.js` with `src/server/electron-shim.js` standing in for the old Electron APIs while `main.js` is split into modules
+- `main.js` - Library logic and the HTTP/WebSocket server (being rewritten into modules)
+- `server-auth.js` - Login, API token and download tokens
+- `server-paths.js` - Which files the server may serve, read, move or write
+- `env-settings.js` - Settings from environment variables
+- `mcp-server.js` - MCP endpoint
 - `scan-worker.js` - Background worker for directory scanning
+- `healthcheck.js` - Docker `HEALTHCHECK`
 
-### Build & Configuration
-- `package.json` - Project configuration and dependencies
-- `playwright.config.js` - Testing configuration
-- `installer.nsh` - Windows installer customizations
+### Web UI
+- `index.html`, `styles.css` - Page structure and styling
+- `renderer.js` - UI logic (to be replaced screen by screen with React + TypeScript)
+- `server-bridge.js` - Connects the UI to the server over a WebSocket
+- `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide
+
+### Configuration
+- `package.json` - Dependencies and scripts
+- `Dockerfile`, `docker-entrypoint.sh`, `docker-compose.yml` - Container image and setup
 
 ## Technology Stack
 
-- **Electron** ^39.2.4 - Desktop application framework
-- **better-sqlite3** ^12.5.0 - SQLite database for data storage
-- **Three.js** ^0.181.2 - 3D model rendering and preview
-- **Fuse.js** ^7.1.0 - Fuzzy search functionality
-- **OpenAI** ^6.9.1 - AI tagging features
-- **Puppeteer** ^24.31.0 - Browser automation for certain features
+- **Node.js** 22 - Server runtime (Docker image)
+- **Express** and **ws** - HTTP server and WebSocket
+- **better-sqlite3** - SQLite database
+- **Three.js** - 3D previews and thumbnails
+- **Puppeteer** + Chromium - Thumbnail rendering in the container and page imports
+- **Fuse.js** - Fuzzy search
+- **OpenAI SDK** - AI tagging
 
 ## Database
 
