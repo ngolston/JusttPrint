@@ -1013,6 +1013,12 @@ ${bridgeCode}
       } else {
         console.log(`Printventory server mode started`);
         console.log(`Server running at ${scheme}://${HOST}:${PORT}`);
+        // The Docker HEALTHCHECK reads this to find the port and scheme (both can change in Settings).
+        try {
+          fs.writeFileSync(path.join(os.tmpdir(), 'printventory-listen.json'), JSON.stringify({ port: PORT, scheme }));
+        } catch (err) {
+          console.warn('Could not write listen info for the health check:', err.message);
+        }
         console.log(`Access from remote browsers: ${scheme}://<your-ip>:${PORT}`);
         if (useTls) {
           console.log(`TLS enabled (source: ${tlsResolved.source}): browser will use wss:// for the Printventory bridge (same port).`);

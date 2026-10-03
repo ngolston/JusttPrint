@@ -17,6 +17,9 @@ All notable changes contributed via pull request are documented in this file.
 - Symlinks inside the library cannot be used to read or write files outside it
 - `PRINTVENTORY_TRUST_PROXY` lets the login rate limit see real client addresses behind a reverse proxy
 - Removed the legacy `/api/extension-upload` route and its upload-directory setting (`EXTENSION_UPLOAD_DIR`). The extension uses the inbox folder
+- The Docker container runs as a regular user. Set `PUID`/`PGID` to the owner of your library files (default 1000:1000; `PUID=0` keeps root). The data folder is re-owned on first start
+- The Docker image includes Electron instead of downloading it on every new container's first start
+- Docker reports the container as healthy or unhealthy (`HEALTHCHECK`)
 - Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
 - The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
 

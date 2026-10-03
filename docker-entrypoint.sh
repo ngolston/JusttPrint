@@ -41,11 +41,60 @@ export GIO_USE_VOLUME_MONITOR=unix
 # Chromium treats missing/invalid DBUS as ERROR spam; provide private buses.
 export DBUS_FATAL_WARNINGS=0
 
+# --- Run the app as PUID:PGID (default 1000:1000). PUID=0 keeps the old root behavior. ---
+# Files the app writes (database, moves, Organize Library) get this owner on mounted folders.
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+case "$PUID$PGID" in
+  *[!0-9]*|'') echo "Error: PUID and PGID must be numbers (got PUID='$PUID' PGID='$PGID')"; exit 1 ;;
+esac
+
+DATA_DIR=/root/.config/printventory
+mkdir -p "$DATA_DIR"
+RUN_AS=()
+
+if [ "$PUID" = "0" ]; then
+  echo "Running as root (PUID=0)"
+else
+  if ! getent group "$PGID" >/dev/null; then
+    groupadd -g "$PGID" printventory
+  fi
+  if ! getent passwd "$PUID" >/dev/null; then
+    useradd -u "$PUID" -g "$PGID" -d /home/printventory -s /usr/sbin/nologin printventory
+  fi
+  APP_USER="$(getent passwd "$PUID" | cut -d: -f1)"
+  APP_HOME="$(getent passwd "$PUID" | cut -d: -f6)"
+  mkdir -p "$APP_HOME"
+  chown "$PUID:$PGID" "$APP_HOME"
+
+  # Keep the data path (/root/.config/printventory) so existing volumes still work.
+  chmod 711 /root /root/.config
+  # Re-own the data folder only when something in it has a different owner (fast on later starts).
+  if [ "$(stat -c %u:%g "$DATA_DIR")" != "$PUID:$PGID" ] \
+    || find "$DATA_DIR" \( ! -uid "$PUID" -o ! -gid "$PGID" \) -print -quit | grep -q .; then
+    echo "Setting owner of $DATA_DIR to $PUID:$PGID..."
+    chown -R "$PUID:$PGID" "$DATA_DIR"
+  fi
+
+  RUN_AS=(setpriv --reuid="$PUID" --regid="$PGID" --init-groups)
+  # Keep the right to listen on ports below 1024 (Let's Encrypt on port 80) when Docker allows it.
+  if setpriv --inh-caps=+net_bind_service --ambient-caps=+net_bind_service true 2>/dev/null; then
+    RUN_AS+=(--inh-caps=+net_bind_service --ambient-caps=+net_bind_service)
+  fi
+
+  export HOME="$APP_HOME"
+  export USER="$APP_USER"
+  export XDG_CONFIG_HOME=/root/.config
+  echo "Running as $APP_USER ($PUID:$PGID). Set PUID/PGID to match the owner of your library files."
+fi
+
 # Start a private D-Bus session bus (containers have no system/session bus by default).
+# It runs as the app user, since a session bus only accepts its own user.
 mkdir -p /tmp/dbus
 rm -f /tmp/dbus/bus
+[ "$PUID" = "0" ] || chown "$PUID:$PGID" /tmp/dbus
 if command -v dbus-daemon >/dev/null 2>&1; then
-  DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address --address=unix:path=/tmp/dbus/bus 2>/dev/null) || true
+  DBUS_SESSION_BUS_ADDRESS=$("${RUN_AS[@]}" dbus-daemon --session --fork --print-address --address=unix:path=/tmp/dbus/bus 2>/dev/null) || true
   if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
     export DBUS_SESSION_BUS_ADDRESS
     echo "D-Bus session started at $DBUS_SESSION_BUS_ADDRESS"
@@ -85,10 +134,6 @@ filter_electron_stderr() {
     'ERROR:dbus/|Failed to connect to the bus:|Failed to connect to socket /run/dbus/|ERROR:gpu/|ERROR:components/viz/service/gl/|Restarting GPU process due to unrecoverable error|SharedContextState context lost|CreateSharedImage: could not create backing|SharedImageStub: Unable to create shared image|GPU state invalid after WaitForGetOffsetInRange' \
     || true
 }
-
-# Ensure config directory exists with proper permissions
-mkdir -p /root/.config/printventory
-chmod -R 755 /root/.config/printventory
 
 # Start Electron in server mode
 echo "Starting Printventory server mode..."
@@ -199,7 +244,7 @@ else
 fi
 
 # Run Electron in the foreground to see output and keep container alive
-# --no-sandbox: allow running as root in Docker
+# --no-sandbox: Chromium's sandbox needs user namespaces, which containers usually lack
 # V8 heap: default was a hard 3072MB (tuned for 4g containers). On large hosts that
 # still OOMs ("Zone Allocation failed") even with 64–96GB free. Scale from cgroup
 # memory limit when present, or PRINTVENTORY_MAX_OLD_SPACE_MB.
@@ -243,7 +288,7 @@ echo "V8 max-old-space-size: ${MAX_OLD_SPACE_MB}MB (override with PRINTVENTORY_M
 # Run the local electron CLI directly. npx starts it under `sh -c`, which dies on
 # `docker stop`'s SIGTERM before Electron sees it, so npm exits 1. electron/cli.js
 # forwards SIGTERM and the container exits 0.
-exec ./node_modules/.bin/electron . \
+exec "${RUN_AS[@]}" ./node_modules/.bin/electron . \
   --no-sandbox \
   "${ELECTRON_GPU_ARGS[@]}" \
   --disable-dev-shm-usage \

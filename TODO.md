@@ -75,8 +75,9 @@ docs/        GUIDE.md, guide/ images
 ## 🟠 3. High: container fixes
 
 - [x] **Fix the image build from a clean clone.** `support-webhook.json` is optional in the Dockerfile and the Docker distribution script.
-- [ ] **Run as a non-root user**, with `PUID`/`PGID` support so files on mounted libraries and NAS shares get the right owner.
-- [ ] **Add a `HEALTHCHECK` to the Dockerfile.** The `/api/health` endpoint exists (no login needed).
+- [x] **Run as a non-root user** with `PUID`/`PGID` (default 1000:1000, `PUID=0` for root). The data folder is re-owned on start only when needed; the app keeps the right to bind port 80 for Let's Encrypt.
+- [x] **Bake the Electron binary into the image.** `npm install --ignore-scripts` skipped it, so every new container downloaded ~100 MB from GitHub at startup.
+- [x] **Add a `HEALTHCHECK` to the Dockerfile.** `healthcheck.js` asks `/api/health` on the port and scheme the server actually listens on.
 - [ ] **Make all configuration available through environment variables**: port, data directory, library paths, admin password, TLS.
 - [ ] **Shut down cleanly on `docker stop`**: close the database and let in-progress scans finish or roll back.
 - [ ] **Publish a multi-arch image** (amd64 and arm64) for Raspberry Pi, Apple Silicon and many NAS boxes.

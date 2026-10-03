@@ -97,6 +97,10 @@ RUN npm config set proxy null && \
     npm cache clean --force
 
 # Rebuild native modules for Electron (requires GCC 13+ from trixie)
+# npm install ran with --ignore-scripts, so fetch the Electron binary now. Otherwise every new
+# container downloads it at startup (slow, needs internet, and fails as a non-root user).
+RUN node node_modules/electron/install.js && test -x node_modules/electron/dist/electron
+
 RUN rm -rf node_modules/better-sqlite3/build || true && \
     npx @electron/rebuild --version=$(node -p 'require("electron/package.json").version') || \
     npx electron-builder install-app-deps
@@ -124,6 +128,7 @@ RUN for f in db-repair.js bundle-keys.js zip-extract.js thumbnail-compress.js th
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
+COPY healthcheck.js ./
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set environment variables
@@ -138,6 +143,8 @@ ENV DBUS_FATAL_WARNINGS=0
 
 # Expose port 5000
 EXPOSE 5000
+# Healthy once /api/health answers on the port the server actually listens on (see healthcheck.js).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 CMD ["node", "/app/healthcheck.js"]
 
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]

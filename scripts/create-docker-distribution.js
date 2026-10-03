@@ -28,6 +28,7 @@ const filesToCopy = [
   'Dockerfile',
   'docker-compose.yml',
   'docker-entrypoint.sh',
+  'healthcheck.js',
   '.dockerignore',
   'package.json',
   'package-lock.json',
