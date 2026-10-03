@@ -1,5 +1,6 @@
 'use strict';
 
+const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
@@ -280,19 +281,11 @@ function countModelsNeedingHash({ includeSha256 = false, filters = null } = {}) 
 }
 
 function emitHashGenerationProgress(event, payload) {
-  if (global.broadcastEvent) {
-    global.broadcastEvent('hash-generation-progress', payload);
-  } else if (event && event.sender) {
-    event.sender.send('hash-generation-progress', payload);
-  }
+  events.broadcast('hash-generation-progress', payload);
 }
 
 function emitHashGenerationComplete(event, payload) {
-  if (global.broadcastEvent) {
-    global.broadcastEvent('hash-generation-complete', payload);
-  } else if (event && event.sender) {
-    event.sender.send('hash-generation-complete', payload);
-  }
+  events.broadcast('hash-generation-complete', payload);
 }
 
 // Internal function to calculate missing hashes

@@ -1,5 +1,6 @@
 'use strict';
 
+const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
@@ -149,11 +150,7 @@ function publicOrganizePreview(plan) {
 }
 
 function sendOrganizeEvent(event, channel, data) {
-  if (typeof global.sendEvent === 'function') {
-    global.sendEvent(event, channel, data);
-    return;
-  }
-  if (event && event.sender) event.sender.send(channel, data);
+  events.broadcast(channel, data);
 }
 
 ipcMain.handle('list-organize-sources', async () => {

@@ -1,3 +1,4 @@
+const events = require('./src/server/events');
 const database = require('./src/core/database');
 const { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting } = require('./src/core/settings');
 const { app, ipcMain, shell } = require('./src/server/runtime');
@@ -506,7 +507,7 @@ ${bridgeCode}
     }
     return htmlData;
   }
-  
+
   // CRITICAL: Inject server-bridge.js route handler BEFORE express.static
   // This ensures the route handler runs and injects the bridge code
   // Inject server-bridge.js into HTML for server mode
@@ -528,7 +529,7 @@ ${bridgeCode}
       });
     });
   });
-  
+
   // Add middleware to set proper MIME types for JavaScript modules
   expressApp.use((req, res, next) => {
     // Set proper Content-Type for JavaScript modules
@@ -981,32 +982,9 @@ ${bridgeCode}
             }
             return; // Don't broadcast or process as regular event
           }
-          
-          // These are events that should be broadcast to all clients
-          // In server mode, broadcast to all WebSocket clients
-          // In normal mode, trigger the ipcMain.on() handler which sends to the renderer
-          if (global.broadcastEvent) {
-            // Broadcast to all WebSocket clients (they'll receive as type: 'event')
-            global.broadcastEvent(channel, ...(args || []));
-          } else {
-            // In normal mode, trigger the ipcMain.on() handler
-            // Create a mock event object to trigger the handler
-            const mockEvent = {
-              sender: null
-            };
-            
-            // Get all listeners for this channel and trigger them
-            const listeners = ipcMain.listeners(channel);
-            if (listeners.length > 0) {
-              listeners.forEach(listener => {
-                try {
-                  listener(mockEvent, ...(args || []));
-                } catch (error) {
-                  console.error(`Error in ipcMain.on('${channel}') handler:`, error);
-                }
-              });
-            }
-          }
+
+          // Broadcast to all WebSocket clients (they'll receive as type: 'event')
+          events.broadcast(channel, ...(args || []));
           return; // Don't try to handle as IPC call
         }
 
@@ -1026,17 +1004,7 @@ ${bridgeCode}
           const mockEvent = {
             sender: {
               send: (eventChannel, ...eventArgs) => {
-                // Broadcast event to all WebSocket clients in server mode
-                if (global.broadcastEvent) {
-                  global.broadcastEvent(eventChannel, ...eventArgs);
-                } else {
-                  // Send event back via WebSocket to this specific client
-                  ws.send(jsonStringifyForWs({
-                    type: 'event',
-                    channel: eventChannel,
-                    args: eventArgs
-                  }));
-                }
+                events.broadcast(eventChannel, ...eventArgs);
               }
             },
             // Add wsClient for server mode so createPuterIPCHandler can use it
@@ -1132,7 +1100,7 @@ ${bridgeCode}
       wsClients.delete(ws);
     });
   });
-  
+
   // Broadcast events to all WebSocket clients
   function broadcastEvent(channel, ...args) {
     const message = jsonStringifyForWs({
@@ -1150,18 +1118,9 @@ ${bridgeCode}
       }
     });
   }
-  
+
   // Store broadcast function globally for use in IPC handlers
-  global.broadcastEvent = broadcastEvent;
-  
-  // Helper function to send events (works in both normal and server mode)
-  global.sendEvent = function(event, channel, ...args) {
-    if (global.broadcastEvent) {
-      global.broadcastEvent(channel, ...args);
-    } else if (event && event.sender) {
-      event.sender.send(channel, ...args);
-    }
-  };
+  events.setBroadcaster(broadcastEvent);
 
   // Bind errors are handled in the Promise above (reject). Server-mode callers should catch and exit.
   return serverPromise;
@@ -1223,8 +1182,7 @@ function stopHttpServer() {
       if (httpServerEpoch === epoch) {
         httpServer = null;
         wsClients = null;
-        global.broadcastEvent = null;
-        global.sendEvent = null;
+        events.setBroadcaster(null);
       }
       resolve();
     });
@@ -1242,8 +1200,7 @@ function stopHttpServer() {
         httpServer = null;
         wsClients = null;
         wss = null;
-        global.broadcastEvent = null;
-        global.sendEvent = null;
+        events.setBroadcaster(null);
         resolve();
       }
     }, 5000);
@@ -1379,9 +1336,7 @@ async function runExtensionInboxImport(reason) {
     }
     if (result.imported > 0) {
       try {
-        if (typeof global.broadcastEvent === 'function') {
-          global.broadcastEvent('refresh-grid');
-        }
+        events.broadcast('refresh-grid');
       } catch (e) {
         console.warn('[Extension inbox] refresh-grid failed:', e.message);
       }
@@ -1604,7 +1559,7 @@ function serverIpcEvent() {
   return {
     sender: {
       send(channel, ...args) {
-        if (global.broadcastEvent) global.broadcastEvent(channel, ...args);
+        events.broadcast(channel, ...args);
       }
     }
   };
@@ -1631,7 +1586,7 @@ async function runServerStlHomeScan(reason) {
         console.error(`[STL Home] ${reason} scan of ${dir} failed:`, error.message);
       }
     }
-    if (global.broadcastEvent) global.broadcastEvent('refresh-grid');
+    events.broadcast('refresh-grid');
     if (newModels > 0 && thumbnailWorkerReady() && serverThumbnailJob.status !== 'running') {
       startServerThumbnailJobInternal('missing').catch((error) => console.error('[STL Home] thumbnail job:', error.message));
     }
@@ -1779,8 +1734,7 @@ function pathExistsOnDisk(filePath) {
 function removeModelsFromLibraryByPaths(filePaths) {
   const { removed, missing } = deleteModelsByFilePaths(filePaths);
   if (removed.length) {
-    if (global.broadcastEvent)
-      global.broadcastEvent('refresh-grid');
+    events.broadcast('refresh-grid');
   }
   return { success: true, removedCount: removed.length, removed, missing };
 }
@@ -1965,8 +1919,7 @@ function getMcpToolContext() {
       const model = resolveModelForMcp(args);
       await saveThumbnail(model.filePath, args.image);
       const payload = { filePath: model.filePath, thumbnailCount: 1, hasMultiple: false, newImageIsDefault: true };
-      if (global.broadcastEvent)
-        global.broadcastEvent('thumbnail-added', payload);
+      events.broadcast('thumbnail-added', payload);
       return { success: true, id: model.id, filePath: model.filePath };
     },
     addThumbnail: async (args) => {
@@ -1985,8 +1938,7 @@ function getMcpToolContext() {
       await saveThumbnail(model.filePath, updated);
       const thumbs = parseThumbnails(updated);
       const payload = { filePath: model.filePath, thumbnailCount: thumbs.length, defaultChanged: true };
-      if (global.broadcastEvent)
-        global.broadcastEvent('thumbnail-default-changed', payload);
+      events.broadcast('thumbnail-default-changed', payload);
       return { success: true, id: model.id, filePath: model.filePath, thumbnailCount: thumbs.length };
     },
     deleteThumbnail: async (args) => {
@@ -2002,8 +1954,7 @@ function getMcpToolContext() {
       thumbnails.splice(index, 1);
       await saveThumbnail(model.filePath, thumbnails.join('::'));
       const payload = { filePath: model.filePath, thumbnailCount: thumbnails.length };
-      if (global.broadcastEvent)
-        global.broadcastEvent('thumbnail-deleted', payload);
+      events.broadcast('thumbnail-deleted', payload);
       return { success: true, id: model.id, filePath: model.filePath, thumbnailCount: thumbnails.length };
     },
     findDuplicates: async (args) => {
@@ -2259,8 +2210,7 @@ function getMcpToolContext() {
         database.db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, filePath);
         moved.push({ from: filePath, to: newDestination });
       }
-      if (global.broadcastEvent)
-        global.broadcastEvent('refresh-grid');
+      events.broadcast('refresh-grid');
       return { success: true, moved };
     },
     exportLibrary: async (args) => {
@@ -3756,11 +3706,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
             // Send refresh-grid event to update the UI after scanning completes
             // Use setTimeout to ensure the promise resolves first and database is fully updated
             setTimeout(() => {
-              if (global.broadcastEvent) {
-                global.broadcastEvent('refresh-grid');
-              } else {
-                event.sender.send('refresh-grid');
-              }
+              events.broadcast('refresh-grid');
             }, 100);
           } catch (error) {
             worker.terminate();
@@ -4215,9 +4161,7 @@ let serverThumbnailJob = {
 };
 
 function broadcastThumbnailJobEvent(channel, payload) {
-  if (global.broadcastEvent) {
-    global.broadcastEvent(channel, payload);
-  }
+  events.broadcast(channel, payload);
 }
 
 function thumbnailWorkerReady() {
@@ -4288,9 +4232,7 @@ ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
   console.log(`[Server thumbnails] Job ${info.cancelled ? 'cancelled' : 'finished'}: ${Number(info.count) || 0} rendered`);
   serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
   broadcastThumbnailJobEvent('thumbnail-job-complete', result || {});
-  if (global.broadcastEvent) {
-    global.broadcastEvent('refresh-grid');
-  }
+  events.broadcast('refresh-grid');
   return true;
 });
 
@@ -5525,23 +5467,11 @@ function isPreviewableModelFile(filePath) {
 }
 
 function sendPreviewBundleEvent(event, payload) {
-  if (global.broadcastEvent) {
-    global.broadcastEvent('preview-bundle-models', payload);
-  } else if (event && event.sender) {
-    event.sender.send('preview-bundle-models', payload);
-  } else {
-    throw new Error('Cannot preview bundle: no connection available');
-  }
+  events.broadcast('preview-bundle-models', payload);
 }
 
 function sendPreviewModelEvent(event, filePath) {
-  if (global.broadcastEvent) {
-    global.broadcastEvent('preview-model', filePath);
-  } else if (event && event.sender) {
-    event.sender.send('preview-model', filePath);
-  } else {
-    throw new Error('Cannot preview file: no connection available');
-  }
+  events.broadcast('preview-model', filePath);
 }
 
 // Update the show-context-menu handler
@@ -5636,16 +5566,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       click: async () => {
         try {
           console.log('Download clicked for file:', filePaths[0]);
-          // Send download event to renderer
-          // In server mode, use broadcastEvent to send to all WebSocket clients
-          if (global.broadcastEvent) {
-            console.log('Broadcasting download-model event via WebSocket');
-            global.broadcastEvent('download-model', filePaths[0]);
-          } else {
-            // In normal mode, use event.sender.send
-            console.log('Sending download-model event via event.sender');
-            event.sender.send('download-model', filePaths[0]);
-          }
+          console.log('Broadcasting download-model event via WebSocket');
+          events.broadcast('download-model', filePaths[0]);
         } catch (error) {
           console.error('Error triggering download:', error);
           clientDialogs.messageBox(event, {
@@ -5698,11 +5620,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 zipPath: isZipEntry && pathInfo ? pathInfo.zipPath : null,
                 entryPath: isZipEntry && pathInfo ? pathInfo.entryPath : null
               };
-              if (global.broadcastEvent) {
-                global.broadcastEvent('execute-client-command', commandPayload);
-              } else {
-                event.sender.send('execute-client-command', commandPayload);
-              }
+              events.broadcast('execute-client-command', commandPayload);
               return;
             }
 
@@ -5779,11 +5697,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       const levels = configuredLevels > 0 ? configuredLevels : 1;
       try {
         const result = applyFolderTagsToModels(filePaths, levels);
-        if (global.broadcastEvent) {
-          global.broadcastEvent('refresh-grid');
-        } else if (event.sender && event.sender.send) {
-          event.sender.send('refresh-grid');
-        }
+        events.broadcast('refresh-grid');
         const summary = result.tagsAdded > 0
           ? `Added ${result.tagsAdded} tag${result.tagsAdded === 1 ? '' : 's'} on ${result.updated} model${result.updated === 1 ? '' : 's'}.`
           : 'No new folder tags were added. Those tags may already be on the models, or the files have no usable parent folder.';
@@ -5862,32 +5776,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           if (filesToProcess.length > 1) {
             // Send all file paths so the dialog can show all models immediately
             console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
-            if (global.broadcastEvent) {
-              // In server mode, use broadcastEvent to send to all WebSocket clients
-              console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
-              global.broadcastEvent('start-batch-tag-generation', filesToProcess.length, filesToProcess);
-            } else if (eventSender && eventSender.send) {
-              // Normal mode - use captured sender or clickEvent sender
-              console.log('[Generate Tags] Sending start-batch-tag-generation via eventSender.send');
-              console.log('[Generate Tags] eventSender details:', {
-                hasSend: typeof eventSender.send === 'function',
-                isDestroyed: eventSender.isDestroyed ? eventSender.isDestroyed() : 'N/A'
-              });
-              try {
-                eventSender.send('start-batch-tag-generation', filesToProcess.length, filesToProcess);
-                console.log('[Generate Tags] Successfully sent start-batch-tag-generation event');
-              } catch (sendError) {
-                console.error('[Generate Tags] Error sending start-batch-tag-generation event:', sendError);
-              }
-            } else {
-              console.error('[Generate Tags] No valid way to send start-batch-tag-generation event', {
-                hasClickEvent: !!clickEvent,
-                hasClickEventSender: !!(clickEvent && clickEvent.sender),
-                hasCapturedSender: !!sender,
-                hasEventSender: !!eventSender,
-                hasSend: !!(eventSender && eventSender.send)
-              });
-            }
+            // In server mode, use broadcastEvent to send to all WebSocket clients
+            console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
+            events.broadcast('start-batch-tag-generation', filesToProcess.length, filesToProcess);
           } else if (filesToProcess.length === 1) {
             // For single file, also open dialog immediately with "Generating..." status
             const singleModel = getModelByFilePath(filesToProcess[0], { includeThumbnail: true });
@@ -5899,41 +5790,18 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 WHERE mt.model_id = ?
               `).all(singleModel.id);
               const modelTags = modelTagRows.map(row => row.name);
-              
+
               const modelData = {
                 filePath: filesToProcess[0],
                 model: singleModel,
                 generatedTags: undefined, // undefined means "generating"
                 existingTags: modelTags
               };
-              
+
               console.log('[Generate Tags] Sending start-single-tag-generation event');
-              if (global.broadcastEvent) {
-                // In server mode, use broadcastEvent to send to all WebSocket clients
-                console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
-                global.broadcastEvent('start-single-tag-generation', filesToProcess[0], modelData);
-              } else if (eventSender && eventSender.send) {
-                // Normal mode - use captured sender or clickEvent sender
-                console.log('[Generate Tags] Sending start-single-tag-generation via eventSender.send');
-                console.log('[Generate Tags] eventSender details:', {
-                  hasSend: typeof eventSender.send === 'function',
-                  isDestroyed: eventSender.isDestroyed ? eventSender.isDestroyed() : 'N/A'
-                });
-                try {
-                  eventSender.send('start-single-tag-generation', filesToProcess[0], modelData);
-                  console.log('[Generate Tags] Successfully sent start-single-tag-generation event');
-                } catch (sendError) {
-                  console.error('[Generate Tags] Error sending start-single-tag-generation event:', sendError);
-                }
-              } else {
-                console.error('[Generate Tags] No valid way to send start-single-tag-generation event', {
-                  hasClickEvent: !!clickEvent,
-                  hasClickEventSender: !!(clickEvent && clickEvent.sender),
-                  hasCapturedSender: !!sender,
-                  hasEventSender: !!eventSender,
-                  hasSend: !!(eventSender && eventSender.send)
-                });
-              }
+              // In server mode, use broadcastEvent to send to all WebSocket clients
+              console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
+              events.broadcast('start-single-tag-generation', filesToProcess[0], modelData);
             } else {
               console.log('Model not found in database for single file generation');
             }
@@ -5953,29 +5821,20 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           const processFile = async (filePath, index) => {
             if (rateLimitStopped) {
               completed++;
-              if (global.broadcastEvent) {
-                global.broadcastEvent('tags-generated', filePath, [], rateLimitSkipMessage);
-              } else if (eventSender && eventSender.send) {
-                eventSender.send('tags-generated', filePath, [], rateLimitSkipMessage);
-              }
+              events.broadcast('tags-generated', filePath, [], rateLimitSkipMessage);
               return;
             }
             try {
               // Get the model from the database to access its thumbnail
               const model = getModelByFilePath(filePath, { includeThumbnail: true });
-              
+
               if (!model) {
                 console.log(`Model not found in database: ${filePath}, skipping`);
                 completed++;
-                      // Send empty tags for skipped models so they appear in the review dialog
-                      if (global.broadcastEvent) {
-                        global.broadcastEvent('tags-generated', filePath, [], null);
-                      } else if (eventSender && eventSender.send) {
-                        eventSender.send('tags-generated', filePath, [], null);
-                      }
+                events.broadcast('tags-generated', filePath, [], null);
                 return;
               }
-              
+
               // Get the model tags from the database
               const modelTagRows = database.db.prepare(`
                 SELECT t.name 
@@ -5983,22 +5842,17 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 JOIN model_tags mt ON mt.tag_id = t.id
                 WHERE mt.model_id = ?
               `).all(model.id);
-              
+
               const modelTags = modelTagRows.map(row => row.name);
-              
+
               // Check if model already has the "AI Tagged" tag (unless retagging is allowed)
               if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
                 console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
-              completed++;
-              // Send empty tags for already-tagged models so they appear in the review dialog
-              if (global.broadcastEvent) {
-                global.broadcastEvent('tags-generated', filePath, [], null);
-              } else if (eventSender && eventSender.send) {
-                eventSender.send('tags-generated', filePath, [], null);
+                completed++;
+                events.broadcast('tags-generated', filePath, [], null);
+                return;
               }
-              return;
-              }
-              
+
               // Prepare tag generation options (read aiTagPrompt from DB so we always have latest)
               const aiTagPromptValue = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('aiTagPrompt')?.value ?? null;
               const tagOptions = {
@@ -6010,9 +5864,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 notes: model.notes || '',
                 customPrompt: (aiTagPromptValue != null && String(aiTagPromptValue).trim() !== '') ? String(aiTagPromptValue).trim() : null
               };
-              
+
               let tags = [];
-              
+
               if (!model.thumbnail) {
                 // If no thumbnail exists, use default image
                 console.log(`No thumbnail found for model ${filePath}, using default image`);
@@ -6028,12 +5882,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                   // Check if it's a rate limit error
                   if (error.message && error.message.includes('Rate limit')) {
                     rateLimitStopped = true;
-                    // Send error info with empty tags
-                    if (global.broadcastEvent) {
-                      global.broadcastEvent('tags-generated', filePath, [], error.message);
-                    } else if (eventSender && eventSender.send) {
-                      eventSender.send('tags-generated', filePath, [], error.message);
-                    }
+                    events.broadcast('tags-generated', filePath, [], error.message);
                     completed++;
                     return;
                   }
@@ -6063,26 +5912,16 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                     // Check if it's a rate limit error
                     if (error.message && error.message.includes('Rate limit')) {
                       rateLimitStopped = true;
-                      // Send error info with empty tags
-                      if (global.broadcastEvent) {
-                        global.broadcastEvent('tags-generated', filePath, [], error.message);
-                      } else if (eventSender && eventSender.send) {
-                        eventSender.send('tags-generated', filePath, [], error.message);
-                      }
+                      events.broadcast('tags-generated', filePath, [], error.message);
                       completed++;
                       return;
                     }
                   }
                 }
               }
-              
-              // Send the generated tags back to the renderer process
-              if (global.broadcastEvent) {
-                global.broadcastEvent('tags-generated', filePath, tags, null);
-              } else if (eventSender && eventSender.send) {
-                eventSender.send('tags-generated', filePath, tags, null);
-              }
-              
+
+              events.broadcast('tags-generated', filePath, tags, null);
+
               completed++;
               // Progress is now shown in the review dialog
             } catch (error) {
@@ -6092,19 +5931,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               // Check if it's a rate limit error
               if (error.message && error.message.includes('Rate limit')) {
                 rateLimitStopped = true;
-                // Send error info with empty tags
-                if (global.broadcastEvent) {
-                  global.broadcastEvent('tags-generated', filePath, [], error.message);
-                } else if (eventSender && eventSender.send) {
-                  eventSender.send('tags-generated', filePath, [], error.message);
-                }
+                events.broadcast('tags-generated', filePath, [], error.message);
               } else {
-                // Send empty tags for failed models so they appear in the review dialog
-                if (global.broadcastEvent) {
-                  global.broadcastEvent('tags-generated', filePath, []);
-                } else if (eventSender && eventSender.send) {
-                  eventSender.send('tags-generated', filePath, []);
-                }
+                events.broadcast('tags-generated', filePath, []);
               }
             }
           };
@@ -6119,21 +5948,13 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           
           // Signal batch completion for multiple files
           if (totalFiles > 1) {
-            if (global.broadcastEvent) {
-              global.broadcastEvent('batch-tag-generation-complete');
-            } else if (eventSender && eventSender.send) {
-              eventSender.send('batch-tag-generation-complete');
-            }
+            events.broadcast('batch-tag-generation-complete');
           }
         } catch (error) {
           console.error('Error generating tags:', error);
 
           if (filePaths.length > 1) {
-            if (global.broadcastEvent) {
-              global.broadcastEvent('batch-tag-generation-complete');
-            } else if (eventSender && eventSender.send) {
-              eventSender.send('batch-tag-generation-complete');
-            }
+            events.broadcast('batch-tag-generation-complete');
           }
 
           // Close progress dialog if open
@@ -6368,12 +6189,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Add Image',
       click: async () => {
         try {
-          // In server mode: send event to renderer to show file input dialog (pass all paths for multi-edit)
-          if (global.broadcastEvent) {
-            global.broadcastEvent('add-image-request', filePaths);
-          } else {
-            event.sender.send('add-image-request', filePaths);
-          }
+          events.broadcast('add-image-request', filePaths);
         } catch (error) {
           console.error('Error adding image:', error);
           clientDialogs.messageBox(event, {
@@ -6398,7 +6214,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         // Check if model has at least one thumbnail
         const storedThumbnail = readThumbnailColumn(filePaths[0]);
         const thumbnails = storedThumbnail ? parseThumbnails(storedThumbnail).filter(t => t && t !== '3d.png' && t.length > 0 && t.startsWith('data:image')) : [];
-        
+
         if (thumbnails.length === 0) {
           await clientDialogs.messageBox(event, {
             type: 'info',
@@ -6408,13 +6224,8 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           });
           return;
         }
-        
-        // Send event to renderer to show manage thumbnails modal
-        if (global.broadcastEvent) {
-          global.broadcastEvent('manage-thumbnails-request', filePaths[0]);
-        } else {
-          event.sender.send('manage-thumbnails-request', filePaths[0]);
-        }
+
+        events.broadcast('manage-thumbnails-request', filePaths[0]);
       } catch (error) {
         console.error('Error opening manage thumbnails:', error);
         clientDialogs.messageBox(event, {
@@ -6444,11 +6255,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         if (confirmed) {
           try {
             deleteModelsByFilePaths(filePaths);
-            if (global.broadcastEvent) {
-              global.broadcastEvent('refresh-grid');
-            } else {
-              event.sender.send('refresh-grid');
-            }
+            events.broadcast('refresh-grid');
           } catch (error) {
             console.error('Error removing from library:', error);
           }
@@ -6468,11 +6275,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               console.error('Error deleting file:', error);
             }
           }
-          if (global.broadcastEvent) {
-            global.broadcastEvent('refresh-grid');
-          } else {
-            event.sender.send('refresh-grid');
-          }
+          events.broadcast('refresh-grid');
         }
       }
     }
@@ -8009,12 +7812,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     const onMessage = async (message) => {
       const { ok, json, error, type, message: statusMessage } = message || {};
       if (type === 'status') {
-        // Use global.sendEvent for server mode compatibility
-        if (global.broadcastEvent) {
-          global.broadcastEvent('3mf-preview-status', requestId, statusMessage);
-        } else if (event && event.sender) {
-          event.sender.send('3mf-preview-status', requestId, statusMessage);
-        }
+        events.broadcast('3mf-preview-status', requestId, statusMessage);
         return;
       }
 
@@ -8324,36 +8122,25 @@ ipcMain.handle('add-thumbnail', async (event, filePath, imageDataUrl) => {
     const currentThumbnail = readThumbnailColumn(filePath);
     const compressedImage = compressDataUrl(imageDataUrl);
     const thumbnailsWithNew = addThumbnailToModel(currentThumbnail, compressedImage);
-    
+
     // Parse thumbnails to get count and new index
     const thumbnails = parseThumbnails(thumbnailsWithNew);
     const newImageIndex = thumbnails.length - 1; // The new image is at the end
-    
+
     // Make the new image the default (move it to the front)
     const updatedThumbnail = setDefaultThumbnailIndex(thumbnailsWithNew, newImageIndex);
     await saveThumbnail(filePath, updatedThumbnail);
-    
+
     // Verify the save was successful
     const finalThumbnails = parseThumbnails(readThumbnailColumn(filePath) || '');
-    
-    // Send message to renderer to refresh the grid with updated thumbnail
-    // In server mode always broadcast so browser clients get the update (invoke may come via hidden window)
-    if (global.broadcastEvent) {
-      global.broadcastEvent('thumbnail-added', {
-        filePath: filePath,
-        thumbnailCount: finalThumbnails.length,
-        hasMultiple: finalThumbnails.length > 1,
-        newImageIsDefault: true
-      });
-    } else if (event && event.sender) {
-      event.sender.send('thumbnail-added', {
-        filePath: filePath,
-        thumbnailCount: finalThumbnails.length,
-        hasMultiple: finalThumbnails.length > 1,
-        newImageIsDefault: true
-      });
-    }
-    
+
+    events.broadcast('thumbnail-added', {
+      filePath: filePath,
+      thumbnailCount: finalThumbnails.length,
+      hasMultiple: finalThumbnails.length > 1,
+      newImageIsDefault: true
+    });
+
     return true;
   } catch (error) {
     console.error('Error adding thumbnail:', error);
@@ -8449,11 +8236,7 @@ ipcMain.handle('set-default-thumbnail', async (event, filePath, index) => {
       thumbnailCount: thumbs.length,
       defaultChanged: true
     };
-    if (global.broadcastEvent) {
-      global.broadcastEvent('thumbnail-default-changed', payload);
-    } else if (event && event.sender) {
-      event.sender.send('thumbnail-default-changed', payload);
-    }
+    events.broadcast('thumbnail-default-changed', payload);
     return true;
   } catch (error) {
     console.error('Error setting default thumbnail:', error);
@@ -8494,12 +8277,10 @@ ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
         filePath: filePath,
         thumbnailCount: thumbnails.length
       });
-    } else if (global.broadcastEvent) {
-      global.broadcastEvent('thumbnail-deleted', {
-        filePath: filePath,
-        thumbnailCount: thumbnails.length
-      });
-    }
+    } else events.broadcast('thumbnail-deleted', {
+      filePath: filePath,
+      thumbnailCount: thumbnails.length
+    });
     
     return true;
   } catch (error) {
@@ -8960,11 +8741,7 @@ const openFileInSlicerHandler = async (event, options = {}) => {
       entryPath: pathInfo.isZipEntry ? pathInfo.entryPath : null
     };
 
-    if (global.broadcastEvent) {
-      global.broadcastEvent('execute-client-command', commandPayload);
-    } else {
-      event.sender.send('execute-client-command', commandPayload);
-    }
+    events.broadcast('execute-client-command', commandPayload);
     return { success: true, serverMode: true, count: paths.length };
   }
 
