@@ -25,6 +25,7 @@ const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = re
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
 const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
+const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases } = require('./src/server/releases');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -4202,12 +4203,6 @@ async function createWindow() {
           }
         },
         {
-          label: 'FAQ',
-          click: async () => {
-            await shell.openExternal('https://printventory.com/faq.html');
-          }
-        },
-        {
           label: 'About',
           click: async () => {
             // Send event to renderer to open the about dialog
@@ -4228,12 +4223,6 @@ async function createWindow() {
           label: 'Patreon',
           click: async () => {
             await shell.openExternal('https://patreon.com/Printventory');
-          }
-        },
-        {
-          label: 'Support Printventory',
-          click: async () => {
-            await shell.openExternal('https://printventory.com/support.html');
           }
         },
         {
@@ -4530,12 +4519,6 @@ function createApplicationMenu() {
           }
         },
         {
-          label: 'FAQ',
-          click: async () => {
-            await shell.openExternal('https://printventory.com/faq.html');
-          }
-        },
-        {
           label: 'About',
           click: async () => {
             // Send event to renderer to open the about dialog
@@ -4556,12 +4539,6 @@ function createApplicationMenu() {
           label: 'Patreon',
           click: async () => {
             await shell.openExternal('https://patreon.com/Printventory');
-          }
-        },
-        {
-          label: 'Support Printventory',
-          click: async () => {
-            await shell.openExternal('https://printventory.com/support.html');
           }
         },
         {
@@ -12643,20 +12620,24 @@ async function checkForUpdates(isBeta = false) {
     }
 
     return new Promise((resolve, reject) => {
-      const versionUrl = isBeta ? 
-        'https://printventory.com/beta.version' : 
-        'https://printventory.com/public.version';
+      const versionUrl = releasesApiUrl(isBeta);
+      console.log('Main Process - Checking GitHub releases:', versionUrl);
 
-      console.log('Main Process - Checking version URL:', versionUrl);
-
-      https.get(versionUrl, (res) => {
+      https.get(versionUrl, {
+        // GitHub's API requires a User-Agent.
+        headers: { 'User-Agent': 'Printventory', Accept: 'application/vnd.github+json' }
+      }, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
-          const version = data.trim();
-          console.log('Main Process - Version check response:', version);
-          // Validate version format (e.g., "0.6.0")
-          if (/^\d+\.\d+(\.\d+)?$/.test(version)) {
+          let version = null;
+          try {
+            version = latestVersionFromReleases(JSON.parse(data), isBeta);
+          } catch (_) {
+            version = null;
+          }
+          console.log('Main Process - Latest release:', version, `(HTTP ${res.statusCode})`);
+          if (version) {
             console.log('Main Process - Valid version format received:', version);
             // Update the database with the latest version
             try {
@@ -12670,8 +12651,7 @@ async function checkForUpdates(isBeta = false) {
             }
             resolve(version);
           } else {
-            console.error('Invalid version format received:', version);
-            reject(new Error('Invalid version format'));
+            reject(new Error(`No release found (HTTP ${res.statusCode})`));
           }
         });
       }).on('error', (err) => {
@@ -12708,10 +12688,7 @@ ipcMain.handle('check-for-updates', async (event, isBeta) => {
 });
 
 ipcMain.handle('open-update-page', async (event, isBeta) => {
-  const url = isBeta ? 
-    'https://printventory.com/beta.html' : 
-    'https://printventory.com/public.html';
-  await shell.openExternal(url);
+  await shell.openExternal(releasesPageUrl(isBeta));
 });
 
 // Add new IPC handler for opening folder dialog

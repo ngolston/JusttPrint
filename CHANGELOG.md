@@ -4,6 +4,10 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+- printventory.com is no longer used. The update check reads GitHub Releases of ngolston/Printventory (beta users include pre-releases), and the update button opens the release page
+- Removed the FAQ and Support Printventory menu items, which opened printventory.com pages; the About link points to the GitHub repository
+- The beta release script and workflow no longer update the Printventory-Website repository; they only post the Discord announcement
+
 ## [2.3.0] - 2026-10-03
 
 **Before upgrading a Docker install:**

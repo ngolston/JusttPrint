@@ -69,7 +69,7 @@ The database and thumbnails are preserved during updates. Backups are automatica
 
 Printventory does not collect usage data. It only connects to outside services in these cases:
 
-- **Update check**: on startup, after the terms are accepted, it fetches the latest version number from `printventory.com`. Turn this off under **About → Updates**.
+- **Update check**: on startup, after the terms are accepted, it asks GitHub for the latest release of `ngolston/Printventory`. Turn this off under **About → Updates**.
 - **AI tagging**: when you use it, the model's thumbnail, file name and folder names go to the AI service you configured (OpenAI-compatible endpoint or Puter).
 - **Support logs**: only when you choose **Send Support Logs** and confirm. API keys and webhook URLs are removed from the logs before upload.
 - **Page imports and Spoolman**: when you import from a model website or sync filaments, it contacts that site or your Spoolman server.

@@ -61,7 +61,7 @@ docs/        GUIDE.md, guide/ images
   - [x] Mentions in the README, guide and privacy text.
 - [x] **Delete the `CollectUsage` and `ClientId` settings from existing databases.**
 - [x] **Review the other outgoing connections** (documented under *Network Connections* in the README; the update check can be turned off under About → Updates and waits for the terms):
-  - The version check to printventory.com: keep it, but make it optional.
+  - The version check: optional, and since 2.3.0 it reads GitHub Releases (printventory.com is no longer used).
   - Puter AI.
   - The support-log webhook.
 
@@ -159,6 +159,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [ ] **Update docs**: rewrite the README install section for Docker only (the version number was fixed in 2.3.0).
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
+- [ ] **Update the Discord beta announcement** (`scripts/publish-beta-release.js`): it links desktop installers on printventory.techjeeper.com, which a Docker-only project no longer builds. Link the GitHub release and Docker image instead.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 

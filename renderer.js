@@ -7026,9 +7026,6 @@ async function createServerMenuBar() {
       const dialog = document.getElementById('keyboard-shortcuts-dialog');
       if (dialog) dialog.showModal();
     }},
-    { label: 'FAQ', action: () => {
-      window.electron.openExternal('https://printventory.com/faq.html');
-    }},
     { label: 'About', action: async () => {
       const aboutDialog = document.getElementById('about-dialog');
       if (!aboutDialog) return;
@@ -7048,9 +7045,6 @@ async function createServerMenuBar() {
     }},
     { label: 'Patreon', action: () => {
       window.electron.openExternal('https://patreon.com/Printventory');
-    }},
-    { label: 'Support Printventory', action: () => {
-      window.electron.openExternal('https://printventory.com/support.html');
     }},
     { label: 'GitHub', action: () => {
       window.electron.openExternal('https://github.com/TechJeeper/Printventory');
@@ -8755,7 +8749,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Website link handler
   document.getElementById('website-link')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    await window.electron.openExternal('https://printventory.com');
+    await window.electron.openExternal('https://github.com/ngolston/Printventory');
   });
 
   // Initialize new designer dialog handlers

@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 /**
- * Publish a Printventory beta release to:
- * 1. Printventory-Website (beta.version + beta.change on GitHub main)
- * 2. Discord #latest-builds via Printventory-Build bot (announcement + @beta-testers)
+ * Announce a Printventory beta release in Discord #latest-builds via the Printventory-Build bot
+ * (announcement + @beta-testers).
  *
- * Requires GITHUB_TOKEN (PAT with repo write on Printventory-Website).
  * Discord bot credentials: scripts/.discord (ApplicationID / PublicKey / BotToken)
  *   or DISCORD_BOT_TOKEN env override.
  *
  * Usage:
- *   GITHUB_TOKEN=... node scripts/publish-beta-release.js --changelog "- Fix foo\n- Fix bar"
- *   node scripts/publish-beta-release.js --website-only --changelog "Fix foo"
- *   node scripts/publish-beta-release.js --discord-only --changelog "- Fix foo"
+ *   node scripts/publish-beta-release.js --changelog "- Fix foo\n- Fix bar"
  *   node scripts/publish-beta-release.js --dry-run --changelog "- Fix foo"
  */
 
@@ -24,7 +20,6 @@ const LEGACY_DISCORD_CONFIG_PATH = path.join(__dirname, 'discord-latest-builds.c
 const DISCORD_CREDENTIALS_PATH = path.join(__dirname, '.discord');
 const PACKAGE_PATH = path.join(__dirname, '..', 'package.json');
 const DISCORD_API = 'https://discord.com/api/v10';
-const GITHUB_API = 'https://api.github.com';
 
 function deepMerge(base, override) {
   const result = { ...base };
@@ -46,11 +41,6 @@ function loadConfig() {
   } else if (fs.existsSync(LEGACY_DISCORD_CONFIG_PATH)) {
     const legacy = JSON.parse(fs.readFileSync(LEGACY_DISCORD_CONFIG_PATH, 'utf8'));
     config = {
-      website: {
-        owner: 'TechJeeper',
-        repo: 'Printventory-Website',
-        branch: 'main',
-      },
       discord: legacy,
     };
   }
@@ -105,19 +95,13 @@ function parseArgs(argv) {
     version: null,
     changelog: null,
     dryRun: false,
-    websiteOnly: false,
-    discordOnly: false,
-    skipWebsite: false,
-    skipDiscord: false,
   };
 
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--dry-run') args.dryRun = true;
-    else if (arg === '--website-only') args.websiteOnly = true;
-    else if (arg === '--discord-only') args.discordOnly = true;
-    else if (arg === '--skip-website') args.skipWebsite = true;
-    else if (arg === '--skip-discord') args.skipDiscord = true;
+    // Kept so older npm scripts and workflows keep working; Discord is the only target now.
+    else if (arg === '--discord-only') continue;
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--changelog') args.changelog = argv[++i];
     else if (arg === '--discord-init' || arg === '--init') {
@@ -129,11 +113,7 @@ function parseArgs(argv) {
 Options:
   --version <semver>     Version to publish (default: package.json)
   --changelog <text>     Changelog lines (markdown bullets or plain lines)
-  --dry-run              Print changes without calling GitHub or Discord
-  --website-only         Update Printventory-Website only
-  --discord-only         Post Discord #latest-builds announcement only
-  --skip-website         Skip website update
-  --skip-discord         Skip Discord update
+  --dry-run              Print the announcement without posting it
   --help                 Show this help
 
 Discord auth:
@@ -146,21 +126,7 @@ Discord auth:
     }
   }
 
-  if (args.websiteOnly && args.discordOnly) {
-    console.error('Use only one of --website-only or --discord-only.');
-    process.exit(1);
-  }
-
   return args;
-}
-
-function resolveTargets(args) {
-  if (args.websiteOnly) return { website: true, discord: false };
-  if (args.discordOnly) return { website: false, discord: true };
-  return {
-    website: !args.skipWebsite,
-    discord: !args.skipDiscord,
-  };
 }
 
 function normalizeChangelogInput(raw) {
@@ -183,25 +149,6 @@ function parseReleaseBody(body) {
     }
   }
   return bullets.length > 0 ? bullets : normalizeChangelogInput(body);
-}
-
-function bulletsToPlainLines(bullets) {
-  return bullets.map((line) => line.replace(/^-\s*/, '').trim()).filter(Boolean);
-}
-
-function buildWebsiteChangeSection(version, bullets) {
-  const lines = bulletsToPlainLines(bullets);
-  if (lines.length === 0) {
-    return `${version}\nRelease ${version}\n\n`;
-  }
-  return `${version}\n${lines.join('\n')}\n\n`;
-}
-
-function prependWebsiteChange(existingContent, version, bullets) {
-  const section = buildWebsiteChangeSection(version, bullets);
-  const trimmed = (existingContent || '').trim();
-  if (!trimmed) return section;
-  return `${section}${trimmed}\n`;
 }
 
 function buildDownloadLinks(version, baseUrl) {
@@ -232,16 +179,6 @@ function buildDiscordAnnouncement(version, baseUrl, bullets, roleId) {
   ].join('\n');
 }
 
-function requireGithubToken() {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    console.error('GITHUB_TOKEN is not set.');
-    console.error('Use a PAT with repo write access to TechJeeper/Printventory-Website.');
-    process.exit(1);
-  }
-  return token;
-}
-
 function resolveDiscordBotToken(discordConfig) {
   const fromEnv = process.env.DISCORD_BOT_TOKEN || null;
   if (fromEnv) return fromEnv;
@@ -264,104 +201,6 @@ function applyDiscordEnv(discordConfig) {
     betaTestersRoleId: process.env.DISCORD_BETA_TESTERS_ROLE_ID || discordConfig.betaTestersRoleId,
     betaTestersRoleName: process.env.DISCORD_BETA_TESTERS_ROLE_NAME || discordConfig.betaTestersRoleName || 'beta-testers',
   };
-}
-
-function githubHeaders(token) {
-  return {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json',
-  };
-}
-
-async function githubRequest(method, url, token, body) {
-  const response = await fetch(url, {
-    method,
-    headers: githubHeaders(token),
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await response.text();
-  let data = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-  }
-
-  if (!response.ok) {
-    const detail = typeof data === 'object' ? JSON.stringify(data) : data;
-    throw new Error(`GitHub API ${method} ${url} failed (${response.status}): ${detail}`);
-  }
-
-  return data;
-}
-
-async function getWebsiteFile(token, websiteConfig, filePath) {
-  const { owner, repo, branch } = websiteConfig;
-  const url = `${GITHUB_API}/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
-  const data = await githubRequest('GET', url, token);
-  const content = Buffer.from(data.content, 'base64').toString('utf8');
-  return { content, sha: data.sha };
-}
-
-async function putWebsiteFile(token, websiteConfig, filePath, content, sha, message) {
-  const { owner, repo, branch } = websiteConfig;
-  const url = `${GITHUB_API}/repos/${owner}/${repo}/contents/${filePath}`;
-  await githubRequest('PUT', url, token, {
-    message,
-    content: Buffer.from(content, 'utf8').toString('base64'),
-    sha,
-    branch,
-  });
-}
-
-async function updateWebsiteBeta(token, websiteConfig, version, bullets, dryRun) {
-  if (dryRun && !token) {
-    console.log('--- Printventory-Website beta.version ---');
-    console.log(`${version}\n`);
-    console.log('\n--- Printventory-Website beta.change ---');
-    console.log(buildWebsiteChangeSection(version, bullets) + '...(existing changelog preserved)\n');
-    return;
-  }
-
-  const [versionFile, changeFile] = await Promise.all([
-    getWebsiteFile(token, websiteConfig, 'beta.version'),
-    getWebsiteFile(token, websiteConfig, 'beta.change'),
-  ]);
-
-  const newVersion = `${version}\n`;
-  const newChange = prependWebsiteChange(changeFile.content, version, bullets);
-
-  if (dryRun) {
-    console.log('--- Printventory-Website beta.version ---');
-    console.log(newVersion);
-    console.log('\n--- Printventory-Website beta.change ---');
-    console.log(newChange);
-    return;
-  }
-
-  console.log(`Updating ${websiteConfig.owner}/${websiteConfig.repo} beta files for v${version}...`);
-  await putWebsiteFile(
-    token,
-    websiteConfig,
-    'beta.version',
-    newVersion,
-    versionFile.sha,
-    `Bump beta version to ${version}`
-  );
-  await putWebsiteFile(
-    token,
-    websiteConfig,
-    'beta.change',
-    newChange,
-    changeFile.sha,
-    `Update beta changelog for ${version}`
-  );
-  console.log('Website beta files updated.');
 }
 
 function discordHeaders(token) {
@@ -484,9 +323,7 @@ async function main() {
   const args = parseArgs(process.argv);
   const config = loadConfig();
   const version = loadVersion(args.version);
-  const targets = resolveTargets(args);
   const discordConfig = applyDiscordEnv(config.discord || {});
-  const websiteConfig = config.website;
 
   const changelogSource =
     args.changelog ||
@@ -504,35 +341,11 @@ async function main() {
     process.exit(1);
   }
 
-  let hadError = false;
+  const discordToken = args.dryRun
+    ? process.env.DISCORD_BOT_TOKEN || loadDiscordBotCredentials(discordConfig).botToken || null
+    : resolveDiscordBotToken(discordConfig);
 
-  if (targets.website) {
-    try {
-      const githubToken = process.env.GITHUB_TOKEN || null;
-      if (!args.dryRun && !githubToken) {
-        requireGithubToken();
-      }
-      await updateWebsiteBeta(githubToken, websiteConfig, version, bullets, args.dryRun);
-    } catch (error) {
-      hadError = true;
-      console.error(`Website update failed: ${error.message || error}`);
-    }
-  }
-
-  if (targets.discord) {
-    try {
-      const discordToken = args.dryRun
-        ? process.env.DISCORD_BOT_TOKEN || loadDiscordBotCredentials(discordConfig).botToken || null
-        : resolveDiscordBotToken(discordConfig);
-
-      await updateDiscordLatestBuilds(discordConfig, discordToken, version, bullets, args.dryRun);
-    } catch (error) {
-      hadError = true;
-      console.error(`Discord update failed: ${error.message || error}`);
-    }
-  }
-
-  if (hadError) process.exit(1);
+  await updateDiscordLatestBuilds(discordConfig, discordToken, version, bullets, args.dryRun);
 }
 
 main().catch((error) => {

@@ -54,6 +54,7 @@
     "test:server-paths": "node server-paths.test.js",
     "test:env-settings": "node env-settings.test.js",
     "test:electron-shim": "node src/server/electron-shim.test.js",
+    "test:releases": "node src/server/releases.test.js",
     "start:server:node": "node src/server/index.js",
     "test:full": "playwright test full-app-e2e.spec.js",
     "test:dedup-stress": "node tests/dedup-stress-test.js"
@@ -230,6 +231,7 @@
       "server-auth.js",
       "server-paths.js",
       "env-settings.js",
+      "src/**/*",
       "extension-inbox.js",
       "mcp-server.js",
       "installer.nsh",
