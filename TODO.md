@@ -52,9 +52,9 @@ docs/        GUIDE.md, guide/ images
 - [ ] **`node-forge` (via `acme-client`)**: no fixed release exists yet (1.4.0 is the latest). Only used to create Let's Encrypt requests, not to verify untrusted signatures. Update when a fix ships.
 - [x] **Add security headers**: `frame-ancestors`/`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `object-src 'none'`, `base-uri`, `form-action`; removed `X-Powered-By`.
 - [ ] **Add `script-src` to the Content Security Policy.** Needs the inline `<script>` blocks and `onclick=` attributes moved into files first (fits with splitting `renderer.js`, section 5).
-- [ ] **Resolve symlinks before the library-folder check.** A symlink inside a library folder can still point outside it.
-- [ ] **Make the login rate limit work behind a reverse proxy.** It counts failures per IP, so behind a proxy all users share one counter. Use `X-Forwarded-For` only when a trusted-proxy setting is on.
-- [ ] **Decide on the legacy `/api/extension-upload` route.** Older extension builds that upload over HTTP have no token and now get 401. Remove the route or let the extension send the API token.
+- [x] **Resolve symlinks before the library-folder check.** Paths must be inside the library both as written and after following links; this also covers move destinations, write targets and new scan folders.
+- [x] **Make the login rate limit work behind a reverse proxy.** `PRINTVENTORY_TRUST_PROXY` (hop count, `true`, or addresses) makes it use the client address from `X-Forwarded-For`; off by default.
+- [x] **Remove the legacy `/api/extension-upload` route.** No extension build since 2.2.4 uses it (they use the inbox folder), and it silently overwrote files. Removed with its IPC handler, setting and `EXTENSION_UPLOAD_DIR`. Web uploads come back properly as a section 8 feature.
 
 ## 🟠 2. High: remove usage tracking, and privacy
 

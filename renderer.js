@@ -11795,13 +11795,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dialog = document.getElementById('browser-extension-settings-dialog');
     if (!dialog) return null;
     const inboxDir = await window.electron.getSetting('extensionInboxDirectory');
-    const uploadDir = await window.electron.getSetting('extensionUploadDirectory');
     const clientPrefix = await window.electron.getSetting('extensionClientPathPrefix');
     const containerPrefix = await window.electron.getSetting('extensionContainerPathPrefix');
     const copyToNas = await window.electron.getSetting('extensionCopyToNasPath');
     const lastStatus = await window.electron.getSetting('extensionInboxLastStatus');
     const inboxInput = document.getElementById('extension-inbox-directory');
-    const uploadDirInput = document.getElementById('extension-upload-directory');
     const clientPrefixInput = document.getElementById('extension-client-path-prefix');
     const containerPrefixInput = document.getElementById('extension-container-path-prefix');
     const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
@@ -11813,7 +11811,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (def) inboxInput.placeholder = def;
       }
     }
-    if (uploadDirInput) uploadDirInput.value = uploadDir || '';
     if (clientPrefixInput) clientPrefixInput.value = clientPrefix || '';
     if (containerPrefixInput) containerPrefixInput.value = containerPrefix || '';
     if (copyToNasInput) copyToNasInput.value = copyToNas || '';
@@ -11854,12 +11851,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('save-browser-extension-settings')?.addEventListener('click', async (event) => {
     event.preventDefault();
     const inboxInput = document.getElementById('extension-inbox-directory');
-    const uploadDirInput = document.getElementById('extension-upload-directory');
     const clientPrefixInput = document.getElementById('extension-client-path-prefix');
     const containerPrefixInput = document.getElementById('extension-container-path-prefix');
     const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
     await window.electron.saveSetting('extensionInboxDirectory', (inboxInput?.value || '').trim());
-    await window.electron.saveSetting('extensionUploadDirectory', (uploadDirInput?.value || '').trim());
     await window.electron.saveSetting('extensionClientPathPrefix', (clientPrefixInput?.value || '').trim());
     await window.electron.saveSetting('extensionContainerPathPrefix', (containerPrefixInput?.value || '').trim());
     await window.electron.saveSetting('extensionCopyToNasPath', (copyToNasInput?.value || '').trim());

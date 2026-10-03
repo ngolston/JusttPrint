@@ -2,6 +2,7 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
 const { isServableStaticPath, isLibraryPathAllowed } = require('./server-paths');
 
 function test(name, fn) {
@@ -136,4 +137,32 @@ test('MCP tools that write files only write to the library or the data folder', 
   refused(() => assertMcpToolArgs('trash_file', { filePath: '/etc/passwd', confirm: true }, guardCtx));
   refused(() => assertMcpToolArgs('move_files', { filePaths: ['/mnt/library/a.stl'], destinationFolder: '/tmp' }, guardCtx));
   refused(() => assertMcpToolArgs('scan_directory', { directory: '/etc' }, guardCtx));
+});
+
+test('symlinks that leave the library are refused', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'pv-links-'));
+  try {
+    const lib = path.join(base, 'library');
+    const outside = path.join(base, 'outside');
+    fs.mkdirSync(path.join(lib, 'models'), { recursive: true });
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(lib, 'models', 'a.stl'), 'solid');
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret');
+    fs.symlinkSync(outside, path.join(lib, 'escape'));
+    fs.symlinkSync(path.join(lib, 'models'), path.join(lib, 'alias'));
+    const ctx = { roots: [lib], realpath: (p) => fs.realpathSync.native(p) };
+    assert.ok(isLibraryPathAllowed(path.join(lib, 'models', 'a.stl'), ctx));
+    assert.ok(isLibraryPathAllowed(path.join(lib, 'alias', 'a.stl'), ctx), 'a link that stays inside is fine');
+    assert.ok(!isLibraryPathAllowed(path.join(lib, 'escape', 'secret.txt'), ctx));
+    assert.ok(!isLibraryPathAllowed(path.join(lib, 'escape', 'not-yet.txt'), ctx), 'missing files are resolved through their parent');
+    const guard = { ...ctx, appDir: '/app', dataDir: '/data' };
+    assert.throws(() => assertNetworkIpcArgs('move-files', [[path.join(lib, 'models', 'a.stl')], path.join(lib, 'escape')], guard), /outside the library/);
+    assert.throws(() => assertMcpToolArgs('export_library', { destPath: path.join(lib, 'escape', 'x.json') }, guard), /Can only write/);
+    fs.symlinkSync('/etc', path.join(lib, 'etc-link'));
+    assert.throws(() => assertNetworkIpcArgs('scan-directory', [path.join(lib, 'etc-link')], guard), /cannot be scanned/);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
 });

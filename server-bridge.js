@@ -512,7 +512,6 @@
     'getModelsFiltered': 'get-models-filtered',
     'getFolderTree': 'get-folder-tree',
     'saveModel': 'save-model',
-    'saveModelFromUpload': 'save-model-from-upload',
     'saveModelBatch': 'save-model-batch',
     'updateModelsBatch': 'update-models-batch',
     'saveThumbnail': 'save-thumbnail',

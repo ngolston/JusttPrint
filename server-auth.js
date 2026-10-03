@@ -128,6 +128,18 @@ function originAllowed(req, extraOrigins = []) {
   return hosts.includes(parsed.host.toLowerCase());
 }
 
+/**
+ * Value for Express "trust proxy" from PRINTVENTORY_TRUST_PROXY: a hop count ("1"),
+ * "true", or addresses/subnets ("loopback, 10.0.0.0/8"). Unset or "false": trust no proxy.
+ */
+function parseTrustProxy(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text || text.toLowerCase() === 'false' || text === '0') return false;
+  if (text.toLowerCase() === 'true') return true;
+  if (/^\d+$/.test(text)) return Number(text);
+  return text.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -445,5 +457,6 @@ module.exports = {
   verifyPasswordHash,
   originAllowed,
   parseCookies,
+  parseTrustProxy,
   safeNextPath
 };

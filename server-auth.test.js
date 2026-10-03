@@ -196,3 +196,13 @@ test('post-login redirects stay on this site', () => {
 test('cookies parse with encoded values', () => {
   assert.deepStrictEqual(parseCookies(`a=1; ${SESSION_COOKIE}=x%2Ey`), { a: '1', [SESSION_COOKIE]: 'x.y' });
 });
+
+test('PRINTVENTORY_TRUST_PROXY parses hops, true, and address lists', () => {
+  const { parseTrustProxy } = require('./server-auth');
+  assert.strictEqual(parseTrustProxy(undefined), false);
+  assert.strictEqual(parseTrustProxy('false'), false);
+  assert.strictEqual(parseTrustProxy('0'), false);
+  assert.strictEqual(parseTrustProxy('1'), 1);
+  assert.strictEqual(parseTrustProxy('true'), true);
+  assert.deepStrictEqual(parseTrustProxy('loopback, 10.0.0.0/8'), ['loopback', '10.0.0.0/8']);
+});

@@ -14,6 +14,9 @@ All notable changes contributed via pull request are documented in this file.
 - Security headers on every response, and `X-Powered-By` removed
 - Replaced the abandoned `xmldom` with `@xmldom/xmldom`, updated Puppeteer to 25, and applied the other dependency security fixes
 - The Docker image builds without `support-webhook.json`; Send Support Logs then uses `DISCORD_WEBHOOK_URL`
+- Symlinks inside the library cannot be used to read or write files outside it
+- `PRINTVENTORY_TRUST_PROXY` lets the login rate limit see real client addresses behind a reverse proxy
+- Removed the legacy `/api/extension-upload` route and its upload-directory setting (`EXTENSION_UPLOAD_DIR`). The extension uses the inbox folder
 - Usage tracking (GoatCounter) is removed, and old tracking settings are deleted from the database
 - The startup update check waits for the terms to be accepted, follows the beta channel for beta users, and can be turned off under About → Updates
 

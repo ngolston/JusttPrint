@@ -63,17 +63,48 @@ function isInsideOrSame(filePath, directory) {
 }
 
 /**
+ * Where a path really points: follows symlinks. For a path that does not exist yet,
+ * resolves the nearest existing parent and keeps the rest.
+ */
+function realLocation(filePath, realpath) {
+  if (!realpath) return filePath;
+  let current = String(filePath);
+  const rest = [];
+  for (let depth = 0; depth < 128; depth++) {
+    try {
+      const real = realpath(current);
+      return rest.length ? path.join(real, ...rest.reverse()) : real;
+    } catch (_) {
+      const parent = path.dirname(current);
+      if (parent === current) return filePath;
+      rest.push(path.basename(current));
+      current = parent;
+    }
+  }
+  return filePath;
+}
+
+/** Inside a root both as written and after following symlinks. */
+function isInsideRoots(filePath, roots, realpath) {
+  if (!roots.some((root) => isInsideOrSame(filePath, root))) return false;
+  if (!realpath) return true;
+  const real = realLocation(filePath, realpath);
+  return roots.some((root) => isInsideOrSame(real, realLocation(root, realpath)));
+}
+
+/**
  * @param {string} filePath Absolute path requested by the client (zip entries: the archive path).
  * @param {object} ctx
  * @param {string[]} ctx.roots Library folders (scanned directories, STL Home, last scan).
  * @param {(filePath: string) => boolean} [ctx.isKnownModel] Exact match against stored models.
  * @param {string} [ctx.generatedDir] Folder where backups and exports are written.
  * @param {(filePath: string) => boolean} [ctx.isExtractTemp] The app's own zip-extract temp files.
+ * @param {(filePath: string) => string} [ctx.realpath] Follows symlinks (fs.realpathSync). Without it, paths are compared as written.
  */
-function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false, generatedDir = '', isExtractTemp = () => false } = {}) {
+function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false, generatedDir = '', isExtractTemp = () => false, realpath = null } = {}) {
   const raw = String(filePath || '');
   if (!raw || raw.includes('\0')) return false;
-  if (roots.some((root) => isInsideOrSame(raw, root))) return true;
+  if (isInsideRoots(raw, roots, realpath)) return true;
   if (isExtractTemp(raw)) return true;
   if (generatedDir && compareKey(path.dirname(raw)) === compareKey(generatedDir) && SERVER_GENERATED_FILE.test(path.basename(raw))) {
     return true;
@@ -178,9 +209,9 @@ function assertNetworkPathAllowed(kind, value, ctx) {
       throw new Error(`Path is outside the library folders: ${text}`);
     }
   };
-  const blockedRoot = (dir) => isSystemDirectory(dir)
-    || (ctx.appDir && isInsideOrSame(dir, ctx.appDir))
-    || (ctx.dataDir && isInsideOrSame(dir, ctx.dataDir));
+  const blockedRoot = (dir) => [dir, realLocation(dir, ctx.realpath)].some((candidate) => isSystemDirectory(candidate)
+    || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir))
+    || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir)));
 
   switch (kind) {
     case 'file':
@@ -197,7 +228,7 @@ function assertNetworkPathAllowed(kind, value, ctx) {
       return;
     }
     case 'dir':
-      if (!(ctx.roots || []).some((root) => isInsideOrSame(value, root)) || blockedRoot(value)) {
+      if (!isInsideRoots(value, ctx.roots || [], ctx.realpath) || blockedRoot(value)) {
         throw new Error(`Folder is outside the library folders: ${value}`);
       }
       return;
@@ -214,7 +245,7 @@ function assertNetworkPathAllowed(kind, value, ctx) {
       return;
     case 'dest': {
       const parent = path.dirname(String(value));
-      const inLibrary = (ctx.roots || []).some((root) => isInsideOrSame(parent, root));
+      const inLibrary = isInsideRoots(parent, ctx.roots || [], ctx.realpath);
       const inData = ctx.generatedDir && compareKey(parent) === compareKey(ctx.generatedDir);
       if ((!inLibrary && !inData) || (inLibrary && blockedRoot(parent))) {
         throw new Error(`Can only write inside the library folders or the data folder: ${value}`);

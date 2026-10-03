@@ -23,7 +23,7 @@ const extensionInbox = require('./extension-inbox');
 const { detectInstalledSlicers } = require('./slicer-detect');
 const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
-const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH } = require('./server-auth');
+const { createServerAuth, SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy } = require('./server-auth');
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
   normalizeExcludeNames,
@@ -577,6 +577,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   const auth = getServerAuth();
   auth.ensureCredentials();
   expressApp.disable('x-powered-by');
+  // Behind a reverse proxy, req.ip (login rate limit) comes from X-Forwarded-For only when trusted.
+  expressApp.set('trust proxy', parseTrustProxy(process.env.PRINTVENTORY_TRUST_PROXY));
   expressApp.use((req, res, next) => {
     // No script-src yet: the UI still relies on inline scripts and onclick handlers.
     res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
@@ -696,20 +698,6 @@ ${bridgeCode}
       }
     }
   })));
-
-  // Extension upload: accept file bytes + metadata, write to configured directory (e.g. NAS), then saveModel
-  expressApp.post('/api/extension-upload', async (req, res) => {
-    try {
-      const result = await saveModelFromUpload(req.body || {});
-      res.status(200).json(result || { success: true });
-    } catch (err) {
-      console.error('Extension upload error:', err);
-      const msg = err && err.message ? err.message : 'Upload failed';
-      if (msg.includes('not configured')) res.status(400).json({ error: msg });
-      else if (msg.includes('Invalid') || msg.includes('Empty') || msg.includes('Missing')) res.status(400).json({ error: msg });
-      else res.status(500).json({ error: msg });
-    }
-  });
 
   // Serve files via HTTP for server mode (UNC paths or Docker-mounted paths)
   expressApp.get('/api/file/*', (req, res) => {
@@ -1638,6 +1626,7 @@ function networkPathContext() {
     appDir: __dirname,
     dataDir,
     isExtractTemp: (candidate) => isPrintventoryExtractTempPath(candidate),
+    realpath: (candidate) => fs.realpathSync.native(candidate),
     isKnownModel: (candidate) => !!(db && db.prepare('SELECT 1 FROM models WHERE filePath = ? LIMIT 1').get(candidate))
   };
 }
@@ -3127,12 +3116,11 @@ if (!gotTheLock) {
         console.error('Error updating currentVersion in database:', versionError);
       }
 
-      // STL_HOME / EXTENSION_UPLOAD_DIR: seed from env when the setting is empty, or always when
+      // STL_HOME: seed from env when the setting is empty, or always when
       // PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1 (legacy Docker behavior). Otherwise UI changes persist
       // across container restarts instead of being overwritten every startup.
       applyStlHomeEnvIfNeeded(process.env.STL_HOME);
       applyStlHomeExcludeEnvIfNeeded(process.env.STL_HOME_EXCLUDE);
-      applyDockerEnvSettingIfNeeded('extensionUploadDirectory', process.env.EXTENSION_UPLOAD_DIR);
       applyDockerEnvSettingIfNeeded('serverHttpPort', process.env.PRINTVENTORY_PORT);
 
       // Clear leftover zip-extract temps off the critical path (can readdir a busy OS temp)
@@ -5218,9 +5206,6 @@ ipcMain.handle('save-model', async (event, modelData) => {
   return await saveModel(modelData);
 });
 
-ipcMain.handle('save-model-from-upload', async (event, payload) => {
-  return await saveModelFromUpload(payload);
-});
 
 ipcMain.handle('save-model-batch', async (event, modelDataBatch) => {
   return await saveModelBatch(modelDataBatch);
@@ -14372,41 +14357,6 @@ async function saveModel(modelData) {
 // Register save-model for Chrome extension (WebSocket works in normal and server mode)
 ipcHandlerRegistry.set('save-model', async (event, modelData) => await saveModel(modelData));
 
-// Extension upload: write file to configured directory then saveModel (used by POST /api/extension-upload and IPC)
-async function saveModelFromUpload(payload) {
-  if (!db) throw new Error('Database not ready');
-  const { fileBase64, fileName: requestedFileName, designer, source, notes, parentModel, license } = payload || {};
-  if (!fileBase64 || typeof fileBase64 !== 'string') throw new Error('Missing or invalid fileBase64');
-  const uploadDirRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('extensionUploadDirectory');
-  let uploadDir = (uploadDirRow && uploadDirRow.value) ? String(uploadDirRow.value).trim() : '';
-  if (!uploadDir && process.env.EXTENSION_UPLOAD_DIR) uploadDir = String(process.env.EXTENSION_UPLOAD_DIR).trim();
-  if (!uploadDir) throw new Error('Extension upload directory not configured. Set Settings > Chrome Extension > Upload directory, or EXTENSION_UPLOAD_DIR in Docker.');
-  const baseName = requestedFileName && path.basename(String(requestedFileName).trim()) || 'model.stl';
-  const safeFileName = baseName.replace(/[<>:"/\\|?*]/g, '_') || 'model.stl';
-  const resolvedUploadDir = path.resolve(uploadDir);
-  const targetPath = path.join(resolvedUploadDir, safeFileName);
-  const targetPathResolved = path.resolve(targetPath);
-  if (!targetPathResolved.startsWith(resolvedUploadDir)) throw new Error('Invalid path');
-  if (!fs.existsSync(resolvedUploadDir)) fs.mkdirSync(resolvedUploadDir, { recursive: true });
-  let buffer;
-  try {
-    buffer = Buffer.from(fileBase64, 'base64');
-  } catch (e) {
-    throw new Error('Invalid base64 file content');
-  }
-  if (buffer.length === 0) throw new Error('Empty file');
-  fs.writeFileSync(targetPathResolved, buffer);
-  return await saveModel({
-    filePath: targetPathResolved,
-    fileName: safeFileName,
-    designer: designer || null,
-    source: source || null,
-    notes: notes || null,
-    parentModel: parentModel || null,
-    license: license || null
-  });
-}
-ipcHandlerRegistry.set('save-model-from-upload', async (event, payload) => await saveModelFromUpload(payload));
 
 // Add this function before saveModel
 function verifyDatabaseIntegrity() {

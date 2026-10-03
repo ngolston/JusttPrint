@@ -126,6 +126,7 @@ Server Mode requires a password. Browsers log in once and stay logged in for 30 
 - **Change it**: **Tools → Server Access** (password at least 8 characters). Changing it logs out every browser.
 - **MCP clients and scripts**: send `Authorization: Bearer <API token>`. The token is shown under **Tools → Server Access**, and the client config under **MCP Server → Settings** already includes it.
 - **Send to Slicer helper**: links carry a download token that expires after 15 minutes. Helpers installed before login was added must be reinstalled from **Settings → Slicer**.
+- **Login rate limit behind a proxy**: set `PRINTVENTORY_TRUST_PROXY=1` (number of proxies in front, or their addresses such as `loopback, 10.0.0.0/8`) so failed logins are counted per real client. Leave it unset when the container is reached directly.
 - **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `PRINTVENTORY_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
 
 The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates. From the browser and MCP, deleting, moving and reading files works only inside the library, and system folders (such as `/etc`, `/usr` or the app's own folders) cannot be scanned or used as an Organize Library destination.
