@@ -228,6 +228,8 @@ async function apiChecks(base, wsUrl) {
   check('part saved and listed', !!savedPart && ((await ask('get-all-parts')).result || []).some((p) => p.id === savedPart.id && p.quantity === 12));
   const filament = (await ask('save-filament', [{ name: 'E2E PLA', material: 'PLA', color_hex: 'ff0000' }])).result;
   check('filament saved and listed', !!filament && ((await ask('get-all-filaments')).result || []).some((f) => f.id === filament.id && f.name === 'E2E PLA'));
+  const prompt = await ask('get-default-ai-prompt');
+  check('default AI prompt', typeof prompt.result === 'string' && prompt.result.length > 0, prompt.error);
   const logged = (await ask('log-print-event', [{ filePath: cube, outcome: 'printed', quantity: 1 }])).result;
   const events = logged && logged.eventId && (await ask('get-print-events', [logged.model && logged.model.id])).result;
   check('print event logged and listed', Array.isArray(events) && events.some((e) => e.id === logged.eventId), JSON.stringify(logged));
