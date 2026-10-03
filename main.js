@@ -29,6 +29,8 @@ const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases, PROJECT_URL } = require('./src/server/releases');
 const { createClientDialogs, RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./src/server/client-dialogs');
 
+const { dedupePathList, excludeDirectoriesSettingIsEmpty, getLibraryRootPaths, getScanExcludeNames, isUrlModel, parseExcludePathList, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('./src/core/library-paths');
+
 // Message boxes and prompts the server shows in the browser that made the request.
 const clientDialogs = createClientDialogs();
 const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
@@ -266,16 +268,6 @@ function isDockerContainer() {
   const cgroupContainsDocker = hasCgroup && fs.readFileSync('/proc/self/cgroup', 'utf8').includes('docker');
   const result = hasDockerenv || cgroupContainsDocker;
   return result;
-}
-
-/** Library files are absolute container paths (e.g. /mnt/models/part.stl). */
-function validateUncPath(path, operation = 'operation') {
-  if (isUrlModel(path)) {
-    return; // URL-only models (from extension) have no file path to validate
-  }
-  if (typeof path !== 'string' || !path.startsWith('/')) {
-    throw new Error(`${operation}: expected an absolute path inside the container (e.g. /mnt/models/part.stl), got "${path}".`);
-  }
 }
 
 
@@ -2287,7 +2279,7 @@ function getMcpToolContext() {
             failed.push({ filePath, error: 'Zip entries cannot be trashed; use remove_model to drop the library row.' });
             continue;
           }
-          validateUncPath(filePath, 'trash-file');
+          assertContainerPath(filePath, 'trash-file');
           if (!isUrlModel(filePath)) {
             await shell.trashItem(filePath.replace(/\\/g, '/'));
           }
@@ -2323,7 +2315,7 @@ function getMcpToolContext() {
       const moved = [];
       for (const filePath of filePaths) {
         if (String(filePath).includes('::')) throw new Error(`Cannot move zip entry: ${filePath}`);
-        validateUncPath(filePath, 'move-files');
+        assertContainerPath(filePath, 'move-files');
         if (!fs.existsSync(filePath)) throw new Error(`File does not exist: ${filePath}`);
         const newDestination = path.join(destinationFolder, path.basename(filePath));
         await fs.promises.rename(filePath, newDestination);
@@ -3817,7 +3809,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
   try {
     // Validate UNC path in server mode
     try {
-      validateUncPath(directoryPath, 'scan-directory');
+      assertContainerPath(directoryPath, 'scan-directory');
     } catch (validationError) {
       throw new Error(validationError.message);
     }
@@ -5308,17 +5300,6 @@ ipcMain.handle('get-server-thumbnail-job-status', async () => {
   };
 });
 
-// Update the shouldSkipDirectory function
-function getScanExcludeNames() {
-  try {
-    if (!database.db) return new Set();
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('scanExcludeFolders');
-    return normalizeExcludeNames(row && row.value);
-  } catch (_) {
-    return new Set();
-  }
-}
-
 function shouldSkipDirectory(dirName) {
   return shouldSkipDirectoryName(dirName, getScanExcludeNames());
 }
@@ -5981,7 +5962,7 @@ ipcMain.handle('trash-file', async (event, filePath) => {
   try {
     // Validate UNC path in server mode (skips URL models)
     try {
-      validateUncPath(filePath, 'trash-file');
+      assertContainerPath(filePath, 'trash-file');
     } catch (validationError) {
       throw new Error(validationError.message);
     }
@@ -6032,7 +6013,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
   try {
     // Validate UNC path in server mode
     try {
-      validateUncPath(filePath, 'delete-file');
+      assertContainerPath(filePath, 'delete-file');
     } catch (validationError) {
       throw new Error(validationError.message);
     }
@@ -7925,69 +7906,6 @@ function applyDockerEnvSettingIfNeeded(key, envValue) {
   }
 }
 
-function dedupePathList(paths) {
-  const seen = new Set();
-  const out = [];
-  for (const item of paths || []) {
-    const p = String(item || '').trim();
-    if (!p) continue;
-    const key = p.replace(/[\\/]+$/, '').toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(p);
-  }
-  return out;
-}
-
-/** STL_HOME and STL_HOME_EXCLUDE: comma, semicolon, or newline separated paths, or a JSON array. */
-function parseExcludePathList(raw) {
-  const text = String(raw || '').trim();
-  if (!text) return [];
-  if (text.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) {
-        return parsed.map((entry) => String(entry || '').trim()).filter(Boolean);
-      }
-    } catch (_) { /* treat as a delimited list */ }
-  }
-  return text.split(/[\r\n,;]+/).map((entry) => entry.trim()).filter(Boolean);
-}
-
-function excludeDirectoriesSettingIsEmpty(value) {
-  const current = value == null ? '' : String(value).trim();
-  if (!current || current === '[]') return true;
-  try {
-    const parsed = JSON.parse(current);
-    if (!Array.isArray(parsed)) return false;
-    return parsed.every((entry) => !String(entry || '').trim());
-  } catch (_) {
-    return false;
-  }
-}
-
-function readLegacyStlHomePaths(value) {
-  const text = String(value || '').trim();
-  if (!text) return [];
-  if (text.startsWith('[') || /[\r\n,;]/.test(text)) return dedupePathList(parseExcludePathList(text));
-  return [text];
-}
-
-/** Directories scanned as STL Home. Prefers the JSON list, then a legacy single stlHome path. */
-function readStlHomeDirectories() {
-  try {
-    if (!database.db) return [];
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('stlHomeDirectories');
-    const fromList = dedupePathList(parseExcludePathList(row?.value));
-    if (fromList.length) return fromList;
-    const legacy = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('stlHome')?.value;
-    return readLegacyStlHomePaths(legacy);
-  } catch (error) {
-    console.error('Invalid STL Home directories setting:', error);
-    return [];
-  }
-}
-
 function stlHomeDirectoriesAreUnset() {
   const listRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('stlHomeDirectories');
   if (!excludeDirectoriesSettingIsEmpty(listRow?.value)) return false;
@@ -8081,30 +7999,6 @@ function getDatabasePath() {
   }
 }
 
-// Add these IPC handlers
-// Helper: URL-only models (added by Chrome extension) have filePath "url::https://..."
-function isUrlModel(filePath) {
-  return typeof filePath === 'string' && filePath.startsWith('url::');
-}
-
-function getLibraryRootPaths() {
-  const roots = [];
-  const add = (value) => {
-    if (value && typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed && !roots.includes(trimmed)) roots.push(trimmed);
-    }
-  };
-  for (const home of parseExcludePathList(process.env.STL_HOME)) add(home);
-  try {
-    if (database.db) {
-      for (const home of readStlHomeDirectories()) add(home);
-      add(database.db.prepare('SELECT value FROM settings WHERE key = ?').get('directoryPath')?.value);
-    }
-  } catch (_) { /* db not ready */ }
-  return roots;
-}
-
 // Windows-scanned libraries reused in Docker still store C:\... paths. Try the
 // stored path plus Linux mount equivalents derived from STL_HOME / directoryPath.
 function collectReadablePathCandidates(filePath) {
@@ -8156,18 +8050,6 @@ function resolveReadableModelPath(filePath) {
   const resolved = resolveReadableDiskPath(diskPath);
   if (!resolved) return null;
   return pathInfo.isZipEntry ? `${resolved}::${pathInfo.entryPath}` : resolved;
-}
-
-// Helper function to parse zip path format
-function parseZipPath(filePath) {
-  if (isUrlModel(filePath)) {
-    return { zipPath: filePath, entryPath: null, isZipEntry: false };
-  }
-  if (filePath.includes('::')) {
-    const [zipPath, entryPath] = filePath.split('::');
-    return { zipPath, entryPath, isZipEntry: true };
-  }
-  return { zipPath: filePath, entryPath: null, isZipEntry: false };
 }
 
 // Skip macOS resource-fork / AppleDouble entries (._*) and __MACOSX metadata — not valid models
@@ -10359,7 +10241,7 @@ function inspectOrganizeDirectory(dirPath, allowMissing) {
     return { ok: false, error: 'Choose a source directory and a destination directory.' };
   }
   try {
-    validateUncPath(target, 'organize-library');
+    assertContainerPath(target, 'organize-library');
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -10380,18 +10262,6 @@ function statOrganizeFile(filePath) {
     return { size: st.size, isFile: st.isFile() };
   } catch (_) {
     return null;
-  }
-}
-
-function readScannedDirectorySetting() {
-  try {
-    if (!database.db) return [];
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('scannedDirectories');
-    const parsed = JSON.parse(row && row.value ? row.value : '[]');
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((item) => String(item || '').trim()).filter(Boolean);
-  } catch (_) {
-    return [];
   }
 }
 
