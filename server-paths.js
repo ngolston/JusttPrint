@@ -17,7 +17,7 @@ const STATIC_EXTENSIONS = new Set([
 
 /** Top-level folders and files that are never served, even with an allowed extension. */
 const STATIC_BLOCKED_TOP = new Set([
-  'node_modules', 'scripts', 'tests', 'build', 'dist', 'helper', 'chrome-extension',
+  'node_modules', 'scripts', 'tests', 'build', 'dist', 'helper', 'chrome-extension', 'src',
   'data', 'certs', 'test-results', 'playwright-report'
 ]);
 

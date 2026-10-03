@@ -33,3 +33,6 @@ demos/raw-video/
 demos/frames/
 demos/tiktok-work/
 spoolman-data/
+
+# End-to-end test working folder
+tests/e2e/.work/
