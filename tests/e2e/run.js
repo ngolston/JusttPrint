@@ -258,6 +258,14 @@ async function apiChecks(base, wsUrl) {
   const duplicates = await ask('get-duplicates', [false]);
   check('duplicates query runs', Array.isArray(duplicates.result), duplicates.error);
 
+  await ask('save-slicer', [{ name: 'E2E Slicer', path: '/usr/bin/e2e-slicer' }]);
+  const slicer = ((await ask('get-slicers')).result || []).find((s) => s.name === 'E2E Slicer');
+  check('slicer saved and listed', !!slicer);
+  if (slicer) {
+    await ask('delete-slicer', [slicer.id]);
+    check('slicer deleted', !((await ask('get-slicers')).result || []).some((s) => s.id === slicer.id));
+  }
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);

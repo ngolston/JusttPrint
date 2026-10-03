@@ -67,6 +67,10 @@ const {
 
 const { getServerAuth } = require('./src/server/auth');
 
+const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry } = require('./src/core/zip-entries');
+
+const { ensureSlicersTableExists, isDockerContainer, openFileInSlicerHandler, resolveModelPathsForSlicer, runSlicerWithModelPaths } = require('./src/server/ipc/slicers');
+
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
 const preview3mfCache = new Map();
@@ -241,17 +245,6 @@ let contextMenuRequestIdCounter = 0;
 // The handlers the WebSocket dispatcher calls: every ipcMain.handle(...), from any module,
 // lands in this one map, whatever order the modules load in.
 const ipcHandlerRegistry = ipcMain._handlers;
-
-
-// Check if running in Docker container
-function isDockerContainer() {
-  // Check for Docker environment indicators
-  const hasDockerenv = fs.existsSync('/.dockerenv');
-  const hasCgroup = fs.existsSync('/proc/self/cgroup');
-  const cgroupContainsDocker = hasCgroup && fs.readFileSync('/proc/self/cgroup', 'utf8').includes('docker');
-  const result = hasDockerenv || cgroupContainsDocker;
-  return result;
-}
 
 
 
@@ -6658,17 +6651,6 @@ function getDatabasePath() {
   }
 }
 
-// Skip macOS resource-fork / AppleDouble entries (._*) and __MACOSX metadata — not valid models
-function isMacOsResourceForkEntry(entryPath) {
-  return shouldSkipEntryPath(entryPath, getScanExcludeNames());
-}
-
-// Minimum ZIP is 22 bytes (end-of-central-directory). 3MF is ZIP-based (starts with PK).
-function isLikelyValidZipBuffer(data) {
-  if (!Buffer.isBuffer(data) || data.length < 22) return false;
-  return data[0] === 0x50 && data[1] === 0x4B; // PK
-}
-
 function isPrintventoryExtractTempFileName(fileName) {
   return typeof fileName === 'string' && fileName.startsWith(EXTRACT_TEMP_FILE_PREFIX);
 }
@@ -6718,57 +6700,6 @@ async function cleanupExtractTempDirectory({
   }
 }
 
-// Helper function to extract model from zip to temp file or specified destination
-async function extractModelFromZip(zipPath, entryPath, destinationPath = null) {
-  const entryData = await extractZipEntryBuffer(zipPath, entryPath);
-
-  if (destinationPath) {
-    // Extract to specified destination, preserving directory structure
-    const destPath = path.join(destinationPath, entryPath);
-    const destDir = path.dirname(destPath);
-    await fs.promises.mkdir(destDir, { recursive: true });
-    await fs.promises.writeFile(destPath, entryData);
-    return destPath;
-  }
-
-  // Always OS temp subdirectory — never adjacent to the zip / library
-  const tempDir = ensureExtractTempDir();
-  const fileName = path.basename(entryPath).replace(/[<>:"|?*]/g, '_');
-  const tempPath = path.join(tempDir, `${EXTRACT_TEMP_FILE_PREFIX}${Date.now()}_${fileName}`);
-  await fs.promises.writeFile(tempPath, entryData);
-  return tempPath;
-}
-
-async function resolveModelPathsForSlicer(filePaths) {
-  const rawPaths = (Array.isArray(filePaths) ? filePaths : [filePaths]).filter(Boolean);
-  const resolved = [];
-
-  for (const fp of rawPaths) {
-    if (typeof fp !== 'string' || isUrlModel(fp)) continue;
-
-    const pathInfo = parseZipPath(fp);
-    if (pathInfo.isZipEntry) {
-      if (isMacOsResourceForkEntry(pathInfo.entryPath)) continue;
-      resolved.push(await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath));
-    } else if (fs.existsSync(fp)) {
-      resolved.push(fp);
-    }
-  }
-
-  return resolved;
-}
-
-function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
-  if (!Array.isArray(slicers) || slicers.length === 0) return null;
-  if (slicerId != null) {
-    return slicers.find((slicer) => slicer.id === slicerId) || null;
-  }
-  if (slicerName) {
-    return slicers.find((slicer) => slicer.name === slicerName) || null;
-  }
-  return slicers[0];
-}
-
 /**
  * The server cannot open a folder picker on the user's computer, so it asks the browser for a
  * path inside the container. (A folder browser for mounted volumes is planned.)
@@ -6791,38 +6722,6 @@ function presentInvalidSlicer(event, error) {
     message: 'Could not open the slicer',
     detail: error.message
   });
-}
-
-function runSlicerWithModelPaths(slicer, modelPaths) {
-  if (!modelPaths.length) {
-    return Promise.reject(new Error('No model files to open in slicer'));
-  }
-
-  const invalid = invalidSlicerPathError(slicer.path, slicer.name);
-  if (invalid) return Promise.reject(invalid);
-
-  const inDocker = isDockerContainer();
-  if (inDocker && (/^[A-Za-z]:[\\/]/.test(slicer.path) || /^\\\\/.test(slicer.path))) {
-    return Promise.reject(new Error(
-      `The slicer path "${slicer.path}" is a Windows path, but the application is running in a Docker container (Linux). ` +
-      'Use a Linux slicer path or run Printventory in normal mode.'
-    ));
-  }
-
-  const spec = buildSlicerSpawnSpec(slicer.path, modelPaths);
-  console.log('[Slicer] Launching', spec.command, spec.args.join(' '));
-  // Resolve when the process starts. Slicers that are already open often hand the
-  // file to the existing window and exit non-zero; that is still a successful launch.
-  return launchSlicerProcess(spec, { name: slicer.name, slicerPath: slicer.path }).then(
-    () => {
-      scheduleExtractTempCleanupMany(modelPaths);
-      return { success: true, count: modelPaths.length };
-    },
-    (error) => {
-      scheduleExtractTempCleanupMany(modelPaths, 0);
-      throw error;
-    }
-  );
 }
 
 // Helper function to clean HTML entities and special characters from description text
@@ -6864,23 +6763,6 @@ function cleanDescriptionText(text) {
   cleaned = cleaned.trim();
   
   return cleaned;
-}
-
-/** Locate main model part in a 3MF zip (JSZip contents). Handles alternate paths/casing. */
-function find3dModelZipEntry(contents) {
-  if (!contents || !contents.files) return null;
-  const preferred = ['3D/3dmodel.model', '/3D/3dmodel.model'];
-  for (const p of preferred) {
-    const f = contents.files[p];
-    if (f && !f.dir) return f;
-  }
-  for (const key of Object.keys(contents.files)) {
-    const f = contents.files[key];
-    if (f.dir) continue;
-    const norm = key.replace(/\\/g, '/');
-    if (/(^|\/)3dmodel\.model$/i.test(norm)) return f;
-  }
-  return null;
 }
 
 // Helper function to parse 3MF model XML and extract metadata
@@ -8565,185 +8447,6 @@ let fetch;
 
 
 
-ipcMain.handle('get-slicers', () => {
-  try {
-    // Ensure the slicers table exists before querying it
-    const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    if (!tableExists) {
-      ensureSlicersTableExists();
-      return [];
-    }
-    return database.db.prepare('SELECT * FROM slicers').all();
-  } catch (error) {
-    console.error('Error getting slicers:', error);
-    return [];
-  }
-});
-
-ipcMain.handle('save-slicer', (event, { name, path }) => {
-  try {
-    // Ensure the slicers table exists before inserting
-    const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    if (!tableExists) {
-      ensureSlicersTableExists();
-    }
-    database.db.prepare('INSERT OR REPLACE INTO slicers (name, path) VALUES (?, ?)').run(name, path);
-    return true;
-  } catch (error) {
-    console.error('Error saving slicer:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('delete-slicer', (event, id) => {
-  try {
-    // Ensure the slicers table exists before deleting
-    const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    if (!tableExists) {
-      ensureSlicersTableExists();
-      return true; // Nothing to delete if table didn't exist
-    }
-    database.db.prepare('DELETE FROM slicers WHERE id = ?').run(id);
-    return true;
-  } catch (error) {
-    console.error('Error deleting slicer:', error);
-    throw error;
-  }
-});
-
-const clearAndSaveSlicersHandler = async (event, slicers) => {
-  try {
-    // Ensure slicers is an array (WebSocket might wrap it in an array)
-    let slicersArray = slicers;
-    if (!Array.isArray(slicersArray)) {
-      // If it's not an array, try to extract it
-      if (Array.isArray(slicersArray) === false && slicersArray && typeof slicersArray === 'object') {
-        // Might be wrapped: [slicers] -> slicers
-        slicersArray = Array.isArray(slicersArray) ? slicersArray : [slicersArray];
-      } else if (Array.isArray(slicersArray) && slicersArray.length === 1 && Array.isArray(slicersArray[0])) {
-        // Unwrap if double-wrapped: [[slicers]] -> [slicers]
-        slicersArray = slicersArray[0];
-      } else {
-        // Last resort: convert to array
-        slicersArray = [slicersArray];
-      }
-    }
-    
-    // Validate that we have an array
-    if (!Array.isArray(slicersArray)) {
-      throw new Error('slicers parameter must be an array');
-    }
-    
-    // Ensure the slicers table exists before clearing and saving
-    const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    if (!tableExists) {
-      ensureSlicersTableExists();
-    }
-
-    const seenNames = new Set();
-    const seenPaths = new Set();
-    for (const slicer of slicersArray) {
-      if (!slicer || typeof slicer !== 'object' || !slicer.name || !slicer.path) continue;
-      const name = String(slicer.name).trim();
-      const slicerPath = String(slicer.path).trim();
-      const nameKey = name.toLowerCase();
-      if (seenNames.has(nameKey)) {
-        throw new Error(`"${name}" is already used. Each slicer needs its own name.`);
-      }
-      seenNames.add(nameKey);
-      const pathKey = slicerPath.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
-      if (seenPaths.has(pathKey)) {
-        throw new Error(`"${slicerPath}" is already used. Each slicer needs its own path.`);
-      }
-      seenPaths.add(pathKey);
-    }
-    
-    // Use a transaction to ensure atomicity
-    database.db.transaction(() => {
-      // Drop all existing entries
-      database.db.prepare('DELETE FROM slicers').run();
-      
-      // Insert new entries
-      const insert = database.db.prepare('INSERT INTO slicers (name, path) VALUES (?, ?)');
-      slicersArray.forEach(slicer => {
-        // Validate slicer object
-        if (slicer && typeof slicer === 'object' && slicer.name && slicer.path) {
-          insert.run(slicer.name, slicer.path);
-        } else {
-          console.warn('Invalid slicer object skipped:', slicer);
-        }
-      });
-    })();
-    
-    return true;
-  } catch (error) {
-    console.error('Error clearing and saving slicers:', error);
-    console.error('slicers parameter type:', typeof slicers, 'isArray:', Array.isArray(slicers), 'value:', slicers);
-    const message = String(error && error.message ? error.message : error);
-    if (/slicers\.name/i.test(message)) {
-      throw new Error('That slicer name is already used. Each slicer needs its own name.');
-    }
-    if (/slicers\.path/i.test(message)) {
-      throw new Error('That slicer path is already used. Each slicer needs its own path.');
-    }
-    throw error;
-  }
-};
-
-ipcMain.handle('clear-and-save-slicers', clearAndSaveSlicersHandler);
-
-const openFileInSlicerHandler = async (event, options = {}) => {
-  const { filePaths, slicerId, slicerName } = options || {};
-  const paths = Array.isArray(filePaths) ? filePaths : (filePaths ? [filePaths] : []);
-  if (!paths.length) {
-    throw new Error('No file paths provided');
-  }
-
-  ensureSlicersTableExists();
-  const slicers = database.db.prepare('SELECT * FROM slicers').all();
-  const slicer = getSlicerBySelection(slicers, { slicerId, slicerName });
-  if (!slicer) {
-    throw new Error('No slicer configured. Add a slicer in Settings.');
-  }
-
-  const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
-  {
-    const firstPath = paths[0];
-    const pathInfo = parseZipPath(firstPath);
-    const commandPayload = {
-      type: 'open-in-slicer',
-      filePaths: paths,
-      filePath: firstPath,
-      slicerName: slicer.name,
-      slicerPath: slicer.path,
-      downloadToken: getServerAuth().issueDownloadToken(),
-      isZipEntry: pathInfo.isZipEntry,
-      zipPath: pathInfo.isZipEntry ? pathInfo.zipPath : null,
-      entryPath: pathInfo.isZipEntry ? pathInfo.entryPath : null
-    };
-
-    events.broadcast('execute-client-command', commandPayload);
-    return { success: true, serverMode: true, count: paths.length };
-  }
-
-  const modelPaths = await resolveModelPathsForSlicer(paths);
-  if (!modelPaths.length) {
-    throw new Error('No valid local model files to open in slicer');
-  }
-
-  try {
-    return await runSlicerWithModelPaths(slicer, modelPaths);
-  } catch (error) {
-    // Launch failed — remove any extracts we just created
-    scheduleExtractTempCleanupMany(modelPaths, 0);
-    console.error('Error opening file in slicer:', error);
-    clientDialogs.messageBox(event, { type: 'error', title: 'Send to Slicer', message: error.message });
-    throw error;
-  }
-};
-
-ipcMain.handle('open-file-in-slicer', openFileInSlicerHandler);
-
 const getFileStatsHandler = async (event, filePath) => {
   try {
     // URL-only models (Chrome extension) have no local file
@@ -9484,36 +9187,6 @@ function verifyDatabaseIntegrity() {
     return true;
   } catch (error) {
     console.error('Database integrity check failed:', error);
-    return false;
-  }
-}
-
-// Add this function to check and create the slicers table if it doesn't exist
-function ensureSlicersTableExists() {
-  try {
-    console.log('Checking if slicers table exists...');
-    
-    // Check if the slicers table exists
-    const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    
-    if (!tableExists) {
-      console.log('Slicers table does not exist. Creating it...');
-      
-      // Create the slicers table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS slicers (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          path TEXT NOT NULL
-      )`).run();
-      
-      console.log('Slicers table created successfully');
-    } else {
-      console.log('Slicers table already exists');
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error ensuring slicers table exists:', error);
     return false;
   }
 }
