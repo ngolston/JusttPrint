@@ -1,0 +1,23 @@
+# Local test setup: builds the image from this checkout and runs it on this computer.
+#
+#   npm run docker:local          build and start (http://localhost:5055)
+#   npm run docker:local:logs     follow the server log
+#   npm run docker:local:down     stop and remove the container (data is kept)
+#
+# Settings come from ~/printventory-test/local.env (models folder, data folder, password, port).
+services:
+  printventory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: printventory:local
+    container_name: printventory-local
+    ports:
+      - "${PRINTVENTORY_HOST_PORT:-5055}:5000"
+    volumes:
+      - "${PRINTVENTORY_DATA:?set PRINTVENTORY_DATA in local.env}:/root/.config/printventory"
+      - "${PRINTVENTORY_MODELS:?set PRINTVENTORY_MODELS in local.env}:/mnt/models:${PRINTVENTORY_MODELS_MODE:-ro}"
+    environment:
+      - STL_HOME=/mnt/models
+      - PRINTVENTORY_PASSWORD=${PRINTVENTORY_PASSWORD:?set PRINTVENTORY_PASSWORD in local.env}
+    restart: "no"

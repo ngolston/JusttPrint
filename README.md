@@ -325,6 +325,26 @@ The script will automatically detect and use WSL if available, otherwise it will
 
 All build outputs will be generated in the `dist` directory.
 
+## Testing Locally
+
+`docker-compose.local.yml` builds the image from your checkout and runs it on your computer. It reads its settings from `~/printventory-test/local.env`:
+
+```
+PRINTVENTORY_MODELS=/Users/you/printventory-test/models   # your models folder
+PRINTVENTORY_MODELS_MODE=ro                               # rw to test delete, move and organize
+PRINTVENTORY_DATA=/Users/you/printventory-test/data       # database and thumbnails
+PRINTVENTORY_PASSWORD=choose-a-password                   # web UI login
+PRINTVENTORY_HOST_PORT=5055                               # 5000 is taken by AirPlay on macOS
+```
+
+```bash
+npm run docker:local          # build and start, then open http://localhost:5055
+npm run docker:local:logs     # follow the server log
+npm run docker:local:down     # stop and remove the container (data is kept)
+```
+
+Run `npm run docker:local` again after code changes to rebuild. Use a copy of your models when the mode is `rw`, since delete and move change the real files.
+
 ## Docker Deployment (Linux Server Mode)
 
 Printventory can be deployed as a Docker container for easy server mode deployment on Linux systems. This is ideal for headless servers or containerized environments.
