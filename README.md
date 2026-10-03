@@ -855,7 +855,9 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ## Application Structure
 
 ### Server
-- `src/server/index.js` - Entry point (`npm start`); runs `main.js` with `src/server/electron-shim.js` standing in for the old Electron APIs while `main.js` is split into modules
+- `src/server/index.js` - Entry point (`npm start`)
+- `src/server/runtime.js` - Data paths, lifecycle events, the IPC handler registry and Move to Trash
+- `src/server/client-dialogs.js` - Message boxes and prompts the server shows in the browser
 - `main.js` - Library logic and the HTTP/WebSocket server (being rewritten into modules)
 - `server-auth.js` - Login, API token and download tokens
 - `server-paths.js` - Which files the server may serve, read, move or write

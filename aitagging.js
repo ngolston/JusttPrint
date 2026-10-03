@@ -2,7 +2,6 @@
 // This module handles AI configuration and tag generation using OpenAI
 
 const OpenAI = require("openai");
-const { app } = require('electron'); // Import app from Electron
 const { libraryContextSnippet } = require('./library-context');
 const { isRateLimitError, rateLimitWaitMs, rateLimitUserMessage } = require('./ai-rate-limit');
 

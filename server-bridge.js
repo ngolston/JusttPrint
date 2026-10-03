@@ -723,7 +723,6 @@
     'commitTransaction': 'database:commit-transaction',
     'rollbackTransaction': 'database:rollback-transaction',
     'getAllModelReferences': 'get-all-model-references',
-    'openExternal': 'open-external',
     'quitApp': 'quitApp',
     'showContextMenu': 'show-context-menu',
     'executeContextMenuAction': 'execute-context-menu-action',
@@ -1054,6 +1053,13 @@
 
   window.electron.showInputDialog = function(options) {
     return showBrowserInput(options || {});
+  };
+
+  window.electron.openUpdatePage = function(isBeta) {
+    return makeIpcCall('open-update-page', isBeta).then((url) => {
+      if (url) window.open(url, '_blank', 'noopener');
+      return true;
+    });
   };
 
   window.electron.openExternal = function(url) {

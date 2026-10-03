@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const shim = require('./electron-shim');
+const shim = require('./runtime');
 
 const pending = [];
 function test(name, fn) {
@@ -14,16 +14,6 @@ function test(name, fn) {
     (err) => { console.error('FAIL ' + name + ':', err.message); process.exitCode = 1; }
   ));
 }
-
-test('dialogs answer Cancel, or the only button', async () => {
-  const confirm = await shim.dialog.showMessageBox(null, { title: 'Overwrite?', buttons: ['Yes', 'No'], cancelId: 1 });
-  assert.strictEqual(confirm.response, 1);
-  const noCancelId = await shim.dialog.showMessageBox({ buttons: ['Save', 'Discard', 'Cancel'] });
-  assert.strictEqual(noCancelId.response, 2);
-  const info = await shim.dialog.showMessageBox({ message: 'Done', buttons: ['OK'] });
-  assert.strictEqual(info.response, 0);
-  assert.deepStrictEqual(await shim.dialog.showOpenDialog({}), { canceled: true, filePaths: [] });
-});
 
 test('app paths follow PRINTVENTORY_USER_DATA and XDG_CONFIG_HOME', () => {
   const saved = { ...process.env };
@@ -44,12 +34,6 @@ test('ipcMain keeps handlers for the WebSocket dispatcher', () => {
   assert.strictEqual(shim.ipcMain._handlers.get('ping')(), 'pong');
   shim.ipcMain.removeHandler('ping');
   assert.ok(!shim.ipcMain._handlers.has('ping'));
-});
-
-test('windows cannot be created and lookups return nothing', () => {
-  assert.throws(() => new shim.BrowserWindow({}), /not available in server mode/);
-  assert.strictEqual(shim.BrowserWindow.fromWebContents({}), null);
-  assert.deepStrictEqual(shim.BrowserWindow.getAllWindows(), []);
 });
 
 test('nativeImage never decodes, so compression is skipped', () => {

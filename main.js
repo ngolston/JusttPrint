@@ -1,4 +1,4 @@
-const { app, ipcMain, shell } = require('electron');
+const { app, ipcMain, shell } = require('./src/server/runtime');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
@@ -245,7 +245,6 @@ function debugLog(...args) {
 }
 
 // Server mode detection
-const isServerMode = process.argv.includes('--server');
 let httpServer = null;
 let httpServerEpoch = 0;
 let http80Server = null;
@@ -5972,43 +5971,9 @@ async function saveThumbnail(filePath, thumbnail) {
   }
 }
 
-ipcMain.handle('show-item-in-folder', async (event, filePath) => {
-  try {
-    if (isUrlModel(filePath)) {
-      shell.openExternal(filePath.slice(5));
-      return true;
-    }
-    // Validate UNC path in server mode
-    try {
-      validateUncPath(filePath, 'show-item-in-folder');
-    } catch (validationError) {
-      throw new Error(validationError.message);
-    }
-    
-    // If it's a zip entry, extract the zip path
-    const pathInfo = parseZipPath(filePath);
-    const pathToShow = pathInfo.isZipEntry ? pathInfo.zipPath : filePath;
-    shell.showItemInFolder(pathToShow);
-    return true;
-  } catch (error) {
-    console.error('Error showing item in folder:', error);
-    throw error;
-  }
-});
 
-ipcMain.handle('open-path', async (event, path) => {
-  try {
-    if (isUrlModel(path)) {
-      shell.openExternal(path.slice(5));
-      return true;
-    }
-    await shell.openPath(path);
-    return true;
-  } catch (error) {
-    console.error('Error opening path:', error);
-    throw error;
-  }
-});
+
+
 
 
 
@@ -7484,7 +7449,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           // Start tag generation - show review dialog immediately for both single and multiple files
           if (filesToProcess.length > 1) {
             // Send all file paths so the dialog can show all models immediately
-            console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length, 'isServerMode:', true);
+            console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
             if (global.broadcastEvent) {
               // In server mode, use broadcastEvent to send to all WebSocket clients
               console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
@@ -7530,7 +7495,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 existingTags: modelTags
               };
               
-              console.log('[Generate Tags] Sending start-single-tag-generation event, isServerMode:', true);
+              console.log('[Generate Tags] Sending start-single-tag-generation event');
               if (global.broadcastEvent) {
                 // In server mode, use broadcastEvent to send to all WebSocket clients
                 console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
@@ -10880,9 +10845,8 @@ ipcMain.handle('check-for-updates', async (event, isBeta) => {
   }
 });
 
-ipcMain.handle('open-update-page', async (event, isBeta) => {
-  await shell.openExternal(releasesPageUrl(isBeta));
-});
+// The browser opens the release page; the server only knows the address.
+ipcMain.handle('open-update-page', async (event, isBeta) => releasesPageUrl(isBeta));
 
 // Add new IPC handler for opening folder dialog
 ipcMain.handle('open-folder-dialog', async (event, titleOrOptions) => {
@@ -11204,16 +11168,7 @@ ipcMain.handle('organize-library-run', async (event, payload) => {
   }
 });
 
-// Add this new IPC handler at the end to open external URLs using the system's default browser
-ipcMain.handle('open-external', async (event, url) => {
-  try {
-    await shell.openExternal(url);
-    return true;
-  } catch (error) {
-    console.error('Error opening external URL:', error);
-    throw error;
-  }
-});
+
 
 ipcMain.handle('getTotalModelCount', async () => {
   try {
@@ -11313,7 +11268,7 @@ function createPuterIPCHandler(event = null) {
       wsClient = event.wsClient;
       console.log('[Puter IPC Handler] Found wsClient from event.wsClient');
     } else {
-      console.log('[Puter IPC Handler] No wsClient found in event, isServerMode:', true);
+      console.log('[Puter IPC Handler] No wsClient found in event');
     }
   } else {
     console.log('[Puter IPC Handler] No event provided');
@@ -11891,14 +11846,8 @@ const executeClientCommandHandler = async (event, commandData) => {
     const { type, filePath, slicerName, slicerPath, isZipEntry, zipPath, entryPath } = commandData;
 
     if (type === 'open-file') {
-      // Open file with system default application
-      if (isZipEntry && zipPath && entryPath) {
-        // For zip entries, open the zip file
-        await shell.openPath(zipPath);
-      } else {
-        await shell.openPath(filePath);
-      }
-      return { success: true };
+      // The file is on the server; the browser downloads it instead.
+      return { success: false, error: 'Download the file to open it on this computer.' };
     } else if (type === 'open-in-slicer') {
       const invalidSlicer = invalidSlicerPathError(slicerPath, slicerName);
       if (invalidSlicer) {

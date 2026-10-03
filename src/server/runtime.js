@@ -1,14 +1,11 @@
 'use strict';
 
 /**
- * Stand-in for the parts of Electron that main.js uses, so server mode runs on plain Node:
- * no Electron, no Xvfb. src/server/index.js loads this in place of require('electron').
+ * Process services the server needs: data paths and lifecycle events (`app`), the IPC handler
+ * registry that the WebSocket dispatcher calls (`ipcMain`), and Move to Trash (`shell.trashItem`).
+ * The names match what main.js used under Electron, so it can be split into modules gradually.
  *
- * What changes without Electron:
- * - There are no windows. Native dialogs answer like the user pressed Cancel (and log it);
- *   the browser shows its own dialogs.
- * - shell.trashItem moves files into the freedesktop trash folder of the drive they are on.
- * - nativeImage cannot decode images, so stored thumbnails are not re-compressed.
+ * nativeImage cannot decode images on Node, so stored thumbnails are not re-compressed.
  */
 
 const EventEmitter = require('events');
@@ -114,56 +111,6 @@ class IpcMain extends EventEmitter {
   }
 }
 
-class BrowserWindow {
-  constructor() {
-    throw new Error('Windows are not available in server mode');
-  }
-
-  static fromWebContents() { return null; }
-  static getAllWindows() { return []; }
-  static getFocusedWindow() { return null; }
-}
-
-/** Native dialogs have nobody to show them to: answer Cancel (or the only button). */
-function cancelResponse(options) {
-  const opts = options || {};
-  const buttons = Array.isArray(opts.buttons) ? opts.buttons : [];
-  if (Number.isInteger(opts.cancelId)) return opts.cancelId;
-  return buttons.length > 1 ? buttons.length - 1 : 0;
-}
-
-function dialogOptions(args) {
-  // dialog.showMessageBox([window, ]options)
-  return args.length > 1 ? args[1] : args[0];
-}
-
-const dialog = {
-  showMessageBox(...args) {
-    const options = dialogOptions(args) || {};
-    const response = cancelResponse(options);
-    console.warn(`[Server] Dialog "${options.title || options.message || ''}" answered with button ${response} (no window in server mode)`);
-    return Promise.resolve({ response, checkboxChecked: false });
-  },
-  showMessageBoxSync(...args) {
-    return cancelResponse(dialogOptions(args));
-  },
-  showErrorBox(title, content) {
-    console.error(`[Server] ${title}: ${content}`);
-  },
-  showOpenDialog() {
-    return Promise.resolve({ canceled: true, filePaths: [] });
-  },
-  showOpenDialogSync() {
-    return undefined;
-  },
-  showSaveDialog() {
-    return Promise.resolve({ canceled: true, filePath: undefined });
-  },
-  showSaveDialogSync() {
-    return undefined;
-  }
-};
-
 /** Top of the mount that holds this path (where the device number changes). */
 function mountTop(dir) {
   let current = path.resolve(dir);
@@ -240,35 +187,7 @@ function trashItem(filePath) {
   });
 }
 
-const shell = {
-  trashItem,
-  openExternal(url) {
-    console.warn(`[Server] Not opening ${url} (no desktop in server mode)`);
-    return Promise.resolve();
-  },
-  openPath(target) {
-    return Promise.resolve(`Cannot open ${target} in server mode`);
-  },
-  showItemInFolder() {},
-  beep() {}
-};
-
-const Menu = {
-  buildFromTemplate(template) {
-    return { items: template, popup() {}, closePopup() {} };
-  },
-  setApplicationMenu() {},
-  getApplicationMenu() { return null; }
-};
-
-const screen = {
-  getPrimaryDisplay() {
-    return { workAreaSize: { width: 1920, height: 1080 }, size: { width: 1920, height: 1080 }, scaleFactor: 1 };
-  },
-  getAllDisplays() {
-    return [screen.getPrimaryDisplay()];
-  }
-};
+const shell = { trashItem };
 
 /** An image that never decodes; callers treat it like a file they cannot read. */
 const emptyImage = {
@@ -289,16 +208,10 @@ const nativeImage = {
 };
 
 module.exports = {
-  isServerShim: true,
   app: new App(),
   ipcMain: new IpcMain(),
-  BrowserWindow,
-  dialog,
   shell,
-  Menu,
-  screen,
   nativeImage,
-  contextBridge: { exposeInMainWorld() {} },
   // Exposed for tests.
-  _internal: { cancelResponse, mountTop }
+  _internal: { mountTop }
 };

@@ -4,6 +4,9 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+- Confirmations and errors from the server (Pull Metadata, Purge Models, Tag from Folder, Send to Slicer errors and more) show in your browser and wait for your answer; before, they were answered Cancel or never shown
+- Folder pickers (Organize Library Browse, Scan Directory) ask for a folder path inside the container
+- The Update button opens the release page in your browser
 - Printventory is Docker-only. The Electron desktop app, the Windows/macOS/Linux installers and their build tooling are removed; `npm start` runs the server on plain Node
 - Text prompts (Metadata Manager rename, group tags) open an in-page dialog; in Docker they opened an invisible native window and never returned
 - Slicer **Browse** opens the browser's file chooser again (it did nothing on the Node-based image); **Auto Detect** is removed because it searched the container, not your computer

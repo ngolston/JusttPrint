@@ -1,8 +1,8 @@
 /**
  * Resize and compress stored thumbnail data URLs for grid display.
- * Uses Electron nativeImage (main process only).
+ * nativeImage cannot decode on Node yet, so stored thumbnails are left as they are.
  */
-const { nativeImage } = require('electron');
+const { nativeImage } = require('./src/server/runtime');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

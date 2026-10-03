@@ -38,7 +38,7 @@
     "test:server-auth": "node server-auth.test.js",
     "test:server-paths": "node server-paths.test.js",
     "test:env-settings": "node env-settings.test.js",
-    "test:electron-shim": "node src/server/electron-shim.test.js",
+    "test:runtime": "node src/server/runtime.test.js",
     "test:releases": "node src/server/releases.test.js"
   },
   "author": "Printventory",
