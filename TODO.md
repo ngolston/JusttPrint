@@ -2,18 +2,15 @@
 
 ## Direction
 
-**The Docker container and web UI come first.** Everything should be possible from a browser against the container. The desktop app waits until the container and web UI are finished (Phase 2).
+**Printventory is Docker-only.** Everything happens in a browser against the container. The Electron desktop app and the Windows, macOS and Linux desktop builds are being removed (section 4); Phase 2 is dropped.
 
 Items are ordered from most important to least within each phase. Line numbers are approximate and were taken at version 2.2.16.
 
 ### How the container works today
 
-- The image runs the full **Electron desktop app** on a fake display (Xvfb) with `--server`. The web UI is the desktop UI plus `server-bridge.js`, which forwards Electron IPC calls over a WebSocket.
-- Anything that opens a native dialog, menu or window (`dialog.showOpenDialog` alone is used 12 times in `main.js`) appears on the invisible display, or fails, in the container.
-- The image is large and slow to build, because it ships Electron, Chromium and GTK/X11 just to run a web server.
-- The container runs as **root**.
-
-Phase 1 therefore fixes the security problems in the container now, then moves the app to a standalone Node server with a real web client. The folder reorganization happens during that move.
+- The image runs the server on plain Node (`src/server/index.js`). `main.js` still carries the old desktop code; `src/server/electron-shim.js` stands in for Electron so it runs without it.
+- Thumbnails render in headless Chromium inside the container. The web UI is still the old desktop UI plus `server-bridge.js`, which forwards IPC calls over a WebSocket.
+- Server-initiated native dialogs answer Cancel, since there is no window to show them in.
 
 ### Target folder layout
 
@@ -22,9 +19,7 @@ src/
   core/      database, scanning, parsers, thumbnails, print history, AI tagging (no Electron, no Express)
   server/    Express app, HTTP API, WebSocket, auth, MCP, TLS
   web/       index.html, web UI scripts, styles, PWA files
-  desktop/   Electron main, preload, native dialogs/menus (Phase 2)
 assets/      images and icons (logo, png/jpg, icons)
-build/       installer resources (BMP, .nsh, entitlements)
 docker/      Dockerfile, entrypoint, compose files
 extensions/  chrome-extension, helper
 vendor/      third-party browser bundles
@@ -80,7 +75,7 @@ docs/        GUIDE.md, guide/ images
 - [x] **Add a `HEALTHCHECK` to the Dockerfile.** `healthcheck.js` asks `/api/health` on the port and scheme the server actually listens on.
 - [x] **Make configuration available through environment variables.** Port, password, library paths, TLS and the database path already had variables; added zip support, extra file types, scan exclusions and AI settings (`env-settings.js`), documented in the README table. Setting values (including API keys) are no longer written to the log.
 - [x] **Shut down cleanly on `docker stop`.** On every quit (`docker stop`, closing the window, Ctrl+C) a `will-quit` handler cancels the thumbnail job, closes connections, checkpoints and closes the database, then copies the backup. Tested by stopping the container in the middle of a 22,000-model thumbnail job: database intact.
-- [x] **Publish a multi-arch image.** `npm run docker:hub:multiarch` builds `linux/amd64` and `linux/arm64` with Buildx and pushes one tag (`PRINTVENTORY_PLATFORMS` to change the list).
+- [x] **Publish a multi-arch image.** `npm run docker:hub:multiarch` builds `linux/amd64` and `linux/arm64` with Buildx and pushes one tag (`PRINTVENTORY_PLATFORMS` to change the list). Keep both: Intel/AMD for most NAS boxes and PCs, ARM for Raspberry Pi and Apple Silicon.
 
 ## 🟡 4. Medium: standalone server (remove Electron from the container)
 
@@ -91,10 +86,20 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [x] **Run STL Home scans in the server.** They were started by the hidden Electron window; the server now scans at startup and on the configured interval, then renders thumbnails for new models.
 - [x] **Slim the Docker image**: no Electron, Xvfb, D-Bus, GTK or X11; production dependencies only. 2.46 GB → 1.11 GB.
 - [x] **Keep a migration path**: same data path (`/root/.config/printventory`) and database, so existing volumes keep working.
+- [ ] **Remove Electron completely.** Docker is the only way to run Printventory, so:
+  - Delete the desktop code paths in `main.js` (`createWindow`, application menus, the hidden worker window, native dialogs and file pickers), `preload.js`, `input-dialog.html`/`input-dialog-preload.js`, and `open-model-viewer` (its `viewer.html` never existed).
+  - Remove `electron` and `electron-builder` from `package.json`, the `build` section, and the `electron-builder install-app-deps` postinstall.
+  - Make `node src/server/index.js` the only entry point (`npm start`), and drop `electron-shim.js` once `main.js` no longer calls Electron APIs.
+  - Run the DB tests on plain Node (no more `ELECTRON_RUN_AS_NODE`).
+- [ ] **Remove everything specific to Windows, macOS and Linux desktops.** Keep what Docker needs:
+  - Remove: desktop build scripts (`build-mac.js`, `build-win.js`, `build-linux-appimage.*`, `after-pack-linux-sandbox.js`, `zip-macos-build.ps1`, `build-mac-remote.ps1`, `check-mac-dependencies.js`, `ensure-win-codesign-cache.js`, `cleanup-win-build.js`), `Dockerfile.build-linux`, installer assets (`installer.nsh`, `installer-sidebar.bmp`, `logo.icns`, `logo.ico`, `build/entitlements.mac.plist`), the PowerShell push/upload scripts, and desktop jobs in `.github/workflows/`.
+  - Remove platform branches in `main.js`: Windows UNC-path server mode, `LOCALAPPDATA`, macOS GPU switches, AppImage sandbox flags, `slicer-detect.js` install scanning (and its failing test).
+  - Keep: the Send to Slicer helper (`helper/`, `slicer-protocol.js`, `slicer-launch.js`), because it runs on users' computers and downloads from the container; and the Chrome extension.
+- [ ] **Rewrite `main.js` to be cleaner and lighter.** Split it (~14.5k lines) into small modules under `src/core/` and `src/server/`, and delete what isn't used: dead IPC handlers, legacy settings and migrations, duplicate helpers, debug logging. Work one area at a time and test after each step: unit tests, the container test suite (security, path guard, health), and a browser check of the grid, previews and thumbnails. This replaces the "move logic out of `main.js`" item below.
 - [ ] **Server-initiated dialogs in the browser.** On Node, native confirmations answer Cancel (e.g. Pull Metadata on models that already have details stops instead of asking). Send them to the browser that asked and wait for the answer (pairs with section 5).
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
-- [ ] **Move non-Electron logic out of `main.js`** (~14.5k lines) into `src/core/`, one area at a time, until the Electron stand-in is no longer needed for the server:
+- [ ] **Move non-Electron logic out of `main.js`** (covered by the rewrite above; areas to cover):
   - database and migrations
   - scanning
   - thumbnails
@@ -111,6 +116,12 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 
 ## 🟡 5. Medium: web UI can do everything
 
+- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** Start after the `main.js` rewrite and the HTTP API (section 4), so the new screens call clear endpoints instead of the IPC-over-WebSocket bridge. Mount React into parts of the existing page so the app keeps working throughout:
+  - First a self-contained dialog (Server Access or Settings), to set up Vite, TypeScript and the build in the Docker image.
+  - Then the model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber).
+  - Then the remaining dialogs and managers (tags, filament, printers, parts, dedup, organize).
+  - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
+  - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
   - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
   - [ ] File pickers for restore/import: browser uploads.
@@ -122,7 +133,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload.
 - [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict.
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
-- [ ] **Split `renderer.js`** (~25k lines) into feature modules under `src/web/`: grid, dialogs, settings, preview, tags, printers, filament.
+- [ ] **Retire `renderer.js`** (~25k lines): it goes away screen by screen through the React rewrite above, rather than being split into modules first.
 
 ## 🟡 6. Medium: bugs, tests and CI
 
@@ -168,15 +179,6 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 
 ---
 
-# Phase 2: Desktop app (after the container and web UI are done)
+# Phase 2: Desktop app (dropped)
 
-- [ ] **Rebuild the desktop app as a thin Electron shell around `src/core/`.** Ideally it runs the same server locally and loads the same web UI, so there is one UI to maintain.
-- [ ] **Harden the Electron windows:**
-  - Add `setWindowOpenHandler` and `will-navigate` guards.
-  - Add a Content Security Policy.
-  - Turn `sandbox: false` back on where possible.
-- [ ] **Fix Windows path parsing on macOS/Linux in `fileStem`** ([slicer-detect.js:83](slicer-detect.js#L83)). `path.basename` doesn't split on `\`, so `test:slicer-detect` fails.
-- [ ] **Remove or rebuild `open-model-viewer`.** It loads `viewer.html`, which doesn't exist ([main.js:13348](main.js#L13348)).
-- [ ] **Keep native features where they help on desktop**: native folder pickers, "Show in folder", tray, local slicer launch.
-- [ ] **Update desktop packaging** (`electron-builder` config, installers, macOS signing) for the new folder layout.
-- [ ] **Add packaged-app smoke tests** for Windows, macOS and Linux to CI.
+Printventory is Docker-only. The desktop items that were here (hardening Electron windows, desktop packaging, packaged-app tests, the slicer-detect path bug, `viewer.html`) are replaced by "Remove Electron completely" and "Remove everything specific to Windows, macOS and Linux desktops" in section 4.
