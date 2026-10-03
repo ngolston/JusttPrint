@@ -11270,7 +11270,6 @@ ipcMain.handle('execute-client-command', executeClientCommandHandler);
 
 ipcMain.handle('get-all-model-references', async () => {
   try {
-    // Use the global db variable directly instead of calling getDb()
     const modelRefs = database.db.prepare('SELECT id, filePath FROM models').all();
     return modelRefs;
   } catch (error) {
@@ -11278,26 +11277,6 @@ ipcMain.handle('get-all-model-references', async () => {
     return []; // Return an empty array on error
   }
 });
-
-ipcMain.handle('get-db', async () => {
-  try {
-    const result = await getDb(); // Call your actual getDb function
-    return result;
-  } catch (error) {
-    console.error("Error in get-db handler:", error);
-    throw error; // Re-throw the error so the renderer can catch it
-  }
-});
-
-// Remove or update the getDb function that tries to return a string
-function getDb() {
-    // Ensure that you return the actual database instance
-    if (!database.db) {
-        console.error("Database is not initialized.");
-        throw new Error("Database is not initialized.");
-    }
-    return database.db; // Return the initialized database instance
-}
 
 // Add this function after the saveModel function
 async function saveModelBatch(modelDataBatch) {

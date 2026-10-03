@@ -5,7 +5,7 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Security:**
-- Removed the old `getSetting`, `saveSetting` and `quitApp` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
+- Removed the old `getSetting`, `saveSetting`, `quitApp` and `get-db` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
 
 **Changes:**
 - Declining the Terms of Service logs that browser out instead of shutting down the server
