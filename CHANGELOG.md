@@ -15,6 +15,7 @@ All notable changes contributed via pull request are documented in this file.
 - **Printer Manager** is rebuilt in React: onboard and edit printers, open their web interfaces, schedule and complete maintenance reminders, and keep a maintenance log. Confirmations and the notes prompt use the app's own dialogs instead of the browser's, and "Printer added" is no longer hidden when the form collapses.
 - **Library Stats** is rebuilt in React. Its two charts are drawn by the page itself, so the bundled Chart.js library (~200 KB) is removed.
 - **System Report** is rebuilt in React. Each section shows its result as soon as its check finishes, instead of waiting for both benchmarks.
+- **Backup/Restore** is rebuilt in React. Backups and library exports download directly without an extra "download should start" message, buttons show progress and can't be pressed twice, and the grid refreshes before the import result is shown.
 - Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
 - Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
 - Backups use SQLite's online backup, so the database stays open while a backup is written.

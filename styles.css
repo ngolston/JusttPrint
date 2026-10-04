@@ -6558,6 +6558,31 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* Backup/Restore (src/web/BackupRestoreDialog.tsx) */
+.backup-restore-columns {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+.backup-restore-columns > div {
+  flex: 1;
+}
+
+.backup-restore-columns h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 640px) {
+  .backup-restore-columns {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
 /* System Report (src/web/SystemReportDialog.tsx) */
 .system-report-content {
   max-height: 70vh;

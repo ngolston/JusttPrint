@@ -225,3 +225,20 @@ export const systemReport = {
   benchmarkFilesystem: () => callAction<FilesystemBenchmark>('benchmark-filesystem'),
   benchmarkDatabase: () => callAction<DatabaseBenchmark>('benchmark-database')
 };
+
+export type FileResult = { success: true; filePath: string } | { success: false; message?: string };
+
+export const backup = {
+  /** Writes a backup file in the data folder; download it from /api/download/<path>. */
+  create: () => callAction<FileResult>('backup-database'),
+  /** Replaces the library database with an uploaded backup (.db, base64). */
+  restore: (base64: string) => callAction<{ success: boolean; message?: string }>('restore-database', { base64 }),
+  exportLibrary: () => callAction<FileResult>('export-library'),
+  /** Merges a library export (JSON text) into the library. */
+  importLibrary: (json: string) =>
+    callAction<{ success: boolean; imported?: number; updated?: number; message?: string }>('import-library', { json })
+};
+
+export function downloadUrl(filePath: string): string {
+  return `/api/download/${encodeURIComponent(filePath)}`;
+}

@@ -5,6 +5,7 @@
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
@@ -23,6 +24,7 @@ function Screens() {
       <PrinterManagerDialog />
       <StatsDialog />
       <SystemReportDialog />
+      <BackupRestoreDialog />
     </>
   );
 }

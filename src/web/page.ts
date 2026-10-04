@@ -19,6 +19,8 @@ declare global {
     refreshFilamentPickers?: () => Promise<void>;
     /** filament.js: also reload the open model's filaments and the grid. */
     refreshAfterFilamentManagerClose?: () => Promise<void>;
+    /** renderer.js: reload the models and redraw the grid. */
+    refreshModelDisplay?: () => Promise<void>;
   }
 }
 
@@ -53,6 +55,10 @@ export async function refreshFilamentPickers(): Promise<void> {
 
 export async function refreshAfterFilamentManagerClose(): Promise<void> {
   await window.refreshAfterFilamentManagerClose?.();
+}
+
+export async function refreshModelDisplay(): Promise<void> {
+  await window.refreshModelDisplay?.();
 }
 
 /** Make a function callable from the rest of the page as window[name] while a screen is mounted. */

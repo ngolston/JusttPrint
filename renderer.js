@@ -546,64 +546,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Backup/Restore/Export/Import: early-exposed for Docker/server button clicks
-window.createBackupFromDialog = async function createBackupFromDialog() {
-  if (!window.electron?.backupDatabase) return;
-  try {
-    const serverMode = await window.electron.isServerMode().catch(function() { return false; });
-    if (serverMode) {
-      const result = await window.electron.backupDatabase();
-      if (result && result.success && result.filePath) {
-        const downloadUrl = '/api/download/' + encodeURIComponent(result.filePath);
-        window.location.href = downloadUrl;
-        if (window.electron.showMessage) await window.electron.showMessage('Success', 'Database backup created successfully. Download should start shortly.');
-      } else {
-        if (window.electron.showMessage) await window.electron.showMessage('Error', result && result.message ? result.message : 'Failed to create database backup');
-      }
-      return;
-    }
-    const success = await window.electron.backupDatabase();
-    if (success && window.electron.showMessage) await window.electron.showMessage('Success', 'Database backup created successfully');
-  } catch (err) {
-    console.error('Backup error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to create database backup');
-  }
-};
-
-window.restoreBackupFromDialog = async function restoreBackupFromDialog() {
-  if (typeof window._restoreBackupFromDialogImpl === 'function') {
-    await window._restoreBackupFromDialogImpl();
-  }
-};
-
-window.exportLibraryFromDialog = async function exportLibraryFromDialog() {
-  if (!window.electron?.exportLibrary) return;
-  try {
-    const serverMode = await window.electron.isServerMode().catch(function() { return false; });
-    if (serverMode) {
-      const result = await window.electron.exportLibrary();
-      if (result && result.success && result.filePath) {
-        window.location.href = '/api/download/' + encodeURIComponent(result.filePath);
-        if (window.electron.showMessage) await window.electron.showMessage('Success', 'Library exported successfully. Download should start shortly.');
-      } else {
-        if (window.electron.showMessage) await window.electron.showMessage('Error', result && result.message ? result.message : 'Failed to export library');
-      }
-      return;
-    }
-    const success = await window.electron.exportLibrary();
-    if (success && window.electron.showMessage) await window.electron.showMessage('Success', 'Library exported successfully');
-  } catch (err) {
-    console.error('Export library error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to export library');
-  }
-};
-
-window.importLibraryFromDialog = async function importLibraryFromDialog() {
-  if (typeof window._importLibraryFromDialogImpl === 'function') {
-    await window._importLibraryFromDialogImpl();
-  }
-};
-
 // AI Config: Test and Save (early for Docker/server)
 const AI_OFFICIAL_CLOUD_HOSTS = ['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com'];
 
@@ -6628,13 +6570,7 @@ async function createServerMenuBar() {
     }},
     { label: '---', action: null },
     { label: 'Backup/Restore', action: () => {
-      const dialog = document.getElementById('backup-restore-dialog');
-      if (dialog) {
-        dialog.showModal();
-      } else {
-        // Fallback: trigger the event which will open the dialog via the listener
-        window.electron.send('open-backup-restore');
-      }
+      window.openBackupRestore?.();
     }},
     { label: '---', action: null },
     { label: 'Restart Server', action: async () => {
@@ -8372,9 +8308,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize dialog handlers
   initializeDialogHandlers();
 
+  // Backup/Restore is React (src/web/BackupRestoreDialog.tsx); it defines window.openBackupRestore.
   window._electronRealEventHandlers['open-backup-restore'] = function() {
-    const dialog = document.getElementById('backup-restore-dialog');
-    if (dialog) dialog.showModal();
+    window.openBackupRestore?.();
   };
   if (window._electronPendingEvents['open-backup-restore']) {
     window._electronPendingEvents['open-backup-restore'].forEach((args) => {
@@ -8382,142 +8318,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-backup-restore'];
   }
-
-  async function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error);
-      reader.onload = () => {
-        const buffer = reader.result;
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-        }
-        resolve(btoa(binary));
-      };
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  async function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error);
-      reader.onload = () => resolve(reader.result || '');
-      reader.readAsText(file);
-    });
-  }
-
-  function promptForBackupFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.db';
-      input.style.display = 'none';
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        input.remove();
-        resolve(file);
-      });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-
-  function promptForLibraryImportFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json,application/json';
-      input.style.display = 'none';
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        input.remove();
-        resolve(file);
-      });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-
-  window._restoreBackupFromDialogImpl = async function() {
-    try {
-      const confirmResult = await window.electron.showMessage(
-        'Confirm Restore',
-        'Warning: Restoring from backup will replace all current data. This cannot be undone. Continue?',
-        ['Yes', 'No']
-      );
-      if (confirmResult !== 'Yes') return;
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const file = await promptForBackupFile();
-        if (!file) return;
-        const base64 = await readFileAsBase64(file);
-        const result = await window.electron.restoreDatabase({ base64 });
-        if (result && result.success) {
-          await window.electron.showMessage('Success', 'Database restored successfully. The application will now reload.');
-          window.location.reload();
-        } else {
-          await window.electron.showMessage('Error', result?.message || 'Failed to restore database');
-        }
-        return;
-      }
-      const success = await window.electron.restoreDatabase();
-      if (success) {
-        await window.electron.showMessage('Success', 'Database restored successfully. The application will now reload.');
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Restore error:', error);
-      await window.electron.showMessage('Error', 'Failed to restore database');
-    }
-  };
-
-  window._importLibraryFromDialogImpl = async function() {
-    try {
-      const result = await window.electron.showMessage(
-        'Confirm Import',
-        'This will merge the imported library with your current library. Existing models will be updated. Continue?',
-        ['Yes', 'No']
-      );
-      if (result !== 'Yes') return;
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const file = await promptForLibraryImportFile();
-        if (!file) return;
-        const json = await readFileAsText(file);
-        const importResult = await window.electron.importLibrary({ json });
-        if (importResult && importResult.success) {
-          const message = `Library imported successfully. ${importResult.imported} new models added, ${importResult.updated} models updated.`;
-          await window.electron.showMessage('Success', message);
-          if (typeof refreshModelDisplay === 'function') await refreshModelDisplay();
-        } else {
-          await window.electron.showMessage('Error', importResult?.message || 'Failed to import library');
-        }
-        return;
-      }
-      const importResult = await window.electron.importLibrary();
-      if (importResult && importResult.success) {
-        const message = `Library imported successfully. ${importResult.imported} new models added, ${importResult.updated} models updated.`;
-        await window.electron.showMessage('Success', message);
-        if (typeof refreshModelDisplay === 'function') await refreshModelDisplay();
-      }
-    } catch (error) {
-      console.error('Import library error:', error);
-      await window.electron.showMessage('Error', 'Failed to import library: ' + (error.message || 'Unknown error'));
-    }
-  };
-
-  document.getElementById('backup-button')?.addEventListener('click', () => window.createBackupFromDialog());
-  document.getElementById('restore-button')?.addEventListener('click', () => window.restoreBackupFromDialog());
-  document.getElementById('export-library-button')?.addEventListener('click', () => window.exportLibraryFromDialog());
-  document.getElementById('import-library-button')?.addEventListener('click', () => window.importLibraryFromDialog());
-
-  document.getElementById('save-backup-restore')?.addEventListener('click', () => {
-    document.getElementById('backup-restore-dialog').close();
-  });
 
   // Assign real handler for open-dedup (early listener already registered; avoids "No listeners" in Docker/server)
   window._electronRealEventHandlers['open-dedup'] = function() {

@@ -773,6 +773,39 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#system-report-dialog .dialog-buttons button');
     check('System Report closes', !(await page.isVisible('#system-report-dialog')));
 
+    // Backup/Restore (React): backup and export download, the export imports back, a bad backup is refused.
+    await page.evaluate(() => window.openBackupRestore());
+    check('Backup/Restore opens', await page.isVisible('#backup-restore-dialog'));
+    const backupDownload = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#backup-button')])
+      .then(([download]) => download).catch(() => null);
+    check('Create Backup downloads a .db file', !!backupDownload && /^justtprint-backup-.*\.db$/.test(backupDownload.suggestedFilename()), backupDownload && backupDownload.suggestedFilename());
+    const exportDownload = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#export-library-button')])
+      .then(([download]) => download).catch(() => null);
+    const exportPath = exportDownload && await exportDownload.path().catch(() => null);
+    const exported = exportPath ? JSON.parse(fs.readFileSync(exportPath, 'utf8')) : null;
+    check('Export Library downloads the library', !!exported && Array.isArray(exported.models) && exported.models.length === 3, exported ? `${exported.models.length} models` : 'no file');
+    if (exportPath) {
+      await page.click('#import-library-button');
+      const confirmImport = await page.waitForSelector('dialog[open]:has-text("Confirm Import") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      check('Import Library asks first', !!confirmImport);
+      if (confirmImport) {
+        const chooser = page.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null);
+        await confirmImport.click();
+        const fileChooser = await chooser;
+        check('Import Library opens a file picker', !!fileChooser);
+        if (fileChooser) await fileChooser.setFiles(exportPath);
+        const imported = await page.waitForSelector('dialog[open]:has-text("Library imported successfully")', { timeout: 30000 }).catch(() => null);
+        check('Import Library merges the export', !!imported && /0 new models added, 3 models updated/.test(await imported.textContent()), imported && await imported.textContent());
+        if (imported) await page.click('dialog[open]:has-text("Library imported successfully") button:text-is("OK")');
+      }
+    }
+    await page.setInputFiles('#restore-file-input', { name: 'junk.db', mimeType: 'application/octet-stream', buffer: Buffer.from('not a database') });
+    const refused = await page.waitForSelector('dialog[open]:has-text("Not a JusttPrint backup")', { timeout: 30000 }).catch(() => null);
+    check('Restore refuses a file that is not a backup', !!refused);
+    if (refused) await page.click('dialog[open]:has-text("Not a JusttPrint backup") button:text-is("OK")');
+    await page.click('#save-backup-restore');
+    check('Backup/Restore closes', !(await page.isVisible('#backup-restore-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

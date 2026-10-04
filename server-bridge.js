@@ -546,10 +546,6 @@
     'reportServerThumbnailProgress': 'report-server-thumbnail-progress',
     'reportServerThumbnailComplete': 'report-server-thumbnail-complete',
     'reportServerThumbnailError': 'report-server-thumbnail-error',
-    'backupDatabase': 'backup-database',
-    'restoreDatabase': 'restore-database',
-    'exportLibrary': 'export-library',
-    'importLibrary': 'import-library',
     'deleteFile': 'delete-file',
     'fetchThangsPage': 'fetch-thangs-page',
     'purgeModels': 'purge-models',
@@ -654,10 +650,6 @@
     window.electron.on('open-server-mode-info', async () => {
       await callback();
     });
-  };
-  
-  window.electron.onOpenBackupRestore = function(callback) {
-    window.electron.on('open-backup-restore', callback);
   };
   
   window.electron.onOpenDeDup = function(callback) {
