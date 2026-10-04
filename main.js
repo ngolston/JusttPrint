@@ -3,20 +3,16 @@ const thumbnailWorker = require('./src/server/thumbnail-worker');
 const { jsonStringifyForWs } = require('./src/server/ws-json');
 const database = require('./src/core/database');
 const { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting } = require('./src/core/settings');
-const { app, ipcMain, shell } = require('./src/server/runtime');
-const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler, syncSpoolmanFilamentsHandler } = require('./src/server/ipc/filaments');
-const { createPuterIPCHandler, getAISettings, puterPendingRequests } = require('./src/server/ipc/ai');
+const {
+  app,
+  ipcMain
+} = require('./src/server/runtime');
+require('./src/server/ipc');
+const {
+  puterPendingRequests
+} = require('./src/server/ipc/ai');
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
-const crypto = require('crypto');
-const puppeteer = require('puppeteer');
-const { Worker } = require('worker_threads');
-const { deriveBundleFromFilePath } = require('./bundle-keys');
-const spoolman = require('./spoolman');
-const printEvents = require('./print-events');
-const printerManager = require('./printer-manager');
-const { buildFolderForest, directoryFilterLikePrefix } = require('./folder-tree-lib');
 const {
   registerMcpRoutes,
   buildMcpClientConfig,
@@ -25,69 +21,82 @@ const {
 } = require('./mcp-server');
 const serverTls = require('./server-tls');
 const extensionInbox = require('./extension-inbox');
-const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('./slicer-launch');
+const {
+  invalidSlicerPathError
+} = require('./slicer-launch');
 const { registerHelperBundleRoute } = require('./helper/install-bundle');
-const { SECRET_SETTING_KEYS, MIN_PASSWORD_LENGTH, parseTrustProxy, parseCookies, SESSION_COOKIE: SESSION_COOKIE_NAME } = require('./server-auth');
+const {
+  MIN_PASSWORD_LENGTH,
+  parseTrustProxy
+} = require('./server-auth');
 const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
-const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases, PROJECT_URL } = require('./src/server/releases');
 const { RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./src/server/client-dialogs');
 
-const { dedupePathList, excludeDirectoriesSettingIsEmpty, getLibraryRootPaths, getScanExcludeNames, isUrlModel, parseExcludePathList, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('./src/core/library-paths');
+const {
+  dedupePathList,
+  excludeDirectoriesSettingIsEmpty,
+  parseExcludePathList,
+  parseZipPath,
+  readStlHomeDirectories
+} = require('./src/core/library-paths');
 
-const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions, sqlAndFilterConditions } = require('./src/core/model-filters');
+const {
+  ADDITIONAL_FILE_TYPES_CATALOG
+} = require('./src/core/model-filters');
 
-const { applyThumbnailFlags, getDefaultThumbnail, getThumbnailImagePayload, loadThumbnailForModel, parseThumbnails, readThumbnailColumn } = require('./src/core/thumbnails');
+const {
+  readThumbnailColumn
+} = require('./src/core/thumbnails');
 
-const { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany } = require('./src/core/extract-temp');
+const {
+  EXTRACT_TEMP_DIR_NAME,
+  EXTRACT_TEMP_FILE_PREFIX,
+  cleanupExtractTempFile,
+  ensureExtractTempDir,
+  getExtractTempDir,
+  getOsTempRoot,
+  pendingExtractTempCleanups
+} = require('./src/core/extract-temp');
 
-const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelJunctionRows, deleteModelsByFilePaths, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable, replaceModelFilaments } = require('./src/core/models');
+const {
+  repairModelTagsTable
+} = require('./src/core/models');
 
-const { deleteTagHandler, generateTagsHandler, getAllTagsHandler, renameTagForMcp, resolveTagForMcp, saveTagHandler } = require('./src/server/ipc/tags');
 
-const { countModelsNeedingHash, generateMissingHashesHandler, getDuplicatesHandler, hashGenerationRunning, scheduleBackgroundHashGeneration } = require('./src/server/ipc/hashes');
+const {
+  scheduleBackgroundHashGeneration
+} = require('./src/server/ipc/hashes');
 
 const { clientDialogs } = require('./src/server/dialogs');
-const { isServableStaticPath, isLibraryPathAllowed, assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
 const {
-  normalizeExcludeNames,
-  shouldSkipDirectoryName,
-  shouldSkipFileName,
-  shouldSkipEntryPath,
-  compileExcludeDirs,
-  isExcludedPath
-} = require('./scan-skip');
-const { clampFolderLevels } = require('./library-context');
-const { applyFolderTagsToModels: applyFolderTagsInDb, shouldAutoTagNewScanFiles } = require('./folder-tags');
-const { repairModelTags } = require('./db-repair');
-const {
-  planOrganize,
-  withFreeSpace,
-  readFreeBytes,
-  runOrganizePlan,
-  pathsAreSame
-} = require('./organize-library');
+  isServableStaticPath,
+  assertNetworkIpcArgs
+} = require('./server-paths');
 
 const { getServerAuth } = require('./src/server/auth');
 
-const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry } = require('./src/core/zip-entries');
+const {
+  extractModelFromZip
+} = require('./src/core/zip-entries');
 
-const { ensureSlicersTableExists, isDockerContainer, openFileInSlicerHandler, resolveModelPathsForSlicer, runSlicerWithModelPaths } = require('./src/server/ipc/slicers');
+const {
+  resolveModelPathsForSlicer,
+  runSlicerWithModelPaths
+} = require('./src/server/ipc/slicers');
 
-const { extract3MFMetadata, filter3MFMetadataBySettings, parse3MFModelXML } = require('./src/core/three-mf');
 
 const { getDatabasePath } = require('./src/core/db-path');
 
-const { applyFolderTagsToModels, deleteFile } = require('./src/server/ipc/context-menu');
 
-const { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, normalizeFilamentIds, normalizePath, saveModel, updateModelsBatch } = require('./src/server/ipc/models');
+const {
+  saveModel
+} = require('./src/server/ipc/models');
 
-const { buildLibraryExportData } = require('./src/server/ipc/backup');
 
 const { scanDirectoryHandler } = require('./src/server/ipc/scan');
 
 const { initializeDatabase } = require('./src/core/db-init');
 
-const { addMultipleThumbnails, addThumbnailToModel, saveThumbnail, setDefaultThumbnailIndex } = require('./src/core/thumbnail-store');
 
 const { libraryPathAllowed, networkPathContext } = require('./src/server/path-context');
 
@@ -95,28 +104,15 @@ const { getMcpToolContext } = require('./src/server/mcp-tools');
 
 const { requestThumbnailJobCancel, startServerThumbnailJobInternal, thumbnailJobRunning } = require('./src/server/ipc/thumbnails');
 
-require('./src/server/ipc/previews');
 
-const JSZip = require('jszip');
-const {
-  extractZipEntryBuffer,
-  findZipEntry,
-  withZipFileLock,
-  isFragileZipError
-} = require('./zip-extract');
 const os = require('os');
 const https = require('https');
 const {
   compressThumbnailBlob,
-  compressDataUrl,
   needsCompression,
   THUMBNAIL_MAX_STORED_CHARS,
   THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS
 } = require('./thumbnail-compress');
-const { extractLysPreviewEntry } = require('./extract-lys-preview');
-const { extractF3dPreviewEntry } = require('./extract-f3d-preview');
-const { extractChituboxPreviewEntry } = require('./extract-chitubox-preview');
-const { extractVoxlPreviewEntry } = require('./extract-voxl-preview');
 
 const express = require('express');
 const WebSocket = require('ws');
@@ -1136,10 +1132,6 @@ app.on('will-quit', closeDatabaseOnQuit);
 let extensionInboxTimer = null;
 let extensionInboxImporting = false;
 
-function getExtensionInboxDirectory() {
-  return extensionInbox.resolveInboxDirectory(getSettingValueOr('extensionInboxDirectory', ''));
-}
-
 function getExtensionInboxDirectories() {
   const custom = (getSettingValueOr('extensionInboxDirectory', '') || '').trim();
   return extensionInbox.uniqueInboxDirectories([
@@ -1227,10 +1219,6 @@ function getServerListenPort() {
 
 function getAppListenPort() {
   return getServerListenPort();
-}
-
-function localHttpServerShouldRun() {
-  return true;
 }
 
 function getHttpServerListenPort() {
@@ -1859,127 +1847,6 @@ if (!gotTheLock) {
 
 
 
-require('./src/server/ipc/parts');
-
-require('./src/server/ipc/print-events');
-
-require('./src/server/ipc/printers');
-
-require('./src/server/ipc/settings');
-
-function shouldSkipDirectory(dirName) {
-  return shouldSkipDirectoryName(dirName, getScanExcludeNames());
-}
-
-// Update the scanDirectory function
-async function scanDirectory(directoryPath, isValidFile) {
-  const files = [];
-  let totalFiles = 0;
-  let isCancelled = false;
-
-  // Function to check if a directory should be processed
-  function shouldProcessDirectory(dirName) {
-    return !shouldSkipDirectory(dirName);
-  }
-
-  // Process a batch of entries in parallel
-  async function processBatch(entries, currentDir) {
-    if (isCancelled) return [];
-
-    const batchResults = await Promise.all(
-      entries.map(async (entry) => {
-        const fullPath = path.join(currentDir, entry.name);
-        
-        if (entry.isDirectory()) {
-          // Skip system directories
-          if (!shouldProcessDirectory(entry.name)) {
-            return { files: [], count: 0 };
-          }
-          
-          return await scanRecursive(fullPath);
-        } else {
-          totalFiles++;
-          if (shouldSkipFileName(entry.name)) {
-            return { files: [], count: 0 };
-          }
-          
-          try {
-            const stats = await fs.promises.stat(fullPath);
-            if (isValidFile(entry.name, stats.size)) {
-              return { 
-                files: [{
-                  filePath: fullPath,
-                  fileName: entry.name,
-                  size: stats.size,
-                  mtime: stats.mtime
-                }], 
-                count: 1 
-              };
-            }
-          } catch (error) {
-            console.error(`Error processing file ${fullPath}:`, error);
-          }
-          return { files: [], count: 0 };
-        }
-      })
-    );
-    
-    // Combine results from the batch
-    return batchResults.reduce(
-      (acc, result) => {
-        if (result) {
-          acc.files.push(...result.files);
-          acc.count += result.count;
-        }
-        return acc;
-      },
-      { files: [], count: 0 }
-    );
-  }
-
-  // Scan directory recursively with improved parallelism
-  async function scanRecursive(dir) {
-    try {
-      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-      
-      // Process in batches of 50 for better performance
-      const BATCH_SIZE = 50;
-      const results = [];
-      
-      for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-        const batch = entries.slice(i, i + BATCH_SIZE);
-        const batchResult = await processBatch(batch, dir);
-        results.push(batchResult);
-        
-        if (isCancelled) break;
-      }
-      
-      // Combine all batch results
-      return results.reduce(
-        (acc, result) => {
-          acc.files.push(...result.files);
-          acc.count += result.count;
-          return acc;
-        },
-        { files: [], count: 0 }
-      );
-    } catch (error) {
-      console.error(`Error reading directory ${dir}:`, error);
-      return { files: [], count: 0 };
-    }
-  }
-
-  // Add a method to cancel the scan
-  const cancelScan = () => {
-    isCancelled = true;
-  };
-
-  // Start the scan
-  const result = await scanRecursive(directoryPath);
-  files.push(...result.files);
-  
-  return { files, totalFiles, cancelScan };
-}
 
 
 
@@ -1989,13 +1856,12 @@ async function scanDirectory(directoryPath, isValidFile) {
 
 
 
-require('./src/server/ipc/files');
 
-require('./src/server/ipc/web-pages');
 
-require('./src/server/ipc/metadata');
 
-require('./src/server/ipc/system-report');
+
+
+
 
 // Browser extension / MCP local HTTP server control (normal mode)
 ipcMain.handle('start-extension-server', async (event, port) => {
@@ -2124,10 +1990,6 @@ function applyStlHomeExcludeEnvIfNeeded(envValue) {
   }
 }
 
-function isPrintventoryExtractTempFileName(fileName) {
-  return typeof fileName === 'string' && fileName.startsWith(EXTRACT_TEMP_FILE_PREFIX);
-}
-
 /** Remove leftover extract temps (startup / quit). Optionally only files older than maxAgeMs. */
 async function cleanupExtractTempDirectory({
   maxAgeMs = 0,
@@ -2173,9 +2035,7 @@ async function cleanupExtractTempDirectory({
   }
 }
 
-require('./src/server/ipc/updates');
 
-require('./src/server/ipc/organize');
 
 // Add this new IPC handler
 
