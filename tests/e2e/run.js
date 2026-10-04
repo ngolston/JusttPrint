@@ -542,14 +542,22 @@ async function browserChecks(base, wsUrl, session) {
     // Server-initiated confirmation (Pull Metadata over existing details) shows in this browser.
     const box3mf = path.join(LIBRARY, 'Designer B', 'box.3mf');
     await invoke(base, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
+    // Trace what the page sends on its WebSocket, to explain a failure below.
+    await page.evaluate(() => {
+      window.__wsSent = [];
+      const send = WebSocket.prototype.send;
+      WebSocket.prototype.send = function(data) { window.__wsSent.push(String(data).slice(0, 160)); return send.call(this, data); };
+    });
     const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
     const confirmDialog = await page.waitForSelector('dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")', { timeout: 15000 }).catch(() => null);
     const openDialogs = () => page.evaluate(() => [...document.querySelectorAll('dialog[open]')].map((d) => `${d.id || d.className}: ${d.textContent.trim().slice(0, 80)}`));
     check('server confirmation appears in the browser', !!confirmDialog, JSON.stringify(await openDialogs()));
     if (confirmDialog) {
+      const before = await openDialogs();
       await confirmDialog.click();
+      const after = await openDialogs();
       const pullResult = await pull.catch((error) => ({ error: error.message }));
-      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; open dialogs: ${JSON.stringify(await openDialogs())}`);
+      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; dialogs before click ${before.length}, after ${after.length}: ${JSON.stringify(after)}; sent: ${JSON.stringify(await page.evaluate(() => window.__wsSent))}`);
       const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
