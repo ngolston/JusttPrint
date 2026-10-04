@@ -104,8 +104,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 - [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** The rename, the `main.js` rewrite and the HTTP API are done, so new screens call `/api/actions/*` directly (`src/web/api.ts`). Mount React into parts of the existing page so the app keeps working throughout:
   - [x] First a self-contained dialog, to set up Vite, TypeScript and the build in the Docker image. Server Access is in `src/web/` (built into `web-build/app.js` by `npm run build:web`, and by a stage in the Dockerfile).
-  - Then the model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber).
-  - Then the remaining dialogs and managers (tags, filament, printers, parts, dedup, organize).
+  - [x] The dialogs and managers (4.2.0): tags, parts, filament, printers, stats, system report, backup/restore, about, shortcuts, every settings dialog, purge, metadata manager, STL Home, organize, de-dup.
+  - [ ] The model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber). Manage Thumbnails and the Log Print dialog (`print-history.js`) move with them, since they share the grid's state.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:

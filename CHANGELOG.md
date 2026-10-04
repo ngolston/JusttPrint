@@ -4,9 +4,12 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-**Upgrading:** no changes needed. Building from source now needs `npm run build:web` before `npm start` (the Docker image does this itself).
+## [4.2.0] - 2026-10-04
+
+**Upgrading:** no changes needed for Docker. Building from source now needs `npm run build:web` before `npm start` (the Docker image does this itself). Puter.com AI does not work in the browser yet (the page's security policy blocks Puter.js); use another AI service for now.
 
 **Changes:**
+- Every dialog except Manage Thumbnails and the print log is rebuilt in React + TypeScript; the model grid, details panel and 3D preview are next.
 - First React + TypeScript screen: **Tools → Server Access** is rebuilt in React (`src/web/`), built with Vite into `web-build/app.js` and mounted into the existing page. It calls the HTTP API directly. Same behavior: change the password (when it is not set by `JUSTTPRINT_PASSWORD`), copy or regenerate the API token.
 - The Docker image builds the React screens in a separate stage; the runtime image has no build tools.
 - **Tag Manager** is rebuilt in React: create, rename inline (renaming onto an existing name merges the two after asking), search, delete, full screen.
