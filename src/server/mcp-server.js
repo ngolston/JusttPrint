@@ -587,7 +587,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'open_in_slicer',
-    description: 'Open one or more models in a configured slicer. Desktop launches locally; server mode sends a client command.',
+    description: 'Open one or more models in a configured slicer on the user\'s computer. The open Printventory browser tabs hand the files to the Printventory helper, which downloads them and starts the slicer there. Nothing runs on the server.',
     inputSchema: {
       type: 'object',
       properties: {

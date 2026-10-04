@@ -728,7 +728,6 @@
     'readModelFile': 'read-model-file',
     'parse3MFPreview': 'parse-3mf-preview',
     'cancel3MFPreview': 'cancel-3mf-preview',
-    'executeClientCommand': 'execute-client-command',
     'getGpuInfo': 'get-gpu-info',
     'benchmarkFilesystem': 'benchmark-filesystem',
     'benchmarkDatabase': 'benchmark-database'
@@ -853,66 +852,39 @@
     window.electron.on('open-slicer-settings', callback);
   };
   
-  // Handle client-side command execution (for server mode)
-  window.electron.on('execute-client-command', async (commandData) => {
-    try {
-      if (!commandData || !commandData.type) {
-        console.error('[Bridge] Invalid command data:', commandData);
-        return;
-      }
-
-      const { type, filePath, slicerName, slicerPath, isZipEntry, zipPath, entryPath } = commandData;
-
-      if (type === 'open-file') {
-        // For browser clients, try to download and open, or show message
-        console.log('[Bridge] Open file requested:', filePath);
-        // Trigger download which browser can then open
-        window.electron.on('download-model', async (path) => {
-          // This will trigger the download handler
-        });
-        // Trigger download
-        const encodedPath = encodeURIComponent(filePath);
-        const downloadUrl = `/api/download/${encodedPath}`;
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = '';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => link.remove(), 100);
-      } else if (type === 'open-in-slicer') {
-        if (window.PrintventorySlicerProtocol) {
-          try {
-            window.PrintventorySlicerProtocol.launchFromCommand(commandData);
-          } catch (error) {
-            alert(`Could not send to slicer:\n${error.message}`);
-          }
-          return;
-        }
-        // Helper script was not loaded. Show the manual steps.
-        console.log('[Bridge] Open in slicer requested:', filePath, slicerName);
-        let message = `To open this file in ${slicerName}:\n\n`;
-        
-        if (isZipEntry && zipPath && entryPath) {
-          message += `1. Download the ZIP file: ${zipPath}\n`;
-          message += `2. Extract ${entryPath} from the ZIP\n`;
-          message += `3. Open ${entryPath} in ${slicerName}\n\n`;
-        } else {
-          message += `1. Download the file (use the Download option)\n`;
-          message += `2. Open ${slicerName} on your workstation\n`;
-          message += `3. Open the downloaded file in ${slicerName}\n\n`;
-          message += `File: ${filePath}\n`;
-        }
-        
-        message += `Slicer Path: ${slicerPath}`;
-        
-        alert(message);
-      }
-    } catch (error) {
-      console.error('[Bridge] Error handling client command:', error);
+  // Commands the server hands to this browser. Nothing runs on the server: files download
+  // here, and Send to Slicer opens a printventory:// link for the helper on this computer.
+  window.electron.on('execute-client-command', (commandData) => {
+    if (!commandData || !commandData.type) {
+      console.error('[Bridge] Invalid command data:', commandData);
+      return;
+    }
+    if (commandData.type === 'open-file') {
+      const link = document.createElement('a');
+      link.href = `/api/download/${encodeURIComponent(commandData.filePath)}`;
+      link.download = '';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => link.remove(), 100);
+    } else if (commandData.type === 'open-in-slicer') {
+      window.electron.launchSlicerCommand(commandData);
     }
   });
-  
+
+  /** Open the helper link for an open-in-slicer command from the server. */
+  window.electron.launchSlicerCommand = function(command) {
+    if (!window.PrintventorySlicerProtocol) {
+      alert('Send to Slicer needs slicer-protocol.js, which did not load. Download the file and open it in your slicer.');
+      return;
+    }
+    try {
+      window.PrintventorySlicerProtocol.launchFromCommand(command);
+    } catch (error) {
+      alert(`Could not send to slicer:\n${error.message}`);
+    }
+  };
+
   window.electron.onOpenPurgeModels = function(callback) {
     window.electron.on('open-purge-models', callback);
   };

@@ -25,7 +25,7 @@
     "test:inbox": "node tests/extension-inbox.test.js",
     "test:extractors": "node chrome-extension/extractors.test.js",
     "test:mcp": "node tests/mcp-server.test.js",
-    "test:slicer-launch": "node tests/slicer-launch.test.js",
+    "test:slicer-launch": "node helper/slicer-launch.test.js",
     "test:slicer-protocol": "node tests/slicer-protocol.test.js",
     "test:helper-bundle": "node helper/install-bundle.test.js",
     "test:scan-skip": "node tests/scan-skip.test.js",
