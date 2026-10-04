@@ -2548,89 +2548,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
         </div>
       </dialog>
 
-      <dialog id="parts-stock-dialog" class="modal">
-        <form id="parts-stock-form">
-          <div class="parts-stock-header">
-            <div class="parts-stock-header-row">
-              <h3>🔩 Parts Manager</h3>
-              <button type="button" id="parts-stock-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="togglePartsStockFullscreen">
-                <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
-                </svg>
-                <svg class="fullscreen-icon-shrink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-                </svg>
-              </button>
-            </div>
-            <p class="setting-description">Track screws, bearings, inserts, and other hardware. When you log a print, choose the parts it used and they are removed from stock.</p>
-          </div>
-          <div class="form-group parts-stock-form-section collapsed" id="parts-stock-form-section">
-            <div class="parts-stock-section-header">
-              <label id="parts-stock-form-label" for="parts-stock-name">Add a part</label>
-              <button type="button" id="parts-stock-toggle-add-btn" class="parts-stock-toggle-add-btn" aria-expanded="false">+ Add Part</button>
-            </div>
-            <div id="parts-stock-form-body" hidden>
-              <div class="parts-stock-add-grid">
-                <div class="parts-stock-field parts-stock-span">
-                  <label class="parts-stock-field-label" for="parts-stock-name">Part Name <span class="required">*</span></label>
-                  <input type="text" id="parts-stock-name" placeholder="Name (e.g. M3×8 screw, 608 bearing…)" autocomplete="off">
-                </div>
-                <div class="parts-stock-field">
-                  <label class="parts-stock-field-label" for="parts-stock-category">Category</label>
-                  <input type="text" id="parts-stock-category" list="parts-stock-categories" placeholder="Category (e.g. Screws)" autocomplete="off">
-                </div>
-                <div class="parts-stock-field">
-                  <label class="parts-stock-field-label" for="parts-stock-unit">Unit</label>
-                  <input type="text" id="parts-stock-unit" placeholder="Unit (pcs)" autocomplete="off" value="pcs" aria-label="Unit">
-                </div>
-                <div class="parts-stock-field">
-                  <label class="parts-stock-field-label" for="parts-stock-quantity">Quantity on hand</label>
-                  <input type="number" id="parts-stock-quantity" min="0" max="1000000" step="1" value="0" title="Quantity on hand" aria-label="Quantity on hand">
-                </div>
-                <div class="parts-stock-field">
-                  <label class="parts-stock-field-label" for="parts-stock-low">Low stock alert threshold</label>
-                  <input type="number" id="parts-stock-low" min="0" max="1000000" step="1" value="0" title="Warn when quantity is at or below this number" aria-label="Low stock warning">
-                </div>
-                <div class="parts-stock-field parts-stock-span">
-                  <label class="parts-stock-field-label" for="parts-stock-notes">Notes (optional)</label>
-                  <input type="text" id="parts-stock-notes" placeholder="Notes (optional, e.g. bin number or size specs)" autocomplete="off">
-                </div>
-              </div>
-              <datalist id="parts-stock-categories">
-                <option value="Screws"></option>
-                <option value="Nuts"></option>
-                <option value="Washers"></option>
-                <option value="Bearings"></option>
-                <option value="Inserts"></option>
-                <option value="Magnets"></option>
-                <option value="Springs"></option>
-                <option value="Electronics"></option>
-                <option value="Fasteners"></option>
-                <option value="Hardware"></option>
-              </datalist>
-              <div class="parts-stock-form-actions">
-                <button type="submit" id="parts-stock-add" class="parts-stock-btn-primary">Add</button>
-                <button type="button" id="parts-stock-cancel-edit" class="parts-stock-btn-cancel">Cancel</button>
-              </div>
-              <div id="parts-stock-status" class="parts-stock-status"></div>
-            </div>
-          </div>
-          <div class="form-group parts-stock-list-section">
-            <div class="parts-stock-section-header">
-              <label for="parts-stock-search">Parts Inventory</label>
-              <span id="parts-stock-count-badge" class="parts-stock-count-badge"></span>
-            </div>
-            <div class="input-with-icon">
-              <input type="text" id="parts-stock-search" placeholder="Search parts...">
-              <button type="button" id="parts-stock-clear-search" class="icon-button" title="Clear search">×</button>
-            </div>
-            <div id="parts-stock-list" class="parts-stock-list"></div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" id="parts-stock-close">Close</button>
-          </div>
-        </form>
-      </dialog>
 
 
       <dialog id="metadata-editor-dialog" class="modal">
@@ -2770,7 +2687,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="organize-library-ui.js"></script>
   <script src="filament.js"></script>
   <script src="printer-management.js"></script>
-  <script src="parts-stock.js"></script>
   <script src="print-history.js"></script>
   <script type="module" src="slicer.js"></script>
   <script src="guide.js"></script>
@@ -2794,7 +2710,7 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
       </div>
     </div>
   </template>
-  <!-- React screens (src/web/): Server Access, Tag Manager -->
+  <!-- React screens (src/web/): Server Access, Tag Manager, Parts Manager -->
   <div id="react-root"></div>
   <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>

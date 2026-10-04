@@ -616,6 +616,40 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#tag-manager-dialog .dialog-buttons button');
     check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
 
+    // Parts Manager (React): add, step the quantity, edit, remove.
+    const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
+    await page.evaluate(() => window.openPartsStock());
+    check('Parts Manager opens', await page.isVisible('#parts-stock-dialog'));
+    await page.click('#parts-stock-toggle-add-btn');
+    await page.fill('#parts-stock-name', 'E2E M3 screw');
+    await page.fill('#parts-stock-category', 'Screws');
+    await page.fill('#parts-stock-quantity', '10');
+    await page.fill('#parts-stock-low', '2');
+    await page.click('#parts-stock-add');
+    const partRow = await page.waitForSelector('#parts-stock-list .parts-stock-item:has-text("E2E M3 screw")', { timeout: 10000 }).catch(() => null);
+    let part = (await serverParts()).find((p) => p.name === 'E2E M3 screw');
+    check('Parts Manager adds a part', !!partRow && part && part.quantity === 10 && part.low_stock === 2 && part.category === 'Screws', JSON.stringify(part));
+    if (partRow && part) {
+      const row = `#parts-stock-list .parts-stock-item[data-part-id="${part.id}"]`;
+      await page.click(`${row} .parts-stock-step[aria-label="Increase quantity"]`);
+      await waitFor(async () => ((await serverParts()).find((p) => p.id === part.id) || {}).quantity === 11, 10000, 'quantity step').catch(() => {});
+      check('Parts Manager steps the quantity', ((await serverParts()).find((p) => p.id === part.id) || {}).quantity === 11);
+      await page.click(`${row} .parts-stock-edit`);
+      check('Edit fills the form', (await page.inputValue('#parts-stock-name')) === 'E2E M3 screw' && (await page.textContent('#parts-stock-add')) === 'Save');
+      await page.fill('#parts-stock-quantity', '1');
+      await page.press('#parts-stock-quantity', 'Enter');
+      await page.waitForSelector(`${row}.is-low`, { timeout: 10000 }).catch(() => {});
+      part = (await serverParts()).find((p) => p.id === part.id);
+      check('Parts Manager saves an edit (Enter) and flags low stock', part && part.quantity === 1 && await page.isVisible(`${row}.is-low`), JSON.stringify(part));
+      await page.click(`${row} .parts-stock-remove`);
+      const removeButton = await page.waitForSelector('dialog[open]:has-text("Remove Part") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+      if (removeButton) await removeButton.click();
+      await page.waitForSelector(row, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Parts Manager removes a part after asking', !!removeButton && !(await serverParts()).some((p) => p.id === part.id));
+    }
+    await page.click('#parts-stock-close');
+    check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

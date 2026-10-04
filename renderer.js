@@ -454,20 +454,6 @@ window.togglePrinterManagementFullscreen = function togglePrinterManagementFulls
   dialog.classList.toggle('modal-fullscreen');
   window.syncPrinterManagementFullscreenButton(dialog.classList.contains('modal-fullscreen'));
 };
-window.syncPartsStockFullscreenButton = function syncPartsStockFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('parts-stock-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.togglePartsStockFullscreen = function togglePartsStockFullscreen() {
-  const dialog = document.getElementById('parts-stock-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncPartsStockFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
 window.toggleDedupFullscreen = function toggleDedupFullscreen() {
   const dialog = document.getElementById('dedup-dialog');
   const btn = document.getElementById('dedup-fullscreen-toggle');

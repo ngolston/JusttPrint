@@ -61,3 +61,30 @@ export const tags = {
     callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
   remove: (id: number) => callAction<boolean>('delete-tag', id)
 };
+
+export interface Part {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  notes: string;
+  low_stock: number;
+}
+
+export interface PartInput {
+  id?: number;
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  notes: string;
+  lowStock: number;
+}
+
+export const parts = {
+  list: () => callAction<Part[]>('get-all-parts'),
+  /** Creates the part, or updates it when `id` is set. */
+  save: (part: PartInput) => callAction<Part>('save-part', part),
+  remove: (id: number) => callAction<unknown>('delete-part', id)
+};

@@ -688,3 +688,8 @@
 #log-print-parts-summary:empty {
   display: none;
 }
+
+.parts-stock-empty-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
