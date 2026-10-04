@@ -4,6 +4,8 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-04
+
 **Printventory is now JusttPrint.** This is a clean break: the old names are no longer read, so existing installs need the steps below.
 
 **Before upgrading (existing Printventory installs):**
