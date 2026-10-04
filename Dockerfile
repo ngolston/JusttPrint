@@ -20,6 +20,17 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
     && node -e "new (require('better-sqlite3'))(':memory:').close()" \
     && npm cache clean --force
 
+# --- Web UI: the React screens (src/web/) built with Vite into web-build/ ---
+FROM node:22-trixie-slim AS web
+
+WORKDIR /app
+COPY package.json package-lock.json .npmrc ./
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY vite.config.mjs ./
+COPY src/web ./src/web
+RUN npm run build:web
+
 # --- Runtime ---
 FROM node:22-trixie-slim
 
@@ -31,6 +42,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 # Everything else; .dockerignore keeps tests, desktop build files and local data out.
 COPY . .
+COPY --from=web /app/web-build ./web-build
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

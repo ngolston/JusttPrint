@@ -4,6 +4,12 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Upgrading:** no changes needed. Building from source now needs `npm run build:web` before `npm start` (the Docker image does this itself).
+
+**Changes:**
+- First React + TypeScript screen: **Tools → Server Access** is rebuilt in React (`src/web/`), built with Vite into `web-build/app.js` and mounted into the existing page. It calls the HTTP API directly. Same behavior: change the password (when it is not set by `JUSTTPRINT_PASSWORD`), copy or regenerate the API token.
+- The Docker image builds the React screens in a separate stage; the runtime image has no build tools.
+
 ## [4.1.1] - 2026-10-04
 
 **Upgrading:** no changes needed.

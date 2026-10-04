@@ -1282,40 +1282,8 @@
         </div>
       </form>
     </dialog>
-    <dialog id="server-access-dialog" class="modal">
-      <form method="dialog">
-        <h3>Server Access</h3>
-        <p class="setting-description">Browsers log in with the server password. MCP clients and scripts use the API token.</p>
-        <div class="settings-group">
-          <div class="form-group" id="server-access-password-group">
-            <label for="server-access-current-password" id="server-access-current-label">Current password</label>
-            <input type="password" id="server-access-current-password" autocomplete="current-password">
-            <label for="server-access-new-password">New password</label>
-            <input type="password" id="server-access-new-password" autocomplete="new-password">
-            <label for="server-access-confirm-password">Confirm new password</label>
-            <input type="password" id="server-access-confirm-password" autocomplete="new-password">
-            <p class="setting-description">Changing the password logs out every browser.</p>
-            <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="server-access-change-password">Change password</button>
-            </div>
-          </div>
-          <p id="server-access-env-note" class="setting-description" hidden>The password is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.</p>
-          <p id="server-access-status" class="setting-description" role="status"></p>
-          <div class="form-group">
-            <label for="server-access-api-token">API token</label>
-            <input type="text" id="server-access-api-token" readonly>
-            <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="server-access-copy-token">Copy token</button>
-              <button type="button" id="server-access-regenerate-token">Regenerate</button>
-            </div>
-            <p class="setting-description">Send as <code>Authorization: Bearer &lt;token&gt;</code>. The MCP client config already includes it. Regenerating disconnects clients that use the old token.</p>
-          </div>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="close-server-access" data-close-dialog="server-access-dialog">Close</button>
-        </div>
-      </form>
-    </dialog>
+    <!-- Server Access dialog: React (src/web/ServerAccessDialog.tsx) -->
+    <div id="server-access-root"></div>
     <dialog id="https-settings-dialog" class="modal">
       <form method="dialog">
         <h3>HTTPS / SSL</h3>
@@ -2865,5 +2833,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
     </div>
   </template>
   <script src="page-init.js"></script>
+  <script type="module" src="web-build/app.js"></script>
 </body>
 </html>

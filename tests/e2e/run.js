@@ -561,7 +561,15 @@ async function browserChecks(base, wsUrl, session) {
 
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
-    check('API token shown', (await page.inputValue('#server-access-api-token')).startsWith('pv_'));
+    const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
+      .then((handle) => handle.jsonValue()).catch(() => '');
+    check('API token shown', String(shownToken).startsWith('pv_'), shownToken);
+    // The e2e server's password comes from JUSTTPRINT_PASSWORD, so the dialog explains that instead of a form.
+    check('password set by environment: no change form', await page.isVisible('text=JUSTTPRINT_PASSWORD') && !(await page.isVisible('#server-access-new-password')));
+    await page.click('#close-server-access');
+    check('Close closes Server Access', !(await page.isVisible('#server-access-dialog')));
+    await page.evaluate(() => window.openServerAccess());
+    check('Server Access reopens', await page.isVisible('#server-access-dialog'));
     await page.keyboard.press('Escape');
 
     await page.evaluate(() => window.logOutOfServer());

@@ -102,8 +102,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟡 5. Medium: web UI can do everything
 
-- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** First choose the new project name and do the rename (section 7). Start after the `main.js` rewrite and the HTTP API (section 4), so the new screens call clear endpoints instead of the IPC-over-WebSocket bridge. Mount React into parts of the existing page so the app keeps working throughout:
-  - First a self-contained dialog (Server Access or Settings), to set up Vite, TypeScript and the build in the Docker image.
+- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** The rename, the `main.js` rewrite and the HTTP API are done, so new screens call `/api/actions/*` directly (`src/web/api.ts`). Mount React into parts of the existing page so the app keeps working throughout:
+  - [x] First a self-contained dialog, to set up Vite, TypeScript and the build in the Docker image. Server Access is in `src/web/` (built into `web-build/app.js` by `npm run build:web`, and by a stage in the Dockerfile).
   - Then the model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber).
   - Then the remaining dialogs and managers (tags, filament, printers, parts, dedup, organize).
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).

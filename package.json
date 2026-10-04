@@ -17,7 +17,9 @@
     "docker:local:logs": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env logs -f",
     "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
     "test": "node scripts/run-unit-tests.js",
-    "test:e2e": "node tests/e2e/run.js",
+    "build:web": "tsc -p src/web && vite build",
+    "dev:web": "vite build --watch --mode development",
+    "test:e2e": "npm run build:web && node tests/e2e/run.js",
     "test:bundle": "node tests/bundle-keys.test.js",
     "test:print-events": "node tests/print-events.test.js",
     "test:printers": "node tests/printer-manager.test.js",
@@ -45,7 +47,14 @@
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "testdriverai": "^7.9.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
     "vitest": "^4.1.10"
   },
   "overrides": {

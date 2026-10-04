@@ -42,3 +42,4 @@ printventory.db
 printventory.db-shm
 printventory.db-wal
 tests/printventory.db
+web-build/

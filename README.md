@@ -147,13 +147,15 @@ Requires [Node.js](https://nodejs.org/) 22 or later and a C++ toolchain for `bet
 git clone https://github.com/ngolston/JusttPrint.git
 cd JusttPrint
 npm install
+npm run build:web
 JUSTTPRINT_PASSWORD=dev-password STL_HOME=/path/to/models npm start
 ```
 
 `npm start` runs the server on plain Node (`src/server/index.js`) at `http://localhost:5000`. Thumbnails need a Chromium-based browser; set `JUSTTPRINT_CHROMIUM` to its path if Puppeteer's own download is missing.
 
+- `npm run build:web` type-checks and builds the React screens (`src/web/`) into `web-build/app.js`, which the page loads. `npm run dev:web` rebuilds on every change; reload the page to see it. The Docker image builds them itself.
 - `npm test` runs every unit test (`*.test.js`).
-- `npm run test:e2e` starts the server with `tests/fixtures/library` and checks the API, security rules and the web UI in a browser (`CHROME_PATH` selects the browser; on macOS Google Chrome is found automatically).
+- `npm run test:e2e` builds the React screens, starts the server with `tests/fixtures/library` and checks the API, security rules and the web UI in a browser (`CHROME_PATH` selects the browser; on macOS Google Chrome is found automatically).
 
 ## Testing Locally
 
@@ -884,7 +886,8 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling
-- `renderer.js` - UI logic (to be replaced screen by screen with React + TypeScript)
+- `renderer.js` - UI logic (being replaced screen by screen with React + TypeScript)
+- `src/web/` - React + TypeScript screens, built with Vite into `web-build/app.js` and mounted into the page one at a time (`main.tsx`). `api.ts` calls the HTTP API. So far: the Server Access dialog
 - `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
 - `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide
@@ -897,6 +900,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 - **Node.js** 22 - Server runtime (Docker image)
 - **Express** and **ws** - HTTP server, API and WebSocket
+- **React** + **TypeScript**, built with **Vite** - New web UI screens
 - **better-sqlite3** - SQLite database
 - **Three.js** - 3D previews and thumbnails
 - **Puppeteer** + Chromium - Thumbnail rendering in the container and page imports
