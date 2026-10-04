@@ -81,3 +81,6 @@ demos/
 # Local databases from before the rename
 printventory.db
 printventory.db-*
+
+# Built in the image (Dockerfile web stage)
+web-build/

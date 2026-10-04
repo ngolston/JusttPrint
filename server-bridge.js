@@ -57,12 +57,19 @@
     console.log('[Bridge] Registered listener for channel:', channel, 'Total listeners:', window._electronEventListeners[channel].length);
   };
   console.log('[Bridge] window.electron.on method defined');
+
+  /** Remove a listener added with on(). */
+  window.electron.off = function(channel, callback) {
+    const list = window._electronEventListeners && window._electronEventListeners[channel];
+    if (!list) return;
+    const index = list.indexOf(callback);
+    if (index !== -1) list.splice(index, 1);
+  };
   
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${wsProtocol}//${window.location.host}`;
   let ws = null;
   let reconnectAttempts = 0;
-  let requestIdCounter = 0;
   // Id the server gave this page's WebSocket; sent on API calls so the server can ask
   // this browser (dialogs, Puter AI). See src/server/api.js.
   let clientId = null;
@@ -122,11 +129,18 @@
   }
 
   // Define send() method - will be enhanced when WebSocket connects
-  let sendFunction = function(channel, ...args) {
-    // Will be enhanced when WebSocket connects
-    console.warn('window.electron.send called before WebSocket connected:', channel);
-  };
-  window.electron.send = sendFunction;
+  /** Call this page's listeners for an event (from the server, or sent by the page itself). */
+  function dispatchToListeners(channel, args) {
+    const listeners = (window._electronEventListeners || {})[channel] || [];
+    if (BRIDGE_DEBUG) console.log('[Bridge] Event', channel, 'listeners:', listeners.length, 'args:', args);
+    listeners.forEach((listener) => {
+      try {
+        listener(...(args || []));
+      } catch (error) {
+        console.error('[Bridge] Error in event listener:', error);
+      }
+    });
+  }
 
   function showBrowserMessage(title, message, buttons = ['OK'], cancelIndex = buttons.length > 1 ? buttons.length - 1 : 0) {
     return new Promise((resolve) => {
@@ -340,43 +354,8 @@
               }
             });
           } else if (data.type === 'event') {
-            // Handle events (like 'refresh-grid', 'scan-progress', etc.)
-            if (BRIDGE_DEBUG) console.log('[Bridge] Received event:', data.channel, 'with args:', data.args);
-            const eventListeners = window._electronEventListeners || {};
-            const listeners = eventListeners[data.channel] || [];
-            console.log('[Bridge] Found', listeners.length, 'listener(s) for channel:', data.channel);
-            if (listeners.length === 0) {
-              console.warn('[Bridge] No listeners registered for event channel:', data.channel);
-              // Debug: Show all registered channels
-              const allChannels = Object.keys(eventListeners);
-              console.log('[Bridge] All registered channels:', allChannels);
-              // Debug: Check if onHashGenerationProgress exists
-              if (data.channel === 'hash-generation-progress') {
-                console.log('[Bridge] window.electron.onHashGenerationProgress exists:', typeof window.electron?.onHashGenerationProgress);
-                console.log('[Bridge] window.electron.on exists:', typeof window.electron?.on);
-                console.log('[Bridge] _electronEventListeners type:', typeof window._electronEventListeners);
-                console.log('[Bridge] _electronEventListeners keys:', Object.keys(window._electronEventListeners || {}));
-              }
-              // Debug for tag generation events
-              if (data.channel === 'start-single-tag-generation' || data.channel === 'start-batch-tag-generation') {
-                console.log('[Bridge] Tag generation event received but no listeners!');
-                console.log('[Bridge] window.electron.on exists:', typeof window.electron?.on);
-                console.log('[Bridge] _electronEventListeners keys:', Object.keys(window._electronEventListeners || {}));
-                console.log('[Bridge] Attempting to register listener now...');
-                // Try to register listener if window.electron.on exists
-                if (typeof window.electron.on === 'function') {
-                  console.log('[Bridge] window.electron.on is a function, listeners should be registerable');
-                }
-              }
-            }
-            listeners.forEach((listener, index) => {
-              try {
-                console.log('[Bridge] Calling listener', index, 'for channel:', data.channel, 'with args:', data.args);
-                listener(...(data.args || []));
-              } catch (error) {
-                console.error('[Bridge] Error in event listener:', error);
-              }
-            });
+            // Events from the server ('refresh-grid', 'scan-progress', ...)
+            dispatchToListeners(data.channel, data.args);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
@@ -465,9 +444,7 @@
       'getVoxlImages': 120000,
       'get-file-stats': 120000,
       'calculate-file-hash': 300000,
-      'generateMissingHashes': 600000,
-      'scan-directory': 600000,
-      'test-ai-config': 60000
+      'scan-directory': 600000
     };
     var timeoutMs = heavyIpcChannels[channel] || 30000;
 
@@ -552,21 +529,14 @@
     'setPrintStatusBatch': 'set-print-status-batch',
     'testSpoolmanConnection': 'test-spoolman-connection',
     'syncSpoolmanFilaments': 'sync-spoolman-filaments',
-    'getAllMetadata': 'get-all-metadata',
     'getStats': 'get-stats',
-    'renameMetadata': 'rename-metadata',
-    'deleteMetadata': 'delete-metadata',
     'getModelTags': 'get-model-tags',
     'getGroupTags': 'get-group-tags',
     'getSetting': 'get-setting',
     'saveSetting': 'save-setting',
-    'getMcpConnectionInfo': 'get-mcp-connection-info',
     'getServerAccessInfo': 'get-server-access-info',
     'setServerPassword': 'set-server-password',
     'regenerateServerApiToken': 'regenerate-server-api-token',
-    'syncLocalHttpServer': 'sync-local-http-server',
-    'importExtensionInbox': 'import-extension-inbox',
-    'getDefaultExtensionInboxDirectory': 'get-default-extension-inbox-directory',
     'getAppVersion': 'get-app-version',
     'purgeThumbnails': 'purge-thumbnails',
     'startServerThumbnailJob': 'start-server-thumbnail-job',
@@ -575,17 +545,10 @@
     'reportServerThumbnailProgress': 'report-server-thumbnail-progress',
     'reportServerThumbnailComplete': 'report-server-thumbnail-complete',
     'reportServerThumbnailError': 'report-server-thumbnail-error',
-    'backupDatabase': 'backup-database',
-    'restoreDatabase': 'restore-database',
-    'exportLibrary': 'export-library',
-    'importLibrary': 'import-library',
     'deleteFile': 'delete-file',
     'fetchThangsPage': 'fetch-thangs-page',
-    'purgeModels': 'purge-models',
     'clearNewFlags': 'clear-new-model-flags',
     'getAdditionalFileTypesCatalog': 'get-additional-file-types-catalog',
-    'getModelCountByFileTypeIds': 'get-model-count-by-file-type-ids',
-    'removeModelsByFileTypeIds': 'remove-models-by-file-type-ids',
     'get3MFImages': 'get3MFImages',
     'getLYSImages': 'getLYSImages',
     'getF3DImages': 'getF3DImages',
@@ -594,10 +557,6 @@
     'get3MFSTL': 'get3MFSTL',
     'extractModelFromZip': 'extract-model-from-zip',
     'deleteTempFile': 'delete-temp-file',
-    'getDuplicates': 'get-duplicates',
-    'isGeneratingHashes': 'is-generating-hashes',
-    'getModelsWithoutHash': 'getModelsWithoutHash',
-    'generateMissingHashes': 'generateMissingHashes',
     'calculateFileHash': 'calculate-file-hash',
     'getThumbnail': 'getThumbnail',
     'getAllThumbnails': 'get-all-thumbnails',
@@ -607,15 +566,12 @@
     'deleteThumbnail': 'delete-thumbnail',
     'checkForUpdates': 'check-for-updates',
     'openUpdatePage': 'open-update-page',
-    'testAIConfig': 'test-ai-config',
-    'getDefaultAIPrompt': 'get-default-ai-prompt',
     'getModelsWithoutThumbnails': 'get-models-without-thumbnails',
     'getModelsWithDefaultThumbnails': 'get-models-with-default-thumbnails',
     'getSlicers': 'get-slicers',
     'openFileInSlicer': 'open-file-in-slicer',
     'saveSlicer': 'save-slicer',
     'deleteSlicer': 'delete-slicer',
-    'clearAndSaveSlicers': 'clear-and-save-slicers',
     'getFileStats': 'get-file-stats',
     'getAllModelReferences': 'get-all-model-references',
     'showContextMenu': 'show-context-menu',
@@ -624,9 +580,7 @@
     'readModelFile': 'read-model-file',
     'parse3MFPreview': 'parse-3mf-preview',
     'cancel3MFPreview': 'cancel-3mf-preview',
-    'getGpuInfo': 'get-gpu-info',
-    'benchmarkFilesystem': 'benchmark-filesystem',
-    'benchmarkDatabase': 'benchmark-database'
+    'getGpuInfo': 'get-gpu-info'
   };
   
   // Create proxy methods for all IPC calls IMMEDIATELY and SYNCHRONOUSLY
@@ -663,14 +617,6 @@
     window.electron.on('open-parts-stock', callback);
   };
   
-  window.electron.onOpenMetadataEditor = function(callback) {
-    window.electron.on('open-metadata-editor', callback);
-  };
-  
-  window.electron.onOpenSettings = function(callback) {
-    window.electron.on('open-settings', callback);
-  };
-  
   window.electron.onOpenGuide = function(callback) {
     window.electron.on('open-guide', callback);
   };
@@ -685,22 +631,6 @@
     window.electron.on('open-server-mode-info', async () => {
       await callback();
     });
-  };
-  
-  window.electron.onOpenStats = function(callback) {
-    window.electron.on('open-stats', async () => {
-      await callback();
-    });
-  };
-  
-  window.electron.onOpenSystemReport = function(callback) {
-    window.electron.on('open-system-report', async () => {
-      await callback();
-    });
-  };
-  
-  window.electron.onOpenBackupRestore = function(callback) {
-    window.electron.on('open-backup-restore', callback);
   };
   
   window.electron.onOpenDeDup = function(callback) {
@@ -732,21 +662,11 @@
     window.electron.on('open-theme-settings', callback);
   };
   
-  window.electron.onOpenPerformanceSettings = function(callback) {
-    window.electron.on('open-performance-settings', callback);
-  };
-  
   window.electron.onStartPrintRoulette = function(callback) {
     window.electron.on('start-print-roulette', callback);
   };
   
-  window.electron.onOpenSTLHome = function(callback) {
-    window.electron.on('open-stl-home', callback);
-  };
-  
-  window.electron.onOpenSlicerSettings = function(callback) {
-    window.electron.on('open-slicer-settings', callback);
-  };
+
   
   // Commands the server hands to this browser. Nothing runs on the server: files download
   // here, and Send to Slicer opens a justtprint:// link for the helper on this computer.
@@ -781,77 +701,6 @@
     }
   };
 
-  window.electron.onOpenPurgeModels = function(callback) {
-    window.electron.on('open-purge-models', callback);
-  };
-  
-  window.electron.onHashGenerationProgress = function(callback) {
-    console.log('[Bridge] ===== onHashGenerationProgress CALLED =====');
-    console.log('[Bridge] Callback type:', typeof callback);
-    console.log('[Bridge] Stack trace:', new Error().stack);
-    // Ensure _electronEventListeners exists
-    if (!window._electronEventListeners) {
-      window._electronEventListeners = {};
-      console.log('[Bridge] Created _electronEventListeners in onHashGenerationProgress');
-    } else {
-      console.log('[Bridge] _electronEventListeners already exists with keys:', Object.keys(window._electronEventListeners));
-    }
-    // In server mode via WebSocket, the progress object comes as the first (and only) argument
-    // In normal mode via IPC, it comes as the second argument (event, progress)
-    const listener = (progress) => {
-      console.log('[Bridge] hash-generation-progress listener invoked with:', progress);
-      // If progress is actually the event object and we got a second argument, use that
-      // Otherwise, progress is the actual progress object
-      try {
-        callback(progress);
-      } catch (error) {
-        console.error('[Bridge] Error in hash-generation-progress callback:', error);
-      }
-    };
-    // Use the bridge's on method directly to ensure it's registered
-    if (typeof window.electron.on === 'function') {
-      window.electron.on('hash-generation-progress', listener);
-      console.log('[Bridge] Listener registered via window.electron.on');
-    } else {
-      // Fallback: register directly
-      if (!window._electronEventListeners['hash-generation-progress']) {
-        window._electronEventListeners['hash-generation-progress'] = [];
-      }
-      window._electronEventListeners['hash-generation-progress'].push(listener);
-      console.log('[Bridge] Listener registered directly');
-    }
-    console.log('[Bridge] onHashGenerationProgress completed, listeners for hash-generation-progress:', window._electronEventListeners?.['hash-generation-progress']?.length || 0);
-    console.log('[Bridge] All registered channels:', Object.keys(window._electronEventListeners || {}));
-  };
-  
-  window.electron.onHashGenerationComplete = function(callback) {
-    console.log('[Bridge] ===== onHashGenerationComplete CALLED =====');
-    // Ensure _electronEventListeners exists
-    if (!window._electronEventListeners) {
-      window._electronEventListeners = {};
-    }
-    const listener = (result) => {
-      console.log('[Bridge] hash-generation-complete listener invoked with:', result);
-      try {
-        callback(result || {});
-      } catch (error) {
-        console.error('[Bridge] Error in hash-generation-complete callback:', error);
-      }
-    };
-    // Use the bridge's on method directly to ensure it's registered
-    if (typeof window.electron.on === 'function') {
-      window.electron.on('hash-generation-complete', listener);
-      console.log('[Bridge] Completion listener registered via window.electron.on');
-    } else {
-      // Fallback: register directly
-      if (!window._electronEventListeners['hash-generation-complete']) {
-        window._electronEventListeners['hash-generation-complete'] = [];
-      }
-      window._electronEventListeners['hash-generation-complete'].push(listener);
-      console.log('[Bridge] Completion listener registered directly');
-    }
-  };
-  
   // WebSocket events call listeners with the broadcast args only (no IPC event object).
   window.electron.onScanProgress = function(callback) {
     if (!window._electronEventListeners) window._electronEventListeners = {};
@@ -895,6 +744,11 @@
   window.electron.isServerMode = function() {
     return Promise.resolve(true);
   };
+
+  // The React screens send this with their API calls, like ipcInvoke does (src/web/api.ts).
+  window.electron.getClientId = function() {
+    return clientId;
+  };
   
   window.electron.invoke = function(channel, ...args) {
     return makeIpcCall(channel, ...args);
@@ -937,25 +791,19 @@
     return Promise.resolve(true);
   };
   
-  // Update send method to use WebSocket when available
-  sendFunction = function(channel, ...args) {
-    // Send events (fire and forget)
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      if (channel === 'puter-ai-chat-response') {
-        console.log('[Bridge] Sending puter-ai-chat-response via WebSocket, requestId:', args[0], 'has result:', !!args[1]);
+  // Events the page sends itself ('open-tag-manager', 'clear-new-flags', ...) stay in this page.
+  // Only the answer to a Puter AI request goes to the server, which is waiting for it.
+  window.electron.send = function(channel, ...args) {
+    if (channel === 'puter-ai-chat-response') {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'event', channel, args }));
+      } else {
+        console.warn('[Bridge] Cannot answer the Puter AI request: not connected');
       }
-      ws.send(JSON.stringify({
-        id: `send_${++requestIdCounter}_${Date.now()}`,
-        channel,
-        args,
-        type: 'send'
-      }));
-    } else {
-      // WebSocket not ready yet - will be queued or logged
-      console.warn('window.electron.send called before WebSocket connected:', channel);
+      return;
     }
+    setTimeout(() => dispatchToListeners(channel, args), 0);
   };
-  window.electron.send = sendFunction;
   
   // Copy over any other methods from original that we haven't overridden
   Object.keys(originalElectron).forEach(key => {
@@ -976,16 +824,10 @@
   } else {
     console.log('[Bridge] ✓ receive method exists');
   }
-  if (typeof window.electron.onOpenSlicerSettings !== 'function') {
-    console.error('[Bridge] ERROR: onOpenSlicerSettings method not created!');
-  } else {
-    console.log('[Bridge] ✓ onOpenSlicerSettings method exists');
-  }
   
   // Signal that bridge is ready
   window._electronBridgeReady = true;
   console.log('[Bridge] Server bridge initialized, all methods available. Total methods:', Object.keys(window.electron).length);
-  console.log('[Bridge] onHashGenerationProgress defined:', typeof window.electron.onHashGenerationProgress);
   console.log('[Bridge] on method defined:', typeof window.electron.on);
   console.log('[Bridge] _electronEventListeners initialized:', !!window._electronEventListeners);
   // preview-model is handled only by preview.js (loaded first after this bridge) to avoid

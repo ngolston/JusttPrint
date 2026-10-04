@@ -119,16 +119,16 @@ const purgeModelsHandler = async (event, options = {}) => {
       }
 
       try {
-        // Execute each statement individually to avoid transaction issues
-        // First clear the model_tags table (child table)
-        database.db.prepare('DELETE FROM model_tags').run();
-        database.db.prepare('DELETE FROM model_filaments').run();
-
-        // Then clear the models table (parent table)
-        database.db.prepare('DELETE FROM models').run();
-
-        // Finally clear unused tags
-        database.db.prepare('DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM model_tags)').run();
+        // Rows that reference models go first (print history too, as when one model is removed),
+        // then the models, then the tags no model uses any more. All or nothing.
+        database.db.transaction(() => {
+          for (const table of ['print_event_filaments', 'print_event_parts', 'print_events', 'model_tags', 'model_filaments']) {
+            const exists = database.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table);
+            if (exists) database.db.prepare(`DELETE FROM ${table}`).run();
+          }
+          database.db.prepare('DELETE FROM models').run();
+          database.db.prepare('DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM model_tags)').run();
+        })();
 
         return true;
       } catch (dbError) {

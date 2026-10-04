@@ -7,6 +7,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const spoolman = require('../../core/spoolman');
 const { getDatabasePath } = require('../../core/db-path');
+const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
 
 function upsertImportedFilament(filament) {
@@ -48,7 +49,7 @@ function upsertImportedFilament(filament) {
   return result.lastInsertRowid;
 }
 
-// Update the backup-database handler
+// Copies the live database to justtprint-backup-<time>.db in the data folder.
 ipcMain.handle('backup-database', async () => {
   try {
     const dbPath = getDatabasePath();
@@ -56,23 +57,12 @@ ipcMain.handle('backup-database', async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(dbDir, `justtprint-backup-${timestamp}.db`);
 
-    if (database.db.open) {
-      database.db.close();
-    }
-
-    await fs.promises.copyFile(dbPath, backupPath);
-
-    database.db = new Database(dbPath);
+    // SQLite's online backup: the database stays open, so other requests keep working.
+    await database.db.backup(backupPath);
 
     return { success: true, filePath: backupPath };
   } catch (error) {
     console.error('Backup error:', error);
-    try {
-      const dbPath = getDatabasePath();
-      database.db = new Database(dbPath);
-    } catch (reopenError) {
-      console.error('Error reopening database:', reopenError);
-    }
     return { success: false, message: error.message };
   }
 });
@@ -111,11 +101,18 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
   }
 
   try {
+    // The server's own login (password, session secret, API token) is not library data:
+    // keep it, so a restore does not change the password or log everyone out.
+    const serverLogin = database.db && database.db.open
+      ? database.db.prepare(`SELECT key, value FROM settings WHERE key IN (${[...SECRET_SETTING_KEYS].map(() => '?').join(', ')})`).all(...SECRET_SETTING_KEYS)
+      : [];
     if (database.db && database.db.open) database.db.close();
     await fs.promises.copyFile(dbPath, `${dbPath}.before-restore`);
     for (const suffix of ['-wal', '-shm']) await fs.promises.rm(dbPath + suffix, { force: true });
     await fs.promises.rename(uploadPath, dbPath);
     database.db = new Database(dbPath);
+    const keepLogin = database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    for (const row of serverLogin) keepLogin.run(row.key, row.value);
     return { success: true };
   } catch (error) {
     console.error('Restore error:', error);

@@ -102,10 +102,10 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟡 5. Medium: web UI can do everything
 
-- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** First choose the new project name and do the rename (section 7). Start after the `main.js` rewrite and the HTTP API (section 4), so the new screens call clear endpoints instead of the IPC-over-WebSocket bridge. Mount React into parts of the existing page so the app keeps working throughout:
-  - First a self-contained dialog (Server Access or Settings), to set up Vite, TypeScript and the build in the Docker image.
-  - Then the model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber).
-  - Then the remaining dialogs and managers (tags, filament, printers, parts, dedup, organize).
+- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** The rename, the `main.js` rewrite and the HTTP API are done, so new screens call `/api/actions/*` directly (`src/web/api.ts`). Mount React into parts of the existing page so the app keeps working throughout:
+  - [x] First a self-contained dialog, to set up Vite, TypeScript and the build in the Docker image. Server Access is in `src/web/` (built into `web-build/app.js` by `npm run build:web`, and by a stage in the Dockerfile).
+  - [x] The dialogs and managers (4.2.0): tags, parts, filament, printers, stats, system report, backup/restore, about, shortcuts, every settings dialog, purge, metadata manager, STL Home, organize, de-dup.
+  - [ ] The model grid (virtualized, e.g. TanStack Virtual), the details panel, and the 3D preview (react-three-fiber). Manage Thumbnails and the Log Print dialog (`print-history.js`) move with them, since they share the grid's state.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
@@ -123,6 +123,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟡 6. Medium: bugs, tests and CI
 
+- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuterJS` in [renderer.js](renderer.js)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.
@@ -148,6 +149,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
+- [ ] **Filament Manager: the hex color field is squeezed to nothing** next to the color picker, so a hex value cannot be typed (`.filament-color-row`).
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)

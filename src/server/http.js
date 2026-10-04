@@ -297,18 +297,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Add middleware to set proper MIME types for JavaScript modules
   expressApp.use((req, res, next) => {
-    // Set proper Content-Type for JavaScript modules
-    if (req.path.endsWith('.js')) {
-      // Check if it's requested as a module (from script type="module")
-      // or if it's search.js, slicer.js which are known modules
-      if (req.path.includes('search.js') || req.path.includes('slicer.js') || 
-          req.get('Accept')?.includes('application/javascript') ||
-          req.get('Accept')?.includes('text/javascript')) {
-        res.type('application/javascript');
-      } else {
-        res.type('application/javascript');
-      }
-    }
+    // Module scripts (type="module") need a JavaScript Content-Type.
+    if (req.path.endsWith('.js')) res.type('application/javascript');
     next();
   });
 
@@ -642,8 +632,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     const clientId = registerClient(ws);
     ws.send(JSON.stringify({ type: 'hello', clientId }));
 
-    // Browsers send only answers and events here: dialog answers, Puter AI replies,
-    // and events relayed to every browser.
+    // Browsers send only answers here: to dialogs the server asked, and to Puter AI requests.
     ws.on('message', (message) => {
       let parsed;
       try {
@@ -675,11 +664,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         } else {
           pending.resolve(result ? result.response : null);
         }
-        return;
-      }
-
-      if (type === 'send') {
-        events.broadcast(channel, ...(args || []));
         return;
       }
 

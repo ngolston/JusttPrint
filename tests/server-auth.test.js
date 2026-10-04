@@ -94,6 +94,43 @@ test('login sets a session cookie that authenticates requests', () => {
   assert.ok(!auth.isAuthenticated(req()));
 });
 
+test('logins keep working while the settings cannot be read (database restore)', () => {
+  const settings = new Map();
+  let readable = true;
+  const auth = createServerAuth({
+    getSetting: (key) => {
+      if (!readable) throw new Error('The database is not open');
+      return settings.get(key);
+    },
+    setSetting: (key, value) => {
+      if (!readable) throw new Error('The database is not open');
+      settings.set(key, value);
+    },
+    env: { JUSTTPRINT_PASSWORD: 'restore-test-pw' },
+    logger: { log() {}, warn() {} }
+  });
+  auth.ensureCredentials();
+  const cookie = login(auth, 'restore-test-pw').headers['Set-Cookie'].split(';')[0];
+  const token = auth.apiToken();
+  const secretBefore = settings.get('serverSessionSecret');
+  readable = false;
+  assert.ok(auth.isAuthenticated(req({ cookie })), 'session still valid');
+  assert.ok(auth.isAuthenticated(req({ authorization: `Bearer ${token}` })), 'API token still valid');
+  readable = true;
+  assert.strictEqual(settings.get('serverSessionSecret'), secretBefore, 'no new signing secret was written');
+});
+
+test('regenerating the API token replaces the remembered one', () => {
+  const { auth } = makeAuth({ env: { JUSTTPRINT_PASSWORD: 'token-test-pw' } });
+  auth.ensureCredentials();
+  const before = auth.apiToken();
+  const after = auth.regenerateApiToken();
+  assert.notStrictEqual(before, after);
+  assert.strictEqual(auth.apiToken(), after);
+  assert.ok(!auth.isAuthenticated(req({ authorization: `Bearer ${before}` })));
+  assert.ok(auth.isAuthenticated(req({ authorization: `Bearer ${after}` })));
+});
+
 test('wrong password does not log in, and repeated failures are blocked', () => {
   const { auth } = makeAuth();
   auth.setPassword('library-pass');

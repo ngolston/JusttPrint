@@ -1,5 +1,6 @@
 /**
- * Filament Management UI: catalog modal, model assignment, sidebar filter, card chips.
+ * Filaments on models: assignment pickers, the sidebar filter and card chips.
+ * The Filament Manager (catalog and Spoolman) is React: src/web/FilamentManagerDialog.tsx.
  */
 (function () {
   function formatFilamentLabel(filament) {
@@ -39,184 +40,33 @@
       .replace(/"/g, '&quot;');
   }
 
-  function setStatus(message, isError) {
-    const el = document.getElementById('filament-manager-status');
-    if (!el) return;
-    el.textContent = message || '';
-    el.classList.toggle('error', !!isError);
+  /** The Filament Manager (React) calls these after catalog changes and when it closes. */
+  async function refreshFilamentPickers() {
+    await populateFilamentSelect('filament-select', 'model-filaments');
+    await populateFilamentSelect('multi-filament-select', 'multi-filaments');
+    await populateFilamentFilter();
   }
 
-  function setSpoolmanStatus(message, isError) {
-    const el = document.getElementById('spoolman-setup-status');
-    if (!el) return;
-    el.textContent = message || '';
-    el.classList.toggle('error', !!isError);
-  }
-
-  function isSpoolmanSetupOpen() {
-    const panel = document.getElementById('spoolman-setup-panel');
-    return !!(panel && !panel.hidden);
-  }
-
-  function setSpoolmanSetupOpen(open) {
-    const panel = document.getElementById('spoolman-setup-panel');
-    const btn = document.getElementById('spoolman-setup-toggle');
-    if (panel) panel.hidden = !open;
-    if (btn) {
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      btn.textContent = open ? 'Hide Spoolman' : 'Spoolman Setup';
-    }
-    if (!open) setSpoolmanStatus('');
-  }
-
-  async function loadSpoolmanSettingsIntoForm() {
-    if (!window.electron?.getSetting) return;
-    const url = await window.electron.getSetting('spoolmanUrl');
-    const token = await window.electron.getSetting('spoolmanApiToken');
-    const urlInput = document.getElementById('spoolman-url');
-    const tokenInput = document.getElementById('spoolman-api-token');
-    if (urlInput && url != null) urlInput.value = url;
-    if (tokenInput && token != null) tokenInput.value = token;
-  }
-
-  async function saveSpoolmanSettingsFromForm() {
-    if (!window.electron?.saveSetting) return;
-    const url = document.getElementById('spoolman-url')?.value?.trim() || '';
-    const token = document.getElementById('spoolman-api-token')?.value?.trim() || '';
-    await window.electron.saveSetting('spoolmanUrl', url);
-    await window.electron.saveSetting('spoolmanApiToken', token);
-    return { url, token };
-  }
-
-  async function refreshFilamentManagerList(searchTerm = '') {
-    const list = document.getElementById('filament-manager-list');
-    if (!list || !window.electron?.getAllFilaments) return;
-    const q = String(searchTerm || '').trim().toLowerCase();
+  async function refreshAfterFilamentManagerClose() {
     try {
-      const filaments = await window.electron.getAllFilaments();
-      window.filamentLabelById = window.filamentLabelById || {};
-      list.innerHTML = '';
-      const filtered = (filaments || []).filter((f) => {
-        if (!q) return true;
-        const hay = `${formatFilamentLabel(f)} ${f.vendor || ''} ${f.material || ''} ${f.source || ''}`.toLowerCase();
-        return hay.includes(q);
-      });
-      const countBadge = document.getElementById('filament-count-badge');
-      if (countBadge) {
-        countBadge.textContent = filtered.length ? `${filtered.length} filament${filtered.length === 1 ? '' : 's'}` : '';
+      await refreshFilamentPickers();
+      const currentModelPath = (typeof getCurrentModelFilePath === 'function' && getCurrentModelFilePath())
+        || (typeof currentModelDetailsPath !== 'undefined' ? currentModelDetailsPath : null);
+      if (currentModelPath) {
+        await loadModelFilaments(currentModelPath);
       }
-      if (filtered.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'filament-manager-empty';
-        empty.innerHTML = q
-          ? '<span style="font-size:22px;margin-bottom:4px;">🔍</span><span>No filaments match that search.</span>'
-          : '<span style="font-size:22px;margin-bottom:4px;">🧵</span><span>No filaments yet. Add one above or sync from Spoolman.</span>';
-        list.appendChild(empty);
-        return;
-      }
-      filtered.sort((a, b) => formatFilamentLabel(a).localeCompare(formatFilamentLabel(b)));
-      for (const filament of filtered) {
-        window.filamentLabelById[String(filament.id)] = formatFilamentLabel(filament);
-        const row = document.createElement('div');
-        row.className = 'filament-manager-item';
-        row.dataset.filamentId = String(filament.id);
-        const swatch = `<span class="filament-swatch" style="background:${colorCss(filament.color_hex)}" title="${escapeHtml(filament.color_hex || 'No color')}"></span>`;
-        const badge = filament.source === 'spoolman' ? '<span class="filament-source-badge">Spoolman</span>' : '<span class="filament-source-badge manual">Manual</span>';
-        const modelCount = Number(filament.model_count) || 0;
-        const countText = modelCount === 1 ? '1 model' : `${modelCount} models`;
-        row.innerHTML = `
-          ${swatch}
-          <div class="filament-manager-item-body">
-            <div class="filament-manager-item-name" title="${escapeHtml(formatFilamentLabel(filament))}">${escapeHtml(formatFilamentLabel(filament))}</div>
-            <div class="filament-manager-item-meta">
-              ${filament.diameter ? `<span class="filament-tag">${escapeHtml(filament.diameter)} mm</span>` : ''}
-              ${filament.material ? `<span class="filament-tag material">${escapeHtml(filament.material)}</span>` : ''}
-              ${filament.vendor ? `<span class="filament-tag">${escapeHtml(filament.vendor)}</span>` : ''}
-            </div>
-          </div>
-          ${badge}
-          <span class="filament-count">${countText}</span>
-          <button type="button" class="filament-remove" title="Remove from JusttPrint" aria-label="Delete filament">×</button>
-        `;
-        row.querySelector('.filament-remove')?.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const ok = window.confirm
-            ? window.confirm(`Remove "${formatFilamentLabel(filament)}" from JusttPrint? Model assignments will be cleared. Synced filaments return on the next Spoolman sync.`)
-            : true;
-          if (!ok) return;
-          try {
-            await window.electron.deleteFilament(filament.id);
-            await refreshFilamentManagerList(document.getElementById('filament-manager-search')?.value || '');
-            await window.populateFilamentSelect?.();
-            await window.populateFilamentFilter?.();
-          } catch (err) {
-            console.error('Error deleting filament:', err);
-            setStatus(err.message || 'Failed to delete filament', true);
-          }
-        });
-        list.appendChild(row);
+      if (typeof window.performCombinedSearch === 'function') {
+        await window.performCombinedSearch();
       }
     } catch (error) {
-      console.error('Error loading filaments:', error);
-      list.innerHTML = `<div class="filament-manager-empty">Failed to load filaments: ${escapeHtml(error.message || error)}</div>`;
+      console.error('Error refreshing after filament manager close:', error);
     }
   }
 
-  function isFilamentAddOpen() {
-    const body = document.getElementById('filament-form-body');
-    return !!(body && !body.hidden);
-  }
-
-  function setFilamentAddOpen(open) {
-    const section = document.getElementById('filament-form-section');
-    const body = document.getElementById('filament-form-body');
-    const btn = document.getElementById('filament-toggle-add-btn');
-    if (body) body.hidden = !open;
-    if (section) section.classList.toggle('collapsed', !open);
-    if (btn) {
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      btn.textContent = open ? '− Cancel' : '+ Add Filament';
-      btn.classList.toggle('active', open);
-    }
-    if (!open) {
-      const nameInput = document.getElementById('new-filament-name');
-      const vendorInput = document.getElementById('new-filament-vendor');
-      const materialInput = document.getElementById('new-filament-material');
-      const colorText = document.getElementById('new-filament-color');
-      const colorPicker = document.getElementById('new-filament-color-picker');
-      const diameterInput = document.getElementById('new-filament-diameter');
-      if (nameInput) nameInput.value = '';
-      if (vendorInput) vendorInput.value = '';
-      if (materialInput) materialInput.value = '';
-      if (colorText) colorText.value = '';
-      if (colorPicker) colorPicker.value = '#808080';
-      if (diameterInput) diameterInput.value = '1.75';
-      setStatus('');
-    }
-  }
-
-  async function openFilamentManager() {
-    const dialog = document.getElementById('filament-manager-dialog');
-    if (!dialog) return;
-    dialog.classList.remove('modal-fullscreen');
-    if (typeof window.syncFilamentManagerFullscreenButton === 'function') {
-      window.syncFilamentManagerFullscreenButton(false);
-    }
-    await loadSpoolmanSettingsIntoForm();
-    const searchEl = document.getElementById('filament-manager-search');
-    if (searchEl) searchEl.value = '';
-    setStatus('');
-    setSpoolmanSetupOpen(false);
-    setFilamentAddOpen(false);
-    await refreshFilamentManagerList();
-    dialog.showModal();
-  }
-
-  function wireFilamentManager() {
+  function wireFilamentManagerEvents() {
     window._electronRealEventHandlers = window._electronRealEventHandlers || {};
     window._electronRealEventHandlers['open-filament-manager'] = function () {
-      openFilamentManager();
+      window.openFilamentManager?.();
     };
     if (window._electronPendingEvents?.['open-filament-manager']) {
       window._electronPendingEvents['open-filament-manager'].forEach((args) => {
@@ -224,134 +74,6 @@
       });
       delete window._electronPendingEvents['open-filament-manager'];
     }
-
-    document.getElementById('filament-manager-search')?.addEventListener('input', (e) => {
-      refreshFilamentManagerList(e.target.value.trim());
-    });
-    document.getElementById('clear-filament-search')?.addEventListener('click', async () => {
-      const searchEl = document.getElementById('filament-manager-search');
-      if (searchEl) searchEl.value = '';
-      await refreshFilamentManagerList();
-    });
-
-    const colorText = document.getElementById('new-filament-color');
-    const colorPicker = document.getElementById('new-filament-color-picker');
-    colorPicker?.addEventListener('input', () => {
-      if (colorText) colorText.value = String(colorPicker.value || '').replace('#', '').toUpperCase();
-    });
-    colorText?.addEventListener('input', () => {
-      const n = normalizeColorHex(colorText.value);
-      if (n && colorPicker) colorPicker.value = `#${n}`;
-    });
-
-    document.getElementById('filament-toggle-add-btn')?.addEventListener('click', () => {
-      const open = !isFilamentAddOpen();
-      setFilamentAddOpen(open);
-      if (open) document.getElementById('new-filament-name')?.focus();
-    });
-
-    document.getElementById('cancel-filament-manager-button')?.addEventListener('click', () => {
-      setFilamentAddOpen(false);
-    });
-
-    document.getElementById('add-filament-manager-button')?.addEventListener('click', async () => {
-      const name = document.getElementById('new-filament-name')?.value?.trim();
-      if (!name) {
-        setStatus('Name is required to add a filament.', true);
-        return;
-      }
-      const vendor = document.getElementById('new-filament-vendor')?.value?.trim() || '';
-      const material = document.getElementById('new-filament-material')?.value?.trim() || '';
-      const color = normalizeColorHex(document.getElementById('new-filament-color')?.value || document.getElementById('new-filament-color-picker')?.value);
-      const diameterRaw = document.getElementById('new-filament-diameter')?.value;
-      const diameter = diameterRaw === '' || diameterRaw == null ? 1.75 : Number(diameterRaw);
-      try {
-        await window.electron.saveFilament({
-          name,
-          vendor,
-          material,
-          color_hex: color,
-          diameter: Number.isFinite(diameter) ? diameter : 1.75,
-          source: 'manual'
-        });
-        document.getElementById('new-filament-name').value = '';
-        document.getElementById('new-filament-vendor').value = '';
-        document.getElementById('new-filament-material').value = '';
-        setStatus(`Added ${name}`, false);
-        setFilamentAddOpen(false);
-        await refreshFilamentManagerList(document.getElementById('filament-manager-search')?.value || '');
-        await window.populateFilamentSelect?.();
-        await window.populateFilamentFilter?.();
-      } catch (error) {
-        console.error('Error saving filament:', error);
-        setStatus(error.message || 'Failed to add filament', true);
-      }
-    });
-
-    document.getElementById('spoolman-setup-toggle')?.addEventListener('click', () => {
-      setSpoolmanSetupOpen(!isSpoolmanSetupOpen());
-    });
-
-    document.getElementById('spoolman-test-button')?.addEventListener('click', async () => {
-      try {
-        const { url, token } = await saveSpoolmanSettingsFromForm();
-        if (!url) {
-          setSpoolmanStatus('Enter a Spoolman URL first.', true);
-          return;
-        }
-        setSpoolmanStatus('Testing connection…');
-        const result = await window.electron.testSpoolmanConnection(url, token);
-        const version = result?.version ? ` (v${result.version})` : '';
-        setSpoolmanStatus(`Connected${version}.`, false);
-      } catch (error) {
-        console.error('Spoolman test failed:', error);
-        setSpoolmanStatus(error.message || 'Connection failed', true);
-      }
-    });
-
-    document.getElementById('spoolman-sync-button')?.addEventListener('click', async () => {
-      try {
-        const { url, token } = await saveSpoolmanSettingsFromForm();
-        if (!url) {
-          setSpoolmanStatus('Enter a Spoolman URL first.', true);
-          return;
-        }
-        setSpoolmanStatus('Syncing filaments from Spoolman…');
-        const result = await window.electron.syncSpoolmanFilaments(url, token);
-        const created = result?.created || 0;
-        const updated = result?.updated || 0;
-        setSpoolmanStatus(`Synced ${result?.total || 0} filaments (${created} new, ${updated} updated).`, false);
-        await refreshFilamentManagerList(document.getElementById('filament-manager-search')?.value || '');
-        await window.populateFilamentSelect?.();
-        await window.populateFilamentFilter?.();
-      } catch (error) {
-        console.error('Spoolman sync failed:', error);
-        setSpoolmanStatus(error.message || 'Sync failed', true);
-      }
-    });
-
-    document.getElementById('filament-manager-dialog')?.addEventListener('close', async () => {
-      const dialog = document.getElementById('filament-manager-dialog');
-      if (dialog) dialog.classList.remove('modal-fullscreen');
-      if (typeof window.syncFilamentManagerFullscreenButton === 'function') {
-        window.syncFilamentManagerFullscreenButton(false);
-      }
-      try {
-        await saveSpoolmanSettingsFromForm();
-        await window.populateFilamentSelect?.();
-        await window.populateFilamentFilter?.();
-        const currentModelPath = (typeof getCurrentModelFilePath === 'function' && getCurrentModelFilePath())
-          || (typeof currentModelDetailsPath !== 'undefined' ? currentModelDetailsPath : null);
-        if (currentModelPath) {
-          await window.loadModelFilaments?.(currentModelPath);
-        }
-        if (typeof window.performCombinedSearch === 'function') {
-          await window.performCombinedSearch();
-        }
-      } catch (error) {
-        console.error('Error refreshing after filament manager close:', error);
-      }
-    });
   }
 
   function currentFilamentIds(containerId) {
@@ -553,15 +275,15 @@
     });
 
     document.getElementById('add-filament-button')?.addEventListener('click', () => {
-      openFilamentManager();
+      window.openFilamentManager?.();
     });
     document.querySelectorAll('.add-filament-button').forEach((button) => {
-      button.addEventListener('click', () => openFilamentManager());
+      button.addEventListener('click', () => window.openFilamentManager?.());
     });
   }
 
   async function initializeFilaments() {
-    wireFilamentManager();
+    wireFilamentManagerEvents();
     wireAssignmentControls();
     await populateFilamentSelect('filament-select', 'model-filaments');
     await populateFilamentSelect('multi-filament-select', 'multi-filaments');
@@ -579,9 +301,8 @@
   }
 
   window.formatFilamentLabel = formatFilamentLabel;
-  window.openFilamentManager = openFilamentManager;
-  window.setFilamentAddOpen = setFilamentAddOpen;
-  window.refreshFilamentManagerList = refreshFilamentManagerList;
+  window.refreshFilamentPickers = refreshFilamentPickers;
+  window.refreshAfterFilamentManagerClose = refreshAfterFilamentManagerClose;
   window.loadModelFilaments = loadModelFilaments;
   window.populateFilamentSelect = populateFilamentSelect;
   window.populateFilamentFilter = populateFilamentFilter;
@@ -589,21 +310,6 @@
   window.addFilamentToModel = addFilamentToModel;
   window.updateModelFilamentDisplay = updateModelFilamentDisplay;
   window.initializeFilaments = initializeFilaments;
-  window.syncFilamentManagerFullscreenButton = function syncFilamentManagerFullscreenButton(isFullscreen) {
-    const btn = document.getElementById('filament-manager-fullscreen-toggle');
-    if (!btn) return;
-    const full = !!isFullscreen;
-    btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-    btn.setAttribute('aria-label', btn.title);
-    btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-  };
-  window.toggleFilamentManagerFullscreen = function toggleFilamentManagerFullscreen() {
-    const dialog = document.getElementById('filament-manager-dialog');
-    if (!dialog) return;
-    dialog.classList.toggle('modal-fullscreen');
-    window.syncFilamentManagerFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-  };
-
   function boot() {
     initializeFilaments().catch((err) => console.error('Error initializing filaments:', err));
   }

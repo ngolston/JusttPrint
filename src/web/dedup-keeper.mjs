@@ -1,7 +1,10 @@
-'use strict';
+/**
+ * Which copy De-Dup's Easy button keeps in each duplicate group. An ES module shared by the
+ * React screen (src/web/DedupDialog.tsx) and the Node unit test (tests/dedup-preferred.test.js).
+ */
 
 /** Path of the file on disk. ZIP entries use archivePath::innerPath. */
-function normalizeDedupPath(filePath) {
+export function normalizeDedupPath(filePath) {
   if (!filePath) return '';
   let normalized = String(filePath);
   const zipSep = normalized.indexOf('::');
@@ -26,7 +29,7 @@ function dedupPathsAreCaseInsensitive(fileNorm, dirNorm) {
 }
 
 /** True when filePath is the directory or any nested file under it. */
-function fileIsUnderPreferredDirectory(filePath, preferredDir) {
+export function fileIsUnderPreferredDirectory(filePath, preferredDir) {
   const dirNorm = normalizeDedupPath(preferredDir);
   const fileNorm = normalizeDedupPath(filePath);
   if (!dirNorm || !fileNorm) return false;
@@ -44,7 +47,7 @@ function fileIsUnderPreferredDirectory(filePath, preferredDir) {
  * Among those, the shortest real path wins over a deeper copy or a ZIP entry.
  * Otherwise keep a ZIP, then the first file.
  */
-function pickDedupKeeperPath(files, preferredDir) {
+export function pickDedupKeeperPath(files, preferredDir) {
   const list = Array.isArray(files) ? files.filter((f) => f && f.filePath) : [];
   if (!list.length) return '';
   if (preferredDir) {
@@ -64,12 +67,4 @@ function pickDedupKeeperPath(files, preferredDir) {
   const zipFile = list.find((f) => String(f.filePath).includes('::'));
   if (zipFile) return zipFile.filePath;
   return list[0].filePath;
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    normalizeDedupPath,
-    fileIsUnderPreferredDirectory,
-    pickDedupKeeperPath
-  };
 }

@@ -146,14 +146,17 @@ function openEvents(wsUrl, { cookie, origin }, send) {
     const timer = setTimeout(() => { ws.terminate(); resolve({ error: 'timeout' }); }, 10000);
     const messages = [];
     ws.on('message', (raw) => {
-      messages.push(JSON.parse(String(raw)));
+      const message = JSON.parse(String(raw));
+      messages.push(message);
       if (messages.length === 1 && send) {
         ws.send(JSON.stringify(send));
         return;
       }
+      // Broadcast events (refresh-grid, ...) can arrive in between; wait for the reply to `send`.
+      if (send && message.id !== send.id) return;
       clearTimeout(timer);
       ws.close();
-      resolve({ hello: messages[0], reply: messages[1] });
+      resolve({ hello: messages[0], reply: send ? message : undefined });
     });
     ws.on('unexpected-response', (_req, res) => { clearTimeout(timer); resolve({ rejected: res.statusCode }); });
     ws.on('error', (error) => { clearTimeout(timer); resolve({ error: error.message }); });
@@ -388,8 +391,12 @@ async function apiChecks(base, wsUrl) {
   check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a JusttPrint backup/.test(junk.result.message), JSON.stringify(junk));
   check('library still works after a refused restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
   if (backupPath) {
+    // The API token changes after the backup was taken; a restore must keep the current one.
+    const newToken = ((await invoke(base, { cookie, origin }, 'regenerate-server-api-token')).result || {}).apiToken;
     const restored = await invoke(base, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
     check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
+    const tokenAfter = ((await invoke(base, { cookie, origin }, 'get-server-access-info')).result || {}).apiToken;
+    check('restore keeps the current API token and session', !!newToken && tokenAfter === newToken, `${newToken} / ${tokenAfter}`);
     check('library works after restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
     check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }
@@ -476,14 +483,14 @@ async function browserChecks(base, wsUrl, session) {
     }
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('about-dialog').showModal());
-    await page.click('#about-dialog [data-close-dialog="about-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
-    await page.evaluate(() => document.getElementById('tag-manager-dialog').showModal());
-    await page.click('#tag-manager-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('tag-manager-dialog').classList.contains('modal-fullscreen')));
-    await page.click('#tag-manager-fullscreen-toggle');
-    await page.evaluate(() => document.getElementById('tag-manager-dialog').close());
+    await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
+    await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('new-tag-dialog').open));
+    await page.evaluate(() => document.getElementById('preview-dialog').showModal());
+    await page.click('#preview-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#preview-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('preview-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -539,6 +546,19 @@ async function browserChecks(base, wsUrl, session) {
           return model.result && model.result.designer === 'New Designer';
         }, 15000, 'designer rename').catch(() => false);
         check('designer renamed on the server', renamed === true);
+        const listed = await page.waitForSelector('#metadata-editor-dialog .metadata-item:has-text("New Designer")', { timeout: 10000 }).catch(() => null);
+        check('Metadata Manager list shows the new name', !!listed && !(await page.isVisible('#metadata-editor-dialog .metadata-item:has-text("Old Designer")')));
+        await page.fill('#metadata-editor-search', 'zzz-no-match');
+        check('Metadata Manager search filters the list', await page.isVisible('#metadata-editor-dialog .no-metadata'));
+        await page.click('#clear-metadata-search');
+        await page.click('#metadata-editor-dialog .metadata-item:has-text("New Designer") .metadata-delete');
+        const confirmClear = await page.waitForSelector('dialog[open]:has-text("Delete Designer") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+        if (confirmClear) await confirmClear.click();
+        const cleared = await waitFor(async () => {
+          const model = await invoke(base, session, 'get-model', [cube]);
+          return model.result && !model.result.designer;
+        }, 15000, 'designer cleared').catch(() => false);
+        check('Metadata Manager clears a designer after asking', !!confirmClear && cleared === true);
       }
     } else {
       check('Metadata Manager lists the designer', false, 'rename button not found');
@@ -559,9 +579,533 @@ async function browserChecks(base, wsUrl, session) {
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
 
+    // Opening a dialog in one tab must not open it in another tab.
+    const otherTab = await page.context().newPage();
+    await otherTab.goto(base + '/');
+    await otherTab.waitForFunction(() => window._electronBridgeReady === true && typeof window.openTagManager === 'function', null, { timeout: 60000 });
+    await page.evaluate(() => window.electron.send('open-tag-manager'));
+    await page.waitForSelector('#tag-manager-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await otherTab.waitForTimeout(1000);
+    check('a dialog opened in one tab stays in that tab', await page.isVisible('#tag-manager-dialog') && !(await otherTab.isVisible('#tag-manager-dialog')));
+    await otherTab.close();
+    await page.evaluate(() => document.getElementById('tag-manager-dialog').close());
+
+    // Tag Manager (React): create, rename inline, search and delete.
+    const serverTagNames = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
+    await page.evaluate(() => window.openTagManager());
+    check('Tag Manager opens', await page.isVisible('#tag-manager-dialog'));
+    await page.click('#tag-manager-dialog-fullscreen-toggle');
+    check('Tag Manager full screen toggle', await page.evaluate(() => document.getElementById('tag-manager-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#tag-manager-dialog-fullscreen-toggle');
+    await page.fill('#new-tag-manager-name', 'e2e-browser-tag');
+    await page.press('#new-tag-manager-name', 'Enter');
+    const created = await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-tag"]', { timeout: 10000 }).catch(() => null);
+    check('Tag Manager creates a tag', !!created && (await serverTagNames()).includes('e2e-browser-tag'));
+    if (created) {
+      await page.click('#tag-manager-list .tag[data-tag-name="e2e-browser-tag"] .tag-text');
+      await page.fill('#tag-manager-list .tag-edit-input', 'e2e-browser-renamed');
+      await page.press('#tag-manager-list .tag-edit-input', 'Enter');
+      const renamedChip = await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"]', { timeout: 10000 }).catch(() => null);
+      const names = await serverTagNames();
+      check('Tag Manager renames a tag inline', !!renamedChip && names.includes('e2e-browser-renamed') && !names.includes('e2e-browser-tag'));
+      await page.fill('#tag-manager-search', 'browser-ren');
+      const visible = await page.$$eval('#tag-manager-list .tag', (chips) => chips.map((c) => c.dataset.tagName));
+      check('Tag Manager search filters the list', visible.length === 1 && visible[0] === 'e2e-browser-renamed', JSON.stringify(visible));
+      await page.click('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"] .tag-remove');
+      await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Tag Manager deletes an unused tag', !(await serverTagNames()).includes('e2e-browser-renamed'));
+    }
+    // Renaming onto an existing name asks, then merges.
+    await page.fill('#tag-manager-search', '');
+    for (const name of ['e2e-merge-target', 'e2e-merge-source']) {
+      await page.fill('#new-tag-manager-name', name);
+      await page.press('#new-tag-manager-name', 'Enter');
+      await page.waitForSelector(`#tag-manager-list .tag[data-tag-name="${name}"]`, { timeout: 10000 }).catch(() => {});
+    }
+    await page.click('#tag-manager-list .tag[data-tag-name="e2e-merge-source"] .tag-text');
+    await page.fill('#tag-manager-list .tag-edit-input', 'E2E-MERGE-TARGET');
+    await page.press('#tag-manager-list .tag-edit-input', 'Enter');
+    const mergeButton = await page.waitForSelector('dialog[open]:has-text("Merge Tags") button:text-is("Merge")', { timeout: 10000 }).catch(() => null);
+    check('renaming onto an existing tag asks to merge', !!mergeButton);
+    if (mergeButton) {
+      await mergeButton.click();
+      await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+      const merged = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n));
+      check('merge leaves one tag', merged.length === 1, JSON.stringify(merged));
+    }
+    await page.click('#tag-manager-dialog .dialog-buttons button');
+    check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
+
+    // Parts Manager (React): add, step the quantity, edit, remove.
+    const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
+    await page.evaluate(() => window.openPartsStock());
+    check('Parts Manager opens', await page.isVisible('#parts-stock-dialog'));
+    await page.click('#parts-stock-toggle-add-btn');
+    await page.fill('#parts-stock-name', 'E2E M3 screw');
+    await page.fill('#parts-stock-category', 'Screws');
+    await page.fill('#parts-stock-quantity', '10');
+    await page.fill('#parts-stock-low', '2');
+    await page.click('#parts-stock-add');
+    const partRow = await page.waitForSelector('#parts-stock-list .parts-stock-item:has-text("E2E M3 screw")', { timeout: 10000 }).catch(() => null);
+    let part = (await serverParts()).find((p) => p.name === 'E2E M3 screw');
+    check('Parts Manager adds a part', !!partRow && part && part.quantity === 10 && part.low_stock === 2 && part.category === 'Screws', JSON.stringify(part));
+    if (partRow && part) {
+      const row = `#parts-stock-list .parts-stock-item[data-part-id="${part.id}"]`;
+      await page.click(`${row} .parts-stock-step[aria-label="Increase quantity"]`);
+      await waitFor(async () => ((await serverParts()).find((p) => p.id === part.id) || {}).quantity === 11, 10000, 'quantity step').catch(() => {});
+      check('Parts Manager steps the quantity', ((await serverParts()).find((p) => p.id === part.id) || {}).quantity === 11);
+      await page.click(`${row} .parts-stock-edit`);
+      check('Edit fills the form', (await page.inputValue('#parts-stock-name')) === 'E2E M3 screw' && (await page.textContent('#parts-stock-add')) === 'Save');
+      await page.fill('#parts-stock-quantity', '1');
+      await page.press('#parts-stock-quantity', 'Enter');
+      await page.waitForSelector(`${row}.is-low`, { timeout: 10000 }).catch(() => {});
+      part = (await serverParts()).find((p) => p.id === part.id);
+      check('Parts Manager saves an edit (Enter) and flags low stock', part && part.quantity === 1 && await page.isVisible(`${row}.is-low`), JSON.stringify(part));
+      await page.click(`${row} .parts-stock-remove`);
+      const removeButton = await page.waitForSelector('dialog[open]:has-text("Remove Part") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+      if (removeButton) await removeButton.click();
+      await page.waitForSelector(row, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Parts Manager removes a part after asking', !!removeButton && !(await serverParts()).some((p) => p.id === part.id));
+    }
+    await page.click('#parts-stock-close');
+    check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
+
+    // Filament Manager (React): Spoolman panel, add with a color, remove.
+    const serverFilaments = async () => (await invoke(base, session, 'get-all-filaments')).result || [];
+    await page.evaluate(() => window.openFilamentManager());
+    check('Filament Manager opens', await page.isVisible('#filament-manager-dialog'));
+    await page.click('#spoolman-setup-toggle');
+    await page.fill('#spoolman-url', '');
+    await page.click('#spoolman-test-button');
+    await page.waitForSelector('#spoolman-setup-status:has-text("Enter a Spoolman URL first")', { timeout: 10000 }).catch(() => {});
+    check('Spoolman setup asks for a URL', /Enter a Spoolman URL first/.test(await page.textContent('#spoolman-setup-status')));
+    await page.click('#spoolman-setup-toggle');
+    check('Spoolman panel hides', !(await page.isVisible('#spoolman-setup-panel')));
+    await page.click('#filament-toggle-add-btn');
+    await page.fill('#new-filament-name', 'E2E Galaxy Black');
+    await page.fill('#new-filament-vendor', 'E2E Vendor');
+    await page.fill('#new-filament-material', 'PLA');
+    await page.fill('#new-filament-color', '1a2b3c');
+    check('typing a hex color updates the picker', (await page.inputValue('#new-filament-color-picker')) === '#1a2b3c');
+    await page.click('#add-filament-manager-button');
+    const filamentRow = await page.waitForSelector('#filament-manager-list .filament-manager-item:has-text("E2E Galaxy Black")', { timeout: 10000 }).catch(() => null);
+    const filament = (await serverFilaments()).find((f) => f.name === 'E2E Galaxy Black');
+    check('Filament Manager adds a filament', !!filamentRow && filament && filament.color_hex === '1A2B3C' && filament.material === 'PLA' && filament.diameter === 1.75, JSON.stringify(filament));
+    check('filament status is shown after adding', /Added E2E Galaxy Black/.test(await page.textContent('#filament-manager-status')));
+    if (filament) {
+      const added = await page.evaluate((id) => [...document.querySelectorAll('#filament-select option')].some((o) => o.value === String(id)), filament.id);
+      check('new filament appears in the model filament picker', added);
+      await page.click(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"] .filament-remove`);
+      const confirmRemove = await page.waitForSelector('dialog[open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+      if (confirmRemove) await confirmRemove.click();
+      await page.waitForSelector(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"]`, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Filament Manager removes a filament after asking', !!confirmRemove && !(await serverFilaments()).some((f) => f.id === filament.id));
+    }
+    await page.click('#filament-manager-close');
+    check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
+
+    // Printer Manager (React): add, edit, maintenance reminders and log, delete.
+    const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
+    await page.evaluate(() => window.openPrinterManagement());
+    check('Printer Manager opens', await page.isVisible('#printer-management-dialog'));
+    await page.click('#printer-toggle-add-btn');
+    await page.fill('#printer-form-nickname', 'E2E Voron');
+    await page.selectOption('#printer-form-firmware', 'Marlin');
+    check('choosing non-Klipper firmware unticks Klipper', !(await page.isChecked('#printer-form-klipper')));
+    await page.fill('#printer-form-web-url', 'voron.local');
+    await page.click('#printer-form-submit');
+    const printerCard = await page.waitForSelector('#printer-cards-list .printer-card:has-text("E2E Voron")', { timeout: 10000 }).catch(() => null);
+    let voron = (await serverPrinters()).find((p) => p.nickname === 'E2E Voron');
+    check('Printer Manager adds a printer', !!printerCard && voron && voron.firmware_type === 'Marlin' && voron.web_url === 'http://voron.local', JSON.stringify(voron));
+    if (voron) {
+      const card = `#printer-cards-list .printer-card[data-printer-id="${voron.id}"]`;
+      await page.click(`${card} .printer-action-btn:has-text("Edit")`);
+      check('Edit fills the printer form', (await page.textContent('#printer-form-title')) === 'Edit Printer: E2E Voron' && (await page.inputValue('#printer-form-nickname')) === 'E2E Voron');
+      await page.fill('#printer-form-model', '2.4r2');
+      await page.click('#printer-form-submit');
+      await page.waitForSelector(`${card}:has-text("2.4r2")`, { timeout: 10000 }).catch(() => {});
+      voron = (await serverPrinters()).find((p) => p.id === voron.id);
+      check('Printer Manager saves an edit', voron && voron.model === '2.4r2');
+      await page.click(`${card} .printer-action-btn.maintenance`);
+      check('Maintenance opens for that printer', await page.isVisible('#printer-view-maintenance') && (await page.inputValue('#maintenance-printer-select')) === String(voron.id));
+      await page.fill('#reminder-form-title', 'E2E grease rails');
+      await page.selectOption('#reminder-form-interval', '30');
+      await page.click('#reminder-form button[type=submit]');
+      const reminderItem = await page.waitForSelector('#maintenance-reminders-list .reminder-item:has-text("E2E grease rails")', { timeout: 10000 }).catch(() => null);
+      check('a reminder is scheduled', !!reminderItem && /Repeats every 30 days/.test(await reminderItem.textContent()));
+      await page.fill('#log-form-title', 'E2E swapped nozzle');
+      await page.click('#log-maintenance-form button[type=submit]');
+      const logItem = await page.waitForSelector('#maintenance-logs-list .log-item:has-text("E2E swapped nozzle")', { timeout: 10000 }).catch(() => null);
+      check('maintenance is logged', !!logItem);
+      if (reminderItem) {
+        await page.click('#maintenance-reminders-list .reminder-item:has-text("E2E grease rails") .reminder-done-btn');
+        const notesInput = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+        if (notesInput) {
+          await notesInput.fill('E2E done notes');
+          await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+        }
+        const logs = await waitFor(async () => {
+          const list = (await invoke(base, session, 'get-printer-maintenance-logs', [voron.id])).result || [];
+          return list.length >= 2 ? list : null;
+        }, 10000, 'completed reminder log').catch(() => []);
+        check('completing a reminder asks for notes and records it', !!notesInput && logs.length >= 2, JSON.stringify(logs.map((l) => l.title)));
+      }
+      await page.click('#printer-tab-printers');
+      await page.click(`${card} .printer-action-btn.danger`);
+      const confirmDelete = await page.waitForSelector('dialog[open]:has-text("Delete Printer") button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmDelete) await confirmDelete.click();
+      await page.waitForSelector(card, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Printer Manager deletes a printer after asking', !!confirmDelete && !(await serverPrinters()).some((p) => p.id === voron.id));
+    }
+    await page.click('#printer-management-close');
+    check('Printer Manager closes', !(await page.isVisible('#printer-management-dialog')));
+
+    // Library Stats (React): counts match get-stats, and both charts draw.
+    const serverStats = (await invoke(base, session, 'get-stats')).result || {};
+    await page.evaluate(() => window.openStats());
+    check('Library Stats opens', await page.isVisible('#stats-dialog'));
+    const shownTotal = await page.waitForFunction((total) => {
+      const text = document.getElementById('stats-total-models')?.textContent;
+      return text === total ? text : null;
+    }, String(serverStats.totalModels || 0), { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('Library Stats shows the model count', shownTotal !== null, `${shownTotal} vs ${serverStats.totalModels}`);
+    check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
+    await page.click('#stats-dialog .dialog-buttons button');
+    check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
+
+    // System Report (React): every section finishes, and both benchmarks complete.
+    await page.evaluate(() => window.openSystemReport());
+    check('System Report opens', await page.isVisible('#system-report-dialog'));
+    const reportDone = await page.waitForFunction(() => {
+      const statuses = [...document.querySelectorAll('#system-report-dialog .system-report-section')]
+        .map((section) => section.querySelector('[class^="system-report-status-"]')?.textContent || '');
+      return statuses.length === 4 && statuses.every(Boolean) ? statuses : null;
+    }, null, { timeout: 30000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('System Report fills every section', !!reportDone, JSON.stringify(reportDone));
+    check('System Report benchmarks complete', !!reportDone && reportDone[2] === '✓ Completed' && reportDone[3] === '✓ Completed', JSON.stringify(reportDone));
+    await page.click('#system-report-dialog .dialog-buttons button');
+    check('System Report closes', !(await page.isVisible('#system-report-dialog')));
+
+    // Backup/Restore (React): backup and export download, the export imports back, a bad backup is refused.
+    await page.evaluate(() => window.openBackupRestore());
+    check('Backup/Restore opens', await page.isVisible('#backup-restore-dialog'));
+    const backupDownload = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#backup-button')])
+      .then(([download]) => download).catch(() => null);
+    check('Create Backup downloads a .db file', !!backupDownload && /^justtprint-backup-.*\.db$/.test(backupDownload.suggestedFilename()), backupDownload && backupDownload.suggestedFilename());
+    const exportDownload = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#export-library-button')])
+      .then(([download]) => download).catch(() => null);
+    const exportPath = exportDownload && await exportDownload.path().catch(() => null);
+    const exported = exportPath ? JSON.parse(fs.readFileSync(exportPath, 'utf8')) : null;
+    check('Export Library downloads the library', !!exported && Array.isArray(exported.models) && exported.models.length === 3, exported ? `${exported.models.length} models` : 'no file');
+    if (exportPath) {
+      await page.click('#import-library-button');
+      const confirmImport = await page.waitForSelector('dialog[open]:has-text("Confirm Import") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      check('Import Library asks first', !!confirmImport);
+      if (confirmImport) {
+        const chooser = page.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null);
+        await confirmImport.click();
+        const fileChooser = await chooser;
+        check('Import Library opens a file picker', !!fileChooser);
+        if (fileChooser) await fileChooser.setFiles(exportPath);
+        const imported = await page.waitForSelector('dialog[open]:has-text("Library imported successfully")', { timeout: 30000 }).catch(() => null);
+        check('Import Library merges the export', !!imported && /0 new models added, 3 models updated/.test(await imported.textContent()), imported && await imported.textContent());
+        if (imported) await page.click('dialog[open]:has-text("Library imported successfully") button:text-is("OK")');
+      }
+    }
+    await page.setInputFiles('#restore-file-input', { name: 'junk.db', mimeType: 'application/octet-stream', buffer: Buffer.from('not a database') });
+    const refused = await page.waitForSelector('dialog[open]:has-text("Not a JusttPrint backup")', { timeout: 30000 }).catch(() => null);
+    check('Restore refuses a file that is not a backup', !!refused);
+    if (refused) await page.click('dialog[open]:has-text("Not a JusttPrint backup") button:text-is("OK")');
+    await page.click('#save-backup-restore');
+    check('Backup/Restore closes', !(await page.isVisible('#backup-restore-dialog')));
+
+    // Keyboard Shortcuts and About (React).
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+?' : 'Control+Shift+?');
+    check('Ctrl+Shift+? opens Keyboard Shortcuts', await page.isVisible('#keyboard-shortcuts-dialog')
+      && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 12);
+    await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
+    check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
+    await page.evaluate(() => window.openAbout());
+    const aboutVersion = await page.waitForFunction((version) => {
+      const text = document.getElementById('about-version')?.textContent || '';
+      return text.includes(version) ? text : null;
+    }, require('../../package.json').version, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('About shows the version', !!aboutVersion, aboutVersion);
+    await page.uncheck('#auto-update-check');
+    const updateSetting = await waitFor(async () => {
+      const value = (await invoke(base, session, 'get-setting', ['autoUpdateCheck'])).result;
+      return value === '0' ? value : null;
+    }, 10000, 'autoUpdateCheck').catch(() => null);
+    check('About saves the update check setting', updateSetting === '0');
+    await page.check('#auto-update-check');
+    await page.click('#about-dialog .about-close-x');
+    check('About closes', !(await page.isVisible('#about-dialog')));
+
+    // Performance Settings (React): loads the setting, refuses a bad value, saves a good one.
+    const savedMaxSize = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
+    await page.evaluate(() => window.openPerformanceSettings());
+    await page.waitForSelector('#performance-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Performance Settings opens with the saved value', await page.inputValue('#max-file-size') === (savedMaxSize || '50'), await page.inputValue('#max-file-size'));
+    await page.fill('#max-file-size', '0');
+    await page.click('#save-performance-settings');
+    const badSize = await page.waitForSelector('dialog[open]:has-text("Invalid max file size") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    check('Performance Settings refuses 0 MB', !!badSize);
+    if (badSize) await badSize.click();
+    await page.fill('#max-file-size', '75');
+    await page.click('#save-performance-settings');
+    const sizeSaved = await page.waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (sizeSaved) await sizeSaved.click();
+    check('Performance Settings saves', !!sizeSaved && (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result === '75'
+      && !(await page.isVisible('#performance-settings-dialog')));
+    await invoke(base, session, 'save-setting', ['maxFileSizeMB', savedMaxSize || '50']);
+
+    // MCP Server settings (React): this page's URL, and a client config that carries the API token.
+    const apiToken = ((await invoke(base, session, 'get-server-access-info')).result || {}).apiToken;
+    await page.evaluate(() => window.openMcpServerSettings());
+    check('MCP Server settings opens', await page.isVisible('#mcp-server-settings-dialog'));
+    check('MCP URL is this server', await page.inputValue('#mcp-server-url') === `${base}/mcp`, await page.inputValue('#mcp-server-url'));
+    const mcpConfig = await page.waitForFunction(() => {
+      const text = document.getElementById('mcp-server-config')?.textContent || '';
+      return text.includes('Bearer') ? text : null;
+    }, null, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => '');
+    let parsedConfig = null;
+    try { parsedConfig = JSON.parse(mcpConfig).mcpServers.justtprint; } catch (_) { /* checked below */ }
+    check('MCP client config has the URL and API token', !!parsedConfig && parsedConfig.url === `${base}/mcp`
+      && parsedConfig.headers && parsedConfig.headers.Authorization === `Bearer ${apiToken}`, mcpConfig.slice(0, 200));
+    check('MCP settings list the tools', /search_models/.test(await page.textContent('#mcp-server-tools').catch(() => '')));
+    await page.click('#cancel-mcp-server-settings');
+    check('MCP Server settings closes', !(await page.isVisible('#mcp-server-settings-dialog')));
+
+    // Browser Extension settings (React): Import now reports, Save stores the path mapping.
+    await page.evaluate(() => window.openBrowserExtensionSettings());
+    await page.waitForSelector('#browser-extension-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Browser Extension settings opens', await page.isVisible('#browser-extension-settings-dialog'));
+    await page.click('#import-extension-inbox-now');
+    const inboxStatus = await page.waitForFunction(() => {
+      const text = document.getElementById('extension-inbox-last-status')?.textContent || '';
+      return /just now|already running/.test(text) ? text : null;
+    }, null, { timeout: 30000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('Import now reports the result', !!inboxStatus, inboxStatus);
+    await page.fill('#extension-client-path-prefix', '  C:\\Downloads  ');
+    await page.click('#save-browser-extension-settings');
+    await page.waitForSelector('#browser-extension-settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    check('Browser Extension settings saves (trimmed)', (await invoke(base, session, 'get-setting', ['extensionClientPathPrefix'])).result === 'C:\\Downloads'
+      && !(await page.isVisible('#browser-extension-settings-dialog')));
+    await invoke(base, session, 'save-setting', ['extensionClientPathPrefix', '']);
+
+    // File Type settings (React): lists the catalog, saves a type, and the sidebar filter offers it.
+    const savedTypes = (await invoke(base, session, 'get-setting', ['scanAdditionalFileTypes'])).result;
+    await page.evaluate(() => window.openFileTypeSettings());
+    await page.waitForSelector('#file-type-settings-dialog[open] #scan-type-obj', { timeout: 10000 }).catch(() => {});
+    check('File Type settings lists the file types', (await page.locator('#file-type-settings-dialog .scan-file-type-option').count()) >= 19);
+    check('3MF metadata options default to on', await page.isChecked('#enable-3mf-designer'));
+    await page.check('#scan-type-obj');
+    await page.click('#save-file-type-settings');
+    await page.waitForSelector('#file-type-settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    check('File Type settings saves', JSON.parse((await invoke(base, session, 'get-setting', ['scanAdditionalFileTypes'])).result || '[]').includes('obj'));
+    check('file type filter offers the new type', await page.waitForSelector('#filetype-select option[value="obj"]', { state: 'attached', timeout: 10000 }).then(() => true).catch(() => false));
+    await invoke(base, session, 'save-setting', ['scanAdditionalFileTypes', savedTypes || '[]']);
+
+    // HTTPS / SSL settings (React): status, mode panels and the redirect label. Not applied (that restarts the listener).
+    await page.evaluate(() => window.openHttpsSettings());
+    await page.waitForSelector('#https-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('HTTPS settings shows the status', /HTTP on port \d+/.test(await page.textContent('#https-settings-status').catch(() => '')));
+    check('HTTPS settings starts in Off mode with no panels', await page.inputValue('#tls-mode') === 'off' && !(await page.isVisible('.tls-mode-panel')));
+    await page.selectOption('#tls-mode', 'custom');
+    check('Custom mode shows the certificate fields', await page.isVisible('#tls-cert-path') && !(await page.isVisible('#tls-domain')));
+    await page.selectOption('#tls-mode', 'letsencrypt');
+    check("Let's Encrypt mode shows domain and email", await page.isVisible('#tls-domain') && await page.isVisible('#tls-email'));
+    await page.selectOption('#tls-mode', 'selfsigned');
+    check('Self-signed mode shows the hostname', await page.isVisible('#tls-selfsigned-host') && !(await page.isVisible('#tls-cert-path')));
+    await page.fill('#tls-listen-port', '5443');
+    check('redirect label follows the listen port', /:5443$/.test((await page.textContent('#tls-redirect-http-label')).trim()));
+    await page.click('#cancel-https-settings');
+    check('HTTPS settings closes', !(await page.isVisible('#https-settings-dialog')));
+
+    // AI Configuration (React): service defaults, nothing saved until Save, and the prompt editor.
+    const aiKeys = ['aiService', 'apiEndpoint', 'aiModel', 'apiKey', 'aiTagMaxTags', 'aiTagPrompt'];
+    const savedAi = {};
+    for (const key of aiKeys) savedAi[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    await page.evaluate(() => window.openAiConfig());
+    await page.waitForSelector('#ai-config-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('AI Configuration opens', await page.isVisible('#ai-config-dialog'));
+    await page.selectOption('#ai-service-select', 'claude');
+    check('choosing Claude fills its endpoint and model', await page.inputValue('#ai-endpoint') === 'https://api.anthropic.com/v1/'
+      && await page.inputValue('#ai-model') === 'claude-haiku-4-5');
+    check('Claude asks for an API key', /^API Key:$/.test((await page.textContent('label[for="ai-api-key"]')).trim()));
+    await page.selectOption('#ai-service-select', 'custom');
+    check('a custom server makes the key optional', /optional/.test(await page.textContent('label[for="ai-api-key"]')));
+    await page.click('#cancel-ai-config');
+    check('Cancel saves nothing', (await invoke(base, session, 'get-setting', ['aiService'])).result === savedAi.aiService);
+    await page.evaluate(() => window.openAiConfig());
+    await page.waitForSelector('#ai-config-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await page.selectOption('#ai-service-select', 'custom');
+    await page.fill('#ai-endpoint', 'http://ollama.local:11434/v1');
+    await page.fill('#ai-model', 'llava');
+    await page.fill('#ai-tag-max-tags', '7');
+    await page.click('#edit-ai-prompt');
+    await page.waitForSelector('#ai-prompt-edit-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Edit Prompt shows the default prompt', (await page.inputValue('#ai-prompt-textarea')).length > 50);
+    await page.click('#cancel-ai-prompt-edit');
+    await page.click('#save-ai-config');
+    await page.waitForSelector('#ai-config-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const aiAfter = {};
+    for (const key of aiKeys) aiAfter[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    check('Save stores the AI settings', aiAfter.aiService === 'custom' && aiAfter.apiEndpoint === 'http://ollama.local:11434/v1'
+      && aiAfter.aiModel === 'llava' && aiAfter.aiTagMaxTags === '7', JSON.stringify(aiAfter));
+    for (const key of aiKeys) await invoke(base, session, 'save-setting', [key, savedAi[key] == null ? '' : savedAi[key]]);
+
+    // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
+    const savedTheme = (await invoke(base, session, 'get-setting', ['uiTheme'])).result;
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Theme settings opens with the saved theme', await page.inputValue('#ui-theme') === (savedTheme || 'modern-cyan'));
+    await page.selectOption('#ui-theme', 'modern-purple');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
+    check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
+      && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+
+    // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.
+    await invoke(base, session, 'save-slicer', [{ name: 'Seed Slicer', path: '/usr/bin/seed-slicer' }]);
+    await page.evaluate(() => window.openSlicerSettings());
+    await page.waitForSelector('#slicer-dialog[open] .slicer-entry', { timeout: 10000 }).catch(() => {});
+    const slicerRows = await page.locator('#slicer-dialog .slicer-entry').count();
+    check('Slicer settings lists the saved slicers', slicerRows >= 1 && (await page.inputValue('#slicer-dialog .slicer-name')) !== '');
+    await page.click('#add-slicer-button');
+    const newRow = page.locator('#slicer-dialog .slicer-entry').last();
+    await newRow.locator('.slicer-path').fill('/opt/OrcaSlicer/orca-slicer');
+    await newRow.locator('.slicer-path').blur();
+    check('a typed path suggests a name', await newRow.locator('.slicer-name').inputValue() === 'Orca Slicer');
+    const firstName = await page.inputValue('#slicer-dialog .slicer-name');
+    await newRow.locator('.slicer-name').fill(firstName);
+    await page.click('#save-slicer-settings');
+    const duplicate = await page.waitForSelector('dialog[open]:has-text("is already used") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    check('Slicer settings refuses a duplicate name', !!duplicate);
+    if (duplicate) await duplicate.click();
+    await newRow.locator('.slicer-name').fill('Orca Slicer');
+    await page.click('#save-slicer-settings');
+    const slicersSaved = await page.waitForSelector('dialog[open]:has-text("Slicer settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (slicersSaved) await slicersSaved.click();
+    const savedSlicers = (await invoke(base, session, 'get-slicers')).result || [];
+    check('Slicer settings saves the list', !!slicersSaved && savedSlicers.length === slicerRows + 1
+      && savedSlicers.some((s) => s.name === 'Orca Slicer' && s.path === '/opt/OrcaSlicer/orca-slicer'), JSON.stringify(savedSlicers));
+    await invoke(base, session, 'clear-and-save-slicers', [[]]);
+
+    // STL Home (React): loads the saved directory, edits the lists and path options, saves.
+    // (No directory is left on save: the web UI may not scan the e2e library, inside the app folder.)
+    const stlHomeKeys = ['stlHomeDirectories', 'stlHome', 'stlHomeExcludeDirectories', 'pathMetadataStlHomeEnabled', 'pathMetadataStlHomeDirection'];
+    const savedStlHome = {};
+    for (const key of stlHomeKeys) savedStlHome[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    await page.evaluate(() => window.openStlHome());
+    const homeRow = await page.waitForSelector(`#stl-home-directories-list li:has-text("${LIBRARY}")`, { timeout: 10000 }).catch(() => null);
+    check('STL Home opens with the saved directory', !!homeRow);
+    await page.fill('#stl-home-directories-input', '/srv/models');
+    await page.press('#stl-home-directories-input', 'Enter');
+    await page.fill('#stl-home-directories-input', '/srv/models/');
+    await page.click('#stl-home-directories-add');
+    check('STL Home ignores a duplicate directory', (await page.locator('#stl-home-directories-list .stl-home-exclude-item').count()) === 2);
+    await page.click('#stl-home-directories-list li:has-text("/srv/models") .stl-home-exclude-remove');
+    if (homeRow) await page.click(`#stl-home-directories-list li:has-text("${LIBRARY}") .stl-home-exclude-remove`);
+    check('STL Home shows the empty list', await page.isVisible('#stl-home-directories-list .stl-home-exclude-empty'));
+    await page.fill('#stl-home-exclude-input', 'Designer C');
+    await page.click('#stl-home-exclude-add');
+    check('path options are grayed until enabled', await page.evaluate(() => document.getElementById('stl-home-path-metadata-options').classList.contains('grayed')));
+    await page.check('#stl-home-path-metadata-enabled');
+    await page.selectOption('#stl-home-path-direction', 'fromRoot');
+    check('From Root explains its levels', /From Root: level 0/.test(await page.textContent('#stl-home-dialog .stl-home-path-direction-desc')));
+    await page.click('#save-stl-home-button');
+    await page.waitForSelector('#stl-home-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const stlHomeAfter = {};
+    for (const key of stlHomeKeys) stlHomeAfter[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    check('STL Home saves directories, exclusions and path options', stlHomeAfter.stlHomeDirectories === '[]' && !stlHomeAfter.stlHome
+      && stlHomeAfter.stlHomeExcludeDirectories === '["Designer C"]' && stlHomeAfter.pathMetadataStlHomeEnabled === '1'
+      && stlHomeAfter.pathMetadataStlHomeDirection === 'fromRoot', JSON.stringify(stlHomeAfter));
+    check('Scan STL Home button hides with no directories', await page.waitForSelector('#scan-stl-home-button', { state: 'hidden', timeout: 10000 }).then(() => true).catch(() => false));
+    for (const key of stlHomeKeys) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
+    await page.evaluate(() => window.updateScanStlHomeButtonVisibility?.());
+
+    // Organize Library (React): source picker, folder structure, preview, and a stale preview after a change. Not run.
+    const savedLayers = (await invoke(base, session, 'get-setting', ['organizeLibraryLayers'])).result;
+    await page.evaluate(() => window.openOrganizeLibrary());
+    await page.waitForSelector('#organize-library-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Organize Library lists the scanned folders', await page.isEnabled('#organize-source-button'));
+    await page.click('#organize-source-button');
+    await page.fill('#organize-source-search', 'zzz-no-match');
+    check('source search filters the folders', await page.isVisible('#organize-source-empty'));
+    await page.fill('#organize-source-search', LIBRARY);
+    await page.press('#organize-source-search', 'Enter');
+    check('Enter picks the matching folder', (await page.textContent('#organize-source-label')) === LIBRARY && !(await page.isVisible('#organize-source-menu')),
+      await page.textContent('#organize-source-label'));
+    await page.click('#organize-structure-add');
+    check('structure preview lists the folders', /Root \/ \S.* \/ \S.* \/ file/.test(await page.textContent('#organize-structure-preview')));
+    await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-preview');
+    await page.click('#organize-preview-button');
+    const planned = await page.waitForSelector('#organize-preview-summary:has-text("will be copied")', { timeout: 15000 }).catch(() => null);
+    check('Organize preview plans copies and allows Copy', !!planned && await page.isEnabled('#organize-confirm-button'));
+    await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-other');
+    check('changing the job asks for a new preview', (await page.textContent('#organize-preview-summary')).includes('Preview again')
+      && !(await page.isEnabled('#organize-confirm-button')));
+    await page.click('#organize-close-button');
+    check('Organize Library closes', !(await page.isVisible('#organize-library-dialog')));
+    await invoke(base, session, 'save-setting', ['organizeLibraryLayers', savedLayers == null ? '' : savedLayers]);
+
+    // De-Dup (React): a copy of cube.stl shows as a duplicate; Easy with a preferred directory keeps the original; Delete removes the copy.
+    const dedupOriginal = path.join(LIBRARY, 'Designer A', 'cube.stl');
+    const dedupCopy = path.join(LIBRARY, 'Designer A', 'cube copy.stl');
+    fs.copyFileSync(dedupOriginal, dedupCopy);
+    await invoke(base, session, 'save-model', [{ filePath: dedupCopy, fileName: 'cube copy.stl' }]);
+    await invoke(base, session, 'calculate-file-hash', [dedupOriginal]);
+    await invoke(base, session, 'calculate-file-hash', [dedupCopy]);
+    await page.click('#dup-button');
+    const copyRow = `#dedup-dialog input[data-filepath="${dedupCopy}"]`;
+    const originalRow = `#dedup-dialog input[data-filepath="${dedupOriginal}"]`;
+    const dedupGroup = await page.waitForSelector(copyRow, { timeout: 30000 }).catch(() => null);
+    check('De-Dup lists the duplicate pair', !!dedupGroup && await page.isVisible(originalRow));
+    check('De-Dup scope: entire library without filters', await page.isChecked('#dedup-scope-entire') && await page.isDisabled('#dedup-scope-current'));
+    await page.fill('#dedup-preferred-directory-input', path.join(LIBRARY, 'Designer A'));
+    await page.press('#dedup-preferred-directory-input', 'Enter');
+    check('Easy with a preferred directory keeps the original', await page.isChecked(copyRow) && !(await page.isChecked(originalRow))
+      && (await page.locator('#dedup-dialog .preferred-directory-badge').count()) >= 2);
+    check('De-Dup saves the preferred directory', (await invoke(base, session, 'get-setting', ['dedupPreferredDirectory'])).result === path.join(LIBRARY, 'Designer A'));
+    await page.click('#dedup-clear-button');
+    check('Clear unselects everything', !(await page.isChecked(copyRow)));
+    await page.check(copyRow);
+    await page.click('#delete-selected');
+    const confirmDedupDelete = await page.waitForSelector('dialog[open]:has-text("Confirm Delete") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (confirmDedupDelete) await confirmDedupDelete.click();
+    const copyGone = await page.waitForSelector(copyRow, { state: 'detached', timeout: 15000 }).then(() => true).catch(() => false);
+    check('Delete Selected removes the copy from disk and the list', !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal));
+    await page.click('#close-dedup');
+    check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
+    await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
+    if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
+
+    // Purge Models (React). Empties the library, so it runs last among the library checks.
+    await page.evaluate(() => window.openPurgeModels());
+    check('Purge Models opens', await page.isVisible('#purge-models-dialog'));
+    await page.click('#cancel-purge-button');
+    check('Cancel keeps the models', ((await invoke(base, session, 'get-stats')).result || {}).totalModels > 0);
+    await page.evaluate(() => window.openPurgeModels());
+    await page.click('#confirm-purge-button');
+    const purged = await page.waitForSelector('dialog[open]:has-text("All models have been purged") button:text-is("OK")', { timeout: 15000 }).catch(() => null);
+    if (purged) await purged.click();
+    check('Purge Models empties the library and the grid', !!purged && ((await invoke(base, session, 'get-stats')).result || {}).totalModels === 0
+      && (await page.$$('.file-grid [data-filepath], .file-grid [data-file-path]')).length === 0);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
-    check('API token shown', (await page.inputValue('#server-access-api-token')).startsWith('pv_'));
+    const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
+      .then((handle) => handle.jsonValue()).catch(() => '');
+    check('API token shown', String(shownToken).startsWith('pv_'), shownToken);
+    // The e2e server's password comes from JUSTTPRINT_PASSWORD, so the dialog explains that instead of a form.
+    check('password set by environment: no change form', await page.isVisible('text=JUSTTPRINT_PASSWORD') && !(await page.isVisible('#server-access-new-password')));
+    await page.click('#close-server-access');
+    check('Close closes Server Access', !(await page.isVisible('#server-access-dialog')));
+    await page.evaluate(() => window.openServerAccess());
+    check('Server Access reopens', await page.isVisible('#server-access-dialog'));
     await page.keyboard.press('Escape');
 
     await page.evaluate(() => window.logOutOfServer());

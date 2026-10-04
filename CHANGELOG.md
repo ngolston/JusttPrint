@@ -4,6 +4,41 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-10-04
+
+**Upgrading:** no changes needed for Docker. Building from source now needs `npm run build:web` before `npm start` (the Docker image does this itself). Puter.com AI does not work in the browser yet (the page's security policy blocks Puter.js); use another AI service for now.
+
+**Changes:**
+- Every dialog except Manage Thumbnails and the print log is rebuilt in React + TypeScript; the model grid, details panel and 3D preview are next.
+- First React + TypeScript screen: **Tools → Server Access** is rebuilt in React (`src/web/`), built with Vite into `web-build/app.js` and mounted into the existing page. It calls the HTTP API directly. Same behavior: change the password (when it is not set by `JUSTTPRINT_PASSWORD`), copy or regenerate the API token.
+- The Docker image builds the React screens in a separate stage; the runtime image has no build tools.
+- **Tag Manager** is rebuilt in React: create, rename inline (renaming onto an existing name merges the two after asking), search, delete, full screen.
+- **Parts Manager** is rebuilt in React: add, edit, step or type quantities, low-stock flags, search, remove. Removing a part now asks in the app's own dialog, and "Part saved." is no longer hidden when the form collapses.
+- **Filament Manager** is rebuilt in React: add filaments (with a color picker), Spoolman setup, test and sync, search, remove (asked in the app's own dialog). Assigning filaments to models is unchanged.
+- **Printer Manager** is rebuilt in React: onboard and edit printers, open their web interfaces, schedule and complete maintenance reminders, and keep a maintenance log. Confirmations and the notes prompt use the app's own dialogs instead of the browser's, and "Printer added" is no longer hidden when the form collapses.
+- **Library Stats** is rebuilt in React. Its two charts are drawn by the page itself, so the bundled Chart.js library (~200 KB) is removed.
+- **System Report** is rebuilt in React. Each section shows its result as soon as its check finishes, instead of waiting for both benchmarks.
+- **Backup/Restore** is rebuilt in React. Backups and library exports download directly without an extra "download should start" message, buttons show progress and can't be pressed twice, and the grid refreshes before the import result is shown.
+- **Keyboard Shortcuts** and **About** are rebuilt in React. The About links are ordinary links that open in a new tab.
+- **Performance Settings** is rebuilt in React. Enter saves, and a value like `2.5` is refused instead of being cut to `2`.
+- **MCP Server** settings are rebuilt in React and show only what applies to the container: this server's MCP URL, the other addresses, the tool list and the client config. Fixed: the client config shown there had no API token, so clients set up from it were refused; it now includes the `Authorization` header. The unused enable/port controls and the `sync-local-http-server` action are removed.
+- **Browser Extension** settings are rebuilt in React. The **Choose folder** button is removed: it opened a native picker that the server always answered with Cancel. Type the inbox path instead (a path on the server). Import now shows progress and says when an import is already running.
+- **File Type** settings are rebuilt in React; the file type list comes from the server. Fixed: after saving, the sidebar's file type filter now updates right away instead of after a reload.
+- **HTTPS / SSL** settings are rebuilt in React, without the desktop-mode text. Buttons are disabled while a certificate request or save runs, so Let's Encrypt can't be asked twice.
+- **AI Configuration** and its prompt editor are rebuilt in React. Changes are now saved only by **Save**; before, typing in the endpoint, model or key fields, or changing the service, saved right away, so Cancel did not undo them.
+- The React screens send the page's id with their requests, so the server can show dialogs in, and send progress to, the page that asked (needed for AI tests that run in the browser).
+- **Purge Models** is rebuilt in React. Fixed: purging failed with "FOREIGN KEY constraint failed" once any print had been logged. It now also removes print history (as removing a single model does), in one transaction.
+- **Theme** settings are rebuilt in React. The dialog now shows the saved model color and lighting when it opens (it could show stale values before).
+- **Slicer** settings are rebuilt in React (`slicer.js` is removed). The Browse button is gone: browsers only reveal a file's name, never its path, so it could not fill in the path. Type the slicer's full path on your computer; an empty name is suggested from it.
+- **Metadata Manager** is rebuilt in React: rename (or merge) and clear designers, parent models and licenses. Search filters as you type, and the delete prompt names the value it removes.
+- **STL Home** settings are rebuilt in React. Fixed: Save ran twice per click, which could start two STL Home scans. The Add Directory buttons (native folder pickers, which never opened in the browser) are removed; type server paths instead.
+- **Organize Library** is rebuilt in React (`organize-library-ui.js` is removed). The two Browse buttons (native folder pickers, which never opened in the browser) are removed; type the folder inside the scanned directory and the destination. The grid refreshes after a run.
+- **De-Dup** is rebuilt in React (`dedup-preferred.js` moves to `src/web/dedup-keeper.mjs`). Hash generation progress shows inside the De-Dup window instead of a second dialog, and a failed delete is reported once for all files instead of one message per file. The preferred-directory Browse button (a native folder picker, which never opened in the browser) is removed. Fixed: each time De-Dup opened it added another set of hash-progress listeners that were never removed.
+- Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
+- Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
+- Backups use SQLite's online backup, so the database stays open while a backup is written.
+- Fixed: opening a dialog or running a menu action (Tag Manager, Clear New, Regenerate Thumbnails, ...) in one browser also did it in every other open browser. Those events now stay in the page that sent them, and the server no longer relays browser events to other browsers.
+
 ## [4.1.1] - 2026-10-04
 
 **Upgrading:** no changes needed.

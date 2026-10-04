@@ -1,11 +1,5 @@
 // Add this at the very top of the file
 const DEBUG = true; // Enable debugging temporarily
-/** Parse max file size (MB) from Performance settings input; requires integer >= 1. */
-function parseMaxFileSizeMBInput(raw) {
-  const n = parseInt(raw, 10);
-  if (Number.isNaN(n) || n < 1) return null;
-  return n;
-}
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -22,7 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // listener (TOS, initializeApp, STL Home scan, WebGL thumbs) and can freeze the tab.
 console.log('[Renderer] document.readyState at load:', document.readyState);
 
-// Scan STL Home + AI Config Test: delegated click handlers (Server/Docker - main block may run late)
+// Scan STL Home: delegated click handler (Server/Docker - main block may run late)
 function _attachEarlyButtonHandlers() {
   if (!document.body || document.body._earlyButtonHandlersAttached) return;
   document.body._earlyButtonHandlersAttached = true;
@@ -35,12 +29,6 @@ function _attachEarlyButtonHandlers() {
       e.stopPropagation();
       if (typeof window.runScanSTLHome === 'function') window.runScanSTLHome();
       else window._pendingScanStlHome = true;
-      return;
-    }
-    if (e.target.closest('#test-ai-config')) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.testAIConfigFromDialog === 'function') window.testAIConfigFromDialog();
       return;
     }
   });
@@ -105,222 +93,15 @@ earlyEventChannels.forEach(function(channel) {
   });
 });
 
-// Performance dialog: register before main DOMContentLoaded async work (avoids menu IPC race + bridge log)
-window._openPerformanceSettingsDialog = async function _openPerformanceSettingsDialog() {
-  const dialog = document.getElementById('performance-settings-dialog');
-  if (!dialog) return;
-  try {
-    if (window.electron && typeof window.electron.getSetting === 'function') {
-      const maxFileSize = (await window.electron.getSetting('maxFileSizeMB')) || '50';
-      const input = document.getElementById('max-file-size');
-      if (input) input.value = maxFileSize;
-    }
-  } catch (e) {
-    console.error('Error loading performance settings for dialog:', e);
-  }
-  try {
-    dialog.showModal();
-  } catch (e) {
-    console.error('Error opening performance settings dialog:', e);
-  }
-};
+// Performance Settings is React (src/web/PerformanceSettingsDialog.tsx); it defines window.openPerformanceSettings.
 window._electronRealEventHandlers['open-performance-settings'] = function() {
-  window._openPerformanceSettingsDialog();
+  window.openPerformanceSettings?.();
 };
 
-function selectedTlsMode() {
-  return document.getElementById('tls-mode')?.value || 'off';
-}
-
-function updateHttpsModePanels() {
-  const mode = selectedTlsMode();
-  const custom = document.getElementById('tls-panel-custom');
-  const le = document.getElementById('tls-panel-letsencrypt');
-  const self = document.getElementById('tls-panel-selfsigned');
-  if (custom) custom.hidden = mode !== 'custom';
-  if (le) le.hidden = mode !== 'letsencrypt';
-  if (self) self.hidden = mode !== 'selfsigned';
-}
-
-function collectHttpsSettingsPayload() {
-  return {
-    tlsMode: selectedTlsMode(),
-    tlsCertPath: document.getElementById('tls-cert-path')?.value.trim() || '',
-    tlsKeyPath: document.getElementById('tls-key-path')?.value.trim() || '',
-    tlsCaPath: document.getElementById('tls-ca-path')?.value.trim() || '',
-    tlsDomain: (selectedTlsMode() === 'selfsigned'
-      ? document.getElementById('tls-selfsigned-host')?.value
-      : document.getElementById('tls-domain')?.value || '').trim(),
-    tlsEmail: document.getElementById('tls-email')?.value.trim() || '',
-    tlsAgreeTos: !!document.getElementById('tls-agree-tos')?.checked,
-    tlsUseStaging: !!document.getElementById('tls-use-staging')?.checked,
-    tlsRedirectHttp: !!document.getElementById('tls-redirect-http')?.checked,
-    serverHttpPort: document.getElementById('tls-listen-port')?.value.trim() || ''
-  };
-}
-
-function updateTlsRedirectLabel(port) {
-  const label = document.getElementById('tls-redirect-http-label');
-  if (!label) return;
-  const n = parseInt(port, 10);
-  const listen = Number.isInteger(n) && n > 0 ? n : 5000;
-  label.textContent = 'Redirect HTTP on port 80 to https://<host>:' + listen;
-}
-
-function applyHttpsStatusToDialog(status) {
-  const statusEl = document.getElementById('https-settings-status');
-  const envNote = document.getElementById('https-settings-env-note');
-  const desktopNote = document.getElementById('https-settings-desktop-note');
-  const fields = document.getElementById('https-settings-fields');
-  const saveBtn = document.getElementById('save-https-settings');
-  const issueBtn = document.getElementById('tls-issue-letsencrypt');
-  const genBtn = document.getElementById('tls-generate-selfsigned');
-  const modeSelect = document.getElementById('tls-mode');
-  const portGroup = document.getElementById('tls-listen-port-group');
-  const portInput = document.getElementById('tls-listen-port');
-  if (!status) return;
-
-  const parts = [];
-  const appPort = status.appPort || 5000;
-  parts.push(status.serverMode ? 'Server / Docker mode' : 'Desktop mode');
-  parts.push(status.scheme === 'https'
-    ? ('Certificate ready for HTTPS on port ' + appPort)
-    : ('Certificate off — HTTP on port ' + appPort));
-  if (status.source && status.source !== 'none') parts.push('Certificate source: ' + status.source);
-  if (status.cert && status.cert.expiresAt) {
-    const days = status.cert.daysRemaining;
-    parts.push('Expires ' + status.cert.expiresAt.slice(0, 10) + (typeof days === 'number' ? ' (' + days + ' days)' : ''));
-  }
-  if (status.missingFiles) parts.push('Certificate files are missing.');
-  if (status.lastError) parts.push('Last error: ' + status.lastError);
-  if (statusEl) statusEl.textContent = parts.join(' · ');
-
-  const envLock = !!status.envOverride;
-  const desktop = !status.serverMode;
-  if (envNote) envNote.hidden = !envLock;
-  if (desktopNote) desktopNote.hidden = !desktop;
-  if (portGroup) portGroup.hidden = desktop;
-  if (fields) fields.setAttribute('data-disabled', envLock ? '1' : '0');
-  if (saveBtn) saveBtn.hidden = envLock;
-  if (issueBtn) issueBtn.disabled = envLock;
-  if (genBtn) genBtn.disabled = envLock;
-  if (modeSelect) modeSelect.disabled = envLock;
-  if (portInput) portInput.disabled = envLock || !!status.portEnvOverride;
-
-  const settings = status.settings || {};
-  const mode = status.tlsMode || 'off';
-  if (modeSelect) modeSelect.value = mode;
-  const certPath = document.getElementById('tls-cert-path');
-  const keyPath = document.getElementById('tls-key-path');
-  const caPath = document.getElementById('tls-ca-path');
-  const domain = document.getElementById('tls-domain');
-  const email = document.getElementById('tls-email');
-  const agree = document.getElementById('tls-agree-tos');
-  const staging = document.getElementById('tls-use-staging');
-  const redirect = document.getElementById('tls-redirect-http');
-  const selfHost = document.getElementById('tls-selfsigned-host');
-  if (certPath) certPath.value = settings.tlsCertPath || '';
-  if (keyPath) keyPath.value = settings.tlsKeyPath || '';
-  if (caPath) caPath.value = settings.tlsCaPath || '';
-  if (domain) domain.value = settings.tlsDomain || '';
-  if (email) email.value = settings.tlsEmail || '';
-  if (agree) agree.checked = !!settings.tlsAgreeTos;
-  if (staging) staging.checked = !!settings.tlsUseStaging;
-  if (redirect) redirect.checked = !!settings.tlsRedirectHttp;
-  if (selfHost && (mode === 'selfsigned' || !selfHost.value)) selfHost.value = settings.tlsDomain || '';
-  if (portInput) portInput.value = settings.serverHttpPort || appPort || 5000;
-  updateTlsRedirectLabel(portInput ? portInput.value : appPort);
-  updateHttpsModePanels();
-}
-
-async function populateHttpsSettingsDialog() {
-  const dialog = document.getElementById('https-settings-dialog');
-  if (!dialog) return;
-  let status = {};
-  try {
-    status = await window.electron.invoke('get-tls-status') || {};
-  } catch (err) {
-    console.error('get-tls-status failed:', err);
-    status = { lastError: err.message || String(err), settings: {}, tlsMode: 'off', serverMode: false };
-  }
-  applyHttpsStatusToDialog(status);
-}
-
-window.openHttpsSettings = async function openHttpsSettings() {
-  const dialog = document.getElementById('https-settings-dialog');
-  if (!dialog) {
-    window.electron.send('open-https-settings');
-    return;
-  }
-  bindHttpsSettingsDialog();
-  await populateHttpsSettingsDialog();
-  dialog.showModal();
+// HTTPS / SSL settings are React (src/web/HttpsSettingsDialog.tsx); it defines window.openHttpsSettings.
+window._electronRealEventHandlers['open-https-settings'] = function() {
+  window.openHttpsSettings?.();
 };
-
-window.saveHttpsSettingsFromDialog = async function saveHttpsSettingsFromDialog() {
-  const result = await window.electron.invoke('apply-tls-settings', collectHttpsSettingsPayload());
-  if (!result || !result.success) {
-    await window.electron.showMessage('HTTPS / SSL', (result && result.message) || 'Failed to apply TLS settings.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('HTTPS / SSL', result.message || 'Settings applied. Reconnect with https:// if TLS is on.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-window.issueLetsEncryptCertificate = async function issueLetsEncryptCertificate() {
-  const payload = collectHttpsSettingsPayload();
-  payload.tlsMode = 'letsencrypt';
-  payload.issueNow = true;
-  const result = await window.electron.invoke('apply-tls-settings', payload);
-  if (!result || !result.success) {
-    await window.electron.showMessage('Let\'s Encrypt', (result && result.message) || 'Certificate request failed.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('Let\'s Encrypt', result.message || 'Certificate issued. Reopen the app as https://<domain>:<port>.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-window.generateSelfSignedCertificate = async function generateSelfSignedCertificate() {
-  const payload = collectHttpsSettingsPayload();
-  const result = await window.electron.invoke('generate-self-signed-cert', {
-    hostname: document.getElementById('tls-selfsigned-host')?.value.trim() || payload.tlsDomain,
-    tlsDomain: payload.tlsDomain,
-    tlsRedirectHttp: payload.tlsRedirectHttp,
-    serverHttpPort: payload.serverHttpPort
-  });
-  if (!result || !result.success) {
-    await window.electron.showMessage('Self-signed certificate', (result && result.message) || 'Failed to generate certificate.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('Self-signed certificate', result.message || 'Certificate generated. Reopen as https:// — the browser will warn until you trust it.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-function bindHttpsSettingsDialog() {
-  if (window._httpsSettingsBound) return;
-  const modeSelect = document.getElementById('tls-mode');
-  if (!modeSelect) return;
-  window._httpsSettingsBound = true;
-  modeSelect.addEventListener('change', updateHttpsModePanels);
-  const portInput = document.getElementById('tls-listen-port');
-  if (portInput) {
-    portInput.addEventListener('input', () => updateTlsRedirectLabel(portInput.value));
-  }
-}
-
-window._electronRealEventHandlers['open-https-settings'] = async function() {
-  await window.openHttpsSettings();
-};
-if (window._electronPendingEvents && window._electronPendingEvents['open-https-settings']) {
-  window._electronPendingEvents['open-https-settings'].forEach((args) => {
-    window._electronRealEventHandlers['open-https-settings'].apply(null, args);
-  });
-  delete window._electronPendingEvents['open-https-settings'];
-}
-document.addEventListener('DOMContentLoaded', bindHttpsSettingsDialog);
 
 const FILE_TYPE_CATALOG_FALLBACK = [
   { id: '3ds', label: '3DS (.3ds)' },
@@ -354,460 +135,6 @@ async function getFileTypesCatalogForUi() {
   }
   return FILE_TYPE_CATALOG_FALLBACK;
 }
-
-// File Type Settings: expose save early so Save button onclick works in Docker/server (before DOMContentLoaded block runs)
-window._fileTypeSettingsSaving = false;
-window.saveFileTypeSettingsFromDialog = async function saveFileTypeSettingsFromDialog() {
-  const dialogEl = document.getElementById('file-type-settings-dialog');
-  if (!dialogEl || !window.electron?.saveSetting) return;
-  if (window._fileTypeSettingsSaving) return;
-  window._fileTypeSettingsSaving = true;
-  try {
-    // Get previously saved scan types to detect unchecked (removed) types
-    let previousIds = [];
-    try {
-      const previousRaw = await window.electron.getSetting('scanAdditionalFileTypes');
-      if (previousRaw) previousIds = JSON.parse(previousRaw);
-    } catch (e) { /* ignore */ }
-
-    const ADDITIONAL_SCAN_TYPE_IDS = ['3ds', 'amf', 'blender', 'chitubox', 'dae', 'dxf', 'dwg', 'fbx', 'f3d', 'f3z', 'gcode', 'igs', 'lys', 'obj', 'ply', 'step', 'svg', 'voxl', 'x3d'];
-    const selectedScanTypes = [];
-    for (const id of ADDITIONAL_SCAN_TYPE_IDS) {
-      const el = dialogEl.querySelector('#scan-type-' + id) || document.getElementById('scan-type-' + id);
-      if (el && el.checked) selectedScanTypes.push(id);
-    }
-    const uncheckedIds = previousIds.filter(id => !selectedScanTypes.includes(id));
-
-    if (uncheckedIds.length > 0 && window.electron?.getModelCountByFileTypeIds && window.electron?.removeModelsByFileTypeIds) {
-      const count = await window.electron.getModelCountByFileTypeIds(uncheckedIds);
-      if (count > 0) {
-        const catalog = await getFileTypesCatalogForUi();
-        const labels = uncheckedIds.map(id => (catalog.find(e => e.id === id) || {}).label || id).join(', ');
-        const message = count === 1
-          ? `Unchecking "${labels}" will remove 1 file of that type from the library. This cannot be undone. Continue?`
-          : `Unchecking ${labels} will remove ${count} files of those types from the library. This cannot be undone. Continue?`;
-        const confirmResult = await window.electron.showMessage('Remove file type from library?', message, ['Yes', 'No']);
-        if (confirmResult !== 'Yes') return;
-        await window.electron.removeModelsByFileTypeIds(uncheckedIds);
-        if (typeof window.performCombinedSearch === 'function') await window.performCombinedSearch();
-      }
-    }
-
-    const checkbox = dialogEl.querySelector('#enable-zip-archives') || document.getElementById('enable-zip-archives');
-    const enableZipArchives = checkbox?.checked ? '1' : '0';
-    await window.electron.saveSetting('enableZipArchives', enableZipArchives);
-
-    const scanTypesValue = JSON.stringify(selectedScanTypes);
-    await window.electron.saveSetting('scanAdditionalFileTypes', scanTypesValue);
-
-    const designerCheckbox = dialogEl.querySelector('#enable-3mf-designer') || document.getElementById('enable-3mf-designer');
-    const parentModelCheckbox = dialogEl.querySelector('#enable-3mf-parent-model') || document.getElementById('enable-3mf-parent-model');
-    const licenseCheckbox = dialogEl.querySelector('#enable-3mf-license') || document.getElementById('enable-3mf-license');
-    const notesCheckbox = dialogEl.querySelector('#enable-3mf-notes') || document.getElementById('enable-3mf-notes');
-    await window.electron.saveSetting('enable3MFDesigner', designerCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFParentModel', parentModelCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFLicense', licenseCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFNotes', notesCheckbox?.checked ? '1' : '0');
-
-    const excludeFoldersEl = dialogEl.querySelector('#scan-exclude-folders') || document.getElementById('scan-exclude-folders');
-    await window.electron.saveSetting('scanExcludeFolders', excludeFoldersEl ? excludeFoldersEl.value : '');
-
-    const autoTagEl = dialogEl.querySelector('#auto-tag-from-folder-on-scan') || document.getElementById('auto-tag-from-folder-on-scan');
-    await window.electron.saveSetting('autoTagFromFolderOnScan', autoTagEl && autoTagEl.checked ? '1' : '0');
-
-    if (typeof dialogEl.close === 'function') dialogEl.close();
-    if (typeof window.populateFileTypeFilter === 'function') await window.populateFileTypeFilter();
-  } catch (err) {
-    console.error('File type settings save failed:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to save file type settings: ' + (err.message || String(err)));
-  } finally {
-    window._fileTypeSettingsSaving = false;
-  }
-};
-
-// Modal fullscreen toggles (exposed early so icons work in Docker/server mode)
-window.syncTagManagerFullscreenButton = function syncTagManagerFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('tag-manager-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.toggleTagManagerFullscreen = function toggleTagManagerFullscreen() {
-  const dialog = document.getElementById('tag-manager-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncTagManagerFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
-window.syncFilamentManagerFullscreenButton = function syncFilamentManagerFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('filament-manager-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.toggleFilamentManagerFullscreen = function toggleFilamentManagerFullscreen() {
-  const dialog = document.getElementById('filament-manager-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncFilamentManagerFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
-window.syncPrinterManagementFullscreenButton = function syncPrinterManagementFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('printer-management-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.togglePrinterManagementFullscreen = function togglePrinterManagementFullscreen() {
-  const dialog = document.getElementById('printer-management-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncPrinterManagementFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
-window.syncPartsStockFullscreenButton = function syncPartsStockFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('parts-stock-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.togglePartsStockFullscreen = function togglePartsStockFullscreen() {
-  const dialog = document.getElementById('parts-stock-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncPartsStockFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
-window.toggleDedupFullscreen = function toggleDedupFullscreen() {
-  const dialog = document.getElementById('dedup-dialog');
-  const btn = document.getElementById('dedup-fullscreen-toggle');
-  if (!dialog || !btn) return;
-  dialog.classList.toggle('modal-fullscreen');
-  btn.textContent = dialog.classList.contains('modal-fullscreen') ? 'Exit Full Screen' : 'Full Screen';
-};
-
-// Purge Models: expose confirm action early so Purge button onclick works in Docker/server mode
-window.confirmPurgeModelsFromDialog = async function confirmPurgeModelsFromDialog() {
-  if (!window.electron?.purgeModels) return;
-  try {
-    const success = await window.electron.purgeModels({ confirmedInDialog: true });
-    if (success) {
-      const container = document.querySelector('.file-grid');
-      if (container) container.innerHTML = '';
-      if (typeof window.updateModelCounts === 'function') await window.updateModelCounts(0);
-      const dialog = document.getElementById('purge-models-dialog');
-      if (dialog && typeof dialog.close === 'function') dialog.close();
-      if (window.electron?.showMessage) await window.electron.showMessage('Success', 'All models have been purged from the database.');
-      const designerSelect = document.getElementById('designer-select');
-      const parentSelect = document.getElementById('parent-select');
-      const printedSelect = document.getElementById('printed-select');
-      const newSelect = document.getElementById('new-select');
-      const tagFilter = document.getElementById('tag-filter');
-      if (designerSelect) designerSelect.value = '';
-      if (parentSelect) parentSelect.value = '';
-      if (printedSelect) printedSelect.value = 'all';
-      if (newSelect) newSelect.value = 'all';
-      if (tagFilter) tagFilter.value = '';
-    }
-  } catch (err) {
-    console.error('Error purging models:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to purge models from the database.');
-  }
-};
-
-// DeDup Easy: select all but one per group. Prefer a copy under the preferred directory, then ZIP, then the first file.
-window.dedupEasyFromDialog = function dedupEasyFromDialog() {
-  if (typeof window.applyDedupEasySelection === 'function' && window._dedupVirtualState?.groups?.length) {
-    window.applyDedupEasySelection();
-    return;
-  }
-  const dialog = document.getElementById('dedup-dialog');
-  if (!dialog) return;
-  const preferredDir = typeof getDedupPreferredDirectory === 'function' ? getDedupPreferredDirectory() : '';
-  const groups = dialog.querySelectorAll('.duplicate-group');
-  groups.forEach(function(group) {
-    const fileRows = group.querySelectorAll('.duplicate-file');
-    if (fileRows.length === 0) return;
-    let keeperRow = null;
-    if (typeof pickDedupKeeperPath === 'function') {
-      const files = Array.from(fileRows).map(function(row) {
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        return { filePath: checkbox ? (checkbox.getAttribute('data-filepath') || '') : '' };
-      });
-      const keeperPath = pickDedupKeeperPath(files, preferredDir);
-      keeperRow = Array.from(fileRows).find(function(row) {
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        return checkbox && checkbox.getAttribute('data-filepath') === keeperPath;
-      }) || null;
-    }
-    if (!keeperRow) {
-      const zipRow = Array.from(fileRows).find(function(row) { return row.classList.contains('zip-entry'); });
-      keeperRow = zipRow || fileRows[0];
-    }
-    fileRows.forEach(function(row) {
-      const checkbox = row.querySelector('input[type="checkbox"]');
-      if (!checkbox || checkbox.disabled) return;
-      checkbox.checked = row !== keeperRow;
-      // Keep virtual selection in sync when falling back to DOM
-      const fp = checkbox.getAttribute('data-filepath');
-      if (fp && window._dedupVirtualState?.selectedPaths) {
-        if (checkbox.checked) window._dedupVirtualState.selectedPaths.add(fp);
-        else window._dedupVirtualState.selectedPaths.delete(fp);
-      }
-    });
-  });
-};
-
-// DeDup Clear: uncheck all (early for Docker/server)
-window.dedupClearFromDialog = function dedupClearFromDialog() {
-  if (typeof window.clearDedupSelection === 'function' && window._dedupVirtualState) {
-    window.clearDedupSelection();
-    return;
-  }
-  const dialog = document.getElementById('dedup-dialog');
-  if (!dialog) return;
-  if (window._dedupVirtualState?.selectedPaths) {
-    window._dedupVirtualState.selectedPaths.clear();
-  }
-  dialog.querySelectorAll('.duplicate-file input[type="checkbox"]:not(:disabled)').forEach(function(cb) {
-    cb.checked = false;
-  });
-};
-
-// Free large dedup payloads when the dialog closes (register early — DOMContentLoaded may abort before late listeners)
-document.addEventListener('DOMContentLoaded', function() {
-  if (typeof bindDedupPreferredDirectoryControls === 'function') {
-    bindDedupPreferredDirectoryControls();
-  }
-  if (typeof loadDedupPreferredDirectory === 'function') {
-    loadDedupPreferredDirectory();
-  }
-  const dedupDialog = document.getElementById('dedup-dialog');
-  if (!dedupDialog || dedupDialog.dataset.dedupTeardownBound === '1') return;
-  dedupDialog.dataset.dedupTeardownBound = '1';
-  dedupDialog.addEventListener('close', function() {
-    window._dedupScope = null;
-    window._dedupApplyPreferredOnLoad = false;
-    if (typeof window.teardownDedupVirtualList === 'function') {
-      window.teardownDedupVirtualList();
-    } else {
-      window._dedupVirtualState = null;
-    }
-    const groupsEl = dedupDialog.querySelector('.duplicate-groups');
-    if (groupsEl) groupsEl.innerHTML = '';
-  });
-});
-
-// Backup/Restore/Export/Import: early-exposed for Docker/server button clicks
-window.createBackupFromDialog = async function createBackupFromDialog() {
-  if (!window.electron?.backupDatabase) return;
-  try {
-    const serverMode = await window.electron.isServerMode().catch(function() { return false; });
-    if (serverMode) {
-      const result = await window.electron.backupDatabase();
-      if (result && result.success && result.filePath) {
-        const downloadUrl = '/api/download/' + encodeURIComponent(result.filePath);
-        window.location.href = downloadUrl;
-        if (window.electron.showMessage) await window.electron.showMessage('Success', 'Database backup created successfully. Download should start shortly.');
-      } else {
-        if (window.electron.showMessage) await window.electron.showMessage('Error', result && result.message ? result.message : 'Failed to create database backup');
-      }
-      return;
-    }
-    const success = await window.electron.backupDatabase();
-    if (success && window.electron.showMessage) await window.electron.showMessage('Success', 'Database backup created successfully');
-  } catch (err) {
-    console.error('Backup error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to create database backup');
-  }
-};
-
-window.restoreBackupFromDialog = async function restoreBackupFromDialog() {
-  if (typeof window._restoreBackupFromDialogImpl === 'function') {
-    await window._restoreBackupFromDialogImpl();
-  }
-};
-
-window.exportLibraryFromDialog = async function exportLibraryFromDialog() {
-  if (!window.electron?.exportLibrary) return;
-  try {
-    const serverMode = await window.electron.isServerMode().catch(function() { return false; });
-    if (serverMode) {
-      const result = await window.electron.exportLibrary();
-      if (result && result.success && result.filePath) {
-        window.location.href = '/api/download/' + encodeURIComponent(result.filePath);
-        if (window.electron.showMessage) await window.electron.showMessage('Success', 'Library exported successfully. Download should start shortly.');
-      } else {
-        if (window.electron.showMessage) await window.electron.showMessage('Error', result && result.message ? result.message : 'Failed to export library');
-      }
-      return;
-    }
-    const success = await window.electron.exportLibrary();
-    if (success && window.electron.showMessage) await window.electron.showMessage('Success', 'Library exported successfully');
-  } catch (err) {
-    console.error('Export library error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to export library');
-  }
-};
-
-window.importLibraryFromDialog = async function importLibraryFromDialog() {
-  if (typeof window._importLibraryFromDialogImpl === 'function') {
-    await window._importLibraryFromDialogImpl();
-  }
-};
-
-// AI Config: Test and Save (early for Docker/server)
-const AI_OFFICIAL_CLOUD_HOSTS = ['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com'];
-
-function aiApiKeyIsRequired(service, endpoint) {
-  const s = (service || '').toLowerCase().trim();
-  if (s === 'puter' || s === 'custom') return false;
-  const url = (endpoint || '').trim().toLowerCase();
-  if (!url) return s === 'openai' || s === 'claude' || s === 'gemini';
-  return AI_OFFICIAL_CLOUD_HOSTS.some((host) => url.indexOf(host) !== -1);
-}
-
-function syncAiApiKeyField(service) {
-  const apiKeyEl = document.getElementById('ai-api-key');
-  const endpointEl = document.getElementById('ai-endpoint');
-  const apiKeyGroup = apiKeyEl && apiKeyEl.closest('.form-group');
-  const apiKeyLabel = document.querySelector('label[for="ai-api-key"]');
-  const hintEl = document.getElementById('ai-api-key-hint');
-  if (!apiKeyEl) return;
-
-  if (service === 'puter') {
-    apiKeyEl.required = false;
-    apiKeyEl.disabled = true;
-    apiKeyEl.value = '';
-    if (apiKeyGroup) apiKeyGroup.style.display = 'none';
-    return;
-  }
-
-  apiKeyEl.disabled = false;
-  if (apiKeyGroup) apiKeyGroup.style.display = '';
-  const required = aiApiKeyIsRequired(service, endpointEl && endpointEl.value);
-  apiKeyEl.required = required;
-  if (apiKeyLabel) {
-    apiKeyLabel.textContent = required ? 'API Key:' : 'API Key (optional):';
-  }
-  if (hintEl) {
-    hintEl.textContent = required
-      ? 'Required for this cloud service.'
-      : 'Optional for local OpenAI-compatible servers (Ollama, LM Studio, and similar).';
-  }
-}
-
-window.testAIConfigFromDialog = async function testAIConfigFromDialog() {
-  const resultDiv = document.getElementById('ai-config-result');
-  if (resultDiv) resultDiv.textContent = 'Testing...';
-  if (!window.electron || typeof window.electron.testAIConfig !== 'function') {
-    if (resultDiv) resultDiv.textContent = 'Error: AI config not available (not connected?).';
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'AI config test is not available.');
-    return;
-  }
-  const apiKeyEl = document.getElementById('ai-api-key');
-  const endpointEl = document.getElementById('ai-endpoint');
-  const modelEl = document.getElementById('ai-model');
-  const serviceEl = document.getElementById('ai-service-select');
-  if (!apiKeyEl || !endpointEl || !modelEl || !serviceEl) {
-    if (resultDiv) resultDiv.textContent = 'Error: Form fields not found.';
-    return;
-  }
-  const selectedOption = serviceEl.options && serviceEl.options[serviceEl.selectedIndex];
-  let service = selectedOption ? selectedOption.value : (serviceEl.value || 'puter');
-  const endpoint = (endpointEl.value || '').trim();
-  if (endpoint.indexOf('puter.com') !== -1 || endpoint.indexOf('js.puter.com') !== -1) {
-    service = 'puter';
-  }
-  const apiKey = (apiKeyEl.value || '').trim();
-  const model = (modelEl.value || '').trim() || (service === 'puter' ? 'gpt-5-nano' : '');
-  try {
-    const result = await window.electron.testAIConfig(apiKey, endpoint, model, service);
-    if (resultDiv) {
-      resultDiv.textContent = result.success ? 'Test successful! Tags: ' + (result.tags ? result.tags.join(', ') : '') : 'Test failed: ' + (result.error || '');
-    }
-  } catch (err) {
-    console.error('AI Config test error:', err);
-    if (resultDiv) resultDiv.textContent = 'Test failed: ' + (err.message || String(err));
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Test failed');
-  }
-};
-
-window.saveAIConfigFromDialog = async function saveAIConfigFromDialog() {
-  if (!window.electron?.saveSetting) return;
-  const service = (document.getElementById('ai-service-select') && document.getElementById('ai-service-select').value) || 'puter';
-  const apiKey = service === 'puter' ? '' : ((document.getElementById('ai-api-key') && document.getElementById('ai-api-key').value) || '');
-  const endpoint = (document.getElementById('ai-endpoint') && document.getElementById('ai-endpoint').value) || (service === 'puter' ? 'https://js.puter.com/v2/' : 'https://api.openai.com/v1');
-  const model = (document.getElementById('ai-model') && document.getElementById('ai-model').value) || (service === 'puter' ? 'gpt-5-nano' : 'gpt-4o-mini');
-  const maxTags = (document.getElementById('ai-tag-max-tags') && document.getElementById('ai-tag-max-tags').value) || '10';
-  const mergeStrategy = (document.getElementById('ai-tag-merge-strategy') && document.getElementById('ai-tag-merge-strategy').value) || 'merge';
-  const useCategories = document.getElementById('ai-tag-use-categories') && document.getElementById('ai-tag-use-categories').checked ? '1' : '0';
-  const allowRetagging = document.getElementById('ai-tag-allow-retagging') && document.getElementById('ai-tag-allow-retagging').checked ? '1' : '0';
-  const concurrency = (document.getElementById('ai-tag-concurrency') && document.getElementById('ai-tag-concurrency').value) || '3';
-  const detailLevel = (document.getElementById('ai-tag-detail-level') && document.getElementById('ai-tag-detail-level').value) || 'medium';
-  const folderLevels = (document.getElementById('ai-tag-folder-levels') && document.getElementById('ai-tag-folder-levels').value) || '2';
-  try {
-    await window.electron.saveSetting('apiKey', apiKey);
-    await window.electron.saveSetting('apiEndpoint', endpoint);
-    await window.electron.saveSetting('aiModel', model);
-    await window.electron.saveSetting('aiService', service);
-    await window.electron.saveSetting('aiTagMaxTags', maxTags);
-    await window.electron.saveSetting('aiTagMergeStrategy', mergeStrategy);
-    await window.electron.saveSetting('aiTagUseCategories', useCategories);
-    await window.electron.saveSetting('aiTagAllowRetagging', allowRetagging);
-    await window.electron.saveSetting('aiTagConcurrency', concurrency);
-    await window.electron.saveSetting('aiTagDetailLevel', detailLevel);
-    await window.electron.saveSetting('aiTagFolderLevels', folderLevels);
-    const dialog = document.getElementById('ai-config-dialog');
-    if (dialog && typeof dialog.close === 'function') dialog.close();
-  } catch (err) {
-    console.error('Save AI config error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Failed to save');
-  }
-};
-
-// Performance Save (early for Docker/server)
-window.savePerformanceSettingsFromDialog = async function savePerformanceSettingsFromDialog() {
-  if (!window.electron?.saveSetting) return;
-  const maxFileSizeEl = document.getElementById('max-file-size');
-  if (!maxFileSizeEl) {
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Could not find max file size input');
-    return;
-  }
-  const newMaxFileSize = parseMaxFileSizeMBInput(maxFileSizeEl.value);
-  try {
-    if (newMaxFileSize == null) {
-      throw new Error('Invalid max file size. Must be at least 1 MB.');
-    }
-    await window.electron.saveSetting('maxFileSizeMB', String(newMaxFileSize));
-    MAX_FILE_SIZE_MB = newMaxFileSize;
-    const dialog = document.getElementById('performance-settings-dialog');
-    if (dialog && typeof dialog.close === 'function') dialog.close();
-    if (window.electron.showMessage) await window.electron.showMessage('Success', 'Performance settings saved successfully');
-  } catch (err) {
-    console.error('Performance save error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Failed to save');
-  }
-};
-
-// STL Home: clear every directory (early for Docker/server)
-window.clearSTLHomeDirectory = async function clearSTLHomeDirectory() {
-  window._stlHomeDirs = [];
-  window._stlHomeDirsLoaded = true;
-  if (typeof renderStlHomeDirectoryList === 'function') renderStlHomeDirectoryList([]);
-  if (window.electron?.saveSetting) {
-    await window.electron.saveSetting('stlHomeDirectories', '[]');
-    await window.electron.saveSetting('stlHome', '');
-  }
-  if (typeof window.updateScanStlHomeButtonVisibility === 'function') window.updateScanStlHomeButtonVisibility();
-  if (typeof window.stopPeriodicSTLHomeScan === 'function') window.stopPeriodicSTLHomeScan();
-  const dialog = document.getElementById('stl-home-dialog');
-  if (dialog && typeof dialog.close === 'function') dialog.close();
-};
 
 // Lazy load Puter.js only when needed to avoid unnecessary socket.io connections
 let puterLoadingPromise = null;
@@ -1024,6 +351,10 @@ const DEFER_SCAN_BATCH_THUMBNAILS_THRESHOLD = 80;
 
 let BATCH_SIZE = 50; // Default batch size for database operations
 let MAX_FILE_SIZE_MB = 50; // Default max file size in MB
+/** Called by the Performance Settings screen (React) after it saves maxFileSizeMB. */
+window.applyMaxFileSizeMB = function applyMaxFileSizeMB(mb) {
+  MAX_FILE_SIZE_MB = mb;
+};
 const THUMBNAIL_BATCH_SIZE = 10; // Default batch size for thumbnails
 // Higher concurrency in Server/Docker mode to compensate for slower file system operations
 // Docker file system operations (especially on network shares) can be 10-100ms per operation
@@ -4068,11 +3399,6 @@ window.addEventListener('focus', () => {
   }
 });
 
-// Flag to prevent multiple hash generation dialogs from showing
-let isHashDialogShowing = false;
-// Flag to track if we're currently checking for hashes (prevents race conditions)
-let isCheckingForHashes = false;
-
 // Flag to prevent multiple thumbnail generation dialogs from showing
 let isThumbnailDialogShowing = false;
 // Flag to prevent multiple regenerate thumbnails dialogs from showing
@@ -4470,890 +3796,6 @@ if (window._electronPendingEvents['thumbnail-job-error']) {
     }
   }).catch(() => {});
 })();
-// Flag to prevent multiple DeDup delete confirmations from showing
-let isDeletingDuplicates = false;
-
-const DEDUP_PREVIEW_CONCURRENCY = 4;
-/** Fixed row height matches .duplicate-group (150px preview + padding/border). */
-const DEDUP_ITEM_HEIGHT = 171;
-const DEDUP_OVERSCAN = 6;
-
-/** Normalize IPC payload: new array form, or legacy hash→files object. */
-function normalizeDuplicateGroups(duplicates) {
-  if (!duplicates) return [];
-  if (Array.isArray(duplicates)) {
-    return duplicates.filter((g) => g && Array.isArray(g.files) && g.files.length > 1);
-  }
-  return Object.entries(duplicates)
-    .filter(([, files]) => Array.isArray(files) && files.length > 1)
-    .map(([hash, files]) => ({ hash, files }));
-}
-
-function setDuplicatePreviewPlaceholder(previewEl) {
-  previewEl.innerHTML = `
-    <div class="dedup-preview-loading" style="display:flex;align-items:center;justify-content:center;min-height:120px;color:#888;font-size:0.85rem;">
-      Loading preview…
-    </div>
-  `;
-}
-
-async function loadDuplicateGroupPreview(previewEl, filePath, generation) {
-  try {
-    const thumbnail = await window.electron.getThumbnail(filePath);
-    if (generation != null && window._dedupVirtualState?.previewGeneration !== generation) return;
-    if (thumbnail && thumbnail !== '3d.png' && thumbnail.trim() !== '') {
-      const img = document.createElement('img');
-      img.src = thumbnail;
-      previewEl.innerHTML = '';
-      previewEl.appendChild(img);
-      return;
-    }
-    const rendered = await renderModelToPNG(filePath, previewEl);
-    if (generation != null && window._dedupVirtualState?.previewGeneration !== generation) return;
-    if (rendered) {
-      const img = document.createElement('img');
-      img.src = rendered;
-      previewEl.innerHTML = '';
-      previewEl.appendChild(img);
-    } else {
-      previewEl.innerHTML = '<div class="error-message">No preview available</div>';
-    }
-  } catch (error) {
-    if (generation != null && window._dedupVirtualState?.previewGeneration !== generation) return;
-    console.error('Error loading duplicate preview:', error);
-    previewEl.innerHTML = '<div class="error-message">No preview available</div>';
-  }
-}
-
-function loadDuplicatePreviewsInBackground(tasks, generation) {
-  if (!tasks.length) return;
-  let next = 0;
-  const worker = async () => {
-    while (next < tasks.length) {
-      if (generation != null && window._dedupVirtualState?.previewGeneration !== generation) return;
-      const task = tasks[next++];
-      await loadDuplicateGroupPreview(task.preview, task.filePath, generation);
-    }
-  };
-  const workerCount = Math.min(DEDUP_PREVIEW_CONCURRENCY, tasks.length);
-  Promise.all(Array.from({ length: workerCount }, () => worker()))
-    .catch((err) => console.error('Error loading dedup previews:', err));
-}
-
-function createDuplicateGroupElement(group, selectedPaths) {
-  const groupEl = document.createElement('div');
-  groupEl.className = 'duplicate-group';
-  groupEl.dataset.hash = group.hash || '';
-
-  const preview = document.createElement('div');
-  preview.className = 'duplicate-preview';
-  setDuplicatePreviewPlaceholder(preview);
-
-  const filesList = document.createElement('div');
-  filesList.className = 'duplicate-files';
-
-  const header = document.createElement('div');
-  header.className = 'duplicate-header';
-  header.textContent = `${group.files.length} duplicate files found`;
-  filesList.appendChild(header);
-
-  const preferredDir = getDedupPreferredDirectory();
-  group.files.forEach((file) => {
-    const fileDiv = document.createElement('div');
-    fileDiv.className = 'duplicate-file';
-
-    const isZipEntry = file.filePath.includes('::');
-    const isPreferred = !!(preferredDir && typeof fileIsUnderPreferredDirectory === 'function'
-      && fileIsUnderPreferredDirectory(file.filePath, preferredDir));
-    if (isZipEntry) {
-      fileDiv.classList.add('zip-entry');
-    }
-    if (isPreferred) {
-      fileDiv.classList.add('preferred-directory');
-    }
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.setAttribute('data-filepath', file.filePath);
-
-    if (isZipEntry) {
-      checkbox.disabled = true;
-      checkbox.title = 'Cannot delete files inside ZIP archives';
-    } else {
-      checkbox.checked = selectedPaths.has(file.filePath);
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-          selectedPaths.add(file.filePath);
-        } else {
-          selectedPaths.delete(file.filePath);
-        }
-        updateDedupSelectionCount();
-      });
-    }
-
-    const filePath = document.createElement('span');
-    filePath.className = 'duplicate-file-path';
-
-    if (isPreferred) {
-      const preferredBadge = document.createElement('span');
-      preferredBadge.className = 'preferred-directory-badge';
-      preferredBadge.textContent = 'Preferred';
-      preferredBadge.title = 'This copy is inside the preferred directory. Easy keeps one copy from that folder.';
-      filePath.appendChild(preferredBadge);
-    }
-
-    if (isZipEntry) {
-      const zipBadge = document.createElement('span');
-      zipBadge.className = 'zip-entry-badge';
-      zipBadge.textContent = 'ZIP';
-      zipBadge.title = 'Model in ZIP archive (cannot be deleted)';
-      filePath.appendChild(zipBadge);
-    }
-
-    const pathText = document.createElement('span');
-    pathText.textContent = file.filePath;
-    filePath.appendChild(pathText);
-
-    const fileSize = document.createElement('span');
-    fileSize.className = 'duplicate-file-size';
-    fileSize.textContent = formatFileSize(file.size);
-
-    fileDiv.appendChild(checkbox);
-    fileDiv.appendChild(filePath);
-    fileDiv.appendChild(fileSize);
-    filesList.appendChild(fileDiv);
-  });
-
-  groupEl.appendChild(preview);
-  groupEl.appendChild(filesList);
-  return { groupEl, preview, filePath: group.files[0]?.filePath };
-}
-
-function getDedupPreferredDirectory() {
-  const input = document.getElementById('dedup-preferred-directory-input');
-  if (input) return input.value.trim();
-  return String(window._dedupPreferredDirectory || '').trim();
-}
-
-function persistDedupPreferredDirectory(value) {
-  const next = String(value || '').trim();
-  window._dedupPreferredDirectory = next;
-  const input = document.getElementById('dedup-preferred-directory-input');
-  if (input && input.value.trim() !== next) input.value = next;
-  if (window.electron?.saveSetting) {
-    window.electron.saveSetting('dedupPreferredDirectory', next).catch((err) => {
-      console.error('Error saving de-dup preferred directory:', err);
-    });
-  }
-}
-
-let dedupPreferredLoadPromise = null;
-
-function loadDedupPreferredDirectory() {
-  const input = document.getElementById('dedup-preferred-directory-input');
-  if (input?.dataset.loaded === '1') {
-    window._dedupPreferredDirectory = input.value.trim();
-    return Promise.resolve(window._dedupPreferredDirectory);
-  }
-  if (dedupPreferredLoadPromise) return dedupPreferredLoadPromise;
-  dedupPreferredLoadPromise = (async () => {
-    const field = document.getElementById('dedup-preferred-directory-input');
-    const typed = field ? field.value.trim() : '';
-    try {
-      const saved = await window.electron?.getSetting?.('dedupPreferredDirectory');
-      if (!typed && field && typeof saved === 'string') field.value = saved;
-    } catch (err) {
-      console.error('Error loading de-dup preferred directory:', err);
-    }
-    if (field) field.dataset.loaded = '1';
-    window._dedupPreferredDirectory = field ? field.value.trim() : typed;
-    return window._dedupPreferredDirectory;
-  })();
-  return dedupPreferredLoadPromise;
-}
-
-function refreshDedupPreferredMarks() {
-  if (window._dedupVirtualState?.groups?.length && typeof renderDedupVirtualWindow === 'function') {
-    renderDedupVirtualWindow(true);
-  }
-}
-
-async function setDedupPreferredDirectory(value, options) {
-  const next = String(value || '').trim();
-  persistDedupPreferredDirectory(next);
-  const applyEasy = !!(options && options.applyEasy && next);
-  window._dedupApplyPreferredOnLoad = applyEasy;
-  if (applyEasy && window._dedupVirtualState?.groups?.length && typeof applyDedupEasySelection === 'function') {
-    window._dedupApplyPreferredOnLoad = false;
-    applyDedupEasySelection();
-    return;
-  }
-  refreshDedupPreferredMarks();
-}
-
-function bindDedupPreferredDirectoryControls() {
-  const input = document.getElementById('dedup-preferred-directory-input');
-  const browse = document.getElementById('dedup-preferred-browse');
-  const clearBtn = document.getElementById('dedup-preferred-clear');
-  const form = input?.closest('form');
-  if (form && form.dataset.dedupPreferredSubmitBound !== '1') {
-    form.dataset.dedupPreferredSubmitBound = '1';
-    form.addEventListener('submit', (e) => {
-      if (document.activeElement && document.activeElement.id === 'dedup-preferred-directory-input') {
-        e.preventDefault();
-      }
-    });
-  }
-  if (input && input.dataset.bound !== '1') {
-    input.dataset.bound = '1';
-    input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      e.stopPropagation();
-      const next = input.value.trim();
-      setDedupPreferredDirectory(next, { applyEasy: !!next });
-    });
-    input.addEventListener('change', () => {
-      const next = input.value.trim();
-      setDedupPreferredDirectory(next, { applyEasy: !!next });
-    });
-  }
-  if (browse && browse.dataset.bound !== '1') {
-    browse.dataset.bound = '1';
-    browse.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      try {
-        const result = await window.electron.invoke('open-folder-dialog', 'Preferred directory');
-        if (!result || result.canceled || !result.filePaths || !result.filePaths[0]) return;
-        await setDedupPreferredDirectory(result.filePaths[0], { applyEasy: true });
-      } catch (err) {
-        console.error('Error choosing preferred directory:', err);
-        if (window.electron?.showMessage) {
-          await window.electron.showMessage('Preferred directory', 'Could not open the folder picker. Paste the directory path instead.');
-        }
-      }
-    });
-  }
-  if (clearBtn && clearBtn.dataset.bound !== '1') {
-    clearBtn.dataset.bound = '1';
-    clearBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDedupPreferredDirectory('', { applyEasy: false });
-    });
-  }
-}
-window.bindDedupPreferredDirectoryControls = bindDedupPreferredDirectoryControls;
-
-function updateDedupSelectionCount() {
-  const state = window._dedupVirtualState;
-  if (!state) return;
-  const countEl = state.container?.querySelector('.dedup-virtual-summary .dedup-selection-count');
-  if (countEl) {
-    const n = state.selectedPaths.size;
-    countEl.textContent = n > 0 ? ` · ${n} selected` : '';
-  }
-}
-
-function applyDedupEasySelection() {
-  const state = window._dedupVirtualState;
-  if (!state?.groups?.length) return;
-  const preferredDir = getDedupPreferredDirectory();
-  if (preferredDir !== String(window._dedupPreferredDirectory || '')) {
-    persistDedupPreferredDirectory(preferredDir);
-  }
-  state.selectedPaths.clear();
-  for (const group of state.groups) {
-    const files = group.files || [];
-    if (files.length === 0) continue;
-    const keeperPath = typeof pickDedupKeeperPath === 'function'
-      ? pickDedupKeeperPath(files, preferredDir)
-      : (files.find((f) => f.filePath.includes('::')) || files[0]).filePath;
-    for (const file of files) {
-      if (file.filePath.includes('::')) continue;
-      if (file.filePath !== keeperPath) {
-        state.selectedPaths.add(file.filePath);
-      }
-    }
-  }
-  renderDedupVirtualWindow(true);
-  updateDedupSelectionCount();
-}
-window.applyDedupEasySelection = applyDedupEasySelection;
-
-function clearDedupSelection() {
-  const state = window._dedupVirtualState;
-  if (!state) return;
-  state.selectedPaths.clear();
-  renderDedupVirtualWindow(true);
-  updateDedupSelectionCount();
-}
-window.clearDedupSelection = clearDedupSelection;
-
-function teardownDedupVirtualList() {
-  const state = window._dedupVirtualState;
-  if (!state) return;
-  if (state.container && state.scrollHandler) {
-    state.container.removeEventListener('scroll', state.scrollHandler);
-  }
-  if (state.rafId) {
-    cancelAnimationFrame(state.rafId);
-  }
-  state.previewGeneration = (state.previewGeneration || 0) + 1;
-  window._dedupVirtualState = null;
-}
-window.teardownDedupVirtualList = teardownDedupVirtualList;
-
-function renderDedupVirtualWindow(force) {
-  const state = window._dedupVirtualState;
-  if (!state?.container || !state.groups) return;
-
-  const container = state.container;
-  const scrollTop = container.scrollTop;
-  const viewportH = container.clientHeight || 300;
-  const total = state.groups.length;
-
-  let startIdx = Math.max(0, Math.floor(scrollTop / DEDUP_ITEM_HEIGHT) - DEDUP_OVERSCAN);
-  let endIdx = Math.min(total, Math.ceil((scrollTop + viewportH) / DEDUP_ITEM_HEIGHT) + DEDUP_OVERSCAN);
-
-  if (!force && state.lastStart === startIdx && state.lastEnd === endIdx) return;
-  state.lastStart = startIdx;
-  state.lastEnd = endIdx;
-
-  // Bump generation so in-flight previews for scrolled-away rows are abandoned
-  state.previewGeneration = (state.previewGeneration || 0) + 1;
-  const generation = state.previewGeneration;
-
-  let spacer = container.querySelector('.dedup-virtual-spacer');
-  let content = container.querySelector('.dedup-virtual-content');
-  let summary = container.querySelector('.dedup-virtual-summary');
-
-  if (!spacer || !content) {
-    container.innerHTML = '';
-    summary = document.createElement('div');
-    summary.className = 'dedup-virtual-summary';
-    summary.style.cssText = 'padding:8px 10px;color:#888;font-size:0.85rem;position:sticky;top:0;background:inherit;z-index:1;';
-    summary.innerHTML = `<span class="dedup-group-count"></span><span class="dedup-selection-count"></span>`;
-
-    spacer = document.createElement('div');
-    spacer.className = 'dedup-virtual-spacer';
-    spacer.style.position = 'relative';
-
-    content = document.createElement('div');
-    content.className = 'dedup-virtual-content';
-    content.style.position = 'absolute';
-    content.style.top = '0';
-    content.style.left = '0';
-    content.style.right = '0';
-
-    container.appendChild(summary);
-    container.appendChild(spacer);
-    spacer.appendChild(content);
-  }
-
-  const countEl = summary.querySelector('.dedup-group-count');
-  if (countEl) {
-    countEl.textContent = `${total.toLocaleString()} duplicate group${total === 1 ? '' : 's'}`;
-  }
-  updateDedupSelectionCount();
-
-  const totalHeight = total * DEDUP_ITEM_HEIGHT;
-  spacer.style.height = `${totalHeight}px`;
-  spacer.style.position = 'relative';
-
-  content.style.position = 'absolute';
-  content.style.top = '0';
-  content.style.left = '0';
-  content.style.right = '0';
-  content.style.transform = `translateY(${startIdx * DEDUP_ITEM_HEIGHT}px)`;
-  content.innerHTML = '';
-
-  const previewTasks = [];
-  for (let i = startIdx; i < endIdx; i++) {
-    const built = createDuplicateGroupElement(state.groups[i], state.selectedPaths);
-    built.groupEl.style.minHeight = `${DEDUP_ITEM_HEIGHT - 1}px`;
-    built.groupEl.style.boxSizing = 'border-box';
-    content.appendChild(built.groupEl);
-    if (built.filePath) {
-      previewTasks.push({ preview: built.preview, filePath: built.filePath });
-    }
-  }
-
-  loadDuplicatePreviewsInBackground(previewTasks, generation);
-}
-
-function setupDedupVirtualList(container, groups) {
-  teardownDedupVirtualList();
-
-  window._dedupVirtualState = {
-    container,
-    groups,
-    selectedPaths: new Set(),
-    previewGeneration: 0,
-    lastStart: -1,
-    lastEnd: -1,
-    rafId: 0,
-    scrollHandler: null
-  };
-
-  const onScroll = () => {
-    const state = window._dedupVirtualState;
-    if (!state) return;
-    if (state.rafId) return;
-    state.rafId = requestAnimationFrame(() => {
-      state.rafId = 0;
-      renderDedupVirtualWindow(false);
-    });
-  };
-
-  window._dedupVirtualState.scrollHandler = onScroll;
-  container.addEventListener('scroll', onScroll, { passive: true });
-  container.scrollTop = 0;
-  renderDedupVirtualWindow(true);
-}
-
-function hashGenerationFailedMessage(result) {
-  const hint = result.firstError
-    ? ` ${result.firstError}`
-    : ' This may be due to network issues or file access problems.';
-  if (result.failed === result.total) {
-    return `All file hashes failed to generate.${hint}`;
-  }
-  return `${result.failed} out of ${result.total} file hashes failed to generate. Some duplicates may not be detected.`;
-}
-
-function notifyHashGenerationFailures(result) {
-  if (!result || !(result.failed > 0)) return;
-  const failedMsg = hashGenerationFailedMessage(result);
-  if (result.failed === result.total) {
-    setTimeout(async () => {
-      await window.electron.showMessage('Warning', failedMsg);
-    }, 600);
-  } else {
-    console.warn(failedMsg);
-  }
-}
-
-let dedupScopeUiSync = false;
-
-function getDedupScopeFilters() {
-  const dialog = document.getElementById('dedup-dialog');
-  const currentRadio = dialog?.querySelector('#dedup-scope-current');
-  const entireRadio = dialog?.querySelector('#dedup-scope-entire');
-  const summaryEl = dialog?.querySelector('#dedup-scope-summary');
-  const filters = typeof window.getCurrentLibraryFilters === 'function'
-    ? window.getCurrentLibraryFilters()
-    : null;
-  const hasFilters = typeof window.libraryFiltersAreActive === 'function'
-    ? window.libraryFiltersAreActive(filters)
-    : false;
-
-  if (!window._dedupScope || !hasFilters) {
-    window._dedupScope = hasFilters ? 'current' : 'entire';
-  }
-
-  dedupScopeUiSync = true;
-  try {
-    if (currentRadio) {
-      currentRadio.disabled = !hasFilters;
-      currentRadio.checked = window._dedupScope === 'current';
-      const opt = currentRadio.closest('.dedup-scope-option');
-      if (opt) opt.classList.toggle('disabled', !hasFilters);
-    }
-    if (entireRadio) entireRadio.checked = window._dedupScope === 'entire';
-  } finally {
-    dedupScopeUiSync = false;
-  }
-
-  if (summaryEl) {
-    if (!hasFilters) {
-      summaryEl.textContent = 'Apply a library filter (designer, tags, search, …) to de-dup only that subset.';
-    } else if (window._dedupScope === 'current') {
-      const label = typeof window.describeLibraryFilters === 'function'
-        ? window.describeLibraryFilters(filters)
-        : '';
-      summaryEl.textContent = label
-        ? `De-dupping models matching: ${label}`
-        : 'De-dupping the current library view.';
-    } else {
-      summaryEl.textContent = 'De-dupping the entire library.';
-    }
-  }
-
-  return window._dedupScope === 'current' ? filters : null;
-}
-
-function prepareDedupDialog() {
-  const dialog = document.getElementById('dedup-dialog');
-  if (!dialog) return null;
-  dialog.classList.remove('modal-fullscreen');
-  const fullscreenBtn = document.getElementById('dedup-fullscreen-toggle');
-  if (fullscreenBtn) fullscreenBtn.textContent = 'Full Screen';
-  const includeZipCheckbox = dialog.querySelector('#include-zipped-models');
-  if (includeZipCheckbox) includeZipCheckbox.checked = false;
-  window._dedupScope = null;
-  bindDedupPreferredDirectoryControls();
-  loadDedupPreferredDirectory();
-  return dialog;
-}
-
-function onDedupScopeChange() {
-  if (dedupScopeUiSync) return;
-  const current = document.getElementById('dedup-scope-current');
-  if (current?.disabled) return;
-  window._dedupScope = current?.checked ? 'current' : 'entire';
-  loadDuplicateFiles();
-}
-
-// Add or update the loadDuplicateFiles function
-// refreshOnly: when true, only refresh duplicate-groups content and do not call showModal() (dialog stays open)
-async function loadDuplicateFiles(skipHashCheck = false, refreshOnly = false) {
-  try {
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    const scopeFilters = getDedupScopeFilters();
-    // First check for models without file hash (unless we're skipping the check)
-    if (!skipHashCheck) {
-      // Check if a hash dialog is already showing or if we're currently checking
-      if (isHashDialogShowing || isCheckingForHashes) {
-        return; // Exit early if dialog is already showing or check is in progress
-      }
-      
-      isCheckingForHashes = true; // Set flag before checking
-      const modelsWithoutHashCount = await window.electron.getModelsWithoutHash(scopeFilters);
-      const isAlreadyGenerating = await window.electron.isGeneratingHashes();
-      isCheckingForHashes = false; // Reset flag after checking
-      
-      // If there are models without hash, handle based on mode
-      if (modelsWithoutHashCount > 0) {
-        // Check if hash generation is already running
-        if (isAlreadyGenerating) {
-          // Hash generation is already in progress - show progress dialog and attach to existing process
-          console.log('Hash generation already in progress, showing progress dialog');
-          isHashDialogShowing = true;
-          
-          // Show progress dialog (works in both normal and server mode)
-          const progressDialog = document.createElement('dialog');
-          progressDialog.className = 'progress-dialog';
-          progressDialog.innerHTML = `
-            <h3>Generating File Hashes</h3>
-            <div class="progress-container">
-              <progress id="hash-progress" value="0" max="100"></progress>
-              <div id="hash-progress-text">0/${modelsWithoutHashCount}</div>
-            </div>
-            <p style="margin-top: 15px; color: #666;">
-              Hash generation is already running in the background. Progress will be shown here.
-            </p>
-          `;
-          document.body.appendChild(progressDialog);
-          progressDialog.showModal();
-          
-          // Set up progress listener to attach to existing process
-          let isCompleting = false;
-          const progressListener = (progress) => {
-            const progressBar = document.getElementById('hash-progress');
-            const progressText = document.getElementById('hash-progress-text');
-            
-            if (progressBar && progressText) {
-              const percentage = (progress.processed / progress.total) * 100;
-              progressBar.value = percentage;
-              
-              if (progress.success !== undefined && progress.failed !== undefined) {
-                progressText.textContent = `${progress.processed}/${progress.total} (${progress.success} succeeded, ${progress.failed} failed)`;
-              } else {
-                progressText.textContent = `${progress.processed}/${progress.total}`;
-              }
-              
-              if (progress.processed >= progress.total && !isCompleting) {
-                isCompleting = true;
-                setTimeout(() => {
-                  progressDialog.close();
-                  progressDialog.remove();
-                  isHashDialogShowing = false;
-                  loadDuplicateFiles(true);
-                }, 500);
-              }
-            }
-          };
-          
-          const completionListener = (result) => {
-            notifyHashGenerationFailures(result);
-          };
-          
-          window.electron.onHashGenerationProgress(progressListener);
-          window.electron.onHashGenerationComplete(completionListener);
-          
-          // Don't start a new process, just wait for the existing one
-          return;
-        }
-        
-        // In both server mode and normal mode, ask the user if they want to generate hashes
-        // and show the progress bar
-        isHashDialogShowing = true; // Set flag before showing dialog
-        const response = await window.electron.showMessage(
-          'Generate File Hashes',
-          `${modelsWithoutHashCount} models${scopeFilters ? ' in the current view' : ''} don't have file hashes which are needed for de-duplication. Would you like to generate the hashes now?`,
-          ['Yes', 'No']
-        );
-      
-        if (response === 'Yes') {
-          // Show progress dialog (works in both normal and server mode)
-          const progressDialog = document.createElement('dialog');
-          progressDialog.className = 'progress-dialog';
-          progressDialog.innerHTML = `
-            <h3>Generating File Hashes</h3>
-            <div class="progress-container">
-              <progress id="hash-progress" value="0" max="100"></progress>
-              <div id="hash-progress-text">0/${modelsWithoutHashCount}</div>
-            </div>
-            <p style="margin-top: 15px; color: #666;">
-              File hashes are needed for de-duplication. This may take some time for large files.
-            </p>
-          `;
-          document.body.appendChild(progressDialog);
-          progressDialog.showModal();
-          
-          // Set up progress listener (works in both normal and server mode via WebSocket)
-          let isCompleting = false; // Flag to prevent multiple completion calls
-          const progressListener = (progress) => {
-            const progressBar = document.getElementById('hash-progress');
-            const progressText = document.getElementById('hash-progress-text');
-            
-            if (progressBar && progressText) {
-              const percentage = (progress.processed / progress.total) * 100;
-              progressBar.value = percentage;
-              
-              // Show success/failure counts if available
-              if (progress.success !== undefined && progress.failed !== undefined) {
-                progressText.textContent = `${progress.processed}/${progress.total} (${progress.success} succeeded, ${progress.failed} failed)`;
-              } else {
-                progressText.textContent = `${progress.processed}/${progress.total}`;
-              }
-              
-              // Close dialog when complete (only once)
-              if (progress.processed >= progress.total && !isCompleting) {
-                isCompleting = true;
-                setTimeout(() => {
-                  progressDialog.close();
-                  progressDialog.remove();
-                  
-                  // Reset flag after hash generation completes
-                  isHashDialogShowing = false;
-                  
-                  // Reload duplicate files now that we have generated hashes
-                  // Skip hash check to prevent loop
-                  loadDuplicateFiles(true);
-                }, 500);
-              }
-            }
-          };
-          
-          // Set up completion listener to handle success/failure counts
-          const completionListener = (result) => {
-            notifyHashGenerationFailures(result);
-          };
-          
-          // Listen for completion event
-          window.electron.onHashGenerationComplete(completionListener);
-          
-          // Set up the listener (works in both normal and server mode)
-          window.electron.onHashGenerationProgress(progressListener);
-          
-          // Check if hash generation is already running before starting
-          const isAlreadyRunning = await window.electron.isGeneratingHashes();
-          if (isAlreadyRunning) {
-            console.log('Hash generation already in progress, attaching to existing process');
-            // Don't start a new process, just attach to the existing one
-            // The progress listener is already set up above, so it will receive updates
-            // Update the dialog message to indicate we're joining an existing process
-            const dialogContent = progressDialog.querySelector('p');
-            if (dialogContent) {
-              dialogContent.textContent = 'Hash generation is already running in the background. Progress will be shown here.';
-            }
-            // Don't call generateMissingHashes() - just wait for progress updates
-            return; // Exit early, progress listener will handle completion
-          }
-          
-          // Start hash generation
-          try {
-            const result = await window.electron.generateMissingHashes(scopeFilters);
-            
-            // Check if it's already running (shouldn't happen after the check above, but handle it)
-            if (result && result.alreadyRunning) {
-              console.log('Hash generation was already running, attached to existing process');
-              // Progress listener is already set up, just wait for updates
-              return;
-            }
-
-            if (result && result.started) {
-              return;
-            }
-            
-            // Check if all hashes failed
-            if (result && result.failed === result.total && result.total > 0) {
-              // All hashes failed - error dialog will be shown by completion listener
-              // Reset flags
-              isHashDialogShowing = false;
-              isCheckingForHashes = false;
-              // Close progress dialog
-              progressDialog.close();
-              progressDialog.remove();
-              return;
-            }
-            // If some or all succeeded, the completion listener will handle the dialog closing
-          } catch (error) {
-            console.error('Error generating hashes:', error);
-            // Reset flags on error
-            isHashDialogShowing = false;
-            isCheckingForHashes = false;
-            // Close progress dialog
-            progressDialog.close();
-            progressDialog.remove();
-            // Only show error if it's a critical error, not just some failed hashes
-            await window.electron.showMessage('Error', 'Failed to generate file hashes. Please check file permissions and network connectivity.');
-            return;
-          }
-          return; // Exit early - we'll reload when hash generation is complete
-        } else {
-          // If user clicked "No", reset flag and continue to show duplicates for models that have hashes
-          isHashDialogShowing = false;
-        }
-      } else {
-        // No models without hash, ensure flag is reset
-        isHashDialogShowing = false;
-      }
-    }
-    
-    const dialog = document.getElementById('dedup-dialog');
-    const duplicateGroups = dialog.querySelector('.duplicate-groups');
-    
-    // Show loading indicator and open dialog immediately so the UI is not blocked by preview work
-    teardownDedupVirtualList();
-    duplicateGroups.innerHTML = `
-      <div style="text-align: center; padding: 40px; color: #888;">
-        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #333; border-top-color: #4a9eff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
-        <div style="margin-top: 15px;">Loading duplicate files...</div>
-      </div>
-    `;
-    if (!refreshOnly && !dialog.open) {
-      dialog.showModal();
-    }
-    
-    // Check if ZIP is enabled and show/hide the checkbox
-    const enableZipArchives = await window.electron.getSetting('enableZipArchives');
-    const includeZipContainer = dialog.querySelector('#include-zip-container');
-    let includeZipCheckbox = dialog.querySelector('#include-zipped-models');
-    
-    if (enableZipArchives === '1') {
-      // Show the checkbox container
-      if (includeZipContainer) {
-        includeZipContainer.style.display = 'block';
-      }
-      // Set up checkbox if it exists
-      if (includeZipCheckbox) {
-        // Preserve existing checked state (for when user toggles and we reload)
-        const wasChecked = includeZipCheckbox.checked;
-        // Remove existing listeners and add new one
-        const newCheckbox = includeZipCheckbox.cloneNode(true);
-        newCheckbox.checked = wasChecked; // Preserve state
-        includeZipCheckbox.replaceWith(newCheckbox);
-        includeZipCheckbox = newCheckbox;
-        newCheckbox.addEventListener('change', async () => {
-          await loadDuplicateFiles();
-        });
-      }
-    } else {
-      // Hide the checkbox container if ZIP is not enabled
-      if (includeZipContainer) {
-        includeZipContainer.style.display = 'none';
-      }
-    }
-    
-    // Get the current checkbox state (default to false)
-    const includeZip = includeZipCheckbox?.checked || false;
-    
-    // Update loading message
-    duplicateGroups.innerHTML = `
-      <div style="text-align: center; padding: 40px; color: #888;">
-        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #333; border-top-color: #4a9eff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
-        <div style="margin-top: 15px;">Analyzing duplicates...</div>
-      </div>
-    `;
-    
-    // Load duplicates with the includeZip parameter and optional current-view filters
-    const duplicatesRaw = await window.electron.getDuplicates({
-      includeZip,
-      filters: scopeFilters || undefined
-    });
-    const groups = normalizeDuplicateGroups(duplicatesRaw);
-    const isGeneratingHashes = await window.electron.isGeneratingHashes();
-    console.log(`Loaded ${groups.length} duplicate groups (includeZip=${includeZip}, generatingHashes=${isGeneratingHashes})`);
-    
-    // Show and setup delete button
-    const deleteButton = dialog.querySelector('#delete-selected');
-    if (deleteButton) {
-      deleteButton.style.display = groups.length === 0 ? 'none' : '';
-      deleteButton.replaceWith(deleteButton.cloneNode(true));
-      const newDeleteButton = dialog.querySelector('#delete-selected');
-      if (newDeleteButton && groups.length > 0) {
-        newDeleteButton.addEventListener('click', handleDeleteSelected);
-      }
-    }
-
-    await loadDedupPreferredDirectory();
-
-    if (groups.length === 0) {
-      teardownDedupVirtualList();
-      let emptyHtml = '';
-      if (isGeneratingHashes) {
-        emptyHtml += `
-          <div class="hash-generation-warning" style="background-color: #fff3cd; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ffeeba;">
-            <strong>Note:</strong> Hash generation is currently running in the background. 
-            Additional duplicate files may be found once the process completes.
-          </div>
-        `;
-      }
-      emptyHtml += `
-        <div style="text-align: center; padding: 20px; color: #888;">
-          No duplicate models found${scopeFilters ? ' in the current view' : ''}
-        </div>
-      `;
-      duplicateGroups.innerHTML = emptyHtml;
-    } else {
-      setupDedupVirtualList(duplicateGroups, groups);
-      if (window._dedupApplyPreferredOnLoad && getDedupPreferredDirectory()) {
-        window._dedupApplyPreferredOnLoad = false;
-        applyDedupEasySelection();
-      }
-      if (isGeneratingHashes) {
-        const warningDiv = document.createElement('div');
-        warningDiv.className = 'hash-generation-warning';
-        warningDiv.style.cssText = 'background-color:#fff3cd;color:#856404;padding:10px;margin-bottom:8px;border-radius:4px;border:1px solid #ffeeba;';
-        warningDiv.innerHTML = `
-          <strong>Note:</strong> Hash generation is currently running in the background. 
-          Additional duplicate files may be found once the process completes.
-        `;
-        duplicateGroups.insertBefore(warningDiv, duplicateGroups.firstChild);
-      }
-    }
-
-    if (!refreshOnly && !dialog.open) {
-      dialog.showModal();
-    }
-    
-  } catch (error) {
-    console.error('Error loading duplicates:', error);
-    // Reset flags in case of error
-    isHashDialogShowing = false;
-    isCheckingForHashes = false;
-    teardownDedupVirtualList();
-    // In refreshOnly mode (e.g. after delete), don't show error dialog so user stays in de-dupe list
-    if (!refreshOnly) {
-      await window.electron.showMessage('Error', 'Failed to load duplicate files');
-    }
-  }
-}
-
 /** Visible grid card for a model path. Map lookup; exact selector only if the tile was not indexed. */
 function findVisibleFileItem(filePath) {
   return findFileItemElement(filePath);
@@ -5748,26 +4190,6 @@ function createMenuDropdown(label, items) {
   return menuContainer;
 }
 
-  // Show/hide direction description paragraphs when "Use folder path" dropdown changes (STL Home dialog)
-  function updateStlHomePathDirectionDesc() {
-    const sel = document.getElementById('stl-home-path-direction');
-    const fromModelDesc = document.getElementById('stl-home-path-desc-from-model');
-    const fromRootDesc = document.getElementById('stl-home-path-desc-from-root');
-    if (!sel || !fromModelDesc || !fromRootDesc) return;
-    const isFromRoot = sel.value === 'fromRoot';
-    fromModelDesc.style.display = isFromRoot ? 'none' : '';
-    fromRootDesc.style.display = isFromRoot ? '' : 'none';
-  }
-  window.updateStlHomePathDirectionDesc = updateStlHomePathDirectionDesc;
-
-  // Gray out path-metadata options when "Enable" is unchecked (used by STL Home dialog)
-  function updateStlHomePathMetadataGrayed() {
-  const enableEl = document.getElementById('stl-home-path-metadata-enabled');
-  const optionsEl = document.getElementById('stl-home-path-metadata-options');
-  if (optionsEl) optionsEl.classList.toggle('grayed', !enableEl?.checked);
-}
-window.updateStlHomePathMetadataGrayed = updateStlHomePathMetadataGrayed;
-
 function parseStlHomeExcludeSetting(raw) {
   if (!raw) return [];
   try {
@@ -5790,116 +4212,6 @@ function parseStlHomeExcludeSetting(raw) {
   }
 }
 
-function renderStlHomeExcludeList(dirs) {
-  const list = document.getElementById('stl-home-exclude-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!dirs.length) {
-    const empty = document.createElement('li');
-    empty.className = 'stl-home-exclude-empty';
-    empty.textContent = 'No directories excluded.';
-    list.appendChild(empty);
-    return;
-  }
-  dirs.forEach((dir, index) => {
-    const li = document.createElement('li');
-    li.className = 'stl-home-exclude-item';
-    const span = document.createElement('span');
-    span.className = 'stl-home-exclude-path';
-    span.textContent = dir;
-    span.title = dir;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'secondary-button stl-home-exclude-remove';
-    btn.textContent = 'Remove';
-    btn.dataset.index = String(index);
-    li.appendChild(span);
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-function addStlHomeExcludeDir(dir) {
-  const p = String(dir || '').trim();
-  if (!p) return false;
-  const current = Array.isArray(window._stlHomeExcludeDirs) ? window._stlHomeExcludeDirs.slice() : [];
-  const key = p.replace(/[\\/]+$/, '').toLowerCase();
-  if (current.some(d => d.replace(/[\\/]+$/, '').toLowerCase() === key)) return false;
-  current.push(p);
-  window._stlHomeExcludeDirs = current;
-  renderStlHomeExcludeList(current);
-  revealStlHomeExcludeAddRow();
-  return true;
-}
-
-function revealStlHomeExcludeAddRow() {
-  const list = document.getElementById('stl-home-exclude-list');
-  if (list && list.scrollHeight > list.clientHeight) {
-    list.scrollTop = list.scrollHeight;
-  }
-  const row = document.querySelector('#stl-home-dialog .stl-home-exclude-add-row');
-  if (row && typeof row.scrollIntoView === 'function') {
-    row.scrollIntoView({ block: 'nearest' });
-  }
-}
-
-async function saveStlHomeExcludeDirectoriesSetting() {
-  if (!window._stlHomeExcludeDirsLoaded) return;
-  const dirs = Array.isArray(window._stlHomeExcludeDirs) ? window._stlHomeExcludeDirs : [];
-  await window.electron.saveSetting('stlHomeExcludeDirectories', JSON.stringify(dirs));
-}
-window.saveStlHomeExcludeDirectoriesSetting = saveStlHomeExcludeDirectoriesSetting;
-
-function bindStlHomeExcludeControls() {
-  const list = document.getElementById('stl-home-exclude-list');
-  const browseBtn = document.getElementById('stl-home-exclude-browse');
-  const addBtn = document.getElementById('stl-home-exclude-add');
-  const input = document.getElementById('stl-home-exclude-input');
-  if (list && !list.dataset.bound) {
-    list.dataset.bound = '1';
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest && e.target.closest('.stl-home-exclude-remove');
-      if (!btn || !list.contains(btn)) return;
-      const index = Number(btn.dataset.index);
-      if (!Number.isInteger(index)) return;
-      const next = (window._stlHomeExcludeDirs || []).slice();
-      if (index < 0 || index >= next.length) return;
-      next.splice(index, 1);
-      window._stlHomeExcludeDirs = next;
-      renderStlHomeExcludeList(next);
-    });
-  }
-  const addFromInput = () => {
-    if (!input) return;
-    if (addStlHomeExcludeDir(input.value)) input.value = '';
-  };
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.dataset.bound = '1';
-    addBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      addFromInput();
-    });
-  }
-  if (input && !input.dataset.bound) {
-    input.dataset.bound = '1';
-    input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      e.stopPropagation();
-      addFromInput();
-    });
-  }
-  if (browseBtn && !browseBtn.dataset.bound) {
-    browseBtn.dataset.bound = '1';
-    browseBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const directory = await window.electron.openFileDialog();
-      if (directory && directory[0]) addStlHomeExcludeDir(directory[0]);
-    });
-  }
-}
-window.bindStlHomeExcludeControls = bindStlHomeExcludeControls;
-
 function parseLegacyStlHomeSetting(raw) {
   const text = String(raw || '').trim();
   if (!text) return [];
@@ -5921,891 +4233,6 @@ async function getStlHomeDirectories() {
 }
 window.getStlHomeDirectories = getStlHomeDirectories;
 
-function renderStlHomeDirectoryList(dirs) {
-  const list = document.getElementById('stl-home-directories-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!dirs.length) {
-    const empty = document.createElement('li');
-    empty.className = 'stl-home-exclude-empty';
-    empty.textContent = 'No directories selected.';
-    list.appendChild(empty);
-    return;
-  }
-  dirs.forEach((dir, index) => {
-    const li = document.createElement('li');
-    li.className = 'stl-home-exclude-item';
-    const span = document.createElement('span');
-    span.className = 'stl-home-exclude-path';
-    span.textContent = dir;
-    span.title = dir;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'secondary-button stl-home-exclude-remove';
-    btn.textContent = 'Remove';
-    btn.dataset.index = String(index);
-    li.appendChild(span);
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-function addStlHomeDirectory(dir) {
-  const p = String(dir || '').trim();
-  if (!p) return false;
-  const current = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-  const key = p.replace(/[\\/]+$/, '').toLowerCase();
-  if (current.some((d) => d.replace(/[\\/]+$/, '').toLowerCase() === key)) return false;
-  current.push(p);
-  window._stlHomeDirs = current;
-  renderStlHomeDirectoryList(current);
-  revealStlHomeDirectoryAddRow();
-  return true;
-}
-
-function revealStlHomeDirectoryAddRow() {
-  const list = document.getElementById('stl-home-directories-list');
-  if (list && list.scrollHeight > list.clientHeight) {
-    list.scrollTop = list.scrollHeight;
-  }
-  const row = document.querySelector('#stl-home-directories-group .stl-home-exclude-add-row');
-  if (row && typeof row.scrollIntoView === 'function') {
-    row.scrollIntoView({ block: 'nearest' });
-  }
-}
-
-async function saveStlHomeDirectoriesSetting() {
-  if (!window._stlHomeDirsLoaded) return;
-  const dirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs : [];
-  await window.electron.saveSetting('stlHomeDirectories', JSON.stringify(dirs));
-  await window.electron.saveSetting('stlHome', dirs[0] || '');
-}
-window.saveStlHomeDirectoriesSetting = saveStlHomeDirectoriesSetting;
-
-function bindStlHomeDirectoryControls() {
-  const list = document.getElementById('stl-home-directories-list');
-  const browseBtn = document.getElementById('stl-home-directories-browse');
-  const addBtn = document.getElementById('stl-home-directories-add');
-  const input = document.getElementById('stl-home-directories-input');
-  if (list && !list.dataset.bound) {
-    list.dataset.bound = '1';
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest && e.target.closest('.stl-home-exclude-remove');
-      if (!btn || !list.contains(btn)) return;
-      const index = Number(btn.dataset.index);
-      if (!Number.isInteger(index)) return;
-      const next = (window._stlHomeDirs || []).slice();
-      if (index < 0 || index >= next.length) return;
-      next.splice(index, 1);
-      window._stlHomeDirs = next;
-      renderStlHomeDirectoryList(next);
-    });
-  }
-  const addFromInput = () => {
-    if (!input) return;
-    if (addStlHomeDirectory(input.value)) input.value = '';
-  };
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.dataset.bound = '1';
-    addBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      addFromInput();
-    });
-  }
-  if (input && !input.dataset.bound) {
-    input.dataset.bound = '1';
-    input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      e.stopPropagation();
-      addFromInput();
-    });
-  }
-  if (browseBtn && !browseBtn.dataset.bound) {
-    browseBtn.dataset.bound = '1';
-    browseBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const directory = await window.electron.openFileDialog();
-      if (directory && directory[0]) addStlHomeDirectory(directory[0]);
-    });
-  }
-}
-window.bindStlHomeDirectoryControls = bindStlHomeDirectoryControls;
-
-// Shared function to initialize and open STL Home dialog
-window.openSTLHomeDialog = async function() {
-  const stlHomeDialog = document.getElementById('stl-home-dialog');
-  if (!stlHomeDialog) return;
-  
-  // Check if we're in server mode
-  const serverMode = await window.electron.isServerMode().catch(() => false);
-  
-  window._stlHomeDirs = await getStlHomeDirectories();
-  window._stlHomeDirsLoaded = true;
-  renderStlHomeDirectoryList(window._stlHomeDirs);
-  bindStlHomeDirectoryControls();
-  requestAnimationFrame(() => revealStlHomeDirectoryAddRow());
-  const directoryInput = document.getElementById('stl-home-directories-input');
-  if (directoryInput) directoryInput.value = '';
-  
-  // Load the update frequency setting (default to 60 minutes)
-  const updateFrequency = await window.electron.getSetting('stlHomeUpdateFrequency');
-  const updateFrequencyInput = document.getElementById('stl-home-update-frequency');
-  const updateFrequencyGroup = document.getElementById('stl-home-update-frequency-group');
-  const directoryBrowse = document.getElementById('stl-home-directories-browse');
-
-  // Load path metadata from folder (STL Home only): enabled + direction + use Designer/Parent checkboxes + segment indices
-  const pathMetaEnabled = await window.electron.getSetting('pathMetadataStlHomeEnabled');
-  const pathMetaDirection = await window.electron.getSetting('pathMetadataStlHomeDirection');
-  const pathMetaUseDesigner = await window.electron.getSetting('pathMetadataUseDesigner');
-  const pathMetaUseParentModel = await window.electron.getSetting('pathMetadataUseParentModel');
-  const pathMetaDesignerIndex = await window.electron.getSetting('pathMetadataDesignerIndex');
-  const pathMetaParentModelIndex = await window.electron.getSetting('pathMetadataParentModelIndex');
-  const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-  const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-  const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-  const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-  const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-  const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-  if (pathMetaEnabledEl) pathMetaEnabledEl.checked = pathMetaEnabled === '1';
-  if (pathMetaDirectionEl) pathMetaDirectionEl.value = (pathMetaDirection === 'fromRoot' || pathMetaDirection === 'fromModel') ? pathMetaDirection : 'fromModel';
-  if (pathMetaUseDesignerEl) pathMetaUseDesignerEl.checked = pathMetaUseDesigner !== '0';
-  if (pathMetaUseParentModelEl) pathMetaUseParentModelEl.checked = pathMetaUseParentModel !== '0';
-  if (pathMetaDesignerIndexEl) pathMetaDesignerIndexEl.value = (pathMetaDesignerIndex !== null && pathMetaDesignerIndex !== '') ? String(pathMetaDesignerIndex) : '1';
-  if (pathMetaParentModelIndexEl) pathMetaParentModelIndexEl.value = (pathMetaParentModelIndex !== null && pathMetaParentModelIndex !== '') ? String(pathMetaParentModelIndex) : '0';
-  if (typeof window.updateStlHomePathDirectionDesc === 'function') window.updateStlHomePathDirectionDesc();
-  updateStlHomePathMetadataGrayed();
-  // Re-apply grayed state after paint (fixes Docker/server mode where checkbox state wasn't reflected)
-  requestAnimationFrame(() => updateStlHomePathMetadataGrayed());
-
-  const excludeRaw = await window.electron.getSetting('stlHomeExcludeDirectories');
-  window._stlHomeExcludeDirs = parseStlHomeExcludeSetting(excludeRaw);
-  window._stlHomeExcludeDirsLoaded = true;
-  renderStlHomeExcludeList(window._stlHomeExcludeDirs);
-  bindStlHomeExcludeControls();
-  requestAnimationFrame(() => revealStlHomeExcludeAddRow());
-  const excludeBrowse = document.getElementById('stl-home-exclude-browse');
-  const excludeInput = document.getElementById('stl-home-exclude-input');
-  if (excludeInput) excludeInput.value = '';
-  
-  if (serverMode) {
-    // In server mode: hide folder pickers, show Update Frequency, type paths instead
-    if (directoryBrowse) directoryBrowse.style.display = 'none';
-    if (directoryInput) directoryInput.placeholder = 'Enter a directory path';
-    if (excludeBrowse) excludeBrowse.style.display = 'none';
-    if (excludeInput) excludeInput.placeholder = 'Enter a path to exclude';
-    if (updateFrequencyGroup) updateFrequencyGroup.style.display = 'block';
-    if (updateFrequencyInput) {
-      updateFrequencyInput.value = updateFrequency || '60';
-    }
-  } else {
-    if (directoryBrowse) directoryBrowse.style.display = '';
-    if (directoryInput) directoryInput.placeholder = 'Paste a path or use Add Directory';
-    if (excludeBrowse) excludeBrowse.style.display = '';
-    if (excludeInput) excludeInput.placeholder = 'Paste a path or use Add Directory';
-    if (updateFrequencyGroup) updateFrequencyGroup.style.display = 'none';
-  }
-
-  // Bind Save button when dialog opens - run save logic directly so it always works (Docker/server load order)
-  const saveBtn = document.getElementById('save-stl-home-button');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', async function onSaveClick(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[STL Home] Save button clicked');
-      const stlDirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-      const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-      const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-      const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-      const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-      const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-      const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-      try {
-        console.log('[STL Home] Saving directories:', stlDirs);
-        await saveStlHomeDirectoriesSetting();
-        await window.electron.saveSetting('pathMetadataStlHomeEnabled', pathMetaEnabledEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataStlHomeDirection', (pathMetaDirectionEl?.value === 'fromRoot' || pathMetaDirectionEl?.value === 'fromModel') ? pathMetaDirectionEl.value : 'fromModel');
-        await window.electron.saveSetting('pathMetadataUseDesigner', pathMetaUseDesignerEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataUseParentModel', pathMetaUseParentModelEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataDesignerIndex', pathMetaDesignerIndexEl?.value ?? '1');
-        await window.electron.saveSetting('pathMetadataParentModelIndex', pathMetaParentModelIndexEl?.value ?? '0');
-        await saveStlHomeExcludeDirectoriesSetting();
-        // Show "Scan STL Home" in sidebar from value we just saved (Docker/server: getSetting can lag)
-        const scanStlHomeBtn = document.getElementById('scan-stl-home-button');
-        if (scanStlHomeBtn) scanStlHomeBtn.style.display = stlDirs.length ? '' : 'none';
-        if (typeof window.updateScanStlHomeButtonVisibility === 'function') await window.updateScanStlHomeButtonVisibility();
-        const serverMode = await window.electron.isServerMode().catch(() => false);
-        if (serverMode) {
-          const updateFrequencyEl = document.getElementById('stl-home-update-frequency');
-          const updateFrequency = updateFrequencyEl ? updateFrequencyEl.value : '60';
-          await window.electron.saveSetting('stlHomeUpdateFrequency', updateFrequency);
-          if (stlDirs.length) {
-            if (typeof window.performSTLHomeScan === 'function') window.performSTLHomeScan(stlDirs).catch(err => console.error('STL Home scan on save:', err));
-            if (typeof window.startPeriodicSTLHomeScan === 'function') window.startPeriodicSTLHomeScan();
-          } else {
-            if (typeof window.stopPeriodicSTLHomeScan === 'function') window.stopPeriodicSTLHomeScan();
-          }
-        }
-        console.log('[STL Home] Save complete, closing dialog');
-        if (typeof stlHomeDialog.close === 'function') stlHomeDialog.close();
-      } catch (err) {
-        console.error('[STL Home] Save failed:', err);
-        if (window.electron && typeof window.electron.showMessage === 'function') {
-          await window.electron.showMessage('Error', 'Failed to save STL Home: ' + (err.message || String(err)));
-        }
-      }
-    }, { once: true });
-  }
-
-  stlHomeDialog.showModal();
-};
-
-// About dialog functions - defined at top level for accessibility
-function bindAboutCloseButton() {
-  const dialog = document.getElementById('about-dialog');
-  const closeXButton = dialog?.querySelector('.about-close-x');
-  if (!dialog || !closeXButton) {
-    return;
-  }
-
-  // Remove any existing event listeners by cloning and replacing the button
-  // This ensures we don't have duplicate listeners
-  const newButton = closeXButton.cloneNode(true);
-  closeXButton.parentNode.replaceChild(newButton, closeXButton);
-  
-  // Add the click handler to the new button
-  newButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dialog.close();
-  });
-}
-
-async function initializeAboutDialog() {
-  const versionElement = document.getElementById('about-version');
-  const dialog = document.getElementById('about-dialog');
-  if (!dialog) return;
-
-  // Version: load defensively so dialog always shows something
-  try {
-    let currentVersion = null;
-    if (typeof window.electron?.getSetting === 'function') {
-      currentVersion = await window.electron.getSetting('currentVersion').catch(() => null);
-    }
-    if (!currentVersion && typeof window.electron?.getAppVersion === 'function') {
-      currentVersion = await window.electron.getAppVersion().catch(() => null);
-    }
-    if (versionElement) {
-      versionElement.textContent = `Version: ${currentVersion || 'Unknown'}`;
-    }
-  } catch (e) {
-    console.error('About dialog version:', e);
-    if (versionElement) versionElement.textContent = 'Version: Unknown';
-  }
-
-  const autoUpdateCheckbox = document.getElementById('auto-update-check');
-  if (autoUpdateCheckbox && typeof window.electron?.getSetting === 'function') {
-    const autoUpdateCheck = await window.electron.getSetting('autoUpdateCheck').catch(() => null);
-    autoUpdateCheckbox.checked = autoUpdateCheck !== '0';
-    autoUpdateCheckbox.onchange = (e) => {
-      window.electron.saveSetting('autoUpdateCheck', e.target.checked ? '1' : '0');
-    };
-  }
-
-  // Close X is handled by inline onclick in HTML; bind for any extra behavior
-  bindAboutCloseButton();
-
-  // License link
-  try {
-    const licenseLink = document.getElementById('license-link');
-    if (licenseLink && typeof window.electron?.openExternal === 'function') {
-      licenseLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await window.electron.openExternal('https://github.com/ngolston/JusttPrint/blob/main/LICENSE.txt');
-      });
-    }
-  } catch (e) {
-    console.error('About dialog license link:', e);
-  }
-}
-
-function escapeSystemReportHtml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function formatServerGpuReport(serverGpu) {
-  if (!serverGpu) {
-    return { statusText: '✗ Unavailable', statusColor: '#f44336', details: 'No response from getGpuInfo.' };
-  }
-  if (serverGpu.error) {
-    return {
-      statusText: '✗ Error',
-      statusColor: '#f44336',
-      details: escapeSystemReportHtml(serverGpu.error)
-    };
-  }
-
-  const lines = [];
-  const backend = serverGpu.glBackend || 'unknown';
-  const backendLabel = backend === 'swiftshader'
-    ? 'SwiftShader (CPU / software WebGL)'
-    : (backend === 'nvidia' ? 'NVIDIA hardware WebGL (requested)' : backend);
-  lines.push(`<div><strong>GL backend:</strong> ${escapeSystemReportHtml(backendLabel)}</div>`);
-
-  if (serverGpu.activeRenderer) {
-    lines.push(`<div><strong>Electron WebGL renderer:</strong> ${escapeSystemReportHtml(serverGpu.activeRenderer)}</div>`);
-  }
-
-  if (serverGpu.nvidia && serverGpu.nvidia.available && Array.isArray(serverGpu.nvidia.gpus)) {
-    lines.push('<div style="margin-top:0.5rem;"><strong>nvidia-smi:</strong></div>');
-    serverGpu.nvidia.gpus.forEach((gpu) => {
-      lines.push(
-        `<div style="margin-left:0.5rem;">` +
-        `[${escapeSystemReportHtml(gpu.index)}] ${escapeSystemReportHtml(gpu.name)}` +
-        ` — driver ${escapeSystemReportHtml(gpu.driverVersion)}` +
-        `, mem ${escapeSystemReportHtml(gpu.memoryUsedMiB)}/${escapeSystemReportHtml(gpu.memoryTotalMiB)} MiB` +
-        `, util ${escapeSystemReportHtml(gpu.utilizationPercent)}%` +
-        `</div>`
-      );
-    });
-  } else if (serverGpu.nvidia && serverGpu.nvidia.message) {
-    lines.push(`<div><strong>nvidia-smi:</strong> ${escapeSystemReportHtml(serverGpu.nvidia.message)}</div>`);
-  }
-
-  if (serverGpu.nvidiaVisibleDevices) {
-    lines.push(`<div><strong>NVIDIA_VISIBLE_DEVICES:</strong> ${escapeSystemReportHtml(serverGpu.nvidiaVisibleDevices)}</div>`);
-  }
-  if (serverGpu.nvidiaDriverCapabilities) {
-    lines.push(`<div><strong>NVIDIA_DRIVER_CAPABILITIES:</strong> ${escapeSystemReportHtml(serverGpu.nvidiaDriverCapabilities)}</div>`);
-  } else if (serverGpu.serverMode) {
-    lines.push('<div><strong>NVIDIA_DRIVER_CAPABILITIES:</strong> <em>unset</em></div>');
-  }
-
-  if (Array.isArray(serverGpu.warnings) && serverGpu.warnings.length) {
-    lines.push('<div style="margin-top:0.5rem;color:#ffb74d;"><strong>Warnings:</strong></div>');
-    serverGpu.warnings.forEach((w) => {
-      lines.push(`<div style="margin-left:0.5rem;color:#ffb74d;">• ${escapeSystemReportHtml(w)}</div>`);
-    });
-  }
-
-  let statusText = '✗ Not Detected';
-  let statusColor = '#f44336';
-  if (serverGpu.usingSwiftShader && serverGpu.available) {
-    statusText = serverGpu.nvidia?.available
-      ? '⚠ Host NVIDIA visible — WebGL on SwiftShader'
-      : '✓ SwiftShader (software)';
-    statusColor = serverGpu.nvidia?.available ? '#ff9800' : '#4caf50';
-  } else if (serverGpu.available && !serverGpu.usingSwiftShader) {
-    statusText = '✓ Hardware GPU in use';
-    statusColor = '#4caf50';
-  } else if (serverGpu.nvidia?.available) {
-    statusText = '⚠ NVIDIA visible — WebGL status unknown';
-    statusColor = '#ff9800';
-  }
-
-  return {
-    statusText,
-    statusColor,
-    details: lines.join('') || 'No additional information available.'
-  };
-}
-
-async function initializeSystemReport() {
-  try {
-    const loadingEl = document.getElementById('system-report-loading');
-    const contentEl = document.getElementById('system-report-content');
-    const clientGpuDetectedEl = document.getElementById('client-gpu-detected') || document.getElementById('gpu-detected');
-    const clientGpuDetailsEl = document.getElementById('client-gpu-details') || document.getElementById('gpu-details');
-    const serverGpuDetectedEl = document.getElementById('server-gpu-detected');
-    const serverGpuDetailsEl = document.getElementById('server-gpu-details');
-    const filesystemResultEl = document.getElementById('filesystem-result');
-    const filesystemDetailsEl = document.getElementById('filesystem-details');
-    const databaseResultEl = document.getElementById('database-result');
-    const databaseDetailsEl = document.getElementById('database-details');
-    
-    // Show loading, hide content
-    if (loadingEl) loadingEl.style.display = 'block';
-    if (contentEl) contentEl.style.display = 'none';
-    
-    // Client GPU / WebGL (this browser)
-    let clientGpuDetected = false;
-    let clientGpuInfo = '';
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      
-      if (gl) {
-        clientGpuDetected = true;
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        if (debugInfo) {
-          const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-          clientGpuInfo = `Vendor: ${escapeSystemReportHtml(vendor)}<br>Renderer: ${escapeSystemReportHtml(renderer)}`;
-        } else {
-          clientGpuInfo = 'WebGL is available but detailed GPU information is not accessible.';
-        }
-      } else {
-        clientGpuDetected = false;
-        clientGpuInfo = 'WebGL is not available. 3D rendering may be limited or unavailable.';
-      }
-    } catch (error) {
-      clientGpuDetected = false;
-      clientGpuInfo = `Error detecting GPU: ${escapeSystemReportHtml(error.message)}`;
-    }
-    
-    if (clientGpuDetectedEl) {
-      clientGpuDetectedEl.textContent = clientGpuDetected ? '✓ Detected' : '✗ Not Detected';
-      clientGpuDetectedEl.style.color = clientGpuDetected ? '#4caf50' : '#f44336';
-    }
-    if (clientGpuDetailsEl) {
-      clientGpuDetailsEl.innerHTML = clientGpuInfo || 'No additional information available.';
-    }
-
-    // Server / Electron-process GPU (Docker thumbnail worker or desktop app)
-    if (serverGpuDetectedEl || serverGpuDetailsEl) {
-      try {
-        const serverGpu = typeof window.electron.getGpuInfo === 'function'
-          ? await window.electron.getGpuInfo()
-          : null;
-        const formatted = formatServerGpuReport(serverGpu);
-        if (serverGpuDetectedEl) {
-          serverGpuDetectedEl.textContent = formatted.statusText;
-          serverGpuDetectedEl.style.color = formatted.statusColor;
-        }
-        if (serverGpuDetailsEl) {
-          serverGpuDetailsEl.innerHTML = formatted.details;
-        }
-      } catch (error) {
-        if (serverGpuDetectedEl) {
-          serverGpuDetectedEl.textContent = '✗ Error';
-          serverGpuDetectedEl.style.color = '#f44336';
-        }
-        if (serverGpuDetailsEl) {
-          serverGpuDetailsEl.innerHTML = escapeSystemReportHtml(error.message);
-        }
-      }
-    }
-    
-    // Run file system benchmark
-    let filesystemInfo = '';
-    try {
-      const fsResult = await window.electron.benchmarkFilesystem();
-      if (fsResult && fsResult.success) {
-        filesystemInfo = `Write: ${fsResult.write.speedMBps} MB/s (${fsResult.write.time}ms for ${fsResult.iterations} operations)<br>Read: ${fsResult.read.speedMBps} MB/s (${fsResult.read.time}ms for ${fsResult.iterations} operations)`;
-        if (filesystemResultEl) {
-          filesystemResultEl.textContent = '✓ Completed';
-          filesystemResultEl.style.color = '#4caf50';
-        }
-      } else {
-        filesystemInfo = `Error: ${fsResult?.error || 'Unknown error'}`;
-        if (filesystemResultEl) {
-          filesystemResultEl.textContent = '✗ Failed';
-          filesystemResultEl.style.color = '#f44336';
-        }
-      }
-    } catch (error) {
-      filesystemInfo = `Error: ${error.message}`;
-      if (filesystemResultEl) {
-        filesystemResultEl.textContent = '✗ Error';
-        filesystemResultEl.style.color = '#f44336';
-      }
-    }
-    if (filesystemDetailsEl) {
-      filesystemDetailsEl.innerHTML = filesystemInfo || 'Benchmark not available.';
-    }
-    
-    // Run database benchmark
-    let databaseInfo = '';
-    try {
-      const dbResult = await window.electron.benchmarkDatabase();
-      if (dbResult && dbResult.success) {
-        databaseInfo = `Write: ${dbResult.write.opsPerSec} ops/sec (${dbResult.write.time}ms for ${dbResult.write.operations} operations)<br>Read: ${dbResult.read.opsPerSec} ops/sec (${dbResult.read.time}ms for ${dbResult.read.operations} operations)`;
-        if (databaseResultEl) {
-          databaseResultEl.textContent = '✓ Completed';
-          databaseResultEl.style.color = '#4caf50';
-        }
-      } else {
-        databaseInfo = `Error: ${dbResult?.error || 'Unknown error'}`;
-        if (databaseResultEl) {
-          databaseResultEl.textContent = '✗ Failed';
-          databaseResultEl.style.color = '#f44336';
-        }
-      }
-    } catch (error) {
-      databaseInfo = `Error: ${error.message}`;
-      if (databaseResultEl) {
-        databaseResultEl.textContent = '✗ Error';
-        databaseResultEl.style.color = '#f44336';
-      }
-    }
-    if (databaseDetailsEl) {
-      databaseDetailsEl.innerHTML = databaseInfo || 'Benchmark not available.';
-    }
-    
-    // Hide loading, show content
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (contentEl) contentEl.style.display = 'block';
-    
-  } catch (error) {
-    console.error('Error initializing system report:', error);
-    const loadingEl = document.getElementById('system-report-loading');
-    const contentEl = document.getElementById('system-report-content');
-    if (loadingEl) {
-      loadingEl.innerHTML = `<p style="color: #f44336;">Error loading system report: ${error.message}</p>`;
-    }
-    if (contentEl) contentEl.style.display = 'none';
-  }
-}
-
-// Shared function to load AI config settings and show dialog (must be top-level for server menu access)
-async function loadAndShowAIConfig() {
-  const dialog = document.getElementById('ai-config-dialog');
-  if (!dialog) {
-    console.error('ai-config-dialog element not found.');
-    return;
-  }
-  
-  // Load all settings first, then show dialog with populated values
-  const apiKeyValue = await window.electron.getSetting('apiKey').catch(() => null);
-  const serviceValue = await window.electron.getSetting('aiService').catch(() => null);
-  const endpointValue = await window.electron.getSetting('apiEndpoint').catch(() => null);
-  const modelValue = await window.electron.getSetting('aiModel').catch(() => null);
-  
-  // Ensure dialog is in DOM before getting elements
-  if (!dialog.isConnected) {
-    document.body.appendChild(dialog);
-  }
-  
-  // Get all form elements
-  const keyEl = document.getElementById('ai-api-key');
-  const serviceEl = document.getElementById('ai-service-select');
-  const endpointEl = document.getElementById('ai-endpoint');
-  const modelEl = document.getElementById('ai-model');
-  
-  if (!serviceEl) {
-    console.error('ai-service-select element not found.');
-    return;
-  }
-  
-  console.log('[AI Config] Found elements:', {
-    serviceEl: !!serviceEl,
-    endpointEl: !!endpointEl,
-    modelEl: !!modelEl,
-    keyEl: !!keyEl
-  });
-  
-    // Set service first - default to 'puter' if undefined
-    const selectedService = serviceValue || 'puter';
-    
-    // Force set the select value and verify it stuck
-    serviceEl.value = selectedService;
-    
-    // Double-check the value was set correctly
-    if (serviceEl.value !== selectedService) {
-      console.warn('[AI Config] Select value mismatch, forcing to:', selectedService);
-      // Try setting by selectedIndex
-      for (let i = 0; i < serviceEl.options.length; i++) {
-        if (serviceEl.options[i].value === selectedService) {
-          serviceEl.selectedIndex = i;
-          break;
-        }
-      }
-      // Verify again
-      if (serviceEl.value !== selectedService) {
-        console.error('[AI Config] Failed to set service select to:', selectedService, 'current value:', serviceEl.value);
-      }
-    }
-    
-    // Ensure service is saved if it was undefined
-    if (!serviceValue || serviceValue !== selectedService) {
-      await window.electron.saveSetting('aiService', selectedService).catch((err) => {
-        console.error('[AI Config] Error saving service:', err);
-      });
-      console.log('[AI Config] Saved service to database:', selectedService);
-    }
-    
-    console.log('[AI Config] Service set to:', selectedService, 'serviceEl.value:', serviceEl.value, 'selectedIndex:', serviceEl.selectedIndex);
-  
-  // Helper function to check if a value is empty/null/undefined
-  const isEmpty = (val) => val === null || val === undefined || val === '';
-  
-  // Set defaults based on service if values are empty
-  if (selectedService === 'puter') {
-    // Load Puter.js when Puter service is selected in the dialog
-    loadPuterJS().catch(err => {
-      console.warn('[AI Config] Failed to preload Puter.js:', err);
-      // Don't block dialog opening if Puter.js fails to load
-    });
-    
-    // For Puter.com, always use defaults (endpoint and model are required for Puter.com)
-    const puterEndpoint = 'https://js.puter.com/v2/';
-    const puterModel = 'gpt-5-nano';
-    
-    console.log('[AI Config] Setting Puter.com defaults:', { endpointEl: !!endpointEl, modelEl: !!modelEl, endpointValue, modelValue });
-    
-    if (endpointEl) {
-      // Always set the Puter.com endpoint
-      endpointEl.value = puterEndpoint;
-      endpointEl.required = false;
-      console.log('[AI Config] Set endpoint to:', endpointEl.value);
-      // Save it if it wasn't already saved or if it's different
-      if (isEmpty(endpointValue) || endpointValue !== puterEndpoint) {
-        await window.electron.saveSetting('apiEndpoint', puterEndpoint).catch((err) => {
-          console.error('[AI Config] Error saving endpoint:', err);
-        });
-      }
-    } else {
-      console.error('[AI Config] endpointEl not found!');
-    }
-    if (modelEl) {
-      // Always set the Puter.com model
-      modelEl.value = puterModel;
-      console.log('[AI Config] Set model to:', modelEl.value);
-      // Save it if it wasn't already saved or if it's different
-      if (isEmpty(modelValue) || modelValue !== puterModel) {
-        await window.electron.saveSetting('aiModel', puterModel).catch((err) => {
-          console.error('[AI Config] Error saving model:', err);
-        });
-      }
-    } else {
-      console.error('[AI Config] modelEl not found!');
-    }
-    if (keyEl) {
-      keyEl.value = '';
-    }
-  } else if (selectedService === 'openai') {
-    if (endpointEl) {
-      endpointEl.value = endpointValue || 'https://api.openai.com/v1';
-      endpointEl.required = true;
-    }
-    if (modelEl) {
-      modelEl.value = modelValue || 'gpt-4o-mini';
-    }
-    if (keyEl) {
-      keyEl.value = apiKeyValue || '';
-    }
-  } else if (selectedService === 'claude') {
-    if (endpointEl) {
-      endpointEl.value = endpointValue || 'https://api.anthropic.com/v1/';
-      endpointEl.required = true;
-    }
-    if (modelEl) {
-      modelEl.value = modelValue || 'claude-haiku-4-5';
-    }
-    if (keyEl) {
-      keyEl.value = apiKeyValue || '';
-    }
-  } else if (selectedService === 'gemini') {
-    if (endpointEl) {
-      endpointEl.value = endpointValue || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-      endpointEl.required = true;
-    }
-    if (modelEl) {
-      modelEl.value = modelValue || 'gemini-2.5-flash';
-    }
-    if (keyEl) {
-      keyEl.value = apiKeyValue || '';
-    }
-  } else {
-    // Custom service (local / OpenAI-compatible)
-    if (endpointEl) {
-      endpointEl.value = endpointValue || '';
-      endpointEl.required = true;
-    }
-    if (modelEl) {
-      modelEl.value = modelValue || '';
-    }
-    if (keyEl) {
-      keyEl.value = apiKeyValue || '';
-    }
-  }
-  syncAiApiKeyField(selectedService);
-  
-  // Add input event listeners for real-time persistence (only if not already added)
-  if (keyEl && !keyEl.dataset.listenerAdded) {
-    keyEl.addEventListener('input', async () => {
-      await window.electron.saveSetting('apiKey', keyEl.value).catch(() => {});
-    });
-    keyEl.dataset.listenerAdded = 'true';
-  }
-  if (endpointEl && !endpointEl.dataset.listenerAdded) {
-    endpointEl.addEventListener('input', async () => {
-      await window.electron.saveSetting('apiEndpoint', endpointEl.value).catch(() => {});
-      const currentServiceEl = document.getElementById('ai-service-select');
-      syncAiApiKeyField(currentServiceEl && currentServiceEl.value);
-    });
-    endpointEl.dataset.listenerAdded = 'true';
-  }
-  if (modelEl && !modelEl.dataset.listenerAdded) {
-    modelEl.addEventListener('input', async () => {
-      await window.electron.saveSetting('aiModel', modelEl.value).catch(() => {});
-    });
-    modelEl.dataset.listenerAdded = 'true';
-  }
-  
-  // Load AI tag settings
-  const maxTagsValue = await window.electron.getSetting('aiTagMaxTags').catch(() => null);
-  const mergeStrategyValue = await window.electron.getSetting('aiTagMergeStrategy').catch(() => null);
-  const useCategoriesValue = await window.electron.getSetting('aiTagUseCategories').catch(() => null);
-  const allowRetaggingValue = await window.electron.getSetting('aiTagAllowRetagging').catch(() => null);
-  const concurrencyValue = await window.electron.getSetting('aiTagConcurrency').catch(() => null);
-  const detailLevelValue = await window.electron.getSetting('aiTagDetailLevel').catch(() => null);
-  const folderLevelsValue = await window.electron.getSetting('aiTagFolderLevels').catch(() => null);
-  
-  const maxTagsEl = document.getElementById('ai-tag-max-tags');
-  if (maxTagsEl) {
-    maxTagsEl.value = maxTagsValue || '10';
-  }
-  
-  const mergeStrategyEl = document.getElementById('ai-tag-merge-strategy');
-  if (mergeStrategyEl) {
-    mergeStrategyEl.value = mergeStrategyValue || 'merge';
-  }
-  
-  const useCategoriesEl = document.getElementById('ai-tag-use-categories');
-  if (useCategoriesEl) {
-    useCategoriesEl.checked = useCategoriesValue === '1';
-  }
-  
-  const allowRetaggingEl = document.getElementById('ai-tag-allow-retagging');
-  if (allowRetaggingEl) {
-    allowRetaggingEl.checked = allowRetaggingValue === '1';
-  }
-  
-  const concurrencyEl = document.getElementById('ai-tag-concurrency');
-  if (concurrencyEl) {
-    concurrencyEl.value = concurrencyValue || '3';
-  }
-  
-  const detailLevelEl = document.getElementById('ai-tag-detail-level');
-  if (detailLevelEl) {
-    detailLevelEl.value = detailLevelValue || 'medium';
-  }
-
-  const folderLevelsEl = document.getElementById('ai-tag-folder-levels');
-  if (folderLevelsEl) {
-    folderLevelsEl.value = folderLevelsValue != null && folderLevelsValue !== '' ? folderLevelsValue : '2';
-  }
-  
-  // Double-check Puter.com defaults are set (in case elements weren't ready earlier)
-  if (selectedService === 'puter') {
-    const puterEndpoint = 'https://js.puter.com/v2/';
-    const puterModel = 'gpt-5-nano';
-    
-    // Re-get elements to ensure they're in the DOM
-    const finalEndpointEl = document.getElementById('ai-endpoint');
-    const finalModelEl = document.getElementById('ai-model');
-    
-    if (finalEndpointEl && (!finalEndpointEl.value || finalEndpointEl.value === '')) {
-      finalEndpointEl.value = puterEndpoint;
-      console.log('[AI Config] Re-set endpoint after dialog prep:', finalEndpointEl.value);
-    }
-    if (finalModelEl && (!finalModelEl.value || finalModelEl.value === '')) {
-      finalModelEl.value = puterModel;
-      console.log('[AI Config] Re-set model after dialog prep:', finalModelEl.value);
-    }
-  }
-  
-  // Now show the dialog with all values populated
-  dialog.showModal();
-  
-  // One more check after dialog is shown (for any edge cases)
-  if (selectedService === 'puter') {
-    setTimeout(() => {
-      const puterEndpoint = 'https://js.puter.com/v2/';
-      const puterModel = 'gpt-5-nano';
-      const finalEndpointEl = document.getElementById('ai-endpoint');
-      const finalModelEl = document.getElementById('ai-model');
-      
-      if (finalEndpointEl && (!finalEndpointEl.value || finalEndpointEl.value === '')) {
-        finalEndpointEl.value = puterEndpoint;
-        console.log('[AI Config] Final fallback - set endpoint:', finalEndpointEl.value);
-      }
-      if (finalModelEl && (!finalModelEl.value || finalModelEl.value === '')) {
-        finalModelEl.value = puterModel;
-        console.log('[AI Config] Final fallback - set model:', finalModelEl.value);
-      }
-    }, 100);
-  }
-}
-
-// Load File Type settings from DB then show dialog (same pattern as loadAndShowAIConfig; required for Docker/server menu)
-async function loadAndShowFileTypeSettings() {
-  const dialog = document.getElementById('file-type-settings-dialog');
-  if (!dialog) {
-    console.error('file-type-settings-dialog element not found.');
-    return;
-  }
-  if (window.electron?.whenConnected) {
-    try {
-      await window.electron.whenConnected();
-    } catch (e) {
-      console.warn('[File Type] WebSocket wait:', e);
-    }
-  }
-  try {
-    const enableZipArchives = await window.electron.getSetting('enableZipArchives');
-    const checkbox = document.getElementById('enable-zip-archives');
-    if (checkbox) {
-      checkbox.checked = enableZipArchives === '1';
-    }
-
-    const ADDITIONAL_SCAN_TYPE_IDS = ['3ds', 'amf', 'blender', 'chitubox', 'dae', 'dxf', 'dwg', 'fbx', 'f3d', 'f3z', 'gcode', 'igs', 'lys', 'obj', 'ply', 'step', 'svg', 'voxl', 'x3d'];
-    try {
-      const scanTypesRaw = await window.electron.getSetting('scanAdditionalFileTypes');
-      const scanTypes = (scanTypesRaw && typeof scanTypesRaw === 'string') ? JSON.parse(scanTypesRaw) : [];
-      const scanSet = new Set(Array.isArray(scanTypes) ? scanTypes : []);
-      ADDITIONAL_SCAN_TYPE_IDS.forEach(id => {
-        const el = document.getElementById('scan-type-' + id);
-        if (el) el.checked = scanSet.has(id);
-      });
-    } catch (e) { /* ignore */ }
-
-    const enable3MFDesigner = await window.electron.getSetting('enable3MFDesigner');
-    const enable3MFParentModel = await window.electron.getSetting('enable3MFParentModel');
-    const enable3MFLicense = await window.electron.getSetting('enable3MFLicense');
-    const enable3MFNotes = await window.electron.getSetting('enable3MFNotes');
-
-    const designerCheckbox = document.getElementById('enable-3mf-designer');
-    const parentModelCheckbox = document.getElementById('enable-3mf-parent-model');
-    const licenseCheckbox = document.getElementById('enable-3mf-license');
-    const notesCheckbox = document.getElementById('enable-3mf-notes');
-
-    if (designerCheckbox) {
-      designerCheckbox.checked = enable3MFDesigner === '1' || enable3MFDesigner === null;
-    }
-    if (parentModelCheckbox) {
-      parentModelCheckbox.checked = enable3MFParentModel === '1' || enable3MFParentModel === null;
-    }
-    if (licenseCheckbox) {
-      licenseCheckbox.checked = enable3MFLicense === '1' || enable3MFLicense === null;
-    }
-    if (notesCheckbox) {
-      notesCheckbox.checked = enable3MFNotes === '1' || enable3MFNotes === null;
-    }
-
-    const excludeFolders = await window.electron.getSetting('scanExcludeFolders');
-    const excludeFoldersEl = document.getElementById('scan-exclude-folders');
-    if (excludeFoldersEl) {
-      excludeFoldersEl.value = excludeFolders || '';
-    }
-
-    const autoTagFromFolder = await window.electron.getSetting('autoTagFromFolderOnScan');
-    const autoTagEl = document.getElementById('auto-tag-from-folder-on-scan');
-    if (autoTagEl) {
-      autoTagEl.checked = autoTagFromFolder === '1';
-    }
-  } catch (err) {
-    console.error('Error loading file type settings:', err);
-  }
-
-  dialog.showModal();
-}
-
 // Function to create server mode menu bar
 async function createServerMenuBar() {
   const serverMode = await window.electron.isServerMode().catch(() => false);
@@ -6820,49 +4247,26 @@ async function createServerMenuBar() {
     { label: '---', action: null },
     { label: 'Print Roulette', action: () => window.electron.send('start-print-roulette') },
     { label: 'De-Dup', action: () => {
-      const dialog = prepareDedupDialog();
-      if (dialog) {
-        dialog.showModal();
-        loadDuplicateFiles();
-      } else {
-        // Trigger the event which will open the dialog via the listener
-        window.electron.send('open-dedup');
-      }
+      window.openDedup?.(); // React: src/web/DedupDialog.tsx
     }},
     { label: 'Organize Library', action: () => {
-      if (typeof window.openOrganizeLibrary === 'function') {
-        window.openOrganizeLibrary();
-        return;
-      }
-      window.electron.send('open-organize-library');
+      window.openOrganizeLibrary?.(); // React: src/web/OrganizeLibraryDialog.tsx
     }},
     { label: '---', action: null },
     {
       label: 'Browser Extension',
-      action: async () => {
-        if (typeof window.openBrowserExtensionSettings === 'function') {
-          await window.openBrowserExtensionSettings();
-          return;
-        }
-        window.electron.send('open-browser-extension-settings');
+      action: () => {
+        window.openBrowserExtensionSettings?.();
       }
     },
     {
       label: 'MCP Server',
       submenu: [
-        { label: 'Settings', action: async () => {
-          if (typeof window.openMcpServerSettings === 'function') {
-            await window.openMcpServerSettings();
-          } else {
-            window.electron.send('open-mcp-server-settings');
-          }
+        { label: 'Settings', action: () => {
+          window.openMcpServerSettings?.();
         }},
-        { label: 'HTTPS / SSL', action: async () => {
-          if (typeof window.openHttpsSettings === 'function') {
-            await window.openHttpsSettings();
-          } else {
-            window.electron.send('open-https-settings');
-          }
+        { label: 'HTTPS / SSL', action: () => {
+          window.openHttpsSettings?.();
         }}
       ]
     },
@@ -6896,7 +4300,7 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Metadata Manager', action: () => {
-      window.electron.send('open-metadata-editor');
+      window.openMetadataEditor?.();
     }},
     { label: '---', action: null },
     { label: 'Clear New Flag', action: () => {
@@ -6909,20 +4313,11 @@ async function createServerMenuBar() {
       window.electron.send('generate-missing-thumbnails');
     }},
     { label: 'Purge Models', action: () => {
-      const dialog = document.getElementById('purge-models-dialog');
-      if (dialog) {
-        dialog.showModal();
-      }
+      window.openPurgeModels?.();
     }},
     { label: '---', action: null },
     { label: 'Backup/Restore', action: () => {
-      const dialog = document.getElementById('backup-restore-dialog');
-      if (dialog) {
-        dialog.showModal();
-      } else {
-        // Fallback: trigger the event which will open the dialog via the listener
-        window.electron.send('open-backup-restore');
-      }
+      window.openBackupRestore?.();
     }},
     { label: '---', action: null },
     { label: 'Restart Server', action: async () => {
@@ -6984,32 +4379,23 @@ async function createServerMenuBar() {
   
   // Settings menu
   const settingsMenuItems = [
-    { label: 'AI Config', action: async () => {
-      await loadAndShowAIConfig();
+    { label: 'AI Config', action: () => {
+      window.openAiConfig?.();
     }},
-    { label: 'File Type', action: async () => {
-      await loadAndShowFileTypeSettings();
+    { label: 'File Type', action: () => {
+      window.openFileTypeSettings?.();
     }},
     { label: 'Performance', action: () => {
-      const dialog = document.getElementById('performance-settings-dialog');
-      if (dialog) {
-        dialog.showModal();
-      } else {
-        window.electron.send('open-performance-settings');
-      }
+      window.openPerformanceSettings?.();
     }},
-    { label: 'Slicer', action: async () => {
-      if (typeof window.openSlicerSettings === 'function') {
-        await window.openSlicerSettings();
-        return;
-      }
-      window.electron.send('open-slicer-settings');
+    { label: 'Slicer', action: () => {
+      window.openSlicerSettings?.();
     }},
-    { label: 'STL Home', action: async () => {
-      await window.openSTLHomeDialog();
+    { label: 'STL Home', action: () => {
+      window.openStlHome?.(); // React: src/web/StlHomeDialog.tsx
     }},
     { label: 'Theme', action: () => {
-      window.electron.send('open-theme-settings');
+      window.openThemeSettings?.();
     }}
   ];
   const settingsMenu = createMenuDropdown('Settings', settingsMenuItems);
@@ -7024,21 +4410,10 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Keyboard Shortcuts', action: () => {
-      const dialog = document.getElementById('keyboard-shortcuts-dialog');
-      if (dialog) dialog.showModal();
+      window.openKeyboardShortcuts?.();
     }},
-    { label: 'About', action: async () => {
-      const aboutDialog = document.getElementById('about-dialog');
-      if (!aboutDialog) return;
-      aboutDialog.showModal();
-      bindAboutCloseButton();
-      try {
-        await initializeAboutDialog();
-      } catch (e) {
-        console.error('Error initializing about dialog:', e);
-        const versionEl = document.getElementById('about-version');
-        if (versionEl) versionEl.textContent = 'Version: Unknown';
-      }
+    { label: 'About', action: () => {
+      window.openAbout?.();
     }},
     { label: '---', action: null },
     { label: 'GitHub', action: () => {
@@ -7046,14 +4421,10 @@ async function createServerMenuBar() {
     }},
     { label: '---', action: null },
     { label: 'Library Stats', action: () => {
-      window.electron.send('open-stats');
+      window.openStats?.();
     }},
-    { label: 'System Report', action: async () => {
-      const systemReportDialog = document.getElementById('system-report-dialog');
-      if (systemReportDialog) {
-        systemReportDialog.showModal();
-        await initializeSystemReport();
-      }
+    { label: 'System Report', action: () => {
+      window.openSystemReport?.();
     }},
     { label: 'Server Mode Info', action: () => {
       window.electron.openExternal('https://github.com/ngolston/JusttPrint?tab=readme-ov-file#server-mode');
@@ -7406,8 +4777,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof bindGridBackgroundDeselect === 'function') {
     bindGridBackgroundDeselect();
   }
-  const settingsDialog = document.getElementById('settings-dialog');
-  const aboutDialog = document.getElementById('about-dialog');
   const tagDialog = document.getElementById('new-tag-dialog');
   const newTagInput = document.getElementById('new-tag-name');
   const addTagButton = document.getElementById('add-tag-button');
@@ -7636,7 +5005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Update the tag filter dropdown
         await populateTagFilter();
-        await refreshTagManagerList();
+        window.reloadTagManager?.();
       } catch (error) {
         console.error('Error saving new tag:', error);
       }
@@ -7647,122 +5016,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
   if (backgroundColor) {
     document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-    document.getElementById('model-background-color').value = backgroundColor;
   }
 
   // Load render color setting
   const renderColor = await window.electron.getSetting('renderColor');
-  if (renderColor) {
-    const renderColorSelect = document.getElementById('render-color');
-    if (renderColorSelect) {
-      renderColorSelect.value = renderColor;
-    }
-    window.currentRenderColor = renderColor;
-  } else {
-    window.currentRenderColor = '#cccccc';
-  }
+  window.currentRenderColor = renderColor || '#cccccc';
 
   // Load lighting setting
   const renderLighting = await window.electron.getSetting('renderLighting');
-  if (renderLighting !== null && renderLighting !== undefined) {
-    const renderLightingCheckbox = document.getElementById('render-lighting');
-    if (renderLightingCheckbox) {
-      renderLightingCheckbox.checked = renderLighting === 'true';
+  window.currentRenderLighting = renderLighting !== null && renderLighting !== undefined ? renderLighting === 'true' : true;
+
+  // Theme settings are React (src/web/ThemeSettingsDialog.tsx). After it saves, it applies the
+  // theme with applyThemeColors and, when the model color or lighting changed, may call this.
+  window.regenerateAllThumbnails = async function regenerateAllThumbnails() {
+    const sortSelect = document.getElementById('sort-select');
+    const allModels = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
+    if (allModels.length === 0) return;
+    const serverJob = await startAndWatchServerThumbnailJob('all', 'Regenerate Thumbnails');
+    if (serverJob) {
+      if (serverJob.backgrounded || serverJob.cancelled) return;
+      invalidatePrimaryThumbnailCache();
+      await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
+      await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0));
+      return;
     }
-    window.currentRenderLighting = renderLighting === 'true';
-  } else {
-    window.currentRenderLighting = true; // Default to true
-  }
-
-  // Settings dialog handlers
-  window.electron.onOpenSettings(() => {
-    settingsDialog.showModal();
-  });
-
-  document.getElementById('cancel-settings')?.addEventListener('click', () => {
-    settingsDialog.close();
-  });
-
-  document.getElementById('save-settings')?.addEventListener('click', async () => {
-    const color = document.getElementById('model-background-color').value;
-    const renderColor = document.getElementById('render-color').value;
-    const renderLighting = document.getElementById('render-lighting').checked;
-    const theme = document.getElementById('ui-theme')?.value || 'modern-cyan';
-    
-    // Check if render settings changed
-    const oldRenderColor = window.currentRenderColor || '#cccccc';
-    const oldRenderLighting = window.currentRenderLighting !== undefined ? window.currentRenderLighting : true;
-    
-    const renderSettingsChanged = (oldRenderColor !== renderColor) || (oldRenderLighting !== renderLighting);
-
-    // Update CSS variable for model background
-    document.documentElement.style.setProperty('--model-background-color', color);
-    
-    // Update UI theme
-    document.body.setAttribute('data-theme', theme);
-    
-    // Save to settings
-    await window.electron.saveSetting('modelBackgroundColor', color);
-    await window.electron.saveSetting('renderColor', renderColor);
-    await window.electron.saveSetting('renderLighting', renderLighting.toString());
-    await window.electron.saveSetting('uiTheme', theme);
-    
-    // Update global variable
-    window.currentRenderColor = renderColor;
-    window.currentRenderLighting = renderLighting;
-    
-    // Apply theme colors dynamically
-    applyThemeColors(theme);
-    
-    settingsDialog.close();
-
-    // Ask to regenerate thumbnails if color or lighting changed
-    if (renderSettingsChanged) {
-        const userChoice = await window.electron.showMessage(
-            'Regenerate Thumbnails?',
-            'You have changed model rendering settings. Would you like to regenerate all thumbnails to apply this change?',
-            ['Yes', 'No']
-        );
-
-        if (userChoice === 'Yes') {
-             // Get all models
-            const sortSelect = document.getElementById('sort-select');
-            const allModels = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-            
-            if (allModels.length > 0) {
-                const serverJob = await startAndWatchServerThumbnailJob('all', 'Regenerate Thumbnails');
-                if (serverJob) {
-                  if (serverJob.backgrounded || serverJob.cancelled) {
-                    return;
-                  }
-                  invalidatePrimaryThumbnailCache();
-                  await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
-                  const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-                  await renderFiles(models);
-                  return;
-                }
-
-                window.ThumbnailProgress?.show({
-                  title: 'Regenerate Thumbnails',
-                  phase: 'Clearing existing thumbnails...',
-                  cancellable: false
-                });
-                 // Purge existing thumbnails to force regeneration
-                await window.electron.purgeThumbnails();
-                invalidatePrimaryThumbnailCache();
-                
-                // Regenerate thumbnails for all models
-                await generateThumbnailsForModels(allModels);
-                
-                await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
-                
-                // Refresh the grid to show the new thumbnails
-                const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-                await renderFiles(models);
-            }
-        }
-    }
-  });
+    window.ThumbnailProgress?.show({ title: 'Regenerate Thumbnails', phase: 'Clearing existing thumbnails...', cancellable: false });
+    await window.electron.purgeThumbnails();
+    invalidatePrimaryThumbnailCache();
+    await generateThumbnailsForModels(allModels);
+    await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
+    await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0));
+  };
 
   // Function to apply theme colors
   function applyThemeColors(theme) {
@@ -7823,13 +5107,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.setProperty('--primary-gradient-hover', accentHover);
   }
 
+  window.applyThemeColors = applyThemeColors;
+
   // Load theme on startup
   const savedTheme = await window.electron.getSetting('uiTheme') || 'modern-cyan';
   document.body.setAttribute('data-theme', savedTheme);
-  const uiThemeSelect = document.getElementById('ui-theme');
-  if (uiThemeSelect) {
-    uiThemeSelect.value = savedTheme;
-  }
   applyThemeColors(savedTheme);
 
   // Add dismiss button handler
@@ -8117,13 +5399,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear the input and close the dialog
         document.getElementById('new-parent-name').value = '';
         newParentDialog.close();
-        
-        // Refresh metadata editor list if dialog is open
-        const metadataDialog = document.getElementById('metadata-editor-dialog');
-        if (metadataDialog && metadataDialog.open && currentMetadataType === 'parentModel') {
-          allMetadata = []; // Clear cache to force refresh
-          await refreshMetadataList('parentModel');
-        }
       }
     });
   }
@@ -8450,10 +5725,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
  
 
-  // About dialog handler
+  // Keyboard Shortcuts and About are React (src/web/KeyboardShortcutsDialog.tsx, AboutDialog.tsx).
   window._electronRealEventHandlers['open-keyboard-shortcuts'] = function() {
-    const dialog = document.getElementById('keyboard-shortcuts-dialog');
-    if (dialog) dialog.showModal();
+    window.openKeyboardShortcuts?.();
   };
   if (window._electronPendingEvents['open-keyboard-shortcuts']) {
     window._electronPendingEvents['open-keyboard-shortcuts'].forEach((args) => {
@@ -8462,22 +5736,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-keyboard-shortcuts'];
   }
 
-  window._electronRealEventHandlers['open-about'] = async function() {
-    const dialog = document.getElementById('about-dialog');
-    if (!dialog) {
-      console.error('About dialog element not found');
-      return;
-    }
-    dialog.showModal();
-    bindAboutCloseButton();
-    try {
-      await initializeAboutDialog();
-    } catch (error) {
-      console.error('Error initializing about dialog:', error);
-      const versionEl = document.getElementById('about-version');
-      if (versionEl) versionEl.textContent = 'Version: Unknown';
-    }
+  window._electronRealEventHandlers['open-about'] = function() {
+    window.openAbout?.();
   };
+
   if (window._electronPendingEvents['open-about']) {
     window._electronPendingEvents['open-about'].forEach((args) => {
       window._electronRealEventHandlers['open-about'].apply(null, args);
@@ -8496,32 +5758,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-server-mode-info'];
   }
 
-  // Stats dialog handler
-  const statsDialog = document.getElementById('stats-dialog');
-  if (statsDialog) {
-    // Clean up charts when dialog closes (set up once, not per-open)
-    statsDialog.addEventListener('close', () => {
-      if (fileTypeChart) {
-        fileTypeChart.destroy();
-        fileTypeChart = null;
-      }
-      if (metadataChart) {
-        metadataChart.destroy();
-        metadataChart = null;
-      }
-    });
-  }
-  
-  window._electronRealEventHandlers['open-stats'] = async function() {
-    const dialog = document.getElementById('stats-dialog');
-    if (dialog) {
-      try {
-        await initializeStatsDialog();
-        dialog.showModal();
-      } catch (error) {
-        console.error('Error showing stats dialog:', error);
-      }
-    }
+  // Library Stats is React (src/web/StatsDialog.tsx); it defines window.openStats.
+  window._electronRealEventHandlers['open-stats'] = function() {
+    window.openStats?.();
   };
   if (window._electronPendingEvents['open-stats']) {
     window._electronPendingEvents['open-stats'].forEach((args) => {
@@ -8530,16 +5769,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-stats'];
   }
 
-  window._electronRealEventHandlers['open-system-report'] = async function() {
-    const dialog = document.getElementById('system-report-dialog');
-    if (dialog) {
-      try {
-        dialog.showModal();
-        await initializeSystemReport();
-      } catch (error) {
-        console.error('Error showing system report dialog:', error);
-      }
-    }
+  // System Report is React (src/web/SystemReportDialog.tsx); it defines window.openSystemReport.
+  window._electronRealEventHandlers['open-system-report'] = function() {
+    window.openSystemReport?.();
   };
   if (window._electronPendingEvents['open-system-report']) {
     window._electronPendingEvents['open-system-report'].forEach((args) => {
@@ -8547,205 +5779,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-system-report'];
   }
-
-  // Chart instances storage
-  let fileTypeChart = null;
-  let metadataChart = null;
-
-  // Initialize stats dialog with data
-  async function initializeStatsDialog() {
-    try {
-      const stats = await window.electron.getStats();
-      
-      // Update total models
-      document.getElementById('stats-total-models').textContent = stats.totalModels.toLocaleString();
-      
-      // Update file types (count + disk usage)
-      document.getElementById('stats-type-3mf').textContent = stats.fileTypes.threeMf.toLocaleString();
-      document.getElementById('stats-type-stl').textContent = stats.fileTypes.stl.toLocaleString();
-      const otherEl = document.getElementById('stats-type-other');
-      if (otherEl) otherEl.textContent = (stats.fileTypes.other != null ? stats.fileTypes.other : 0).toLocaleString();
-
-      const threeMfBytesEl = document.getElementById('stats-type-3mf-bytes');
-      const stlBytesEl = document.getElementById('stats-type-stl-bytes');
-      const otherBytesEl = document.getElementById('stats-type-other-bytes');
-      const totalBytesEl = document.getElementById('stats-total-bytes');
-      if (threeMfBytesEl) threeMfBytesEl.textContent = `(${formatFileSize(stats.fileTypes.threeMfBytes || 0)})`;
-      if (stlBytesEl) stlBytesEl.textContent = `(${formatFileSize(stats.fileTypes.stlBytes || 0)})`;
-      if (otherBytesEl) otherBytesEl.textContent = `(${formatFileSize(stats.fileTypes.otherBytes || 0)})`;
-      if (totalBytesEl) totalBytesEl.textContent = formatFileSize(stats.totalBytes || 0);
-      
-      // Update archived models
-      document.getElementById('stats-archived').textContent = stats.archivedModels.toLocaleString();
-      
-      // Update percentages
-      document.getElementById('stats-percent-designer').textContent = stats.percentages.withDesigner + '%';
-      document.getElementById('stats-percent-parent').textContent = stats.percentages.withParentModel + '%';
-      document.getElementById('stats-percent-license').textContent = stats.percentages.withLicense + '%';
-      document.getElementById('stats-percent-tags').textContent = stats.percentages.withTags + '%';
-      
-      // Update tags
-      document.getElementById('stats-total-tags').textContent = stats.tags.total.toLocaleString();
-      const mostUsedTagElement = document.getElementById('stats-most-used-tag');
-      if (stats.tags.mostUsed) {
-        mostUsedTagElement.textContent = `${stats.tags.mostUsed.name} (${stats.tags.mostUsed.count})`;
-      } else {
-        mostUsedTagElement.textContent = 'None';
-      }
-      
-      // Destroy existing charts if they exist
-      if (fileTypeChart) {
-        fileTypeChart.destroy();
-        fileTypeChart = null;
-      }
-      if (metadataChart) {
-        metadataChart.destroy();
-        metadataChart = null;
-      }
-      
-      // Create pie chart for file types
-      const fileTypeCanvas = document.getElementById('file-type-chart');
-      if (fileTypeCanvas && typeof Chart !== 'undefined') {
-        const ctx = fileTypeCanvas.getContext('2d');
-        const otherCount = stats.fileTypes.other != null ? stats.fileTypes.other : 0;
-        fileTypeChart = new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: otherCount > 0 ? ['3MF', 'STL', 'Other'] : ['3MF', 'STL'],
-            datasets: [{
-              data: otherCount > 0 ? [stats.fileTypes.threeMf, stats.fileTypes.stl, otherCount] : [stats.fileTypes.threeMf, stats.fileTypes.stl],
-              backgroundColor: otherCount > 0 ? ['rgba(74, 158, 255, 0.8)', 'rgba(0, 212, 255, 0.8)', 'rgba(128, 128, 128, 0.8)'] : ['rgba(74, 158, 255, 0.8)', 'rgba(0, 212, 255, 0.8)'],
-              borderColor: otherCount > 0 ? ['rgba(74, 158, 255, 1)', 'rgba(0, 212, 255, 1)', 'rgba(128, 128, 128, 1)'] : ['rgba(74, 158, 255, 1)', 'rgba(0, 212, 255, 1)'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 10
-                  },
-                  padding: 8,
-                  boxWidth: 12
-                }
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    const label = context.label || '';
-                    const value = context.parsed || 0;
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                    const bytesByLabel = {
-                      '3MF': stats.fileTypes.threeMfBytes || 0,
-                      'STL': stats.fileTypes.stlBytes || 0,
-                      'Other': stats.fileTypes.otherBytes || 0
-                    };
-                    const bytes = bytesByLabel[label] || 0;
-                    return `${label}: ${value.toLocaleString()} (${percentage}%) · ${formatFileSize(bytes)}`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-      
-      // Create bar chart for metadata completion
-      const metadataCanvas = document.getElementById('metadata-chart');
-      if (metadataCanvas && typeof Chart !== 'undefined') {
-        const ctx = metadataCanvas.getContext('2d');
-        metadataChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: ['Designer', 'Parent', 'License', 'Tags'],
-            datasets: [{
-              label: 'Completion %',
-              data: [
-                parseFloat(stats.percentages.withDesigner),
-                parseFloat(stats.percentages.withParentModel),
-                parseFloat(stats.percentages.withLicense),
-                parseFloat(stats.percentages.withTags)
-              ],
-              backgroundColor: [
-                'rgba(74, 158, 255, 0.8)',
-                'rgba(0, 212, 255, 0.8)',
-                'rgba(91, 159, 255, 0.8)',
-                'rgba(107, 170, 255, 0.8)'
-              ],
-              borderColor: [
-                'rgba(74, 158, 255, 1)',
-                'rgba(0, 212, 255, 1)',
-                'rgba(91, 159, 255, 1)',
-                'rgba(107, 170, 255, 1)'
-              ],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            scales: {
-              x: {
-                beginAtZero: true,
-                max: 100,
-                ticks: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 9
-                  },
-                  callback: function(value) {
-                    return value + '%';
-                  }
-                },
-                grid: {
-                  color: 'rgba(255, 255, 255, 0.1)'
-                }
-              },
-              y: {
-                ticks: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 9
-                  }
-                },
-                grid: {
-                  color: 'rgba(255, 255, 255, 0.1)'
-                }
-              }
-            },
-            plugins: {
-              legend: {
-                display: false
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    return context.parsed.x.toFixed(1) + '%';
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing stats dialog:', error);
-      throw error;
-    }
-  }
-
-  // Website link handler
-  document.getElementById('website-link')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await window.electron.openExternal('https://github.com/ngolston/JusttPrint');
-  });
 
   // Initialize new designer dialog handlers
   if (newDesignerDialog) {
@@ -8873,13 +5906,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             licenseSelect.value = newLicenseName;
           }
         }
-        
-        // Refresh metadata editor list if dialog is open
-        const metadataDialog = document.getElementById('metadata-editor-dialog');
-        if (metadataDialog && metadataDialog.open && currentMetadataType === 'license') {
-          allMetadata = []; // Clear cache to force refresh
-          await refreshMetadataList('license');
-        }
       }
     });
   }
@@ -8887,9 +5913,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize dialog handlers
   initializeDialogHandlers();
 
+  // Backup/Restore is React (src/web/BackupRestoreDialog.tsx); it defines window.openBackupRestore.
   window._electronRealEventHandlers['open-backup-restore'] = function() {
-    const dialog = document.getElementById('backup-restore-dialog');
-    if (dialog) dialog.showModal();
+    window.openBackupRestore?.();
   };
   if (window._electronPendingEvents['open-backup-restore']) {
     window._electronPendingEvents['open-backup-restore'].forEach((args) => {
@@ -8898,148 +5924,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-backup-restore'];
   }
 
-  async function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error);
-      reader.onload = () => {
-        const buffer = reader.result;
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-        }
-        resolve(btoa(binary));
-      };
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  async function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error);
-      reader.onload = () => resolve(reader.result || '');
-      reader.readAsText(file);
-    });
-  }
-
-  function promptForBackupFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.db';
-      input.style.display = 'none';
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        input.remove();
-        resolve(file);
-      });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-
-  function promptForLibraryImportFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json,application/json';
-      input.style.display = 'none';
-      input.addEventListener('change', () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        input.remove();
-        resolve(file);
-      });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-
-  window._restoreBackupFromDialogImpl = async function() {
-    try {
-      const confirmResult = await window.electron.showMessage(
-        'Confirm Restore',
-        'Warning: Restoring from backup will replace all current data. This cannot be undone. Continue?',
-        ['Yes', 'No']
-      );
-      if (confirmResult !== 'Yes') return;
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const file = await promptForBackupFile();
-        if (!file) return;
-        const base64 = await readFileAsBase64(file);
-        const result = await window.electron.restoreDatabase({ base64 });
-        if (result && result.success) {
-          await window.electron.showMessage('Success', 'Database restored successfully. The application will now reload.');
-          window.location.reload();
-        } else {
-          await window.electron.showMessage('Error', result?.message || 'Failed to restore database');
-        }
-        return;
-      }
-      const success = await window.electron.restoreDatabase();
-      if (success) {
-        await window.electron.showMessage('Success', 'Database restored successfully. The application will now reload.');
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Restore error:', error);
-      await window.electron.showMessage('Error', 'Failed to restore database');
-    }
-  };
-
-  window._importLibraryFromDialogImpl = async function() {
-    try {
-      const result = await window.electron.showMessage(
-        'Confirm Import',
-        'This will merge the imported library with your current library. Existing models will be updated. Continue?',
-        ['Yes', 'No']
-      );
-      if (result !== 'Yes') return;
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const file = await promptForLibraryImportFile();
-        if (!file) return;
-        const json = await readFileAsText(file);
-        const importResult = await window.electron.importLibrary({ json });
-        if (importResult && importResult.success) {
-          const message = `Library imported successfully. ${importResult.imported} new models added, ${importResult.updated} models updated.`;
-          await window.electron.showMessage('Success', message);
-          if (typeof refreshModelDisplay === 'function') await refreshModelDisplay();
-        } else {
-          await window.electron.showMessage('Error', importResult?.message || 'Failed to import library');
-        }
-        return;
-      }
-      const importResult = await window.electron.importLibrary();
-      if (importResult && importResult.success) {
-        const message = `Library imported successfully. ${importResult.imported} new models added, ${importResult.updated} models updated.`;
-        await window.electron.showMessage('Success', message);
-        if (typeof refreshModelDisplay === 'function') await refreshModelDisplay();
-      }
-    } catch (error) {
-      console.error('Import library error:', error);
-      await window.electron.showMessage('Error', 'Failed to import library: ' + (error.message || 'Unknown error'));
-    }
-  };
-
-  document.getElementById('backup-button')?.addEventListener('click', () => window.createBackupFromDialog());
-  document.getElementById('restore-button')?.addEventListener('click', () => window.restoreBackupFromDialog());
-  document.getElementById('export-library-button')?.addEventListener('click', () => window.exportLibraryFromDialog());
-  document.getElementById('import-library-button')?.addEventListener('click', () => window.importLibraryFromDialog());
-
-  document.getElementById('save-backup-restore')?.addEventListener('click', () => {
-    document.getElementById('backup-restore-dialog').close();
-  });
-
-  // Assign real handler for open-dedup (early listener already registered; avoids "No listeners" in Docker/server)
+  // De-Dup is React (src/web/DedupDialog.tsx); it defines window.openDedup.
   window._electronRealEventHandlers['open-dedup'] = function() {
-    const dialog = prepareDedupDialog();
-    if (!dialog) return;
-    loadDuplicateFiles();
+    window.openDedup?.();
   };
+
   if (window._electronPendingEvents['open-dedup']) {
     window._electronPendingEvents['open-dedup'].forEach((args) => {
       window._electronRealEventHandlers['open-dedup'].apply(null, args);
@@ -9049,10 +5938,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // View Entire Library is bound once later (see onViewEntireLibraryClick).
 
-  // Add Tag Manager functionality
-  let allTags = []; // Store all tags for filtering
-
-  async function refreshTagManagerRelatedUi() {
+  // Called by the Tag Manager (React) after each change.
+  window.refreshTagRelatedUi = async function refreshTagRelatedUi() {
     try {
       await populateTagSelect('tag-select', 'model-tags');
       await populateTagSelect('multi-tag-select', 'multi-tags');
@@ -9074,25 +5961,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Error refreshing tag-related UI:', error);
     }
-  }
+  };
 
-  function openTagManager() {
-    const tagManagerDialog = document.getElementById('tag-manager-dialog');
-    if (!tagManagerDialog) return;
-    tagManagerDialog.classList.remove('modal-fullscreen');
-    if (typeof window.syncTagManagerFullscreenButton === 'function') {
-      window.syncTagManagerFullscreenButton(false);
-    }
-    allTags = [];
-    refreshTagManagerList();
-    tagManagerDialog.showModal();
-    const searchEl = document.getElementById('tag-manager-search');
-    if (searchEl) searchEl.value = '';
-  }
-  window.openTagManager = openTagManager;
-
+  // The Tag Manager is React (src/web/TagManagerDialog.tsx); it defines window.openTagManager.
   window._electronRealEventHandlers['open-tag-manager'] = function() {
-    openTagManager();
+    window.openTagManager?.();
   };
   if (window._electronPendingEvents['open-tag-manager']) {
     window._electronPendingEvents['open-tag-manager'].forEach((args) => {
@@ -9101,23 +5974,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-tag-manager'];
   }
 
-  document.getElementById('dedup-easy-button')?.addEventListener('click', () => window.dedupEasyFromDialog());
-  document.getElementById('dedup-clear-button')?.addEventListener('click', () => window.dedupClearFromDialog());
-  document.getElementById('dedup-scope-current')?.addEventListener('change', onDedupScopeChange);
-  document.getElementById('dedup-scope-entire')?.addEventListener('change', onDedupScopeChange);
 
-  // Free large dedup payloads when the dialog closes
-  document.getElementById('dedup-dialog')?.addEventListener('close', () => {
-    window._dedupScope = null;
-    teardownDedupVirtualList();
-    const groupsEl = document.querySelector('#dedup-dialog .duplicate-groups');
-    if (groupsEl) groupsEl.innerHTML = '';
-  });
-
-  // Add close event handler to refresh UI when tag manager closes
-  const tagManagerDialog = document.getElementById('tag-manager-dialog');
-  if (tagManagerDialog) {
-    tagManagerDialog.addEventListener('close', async () => {
+  // Called by the Tag Manager (React) when it closes after changes.
+  window.refreshAfterTagManagerClose = async function refreshAfterTagManagerClose() {
       try {
         // Small delay to ensure database writes are flushed
         await new Promise(resolve => setTimeout(resolve, 150));
@@ -9177,239 +6036,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (error) {
         console.error('Error refreshing UI after tag manager close:', error);
       }
-    });
-  }
-
-  async function refreshTagManagerList(searchTerm = '') {
-    const tagList = document.getElementById('tag-manager-list');
-    tagList.innerHTML = '';
-    
-    try {
-      // Get all tags if we don't have them yet or if no search term
-      if (allTags.length === 0 || !searchTerm) {
-        allTags = await window.electron.getAllTags();
-      }
-      
-      // Filter tags based on search term
-      const filteredTags = searchTerm 
-        ? allTags.filter(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        : allTags.slice();
-      
-      // Sort tags alphabetically by name
-      filteredTags.sort((a, b) => a.name.localeCompare(b.name));
-      
-      filteredTags.forEach(tag => {
-        const tagElement = document.createElement('div');
-        tagElement.className = 'tag';
-        tagElement.dataset.tagId = String(tag.id);
-        tagElement.dataset.tagName = tag.name;
-        tagElement.title = `${tag.name} — click to rename`;
-
-        const textSpan = document.createElement('span');
-        textSpan.className = 'tag-text';
-        textSpan.textContent = tag.name;
-
-        const countSpan = document.createElement('span');
-        countSpan.className = 'tag-count';
-        countSpan.textContent = String(tag.model_count);
-
-        const removeSpan = document.createElement('span');
-        removeSpan.className = 'tag-remove';
-        removeSpan.textContent = '×';
-        removeSpan.title = 'Delete tag';
-
-        tagElement.appendChild(textSpan);
-        tagElement.appendChild(countSpan);
-        tagElement.appendChild(removeSpan);
-
-        const deleteThisTag = async () => {
-          if (tag.model_count > 0) {
-            const response = await window.electron.showMessage(
-              'Delete Tag',
-              `This tag is used by ${tag.model_count} model(s). Are you sure you want to delete it?`,
-              ['Yes', 'No']
-            );
-            if (response !== 'Yes') return false;
-          }
-          await window.electron.deleteTag(tag.id);
-          return true;
-        };
-
-        removeSpan.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          try {
-            const deleted = await deleteThisTag();
-            if (!deleted) return;
-            allTags = [];
-            await refreshTagManagerList(searchTerm);
-            await refreshTagManagerRelatedUi();
-          } catch (error) {
-            console.error('Error deleting tag:', error);
-            await window.electron.showMessage('Error', 'Failed to delete tag');
-          }
-        });
-
-        tagElement.addEventListener('click', (e) => {
-          if (e.target.closest('.tag-remove') || tagElement.querySelector('.tag-edit-input')) return;
-          startTagInlineEdit(tagElement, tag, searchTerm);
-        });
-        
-        tagList.appendChild(tagElement);
-      });
-    } catch (error) {
-      console.error('Error loading tags:', error);
-    }
-  }
-
-  function startTagInlineEdit(tagElement, tag, searchTerm) {
-    const textSpan = tagElement.querySelector('.tag-text');
-    if (!textSpan || tagElement.querySelector('.tag-edit-input')) return;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'tag-edit-input';
-    input.value = tag.name;
-    input.setAttribute('aria-label', `Rename tag ${tag.name}`);
-    input.spellcheck = false;
-    textSpan.replaceWith(input);
-    input.focus();
-    input.select();
-
-    let finished = false;
-
-    const restoreText = () => {
-      const span = document.createElement('span');
-      span.className = 'tag-text';
-      span.textContent = tag.name;
-      if (input.parentNode) input.replaceWith(span);
-    };
-
-    const commit = async () => {
-      if (finished) return;
-      finished = true;
-      const newName = input.value.trim();
-      if (newName === tag.name) {
-        restoreText();
-        return;
-      }
-
-      try {
-        if (!newName) {
-          const message = tag.model_count > 0
-            ? `This tag is used by ${tag.model_count} model(s). Delete "${tag.name}"?`
-            : `Delete the tag "${tag.name}"?`;
-          const response = await window.electron.showMessage('Delete Tag', message, ['Yes', 'No']);
-          if (response !== 'Yes') {
-            finished = false;
-            restoreText();
-            return;
-          }
-          await window.electron.deleteTag(tag.id);
-        } else {
-          const existing = allTags.find((item) =>
-            item.id !== tag.id && item.name.toLowerCase() === newName.toLowerCase()
-          );
-          if (existing) {
-            const response = await window.electron.showMessage(
-              'Merge Tags',
-              `A tag named "${existing.name}" already exists. Merge "${tag.name}" into "${existing.name}"? Models that had either tag will keep "${existing.name}".`,
-              ['Merge', 'Cancel']
-            );
-            if (response !== 'Merge') {
-              finished = false;
-              restoreText();
-              return;
-            }
-          }
-          if (typeof window.electron.renameTag !== 'function') {
-            throw new Error('Tag rename is not available');
-          }
-          await window.electron.renameTag(tag.id, newName);
-        }
-        allTags = [];
-        await refreshTagManagerList(searchTerm);
-        await refreshTagManagerRelatedUi();
-      } catch (error) {
-        console.error('Error updating tag:', error);
-        finished = false;
-        restoreText();
-        await window.electron.showMessage('Error', 'Failed to update tag');
-      }
-    };
-
-    input.addEventListener('click', (e) => e.stopPropagation());
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        commit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        if (finished) return;
-        finished = true;
-        restoreText();
-      }
-    });
-    input.addEventListener('blur', () => {
-      commit();
-    });
-  }
-
-  // Prevent Enter in tag fields from closing the dialog
-  document.querySelector('#tag-manager-dialog form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-  });
+  };
 
   document.getElementById('multi-edit-tags-button')?.addEventListener('click', () => {
-    openTagManager();
+    window.openTagManager?.();
   });
 
-  // Add search functionality
-  document.getElementById('tag-manager-search').addEventListener('input', debounce(async (e) => {
-    await refreshTagManagerList(e.target.value.trim());
-  }, 300));
-
-  // Add clear search functionality
-  document.getElementById('clear-tag-search')?.addEventListener('click', async () => {
-    const searchInput = document.getElementById('tag-manager-search');
-    searchInput.value = '';
-    await refreshTagManagerList();
-  });
-
-  async function createTagFromManagerInput() {
-    const input = document.getElementById('new-tag-manager-name');
-    const tagName = input.value.trim();
-    
-    if (tagName) {
-      try {
-        await window.electron.saveTag(tagName);
-        input.value = '';
-        allTags = []; // Reset tags cache to force refresh
-        const searchTerm = document.getElementById('tag-manager-search').value.trim();
-        await refreshTagManagerList(searchTerm);
-        await populateTagSelect();
-        await populateTagFilter();
-      } catch (error) {
-        console.error('Error saving tag:', error);
-        await window.electron.showMessage('Error', 'Failed to create tag');
-      }
-    }
+  // Organize Library is React (src/web/OrganizeLibraryDialog.tsx); it defines window.openOrganizeLibrary.
+  window._electronRealEventHandlers['open-organize-library'] = function() {
+    window.openOrganizeLibrary?.();
+  };
+  if (window._electronPendingEvents['open-organize-library']) {
+    window._electronPendingEvents['open-organize-library'].forEach((args) => {
+      window._electronRealEventHandlers['open-organize-library'].apply(null, args);
+    });
+    delete window._electronPendingEvents['open-organize-library'];
   }
 
-  document.getElementById('add-tag-manager-button')?.addEventListener('click', createTagFromManagerInput);
-  document.getElementById('new-tag-manager-name')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      createTagFromManagerInput();
-    }
-  });
-
+  // Purge Models is React (src/web/PurgeModelsDialog.tsx); it defines window.openPurgeModels.
   window._electronRealEventHandlers['open-purge-models'] = function() {
-    const dialog = document.getElementById('purge-models-dialog');
-    if (dialog) dialog.showModal();
+    window.openPurgeModels?.();
   };
   if (window._electronPendingEvents['open-purge-models']) {
     window._electronPendingEvents['open-purge-models'].forEach((args) => {
@@ -9418,268 +6064,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-purge-models'];
   }
 
-  // Metadata Editor functionality
-  let allMetadata = []; // Store all metadata for filtering
-  let currentMetadataType = 'designer'; // Track current active tab
-  let metadataEditorChanged = false; // Track if any changes were made
-
+  // The Metadata Manager is React (src/web/MetadataEditorDialog.tsx); it defines window.openMetadataEditor.
   window._electronRealEventHandlers['open-metadata-editor'] = function() {
-    const metadataDialog = document.getElementById('metadata-editor-dialog');
-    if (!metadataDialog) return;
-    currentMetadataType = 'designer';
-    metadataEditorChanged = false;
-    updateMetadataTabs();
-    refreshMetadataList('designer');
-    metadataDialog.showModal();
-    const searchInput = document.getElementById('metadata-editor-search');
-    if (searchInput) searchInput.value = '';
-    initializeMetadataTabs();
-    initializeMetadataSearch();
-
-    // Refresh grid when dialog closes (only if changes were made)
-    const closeHandler = async () => {
-      if (metadataEditorChanged) {
-        // Force full grid re-render by clearing cache
-        const container = document.querySelector('.file-grid');
-        if (container) {
-          container.currentModels = null; // Clear cache to force re-render
-        }
-        // Small delay to ensure database writes are flushed
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Refresh the grid to show updated metadata values
-        if (typeof window.performCombinedSearch === 'function') {
-          await window.performCombinedSearch();
-        } else {
-          // Fallback: Get current sort option and refresh the grid
-          const sortSelect = document.getElementById('sort-select');
-          const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-          await renderFiles(models);
-        }
-        metadataEditorChanged = false; // Reset flag after refresh
-      }
-    };
-    
-    metadataDialog.removeEventListener('close', closeHandler);
-    metadataDialog.addEventListener('close', closeHandler);
+    window.openMetadataEditor?.();
   };
   if (window._electronPendingEvents['open-metadata-editor']) {
     window._electronPendingEvents['open-metadata-editor'].forEach((args) => {
       window._electronRealEventHandlers['open-metadata-editor'].apply(null, args);
     });
     delete window._electronPendingEvents['open-metadata-editor'];
-  }
-
-  // Tab switching functionality - initialize when dialog is available
-  function initializeMetadataTabs() {
-    document.querySelectorAll('.metadata-tab').forEach(tab => {
-      // Remove existing listeners to avoid duplicates
-      const newTab = tab.cloneNode(true);
-      tab.parentNode.replaceChild(newTab, tab);
-      
-      newTab.addEventListener('click', () => {
-        const type = newTab.dataset.type;
-        currentMetadataType = type;
-        updateMetadataTabs();
-        refreshMetadataList(type);
-        // Clear search when switching tabs
-        const searchInput = document.getElementById('metadata-editor-search');
-        if (searchInput) {
-          searchInput.value = '';
-        }
-      });
-    });
-  }
-
-  // Initialize tabs on DOMContentLoaded as well
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeMetadataTabs();
-  });
-
-  function updateMetadataTabs() {
-    document.querySelectorAll('.metadata-tab').forEach(tab => {
-      if (tab.dataset.type === currentMetadataType) {
-        tab.classList.add('active');
-      } else {
-        tab.classList.remove('active');
-      }
-    });
-
-    // Update label
-    const label = document.getElementById('metadata-type-label');
-    const labels = {
-      'designer': 'Designers',
-      'parentModel': 'Parent Models',
-      'license': 'Licenses'
-    };
-    if (label) {
-      label.textContent = labels[currentMetadataType] || 'Metadata';
-    }
-  }
-
-  async function refreshMetadataList(type, searchTerm = '') {
-    const metadataList = document.getElementById('metadata-editor-list');
-    metadataList.innerHTML = '';
-    
-    try {
-      // Always refresh metadata to ensure we have the latest data
-      allMetadata = await window.electron.getAllMetadata();
-      
-      // Filter metadata by type and search term
-      let filteredMetadata = allMetadata.filter(item => item.type === type);
-      
-      // Deduplicate by name (case-insensitive) - keep the one with the highest model_count
-      const metadataMap = new Map();
-      filteredMetadata.forEach(item => {
-        const key = item.name.toLowerCase();
-        const existing = metadataMap.get(key);
-        if (!existing || (item.model_count || 0) > (existing.model_count || 0)) {
-          metadataMap.set(key, item);
-        }
-      });
-      filteredMetadata = Array.from(metadataMap.values());
-      
-      // Further filter by search term if provided
-      if (searchTerm) {
-        filteredMetadata = filteredMetadata.filter(item => 
-          item.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      
-      // Sort alphabetically by name
-      filteredMetadata.sort((a, b) => a.name.localeCompare(b.name));
-      
-      if (filteredMetadata.length === 0) {
-        metadataList.innerHTML = '<div class="no-metadata">No items found</div>';
-        return;
-      }
-      
-      filteredMetadata.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'metadata-item';
-        itemElement.innerHTML = `
-          <span class="metadata-name">${escapeHtml(item.name)}</span>
-          <span class="metadata-count">${item.model_count}</span>
-          <button type="button" class="metadata-rename" title="Rename">✎</button>
-          <button type="button" class="metadata-delete" title="Delete">×</button>
-        `;
-        
-        // Rename functionality
-        itemElement.querySelector('.metadata-rename')?.addEventListener('click', async () => {
-          const newName = await window.electron.showInputDialog({
-            title: `Rename ${type === 'designer' ? 'Designer' : type === 'parentModel' ? 'Parent Model' : 'License'}`,
-            message: `Enter new name for "${item.name}":`,
-            defaultValue: item.name,
-            placeholder: 'Enter new name...'
-          });
-          
-          if (newName && newName.trim() !== '' && newName.trim() !== item.name) {
-            try {
-              // Check if the new name already exists (merge scenario)
-              const trimmedNewName = newName.trim();
-              const existingItem = allMetadata.find(m => 
-                m.type === type && 
-                m.name.toLowerCase() === trimmedNewName.toLowerCase() &&
-                m.name !== item.name
-              );
-              
-              let shouldProceed = true;
-              
-              // If merging, show confirmation dialog
-              if (existingItem) {
-                const confirmResult = await window.electron.showMessageBox({
-                  type: 'question',
-                  title: 'Merge Metadata',
-                  message: `A ${type === 'designer' ? 'designer' : type === 'parentModel' ? 'parent model' : 'license'} with the name "${trimmedNewName}" already exists.`,
-                  detail: `This will merge "${item.name}" (${item.model_count} model${item.model_count !== 1 ? 's' : ''}) into "${trimmedNewName}" (${existingItem.model_count} model${existingItem.model_count !== 1 ? 's' : ''}).`,
-                  buttons: ['Merge', 'Cancel'],
-                  defaultId: 0,
-                  cancelId: 1
-                });
-                
-                shouldProceed = confirmResult.response === 0;
-              }
-              
-              if (shouldProceed) {
-                const result = await window.electron.renameMetadata(type, item.name, trimmedNewName);
-                metadataEditorChanged = true; // Mark that changes were made
-                allMetadata = []; // Reset cache to force refresh
-                await refreshMetadataList(type, searchTerm);
-                // Refresh all relevant dropdowns
-                await refreshMetadataDropdowns();
-                // Force full grid re-render by clearing cache
-                const container = document.querySelector('.file-grid');
-                if (container) {
-                  container.currentModels = null; // Clear cache to force re-render
-                }
-                // Refresh the grid immediately to show updated metadata values
-                // Small delay to ensure database write is complete
-                await new Promise(resolve => setTimeout(resolve, 50));
-                if (typeof window.performCombinedSearch === 'function') {
-                  await window.performCombinedSearch();
-                } else {
-                  const sortSelect = document.getElementById('sort-select');
-                  const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-                  await renderFiles(models);
-                }
-                
-                // Show success message if merge occurred
-                if (result.merged) {
-                  await window.electron.showMessage('Success', 
-                    `Successfully merged "${item.name}" into "${trimmedNewName}". ${result.updated} model${result.updated !== 1 ? 's' : ''} updated.`);
-                }
-              }
-            } catch (error) {
-              console.error('Error renaming metadata:', error);
-              await window.electron.showMessage('Error', error.message || 'Failed to rename');
-            }
-          }
-        });
-        
-        // Delete functionality
-        itemElement.querySelector('.metadata-delete')?.addEventListener('click', async () => {
-          const typeLabel = type === 'designer' ? 'Designer' : type === 'parentModel' ? 'Parent Model' : 'License';
-          const response = await window.electron.showMessage(
-            `Delete ${typeLabel}`,
-            `Delete for ${item.model_count} model${item.model_count !== 1 ? 's' : ''}?`,
-            ['Yes', 'No']
-          );
-          
-          if (response === 'Yes') {
-            try {
-              await window.electron.deleteMetadata(type, item.name);
-              metadataEditorChanged = true; // Mark that changes were made
-              allMetadata = []; // Reset cache to force refresh
-              await refreshMetadataList(type, searchTerm);
-              // Refresh all relevant dropdowns
-              await refreshMetadataDropdowns();
-              // Force full grid re-render by clearing cache
-              const container = document.querySelector('.file-grid');
-              if (container) {
-                container.currentModels = null; // Clear cache to force re-render
-              }
-              // Refresh the grid immediately to show updated metadata values
-              // Small delay to ensure database write is complete
-              await new Promise(resolve => setTimeout(resolve, 50));
-              if (typeof window.performCombinedSearch === 'function') {
-                await window.performCombinedSearch();
-              } else {
-                const sortSelect = document.getElementById('sort-select');
-                const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-                await renderFiles(models);
-              }
-            } catch (error) {
-              console.error('Error deleting metadata:', error);
-              await window.electron.showMessage('Error', 'Failed to delete');
-            }
-          }
-        });
-        
-        metadataList.appendChild(itemElement);
-      });
-    } catch (error) {
-      console.error('Error loading metadata:', error);
-      metadataList.innerHTML = '<div class="error-message">Error loading metadata</div>';
-    }
   }
 
   async function refreshMetadataDropdowns() {
@@ -9711,40 +6104,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Add search functionality - initialize when available
-  function initializeMetadataSearch() {
-    const metadataSearchInput = document.getElementById('metadata-editor-search');
-    if (metadataSearchInput) {
-      // Remove existing listener to avoid duplicates
-      const newInput = metadataSearchInput.cloneNode(true);
-      metadataSearchInput.parentNode.replaceChild(newInput, metadataSearchInput);
-      
-      newInput.addEventListener('input', debounce(async (e) => {
-        await refreshMetadataList(currentMetadataType, e.target.value.trim());
-      }, 300));
+  // After the Metadata Manager renamed or cleared a value: pickers, filters, and the grid.
+  window.refreshAfterMetadataChange = async function refreshAfterMetadataChange() {
+    await refreshMetadataDropdowns();
+    const container = document.querySelector('.file-grid');
+    if (container) container.currentModels = null; // force a full re-render
+    if (typeof window.performCombinedSearch === 'function') {
+      await window.performCombinedSearch();
+    } else {
+      const sortSelect = document.getElementById('sort-select');
+      await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc'));
     }
-
-    // Add clear search functionality
-    const clearButton = document.getElementById('clear-metadata-search');
-    if (clearButton) {
-      // Remove existing listener to avoid duplicates
-      const newButton = clearButton.cloneNode(true);
-      clearButton.parentNode.replaceChild(newButton, clearButton);
-      
-      newButton.addEventListener('click', async () => {
-        const searchInput = document.getElementById('metadata-editor-search');
-        if (searchInput) {
-          searchInput.value = '';
-          await refreshMetadataList(currentMetadataType);
-        }
-      });
-    }
-  }
-
-  // Initialize search on DOMContentLoaded
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeMetadataSearch();
-  });
+  };
 
   window._electronRealEventHandlers['clear-new-flags'] = async function() {
     if (isClearingNewFlags) return;
@@ -9943,34 +6314,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['generate-missing-thumbnails'];
   }
 
-  // Purge Models: full implementation (overwrites early stub so updateModelCounts is available)
-  async function confirmPurgeModelsFromDialog() {
-    try {
-      const success = await window.electron.purgeModels({ confirmedInDialog: true });
-      if (success) {
-        const container = document.querySelector('.file-grid');
-        if (container) {
-          clearFileItemPathIndex();
-          container.innerHTML = '';
-        }
-        await updateModelCounts(0);
-        document.getElementById('purge-models-dialog')?.close();
-        await window.electron.showMessage('Success', 'All models have been purged from the database.');
-        document.getElementById('designer-select').value = '';
-        document.getElementById('parent-select').value = '';
-        document.getElementById('printed-select').value = 'all';
-        const newSelPurge = document.getElementById('new-select');
-        if (newSelPurge) newSelPurge.value = 'all';
-        document.getElementById('tag-filter').value = '';
-        const filamentFilterClear = document.getElementById('filament-filter');
-        if (filamentFilterClear) filamentFilterClear.value = '';
-      }
-    } catch (error) {
-      console.error('Error purging models:', error);
-      await window.electron.showMessage('Error', 'Failed to purge models from the database.');
+  // After Purge Models (src/web/PurgeModelsDialog.tsx): empty the grid and counts, and reset the filters.
+  window.afterModelsPurged = async function afterModelsPurged() {
+    const container = document.querySelector('.file-grid');
+    if (container) {
+      clearFileItemPathIndex();
+      container.innerHTML = '';
     }
-  }
-  window.confirmPurgeModelsFromDialog = confirmPurgeModelsFromDialog;
+    await updateModelCounts(0);
+    for (const [id, value] of [['designer-select', ''], ['parent-select', ''], ['printed-select', 'all'], ['new-select', 'all'], ['tag-filter', ''], ['filament-filter', '']]) {
+      const select = document.getElementById(id);
+      if (select) select.value = value;
+    }
+  };
 
   // Sort-select handler is now managed by search.js via initializeCombinedSearch()
   // which properly calls performCombinedSearch() to re-render with filters preserved
@@ -10339,9 +6695,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Add this near other dialog event listeners
+  // Theme settings are React (src/web/ThemeSettingsDialog.tsx); it defines window.openThemeSettings.
   window._electronRealEventHandlers['open-theme-settings'] = function() {
-    const themeDialog = document.getElementById('settings-dialog');
-    if (themeDialog) themeDialog.showModal();
+    window.openThemeSettings?.();
   };
   if (window._electronPendingEvents['open-theme-settings']) {
     window._electronPendingEvents['open-theme-settings'].forEach((args) => {
@@ -10581,54 +6937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   </p>
   `;
 
-  // Add this function to initialize performance settings
-  async function initializePerformanceSettings() {
-    try {
-      // Load max file size setting
-      const maxFileSize = await window.electron.getSetting('maxFileSizeMB') || '50';
-      const input = document.getElementById('max-file-size');
-      if (input) {
-        input.value = maxFileSize;
-        MAX_FILE_SIZE_MB = parseInt(maxFileSize);
-      }
-    } catch (error) {
-      console.error('Error initializing performance settings:', error);
-    }
-  }
-
-  async function savePerformanceSettings() {
-    try {
-      const input = document.getElementById('max-file-size');
-      if (!input) {
-        throw new Error('Could not find max file size input');
-      }
-
-      const maxFileSize = parseMaxFileSizeMBInput(input.value);
-      
-      // Validate input
-      if (maxFileSize == null) {
-        throw new Error('Invalid max file size. Must be at least 1 MB.');
-      }
-
-      // Save to database
-      await window.electron.saveSetting('maxFileSizeMB', maxFileSize.toString());
-      
-      // Update the global variable
-      MAX_FILE_SIZE_MB = maxFileSize;
-      
-      // Close dialog and show success message
-      const dialog = document.getElementById('performance-settings-dialog');
-      if (dialog) {
-        dialog.close();
-      }
-      await window.electron.showMessage('Success', 'Performance settings saved successfully');
-    } catch (error) {
-      console.error('Error saving performance settings:', error);
-      await window.electron.showMessage('Error', error.message);
-    }
-  }
-
-  // Add performance settings event listeners (handler registered at top with _openPerformanceSettingsDialog)
+  // Run a Performance Settings open that arrived before this point (handler registered at the top).
   document.addEventListener('DOMContentLoaded', async () => {
     await initializeSettings();
 
@@ -10639,56 +6948,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete window._electronPendingEvents['open-performance-settings'];
     }
 
-    // Save/cancel use onclick in index.html + savePerformanceSettingsFromDialog (avoid duplicate handlers)
-  });
-
-  // Add performance settings dialog handler
-  document.getElementById('performance-settings-dialog').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    
-    try {
-      const newBatchSize = parseInt(document.getElementById('batch-size').value);
-      const newConcurrentRenders = parseInt(document.getElementById('concurrent-renders').value);
-      const newMaxFileSize = parseMaxFileSizeMBInput(document.getElementById('max-file-size').value);
-      const newThumbnailBatchSize = parseInt(document.getElementById('thumbnail-batch-size').value);
-      const newRenderDelay = parseInt(document.getElementById('render-delay').value);
-
-      // Validate inputs
-      if (isNaN(newBatchSize) || newBatchSize < 1 || newBatchSize > 100) {
-        throw new Error('Invalid batch size. Must be between 1 and 100.');
-      }
-      if (isNaN(newConcurrentRenders) || newConcurrentRenders < 1 || newConcurrentRenders > 10) {
-        throw new Error('Invalid concurrent renders. Must be between 1 and 10.');
-      }
-      if (newMaxFileSize == null) {
-        throw new Error('Invalid max file size. Must be at least 1 MB.');
-      }
-      if (isNaN(newThumbnailBatchSize) || newThumbnailBatchSize < 5 || newThumbnailBatchSize > 20) {
-        throw new Error('Invalid thumbnail batch size. Must be between 5 and 20.');
-      }
-      if (isNaN(newRenderDelay) || newRenderDelay < 0 || newRenderDelay > 100) {
-        throw new Error('Invalid render delay. Must be between 0 and 100 ms.');
-      }
-
-      // Save settings
-      await window.electron.saveSetting('batchSize', newBatchSize.toString());
-      await window.electron.saveSetting('maxConcurrentRenders', newConcurrentRenders.toString());
-      await window.electron.saveSetting('maxFileSizeMB', newMaxFileSize.toString());
-      await window.electron.saveSetting('thumbnailBatchSize', newThumbnailBatchSize.toString());
-      await window.electron.saveSetting('renderDelay', newRenderDelay.toString());
-
-      // Update variables
-      BATCH_SIZE = newBatchSize;
-      MAX_CONCURRENT_RENDERS = newConcurrentRenders;
-      MAX_FILE_SIZE_MB = newMaxFileSize;
-      THUMBNAIL_BATCH_SIZE = newThumbnailBatchSize;
-      RENDER_DELAY = newRenderDelay;
-
-      document.getElementById('performance-settings-dialog').close();
-    } catch (error) {
-      console.error('Error saving performance settings:', error);
-      await window.electron.showMessage('Error', error.message);
-    }
   });
 
   // Update the file scanning function to use MAX_FILE_SIZE_MB
@@ -10708,7 +6967,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
       if (backgroundColor) {
         document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-        document.getElementById('model-background-color').value = backgroundColor;
       }
     } catch (error) {
       console.error('Error initializing settings:', error);
@@ -11130,7 +7388,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Remove any nested DOMContentLoaded listeners and consolidate into one
   document.addEventListener('DOMContentLoaded', async () => {
     try {
-      bindAboutCloseButton();
       // Scan STL Home: ensure delegated handler is attached (fallback if main block ran before body existed)
       if (typeof window.attachScanStlHomeHandler === 'function') window.attachScanStlHomeHandler();
       // If user clicked "Scan STL Home" before runScanSTLHome was ready, run the queued scan now
@@ -11145,8 +7402,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Initialize dialog handlers
       initializeDialogHandlers();
       
-      // Initialize performance settings handlers
-      initializePerformanceSettings();
       
       // About dialog: handled by early listener (electron.on('open-about')) which calls
       // _electronRealEventHandlers['open-about'] set in initializeDialogHandlers() above.
@@ -11201,32 +7456,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update the parent directory click handler to show the clear button
 
-  // Open STL Home dialog when the main process sends the event
-  window.electron.onOpenSTLHome(async () => {
-    await window.openSTLHomeDialog();
-  });
-
-  if (typeof bindStlHomeDirectoryControls === 'function') bindStlHomeDirectoryControls();
-  if (!window._stlHomeDirsLoaded && typeof renderStlHomeDirectoryList === 'function') {
-    renderStlHomeDirectoryList([]);
-  }
-  if (typeof bindStlHomeExcludeControls === 'function') bindStlHomeExcludeControls();
-  if (!window._stlHomeExcludeDirsLoaded && typeof renderStlHomeExcludeList === 'function') {
-    renderStlHomeExcludeList([]);
-  }
-
-  // Handler for Cancel button in the STL Home dialog (inline onclick also set in HTML for Docker/server mode)
-  document.getElementById('cancel-stl-home-button')?.addEventListener('click', () => {
-    document.getElementById('stl-home-dialog').close();
-  });
-
-  // Gray out path-metadata options when "Enable" is unchecked (change + click for Docker/server mode)
-  const stlHomePathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-  if (stlHomePathMetaEnabledEl) {
-    stlHomePathMetaEnabledEl.addEventListener('change', updateStlHomePathMetadataGrayed);
-    stlHomePathMetaEnabledEl.addEventListener('click', updateStlHomePathMetadataGrayed);
-  }
-
   // Show or hide "Scan STL Home" sidebar button based on whether STL Home path is set
   async function updateScanStlHomeButtonVisibility() {
     const stlHomes = await getStlHomeDirectories();
@@ -11235,7 +7464,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   window.updateScanStlHomeButtonVisibility = updateScanStlHomeButtonVisibility;
 
-  document.getElementById('stl-home-path-direction')?.addEventListener('change', () => { if (window.updateStlHomePathDirectionDesc) window.updateStlHomePathDirectionDesc(); });
 
   // Periodic STL Home scanning for server mode
   let stlHomeScanInterval = null;
@@ -11321,58 +7549,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.performSTLHomeScan = performSTLHomeScan;
   window.startPeriodicSTLHomeScan = startPeriodicSTLHomeScan;
   window.stopPeriodicSTLHomeScan = stopPeriodicSTLHomeScan;
-
-  // Shared save logic for STL Home (used by Save click, form submit, and inline onclick for Docker/server/Electron)
-  async function saveSTLHomeFromDialog() {
-    console.log('[STL Home] saveSTLHomeFromDialog started');
-    const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-    const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-    const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-    const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-    const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-    const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-    const stlDirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-    try {
-      console.log('[STL Home] Saving directories:', stlDirs);
-      if (typeof saveStlHomeDirectoriesSetting === 'function') await saveStlHomeDirectoriesSetting();
-      await window.electron.saveSetting('pathMetadataStlHomeEnabled', pathMetaEnabledEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataStlHomeDirection', (pathMetaDirectionEl?.value === 'fromRoot' || pathMetaDirectionEl?.value === 'fromModel') ? pathMetaDirectionEl.value : 'fromModel');
-      await window.electron.saveSetting('pathMetadataUseDesigner', pathMetaUseDesignerEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataUseParentModel', pathMetaUseParentModelEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataDesignerIndex', pathMetaDesignerIndexEl?.value ?? '1');
-      await window.electron.saveSetting('pathMetadataParentModelIndex', pathMetaParentModelIndexEl?.value ?? '0');
-      if (typeof saveStlHomeExcludeDirectoriesSetting === 'function') await saveStlHomeExcludeDirectoriesSetting();
-      if (typeof updateScanStlHomeButtonVisibility === 'function') updateScanStlHomeButtonVisibility();
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const updateFrequencyEl = document.getElementById('stl-home-update-frequency');
-        const updateFrequency = updateFrequencyEl ? updateFrequencyEl.value : '60';
-        await window.electron.saveSetting('stlHomeUpdateFrequency', updateFrequency);
-        if (stlDirs.length) {
-          if (typeof performSTLHomeScan === 'function') performSTLHomeScan(stlDirs).catch(err => console.error('STL Home scan on save:', err));
-          if (typeof startPeriodicSTLHomeScan === 'function') startPeriodicSTLHomeScan();
-        } else {
-          if (typeof stopPeriodicSTLHomeScan === 'function') stopPeriodicSTLHomeScan();
-        }
-      }
-      console.log('[STL Home] Save complete, closing dialog');
-      const dialog = document.getElementById('stl-home-dialog');
-      if (dialog && typeof dialog.close === 'function') dialog.close();
-    } catch (err) {
-      console.error('STL Home save failed:', err);
-      if (window.electron && typeof window.electron.showMessage === 'function') {
-        await window.electron.showMessage('Error', 'Failed to save STL Home: ' + (err.message || String(err)));
-      }
-    }
-  }
-  window.saveSTLHomeFromDialog = saveSTLHomeFromDialog;
-
-  // Save button uses inline onclick in HTML so it works in Docker/server/Electron; form submit for Enter key
-  // Form submit: prevent default and run same save (e.g. Enter key)
-  document.getElementById('stl-home-dialog').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    await saveSTLHomeFromDialog();
-  });
 
   // Show/hide "Scan STL Home" button based on STL Home setting
   updateScanStlHomeButtonVisibility();
@@ -11563,8 +7739,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['puter-ai-chat-request'];
   }
 
-  window._electronRealEventHandlers['open-ai-config'] = async function() {
-    await loadAndShowAIConfig();
+  // AI Configuration is React (src/web/AiConfigDialog.tsx); it defines window.openAiConfig.
+  window._electronRealEventHandlers['open-ai-config'] = function() {
+    window.openAiConfig?.();
   };
   if (window._electronPendingEvents['open-ai-config']) {
     window._electronPendingEvents['open-ai-config'].forEach((args) => {
@@ -11573,8 +7750,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-ai-config'];
   }
 
-  window._electronRealEventHandlers['open-file-type-settings'] = async function() {
-    await loadAndShowFileTypeSettings();
+  // File Type settings are React (src/web/FileTypeSettingsDialog.tsx); it defines window.openFileTypeSettings.
+  window._electronRealEventHandlers['open-file-type-settings'] = function() {
+    window.openFileTypeSettings?.();
   };
   if (window._electronPendingEvents['open-file-type-settings']) {
     window._electronPendingEvents['open-file-type-settings'].forEach((args) => {
@@ -11582,153 +7760,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-file-type-settings'];
   }
-
-  document.getElementById('test-ai-config')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    if (typeof window.testAIConfigFromDialog === 'function') {
-      await window.testAIConfigFromDialog();
-      return;
-    }
-    const apiKeyEl = document.getElementById('ai-api-key');
-    const endpointEl = document.getElementById('ai-endpoint');
-    const modelEl = document.getElementById('ai-model');
-    const serviceEl = document.getElementById('ai-service-select');
-    
-    if (!apiKeyEl || !endpointEl || !modelEl || !serviceEl) {
-      console.error('One or more AI Config input elements not found.');
-      return;
-    }
-    
-    // Get values - ALWAYS read from the select element's selected option, not just .value
-    // This ensures we get the actual selected value, not a stale value
-    const selectedOption = serviceEl.options[serviceEl.selectedIndex];
-    let service = selectedOption ? selectedOption.value : (serviceEl.value || 'puter');
-    
-    // If service is still empty or doesn't match what we expect, check the endpoint
-    // If endpoint is Puter.com URL, force service to 'puter'
-    const endpoint = endpointEl.value || '';
-    if (endpoint.includes('puter.com') || endpoint.includes('js.puter.com')) {
-      if (service !== 'puter') {
-        console.warn('[AI Config Test] Endpoint is Puter.com but service is', service, '- forcing to puter');
-        service = 'puter';
-        serviceEl.value = 'puter';
-        // Update selectedIndex to match
-        for (let i = 0; i < serviceEl.options.length; i++) {
-          if (serviceEl.options[i].value === 'puter') {
-            serviceEl.selectedIndex = i;
-            break;
-          }
-        }
-      }
-    }
-    
-    const apiKey = apiKeyEl.value || '';
-    const model = modelEl.value || '';
-    
-    console.log('[AI Config Test] Calling testAIConfig with:', { 
-      service, 
-      endpoint, 
-      model, 
-      apiKeyLength: apiKey.length,
-      serviceElValue: serviceEl.value,
-      selectedIndex: serviceEl.selectedIndex,
-      selectedOptionValue: selectedOption ? selectedOption.value : 'none'
-    });
-    
-    const result = await window.electron.testAIConfig(apiKey, endpoint, model, service);
-    const resultDiv = document.getElementById('ai-config-result');
-    if (resultDiv) {
-      if (result.success) {
-        resultDiv.textContent = `Test successful! Tags: ${result.tags.join(', ')}`;
-      } else {
-        resultDiv.textContent = `Test failed: ${result.error}`;
-      }
-    } else {
-      console.error('The ai-config-result element was not found.');
-    }
-  });
-
-  document.getElementById('save-ai-config')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    if (typeof window.saveAIConfigFromDialog === 'function') {
-      await window.saveAIConfigFromDialog();
-      return;
-    }
-    const service = document.getElementById('ai-service-select')?.value || 'puter';
-    const apiKey = service === 'puter' ? '' : (document.getElementById('ai-api-key')?.value || '');
-    const endpoint = document.getElementById('ai-endpoint')?.value || (service === 'puter' ? 'https://js.puter.com/v2/' : 'https://api.openai.com/v1');
-    const model = document.getElementById('ai-model')?.value || (service === 'puter' ? 'gpt-5-nano' : 'gpt-4o-mini');
-    
-    // AI tag settings
-    const maxTags = document.getElementById('ai-tag-max-tags')?.value || '10';
-    const mergeStrategy = document.getElementById('ai-tag-merge-strategy')?.value || 'merge';
-    const useCategories = document.getElementById('ai-tag-use-categories')?.checked ? '1' : '0';
-    const allowRetagging = document.getElementById('ai-tag-allow-retagging')?.checked ? '1' : '0';
-    const concurrency = document.getElementById('ai-tag-concurrency')?.value || '3';
-    const detailLevel = document.getElementById('ai-tag-detail-level')?.value || 'medium';
-    const folderLevels = document.getElementById('ai-tag-folder-levels')?.value || '2';
-    
-    await window.electron.saveSetting('apiKey', apiKey);
-    await window.electron.saveSetting('apiEndpoint', endpoint);
-    await window.electron.saveSetting('aiModel', model);
-    await window.electron.saveSetting('aiService', service);
-    await window.electron.saveSetting('aiTagMaxTags', maxTags);
-    await window.electron.saveSetting('aiTagMergeStrategy', mergeStrategy);
-    await window.electron.saveSetting('aiTagUseCategories', useCategories);
-    await window.electron.saveSetting('aiTagAllowRetagging', allowRetagging);
-    await window.electron.saveSetting('aiTagConcurrency', concurrency);
-    await window.electron.saveSetting('aiTagDetailLevel', detailLevel);
-    await window.electron.saveSetting('aiTagFolderLevels', folderLevels);
-    
-    document.getElementById('ai-config-dialog').close();
-  });
-
-  document.getElementById('cancel-ai-config')?.addEventListener('click', () => {
-    document.getElementById('ai-config-dialog').close();
-  });
-
-  document.getElementById('edit-ai-prompt')?.addEventListener('click', async () => {
-    const editDialog = document.getElementById('ai-prompt-edit-dialog');
-    const textarea = document.getElementById('ai-prompt-textarea');
-    if (!editDialog || !textarea) return;
-    const current = await window.electron.getSetting('aiTagPrompt').catch(() => null);
-    if (current != null && String(current).trim() !== '') {
-      textarea.value = current;
-    } else {
-      const defaultPrompt = await (window.electron.getDefaultAIPrompt && window.electron.getDefaultAIPrompt()).catch(() => '');
-      textarea.value = defaultPrompt || '';
-    }
-    editDialog.showModal();
-  });
-
-  document.getElementById('reset-ai-prompt')?.addEventListener('click', async () => {
-    if (!window.electron?.saveSetting) return;
-    try {
-      await window.electron.saveSetting('aiTagPrompt', '');
-      if (window.electron?.showMessage) await window.electron.showMessage('AI Prompt', 'Prompt reset to default.');
-    } catch (err) {
-      console.error('Reset AI prompt error:', err);
-      if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Failed to reset prompt');
-    }
-  });
-
-  document.getElementById('save-ai-prompt-edit')?.addEventListener('click', async () => {
-    const editDialog = document.getElementById('ai-prompt-edit-dialog');
-    const textarea = document.getElementById('ai-prompt-textarea');
-    if (!editDialog || !textarea || !window.electron?.saveSetting) return;
-    try {
-      await window.electron.saveSetting('aiTagPrompt', textarea.value || '');
-      editDialog.close();
-      if (window.electron?.showMessage) await window.electron.showMessage('AI Prompt', 'Prompt saved.');
-    } catch (err) {
-      console.error('Save AI prompt error:', err);
-      if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Failed to save prompt');
-    }
-  });
-
-  document.getElementById('cancel-ai-prompt-edit')?.addEventListener('click', () => {
-    document.getElementById('ai-prompt-edit-dialog')?.close();
-  });
 
   // Populate File Type filter dropdown with only enabled types (from Settings > File Type)
   async function populateFileTypeFilter() {
@@ -11768,67 +7799,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // The File Type settings screen (React) calls this after saving.
+  window.populateFileTypeFilter = populateFileTypeFilter;
+
   // Populate file type filter once when sidebar is ready (only enabled types)
   setTimeout(() => { if (typeof populateFileTypeFilter === 'function') populateFileTypeFilter(); }, 500);
 
-  // File Type Settings: open-file-type-settings is handled via earlyEventChannels + _electronRealEventHandlers (loadAndShowFileTypeSettings)
-
-  // File Type Settings: open-file-type-settings is handled via earlyEventChannels + _electronRealEventHandlers (loadAndShowFileTypeSettings)
-  // Save uses window.saveFileTypeSettingsFromDialog (early-bound, reentrancy-guarded) via HTML onclick only.
-
-  document.getElementById('cancel-file-type-settings')?.addEventListener('click', () => {
-    document.getElementById('file-type-settings-dialog')?.close();
-  });
-
-  async function fillBrowserExtensionDialog() {
-    const dialog = document.getElementById('browser-extension-settings-dialog');
-    if (!dialog) return null;
-    const inboxDir = await window.electron.getSetting('extensionInboxDirectory');
-    const clientPrefix = await window.electron.getSetting('extensionClientPathPrefix');
-    const containerPrefix = await window.electron.getSetting('extensionContainerPathPrefix');
-    const copyToNas = await window.electron.getSetting('extensionCopyToNasPath');
-    const lastStatus = await window.electron.getSetting('extensionInboxLastStatus');
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    const clientPrefixInput = document.getElementById('extension-client-path-prefix');
-    const containerPrefixInput = document.getElementById('extension-container-path-prefix');
-    const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
-    const statusEl = document.getElementById('extension-inbox-last-status');
-    if (inboxInput) {
-      inboxInput.value = inboxDir || '';
-      if (window.electron.getDefaultExtensionInboxDirectory) {
-        const def = await window.electron.getDefaultExtensionInboxDirectory().catch(() => '');
-        if (def) inboxInput.placeholder = def;
-      }
-    }
-    if (clientPrefixInput) clientPrefixInput.value = clientPrefix || '';
-    if (containerPrefixInput) containerPrefixInput.value = containerPrefix || '';
-    if (copyToNasInput) copyToNasInput.value = copyToNas || '';
-    if (statusEl) {
-      let text = 'Last import: none yet.';
-      if (lastStatus) {
-        try {
-          const s = JSON.parse(lastStatus);
-          const parts = [];
-          if (s.at) parts.push(s.at);
-          if (s.imported != null) parts.push(s.imported + ' imported');
-          if (s.failed) parts.push(s.failed + ' failed');
-          text = 'Last import: ' + parts.join(' · ');
-          if (s.errors && s.errors.length) text += ' — ' + s.errors[0];
-        } catch (_) { /* keep default */ }
-      }
-      statusEl.textContent = text;
-    }
-    return dialog;
-  }
-
-  window.openBrowserExtensionSettings = async function openBrowserExtensionSettings() {
-    const dialog = await fillBrowserExtensionDialog();
-    if (!dialog) return;
-    dialog.showModal();
-  };
-
-  window._electronRealEventHandlers['open-browser-extension-settings'] = async function() {
-    await window.openBrowserExtensionSettings();
+  // Browser Extension settings are React (src/web/BrowserExtensionSettingsDialog.tsx).
+  window._electronRealEventHandlers['open-browser-extension-settings'] = function() {
+    window.openBrowserExtensionSettings?.();
   };
   if (window._electronPendingEvents['open-browser-extension-settings']) {
     window._electronPendingEvents['open-browser-extension-settings'].forEach((args) => {
@@ -11837,183 +7816,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-browser-extension-settings'];
   }
 
-  document.getElementById('save-browser-extension-settings')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    const clientPrefixInput = document.getElementById('extension-client-path-prefix');
-    const containerPrefixInput = document.getElementById('extension-container-path-prefix');
-    const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
-    await window.electron.saveSetting('extensionInboxDirectory', (inboxInput?.value || '').trim());
-    await window.electron.saveSetting('extensionClientPathPrefix', (clientPrefixInput?.value || '').trim());
-    await window.electron.saveSetting('extensionContainerPathPrefix', (containerPrefixInput?.value || '').trim());
-    await window.electron.saveSetting('extensionCopyToNasPath', (copyToNasInput?.value || '').trim());
-    document.getElementById('browser-extension-settings-dialog').close();
-  });
-
-  document.getElementById('choose-extension-inbox-directory')?.addEventListener('click', async () => {
-    const paths = await window.electron.openFileDialog();
-    const chosen = Array.isArray(paths) ? paths[0] : paths;
-    if (!chosen) return;
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    if (inboxInput) inboxInput.value = chosen;
-  });
-
-  document.getElementById('import-extension-inbox-now')?.addEventListener('click', async () => {
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    await window.electron.saveSetting('extensionInboxDirectory', (inboxInput?.value || '').trim());
-    const result = await window.electron.importExtensionInbox();
-    const statusEl = document.getElementById('extension-inbox-last-status');
-    if (statusEl && result) {
-      const parts = [];
-      if (result.imported != null) parts.push(result.imported + ' imported');
-      if (result.failed) parts.push(result.failed + ' failed');
-      if (result.skipped) parts.push(result.skipped + ' skipped');
-      let text = 'Last import: just now · ' + (parts.join(' · ') || 'nothing to import');
-      if (result.errors && result.errors.length) text += ' — ' + result.errors[0];
-      statusEl.textContent = text;
-    }
-  });
-
-  document.getElementById('cancel-browser-extension-settings')?.addEventListener('click', () => {
-    document.getElementById('browser-extension-settings-dialog').close();
-  });
-
-  document.getElementById('browser-extension-store-link')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const url = e.currentTarget.getAttribute('href');
-    if (url && typeof window.electron?.openExternal === 'function') {
-      await window.electron.openExternal(url);
-    }
-  });
-
-  async function copyTextToClipboard(text) {
-    const value = text == null ? '' : String(text);
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(value);
-        return true;
-      }
-    } catch (_) { /* fall through */ }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = value;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function flashButtonCopied(btn) {
-    if (!btn) return;
-    const original = btn.textContent;
-    btn.textContent = 'Copied';
-    setTimeout(() => {
-      if (btn.textContent === 'Copied') btn.textContent = original;
-    }, 1200);
-  }
-
-  function mcpClientConfigJson(url) {
-    return JSON.stringify({
-      mcpServers: {
-        justtprint: { url }
-      }
-    }, null, 2);
-  }
-
-  function getMcpDialogPort() {
-    return Math.min(65535, Math.max(1024, parseInt(document.getElementById('mcp-server-port')?.value || '5000', 10) || 5000));
-  }
-
-  function updateMcpDialogPreview(info, serverMode) {
-    const check = document.getElementById('enable-mcp-server');
-    const port = getMcpDialogPort();
-    const scheme = (info && info.url && String(info.url).startsWith('https:')) ? 'https' : 'http';
-    let url = `${scheme}://127.0.0.1:${port}/mcp`;
-    if (serverMode && window.location && window.location.origin) {
-      url = String(window.location.origin).replace(/\/$/, '') + '/mcp';
-    } else if (!serverMode && info && info.url) {
-      url = String(info.url).replace(/:\d+(\/mcp)?$/, ':' + port + '/mcp');
-    }
-    const urlInput = document.getElementById('mcp-server-url');
-    if (urlInput) urlInput.value = url;
-    const configEl = document.getElementById('mcp-server-config');
-    if (configEl) configEl.textContent = mcpClientConfigJson(url);
-
-    const statusEl = document.getElementById('mcp-server-status');
-    if (statusEl) {
-      if (serverMode) {
-        statusEl.textContent = 'Status: MCP endpoint is available on this server.';
-      } else if (check?.checked && info && info.running) {
-        statusEl.textContent = 'Status: Listening at ' + url;
-      } else if (check?.checked) {
-        statusEl.textContent = 'Status: Enabled. Click Save to start the listener.';
-      } else {
-        statusEl.textContent = 'Status: Disabled. Enable and Save to start the listener while JusttPrint is running.';
-      }
-    }
-    const extra = document.getElementById('mcp-server-extra-urls');
-    if (extra) {
-      const alts = ((info && info.urls) || []).filter((u) => u && u !== url);
-      extra.textContent = alts.length ? ('Also reachable at: ' + alts.join('  ·  ')) : '';
-    }
-  }
-
-  async function populateMcpServerSettingsDialog() {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    if (!dialog) return;
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    const desktopControls = document.getElementById('mcp-server-desktop-controls');
-    const serverNote = document.getElementById('mcp-server-server-mode-note');
-    const saveBtn = document.getElementById('save-mcp-server-settings');
-    const cancelBtn = document.getElementById('cancel-mcp-server-settings');
-    if (desktopControls) desktopControls.hidden = !!serverMode;
-    if (serverNote) serverNote.hidden = !serverMode;
-    if (saveBtn) saveBtn.hidden = !!serverMode;
-    if (cancelBtn) cancelBtn.textContent = serverMode ? 'Close' : 'Cancel';
-
-    const enabled = await window.electron.getSetting('enableMcpServer');
-    const port = await window.electron.getSetting('browserExtensionPort');
-    const check = document.getElementById('enable-mcp-server');
-    const portInput = document.getElementById('mcp-server-port');
-    if (check) check.checked = enabled === '1';
-    if (portInput) portInput.value = port || '5000';
-
-    let info = {};
-    try {
-      info = await window.electron.getMcpConnectionInfo() || {};
-    } catch (err) {
-      console.error('MCP connection info failed:', err);
-    }
-    dialog._mcpInfo = info;
-    dialog._mcpServerMode = serverMode;
-
-    const toolsEl = document.getElementById('mcp-server-tools');
-    if (toolsEl) {
-      const tools = info.tools || [];
-      toolsEl.textContent = tools.length ? ('Tools: ' + tools.join(', ')) : '';
-    }
-    updateMcpDialogPreview(info, serverMode);
-  }
-
-  window.openMcpServerSettings = async function openMcpServerSettings() {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    if (!dialog) {
-      window.electron.send('open-mcp-server-settings');
-      return;
-    }
-    await populateMcpServerSettingsDialog();
-    dialog.showModal();
-  };
-
-  window._electronRealEventHandlers['open-mcp-server-settings'] = async function() {
-    await window.openMcpServerSettings();
+  // MCP Server settings are React (src/web/McpServerSettingsDialog.tsx); it defines window.openMcpServerSettings.
+  window._electronRealEventHandlers['open-mcp-server-settings'] = function() {
+    window.openMcpServerSettings?.();
   };
   if (window._electronPendingEvents['open-mcp-server-settings']) {
     window._electronPendingEvents['open-mcp-server-settings'].forEach((args) => {
@@ -12022,111 +7827,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-mcp-server-settings'];
   }
 
-  document.getElementById('save-mcp-server-settings')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    if (serverMode) {
-      document.getElementById('mcp-server-settings-dialog')?.close();
-      return;
-    }
-    const check = document.getElementById('enable-mcp-server');
-    const portInput = document.getElementById('mcp-server-port');
-    const enabled = check?.checked ? '1' : '0';
-    const port = Math.min(65535, Math.max(1024, parseInt(portInput?.value || '5000', 10) || 5000));
-    await window.electron.saveSetting('enableMcpServer', enabled);
-    await window.electron.saveSetting('browserExtensionPort', String(port));
-    const result = await window.electron.syncLocalHttpServer(port);
-    if (enabled === '1' && result && !result.success) {
-      await window.electron.showMessage('MCP Server', result.message || 'Failed to start the MCP listener. On macOS, check the main process console or rebuild with the network.server entitlement.');
-      return;
-    }
-    document.getElementById('mcp-server-settings-dialog')?.close();
-  });
-
-  document.getElementById('cancel-mcp-server-settings')?.addEventListener('click', () => {
-    document.getElementById('mcp-server-settings-dialog')?.close();
-  });
-
-  function setServerAccessStatus(text) {
-    const statusEl = document.getElementById('server-access-status');
-    if (statusEl) statusEl.textContent = text || '';
-  }
-
-  window.openServerAccess = async function openServerAccess() {
-    const dialog = document.getElementById('server-access-dialog');
-    if (!dialog) return;
-    setServerAccessStatus('');
-    ['server-access-current-password', 'server-access-new-password', 'server-access-confirm-password'].forEach((id) => {
-      const input = document.getElementById(id);
-      if (input) input.value = '';
-    });
-    let info = {};
-    try {
-      info = await window.electron.getServerAccessInfo() || {};
-    } catch (err) {
-      setServerAccessStatus('Could not load server access settings: ' + (err.message || err));
-    }
-    dialog._minPasswordLength = info.minPasswordLength || 8;
-    const tokenInput = document.getElementById('server-access-api-token');
-    if (tokenInput) tokenInput.value = info.apiToken || '';
-    const passwordGroup = document.getElementById('server-access-password-group');
-    const envNote = document.getElementById('server-access-env-note');
-    if (passwordGroup) passwordGroup.hidden = !!info.passwordFromEnv;
-    if (envNote) envNote.hidden = !info.passwordFromEnv;
-    // The desktop window can reset a forgotten password without the current one.
-    const fromBrowser = !!window._electronBridgeReady;
-    const currentLabel = document.getElementById('server-access-current-label');
-    const currentInput = document.getElementById('server-access-current-password');
-    if (currentLabel) currentLabel.hidden = !fromBrowser;
-    if (currentInput) currentInput.hidden = !fromBrowser;
-    dialog.showModal();
-  };
-
-  document.getElementById('server-access-change-password')?.addEventListener('click', async () => {
-    const dialog = document.getElementById('server-access-dialog');
-    const current = document.getElementById('server-access-current-password')?.value || '';
-    const next = document.getElementById('server-access-new-password')?.value || '';
-    const confirmValue = document.getElementById('server-access-confirm-password')?.value || '';
-    const minLength = dialog?._minPasswordLength || 8;
-    if (next.length < minLength) {
-      setServerAccessStatus('The new password must be at least ' + minLength + ' characters.');
-      return;
-    }
-    if (next !== confirmValue) {
-      setServerAccessStatus('The new passwords do not match.');
-      return;
-    }
-    try {
-      await window.electron.setServerPassword(current, next);
-      setServerAccessStatus('Password changed. Browsers need to log in again.');
-    } catch (err) {
-      setServerAccessStatus(String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
-    }
-  });
-
-  document.getElementById('server-access-copy-token')?.addEventListener('click', async () => {
-    const token = document.getElementById('server-access-api-token')?.value || '';
-    if (!token) return;
-    try {
-      await navigator.clipboard.writeText(token);
-      setServerAccessStatus('Token copied.');
-    } catch (_) {
-      document.getElementById('server-access-api-token')?.select();
-      setServerAccessStatus('Select the token and copy it.');
-    }
-  });
-
-  document.getElementById('server-access-regenerate-token')?.addEventListener('click', async () => {
-    if (!confirm('Regenerate the API token? MCP clients using the old token stop working until you update them.')) return;
-    try {
-      const result = await window.electron.regenerateServerApiToken();
-      const tokenInput = document.getElementById('server-access-api-token');
-      if (tokenInput) tokenInput.value = (result && result.apiToken) || '';
-      setServerAccessStatus('New token created.');
-    } catch (err) {
-      setServerAccessStatus('Could not regenerate the token: ' + (err.message || err));
-    }
-  });
+  // Server Access dialog: React (src/web/ServerAccessDialog.tsx) defines window.openServerAccess.
 
   window.logOutOfServer = async function logOutOfServer() {
     try {
@@ -12140,26 +7841,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await window.openServerAccess();
   };
 
-  const refreshMcpDialogPreview = () => {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    updateMcpDialogPreview(dialog?._mcpInfo || {}, !!dialog?._mcpServerMode);
-  };
-  document.getElementById('enable-mcp-server')?.addEventListener('change', refreshMcpDialogPreview);
-  document.getElementById('mcp-server-port')?.addEventListener('input', refreshMcpDialogPreview);
-
-  bindHttpsSettingsDialog();
-
-  document.getElementById('copy-mcp-server-url')?.addEventListener('click', async () => {
-    const url = document.getElementById('mcp-server-url')?.value || '';
-    const ok = await copyTextToClipboard(url);
-    if (ok) flashButtonCopied(document.getElementById('copy-mcp-server-url'));
-  });
-
-  document.getElementById('copy-mcp-server-config')?.addEventListener('click', async () => {
-    const text = document.getElementById('mcp-server-config')?.textContent || '';
-    const ok = await copyTextToClipboard(text);
-    if (ok) flashButtonCopied(document.getElementById('copy-mcp-server-config'));
-  });
 
   // Store pending tags for preview (can handle multiple models)
   let pendingTagData = [];
@@ -13552,46 +9233,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modelsWithoutThumbnails = await window.electron.getModelsWithoutThumbnails();
   const modelsCount = modelsWithoutThumbnails.length;
 
-  document.getElementById('ai-service-select').addEventListener('change', async (event) => {
-    const selectedService = event.target.value;
-    const endpointEl = document.getElementById('ai-endpoint');
-    const modelEl = document.getElementById('ai-model');
-    const apiKeyEl = document.getElementById('ai-api-key');
-
-    if (selectedService === 'openai') {
-      endpointEl.value = 'https://api.openai.com/v1';
-      modelEl.value = 'gpt-4o-mini';
-    } else if (selectedService === 'claude') {
-      endpointEl.value = 'https://api.anthropic.com/v1/';
-      modelEl.value = 'claude-haiku-4-5';
-    } else if (selectedService === 'gemini') {
-      endpointEl.value = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-      modelEl.value = 'gemini-2.5-flash';
-    } else if (selectedService === 'puter') {
-      // Load Puter.js when user selects Puter service
-      loadPuterJS().catch(err => {
-        console.warn('[AI Config] Failed to load Puter.js:', err);
-      });
-      
-      endpointEl.value = 'https://js.puter.com/v2/';
-      modelEl.value = 'gpt-5-nano';
-    } else if (selectedService === 'custom') {
-      endpointEl.value = '';
-      modelEl.value = '';
-    }
-
-    if (apiKeyEl && selectedService !== 'puter') {
-      apiKeyEl.value = '';
-    }
-    syncAiApiKeyField(selectedService);
-    
-    // Save the new values to the database
-    await window.electron.saveSetting('apiEndpoint', endpointEl.value).catch(err => console.error('Error saving endpoint:', err));
-    await window.electron.saveSetting('aiModel', modelEl.value).catch(err => console.error('Error saving model:', err));
-    await window.electron.saveSetting('aiService', selectedService).catch(err => console.error('Error saving service:', err));
-    console.log('[AI Config] Service changed to:', selectedService, 'and saved to database');
-  });
-
   // Add missing function renderThumbnail used in generateThumbnail().
   async function renderThumbnail(file) {
     try {
@@ -13826,16 +9467,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  window._electronRealEventHandlers['open-slicer-settings'] = async function() {
-    if (typeof window.openSlicerSettings === 'function') {
-      window.openSlicerSettings();
-      return;
-    }
-    const dialog = document.getElementById('slicer-dialog');
-    if (dialog) {
-      try { dialog.showModal(); } catch (err) { console.error('Error opening slicer settings:', err); }
-    }
+  // Slicer settings are React (src/web/SlicerSettingsDialog.tsx); it defines window.openSlicerSettings.
+  window._electronRealEventHandlers['open-slicer-settings'] = function() {
+    window.openSlicerSettings?.();
   };
+
   if (window._electronPendingEvents['open-slicer-settings']) {
     window._electronPendingEvents['open-slicer-settings'].forEach((args) => {
       window._electronRealEventHandlers['open-slicer-settings'].apply(null, args);
@@ -16854,8 +12490,7 @@ document.addEventListener('keydown', async (event) => {
   // Show keyboard shortcuts dialog: Ctrl+Shift+/ (?) or Cmd+Shift+/
   if (mod && event.shiftKey && event.key === '?') {
     event.preventDefault();
-    const dialog = document.getElementById('keyboard-shortcuts-dialog');
-    if (dialog) dialog.showModal();
+    window.openKeyboardShortcuts?.();
     return;
   }
 
@@ -17123,13 +12758,6 @@ document.getElementById('new-designer-dialog').addEventListener('submit', async 
       if (designerSelect) {
         designerSelect.value = newDesignerName;
       }
-    }
-    
-    // Refresh metadata editor list if dialog is open
-    const metadataDialog = document.getElementById('metadata-editor-dialog');
-    if (metadataDialog && metadataDialog.open && currentMetadataType === 'designer') {
-      allMetadata = []; // Clear cache to force refresh
-      await refreshMetadataList('designer');
     }
   }
 });
@@ -18940,131 +14568,12 @@ async function populateLicenseFilter() {
   }
 }
 
-async function showDuplicateFiles(duplicates) {
-  const groups = normalizeDuplicateGroups(duplicates);
-  console.log('Showing duplicate files:', groups.length, 'groups');
-  const duplicateGroups = document.querySelector('.duplicate-groups');
-  if (!duplicateGroups) return;
-
-  // Check if there are any duplicates
-  if (groups.length === 0) {
-    teardownDedupVirtualList();
-    duplicateGroups.innerHTML = '';
-    const messageDiv = document.createElement('div');
-    messageDiv.style.textAlign = 'center';
-    messageDiv.style.padding = '20px';
-    messageDiv.style.color = '#888';
-    messageDiv.textContent = 'No duplicate models found';
-    duplicateGroups.appendChild(messageDiv);
-
-    const deleteButton = document.querySelector('.dialog-buttons #delete-selected');
-    if (deleteButton) {
-      deleteButton.style.display = 'none';
-    }
-    return;
-  }
-
-  const deleteButton = document.querySelector('.dialog-buttons #delete-selected');
-  if (deleteButton) {
-    deleteButton.style.display = '';
-    deleteButton.onclick = null;
-    const newButton = deleteButton.cloneNode(true);
-    deleteButton.parentNode.replaceChild(newButton, deleteButton);
-    const finalDeleteButton = document.querySelector('.dialog-buttons #delete-selected');
-    if (finalDeleteButton) {
-      finalDeleteButton.onclick = handleDeleteSelected;
-    }
-  }
-
-  setupDedupVirtualList(duplicateGroups, groups);
-}
-
-async function handleDeleteSelected() {
-  console.log('Delete button clicked!');
-  
-  // Prevent multiple confirmations from showing
-  if (isDeletingDuplicates) {
-    console.log('Delete confirmation already in progress, ignoring duplicate call');
-    return;
-  }
-
-  // Prefer virtual-list selection (covers off-screen groups); fall back to DOM checkboxes
-  let selectedFiles;
-  if (window._dedupVirtualState?.selectedPaths) {
-    selectedFiles = Array.from(window._dedupVirtualState.selectedPaths).filter(
-      (filePath) => filePath && !filePath.includes('::')
-    );
-  } else {
-    selectedFiles = Array.from(
-      document.querySelectorAll('.duplicate-file input[type="checkbox"]:checked')
-    )
-      .map(checkbox => checkbox.getAttribute('data-filepath'))
-      .filter(filePath => {
-        return filePath && !filePath.includes('::');
-      });
-  }
-
-  console.log('Selected files:', selectedFiles.length);
-
-  if (selectedFiles.length === 0) {
-    await window.electron.showMessage('No Selection', 'Please select files to delete');
-    return;
-  }
-
-  // Limit file list display to prevent dialog from growing beyond the screen
-  const maxFilesToShow = 5;
-  const fileList = selectedFiles.slice(0, maxFilesToShow).map(fp => {
-    // Extract filename from path (handle both Windows and Unix paths)
-    const parts = fp.split(/[/\\]/);
-    return parts[parts.length - 1];
-  }).join('\n');
-  const moreCount = selectedFiles.length - maxFilesToShow;
-  const moreFiles = moreCount > 0 ? `\n... and ${moreCount} more` : '';
-
-  isDeletingDuplicates = true; // Set flag before showing confirmation
-  let confirm;
-  try {
-    confirm = await window.electron.showMessage(
-      'Confirm Delete',
-      `Are you sure you want to DELETE ${selectedFiles.length} files?\nThis cannot be undone!\n\nFiles:\n${fileList}${moreFiles}`,
-      ['Yes', 'No']
-    );
-  } finally {
-    // Reset flag after confirmation dialog closes (whether Yes or No)
-    isDeletingDuplicates = false;
-  }
-
-  if (confirm === 'Yes') {
-    try {
-      for (const filePath of selectedFiles) {
-        console.log('Attempting to delete:', filePath);
-        const success = await window.electron.deleteFile(filePath);
-        console.log('Delete result:', success);
-        if (!success) {
-          await window.electron.showMessage('Error', `Failed to delete file: ${filePath}`);
-        }
-      }
-
-      const dialog = document.getElementById('dedup-dialog');
-      // Keep dialog open: refresh grid in background, then refresh duplicate list in place until user clicks Close
-      selectedModels.clear();
-      
-      // Refresh the main grid (non-blocking feel: don't await before refreshing de-dupe list)
-      const sortSelect = document.getElementById('sort-select');
-      window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc').then(models => {
-        renderFiles(models);
-      });
-
-      // Reload duplicate list in place; skip hash check and do not close/reopen dialog (refreshOnly)
-      await loadDuplicateFiles(true, true);
-
-    } catch (error) {
-      console.error('Error deleting files:', error);
-      await window.electron.showMessage('Error', `An error occurred: ${error.message}`);
-    }
-  }
-  // Flag is already reset in the try/finally block above
-}
+// After De-Dup (src/web/DedupDialog.tsx) deleted files: clear the selection and reload the grid.
+window.refreshAfterDedupDelete = async function refreshAfterDedupDelete() {
+  selectedModels.clear();
+  const sortSelect = document.getElementById('sort-select');
+  await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc'));
+};
 
 // Create a separate function for rendering filtered results
 async function renderFilteredFiles(files) {
@@ -19565,73 +15074,6 @@ function showHtmlContextMenu(menuData, x, y, options = {}) {
   };
   document.addEventListener('keydown', handleEscape);
 }
-
-// Register a global listener for hash-generation-progress that works even if dialog isn't shown
-// This handles background hash generation in server mode
-window.electron.on('hash-generation-progress', async (progress) => {
-  // Check if we're in server mode - if so, don't show dialog, just log progress
-  const serverMode = await window.electron.isServerMode().catch(() => false);
-  
-  if (serverMode) {
-    // In server mode, hash generation is truly background - just log progress
-    if (progress.processed % 100 === 0 || progress.processed === progress.total) {
-      console.log(`[Hash Generation] Background progress: ${progress.processed}/${progress.total} (${Math.round((progress.processed / progress.total) * 100)}%)`);
-    }
-    return; // Don't show any UI in server mode
-  }
-  
-  // In normal mode, update or create progress dialog if needed
-  const progressDialog = document.querySelector('.progress-dialog');
-  const progressBar = document.getElementById('hash-progress');
-  const progressText = document.getElementById('hash-progress-text');
-  
-  if (progressBar && progressText) {
-    // Update existing progress dialog (user-initiated) - use same format as loadDuplicateFiles listeners to avoid bouncing
-    const percentage = (progress.processed / progress.total) * 100;
-    progressBar.value = percentage;
-    if (progress.success !== undefined && progress.failed !== undefined) {
-      progressText.textContent = `${progress.processed}/${progress.total} (${progress.success} succeeded, ${progress.failed} failed)`;
-    } else {
-      progressText.textContent = `${progress.processed}/${progress.total}`;
-    }
-    
-    // Close dialog when complete
-    if (progress.processed >= progress.total && progressDialog) {
-      setTimeout(() => {
-        progressDialog.close();
-        progressDialog.remove();
-        isHashDialogShowing = false;
-      }, 500);
-    }
-  }
-  // In normal mode, if no dialog exists, don't create one automatically
-  // Only show dialog if user explicitly requested hash generation
-});
-
-window.electron.on('hash-generation-complete', async (result) => {
-  try {
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    if (!serverMode) return;
-    const dialog = document.getElementById('dedup-dialog');
-    if (dialog && dialog.open) {
-      // Reload duplicates if DeDup window is open
-      await loadDuplicateFiles(true);
-    }
-    // Also close any hash progress dialog that might be open
-    const progressDialog = document.getElementById('hash-progress-dialog') || document.querySelector('.progress-dialog');
-    if (progressDialog) {
-      progressDialog.close();
-      progressDialog.remove();
-      isHashDialogShowing = false;
-    }
-    // Log completion result for debugging
-    if (result) {
-      console.log('Hash generation completed:', result);
-    }
-  } catch (error) {
-    console.error('Error refreshing duplicates after hash completion:', error);
-  }
-});
 
 // Resolve which file path(s) a context menu should operate on.
 // If the right-clicked item is part of a multi-selection, use the whole selection.
@@ -20333,19 +15775,11 @@ async function initializeAppOnce() {
       const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
       if (backgroundColor) {
         document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-        const colorPicker = document.getElementById('model-background-color');
-        if (colorPicker) {
-          colorPicker.value = backgroundColor;
-        }
       }
       
       // Load UI theme
       const savedTheme = await window.electron.getSetting('uiTheme') || 'modern-cyan';
       document.body.setAttribute('data-theme', savedTheme);
-      const uiThemeSelect = document.getElementById('ui-theme');
-      if (uiThemeSelect) {
-        uiThemeSelect.value = savedTheme;
-      }
       
       // Apply theme colors if function exists
       if (typeof applyThemeColors === 'function') {
@@ -20491,12 +15925,6 @@ async function initializeAppOnce() {
       const maxFileSize = await window.electron.getSetting('maxFileSizeMB');
       if (maxFileSize) {
         MAX_FILE_SIZE_MB = parseInt(maxFileSize);
-      }
-
-      // Set the input value if the element exists
-      const maxFileSizeInput = document.getElementById('max-file-size');
-      if (maxFileSizeInput) {
-        maxFileSizeInput.value = MAX_FILE_SIZE_MB.toString();
       }
     } catch (error) {
       console.error('Error initializing performance settings:', error);
