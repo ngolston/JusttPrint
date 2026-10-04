@@ -45,5 +45,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-server-log
-          path: tests/e2e/.work/server.log
+          path: |
+            tests/e2e/.work/server.log
+            tests/e2e/.work/*.png
           retention-days: 14

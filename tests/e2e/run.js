@@ -547,6 +547,13 @@ async function browserChecks(base, wsUrl, session) {
       window.__wsSent = [];
       const send = WebSocket.prototype.send;
       WebSocket.prototype.send = function(data) { window.__wsSent.push(String(data).slice(0, 160)); return send.call(this, data); };
+      window.__clicks = [];
+      for (const type of ['pointerdown', 'mousedown', 'click']) {
+        document.addEventListener(type, (event) => {
+          const t = event.target;
+          window.__clicks.push(`${type}:${t.tagName}${t.id ? '#' + t.id : ''}${t.textContent && t.tagName === 'BUTTON' ? '(' + t.textContent + ')' : ''}@${event.clientX},${event.clientY}`);
+        }, true);
+      }
     });
     const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
     const confirmDialog = await page.waitForSelector('dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")', { timeout: 15000 }).catch(() => null);
@@ -556,8 +563,10 @@ async function browserChecks(base, wsUrl, session) {
       const before = await openDialogs();
       await confirmDialog.click();
       const after = await openDialogs();
+      const box = await confirmDialog.boundingBox();
+      if (after.length) await page.screenshot({ path: path.join(WORK, 'confirm-dialog.png') }).catch(() => {});
       const pullResult = await pull.catch((error) => ({ error: error.message }));
-      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; dialogs before click ${before.length}, after ${after.length}: ${JSON.stringify(after)}; sent: ${JSON.stringify(await page.evaluate(() => window.__wsSent))}`);
+      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; dialogs before click ${before.length}, after ${after.length}: ${JSON.stringify(after)}; sent: ${JSON.stringify(await page.evaluate(() => window.__wsSent))}; button at ${JSON.stringify(box)}; events: ${JSON.stringify(await page.evaluate(() => window.__clicks))}`);
       const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
