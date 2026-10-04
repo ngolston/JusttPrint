@@ -11,7 +11,7 @@ All notable changes contributed via pull request are documented in this file.
 **Changes:**
 - Declining the Terms of Service logs that browser out instead of shutting down the server
 - **Restore Database** checks the uploaded file first (it must be a readable Printventory database) and keeps the current database as `printventory.db.before-restore`; before, any file overwrote the library
-- `main.js` is being split into modules under `src/core/` and `src/server/`; no behavior change
+- `main.js` is gone: the server is split into modules under `src/core/` and `src/server/` (`src/server/app.js` starts it), and server-only files moved out of the web root. No behavior change; Docker setups need no changes
 
 ## [3.0.0] - 2026-10-03
 

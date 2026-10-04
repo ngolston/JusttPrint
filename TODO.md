@@ -8,7 +8,7 @@ Items are ordered from most important to least within each phase. Line numbers a
 
 ### How the container works today
 
-- The image runs the server on plain Node (`src/server/index.js`). `main.js` still carries the old desktop code; `src/server/electron-shim.js` stands in for Electron so it runs without it.
+- The image runs the server on plain Node (`src/server/index.js` → `src/server/app.js`), with library logic in `src/core/` and the server in `src/server/`.
 - Thumbnails render in headless Chromium inside the container. The web UI is still the old desktop UI plus `server-bridge.js`, which forwards IPC calls over a WebSocket.
 - Server-initiated native dialogs answer Cancel, since there is no window to show them in.
 
@@ -81,7 +81,7 @@ docs/        GUIDE.md, guide/ images
 
 ## 🟡 4. Medium: standalone server (remove Electron from the container)
 
-The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` with `src/server/electron-shim.js` in place of Electron, so the same code serves both. The remaining items replace that bridge with real modules over time.
+The Docker image runs on plain Node. `src/server/index.js` starts `src/server/app.js`; library logic is in `src/core/`, the server and its IPC handlers in `src/server/`.
 
 - [x] **Create `src/server/`**: `node src/server/index.js` runs server mode with no Electron (Electron stand-in: app paths and events, IPC registry, dialogs that answer Cancel, freedesktop trash, no windows).
 - [x] **Generate thumbnails without Electron or Xvfb.** The server starts headless Chromium (Puppeteer, system Chromium) on the web UI as a worker client, identified by a secret cookie, and sends it the thumbnail jobs. It restarts after a crash. NVIDIA WebGL still works via `PRINTVENTORY_GPU`.
@@ -90,22 +90,11 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
 - [x] **Keep a migration path**: same data path (`/root/.config/printventory`) and database, so existing volumes keep working.
 - [x] **Remove Electron completely.** `electron` and `electron-builder` are gone from `package.json`, along with the desktop window, menus, hidden worker window, preload, native input dialog and model viewer. `npm start` runs `src/server/index.js` on plain Node, and the DB tests run on plain Node. Text prompts use an in-page dialog. Since then the rewrite removed the remaining desktop branches, windows and native dialogs from `main.js`, and the Electron stand-in became `src/server/runtime.js` (paths, lifecycle, IPC registry, trash), required directly.
 - [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper and the Chrome extension.
-- [ ] **Rewrite `main.js` to be cleaner and lighter.** Split it (~12.6k lines) into small modules under `src/core/` and `src/server/`, and delete what isn't used: dead IPC handlers, legacy settings and migrations, duplicate helpers, debug logging. Work one area at a time and test after each step: unit tests, the container test suite (security, path guard, health), and a browser check of the grid, previews and thumbnails. This replaces the "move logic out of `main.js`" item below.
+- [x] **Rewrite `main.js` to be cleaner and lighter.** `main.js` (12.6k lines) is gone. Its code now lives in modules under `src/core/` (database, models, search/filter SQL, thumbnails, library paths, file formats) and `src/server/` (HTTP/WebSocket server, MCP, thumbnail worker, and one IPC module per area in `src/server/ipc/`); `src/server/app.js` only starts and stops the server. Removed on the way: duplicate handler registrations, the always-off `DEBUG` logging, the Electron-era event fallbacks, dead functions and ~120 unused imports, `node-fetch`. Server-only libraries moved from the root into `src/`, so they are no longer served as static files. The e2e suite grew from 58 to 108 checks to cover each moved area.
+- [ ] **Split the largest modules further**: `src/server/http.js` (~1.2k lines: routes, WebSocket dispatcher, TLS), `ipc/context-menu.js` and `ipc/models.js` (~1.1k each), `ipc/previews.js`. Also drop `threemf-svg-extrude.js` if it stays unused (only a test loads it).
 - [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers ask for a container path until the folder browser exists.
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
-- [ ] **Move non-Electron logic out of `main.js`** (covered by the rewrite above; areas to cover):
-  - database and migrations
-  - scanning
-  - thumbnails
-  - tags and metadata
-  - duplicates
-  - organize library
-  - print history
-  - filament and Spoolman
-  - printers
-  - AI tagging
-  - backup/restore
 - [ ] **Replace the IPC-over-WebSocket shim with a proper HTTP API** (REST or JSON-RPC), so each action is a defined endpoint with auth and validation.
 - [ ] **Replace Puppeteer scraping** (Thangs/MakerWorld) with plain HTTP and site APIs where possible. Chromium stays in the image for thumbnails either way.
 
@@ -121,7 +110,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
   - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
   - [ ] File pickers for restore/import: browser uploads.
   - [ ] "Show in folder" and "open file": download, or copy the path.
-  - [ ] Native right-click menus (the `menuItems` handler, [main.js:9805](main.js#L9805)): in-page context menus.
+  - [ ] Native right-click menus (the `menuItems` handler, [src/server/ipc/context-menu.js:74](src/server/ipc/context-menu.js#L74)): in-page context menus.
   - [ ] Input dialogs (`input-dialog.html`): in-page modals.
   - [ ] Backup/restore: download and upload a backup file in the browser.
   - [ ] "Send to slicer": the existing helper/protocol handler, documented for web users.
@@ -157,7 +146,7 @@ The Docker image now runs on plain Node. `src/server/index.js` loads `main.js` w
   - Either `jszip` or `fflate`, since they overlap.
 - [ ] **Replace the ~500 `console.log` calls with a leveled logger.** Settings reads currently log on every call. Container logs should be readable with `docker logs`.
 - [ ] **Review the 133 `innerHTML =` assignments** for injection of file names or scraped data.
-- [ ] **Remove redundant code**, e.g. the JS content-type middleware where both branches do the same thing ([main.js:746](main.js#L746)).
+- [ ] **Remove redundant code**, e.g. the JS content-type middleware where both branches do the same thing ([src/server/http.js:342](src/server/http.js#L342)).
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
