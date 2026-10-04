@@ -46,3 +46,18 @@ export const serverAccess = {
     callAction<unknown>('set-server-password', currentPassword, newPassword),
   regenerateToken: () => callAction<{ apiToken: string }>('regenerate-server-api-token')
 };
+
+export interface Tag {
+  id: number;
+  name: string;
+  model_count: number;
+}
+
+export const tags = {
+  list: () => callAction<Tag[]>('get-all-tags'),
+  create: (name: string) => callAction<{ id: number; name: string }>('save-tag', name),
+  /** Renaming onto an existing name merges the two tags. */
+  rename: (id: number, newName: string) =>
+    callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
+  remove: (id: number) => callAction<boolean>('delete-tag', id)
+};

@@ -479,11 +479,11 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => document.getElementById('about-dialog').showModal());
     await page.click('#about-dialog [data-close-dialog="about-dialog"]');
     check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
-    await page.evaluate(() => document.getElementById('tag-manager-dialog').showModal());
-    await page.click('#tag-manager-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('tag-manager-dialog').classList.contains('modal-fullscreen')));
-    await page.click('#tag-manager-fullscreen-toggle');
-    await page.evaluate(() => document.getElementById('tag-manager-dialog').close());
+    await page.evaluate(() => document.getElementById('filament-manager-dialog').showModal());
+    await page.click('#filament-manager-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('filament-manager-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#filament-manager-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('filament-manager-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -558,6 +558,52 @@ async function browserChecks(base, wsUrl, session) {
       const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
+
+    // Tag Manager (React): create, rename inline, search and delete.
+    const serverTagNames = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
+    await page.evaluate(() => window.openTagManager());
+    check('Tag Manager opens', await page.isVisible('#tag-manager-dialog'));
+    await page.click('#tag-manager-dialog-fullscreen-toggle');
+    check('Tag Manager full screen toggle', await page.evaluate(() => document.getElementById('tag-manager-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#tag-manager-dialog-fullscreen-toggle');
+    await page.fill('#new-tag-manager-name', 'e2e-browser-tag');
+    await page.press('#new-tag-manager-name', 'Enter');
+    const created = await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-tag"]', { timeout: 10000 }).catch(() => null);
+    check('Tag Manager creates a tag', !!created && (await serverTagNames()).includes('e2e-browser-tag'));
+    if (created) {
+      await page.click('#tag-manager-list .tag[data-tag-name="e2e-browser-tag"] .tag-text');
+      await page.fill('#tag-manager-list .tag-edit-input', 'e2e-browser-renamed');
+      await page.press('#tag-manager-list .tag-edit-input', 'Enter');
+      const renamedChip = await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"]', { timeout: 10000 }).catch(() => null);
+      const names = await serverTagNames();
+      check('Tag Manager renames a tag inline', !!renamedChip && names.includes('e2e-browser-renamed') && !names.includes('e2e-browser-tag'));
+      await page.fill('#tag-manager-search', 'browser-ren');
+      const visible = await page.$$eval('#tag-manager-list .tag', (chips) => chips.map((c) => c.dataset.tagName));
+      check('Tag Manager search filters the list', visible.length === 1 && visible[0] === 'e2e-browser-renamed', JSON.stringify(visible));
+      await page.click('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"] .tag-remove');
+      await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-browser-renamed"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Tag Manager deletes an unused tag', !(await serverTagNames()).includes('e2e-browser-renamed'));
+    }
+    // Renaming onto an existing name asks, then merges.
+    await page.fill('#tag-manager-search', '');
+    for (const name of ['e2e-merge-target', 'e2e-merge-source']) {
+      await page.fill('#new-tag-manager-name', name);
+      await page.press('#new-tag-manager-name', 'Enter');
+      await page.waitForSelector(`#tag-manager-list .tag[data-tag-name="${name}"]`, { timeout: 10000 }).catch(() => {});
+    }
+    await page.click('#tag-manager-list .tag[data-tag-name="e2e-merge-source"] .tag-text');
+    await page.fill('#tag-manager-list .tag-edit-input', 'E2E-MERGE-TARGET');
+    await page.press('#tag-manager-list .tag-edit-input', 'Enter');
+    const mergeButton = await page.waitForSelector('dialog[open]:has-text("Merge Tags") button:text-is("Merge")', { timeout: 10000 }).catch(() => null);
+    check('renaming onto an existing tag asks to merge', !!mergeButton);
+    if (mergeButton) {
+      await mergeButton.click();
+      await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+      const merged = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n));
+      check('merge leaves one tag', merged.length === 1, JSON.stringify(merged));
+    }
+    await page.click('#tag-manager-dialog .dialog-buttons button');
+    check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
 
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));

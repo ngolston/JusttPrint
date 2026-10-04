@@ -426,20 +426,6 @@ window.saveFileTypeSettingsFromDialog = async function saveFileTypeSettingsFromD
 };
 
 // Modal fullscreen toggles (exposed early so icons work in Docker/server mode)
-window.syncTagManagerFullscreenButton = function syncTagManagerFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('tag-manager-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.toggleTagManagerFullscreen = function toggleTagManagerFullscreen() {
-  const dialog = document.getElementById('tag-manager-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncTagManagerFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
 window.syncFilamentManagerFullscreenButton = function syncFilamentManagerFullscreenButton(isFullscreen) {
   const btn = document.getElementById('filament-manager-fullscreen-toggle');
   if (!btn) return;
@@ -7636,7 +7622,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Update the tag filter dropdown
         await populateTagFilter();
-        await refreshTagManagerList();
+        window.reloadTagManager?.();
       } catch (error) {
         console.error('Error saving new tag:', error);
       }
@@ -9049,10 +9035,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // View Entire Library is bound once later (see onViewEntireLibraryClick).
 
-  // Add Tag Manager functionality
-  let allTags = []; // Store all tags for filtering
-
-  async function refreshTagManagerRelatedUi() {
+  // Called by the Tag Manager (React) after each change.
+  window.refreshTagRelatedUi = async function refreshTagRelatedUi() {
     try {
       await populateTagSelect('tag-select', 'model-tags');
       await populateTagSelect('multi-tag-select', 'multi-tags');
@@ -9074,25 +9058,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Error refreshing tag-related UI:', error);
     }
-  }
+  };
 
-  function openTagManager() {
-    const tagManagerDialog = document.getElementById('tag-manager-dialog');
-    if (!tagManagerDialog) return;
-    tagManagerDialog.classList.remove('modal-fullscreen');
-    if (typeof window.syncTagManagerFullscreenButton === 'function') {
-      window.syncTagManagerFullscreenButton(false);
-    }
-    allTags = [];
-    refreshTagManagerList();
-    tagManagerDialog.showModal();
-    const searchEl = document.getElementById('tag-manager-search');
-    if (searchEl) searchEl.value = '';
-  }
-  window.openTagManager = openTagManager;
-
+  // The Tag Manager is React (src/web/TagManagerDialog.tsx); it defines window.openTagManager.
   window._electronRealEventHandlers['open-tag-manager'] = function() {
-    openTagManager();
+    window.openTagManager?.();
   };
   if (window._electronPendingEvents['open-tag-manager']) {
     window._electronPendingEvents['open-tag-manager'].forEach((args) => {
@@ -9114,10 +9084,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (groupsEl) groupsEl.innerHTML = '';
   });
 
-  // Add close event handler to refresh UI when tag manager closes
-  const tagManagerDialog = document.getElementById('tag-manager-dialog');
-  if (tagManagerDialog) {
-    tagManagerDialog.addEventListener('close', async () => {
+  // Called by the Tag Manager (React) when it closes after changes.
+  window.refreshAfterTagManagerClose = async function refreshAfterTagManagerClose() {
       try {
         // Small delay to ensure database writes are flushed
         await new Promise(resolve => setTimeout(resolve, 150));
@@ -9177,234 +9145,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (error) {
         console.error('Error refreshing UI after tag manager close:', error);
       }
-    });
-  }
-
-  async function refreshTagManagerList(searchTerm = '') {
-    const tagList = document.getElementById('tag-manager-list');
-    tagList.innerHTML = '';
-    
-    try {
-      // Get all tags if we don't have them yet or if no search term
-      if (allTags.length === 0 || !searchTerm) {
-        allTags = await window.electron.getAllTags();
-      }
-      
-      // Filter tags based on search term
-      const filteredTags = searchTerm 
-        ? allTags.filter(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        : allTags.slice();
-      
-      // Sort tags alphabetically by name
-      filteredTags.sort((a, b) => a.name.localeCompare(b.name));
-      
-      filteredTags.forEach(tag => {
-        const tagElement = document.createElement('div');
-        tagElement.className = 'tag';
-        tagElement.dataset.tagId = String(tag.id);
-        tagElement.dataset.tagName = tag.name;
-        tagElement.title = `${tag.name} — click to rename`;
-
-        const textSpan = document.createElement('span');
-        textSpan.className = 'tag-text';
-        textSpan.textContent = tag.name;
-
-        const countSpan = document.createElement('span');
-        countSpan.className = 'tag-count';
-        countSpan.textContent = String(tag.model_count);
-
-        const removeSpan = document.createElement('span');
-        removeSpan.className = 'tag-remove';
-        removeSpan.textContent = '×';
-        removeSpan.title = 'Delete tag';
-
-        tagElement.appendChild(textSpan);
-        tagElement.appendChild(countSpan);
-        tagElement.appendChild(removeSpan);
-
-        const deleteThisTag = async () => {
-          if (tag.model_count > 0) {
-            const response = await window.electron.showMessage(
-              'Delete Tag',
-              `This tag is used by ${tag.model_count} model(s). Are you sure you want to delete it?`,
-              ['Yes', 'No']
-            );
-            if (response !== 'Yes') return false;
-          }
-          await window.electron.deleteTag(tag.id);
-          return true;
-        };
-
-        removeSpan.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          try {
-            const deleted = await deleteThisTag();
-            if (!deleted) return;
-            allTags = [];
-            await refreshTagManagerList(searchTerm);
-            await refreshTagManagerRelatedUi();
-          } catch (error) {
-            console.error('Error deleting tag:', error);
-            await window.electron.showMessage('Error', 'Failed to delete tag');
-          }
-        });
-
-        tagElement.addEventListener('click', (e) => {
-          if (e.target.closest('.tag-remove') || tagElement.querySelector('.tag-edit-input')) return;
-          startTagInlineEdit(tagElement, tag, searchTerm);
-        });
-        
-        tagList.appendChild(tagElement);
-      });
-    } catch (error) {
-      console.error('Error loading tags:', error);
-    }
-  }
-
-  function startTagInlineEdit(tagElement, tag, searchTerm) {
-    const textSpan = tagElement.querySelector('.tag-text');
-    if (!textSpan || tagElement.querySelector('.tag-edit-input')) return;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'tag-edit-input';
-    input.value = tag.name;
-    input.setAttribute('aria-label', `Rename tag ${tag.name}`);
-    input.spellcheck = false;
-    textSpan.replaceWith(input);
-    input.focus();
-    input.select();
-
-    let finished = false;
-
-    const restoreText = () => {
-      const span = document.createElement('span');
-      span.className = 'tag-text';
-      span.textContent = tag.name;
-      if (input.parentNode) input.replaceWith(span);
-    };
-
-    const commit = async () => {
-      if (finished) return;
-      finished = true;
-      const newName = input.value.trim();
-      if (newName === tag.name) {
-        restoreText();
-        return;
-      }
-
-      try {
-        if (!newName) {
-          const message = tag.model_count > 0
-            ? `This tag is used by ${tag.model_count} model(s). Delete "${tag.name}"?`
-            : `Delete the tag "${tag.name}"?`;
-          const response = await window.electron.showMessage('Delete Tag', message, ['Yes', 'No']);
-          if (response !== 'Yes') {
-            finished = false;
-            restoreText();
-            return;
-          }
-          await window.electron.deleteTag(tag.id);
-        } else {
-          const existing = allTags.find((item) =>
-            item.id !== tag.id && item.name.toLowerCase() === newName.toLowerCase()
-          );
-          if (existing) {
-            const response = await window.electron.showMessage(
-              'Merge Tags',
-              `A tag named "${existing.name}" already exists. Merge "${tag.name}" into "${existing.name}"? Models that had either tag will keep "${existing.name}".`,
-              ['Merge', 'Cancel']
-            );
-            if (response !== 'Merge') {
-              finished = false;
-              restoreText();
-              return;
-            }
-          }
-          if (typeof window.electron.renameTag !== 'function') {
-            throw new Error('Tag rename is not available');
-          }
-          await window.electron.renameTag(tag.id, newName);
-        }
-        allTags = [];
-        await refreshTagManagerList(searchTerm);
-        await refreshTagManagerRelatedUi();
-      } catch (error) {
-        console.error('Error updating tag:', error);
-        finished = false;
-        restoreText();
-        await window.electron.showMessage('Error', 'Failed to update tag');
-      }
-    };
-
-    input.addEventListener('click', (e) => e.stopPropagation());
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        commit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        if (finished) return;
-        finished = true;
-        restoreText();
-      }
-    });
-    input.addEventListener('blur', () => {
-      commit();
-    });
-  }
-
-  // Prevent Enter in tag fields from closing the dialog
-  document.querySelector('#tag-manager-dialog form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-  });
+  };
 
   document.getElementById('multi-edit-tags-button')?.addEventListener('click', () => {
-    openTagManager();
-  });
-
-  // Add search functionality
-  document.getElementById('tag-manager-search').addEventListener('input', debounce(async (e) => {
-    await refreshTagManagerList(e.target.value.trim());
-  }, 300));
-
-  // Add clear search functionality
-  document.getElementById('clear-tag-search')?.addEventListener('click', async () => {
-    const searchInput = document.getElementById('tag-manager-search');
-    searchInput.value = '';
-    await refreshTagManagerList();
-  });
-
-  async function createTagFromManagerInput() {
-    const input = document.getElementById('new-tag-manager-name');
-    const tagName = input.value.trim();
-    
-    if (tagName) {
-      try {
-        await window.electron.saveTag(tagName);
-        input.value = '';
-        allTags = []; // Reset tags cache to force refresh
-        const searchTerm = document.getElementById('tag-manager-search').value.trim();
-        await refreshTagManagerList(searchTerm);
-        await populateTagSelect();
-        await populateTagFilter();
-      } catch (error) {
-        console.error('Error saving tag:', error);
-        await window.electron.showMessage('Error', 'Failed to create tag');
-      }
-    }
-  }
-
-  document.getElementById('add-tag-manager-button')?.addEventListener('click', createTagFromManagerInput);
-  document.getElementById('new-tag-manager-name')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      createTagFromManagerInput();
-    }
+    window.openTagManager?.();
   });
 
   window._electronRealEventHandlers['open-purge-models'] = function() {

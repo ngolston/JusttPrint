@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { serverAccess, type ServerAccessInfo } from './api';
+import { ModalDialog } from './components/ModalDialog';
+import { exposeGlobal } from './page';
 
 const DEFAULT_MIN_PASSWORD_LENGTH = 8;
 
@@ -28,7 +30,7 @@ export function ServerAccessDialog() {
 
   useEffect(() => {
     let openCount = 0;
-    window.openServerAccess = () => {
+    return exposeGlobal('openServerAccess', () => {
       const open = ++openCount;
       setStatus('');
       setCurrentPassword('');
@@ -38,8 +40,7 @@ export function ServerAccessDialog() {
       serverAccess.info()
         .then((result) => { if (open === openCount) setInfo(result); })
         .catch((error) => { if (open === openCount) setStatus(`Could not load server access settings: ${errorText(error)}`); });
-    };
-    return () => { delete window.openServerAccess; };
+    });
   }, []);
 
   const minLength = info?.minPasswordLength || DEFAULT_MIN_PASSWORD_LENGTH;
@@ -84,50 +85,45 @@ export function ServerAccessDialog() {
   }
 
   return (
-    <dialog id="server-access-dialog" className="modal" ref={dialogRef}>
-      <form method="dialog">
-        <h3>Server Access</h3>
-        <p className="setting-description">Browsers log in with the server password. MCP clients and scripts use the API token.</p>
-        <div className="settings-group">
-          {info?.passwordFromEnv ? (
-            <p className="setting-description">
-              The password is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.
-            </p>
-          ) : (
-            <div className="form-group">
-              <label htmlFor="server-access-current-password">Current password</label>
-              <input type="password" id="server-access-current-password" autoComplete="current-password"
-                value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
-              <label htmlFor="server-access-new-password">New password</label>
-              <input type="password" id="server-access-new-password" autoComplete="new-password"
-                value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-              <label htmlFor="server-access-confirm-password">Confirm new password</label>
-              <input type="password" id="server-access-confirm-password" autoComplete="new-password"
-                value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-              <p className="setting-description">Changing the password logs out every browser.</p>
-              <div className="dialog-buttons mcp-inline-actions">
-                <button type="button" id="server-access-change-password" onClick={changePassword}>Change password</button>
-              </div>
-            </div>
-          )}
-          <p id="server-access-status" className="setting-description" role="status">{status}</p>
+    <ModalDialog id="server-access-dialog" title="Server Access" dialogRef={dialogRef}
+      footer={<button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>Close</button>}>
+      <p className="setting-description">Browsers log in with the server password. MCP clients and scripts use the API token.</p>
+      <div className="settings-group">
+        {info?.passwordFromEnv ? (
+          <p className="setting-description">
+            The password is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.
+          </p>
+        ) : (
           <div className="form-group">
-            <label htmlFor="server-access-api-token">API token</label>
-            <input type="text" id="server-access-api-token" readOnly ref={tokenRef} value={info?.apiToken ?? ''} />
+            <label htmlFor="server-access-current-password">Current password</label>
+            <input type="password" id="server-access-current-password" autoComplete="current-password"
+              value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+            <label htmlFor="server-access-new-password">New password</label>
+            <input type="password" id="server-access-new-password" autoComplete="new-password"
+              value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+            <label htmlFor="server-access-confirm-password">Confirm new password</label>
+            <input type="password" id="server-access-confirm-password" autoComplete="new-password"
+              value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+            <p className="setting-description">Changing the password logs out every browser.</p>
             <div className="dialog-buttons mcp-inline-actions">
-              <button type="button" id="server-access-copy-token" onClick={copyToken}>Copy token</button>
-              <button type="button" id="server-access-regenerate-token" onClick={regenerateToken}>Regenerate</button>
+              <button type="button" id="server-access-change-password" onClick={changePassword}>Change password</button>
             </div>
-            <p className="setting-description">
-              Send as <code>Authorization: Bearer &lt;token&gt;</code>. The MCP client config already includes it.
-              Regenerating disconnects clients that use the old token.
-            </p>
           </div>
+        )}
+        <p id="server-access-status" className="setting-description" role="status">{status}</p>
+        <div className="form-group">
+          <label htmlFor="server-access-api-token">API token</label>
+          <input type="text" id="server-access-api-token" readOnly ref={tokenRef} value={info?.apiToken ?? ''} />
+          <div className="dialog-buttons mcp-inline-actions">
+            <button type="button" id="server-access-copy-token" onClick={copyToken}>Copy token</button>
+            <button type="button" id="server-access-regenerate-token" onClick={regenerateToken}>Regenerate</button>
+          </div>
+          <p className="setting-description">
+            Send as <code>Authorization: Bearer &lt;token&gt;</code>. The MCP client config already includes it.
+            Regenerating disconnects clients that use the old token.
+          </p>
         </div>
-        <div className="dialog-buttons">
-          <button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>Close</button>
-        </div>
-      </form>
-    </dialog>
+      </div>
+    </ModalDialog>
   );
 }

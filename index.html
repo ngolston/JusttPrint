@@ -1282,8 +1282,6 @@
         </div>
       </form>
     </dialog>
-    <!-- Server Access dialog: React (src/web/ServerAccessDialog.tsx) -->
-    <div id="server-access-root"></div>
     <dialog id="https-settings-dialog" class="modal">
       <form method="dialog">
         <h3>HTTPS / SSL</h3>
@@ -2634,42 +2632,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
         </form>
       </dialog>
 
-      <dialog id="tag-manager-dialog" class="modal">
-        <form method="dialog">
-          <div class="modal-header-row">
-            <h3>Tag Manager</h3>
-            <button type="button" id="tag-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="toggleTagManagerFullscreen">
-              <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
-              </svg>
-              <svg class="fullscreen-icon-shrink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-              </svg>
-            </button>
-          </div>
-          <div class="form-group">
-            <label>Create New Tag</label>
-            <div class="input-with-icon">
-              <input type="text" id="new-tag-manager-name" placeholder="Enter tag name...">
-              <button type="button" id="add-tag-manager-button" class="icon-button">+</button>
-            </div>
-          </div>
-          <div class="form-group tag-manager-existing-group">
-            <label>Existing Tags</label>
-            <p class="tag-manager-hint">Click a tag to rename it. Clear the name and press Enter to delete.</p>
-            <div class="input-with-icon">
-              <input type="text" id="tag-manager-search" placeholder="Search tags...">
-              <button type="button" id="clear-tag-search" class="icon-button" title="Clear search">×</button>
-            </div>
-            <div id="tag-manager-list" class="tags-list">
-              <!-- Tags will be added here dynamically -->
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="tag-manager-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
 
       <dialog id="metadata-editor-dialog" class="modal">
         <form method="dialog">
@@ -2832,6 +2794,8 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
       </div>
     </div>
   </template>
+  <!-- React screens (src/web/): Server Access, Tag Manager -->
+  <div id="react-root"></div>
   <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>
 </body>
