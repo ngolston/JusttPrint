@@ -113,19 +113,6 @@ async function deleteTagHandler(event, tagId) {
 
 ipcMain.handle('delete-tag', deleteTagHandler);
 
-async function getTagModelCountHandler(event, tagId) {
-  return new Promise((resolve, reject) => {
-    const row = database.db.prepare('SELECT COUNT(*) as count FROM model_tags WHERE tag_id = ?').get(tagId);
-    if (row) {
-      resolve(row.count);
-    } else {
-      reject(new Error('Tag not found'));
-    }
-  });
-}
-
-ipcMain.handle('get-tag-model-count', getTagModelCountHandler);
-
 // Update the handler name to match the convention
 async function getModelTagsHandler(event, modelId) {
   try {
@@ -263,7 +250,5 @@ async function generateTagsHandler(event, filePath) {
     throw error;
   }
 }
-
-ipcMain.handle('generate-tags', generateTagsHandler);
 
 module.exports = { deleteTagHandler, generateTagsHandler, getAllTagsHandler, renameTagForMcp, resolveTagForMcp, saveTagHandler };

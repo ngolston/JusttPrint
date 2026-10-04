@@ -3,8 +3,7 @@
 const database = require('./database');
 const fs = require('fs');
 const { parseZipPath } = require('./library-paths');
-const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry } = require('./zip-entries');
-const JSZip = require('jszip');
+const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry, openZip } = require('./zip-entries');
 
 // Helper function to clean HTML entities and special characters from description text
 function cleanDescriptionText(text) {
@@ -161,11 +160,10 @@ async function extract3MFMetadata(filePath) {
       return null;
     }
     
-    // Use JSZip to extract the 3MF file (which is a zip file)
-    const zip = new JSZip();
+    // A 3MF file is a zip
     let contents;
     try {
-      contents = await zip.loadAsync(data);
+      contents = openZip(data);
     } catch (zipError) {
       return null;
     }
@@ -173,7 +171,7 @@ async function extract3MFMetadata(filePath) {
     const modelXmlFile = find3dModelZipEntry(contents);
     
     if (modelXmlFile && !modelXmlFile.dir) {
-      const xmlContent = await modelXmlFile.async('string');
+      const xmlContent = modelXmlFile.read('string');
       const parsedMetadata = parse3MFModelXML(xmlContent);
       
       // Clean up temp file if needed

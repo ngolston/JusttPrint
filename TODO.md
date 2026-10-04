@@ -97,7 +97,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
 - [x] **Replace the IPC-over-WebSocket shim with a proper HTTP API.** `POST /api/actions/<name>` (`src/server/api.js`), with the allowed actions and their argument types in `src/server/api-actions.js`. Login, same origin, arguments and library paths are checked before a handler runs. The WebSocket only pushes events and dialogs.
-- [ ] **Remove the IPC handlers that nothing calls.** Not HTTP actions, and not used by MCP or the server: `check-files-exist`, `extract-zip-archive`, `get-duplicate-files`, `calculate-missing-hashes`, `get-models-by-designer`, `get-models-by-directory`, `get-models-page`, `is-server-mode`, `start-extension-server`, `stop-extension-server`, `get-tag-model-count`, `generate-tags` (check the AI tagging flow first). Also drop the unregistered entries in the bridge's `methodToChannel` list.
+- [x] **Remove the IPC handlers that nothing calls**, their path rules, and the dead entries in the bridge's method list. `generateTagsHandler` stays for MCP; `openPath` and `showItemInFolder` stay in the bridge until their web replacements (section 5).
 - [ ] **Replace Puppeteer scraping** (Thangs/MakerWorld) with plain HTTP and site APIs where possible. Chromium stays in the image for thumbnails either way.
 
 ## 🟡 5. Medium: web UI can do everything
@@ -125,13 +125,13 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
-- [ ] **Run the unit tests (`test:*` scripts) in CI.** `.github/workflows/testdriver.yml` only runs the TestDriver tests.
+- [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.
 - [ ] **Build the Docker image in CI and smoke-test it**: start it, log in, scan a fixture library, load the web UI.
 - [x] **Add end-to-end tests that drive the web UI.** `npm run test:e2e` starts the server on plain Node with `tests/fixtures/library` and runs 53 checks (API, security, path guard, MCP, backup, trash, and the browser UI).
 - [ ] **Run `npm run test:e2e` against the built Docker image too** (same checks, server in the container).
 - [ ] **Rebuild the performance checks on the e2e harness**: large-grid scrolling and 3MF preview stress. The old scripts predated the login and were removed.
 - [x] **Make the database tests (`print-events`, `printer-manager`) run in the same runtime as the server.** They run on plain Node since Electron was removed.
-- [ ] **Move CI from Node 20 to Node 22+.**
+- [x] **Move CI from Node 20 to Node 22+.**
 - [ ] **Standardize on one test runner.** Vitest/TestDriver and Playwright overlap.
 
 ## 🔵 7. Cleanup
@@ -139,10 +139,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
 - [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` and the browser extension icons still show the old artwork (the owner is providing new images).
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
-- [ ] **Remove unneeded dependencies:**
-  - `fs`: an empty placeholder package.
-  - `node-fetch`: Node has `fetch` built in.
-  - Either `jszip` or `fflate`, since they overlap.
+- [x] **Remove unneeded dependencies**: the empty `fs` package, `node-fetch`, and `jszip` (zips are read and written with `fflate`; `openZip()` in `src/core/zip-entries.js`).
 - [ ] **Replace the ~500 `console.log` calls with a leveled logger.** Settings reads currently log on every call. Container logs should be readable with `docker logs`.
 - [ ] **Review the 133 `innerHTML =` assignments** for injection of file names or scraped data.
 - [ ] **Remove redundant code**, e.g. the JS content-type middleware where both branches do the same thing ([src/server/http.js:342](src/server/http.js#L342)).

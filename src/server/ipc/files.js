@@ -12,29 +12,7 @@ const { clientDialogs } = require('../dialogs');
 const { extractModelFromZip } = require('../../core/zip-entries');
 const { getDatabasePath } = require('../../core/db-path');
 const { deleteFile } = require('./context-menu');
-const { extractZipEntryBuffer, findZipEntry, withZipFileLock } = require('../../core/zip-extract');
-
-// Add this new handler
-ipcMain.handle('check-files-exist', async (_, filePaths) => {
-  const results = await Promise.all(filePaths.map(async (path) => {
-    if (isUrlModel(path)) {
-      return { path, exists: true };
-    }
-    try {
-      await fs.promises.access(path, fs.constants.F_OK);
-      return {
-        path,
-        exists: true
-      };
-    } catch {
-      return {
-        path,
-        exists: false
-      };
-    }
-  }));
-  return results;
-});
+const { findZipEntry, withZipFileLock } = require('../../core/zip-extract');
 
 // Update the trash-file handler with simpler path normalization
 ipcMain.handle('trash-file', async (event, filePath) => {
@@ -191,29 +169,6 @@ ipcMain.handle('delete-temp-file', async (event, filePath) => {
   } catch (error) {
     console.warn('delete-temp-file failed:', error.message);
     return false;
-  }
-});
-
-// Add handler to extract zip archive
-ipcMain.handle('extract-zip-archive', async (event, filePath, destinationPath) => {
-  try {
-    const pathInfo = parseZipPath(filePath);
-    if (!pathInfo.isZipEntry) {
-      throw new Error('Not a zip entry');
-    }
-    
-    const entryData = await extractZipEntryBuffer(pathInfo.zipPath, pathInfo.entryPath);
-
-    // Create destination path preserving directory structure
-    const destPath = path.join(destinationPath, pathInfo.entryPath);
-    const destDir = path.dirname(destPath);
-    await fs.promises.mkdir(destDir, { recursive: true });
-    await fs.promises.writeFile(destPath, entryData);
-    
-    return destPath;
-  } catch (error) {
-    console.error('Error extracting zip archive:', error);
-    throw error;
   }
 });
 

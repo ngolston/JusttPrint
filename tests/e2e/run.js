@@ -500,8 +500,13 @@ async function browserChecks(base, wsUrl, session) {
     check('STEP preview parses in the browser (WebAssembly under CSP)', stepResult.success === true && stepResult.geometries > 0, JSON.stringify(stepResult));
 
     // Send to Slicer in the page: the server's command becomes a justtprint:// link for the helper.
+    // Its own tab: on Linux, Chrome asks whether to open the unknown link in another app, and that
+    // prompt blocks mouse and keyboard input to the tab until it is closed.
     await invoke(base, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
-    const helperLink = await page.evaluate(async (file) => {
+    const slicerPage = await page.context().newPage();
+    await slicerPage.goto(base + '/');
+    await slicerPage.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const helperLink = await slicerPage.evaluate(async (file) => {
       const slicers = await window.electron.getSlicers();
       const slicer = slicers.find((s) => s.name === 'Browser Slicer');
       const result = await window.electron.openFileInSlicer({ filePaths: [file], slicerId: slicer.id });
@@ -509,6 +514,7 @@ async function browserChecks(base, wsUrl, session) {
       const frame = [...document.querySelectorAll('iframe')].find((f) => String(f.src).startsWith('justtprint://'));
       return frame ? frame.src : null;
     }, path.join(LIBRARY, 'Designer A', 'cube.stl'));
+    await slicerPage.close();
     check('Send to Slicer opens a helper link with a download token', /^justtprint:\/\/open\/\?.*token=/.test(helperLink || '') && helperLink.includes('browser-slicer'), helperLink);
     const browserSlicer = ((await invoke(base, session, 'get-slicers')).result || []).find((s) => s.name === 'Browser Slicer');
     if (browserSlicer) await invoke(base, session, 'delete-slicer', [browserSlicer.id]);
@@ -543,7 +549,7 @@ async function browserChecks(base, wsUrl, session) {
     const box3mf = path.join(LIBRARY, 'Designer B', 'box.3mf');
     await invoke(base, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
     const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
-    const confirmDialog = await page.waitForSelector('dialog[open] button:text-is("No")', { timeout: 15000 }).catch(() => null);
+    const confirmDialog = await page.waitForSelector('dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")', { timeout: 15000 }).catch(() => null);
     check('server confirmation appears in the browser', !!confirmDialog);
     if (confirmDialog) {
       await confirmDialog.click();

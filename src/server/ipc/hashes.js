@@ -89,41 +89,6 @@ async function calculateFileHash(filePath) {
   });
 }
 
-// Update these handlers to remove Promise wrappers and use synchronous API
-
-ipcMain.handle('get-duplicate-files', async () => {
-  try {
-    const models = database.db.prepare(`
-      SELECT filePath, hash, size,
-        CASE WHEN thumbnail IS NOT NULL AND thumbnail != '' AND thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail
-      FROM models WHERE hash IS NOT NULL
-    `).all();
-    
-    // Group files by hash
-    const duplicates = {};
-    for (const model of models) {
-      if (!model.hash) continue;
-      
-      if (!duplicates[model.hash]) {
-        duplicates[model.hash] = [];
-      }
-      duplicates[model.hash].push({
-        filePath: model.filePath,
-        size: model.size,
-        hasThumbnail: model.hasThumbnail === 1
-      });
-    }
-    
-    // Filter out unique files
-    return Object.fromEntries(
-      Object.entries(duplicates).filter(([_, files]) => files.length > 1)
-    );
-  } catch (error) {
-    console.error('Error getting duplicate files:', error);
-    throw error;
-  }
-});
-
 // Windows-scanned libraries reused in Docker still store C:\... paths. Try the
 // stored path plus Linux mount equivalents derived from STL_HOME / directoryPath.
 function collectReadablePathCandidates(filePath) {
@@ -447,11 +412,6 @@ async function calculateMissingHashesInternal(event, filters = null) {
     throw error;
   }
 }
-
-// Add IPC handler to calculate missing hashes
-ipcMain.handle('calculate-missing-hashes', async (event) => {
-  return await calculateMissingHashesInternal(event);
-});
 
 // Add IPC handler for generateMissingHashes (calls the same internal function)
 const generateMissingHashesHandler = async (event, filters = null) => {

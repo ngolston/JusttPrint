@@ -10,9 +10,8 @@ const { Worker } = require('worker_threads');
 const { isUrlModel, parseZipPath } = require('../../core/library-paths');
 const { EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir } = require('../../core/extract-temp');
 const { getModelByFilePath } = require('../../core/models');
-const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry } = require('../../core/zip-entries');
+const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry, openZip } = require('../../core/zip-entries');
 const { filter3MFMetadataBySettings, parse3MFModelXML } = require('../../core/three-mf');
-const JSZip = require('jszip');
 const { compressDataUrl } = require('../../core/thumbnail-compress');
 const { extractLysPreviewEntry } = require('../../core/extract-lys-preview');
 const { extractF3dPreviewEntry } = require('../../core/extract-f3d-preview');
@@ -176,11 +175,10 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       return [];
     }
     
-    // Use JSZip to extract the 3MF file (which is a zip file)
-    const zip = new JSZip();
+    // A 3MF file is a zip
     let contents;
     try {
-      contents = await zip.loadAsync(data);
+      contents = openZip(data);
     } catch (zipError) {
       const msg = zipError && zipError.message ? zipError.message : String(zipError);
       if (/end of central directory|not a zip/i.test(msg)) {
@@ -199,7 +197,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       log('All files in archive:');
       Object.keys(contents.files).forEach(filename => {
         const file = contents.files[filename];
-        log(' -', filename, file.dir ? '(directory)' : `(${file._data ? file._data.length : 0} bytes)`);
+        log(' -', filename, file.dir ? '(directory)' : `(${file.size} bytes)`);
       });
     }
     
@@ -209,7 +207,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       
       if (modelXmlFile && !modelXmlFile.dir) {
         log('Found 3dmodel.model file, parsing metadata...');
-        const xmlContent = await modelXmlFile.async('string');
+        const xmlContent = modelXmlFile.read('string');
         const parsedMetadata = parse3MFModelXML(xmlContent);
         
         // Filter metadata based on user settings
@@ -388,8 +386,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
 
     for (const [path, file] of Object.entries(contents.files)) {
       if (isImage(path) && !file.dir) {
-        // Try to get uncompressed size if available, otherwise 0
-        const size = (file._data && file._data.uncompressedSize) || 0;
+        const size = file.size || 0;
         const score = calculateScore(path, size);
         log(`Found image: ${path} (Score: ${score})`);
 
@@ -416,7 +413,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
 
     for (const imgObj of toExtract) {
       log(`Extracting: ${imgObj.path} (Score: ${imgObj.score})`);
-      const imageData = await imgObj.file.async('base64');
+      const imageData = imgObj.file.read('base64');
       const mimeType = getMimeType(imgObj.path);
       let dataUrl = `data:image/${mimeType};base64,${imageData}`;
       if (compress) {
@@ -704,10 +701,9 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
       return null;
     }
     
-    const zip = new JSZip();
     let contents;
     try {
-      contents = await zip.loadAsync(data);
+      contents = openZip(data);
     } catch (zipError) {
       return null;
     }
@@ -717,7 +713,7 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
       if (entryPath.endsWith('.stl')) {
         // Extract STL payload into dedicated OS temp dir
         const tempPath = path.join(ensureExtractTempDir(), `${EXTRACT_TEMP_FILE_PREFIX}${Date.now()}.stl`);
-        await fs.promises.writeFile(tempPath, await file.async('nodebuffer'));
+        await fs.promises.writeFile(tempPath, file.read());
         
         // Clean up intermediate zip-entry extract if needed
         if (shouldCleanup && actualFilePath !== filePath) {

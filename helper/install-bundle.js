@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const JSZip = require('jszip');
+const { strToU8, zipSync } = require('fflate');
 
 function safePublicOrigin(value) {
   const url = new URL(String(value || ''));
@@ -195,16 +195,18 @@ async function buildHelperBundle({ appDir, origin, insecure }) {
   const protocolJs = fs.readFileSync(path.join(appDir, 'slicer-protocol.js'));
   const launchJs = fs.readFileSync(path.join(appDir, 'helper', 'slicer-launch.js'));
   const shell = unixInstaller();
-  const zip = new JSZip();
-  zip.file('justtprint-helper.js', helperJs);
-  zip.file('slicer-protocol.js', protocolJs);
-  zip.file('slicer-launch.js', launchJs);
-  zip.file('helper-config.json', JSON.stringify(config, null, 2) + '\n');
-  zip.file('install.cmd', windowsInstaller());
-  zip.file('install.sh', shell, { unixPermissions: 0o755 });
-  zip.file('install.command', shell, { unixPermissions: 0o755 });
-  zip.file('INSTALL.txt', installReadme(config.origins[0]));
-  return zip.generateAsync({ type: 'nodebuffer', platform: 'UNIX' });
+  const file = (data) => [typeof data === 'string' ? strToU8(data) : new Uint8Array(data), { os: 3, attrs: 0o644 << 16 }];
+  const executable = (text) => [strToU8(text), { os: 3, attrs: 0o755 << 16 }];
+  return Buffer.from(zipSync({
+    'justtprint-helper.js': file(helperJs),
+    'slicer-protocol.js': file(protocolJs),
+    'slicer-launch.js': file(launchJs),
+    'helper-config.json': file(JSON.stringify(config, null, 2) + '\n'),
+    'install.cmd': file(windowsInstaller()),
+    'install.sh': executable(shell),
+    'install.command': executable(shell),
+    'INSTALL.txt': file(installReadme(config.origins[0]))
+  }));
 }
 
 function registerHelperBundleRoute(expressApp, appDir) {

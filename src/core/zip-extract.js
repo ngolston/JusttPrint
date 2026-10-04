@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const JSZip = require('jszip');
 const fflate = require('fflate');
 
 const LOC_SIG = 0x04034b50;
@@ -171,24 +170,6 @@ async function extractWithFflate(zipPath, entryPath) {
   return Buffer.from(file);
 }
 
-async function extractWithJszip(zipPath, entryPath) {
-  const data = await fs.promises.readFile(zipPath);
-  const zip = await JSZip.loadAsync(data);
-  const normalized = normalizeZipEntryName(entryPath);
-  let file = zip.file(entryPath) || zip.file(normalized);
-  if (!file) {
-    zip.forEach((name, zipFile) => {
-      if (!file && !zipFile.dir && namesMatch(name, normalized)) {
-        file = zipFile;
-      }
-    });
-  }
-  if (!file) {
-    throw new Error(`Zip entry not found: ${entryPath}`);
-  }
-  return Buffer.from(await file.async('nodebuffer'));
-}
-
 async function extractWithInMemoryFallback(zipPath, entryPath) {
   const stat = await fs.promises.stat(zipPath);
   if (stat.size > MAX_IN_MEMORY_FALLBACK_BYTES) {
@@ -196,17 +177,7 @@ async function extractWithInMemoryFallback(zipPath, entryPath) {
       `Zip archive is too large for fallback extraction (${stat.size} bytes)`
     );
   }
-  try {
-    return await extractWithFflate(zipPath, entryPath);
-  } catch (fflateErr) {
-    try {
-      return await extractWithJszip(zipPath, entryPath);
-    } catch (jszipErr) {
-      const err = new Error(errorMessage(fflateErr));
-      err.cause = jszipErr;
-      throw err;
-    }
-  }
+  return extractWithFflate(zipPath, entryPath);
 }
 
 async function extractZipEntryBuffer(zipPath, entryPath) {
@@ -231,7 +202,7 @@ async function extractZipEntryBuffer(zipPath, entryPath) {
 
     try {
       console.warn(
-        `node-stream-zip failed for ${zipPath}::${entryPath} (${errorMessage(lastError)}); retrying with fflate/JSZip`
+        `node-stream-zip failed for ${zipPath}::${entryPath} (${errorMessage(lastError)}); retrying with fflate`
       );
       return await extractWithInMemoryFallback(zipPath, entryPath);
     } catch (fallbackErr) {
@@ -246,6 +217,5 @@ module.exports = {
   withZipFileLock,
   extractZipEntryBuffer,
   isFragileZipError,
-  extractWithFflate,
-  extractWithJszip
+  extractWithFflate
 };
