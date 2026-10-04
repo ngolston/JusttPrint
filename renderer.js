@@ -104,199 +104,10 @@ window._electronRealEventHandlers['open-performance-settings'] = function() {
   window.openPerformanceSettings?.();
 };
 
-function selectedTlsMode() {
-  return document.getElementById('tls-mode')?.value || 'off';
-}
-
-function updateHttpsModePanels() {
-  const mode = selectedTlsMode();
-  const custom = document.getElementById('tls-panel-custom');
-  const le = document.getElementById('tls-panel-letsencrypt');
-  const self = document.getElementById('tls-panel-selfsigned');
-  if (custom) custom.hidden = mode !== 'custom';
-  if (le) le.hidden = mode !== 'letsencrypt';
-  if (self) self.hidden = mode !== 'selfsigned';
-}
-
-function collectHttpsSettingsPayload() {
-  return {
-    tlsMode: selectedTlsMode(),
-    tlsCertPath: document.getElementById('tls-cert-path')?.value.trim() || '',
-    tlsKeyPath: document.getElementById('tls-key-path')?.value.trim() || '',
-    tlsCaPath: document.getElementById('tls-ca-path')?.value.trim() || '',
-    tlsDomain: (selectedTlsMode() === 'selfsigned'
-      ? document.getElementById('tls-selfsigned-host')?.value
-      : document.getElementById('tls-domain')?.value || '').trim(),
-    tlsEmail: document.getElementById('tls-email')?.value.trim() || '',
-    tlsAgreeTos: !!document.getElementById('tls-agree-tos')?.checked,
-    tlsUseStaging: !!document.getElementById('tls-use-staging')?.checked,
-    tlsRedirectHttp: !!document.getElementById('tls-redirect-http')?.checked,
-    serverHttpPort: document.getElementById('tls-listen-port')?.value.trim() || ''
-  };
-}
-
-function updateTlsRedirectLabel(port) {
-  const label = document.getElementById('tls-redirect-http-label');
-  if (!label) return;
-  const n = parseInt(port, 10);
-  const listen = Number.isInteger(n) && n > 0 ? n : 5000;
-  label.textContent = 'Redirect HTTP on port 80 to https://<host>:' + listen;
-}
-
-function applyHttpsStatusToDialog(status) {
-  const statusEl = document.getElementById('https-settings-status');
-  const envNote = document.getElementById('https-settings-env-note');
-  const desktopNote = document.getElementById('https-settings-desktop-note');
-  const fields = document.getElementById('https-settings-fields');
-  const saveBtn = document.getElementById('save-https-settings');
-  const issueBtn = document.getElementById('tls-issue-letsencrypt');
-  const genBtn = document.getElementById('tls-generate-selfsigned');
-  const modeSelect = document.getElementById('tls-mode');
-  const portGroup = document.getElementById('tls-listen-port-group');
-  const portInput = document.getElementById('tls-listen-port');
-  if (!status) return;
-
-  const parts = [];
-  const appPort = status.appPort || 5000;
-  parts.push(status.serverMode ? 'Server / Docker mode' : 'Desktop mode');
-  parts.push(status.scheme === 'https'
-    ? ('Certificate ready for HTTPS on port ' + appPort)
-    : ('Certificate off — HTTP on port ' + appPort));
-  if (status.source && status.source !== 'none') parts.push('Certificate source: ' + status.source);
-  if (status.cert && status.cert.expiresAt) {
-    const days = status.cert.daysRemaining;
-    parts.push('Expires ' + status.cert.expiresAt.slice(0, 10) + (typeof days === 'number' ? ' (' + days + ' days)' : ''));
-  }
-  if (status.missingFiles) parts.push('Certificate files are missing.');
-  if (status.lastError) parts.push('Last error: ' + status.lastError);
-  if (statusEl) statusEl.textContent = parts.join(' · ');
-
-  const envLock = !!status.envOverride;
-  const desktop = !status.serverMode;
-  if (envNote) envNote.hidden = !envLock;
-  if (desktopNote) desktopNote.hidden = !desktop;
-  if (portGroup) portGroup.hidden = desktop;
-  if (fields) fields.setAttribute('data-disabled', envLock ? '1' : '0');
-  if (saveBtn) saveBtn.hidden = envLock;
-  if (issueBtn) issueBtn.disabled = envLock;
-  if (genBtn) genBtn.disabled = envLock;
-  if (modeSelect) modeSelect.disabled = envLock;
-  if (portInput) portInput.disabled = envLock || !!status.portEnvOverride;
-
-  const settings = status.settings || {};
-  const mode = status.tlsMode || 'off';
-  if (modeSelect) modeSelect.value = mode;
-  const certPath = document.getElementById('tls-cert-path');
-  const keyPath = document.getElementById('tls-key-path');
-  const caPath = document.getElementById('tls-ca-path');
-  const domain = document.getElementById('tls-domain');
-  const email = document.getElementById('tls-email');
-  const agree = document.getElementById('tls-agree-tos');
-  const staging = document.getElementById('tls-use-staging');
-  const redirect = document.getElementById('tls-redirect-http');
-  const selfHost = document.getElementById('tls-selfsigned-host');
-  if (certPath) certPath.value = settings.tlsCertPath || '';
-  if (keyPath) keyPath.value = settings.tlsKeyPath || '';
-  if (caPath) caPath.value = settings.tlsCaPath || '';
-  if (domain) domain.value = settings.tlsDomain || '';
-  if (email) email.value = settings.tlsEmail || '';
-  if (agree) agree.checked = !!settings.tlsAgreeTos;
-  if (staging) staging.checked = !!settings.tlsUseStaging;
-  if (redirect) redirect.checked = !!settings.tlsRedirectHttp;
-  if (selfHost && (mode === 'selfsigned' || !selfHost.value)) selfHost.value = settings.tlsDomain || '';
-  if (portInput) portInput.value = settings.serverHttpPort || appPort || 5000;
-  updateTlsRedirectLabel(portInput ? portInput.value : appPort);
-  updateHttpsModePanels();
-}
-
-async function populateHttpsSettingsDialog() {
-  const dialog = document.getElementById('https-settings-dialog');
-  if (!dialog) return;
-  let status = {};
-  try {
-    status = await window.electron.invoke('get-tls-status') || {};
-  } catch (err) {
-    console.error('get-tls-status failed:', err);
-    status = { lastError: err.message || String(err), settings: {}, tlsMode: 'off', serverMode: false };
-  }
-  applyHttpsStatusToDialog(status);
-}
-
-window.openHttpsSettings = async function openHttpsSettings() {
-  const dialog = document.getElementById('https-settings-dialog');
-  if (!dialog) {
-    window.electron.send('open-https-settings');
-    return;
-  }
-  bindHttpsSettingsDialog();
-  await populateHttpsSettingsDialog();
-  dialog.showModal();
+// HTTPS / SSL settings are React (src/web/HttpsSettingsDialog.tsx); it defines window.openHttpsSettings.
+window._electronRealEventHandlers['open-https-settings'] = function() {
+  window.openHttpsSettings?.();
 };
-
-window.saveHttpsSettingsFromDialog = async function saveHttpsSettingsFromDialog() {
-  const result = await window.electron.invoke('apply-tls-settings', collectHttpsSettingsPayload());
-  if (!result || !result.success) {
-    await window.electron.showMessage('HTTPS / SSL', (result && result.message) || 'Failed to apply TLS settings.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('HTTPS / SSL', result.message || 'Settings applied. Reconnect with https:// if TLS is on.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-window.issueLetsEncryptCertificate = async function issueLetsEncryptCertificate() {
-  const payload = collectHttpsSettingsPayload();
-  payload.tlsMode = 'letsencrypt';
-  payload.issueNow = true;
-  const result = await window.electron.invoke('apply-tls-settings', payload);
-  if (!result || !result.success) {
-    await window.electron.showMessage('Let\'s Encrypt', (result && result.message) || 'Certificate request failed.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('Let\'s Encrypt', result.message || 'Certificate issued. Reopen the app as https://<domain>:<port>.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-window.generateSelfSignedCertificate = async function generateSelfSignedCertificate() {
-  const payload = collectHttpsSettingsPayload();
-  const result = await window.electron.invoke('generate-self-signed-cert', {
-    hostname: document.getElementById('tls-selfsigned-host')?.value.trim() || payload.tlsDomain,
-    tlsDomain: payload.tlsDomain,
-    tlsRedirectHttp: payload.tlsRedirectHttp,
-    serverHttpPort: payload.serverHttpPort
-  });
-  if (!result || !result.success) {
-    await window.electron.showMessage('Self-signed certificate', (result && result.message) || 'Failed to generate certificate.');
-    if (result && result.status) applyHttpsStatusToDialog(result.status);
-    return;
-  }
-  await window.electron.showMessage('Self-signed certificate', result.message || 'Certificate generated. Reopen as https:// — the browser will warn until you trust it.');
-  document.getElementById('https-settings-dialog')?.close();
-};
-
-function bindHttpsSettingsDialog() {
-  if (window._httpsSettingsBound) return;
-  const modeSelect = document.getElementById('tls-mode');
-  if (!modeSelect) return;
-  window._httpsSettingsBound = true;
-  modeSelect.addEventListener('change', updateHttpsModePanels);
-  const portInput = document.getElementById('tls-listen-port');
-  if (portInput) {
-    portInput.addEventListener('input', () => updateTlsRedirectLabel(portInput.value));
-  }
-}
-
-window._electronRealEventHandlers['open-https-settings'] = async function() {
-  await window.openHttpsSettings();
-};
-if (window._electronPendingEvents && window._electronPendingEvents['open-https-settings']) {
-  window._electronPendingEvents['open-https-settings'].forEach((args) => {
-    window._electronRealEventHandlers['open-https-settings'].apply(null, args);
-  });
-  delete window._electronPendingEvents['open-https-settings'];
-}
-document.addEventListener('DOMContentLoaded', bindHttpsSettingsDialog);
 
 const FILE_TYPE_CATALOG_FALLBACK = [
   { id: '3ds', label: '3DS (.3ds)' },
@@ -6247,12 +6058,8 @@ async function createServerMenuBar() {
         { label: 'Settings', action: () => {
           window.openMcpServerSettings?.();
         }},
-        { label: 'HTTPS / SSL', action: async () => {
-          if (typeof window.openHttpsSettings === 'function') {
-            await window.openHttpsSettings();
-          } else {
-            window.electron.send('open-https-settings');
-          }
+        { label: 'HTTPS / SSL', action: () => {
+          window.openHttpsSettings?.();
         }}
       ]
     },
@@ -10454,7 +10261,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await window.openServerAccess();
   };
 
-  bindHttpsSettingsDialog();
 
   // Store pending tags for preview (can handle multiple models)
   let pendingTagData = [];

@@ -282,3 +282,44 @@ export const fileTypes = {
   countModels: (ids: string[]) => callAction<number>('get-model-count-by-file-type-ids', ids),
   removeModels: (ids: string[]) => callAction<unknown>('remove-models-by-file-type-ids', ids)
 };
+
+export type TlsMode = 'off' | 'custom' | 'letsencrypt' | 'selfsigned';
+
+export interface TlsSettings {
+  tlsCertPath: string;
+  tlsKeyPath: string;
+  tlsCaPath: string;
+  tlsDomain: string;
+  tlsEmail: string;
+  tlsAgreeTos: boolean;
+  tlsUseStaging: boolean;
+  tlsRedirectHttp: boolean;
+  serverHttpPort: string;
+}
+
+export interface TlsStatus {
+  envOverride: boolean;
+  portEnvOverride?: boolean;
+  tlsMode: TlsMode;
+  scheme: 'http' | 'https';
+  source: string;
+  cert: { expiresAt?: string; daysRemaining?: number } | null;
+  missingFiles: boolean;
+  lastError: string | null;
+  appPort: number;
+  settings: TlsSettings;
+}
+
+export interface TlsResult {
+  success: boolean;
+  message?: string;
+  status?: TlsStatus;
+}
+
+export const tls = {
+  status: () => callAction<TlsStatus>('get-tls-status'),
+  /** Saves the settings and restarts the listener; with issueNow, also requests a Let's Encrypt certificate. */
+  apply: (payload: TlsSettings & { tlsMode: TlsMode; issueNow?: boolean }) => callAction<TlsResult>('apply-tls-settings', payload),
+  generateSelfSigned: (payload: { hostname: string; tlsDomain: string; tlsRedirectHttp: boolean; serverHttpPort: string }) =>
+    callAction<TlsResult>('generate-self-signed-cert', payload)
+};

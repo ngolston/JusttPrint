@@ -893,6 +893,22 @@ async function browserChecks(base, wsUrl, session) {
     check('file type filter offers the new type', await page.waitForSelector('#filetype-select option[value="obj"]', { state: 'attached', timeout: 10000 }).then(() => true).catch(() => false));
     await invoke(base, session, 'save-setting', ['scanAdditionalFileTypes', savedTypes || '[]']);
 
+    // HTTPS / SSL settings (React): status, mode panels and the redirect label. Not applied (that restarts the listener).
+    await page.evaluate(() => window.openHttpsSettings());
+    await page.waitForSelector('#https-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('HTTPS settings shows the status', /HTTP on port \d+/.test(await page.textContent('#https-settings-status').catch(() => '')));
+    check('HTTPS settings starts in Off mode with no panels', await page.inputValue('#tls-mode') === 'off' && !(await page.isVisible('.tls-mode-panel')));
+    await page.selectOption('#tls-mode', 'custom');
+    check('Custom mode shows the certificate fields', await page.isVisible('#tls-cert-path') && !(await page.isVisible('#tls-domain')));
+    await page.selectOption('#tls-mode', 'letsencrypt');
+    check("Let's Encrypt mode shows domain and email", await page.isVisible('#tls-domain') && await page.isVisible('#tls-email'));
+    await page.selectOption('#tls-mode', 'selfsigned');
+    check('Self-signed mode shows the hostname', await page.isVisible('#tls-selfsigned-host') && !(await page.isVisible('#tls-cert-path')));
+    await page.fill('#tls-listen-port', '5443');
+    check('redirect label follows the listen port', /:5443$/.test((await page.textContent('#tls-redirect-http-label')).trim()));
+    await page.click('#cancel-https-settings');
+    check('HTTPS settings closes', !(await page.isVisible('#https-settings-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
