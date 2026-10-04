@@ -5,6 +5,8 @@
 #   npm run docker:local:down     stop and remove the container (data is kept)
 #
 # Settings come from ~/justtprint-test/local.env (models folder, data folder, password, port).
+name: justtprint
+
 services:
   justtprint:
     build:
