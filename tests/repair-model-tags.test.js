@@ -6,7 +6,7 @@
 
 const assert = require('assert');
 const Database = require('better-sqlite3');
-const { repairModelTags, modelTagsForeignKeysBroken } = require('../db-repair');
+const { repairModelTags, modelTagsForeignKeysBroken } = require('../src/core/db-repair');
 
 function test(name, fn) {
   try {

@@ -4,6 +4,20 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-04
+
+**Upgrading:** no changes needed for Docker installs. The image's health check now runs `src/server/healthcheck.js`; if you override `HEALTHCHECK` in your own compose file, update the path.
+
+**Security:**
+- Removed the old `getSetting`, `saveSetting`, `quitApp` and `get-db` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
+- The Thangs page lookup only loads https links on thangs.com; before, the server would load any address a browser sent (internal services, `file://`). The unused MakerWorld page fetch is removed.
+- Server source files that sat next to the web UI (Spoolman sync, print history, ZIP handling and others) could be downloaded from the web server. They now live under `src/`, which is never served.
+
+**Changes:**
+- Declining the Terms of Service logs that browser out instead of shutting down the server
+- **Restore Database** checks the uploaded file first (it must be a readable Printventory database) and keeps the current database as `printventory.db.before-restore`; before, any file overwrote the library
+- `main.js` is gone: the server is split into modules under `src/core/` and `src/server/` (`src/server/app.js` starts it), and server-only files moved out of the web root. No behavior change; Docker setups need no changes
+
 ## [3.0.0] - 2026-10-03
 
 **Printventory is now a Docker-only web app.** The Electron desktop app and the Windows, macOS and Linux installers are gone.

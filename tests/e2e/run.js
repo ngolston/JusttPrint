@@ -157,7 +157,7 @@ async function apiChecks(base, wsUrl) {
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
   check('home after login', (await http.request('/')).status === 200);
   check('web asset served', (await http.request('/renderer.js')).status === 200);
-  for (const hidden of ['/main.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
+  for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
 
@@ -186,12 +186,18 @@ async function apiChecks(base, wsUrl) {
   const version = require(path.join(ROOT, 'package.json')).version;
   check('WS with login, same origin', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['currentVersion'])).result === version);
   check('secret settings hidden', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['serverPasswordHash'])).result === null);
+  for (const channel of ['getSetting', 'saveSetting', 'quitApp']) {
+    check(`${channel} channel removed`, !!(await invoke(wsUrl, { cookie, origin }, channel, ['serverPasswordHash'])).error);
+  }
 
   console.log('\n# Path guard');
   const refused = (res, pattern) => typeof res.error === 'string' && pattern.test(res.error);
   check('read /etc/passwd refused', refused(await invoke(wsUrl, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
   check('delete live database refused', refused(await invoke(wsUrl, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'printventory.db')]), /outside the library/));
   check('scan /etc refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
+  check('page fetch outside Thangs refused', refused(await invoke(wsUrl, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']), /Only https links to thangs\.com/));
+  check('fetch-makerworld-page removed', !!(await invoke(wsUrl, { cookie, origin }, 'fetch-makerworld-page', ['https://makerworld.com/'])).error);
+  check('scan of the app folder refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
   check('open-path refused', refused(await invoke(wsUrl, { cookie, origin }, 'open-path', [LIBRARY]), /desktop app/));
   check('move out of library refused', refused(await invoke(wsUrl, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
   const read = await invoke(wsUrl, { cookie, origin }, 'read-model-file', [cube]);
@@ -206,17 +212,130 @@ async function apiChecks(base, wsUrl) {
   const mcp = await anon.request('/mcp', { method: 'POST', json: mcpBody, useCookie: false, headers: { authorization: `Bearer ${token}` } });
   const mcpText = await mcp.text();
   check('MCP with token finds library models', mcp.status === 200 && mcpText.includes('cube.stl') && mcpText.includes('pack.zip::inner/widget.stl'));
+  const mcpTool = async (name, args = {}) => {
+    const res = await anon.request('/mcp', { method: 'POST', json: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, useCookie: false, headers: { authorization: `Bearer ${token}` } });
+    return { status: res.status, text: await res.text() };
+  };
+  const mcpStats = await mcpTool('get_library_stats');
+  check('MCP library stats', mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text), mcpStats.text.slice(0, 200));
+  const mcpTree = await mcpTool('get_folder_tree');
+  check('MCP folder tree', mcpTree.status === 200 && mcpTree.text.includes('Designer A') && !/"isError":\s*true/.test(mcpTree.text), mcpTree.text.slice(0, 200));
   const backupMcp = await anon.request('/mcp', {
     method: 'POST', useCookie: false, headers: { authorization: `Bearer ${token}` },
     json: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'backup_database', arguments: { destPath: '/etc/evil.db' } } }
   });
   check('MCP backup outside data folder refused', /Can only write/.test(await backupMcp.text()));
 
+  console.log('\n# Inventory');
+  const ask = (channel, args) => invoke(wsUrl, { cookie, origin }, channel, args);
+  const printer = (await ask('save-printer', [{ nickname: 'E2E Printer', firmwareType: 'Klipper' }])).result;
+  const printers = (await ask('get-all-printers')).result || [];
+  check('printer saved and listed', !!printer && printers.some((p) => p.id === printer.id && p.nickname === 'E2E Printer'));
+  if (printer) {
+    await ask('save-printer-maintenance-log', [{ printer_id: printer.id, title: 'Nozzle swap', maintenance_type: 'nozzle' }]);
+    const logs = (await ask('get-printer-maintenance-logs', [printer.id])).result || [];
+    check('printer maintenance log saved', logs.some((l) => l.title === 'Nozzle swap'));
+    const removed = (await ask('delete-printer', [printer.id])).result;
+    check('printer deleted', removed === true && !((await ask('get-all-printers')).result || []).some((p) => p.id === printer.id));
+  }
+  const savedPart = (await ask('save-part', [{ name: 'E2E Magnet', quantity: 12, unit: 'pcs' }])).result;
+  check('part saved and listed', !!savedPart && ((await ask('get-all-parts')).result || []).some((p) => p.id === savedPart.id && p.quantity === 12));
+  const filament = (await ask('save-filament', [{ name: 'E2E PLA', material: 'PLA', color_hex: 'ff0000' }])).result;
+  check('filament saved and listed', !!filament && ((await ask('get-all-filaments')).result || []).some((f) => f.id === filament.id && f.name === 'E2E PLA'));
+  const names = async (filters) => ((await ask('get-models-filtered', [filters])).result || []).map((m) => m.fileName).sort().join(',');
+  const term = (value) => ({ t: 'clause', field: 'all', value });
+  check('search: one word', await names({ search: 'cube' }) === 'cube.stl', await names({ search: 'cube' }));
+  const either = await names({ searchTokens: [term('cube'), { t: 'op', op: 'OR' }, term('box')] });
+  check('search: OR', either === 'box.3mf,cube.stl', either);
+  const notCube = await names({ searchTokens: [{ t: 'not' }, term('cube')] });
+  check('search: NOT', notCube.length > 0 && !notCube.includes('cube.stl'), notCube);
+  const both = await names({ searchTokens: [term('cube'), { t: 'op', op: 'AND' }, term('box')] });
+  check('search: AND with no match', both === '', both);
+
+  const tag = (await ask('save-tag', ['e2e-tag'])).result;
+  check('tag saved and listed', !!tag && ((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id), JSON.stringify(tag));
+  if (tag) {
+    await ask('rename-tag', [tag.id, 'e2e-renamed']);
+    const renamed = ((await ask('get-all-tags')).result || []).find((t) => t.id === tag.id);
+    check('tag renamed', renamed && renamed.name === 'e2e-renamed', JSON.stringify(renamed));
+    check('tag model count', (await ask('get-tag-model-count', [tag.id])).result === 0);
+    await ask('delete-tag', [tag.id]);
+    check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
+  }
+
+  const cubeHash = (await ask('calculate-file-hash', [cube])).result;
+  const expectedHash = require('crypto').createHash('md5').update(fs.readFileSync(cube)).digest('hex');
+  check('file hash is the MD5 of the file', cubeHash === expectedHash, `${cubeHash} vs ${expectedHash}`);
+  const duplicates = await ask('get-duplicates', [false]);
+  check('duplicates query runs', Array.isArray(duplicates.result), duplicates.error);
+
+  await ask('save-slicer', [{ name: 'E2E Slicer', path: '/usr/bin/e2e-slicer' }]);
+  const slicer = ((await ask('get-slicers')).result || []).find((s) => s.name === 'E2E Slicer');
+  check('slicer saved and listed', !!slicer);
+  if (slicer) {
+    await ask('delete-slicer', [slicer.id]);
+    check('slicer deleted', !((await ask('get-slicers')).result || []).some((s) => s.id === slicer.id));
+  }
+
+  const preview3mf = await ask('parse-3mf-preview', [box, 'e2e-preview']);
+  check('3MF preview parsed by the worker', !!preview3mf.result && !preview3mf.error, preview3mf.error);
+  const images = await ask('get3MFImages', [box]);
+  check('3MF images read', Array.isArray(images.result), images.error);
+  const meta = await ask('get-all-metadata');
+  check('metadata lists load', !!meta.result && !meta.error, meta.error);
+
+  const gpu = await ask('get-gpu-info');
+  check('System Report GPU info', !gpu.error && gpu.result !== undefined, gpu.error);
+  const dbBench = await ask('benchmark-database');
+  check('System Report database benchmark', !dbBench.error && !!dbBench.result, dbBench.error);
+
+  const menu = (await ask('show-context-menu', [[cube]])).result || {};
+  check('context menu built for a model', menu.type === 'html-menu' && Array.isArray(menu.items) && menu.items.some((i) => i.label), JSON.stringify(menu).slice(0, 200));
+
+  const before = (await ask('get-model', [cube])).result;
+  check('model loaded with tags', !!before && Array.isArray(before.tags), JSON.stringify(before).slice(0, 200));
+  if (before) {
+    const saved = await ask('save-model', [{ ...before, thumbnail: undefined, notes: 'e2e note', designer: 'E2E Designer', tags: ['e2e-model-tag'] }]);
+    const after = (await ask('get-model', [cube])).result || {};
+    check('model edits saved', !saved.error && after.notes === 'e2e note' && after.designer === 'E2E Designer' && (after.tags || []).includes('e2e-model-tag'), saved.error || JSON.stringify({ notes: after.notes, designer: after.designer, tags: after.tags }));
+    check('designer list includes the edit', ((await ask('get-designers')).result || []).some((d) => JSON.stringify(d).includes('E2E Designer')));
+  }
+  const tree = await ask('get-folder-tree');
+  check('folder tree builds', !tree.error && JSON.stringify(tree.result || '').includes('Designer A'), tree.error);
+
+  const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
+  const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
+  check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
+  if (typeof extracted === 'string') {
+    const cleaned = (await ask('delete-temp-file', [extracted])).result;
+    check('extracted temp file cleaned up', cleaned !== false && !fs.existsSync(extracted), String(cleaned));
+  }
+
+  const sources = (await ask('list-organize-sources')).result || [];
+  check('organize sources list the library', JSON.stringify(sources).includes(LIBRARY), JSON.stringify(sources));
+  const previewReply = await ask('organize-library-preview', [{ sourceDir: LIBRARY, destDir: '/tmp/pv-e2e-organize-preview' /* preview only: never created */ }]);
+  const preview = previewReply.result || {};
+  check('organize preview plans copies', preview.ok === true && preview.copyCount > 0, previewReply.error || preview.error || JSON.stringify(preview).slice(0, 200));
+  const prompt = await ask('get-default-ai-prompt');
+  check('default AI prompt', typeof prompt.result === 'string' && prompt.result.length > 0, prompt.error);
+  const logged = (await ask('log-print-event', [{ filePath: cube, outcome: 'printed', quantity: 1 }])).result;
+  const events = logged && logged.eventId && (await ask('get-print-events', [logged.model && logged.model.id])).result;
+  check('print event logged and listed', Array.isArray(events) && events.some((e) => e.id === logged.eventId), JSON.stringify(logged));
+
   console.log('\n# Backup and trash');
   const backup = await invoke(wsUrl, { cookie, origin }, 'backup-database');
   const backupPath = backup.result && backup.result.filePath;
   check('backup created', !!backupPath, backup.error);
   if (backupPath) check('backup downloadable', (await http.request(download(backupPath))).status === 200);
+  const junk = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
+  check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a Printventory backup/.test(junk.result.message), JSON.stringify(junk));
+  check('library still works after a refused restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+  if (backupPath) {
+    const restored = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
+    check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
+    check('library works after restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+    check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'printventory.db.before-restore')));
+  }
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
   const trash = await invoke(wsUrl, { cookie, origin }, 'trash-file', [part]);
   const trashed = !fs.existsSync(part) && fs.readdirSync(WORK, { recursive: true }).some((p) => String(p).endsWith('part one.stl.trashinfo'));
@@ -238,6 +357,14 @@ async function browserChecks(base, wsUrl, session) {
     return Array.isArray(res.result) && res.result.length === 0 ? 'done' : null;
   }, 120000, 'thumbnails').catch((error) => error.message);
   check('worker rendered all thumbnails', missing === 'done', missing);
+  // The last thumbnail is saved just before the worker reports the job complete.
+  const jobStatus = await waitFor(async () => {
+    const status = (await invoke(wsUrl, session, 'get-server-thumbnail-job-status')).result || {};
+    return status.status === 'idle' ? status : null;
+  }, 30000, 'thumbnail job').catch((error) => ({ error: error.message }));
+  check('thumbnail job finished', jobStatus.status === 'idle', JSON.stringify(jobStatus));
+  const cubeThumbs = (await invoke(wsUrl, session, 'get-all-thumbnails', [path.join(LIBRARY, 'Designer A', 'cube.stl')])).result;
+  check('rendered thumbnail stored for a model', JSON.stringify(cubeThumbs || '').includes('data:image'), JSON.stringify(cubeThumbs).slice(0, 120));
   await invoke(wsUrl, session, 'save-setting', ['tosAcceptedDate', new Date().toISOString()]);
   await invoke(wsUrl, session, 'save-setting', ['hasRunBefore', 'true']);
 

@@ -5645,7 +5645,8 @@ async function checkTermsOfService() {
           acceptButton.removeEventListener('click', acceptHandler);
           declineButton.removeEventListener('click', declineHandler);
           closeDialogSafe(termsDialog);
-          window.electron.quitApp();
+          // Declining logs this browser out; the server keeps running for everyone else.
+          if (typeof window.logOutOfServer === 'function') window.logOutOfServer();
           resolve(false); // Resolve promise when declined
         };
 
@@ -13823,7 +13824,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (hasNodeAccess) {
             try {
               const { execFile } = require('child_process');
-              const { buildSlicerSpawnSpec } = require('./slicer-launch');
+              const { buildSlicerSpawnSpec } = require('./src/server/slicer-launch');
               const rawPaths = Array.isArray(commandData.filePaths) && commandData.filePaths.length
                 ? commandData.filePaths
                 : [filePath];

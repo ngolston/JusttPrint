@@ -12,7 +12,7 @@ const {
   extractAllMeshesFast,
   shouldUseFastPath
 } = require('../threemf-mesh-extract.js');
-const { Simple3MFLoader, collectSlicerSkipIds } = require('../threemf-loader-simple.js');
+const { Simple3MFLoader, collectSlicerSkipIds } = require('../src/core/threemf-loader-simple.js');
 const { parseSvgPathContours } = require('../threemf-svg-extrude.js');
 
 function cubeModelXml(objectId = '1') {
