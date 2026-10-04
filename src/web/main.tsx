@@ -15,6 +15,7 @@ import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
+import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
@@ -51,6 +52,7 @@ function Screens() {
       <SlicerSettingsDialog />
       <MetadataEditorDialog />
       <StlHomeDialog />
+      <OrganizeLibraryDialog />
     </>
   );
 }

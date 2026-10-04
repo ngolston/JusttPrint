@@ -1,32 +1,19 @@
-.organize-library-dialog {
+#organize-library-dialog {
   max-width: 760px;
 }
 
-.organize-library-dialog .setting-description strong {
+#organize-library-dialog .setting-description strong {
   font-weight: 600;
 }
 
-.organize-path-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-#organize-library-dialog .organize-path-row input,
-#organize-library-dialog .organize-path-row input:hover,
-#organize-library-dialog .organize-path-row input:focus {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-  margin: 0;
+#organize-library-dialog #organize-source-subfolder,
+#organize-library-dialog #organize-dest-input {
   background-image: none !important;
   padding-right: 16px !important;
 }
 
-.organize-library-dialog .organize-path-row button {
-  width: auto;
-  margin: 0;
-  flex-shrink: 0;
+#organize-library-dialog .organize-result {
+  white-space: pre-line;
 }
 
 .organize-structure {

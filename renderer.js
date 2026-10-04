@@ -5238,11 +5238,7 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Organize Library', action: () => {
-      if (typeof window.openOrganizeLibrary === 'function') {
-        window.openOrganizeLibrary();
-        return;
-      }
-      window.electron.send('open-organize-library');
+      window.openOrganizeLibrary?.(); // React: src/web/OrganizeLibraryDialog.tsx
     }},
     { label: '---', action: null },
     {
@@ -7046,6 +7042,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('multi-edit-tags-button')?.addEventListener('click', () => {
     window.openTagManager?.();
   });
+
+  // Organize Library is React (src/web/OrganizeLibraryDialog.tsx); it defines window.openOrganizeLibrary.
+  window._electronRealEventHandlers['open-organize-library'] = function() {
+    window.openOrganizeLibrary?.();
+  };
+  if (window._electronPendingEvents['open-organize-library']) {
+    window._electronPendingEvents['open-organize-library'].forEach((args) => {
+      window._electronRealEventHandlers['open-organize-library'].apply(null, args);
+    });
+    delete window._electronPendingEvents['open-organize-library'];
+  }
 
   // Purge Models is React (src/web/PurgeModelsDialog.tsx); it defines window.openPurgeModels.
   window._electronRealEventHandlers['open-purge-models'] = function() {

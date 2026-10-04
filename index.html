@@ -884,66 +884,6 @@
         </div>
       </form>
     </dialog>
-    <dialog id="organize-library-dialog" class="modal organize-library-dialog">
-      <form method="dialog" id="organize-library-form">
-        <h3>Organize Library</h3>
-        <p class="setting-description">Copy models from a scanned folder into the folders you choose. Each original is removed only after its copy is checked. Files that are not in the library stay where they are.</p>
-        <div class="form-group">
-          <label for="organize-source-button">Scanned directory</label>
-          <div class="organize-source-picker">
-            <button type="button" id="organize-source-button" class="organize-source-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="organize-source-menu">
-              <span id="organize-source-label">No scanned directories yet</span>
-            </button>
-            <div id="organize-source-menu" class="organize-source-menu" hidden>
-              <input type="text" id="organize-source-search" class="organize-source-search" placeholder="Search folders" autocomplete="off" spellcheck="false" aria-label="Search scanned directories">
-              <div id="organize-source-options" class="organize-source-options" role="listbox"></div>
-              <p id="organize-source-empty" class="organize-source-empty" hidden>No matching folders</p>
-            </div>
-          </div>
-          <input type="hidden" id="organize-source-input">
-        </div>
-        <div class="form-group">
-          <label for="organize-source-subfolder">Folder inside it</label>
-          <div class="organize-path-row">
-            <input type="text" id="organize-source-subfolder" placeholder="Entire scanned folder" autocomplete="off" spellcheck="false">
-            <button type="button" id="organize-source-sub-browse">Browse</button>
-          </div>
-          <p class="setting-description">Leave this blank to use the whole scanned folder, or choose a folder inside it.</p>
-        </div>
-        <div class="form-group">
-          <label for="organize-dest-input">Destination directory</label>
-          <div class="organize-path-row">
-            <input type="text" id="organize-dest-input" placeholder="New library root" autocomplete="off" spellcheck="false">
-            <button type="button" id="organize-dest-browse">Browse</button>
-          </div>
-        </div>
-        <div class="organize-structure">
-          <span class="organize-structure-label">Folder structure</span>
-          <div id="organize-structure-rows"></div>
-          <p id="organize-structure-preview" class="setting-description"></p>
-          <button type="button" id="organize-structure-add">Add folder</button>
-        </div>
-        <div id="organize-include-zip" class="organize-include-zip" hidden>
-          <label for="organize-include-zip-input">
-            <input type="checkbox" id="organize-include-zip-input">
-            Include zip files
-          </label>
-          <p class="setting-description">Moves each zip archive into the library. Files inside the zip stay packed.</p>
-        </div>
-        <div id="organize-preview" class="organize-preview" hidden>
-          <p id="organize-preview-summary"></p>
-          <p id="organize-preview-space"></p>
-          <ul id="organize-preview-list"></ul>
-          <p id="organize-preview-skipped"></p>
-          <p id="organize-preview-error" class="organize-preview-error" hidden></p>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="organize-preview-button">Preview</button>
-          <button type="button" id="organize-confirm-button" disabled>Copy and remove originals</button>
-          <button type="button" id="organize-close-button">Close</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="terms-of-service-dialog" class="modal tos-dialog">
       <div class="tos-dialog-content">
         <div class="tos-header">
@@ -1498,7 +1438,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="dedup-preferred.js"></script>
   <script src="stl-sanity.js"></script>
   <script src="renderer.js"></script>
-  <script src="organize-library-ui.js"></script>
   <script src="filament.js"></script>
   <script src="print-history.js"></script>
   <script src="guide.js"></script>

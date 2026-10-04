@@ -376,3 +376,49 @@ export const metadata = {
   /** Clears the value on every model that has it. */
   remove: (type: MetadataType, name: string) => callAction<unknown>('delete-metadata', type, name)
 };
+
+export interface OrganizeJob {
+  sourceDir: string;
+  destDir: string;
+  includeZips: boolean;
+  /** Folder levels under the destination, e.g. ['designer', 'parentModel']. */
+  layers: string[];
+}
+
+export interface OrganizePreview {
+  ok: boolean;
+  error?: string;
+  spaceError?: string;
+  enoughSpace?: boolean;
+  destWillBeCreated?: boolean;
+  copyCount?: number;
+  copyBytes?: number;
+  resumeCount?: number;
+  zipCount?: number;
+  zipEntryCount?: number;
+  noParentCount?: number;
+  emptyLayers?: { label?: string; folder: string; count: number }[];
+  freeBytes?: number | null;
+  marginBytes?: number;
+  sample?: { from: string; to: string; zipEntryCount?: number }[];
+  skippedCount?: number;
+  reasonCounts?: Record<string, number>;
+}
+
+export interface OrganizeResult {
+  ok: boolean;
+  error?: string;
+  moved?: number;
+  skipped?: number;
+  failedCount?: number;
+  failed?: { from?: string; error: string }[];
+  warningCount?: number;
+  zipModels?: number;
+}
+
+export const organize = {
+  /** Scanned folders the organizer may move models out of. */
+  sources: () => callAction<{ path: string }[]>('list-organize-sources'),
+  preview: (job: OrganizeJob) => callAction<OrganizePreview>('organize-library-preview', job),
+  run: (job: OrganizeJob) => callAction<OrganizeResult>('organize-library-run', job)
+};

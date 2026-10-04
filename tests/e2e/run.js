@@ -1027,6 +1027,31 @@ async function browserChecks(base, wsUrl, session) {
     for (const key of stlHomeKeys) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
     await page.evaluate(() => window.updateScanStlHomeButtonVisibility?.());
 
+    // Organize Library (React): source picker, folder structure, preview, and a stale preview after a change. Not run.
+    const savedLayers = (await invoke(base, session, 'get-setting', ['organizeLibraryLayers'])).result;
+    await page.evaluate(() => window.openOrganizeLibrary());
+    await page.waitForSelector('#organize-library-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Organize Library lists the scanned folders', await page.isEnabled('#organize-source-button'));
+    await page.click('#organize-source-button');
+    await page.fill('#organize-source-search', 'zzz-no-match');
+    check('source search filters the folders', await page.isVisible('#organize-source-empty'));
+    await page.fill('#organize-source-search', LIBRARY);
+    await page.press('#organize-source-search', 'Enter');
+    check('Enter picks the matching folder', (await page.textContent('#organize-source-label')) === LIBRARY && !(await page.isVisible('#organize-source-menu')),
+      await page.textContent('#organize-source-label'));
+    await page.click('#organize-structure-add');
+    check('structure preview lists the folders', /Root \/ \S.* \/ \S.* \/ file/.test(await page.textContent('#organize-structure-preview')));
+    await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-preview');
+    await page.click('#organize-preview-button');
+    const planned = await page.waitForSelector('#organize-preview-summary:has-text("will be copied")', { timeout: 15000 }).catch(() => null);
+    check('Organize preview plans copies and allows Copy', !!planned && await page.isEnabled('#organize-confirm-button'));
+    await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-other');
+    check('changing the job asks for a new preview', (await page.textContent('#organize-preview-summary')).includes('Preview again')
+      && !(await page.isEnabled('#organize-confirm-button')));
+    await page.click('#organize-close-button');
+    check('Organize Library closes', !(await page.isVisible('#organize-library-dialog')));
+    await invoke(base, session, 'save-setting', ['organizeLibraryLayers', savedLayers == null ? '' : savedLayers]);
+
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));
