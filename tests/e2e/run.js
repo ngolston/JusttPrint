@@ -880,6 +880,19 @@ async function browserChecks(base, wsUrl, session) {
       && !(await page.isVisible('#browser-extension-settings-dialog')));
     await invoke(base, session, 'save-setting', ['extensionClientPathPrefix', '']);
 
+    // File Type settings (React): lists the catalog, saves a type, and the sidebar filter offers it.
+    const savedTypes = (await invoke(base, session, 'get-setting', ['scanAdditionalFileTypes'])).result;
+    await page.evaluate(() => window.openFileTypeSettings());
+    await page.waitForSelector('#file-type-settings-dialog[open] #scan-type-obj', { timeout: 10000 }).catch(() => {});
+    check('File Type settings lists the file types', (await page.locator('#file-type-settings-dialog .scan-file-type-option').count()) >= 19);
+    check('3MF metadata options default to on', await page.isChecked('#enable-3mf-designer'));
+    await page.check('#scan-type-obj');
+    await page.click('#save-file-type-settings');
+    await page.waitForSelector('#file-type-settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    check('File Type settings saves', JSON.parse((await invoke(base, session, 'get-setting', ['scanAdditionalFileTypes'])).result || '[]').includes('obj'));
+    check('file type filter offers the new type', await page.waitForSelector('#filetype-select option[value="obj"]', { state: 'attached', timeout: 10000 }).then(() => true).catch(() => false));
+    await invoke(base, session, 'save-setting', ['scanAdditionalFileTypes', savedTypes || '[]']);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

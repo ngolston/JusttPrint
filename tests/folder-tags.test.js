@@ -89,10 +89,10 @@ test('scan applies folder tags only to paths inserted by that scan', () => {
   assert.ok(scan.includes('ingestState.newFilePaths.push(file.filePath)'));
   assert.ok(scan.includes('applyFolderTagsToNewScanFiles(ingestState.newFilePaths)'));
   assert.ok(!scan.includes('applyFolderTagsToNewScanFiles(allFilePaths)'));
-  const renderer = fs.readFileSync(path.join(__dirname, '..', 'renderer.js'), 'utf8');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  assert.ok(html.includes('id="auto-tag-from-folder-on-scan"'));
-  assert.ok(html.includes('This does not call AI.'));
-  assert.ok(renderer.includes("saveSetting('autoTagFromFolderOnScan'"));
-  assert.ok(renderer.includes("getSetting('autoTagFromFolderOnScan')"));
+  // The option lives in Settings → File Type (React).
+  const screen = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'FileTypeSettingsDialog.tsx'), 'utf8');
+  assert.ok(screen.includes('id="auto-tag-from-folder-on-scan"'));
+  assert.ok(screen.includes('This does not call AI.'));
+  assert.ok(screen.includes("settings.save('autoTagFromFolderOnScan'"));
+  assert.ok(screen.includes("get('autoTagFromFolderOnScan')"));
 });

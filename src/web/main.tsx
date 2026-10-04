@@ -9,6 +9,7 @@ import { AboutDialog } from './AboutDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
+import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
@@ -35,6 +36,7 @@ function Screens() {
       <PerformanceSettingsDialog />
       <McpServerSettingsDialog />
       <BrowserExtensionSettingsDialog />
+      <FileTypeSettingsDialog />
     </>
   );
 }

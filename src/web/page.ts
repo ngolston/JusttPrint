@@ -23,6 +23,10 @@ declare global {
     refreshModelDisplay?: () => Promise<void>;
     /** renderer.js: use a new max file size (MB) for the browser's own size checks. */
     applyMaxFileSizeMB?: (mb: number) => void;
+    /** renderer.js: rebuild the sidebar's file type filter from the enabled types. */
+    populateFileTypeFilter?: () => Promise<void>;
+    /** search.js: run the current search and filters again. */
+    performCombinedSearch?: () => Promise<void>;
   }
 }
 

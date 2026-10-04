@@ -331,76 +331,6 @@ async function getFileTypesCatalogForUi() {
   return FILE_TYPE_CATALOG_FALLBACK;
 }
 
-// File Type Settings: expose save early so Save button onclick works in Docker/server (before DOMContentLoaded block runs)
-window._fileTypeSettingsSaving = false;
-window.saveFileTypeSettingsFromDialog = async function saveFileTypeSettingsFromDialog() {
-  const dialogEl = document.getElementById('file-type-settings-dialog');
-  if (!dialogEl || !window.electron?.saveSetting) return;
-  if (window._fileTypeSettingsSaving) return;
-  window._fileTypeSettingsSaving = true;
-  try {
-    // Get previously saved scan types to detect unchecked (removed) types
-    let previousIds = [];
-    try {
-      const previousRaw = await window.electron.getSetting('scanAdditionalFileTypes');
-      if (previousRaw) previousIds = JSON.parse(previousRaw);
-    } catch (e) { /* ignore */ }
-
-    const ADDITIONAL_SCAN_TYPE_IDS = ['3ds', 'amf', 'blender', 'chitubox', 'dae', 'dxf', 'dwg', 'fbx', 'f3d', 'f3z', 'gcode', 'igs', 'lys', 'obj', 'ply', 'step', 'svg', 'voxl', 'x3d'];
-    const selectedScanTypes = [];
-    for (const id of ADDITIONAL_SCAN_TYPE_IDS) {
-      const el = dialogEl.querySelector('#scan-type-' + id) || document.getElementById('scan-type-' + id);
-      if (el && el.checked) selectedScanTypes.push(id);
-    }
-    const uncheckedIds = previousIds.filter(id => !selectedScanTypes.includes(id));
-
-    if (uncheckedIds.length > 0 && window.electron?.getModelCountByFileTypeIds && window.electron?.removeModelsByFileTypeIds) {
-      const count = await window.electron.getModelCountByFileTypeIds(uncheckedIds);
-      if (count > 0) {
-        const catalog = await getFileTypesCatalogForUi();
-        const labels = uncheckedIds.map(id => (catalog.find(e => e.id === id) || {}).label || id).join(', ');
-        const message = count === 1
-          ? `Unchecking "${labels}" will remove 1 file of that type from the library. This cannot be undone. Continue?`
-          : `Unchecking ${labels} will remove ${count} files of those types from the library. This cannot be undone. Continue?`;
-        const confirmResult = await window.electron.showMessage('Remove file type from library?', message, ['Yes', 'No']);
-        if (confirmResult !== 'Yes') return;
-        await window.electron.removeModelsByFileTypeIds(uncheckedIds);
-        if (typeof window.performCombinedSearch === 'function') await window.performCombinedSearch();
-      }
-    }
-
-    const checkbox = dialogEl.querySelector('#enable-zip-archives') || document.getElementById('enable-zip-archives');
-    const enableZipArchives = checkbox?.checked ? '1' : '0';
-    await window.electron.saveSetting('enableZipArchives', enableZipArchives);
-
-    const scanTypesValue = JSON.stringify(selectedScanTypes);
-    await window.electron.saveSetting('scanAdditionalFileTypes', scanTypesValue);
-
-    const designerCheckbox = dialogEl.querySelector('#enable-3mf-designer') || document.getElementById('enable-3mf-designer');
-    const parentModelCheckbox = dialogEl.querySelector('#enable-3mf-parent-model') || document.getElementById('enable-3mf-parent-model');
-    const licenseCheckbox = dialogEl.querySelector('#enable-3mf-license') || document.getElementById('enable-3mf-license');
-    const notesCheckbox = dialogEl.querySelector('#enable-3mf-notes') || document.getElementById('enable-3mf-notes');
-    await window.electron.saveSetting('enable3MFDesigner', designerCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFParentModel', parentModelCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFLicense', licenseCheckbox?.checked ? '1' : '0');
-    await window.electron.saveSetting('enable3MFNotes', notesCheckbox?.checked ? '1' : '0');
-
-    const excludeFoldersEl = dialogEl.querySelector('#scan-exclude-folders') || document.getElementById('scan-exclude-folders');
-    await window.electron.saveSetting('scanExcludeFolders', excludeFoldersEl ? excludeFoldersEl.value : '');
-
-    const autoTagEl = dialogEl.querySelector('#auto-tag-from-folder-on-scan') || document.getElementById('auto-tag-from-folder-on-scan');
-    await window.electron.saveSetting('autoTagFromFolderOnScan', autoTagEl && autoTagEl.checked ? '1' : '0');
-
-    if (typeof dialogEl.close === 'function') dialogEl.close();
-    if (typeof window.populateFileTypeFilter === 'function') await window.populateFileTypeFilter();
-  } catch (err) {
-    console.error('File type settings save failed:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to save file type settings: ' + (err.message || String(err)));
-  } finally {
-    window._fileTypeSettingsSaving = false;
-  }
-};
-
 // Modal fullscreen toggles (exposed early so icons work in Docker/server mode)
 window.toggleDedupFullscreen = function toggleDedupFullscreen() {
   const dialog = document.getElementById('dedup-dialog');
@@ -6274,79 +6204,6 @@ async function loadAndShowAIConfig() {
   }
 }
 
-// Load File Type settings from DB then show dialog (same pattern as loadAndShowAIConfig; required for Docker/server menu)
-async function loadAndShowFileTypeSettings() {
-  const dialog = document.getElementById('file-type-settings-dialog');
-  if (!dialog) {
-    console.error('file-type-settings-dialog element not found.');
-    return;
-  }
-  if (window.electron?.whenConnected) {
-    try {
-      await window.electron.whenConnected();
-    } catch (e) {
-      console.warn('[File Type] WebSocket wait:', e);
-    }
-  }
-  try {
-    const enableZipArchives = await window.electron.getSetting('enableZipArchives');
-    const checkbox = document.getElementById('enable-zip-archives');
-    if (checkbox) {
-      checkbox.checked = enableZipArchives === '1';
-    }
-
-    const ADDITIONAL_SCAN_TYPE_IDS = ['3ds', 'amf', 'blender', 'chitubox', 'dae', 'dxf', 'dwg', 'fbx', 'f3d', 'f3z', 'gcode', 'igs', 'lys', 'obj', 'ply', 'step', 'svg', 'voxl', 'x3d'];
-    try {
-      const scanTypesRaw = await window.electron.getSetting('scanAdditionalFileTypes');
-      const scanTypes = (scanTypesRaw && typeof scanTypesRaw === 'string') ? JSON.parse(scanTypesRaw) : [];
-      const scanSet = new Set(Array.isArray(scanTypes) ? scanTypes : []);
-      ADDITIONAL_SCAN_TYPE_IDS.forEach(id => {
-        const el = document.getElementById('scan-type-' + id);
-        if (el) el.checked = scanSet.has(id);
-      });
-    } catch (e) { /* ignore */ }
-
-    const enable3MFDesigner = await window.electron.getSetting('enable3MFDesigner');
-    const enable3MFParentModel = await window.electron.getSetting('enable3MFParentModel');
-    const enable3MFLicense = await window.electron.getSetting('enable3MFLicense');
-    const enable3MFNotes = await window.electron.getSetting('enable3MFNotes');
-
-    const designerCheckbox = document.getElementById('enable-3mf-designer');
-    const parentModelCheckbox = document.getElementById('enable-3mf-parent-model');
-    const licenseCheckbox = document.getElementById('enable-3mf-license');
-    const notesCheckbox = document.getElementById('enable-3mf-notes');
-
-    if (designerCheckbox) {
-      designerCheckbox.checked = enable3MFDesigner === '1' || enable3MFDesigner === null;
-    }
-    if (parentModelCheckbox) {
-      parentModelCheckbox.checked = enable3MFParentModel === '1' || enable3MFParentModel === null;
-    }
-    if (licenseCheckbox) {
-      licenseCheckbox.checked = enable3MFLicense === '1' || enable3MFLicense === null;
-    }
-    if (notesCheckbox) {
-      notesCheckbox.checked = enable3MFNotes === '1' || enable3MFNotes === null;
-    }
-
-    const excludeFolders = await window.electron.getSetting('scanExcludeFolders');
-    const excludeFoldersEl = document.getElementById('scan-exclude-folders');
-    if (excludeFoldersEl) {
-      excludeFoldersEl.value = excludeFolders || '';
-    }
-
-    const autoTagFromFolder = await window.electron.getSetting('autoTagFromFolderOnScan');
-    const autoTagEl = document.getElementById('auto-tag-from-folder-on-scan');
-    if (autoTagEl) {
-      autoTagEl.checked = autoTagFromFolder === '1';
-    }
-  } catch (err) {
-    console.error('Error loading file type settings:', err);
-  }
-
-  dialog.showModal();
-}
-
 // Function to create server mode menu bar
 async function createServerMenuBar() {
   const serverMode = await window.electron.isServerMode().catch(() => false);
@@ -6514,8 +6371,8 @@ async function createServerMenuBar() {
     { label: 'AI Config', action: async () => {
       await loadAndShowAIConfig();
     }},
-    { label: 'File Type', action: async () => {
-      await loadAndShowFileTypeSettings();
+    { label: 'File Type', action: () => {
+      window.openFileTypeSettings?.();
     }},
     { label: 'Performance', action: () => {
       window.openPerformanceSettings?.();
@@ -10359,8 +10216,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-ai-config'];
   }
 
-  window._electronRealEventHandlers['open-file-type-settings'] = async function() {
-    await loadAndShowFileTypeSettings();
+  // File Type settings are React (src/web/FileTypeSettingsDialog.tsx); it defines window.openFileTypeSettings.
+  window._electronRealEventHandlers['open-file-type-settings'] = function() {
+    window.openFileTypeSettings?.();
   };
   if (window._electronPendingEvents['open-file-type-settings']) {
     window._electronPendingEvents['open-file-type-settings'].forEach((args) => {
@@ -10554,17 +10412,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // The File Type settings screen (React) calls this after saving.
+  window.populateFileTypeFilter = populateFileTypeFilter;
+
   // Populate file type filter once when sidebar is ready (only enabled types)
   setTimeout(() => { if (typeof populateFileTypeFilter === 'function') populateFileTypeFilter(); }, 500);
-
-  // File Type Settings: open-file-type-settings is handled via earlyEventChannels + _electronRealEventHandlers (loadAndShowFileTypeSettings)
-
-  // File Type Settings: open-file-type-settings is handled via earlyEventChannels + _electronRealEventHandlers (loadAndShowFileTypeSettings)
-  // Save uses window.saveFileTypeSettingsFromDialog (early-bound, reentrancy-guarded) via HTML onclick only.
-
-  document.getElementById('cancel-file-type-settings')?.addEventListener('click', () => {
-    document.getElementById('file-type-settings-dialog')?.close();
-  });
 
   // Browser Extension settings are React (src/web/BrowserExtensionSettingsDialog.tsx).
   window._electronRealEventHandlers['open-browser-extension-settings'] = function() {

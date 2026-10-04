@@ -547,8 +547,6 @@
     'purgeModels': 'purge-models',
     'clearNewFlags': 'clear-new-model-flags',
     'getAdditionalFileTypesCatalog': 'get-additional-file-types-catalog',
-    'getModelCountByFileTypeIds': 'get-model-count-by-file-type-ids',
-    'removeModelsByFileTypeIds': 'remove-models-by-file-type-ids',
     'get3MFImages': 'get3MFImages',
     'getLYSImages': 'getLYSImages',
     'getF3DImages': 'getF3DImages',

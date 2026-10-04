@@ -270,3 +270,15 @@ export const extensionInbox = {
   defaultDirectory: () => callAction<string>('get-default-extension-inbox-directory'),
   importNow: () => callAction<InboxImportResult>('import-extension-inbox')
 };
+
+export interface FileTypeEntry {
+  id: string;
+  label: string;
+}
+
+export const fileTypes = {
+  /** The optional file types a scan can also pick up (OBJ, STEP, ...). */
+  catalog: () => callAction<FileTypeEntry[]>('get-additional-file-types-catalog'),
+  countModels: (ids: string[]) => callAction<number>('get-model-count-by-file-type-ids', ids),
+  removeModels: (ids: string[]) => callAction<unknown>('remove-models-by-file-type-ids', ids)
+};
