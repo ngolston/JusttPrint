@@ -2,8 +2,8 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const spoolman = require('../../../spoolman');
-const printEvents = require('../../../print-events');
+const spoolman = require('../../core/spoolman');
+const printEvents = require('../../core/print-events');
 
 function getFilamentsForModel(modelId) {
   if (modelId == null) return [];

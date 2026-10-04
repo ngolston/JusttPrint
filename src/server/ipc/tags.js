@@ -167,7 +167,7 @@ ipcMain.handle('get-group-tags', getGroupTagsHandler);
 
 async function generateTagsHandler(event, filePath) {
   try {
-    const aitagging = require('../../../aitagging');
+    const aitagging = require('../../core/aitagging');
     const settings = getAISettings();
     
     // Create puter IPC handler if service is puter

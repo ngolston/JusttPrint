@@ -5,7 +5,7 @@
 //   $env:ELECTRON_RUN_AS_NODE='1'; npx electron print-events.test.js
 const assert = require('assert');
 const Database = require('better-sqlite3');
-const printEvents = require('./print-events');
+const printEvents = require('../src/core/print-events');
 
 function insertModel(db, values) {
   const filePath = values.filePath;

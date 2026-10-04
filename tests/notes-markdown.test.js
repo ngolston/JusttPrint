@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const md = require('./notes-markdown');
+const md = require('../notes-markdown');
 
 function test(name, fn) {
   try {

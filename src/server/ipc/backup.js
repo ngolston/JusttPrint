@@ -5,7 +5,7 @@ const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
-const spoolman = require('../../../spoolman');
+const spoolman = require('../../core/spoolman');
 const { getDatabasePath } = require('../../core/db-path');
 const { saveModel } = require('./models');
 

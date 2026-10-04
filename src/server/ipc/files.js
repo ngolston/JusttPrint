@@ -12,7 +12,7 @@ const { clientDialogs } = require('../dialogs');
 const { extractModelFromZip } = require('../../core/zip-entries');
 const { getDatabasePath } = require('../../core/db-path');
 const { deleteFile } = require('./context-menu');
-const { extractZipEntryBuffer, findZipEntry, withZipFileLock } = require('../../../zip-extract');
+const { extractZipEntryBuffer, findZipEntry, withZipFileLock } = require('../../core/zip-extract');
 
 // Add this new handler
 ipcMain.handle('check-files-exist', async (_, filePaths) => {

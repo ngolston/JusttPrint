@@ -8,7 +8,7 @@ const {
   buildMcpClientConfig,
   toDataUrl,
   handleMcpJsonRpc
-} = require('./mcp-server');
+} = require('../src/server/mcp-server');
 
 function test(name, fn) {
   try {

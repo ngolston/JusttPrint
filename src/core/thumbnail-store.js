@@ -2,7 +2,7 @@
 
 const database = require('./database');
 const { parseThumbnails } = require('./thumbnails');
-const { compressThumbnailBlob } = require('../../thumbnail-compress');
+const { compressThumbnailBlob } = require('./thumbnail-compress');
 
 function addThumbnailToModel(thumbnailString, newThumbnail) {
   if (!newThumbnail) return thumbnailString;

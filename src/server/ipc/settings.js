@@ -2,7 +2,7 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const { SECRET_SETTING_KEYS } = require('../../../server-auth');
+const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { version } = require('../../../package.json');
 
 const getSettingHandler = async (event, key) => {

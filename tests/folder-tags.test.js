@@ -8,7 +8,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
-const { applyFolderTagsToModels, shouldAutoTagNewScanFiles } = require('../folder-tags');
+const { applyFolderTagsToModels, shouldAutoTagNewScanFiles } = require('../src/core/folder-tags');
 
 function test(name, fn) {
   try {

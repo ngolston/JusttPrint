@@ -2,7 +2,7 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const printEvents = require('../../../print-events');
+const printEvents = require('../../core/print-events');
 
 async function getPrintEventsHandler(event, modelId) {
   try {

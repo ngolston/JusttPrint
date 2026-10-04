@@ -3,7 +3,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('zlib');
-const { extractVoxlPreview, extractVoxlPreviewEntry } = require('./extract-voxl-preview');
+const { extractVoxlPreview, extractVoxlPreviewEntry } = require('../src/core/extract-voxl-preview');
 
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

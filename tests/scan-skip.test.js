@@ -7,7 +7,7 @@ const {
   shouldSkipFileName,
   shouldSkipEntryPath,
   normalizeExcludeNames
-} = require('./scan-skip');
+} = require('../src/core/scan-skip');
 
 function test(name, fn) {
   try {

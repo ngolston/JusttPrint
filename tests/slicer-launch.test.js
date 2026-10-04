@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { buildSlicerSpawnSpec, buildSlicerShellCommand, invalidSlicerPathError, launchSlicerProcess } = require('./slicer-launch');
+const { buildSlicerSpawnSpec, buildSlicerShellCommand, invalidSlicerPathError, launchSlicerProcess } = require('../src/server/slicer-launch');
 
 const pending = [];
 

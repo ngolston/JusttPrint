@@ -2,7 +2,7 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const printEvents = require('../../../print-events');
+const printEvents = require('../../core/print-events');
 
 function normalizePartStockQuantity(value) {
   const n = Number(value);

@@ -10,7 +10,7 @@ const {
   parseCookies,
   safeNextPath,
   SESSION_COOKIE
-} = require('./server-auth');
+} = require('../src/server/server-auth');
 
 function test(name, fn) {
   try {
@@ -198,7 +198,7 @@ test('cookies parse with encoded values', () => {
 });
 
 test('PRINTVENTORY_TRUST_PROXY parses hops, true, and address lists', () => {
-  const { parseTrustProxy } = require('./server-auth');
+  const { parseTrustProxy } = require('../src/server/server-auth');
   assert.strictEqual(parseTrustProxy(undefined), false);
   assert.strictEqual(parseTrustProxy('false'), false);
   assert.strictEqual(parseTrustProxy('0'), false);

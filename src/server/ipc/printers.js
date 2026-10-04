@@ -2,7 +2,7 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const printerManager = require('../../../printer-manager');
+const printerManager = require('../../core/printer-manager');
 
 async function getAllPrintersHandler() {
   try {

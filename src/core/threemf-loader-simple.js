@@ -11,7 +11,7 @@ const {
   simplifyForPreview,
   shouldUseFastPath,
   modelHasPlacementTransforms
-} = require('./threemf-mesh-extract.js');
+} = require('../../threemf-mesh-extract.js');
 
 const SKIP_PART_SUBTYPES = new Set([
   'negative_volume',

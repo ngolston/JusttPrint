@@ -3,7 +3,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fflate = require('fflate');
-const { extractLysPreview, extractLysPreviewEntry, readLysManifest } = require('./extract-lys-preview');
+const { extractLysPreview, extractLysPreviewEntry, readLysManifest } = require('../src/core/extract-lys-preview');
 
 // 1x1 PNG
 const TINY_PNG = Buffer.from(

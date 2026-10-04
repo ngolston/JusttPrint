@@ -7,7 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { getLibraryRootPaths, isUrlModel, parseZipPath } = require('../../core/library-paths');
 const { buildModelFilterConditions, sqlAndFilterConditions } = require('../../core/model-filters');
-const { extractZipEntryBuffer, isFragileZipError } = require('../../../zip-extract');
+const { extractZipEntryBuffer, isFragileZipError } = require('../../core/zip-extract');
 
 let isGeneratingHashes = false; // Track hash generation state
 

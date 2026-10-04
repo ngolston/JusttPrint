@@ -8,7 +8,7 @@ const {
   toDirectoryFilter,
   directoryFilterLikePrefix,
   buildFolderForest
-} = require('./folder-tree-lib');
+} = require('../src/core/folder-tree-lib');
 
 function test(name, fn) {
   try {

@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const { settingsFromEnv } = require('./env-settings');
+const { settingsFromEnv } = require('../src/core/env-settings');
 
 function test(name, fn) {
   try {

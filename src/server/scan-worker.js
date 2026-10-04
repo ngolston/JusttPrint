@@ -10,7 +10,7 @@ const {
   shouldSkipEntryPath,
   compileExcludeDirs,
   isExcludedDir
-} = require('./scan-skip');
+} = require('../core/scan-skip');
 
 // We'll load StreamZip after receiving the node_modules path from the main process
 let StreamZip = null;

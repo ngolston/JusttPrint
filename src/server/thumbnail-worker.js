@@ -7,7 +7,7 @@
  */
 const crypto = require('crypto');
 const puppeteer = require('puppeteer');
-const { parseCookies, SESSION_COOKIE } = require('../../server-auth');
+const { parseCookies, SESSION_COOKIE } = require('./server-auth');
 const { jsonStringifyForWs } = require('./ws-json');
 
 const COOKIE = 'pv_worker';

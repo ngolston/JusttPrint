@@ -13,11 +13,11 @@ const { getModelByFilePath } = require('../../core/models');
 const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry } = require('../../core/zip-entries');
 const { filter3MFMetadataBySettings, parse3MFModelXML } = require('../../core/three-mf');
 const JSZip = require('jszip');
-const { compressDataUrl } = require('../../../thumbnail-compress');
-const { extractLysPreviewEntry } = require('../../../extract-lys-preview');
-const { extractF3dPreviewEntry } = require('../../../extract-f3d-preview');
-const { extractChituboxPreviewEntry } = require('../../../extract-chitubox-preview');
-const { extractVoxlPreviewEntry } = require('../../../extract-voxl-preview');
+const { compressDataUrl } = require('../../core/thumbnail-compress');
+const { extractLysPreviewEntry } = require('../../core/extract-lys-preview');
+const { extractF3dPreviewEntry } = require('../../core/extract-f3d-preview');
+const { extractChituboxPreviewEntry } = require('../../core/extract-chitubox-preview');
+const { extractVoxlPreviewEntry } = require('../../core/extract-voxl-preview');
 
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
@@ -854,7 +854,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
   }
 
   return new Promise((resolve, reject) => {
-    const workerPath = path.join(__dirname, '..', '..', '..', 'preview-3mf-worker-node.js');
+    const workerPath = path.join(__dirname, '..', 'preview-3mf-worker-node.js');
     const entry = { worker: createPreview3mfWorker(workerPath) };
     const worker = entry.worker;
     let settled = false;

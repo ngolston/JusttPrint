@@ -13824,7 +13824,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (hasNodeAccess) {
             try {
               const { execFile } = require('child_process');
-              const { buildSlicerSpawnSpec } = require('./slicer-launch');
+              const { buildSlicerSpawnSpec } = require('./src/server/slicer-launch');
               const rawPaths = Array.isArray(commandData.filePaths) && commandData.filePaths.length
                 ? commandData.filePaths
                 : [filePath];

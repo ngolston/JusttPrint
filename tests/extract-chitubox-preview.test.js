@@ -7,7 +7,7 @@ const {
   chituboxPreviewPng,
   extractChituboxPreviewEntry,
   readChituboxPreviewHeader
-} = require('./extract-chitubox-preview');
+} = require('../src/core/extract-chitubox-preview');
 
 function writeU32(buf, off, value) {
   buf[off] = value & 0xff;

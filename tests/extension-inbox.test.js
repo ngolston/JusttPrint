@@ -5,7 +5,7 @@ const assert = require('assert');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const inbox = require('./extension-inbox');
+const inbox = require('../src/server/extension-inbox');
 
 function test(name, fn) {
   const run = async () => {

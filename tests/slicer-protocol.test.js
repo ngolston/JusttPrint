@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const protocol = require('./slicer-protocol');
+const protocol = require('../slicer-protocol');
 
 function test(name, fn) {
   try {

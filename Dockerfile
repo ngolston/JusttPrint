@@ -40,7 +40,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NODE_ENV=production
 
 EXPOSE 5000
-# Healthy once /api/health answers on the port the server actually listens on (see healthcheck.js).
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 CMD ["node", "/app/healthcheck.js"]
+# Healthy once /api/health answers on the port the server actually listens on (see src/server/healthcheck.js).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 CMD ["node", "/app/src/server/healthcheck.js"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]

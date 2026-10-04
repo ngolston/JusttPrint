@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const { isRateLimitError, parseRetryAfterMs, rateLimitWaitMs } = require('./ai-rate-limit');
+const { isRateLimitError, parseRetryAfterMs, rateLimitWaitMs } = require('../src/core/ai-rate-limit');
 
 function test(name, fn) {
   try {

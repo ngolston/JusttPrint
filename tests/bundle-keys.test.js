@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const { deriveBundleFromFilePath } = require('./bundle-keys');
+const { deriveBundleFromFilePath } = require('../src/core/bundle-keys');
 
 function test(name, fn) {
   try {

@@ -3,7 +3,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fflate = require('fflate');
-const { extractF3dPreview, extractF3dPreviewEntry } = require('./extract-f3d-preview');
+const { extractF3dPreview, extractF3dPreviewEntry } = require('../src/core/extract-f3d-preview');
 
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',

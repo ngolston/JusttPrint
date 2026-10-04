@@ -6,18 +6,18 @@ const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
 const { Worker } = require('worker_threads');
-const { deriveBundleFromFilePath } = require('../../../bundle-keys');
+const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
 const { getScanExcludeNames, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('../../core/library-paths');
 const { deleteModelsByIds } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
 const { clientDialogs } = require('../dialogs');
-const { shouldSkipEntryPath, compileExcludeDirs, isExcludedPath } = require('../../../scan-skip');
-const { clampFolderLevels } = require('../../../library-context');
-const { shouldAutoTagNewScanFiles } = require('../../../folder-tags');
-const { pathsAreSame } = require('../../../organize-library');
+const { shouldSkipEntryPath, compileExcludeDirs, isExcludedPath } = require('../../core/scan-skip');
+const { clampFolderLevels } = require('../../core/library-context');
+const { shouldAutoTagNewScanFiles } = require('../../core/folder-tags');
+const { pathsAreSame } = require('../../core/organize-library');
 const { applyFolderTagsToModels } = require('./context-menu');
 const { directoryScanPrefixSqlParam, getScanExtensions, normalizePath } = require('./models');
-const { findZipEntry, withZipFileLock } = require('../../../zip-extract');
+const { findZipEntry, withZipFileLock } = require('../../core/zip-extract');
 
 ipcMain.handle('load-directory', async () => {
   try {
@@ -324,7 +324,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
 
     return new Promise((resolve, reject) => {
       // Use scan-worker.js for scanning (supports zip files)
-      const workerPath = path.join(__dirname, '..', '..', '..', 'scan-worker.js');
+      const workerPath = path.join(__dirname, '..', 'scan-worker.js');
 
       // Verify the worker file exists before creating the worker
       if (!fs.existsSync(workerPath)) {

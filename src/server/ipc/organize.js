@@ -5,10 +5,10 @@ const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
-const { deriveBundleFromFilePath } = require('../../../bundle-keys');
-const { buildFolderForest } = require('../../../folder-tree-lib');
+const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
+const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('../../core/library-paths');
-const { planOrganize, withFreeSpace, readFreeBytes, runOrganizePlan, pathsAreSame } = require('../../../organize-library');
+const { planOrganize, withFreeSpace, readFreeBytes, runOrganizePlan, pathsAreSame } = require('../../core/organize-library');
 
 function inspectOrganizeDirectory(dirPath, allowMissing) {
   const target = String(dirPath || '').trim();

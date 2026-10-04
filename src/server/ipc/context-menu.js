@@ -6,13 +6,13 @@ const { ipcMain } = require('../runtime');
 const { createPuterIPCHandler, getAISettings } = require('./ai');
 const fs = require('fs');
 const path = require('path');
-const { invalidSlicerPathError } = require('../../../slicer-launch');
+const { invalidSlicerPathError } = require('../slicer-launch');
 const { isUrlModel, parseZipPath } = require('../../core/library-paths');
 const { getThumbnailImagePayload, parseThumbnails, readThumbnailColumn } = require('../../core/thumbnails');
 const { deleteModelJunctionRows, deleteModelsByFilePaths, getModelByFilePath } = require('../../core/models');
 const { clientDialogs } = require('../dialogs');
-const { clampFolderLevels } = require('../../../library-context');
-const { applyFolderTagsToModels: applyFolderTagsInDb } = require('../../../folder-tags');
+const { clampFolderLevels } = require('../../core/library-context');
+const { applyFolderTagsToModels: applyFolderTagsInDb } = require('../../core/folder-tags');
 const { getServerAuth } = require('../auth');
 const { extractModelFromZip } = require('../../core/zip-entries');
 const { ensureSlicersTableExists, isDockerContainer, runSlicerWithModelPaths } = require('./slicers');
@@ -287,7 +287,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   const aiService = aiServiceRow ? aiServiceRow.value : 'openai';
   const apiEndpointRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('apiEndpoint');
   const apiEndpoint = apiEndpointRow ? apiEndpointRow.value : null;
-  const aitaggingForMenu = require('../../../aitagging');
+  const aitaggingForMenu = require('../../core/aitagging');
 
   // Add "Generate Tags" when a key is set, or when the selected service/endpoint does not need one
   // (Puter, Custom, and local OpenAI-compatible servers such as Ollama / LM Studio)
@@ -308,7 +308,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           hasSend: !!(eventSender && eventSender.send)
         });
         try {
-          const aitagging = require('../../../aitagging');
+          const aitagging = require('../../core/aitagging');
           const settings = getAISettings();
           console.log('[Generate Tags] Settings loaded, filesToProcess will be determined');
           

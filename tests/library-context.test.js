@@ -6,7 +6,7 @@ const {
   folderNamesFromPath,
   folderTagsFromPath,
   libraryContextSnippet
-} = require('./library-context');
+} = require('../src/core/library-context');
 
 function test(name, fn) {
   try {

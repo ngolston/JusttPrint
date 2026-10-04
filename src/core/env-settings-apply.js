@@ -1,7 +1,7 @@
 'use strict';
 
 const database = require('./database');
-const { settingsFromEnv, SECRET_ENV } = require('../../env-settings');
+const { settingsFromEnv, SECRET_ENV } = require('./env-settings');
 const { dedupePathList, excludeDirectoriesSettingIsEmpty, parseExcludePathList } = require('./library-paths');
 const { ADDITIONAL_FILE_TYPES_CATALOG } = require('./model-filters');
 

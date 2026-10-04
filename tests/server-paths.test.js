@@ -3,7 +3,7 @@
 
 const assert = require('assert');
 const path = require('path');
-const { isServableStaticPath, isLibraryPathAllowed } = require('./server-paths');
+const { isServableStaticPath, isLibraryPathAllowed } = require('../src/server/server-paths');
 
 function test(name, fn) {
   try {
@@ -70,7 +70,7 @@ test('only backup and export files are allowed from the data folder', () => {
   assert.ok(!isLibraryPathAllowed('/config/data/sub/printventory-backup-x.db', ctx));
 });
 
-const { assertNetworkIpcArgs, assertMcpToolArgs } = require('./server-paths');
+const { assertNetworkIpcArgs, assertMcpToolArgs } = require('../src/server/server-paths');
 
 const guardCtx = {
   roots: ['/mnt/library'],

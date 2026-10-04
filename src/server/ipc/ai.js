@@ -3,11 +3,11 @@
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const crypto = require('crypto');
-const { clampFolderLevels } = require('../../../library-context');
+const { clampFolderLevels } = require('../../core/library-context');
 
 // Add IPC handlers for AI Config
 const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
-  const aitagging = require('../../../aitagging');
+  const aitagging = require('../../core/aitagging');
   // Normalize service to handle case/whitespace variations
   const normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
   // If endpoint contains puter.com, treat as Puter service
@@ -42,7 +42,7 @@ ipcMain.handle('test-ai-config', testAIConfigHandler);
 
 ipcMain.handle('get-default-ai-prompt', async () => {
   const settings = getAISettings();
-  const aitagging = require('../../../aitagging');
+  const aitagging = require('../../core/aitagging');
   return aitagging.getDefaultPrompt({
     maxTags: settings.aiTagMaxTags,
     useCategories: settings.aiTagUseCategories,

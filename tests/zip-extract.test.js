@@ -14,7 +14,7 @@ const {
   extractWithJszip,
   findZipEntry,
   isFragileZipError
-} = require('../zip-extract');
+} = require('../src/core/zip-extract');
 
 let tempDir;
 

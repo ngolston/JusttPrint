@@ -2,7 +2,7 @@
 
 const database = require('../core/database');
 const { getSettingValueOr } = require('../core/settings');
-const { createServerAuth } = require('../../server-auth');
+const { createServerAuth } = require('./server-auth');
 
 let serverAuth = null;
 

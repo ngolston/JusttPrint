@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { getLibraryRootPaths, readScannedDirectorySetting } = require('../core/library-paths');
 const { isPrintventoryExtractTempPath } = require('../core/extract-temp');
-const { isLibraryPathAllowed } = require('../../server-paths');
+const { isLibraryPathAllowed } = require('./server-paths');
 const { getDatabasePath } = require('../core/db-path');
 
 /** Library roots and folders that network callers (browser, MCP) are checked against. */

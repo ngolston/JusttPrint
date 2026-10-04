@@ -1,7 +1,7 @@
 'use strict';
 
 const database = require('./database');
-const { compressThumbnailBlob, THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS } = require('../../thumbnail-compress');
+const { compressThumbnailBlob, THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS } = require('./thumbnail-compress');
 
 function getThumbnailStoredLength(filePath) {
   if (!database.db || !filePath) return 0;

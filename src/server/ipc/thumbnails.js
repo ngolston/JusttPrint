@@ -4,11 +4,11 @@ const events = require('../events');
 const thumbnailWorker = require('../thumbnail-worker');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const { deriveBundleFromFilePath } = require('../../../bundle-keys');
+const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
 const { getDefaultThumbnail, loadThumbnailForModel, parseThumbnails, readThumbnailColumn } = require('../../core/thumbnails');
 const { getModelByFilePath } = require('../../core/models');
 const { addMultipleThumbnails, addThumbnailToModel, saveThumbnail, setDefaultThumbnailIndex } = require('../../core/thumbnail-store');
-const { compressDataUrl } = require('../../../thumbnail-compress');
+const { compressDataUrl } = require('../../core/thumbnail-compress');
 
 ipcMain.handle('save-thumbnail', async (event, filePath, thumbnail) => {
   try {

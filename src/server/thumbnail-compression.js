@@ -2,7 +2,7 @@
 
 const database = require('../core/database');
 const { readThumbnailColumn } = require('../core/thumbnails');
-const { compressThumbnailBlob, needsCompression, THUMBNAIL_MAX_STORED_CHARS, THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS } = require('../../thumbnail-compress');
+const { compressThumbnailBlob, needsCompression, THUMBNAIL_MAX_STORED_CHARS, THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS } = require('../core/thumbnail-compress');
 
 let isCompressingThumbnailsBackground = false;
 

@@ -1,9 +1,9 @@
 'use strict';
 
 const database = require('./database');
-const printEvents = require('../../print-events');
+const printEvents = require('./print-events');
 const { applyThumbnailFlags, loadThumbnailForModel } = require('./thumbnails');
-const { repairModelTags } = require('../../db-repair');
+const { repairModelTags } = require('./db-repair');
 
 const MODEL_DETAIL_COLUMNS = 'id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind';
 

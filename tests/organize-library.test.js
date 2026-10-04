@@ -13,7 +13,7 @@ const {
   planOrganize,
   withFreeSpace,
   relocatePlannedFile
-} = require('./organize-library');
+} = require('../src/core/organize-library');
 
 const tests = [];
 

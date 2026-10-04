@@ -1,6 +1,6 @@
 const { parentPort } = require('worker_threads');
 const fs = require('fs');
-const { Simple3MFLoader } = require('./threemf-loader-simple.js');
+const { Simple3MFLoader } = require('../core/threemf-loader-simple.js');
 
 function postStatus(message) {
   parentPort.postMessage({ ok: true, type: 'status', message });

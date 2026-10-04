@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { getScanExcludeNames } = require('./library-paths');
 const { EXTRACT_TEMP_FILE_PREFIX, ensureExtractTempDir } = require('./extract-temp');
-const { shouldSkipEntryPath } = require('../../scan-skip');
-const { extractZipEntryBuffer } = require('../../zip-extract');
+const { shouldSkipEntryPath } = require('./scan-skip');
+const { extractZipEntryBuffer } = require('./zip-extract');
 
 // Skip macOS resource-fork / AppleDouble entries (._*) and __MACOSX metadata — not valid models
 function isMacOsResourceForkEntry(entryPath) {

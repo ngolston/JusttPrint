@@ -2,7 +2,7 @@
  * Resize and compress stored thumbnail data URLs for grid display.
  * nativeImage cannot decode on Node yet, so stored thumbnails are left as they are.
  */
-const { nativeImage } = require('./src/server/runtime');
+const { nativeImage } = require('../server/runtime');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

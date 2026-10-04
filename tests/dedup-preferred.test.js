@@ -5,7 +5,7 @@ const assert = require('assert');
 const {
   fileIsUnderPreferredDirectory,
   pickDedupKeeperPath
-} = require('./dedup-preferred');
+} = require('../dedup-preferred');
 
 function test(name, fn) {
   try {

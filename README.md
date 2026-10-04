@@ -853,17 +853,28 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ## Application Structure
 
-### Server
-- `src/server/index.js` - Entry point (`npm start`)
-- `src/server/runtime.js` - Data paths, lifecycle events, the IPC handler registry and Move to Trash
-- `src/server/client-dialogs.js` - Message boxes and prompts the server shows in the browser
-- `main.js` - Library logic and the HTTP/WebSocket server (being rewritten into modules)
-- `server-auth.js` - Login, API token and download tokens
-- `server-paths.js` - Which files the server may serve, read, move or write
-- `env-settings.js` - Settings from environment variables
-- `mcp-server.js` - MCP endpoint
-- `scan-worker.js` - Background worker for directory scanning
+### Server (`src/server/`)
+- `index.js` - Entry point (`npm start`); `app.js` - startup and shutdown
+- `http.js` - HTTP/WebSocket server, TLS and listen ports
+- `ipc/` - One module per area (models, tags, thumbnails, backup, organize, slicers, ...); each registers the channels the web UI calls over the WebSocket. `ipc/index.js` loads them all
+- `mcp-server.js`, `mcp-tools.js` - MCP endpoint and its tools
+- `auth.js`, `server-auth.js` - Login, API token and download tokens
+- `server-paths.js`, `path-context.js` - Which files the server may serve, read, move or write
+- `thumbnail-worker.js` - Headless Chromium that renders thumbnails
+- `events.js` - Events pushed to every connected browser; `client-dialogs.js` - message boxes and prompts shown in the browser
+- `runtime.js` - Data paths, lifecycle events, the IPC handler registry and Move to Trash
+- `scan-worker.js`, `preview-3mf-worker-node.js` - Worker threads for scans and 3MF previews
 - `healthcheck.js` - Docker `HEALTHCHECK`
+
+### Library logic (`src/core/`)
+- `database.js`, `db-init.js`, `db-path.js` - The SQLite connection, schema and migrations
+- `models.js`, `model-filters.js`, `thumbnails.js`, `library-paths.js` - Model records, search and filter SQL, thumbnail storage, library folders
+- `print-events.js`, `printer-manager.js`, `spoolman.js` - Print history, printers, filament sync
+- `env-settings.js`, `env-settings-apply.js` - Settings from environment variables
+- File formats: `zip-extract.js`, `three-mf.js`, `extract-*-preview.js`
+
+### Tests
+- `tests/` - Unit tests (`npm test`) and the end-to-end suite (`tests/e2e/run.js`, `npm run test:e2e`)
 
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling

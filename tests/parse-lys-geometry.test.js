@@ -4,7 +4,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const fflate = require('fflate');
-const { parseLysGeometries, parseLysGeometryBlob } = require('./parse-lys-geometry');
+const { parseLysGeometries, parseLysGeometryBlob } = require('../parse-lys-geometry');
 
 function writeStride48Blob(triangles) {
   const count = triangles.length;

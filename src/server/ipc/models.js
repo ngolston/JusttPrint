@@ -6,9 +6,9 @@ const { getFilamentsForModel } = require('./filaments');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
-const { deriveBundleFromFilePath } = require('../../../bundle-keys');
-const printEvents = require('../../../print-events');
-const { buildFolderForest } = require('../../../folder-tree-lib');
+const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
+const printEvents = require('../../core/print-events');
+const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
 const { loadThumbnailForModel } = require('../../core/thumbnails');
@@ -16,7 +16,7 @@ const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, 
 const { scheduleBackgroundHashGeneration } = require('./hashes');
 const { isMacOsResourceForkEntry } = require('../../core/zip-entries');
 const { getDatabasePath } = require('../../core/db-path');
-const { withZipFileLock } = require('../../../zip-extract');
+const { withZipFileLock } = require('../../core/zip-extract');
 
 function getScanExtensions(selectedIds) {
   const extSet = new Set(['.stl', '.3mf']);

@@ -157,7 +157,7 @@ async function apiChecks(base, wsUrl) {
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
   check('home after login', (await http.request('/')).status === 200);
   check('web asset served', (await http.request('/renderer.js')).status === 200);
-  for (const hidden of ['/main.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
+  for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
 

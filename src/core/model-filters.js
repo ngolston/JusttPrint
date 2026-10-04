@@ -1,8 +1,8 @@
 'use strict';
 
 const { getSettingValueOr } = require('./settings');
-const printEvents = require('../../print-events');
-const { directoryFilterLikePrefix } = require('../../folder-tree-lib');
+const printEvents = require('./print-events');
+const { directoryFilterLikePrefix } = require('./folder-tree-lib');
 
 // Additional file types for scan/library (alphabetical by label). id used in settings; extensions for scan/filter.
 const ADDITIONAL_FILE_TYPES_CATALOG = [

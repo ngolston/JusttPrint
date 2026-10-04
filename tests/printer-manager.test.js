@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Database = require('better-sqlite3');
-const printerManager = require('./printer-manager');
+const printerManager = require('../src/core/printer-manager');
 
 function createTestDb() {
   const db = new Database(':memory:');
@@ -129,7 +129,7 @@ test('schedules reminders and marking completed creates log entry and rolls repe
 
 test('tracks prints logged to a printer', () => {
   const db = createTestDb();
-  const printEvents = require('./print-events');
+  const printEvents = require('../src/core/print-events');
   db.prepare(`
     CREATE TABLE IF NOT EXISTS models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

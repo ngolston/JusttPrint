@@ -8,7 +8,7 @@ const {
   formatFilamentLabel,
   mapSpoolmanFilament,
   normalizeColorHex
-} = require('./spoolman');
+} = require('../src/core/spoolman');
 
 function test(name, fn) {
   try {

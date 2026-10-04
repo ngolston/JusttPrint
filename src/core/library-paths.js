@@ -1,7 +1,7 @@
 'use strict';
 
 const database = require('./database');
-const { normalizeExcludeNames } = require('../../scan-skip');
+const { normalizeExcludeNames } = require('./scan-skip');
 
 /** Library files are absolute container paths (e.g. /mnt/models/part.stl). */
 function assertContainerPath(path, operation = 'operation') {
