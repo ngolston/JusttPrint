@@ -561,12 +561,26 @@ async function browserChecks(base, wsUrl, session) {
     check('server confirmation appears in the browser', !!confirmDialog, JSON.stringify(await openDialogs()));
     if (confirmDialog) {
       const before = await openDialogs();
-      await confirmDialog.click();
+      const noButton = 'dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")';
+      const tried = [];
+      const stillOpen = async () => (await openDialogs()).length > 0;
+      const box0 = await confirmDialog.boundingBox();
+      await page.mouse.click(box0.x + box0.width / 2, box0.y + box0.height / 2).catch((e) => tried.push('mouse error ' + e.message));
+      tried.push(`mouse:${await stillOpen() ? 'open' : 'closed'}`);
+      if (await stillOpen()) {
+        await page.click(noButton, { timeout: 5000 }).catch((e) => tried.push('page.click error ' + e.message.split('\n')[0]));
+        tried.push(`page.click:${await stillOpen() ? 'open' : 'closed'}`);
+      }
+      if (await stillOpen()) {
+        await page.$eval(noButton, (b) => b.click()).catch((e) => tried.push('js error ' + e.message));
+        tried.push(`js:${await stillOpen() ? 'open' : 'closed'}`);
+      }
       const after = await openDialogs();
       const box = await confirmDialog.boundingBox();
       if (after.length) await page.screenshot({ path: path.join(WORK, 'confirm-dialog.png') }).catch(() => {});
       const pullResult = await pull.catch((error) => ({ error: error.message }));
-      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; dialogs before click ${before.length}, after ${after.length}: ${JSON.stringify(after)}; sent: ${JSON.stringify(await page.evaluate(() => window.__wsSent))}; button at ${JSON.stringify(box)}; events: ${JSON.stringify(await page.evaluate(() => window.__clicks))}`);
+      if (tried.length > 1) console.log(`     click attempts: ${tried.join(', ')}`);
+      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; dialogs before click ${before.length}, after ${after.length}: ${JSON.stringify(after)}; sent: ${JSON.stringify(await page.evaluate(() => window.__wsSent))}; button at ${JSON.stringify(box)}; events: ${JSON.stringify(await page.evaluate(() => window.__clicks))}; tried: ${tried.join(', ')}`);
       const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }

@@ -48,4 +48,5 @@ jobs:
           path: |
             tests/e2e/.work/server.log
             tests/e2e/.work/*.png
+          include-hidden-files: true
           retention-days: 14
