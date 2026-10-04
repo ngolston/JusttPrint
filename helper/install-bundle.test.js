@@ -41,12 +41,12 @@ async function main() {
     protocol: 'http',
     get(name) {
       if (name === 'x-forwarded-proto') return 'https';
-      if (name === 'x-forwarded-host') return 'printventory.home:8443';
+      if (name === 'x-forwarded-host') return 'justtprint.home:8443';
       if (name === 'host') return '127.0.0.1:5000';
       return '';
     }
   });
-  assert.strictEqual(origin, 'https://printventory.home:8443');
+  assert.strictEqual(origin, 'https://justtprint.home:8443');
 });
 
   await test('zip is stamped with this server and the installer files', async () => {
@@ -60,7 +60,7 @@ async function main() {
   const config = JSON.parse(await zip.file('helper-config.json').async('string'));
   assert.deepStrictEqual(config.origins, ['http://nas.local:5000']);
   assert.strictEqual(config.tlsInsecure, true);
-  assert.ok(zip.file('printventory-helper.js'));
+  assert.ok(zip.file('justtprint-helper.js'));
   assert.ok(zip.file('slicer-protocol.js'));
   assert.ok(zip.file('slicer-launch.js'));
   assert.ok(zip.file('install.cmd'));

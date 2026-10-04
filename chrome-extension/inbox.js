@@ -1,11 +1,11 @@
 /**
- * Queue a Printventory inbox JSON into Downloads/PrintventoryInbox.
+ * Queue a JusttPrint inbox JSON into Downloads/JusttPrintInbox.
  * Service-worker safe (data: URL, no Blob).
  */
 (function (root) {
   'use strict';
 
-  const INBOX_PREFIX = 'PrintventoryInbox/';
+  const INBOX_PREFIX = 'JusttPrintInbox/';
 
   function uuid() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -73,7 +73,7 @@
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: ['BLOBS'],
-      justification: 'Write inbox files into the Printventory folder you selected.'
+      justification: 'Write inbox files into the JusttPrint folder you selected.'
     });
     await new Promise(function (resolve) { setTimeout(resolve, 50); });
     return true;
@@ -94,7 +94,7 @@
     return writeViaDownloads(payload);
   }
 
-  root.PrintventoryInbox = {
+  root.JusttPrintInbox = {
     INBOX_PREFIX: INBOX_PREFIX,
     buildPayload: buildPayload,
     writeInbox: writeInbox

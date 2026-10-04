@@ -136,13 +136,13 @@
           </div>
           ${badge}
           <span class="filament-count">${countText}</span>
-          <button type="button" class="filament-remove" title="Remove from Printventory" aria-label="Delete filament">×</button>
+          <button type="button" class="filament-remove" title="Remove from JusttPrint" aria-label="Delete filament">×</button>
         `;
         row.querySelector('.filament-remove')?.addEventListener('click', async (e) => {
           e.preventDefault();
           e.stopPropagation();
           const ok = window.confirm
-            ? window.confirm(`Remove "${formatFilamentLabel(filament)}" from Printventory? Model assignments will be cleared. Synced filaments return on the next Spoolman sync.`)
+            ? window.confirm(`Remove "${formatFilamentLabel(filament)}" from JusttPrint? Model assignments will be cleared. Synced filaments return on the next Spoolman sync.`)
             : true;
           if (!ok) return;
           try {

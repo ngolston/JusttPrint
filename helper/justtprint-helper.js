@@ -3,12 +3,12 @@
 
 /**
  * Local helper for Send to Slicer in server and Docker mode.
- * Registers the printventory:// protocol and starts the slicer on this computer.
+ * Registers the justtprint:// protocol and starts the slicer on this computer.
  *
- *   node printventory-helper.js install --origin http://your-server:5000
- *   node printventory-helper.js add-slicer --name "OrcaSlicer" --path /path/to/orca
- *   node printventory-helper.js status
- *   node printventory-helper.js uninstall
+ *   node justtprint-helper.js install --origin http://your-server:5000
+ *   node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/orca
+ *   node justtprint-helper.js status
+ *   node justtprint-helper.js uninstall
  */
 
 const fs = require('fs');
@@ -26,28 +26,28 @@ function loadCompanion(name) {
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return require(candidate);
   }
-  throw new Error('Missing ' + name + '. Download it into the same folder as printventory-helper.js.');
+  throw new Error('Missing ' + name + '. Download it into the same folder as justtprint-helper.js.');
 }
 
 const protocol = loadCompanion('slicer-protocol.js');
 const { buildSlicerSpawnSpec, launchSlicerProcess } = loadCompanion('slicer-launch.js');
 
-const DESKTOP_FILE = 'printventory-helper.desktop';
-const MAC_APP_NAME = 'Printventory Helper.app';
+const DESKTOP_FILE = 'justtprint-helper.desktop';
+const MAC_APP_NAME = 'JusttPrint Helper.app';
 
 function configDir() {
-  if (process.env.PRINTVENTORY_HELPER_HOME) {
-    return process.env.PRINTVENTORY_HELPER_HOME;
+  if (process.env.JUSTTPRINT_HELPER_HOME) {
+    return process.env.JUSTTPRINT_HELPER_HOME;
   }
   if (process.platform === 'win32') {
     const base = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-    return path.join(base, 'Printventory');
+    return path.join(base, 'JusttPrint');
   }
   if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Application Support', 'Printventory');
+    return path.join(os.homedir(), 'Library', 'Application Support', 'JusttPrint');
   }
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-  return path.join(base, 'printventory');
+  return path.join(base, 'justtprint');
 }
 
 function configPath() {
@@ -86,12 +86,12 @@ function saveConfig(config) {
 }
 
 function helperScriptPath() {
-  return path.resolve(__dirname, 'printventory-helper.js');
+  return path.resolve(__dirname, 'justtprint-helper.js');
 }
 
 function notifyError(message) {
   log('ERROR ' + message);
-  const title = 'Printventory Helper';
+  const title = 'JusttPrint Helper';
   try {
     if (process.platform === 'darwin') {
       const child = spawn('osascript', [
@@ -156,14 +156,14 @@ function registerWindows() {
   assertQuotable(nodeBin, 'Node');
   assertQuotable(script, 'Helper script');
   const command = '"' + nodeBin + '" "' + script + '" "%1"';
-  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\printventory', '/ve', '/d', 'URL:Printventory Protocol', '/f'], { stdio: 'inherit' });
-  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\printventory', '/v', 'URL Protocol', '/d', '', '/f'], { stdio: 'inherit' });
-  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\printventory\\shell\\open\\command', '/ve', '/d', command, '/f'], { stdio: 'inherit' });
+  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\justtprint', '/ve', '/d', 'URL:JusttPrint Protocol', '/f'], { stdio: 'inherit' });
+  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\justtprint', '/v', 'URL Protocol', '/d', '', '/f'], { stdio: 'inherit' });
+  execFileSync('reg', ['add', 'HKCU\\Software\\Classes\\justtprint\\shell\\open\\command', '/ve', '/d', command, '/f'], { stdio: 'inherit' });
 }
 
 function unregisterWindows() {
   try {
-    execFileSync('reg', ['delete', 'HKCU\\Software\\Classes\\printventory', '/f'], { stdio: 'ignore' });
+    execFileSync('reg', ['delete', 'HKCU\\Software\\Classes\\justtprint', '/f'], { stdio: 'ignore' });
   } catch (error) {
     // Already gone.
   }
@@ -183,7 +183,7 @@ function registerMac() {
     'end open location',
     ''
   ].join('\n');
-  const sourcePath = path.join(os.tmpdir(), 'printventory-helper-handler.applescript');
+  const sourcePath = path.join(os.tmpdir(), 'justtprint-helper-handler.applescript');
   fs.writeFileSync(sourcePath, source);
   execFileSync('osacompile', ['-o', appPath, sourcePath], { stdio: 'inherit' });
   const plistPath = path.join(appPath, 'Contents', 'Info.plist');
@@ -194,10 +194,10 @@ function registerMac() {
       '  <array>',
       '    <dict>',
       '      <key>CFBundleURLName</key>',
-      '      <string>Printventory Helper</string>',
+      '      <string>JusttPrint Helper</string>',
       '      <key>CFBundleURLSchemes</key>',
       '      <array>',
-      '        <string>printventory</string>',
+      '        <string>justtprint</string>',
       '      </array>',
       '    </dict>',
       '  </array>'
@@ -229,13 +229,13 @@ function registerLinux() {
   fs.mkdirSync(path.dirname(desktopPath), { recursive: true });
   const contents = [
     '[Desktop Entry]',
-    'Name=Printventory Helper',
-    'Comment=Open Printventory models in a local slicer',
+    'Name=JusttPrint Helper',
+    'Comment=Open JusttPrint models in a local slicer',
     'Exec="' + nodeBin + '" "' + script + '" %u',
     'Type=Application',
     'Terminal=false',
     'NoDisplay=true',
-    'MimeType=x-scheme-handler/printventory;',
+    'MimeType=x-scheme-handler/justtprint;',
     ''
   ].join('\n');
   fs.writeFileSync(desktopPath, contents);
@@ -245,9 +245,9 @@ function registerLinux() {
     // Optional on some desktops.
   }
   try {
-    execFileSync('xdg-mime', ['default', DESKTOP_FILE, 'x-scheme-handler/printventory'], { stdio: 'inherit' });
+    execFileSync('xdg-mime', ['default', DESKTOP_FILE, 'x-scheme-handler/justtprint'], { stdio: 'inherit' });
   } catch (error) {
-    console.error('Could not set the default handler. Register ' + desktopPath + ' for x-scheme-handler/printventory.');
+    console.error('Could not set the default handler. Register ' + desktopPath + ' for x-scheme-handler/justtprint.');
     throw error;
   }
 }
@@ -278,7 +278,7 @@ function unregisterProtocol() {
 function protocolInstalled() {
   if (process.platform === 'win32') {
     try {
-      execFileSync('reg', ['query', 'HKCU\\Software\\Classes\\printventory\\shell\\open\\command'], { stdio: 'ignore' });
+      execFileSync('reg', ['query', 'HKCU\\Software\\Classes\\justtprint\\shell\\open\\command'], { stdio: 'ignore' });
       return true;
     } catch (error) {
       return false;
@@ -316,7 +316,7 @@ function downloadFile(urlString, destPath, { tlsInsecure, allowedOrigin, redirec
     const lib = url.protocol === 'https:' ? https : http;
     const req = lib.get(url, {
       rejectUnauthorized: !tlsInsecure,
-      headers: { 'User-Agent': 'PrintventoryHelper' }
+      headers: { 'User-Agent': 'JusttPrintHelper' }
     }, (res) => {
       const status = res.statusCode || 0;
       if (status >= 300 && status < 400 && res.headers.location) {
@@ -369,11 +369,11 @@ function launchSlicer(slicerPath, modelPaths, slicerName) {
 }
 
 async function handleUrl(rawUrl) {
-  const request = protocol.parsePrintventoryProtocolUrl(rawUrl);
+  const request = protocol.parseJusttPrintProtocolUrl(rawUrl);
   const config = loadConfig();
   const origin = protocol.assertOriginAllowed(config.origins, request.origin);
   const slicer = protocol.resolveHelperSlicer(config.slicers, request);
-  const downloadRoot = path.join(os.tmpdir(), 'printventory-slicer');
+  const downloadRoot = path.join(os.tmpdir(), 'justtprint-slicer');
   fs.mkdirSync(downloadRoot, { recursive: true });
   sweepOldDownloads(downloadRoot);
   const jobDir = path.join(downloadRoot, String(Date.now()));
@@ -394,16 +394,16 @@ async function handleUrl(rawUrl) {
 
 function printHelp() {
   console.log([
-    'Printventory helper — send library models to a slicer on this computer.',
+    'JusttPrint helper — send library models to a slicer on this computer.',
     '',
-    '  node printventory-helper.js install --origin http://host:5000 [--insecure]',
-    '  node printventory-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer',
-    '  node printventory-helper.js status',
-    '  node printventory-helper.js uninstall',
+    '  node justtprint-helper.js install --origin http://host:5000 [--insecure]',
+    '  node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer',
+    '  node justtprint-helper.js status',
+    '  node justtprint-helper.js uninstall',
     '',
-    'From the Printventory web UI, use Slicer Settings to download a helper package for this server.',
+    'From the JusttPrint web UI, use Slicer Settings to download a helper package for this server.',
     'Use --insecure when the server certificate is self-signed.',
-    'Slicer paths saved in Printventory are used unless this computer has a slicer of the same name.'
+    'Slicer paths saved in JusttPrint are used unless this computer has a slicer of the same name.'
   ].join('\n'));
 }
 
@@ -420,7 +420,7 @@ function parseCli(argv) {
     url: ''
   };
   if (!args.length) return parsed;
-  if (/^printventory:/i.test(args[0])) {
+  if (/^justtprint:/i.test(args[0])) {
     parsed.command = 'open';
     parsed.url = args[0];
     return parsed;
@@ -443,7 +443,7 @@ function parseCli(argv) {
       const eq = raw.indexOf('=');
       if (eq <= 0) throw new Error('--slicer expects Name=/path/to/slicer');
       parsed.slicers.push({ name: raw.slice(0, eq), path: raw.slice(eq + 1) });
-    } else if (/^printventory:/i.test(arg)) {
+    } else if (/^justtprint:/i.test(arg)) {
       parsed.url = arg;
     } else {
       throw new Error('Unknown argument: ' + arg);
@@ -482,7 +482,7 @@ function install(parsed) {
   parsed.slicers.forEach((slicer) => upsertSlicer(config, slicer));
   saveConfig(config);
   registerProtocol();
-  console.log('Registered printventory://');
+  console.log('Registered justtprint://');
   console.log('Allowed servers: ' + config.origins.join(', '));
   if (config.tlsInsecure) console.log('TLS certificate checks are off for this helper.');
   console.log('Config: ' + configPath());
@@ -504,7 +504,7 @@ function status() {
   console.log('Allowed servers: ' + (config.origins.join(', ') || '(none)'));
   console.log('Ignore TLS errors: ' + (config.tlsInsecure ? 'yes' : 'no'));
   if (!config.slicers.length) {
-    console.log('Local slicers: (none — Printventory settings paths are used)');
+    console.log('Local slicers: (none — JusttPrint settings paths are used)');
   } else {
     config.slicers.forEach((slicer) => {
       console.log('Local slicer: ' + slicer.name + ' -> ' + slicer.path);
@@ -524,7 +524,7 @@ async function main(argv) {
   }
   if (parsed.command === 'uninstall') {
     unregisterProtocol();
-    console.log('Removed the printventory:// handler. Config left at ' + configPath());
+    console.log('Removed the justtprint:// handler. Config left at ' + configPath());
     return;
   }
   if (parsed.command === 'add-slicer') {
@@ -537,7 +537,7 @@ async function main(argv) {
   }
   if (parsed.command === 'open' || parsed.command === 'handle') {
     const raw = parsed.url || '';
-    if (!raw) throw new Error('Missing printventory URL');
+    if (!raw) throw new Error('Missing justtprint URL');
     await handleUrl(raw);
     return;
   }

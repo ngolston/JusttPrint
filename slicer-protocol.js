@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * printventory:// URL shared by the browser UI and the local helper.
+ * justtprint:// URL shared by the browser UI and the local helper.
  * The helper downloads the models and starts the slicer on this computer.
  */
 (function (root, factory) {
@@ -10,10 +10,10 @@
     module.exports = api;
   }
   if (root) {
-    root.PrintventorySlicerProtocol = api;
+    root.JusttPrintSlicerProtocol = api;
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const PROTOCOL = 'printventory:';
+  const PROTOCOL = 'justtprint:';
   const MAX_URL_LENGTH = 30000;
 
   function currentPlatform() {
@@ -21,13 +21,13 @@
     return '';
   }
 
-  function buildPrintventoryOpenUrl({ origin, slicerName, slicerPath, filePaths, downloadToken }) {
+  function buildJusttPrintOpenUrl({ origin, slicerName, slicerPath, filePaths, downloadToken }) {
     const files = (Array.isArray(filePaths) ? filePaths : [filePaths]).filter(Boolean);
-    if (!origin) throw new Error('Missing Printventory server address');
+    if (!origin) throw new Error('Missing JusttPrint server address');
     if (!slicerPath) throw new Error('Missing slicer path');
     if (!files.length) throw new Error('No model files to open in slicer');
 
-    const url = new URL('printventory://open/');
+    const url = new URL('justtprint://open/');
     url.searchParams.set('v', '1');
     url.searchParams.set('origin', new URL(origin).origin);
     url.searchParams.set('slicer', slicerName || 'Slicer');
@@ -41,15 +41,15 @@
     return href;
   }
 
-  function parsePrintventoryProtocolUrl(raw) {
+  function parseJusttPrintProtocolUrl(raw) {
     let text = String(raw || '').trim();
     if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
       text = text.slice(1, -1);
     }
-    if (!/^printventory:/i.test(text)) {
-      throw new Error('Not a printventory URL');
+    if (!/^justtprint:/i.test(text)) {
+      throw new Error('Not a justtprint URL');
     }
-    const url = new URL(text.replace(/^printventory:/i, 'https:'));
+    const url = new URL(text.replace(/^justtprint:/i, 'https:'));
     const filePaths = url.searchParams.getAll('file').filter(Boolean);
     if (!filePaths.length) {
       throw new Error('The slicer link has no model files');
@@ -100,8 +100,8 @@
     }).filter(Boolean);
     if (!allowed.includes(actual)) {
       throw new Error(
-        'This Printventory server is not allowed: ' + actual +
-        '. Run: node printventory-helper.js install --origin ' + actual
+        'This JusttPrint server is not allowed: ' + actual +
+        '. Run: node justtprint-helper.js install --origin ' + actual
       );
     }
     return actual;
@@ -120,7 +120,7 @@
       };
     }
     if (!requested || !requested.slicerPath) {
-      throw new Error('No slicer path. Add the slicer in Printventory settings, or run: node printventory-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer');
+      throw new Error('No slicer path. Add the slicer in JusttPrint settings, or run: node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer');
     }
     return {
       name: name || 'Slicer',
@@ -147,7 +147,7 @@
     if (typeof document === 'undefined' || typeof window === 'undefined') {
       return { ok: false, reason: 'no-document' };
     }
-    const href = buildPrintventoryOpenUrl({
+    const href = buildJusttPrintOpenUrl({
       origin: window.location.origin,
       slicerName: commandData && commandData.slicerName,
       slicerPath: commandData && commandData.slicerPath,
@@ -175,8 +175,8 @@
   return {
     PROTOCOL,
     MAX_URL_LENGTH,
-    buildPrintventoryOpenUrl,
-    parsePrintventoryProtocolUrl,
+    buildJusttPrintOpenUrl,
+    parseJusttPrintProtocolUrl,
     assertSafeSlicerPath,
     assertOriginAllowed,
     resolveHelperSlicer,

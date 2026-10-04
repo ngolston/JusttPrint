@@ -45,7 +45,7 @@ ipcMain.handle('save-directory', async (event, directoryPath) => {
 
 ipcMain.handle('open-file-dialog', async (event) => {
   // Test mode: use fixed path so Playwright/Cline can run scan without native dialog (desktop: C:\temp, server/docker: /test)
-  const testPath = process.env.PRINTVENTORY_TEST_SCAN_PATH;
+  const testPath = process.env.JUSTTPRINT_TEST_SCAN_PATH;
   if (testPath && typeof testPath === 'string') {
     return [testPath];
   }

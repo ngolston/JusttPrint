@@ -1,10 +1,10 @@
-# Printventory
+# JusttPrint
 
 **Version 3.1.2**
 
-Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
+JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
-![Printventory Logo](logo.png)
+![JusttPrint Logo](logo.png)
 
 ## Features
 
@@ -33,7 +33,7 @@ Printventory is a self-hosted web app for managing your 3D printing model collec
 - **Print Roulette**: Randomly select models from your collection
 - **AI Tagging**: Automated tag suggestions using AI
 - **3D bundle preview**: Open every STL/3MF in a folder or ZIP in a single preview layout
-- **Send to Slicer from preview**: Open the current model or entire bundle in the slicer on your computer, through the Printventory helper (new instance when already running)
+- **Send to Slicer from preview**: Open the current model or entire bundle in the slicer on your computer, through the JusttPrint helper (new instance when already running)
 - **Search & Filter**: Real-time search by filename and filter by designer, folders, tags, print status, filament, parent model, or license
 - **Tag Manager**: Comprehensive tag management interface
 - **Metadata Editor**: Bulk metadata editing capabilities
@@ -49,51 +49,55 @@ For a complete list of features and detailed usage instructions, see the [GUIDE.
 
 See [CHANGELOG.md](CHANGELOG.md) for recent feature additions and migration notes.
 
-## Running Printventory
+## Upgrading from Printventory
 
-Printventory runs as a Docker container. Build the image from this repository and start it with your models folder mounted:
+JusttPrint 4.0.0 is the renamed Printventory. The data folder, database file, environment variables and slicer helper link have new names, so an existing install needs a few one-time steps (rename the database file, update the volume path and `PRINTVENTORY_*` variables, reinstall the slicer helper). See **Before upgrading** under 4.0.0 in [CHANGELOG.md](CHANGELOG.md).
+
+## Running JusttPrint
+
+JusttPrint runs as a Docker container. Build the image from this repository and start it with your models folder mounted:
 
 ```bash
-docker build -t printventory:latest .
-docker run -d --name printventory-server \
+docker build -t justtprint:latest .
+docker run -d --name justtprint-server \
   -p 5000:5000 \
-  -v ./data:/root/.config/printventory \
+  -v ./data:/root/.config/justtprint \
   -v /path/to/your/models:/mnt/models:ro \
   -e STL_HOME=/mnt/models \
-  -e PRINTVENTORY_PASSWORD='choose-a-password' \
+  -e JUSTTPRINT_PASSWORD='choose-a-password' \
   --restart unless-stopped \
-  printventory:latest
+  justtprint:latest
 ```
 
 Then open `http://<server-ip>:5000` and log in. See [Docker Deployment](#docker-deployment-linux-server-mode) for Compose, network shares, HTTPS, GPUs and all settings.
 
 ### Data Storage
 
-Everything the app stores (database, thumbnails, backups, certificates) lives in the container's data folder, `/root/.config/printventory`. Mount it as a volume (`./data` above) so it survives updates and container rebuilds.
+Everything the app stores (database, thumbnails, backups, certificates) lives in the container's data folder, `/root/.config/justtprint`. Mount it as a volume (`./data` above) so it survives updates and container rebuilds.
 
 ### Network Connections
 
-Printventory does not collect usage data. It only connects to outside services in these cases:
+JusttPrint does not collect usage data. It only connects to outside services in these cases:
 
-- **Update check**: on startup, after the terms are accepted, it asks GitHub for the latest release of `ngolston/Printventory`. Turn this off under **About → Updates**.
+- **Update check**: on startup, after the terms are accepted, it asks GitHub for the latest release of `ngolston/JusttPrint`. Turn this off under **About → Updates**.
 - **AI tagging**: when you use it, the model's thumbnail, file name and folder names go to the AI service you configured (OpenAI-compatible endpoint or Puter).
 - **Page imports and Spoolman**: when you import from a model website or sync filaments, it contacts that site or your Spoolman server.
 
 ## Using the Web App
 
-Printventory serves its interface over HTTP on port 5000 (or HTTPS when enabled), so every device on your network can use the same library.
+JusttPrint serves its interface over HTTP on port 5000 (or HTTPS when enabled), so every device on your network can use the same library.
 
 ### Logging In
 
 Server Mode requires a password. Browsers log in once and stay logged in for 30 days.
 
-- **First start**: if no password is set, Printventory creates one and prints it in the server log (`docker logs printventory`). It is shown only once.
-- **Set it yourself**: start with the `PRINTVENTORY_PASSWORD` environment variable. It replaces the stored password on every start, which is also how to reset a forgotten password.
+- **First start**: if no password is set, JusttPrint creates one and prints it in the server log (`docker logs justtprint`). It is shown only once.
+- **Set it yourself**: start with the `JUSTTPRINT_PASSWORD` environment variable. It replaces the stored password on every start, which is also how to reset a forgotten password.
 - **Change it**: **Tools → Server Access** (password at least 8 characters). Changing it logs out every browser.
 - **MCP clients and scripts**: send `Authorization: Bearer <API token>`. The token is shown under **Tools → Server Access**, and the client config under **MCP Server → Settings** already includes it.
 - **Send to Slicer helper**: links carry a download token that expires after 15 minutes. Helpers installed before login was added must be reinstalled from **Settings → Slicer**.
-- **Login rate limit behind a proxy**: set `PRINTVENTORY_TRUST_PROXY=1` (number of proxies in front, or their addresses such as `loopback, 10.0.0.0/8`) so failed logins are counted per real client. Leave it unset when the container is reached directly.
-- **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `PRINTVENTORY_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
+- **Login rate limit behind a proxy**: set `JUSTTPRINT_TRUST_PROXY=1` (number of proxies in front, or their addresses such as `loopback, 10.0.0.0/8`) so failed logins are counted per real client. Leave it unset when the container is reached directly.
+- **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `JUSTTPRINT_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
 
 The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates. From the browser and MCP, deleting, moving and reading files works only inside the library, and system folders (such as `/etc`, `/usr` or the app's own folders) cannot be scanned or used as an Organize Library destination.
 
@@ -101,8 +105,8 @@ The file endpoints only serve files inside your library folders (scanned directo
 
 - **Paths**: model paths are paths inside the container, such as `/mnt/models/part.stl`. Mount network shares on the host and into the container (see [Docker Deployment](#docker-deployment-linux-server-mode)).
 - **Network Access**: the server listens on all network interfaces on port 5000. You may need to allow it through your firewall.
-- **Network Security**: Printventory is designed for your local network. It requires a login (see [Logging In](#logging-in)), but use HTTPS whenever it is reachable from outside your network.
-- **HTTPS / SSL**: open **Settings → HTTPS / SSL** to use custom PEM files, a self-signed LAN certificate, or Let's Encrypt (public DNS + inbound port 80). You can also set the **listen port** (default 5000; `https://` and `wss://` on that port). `PRINTVENTORY_PORT` seeds the port when unset. `PRINTVENTORY_TLS_*` environment variables override the certificate UI. Reverse proxies should leave in-app TLS off and upgrade WebSockets.
+- **Network Security**: JusttPrint is designed for your local network. It requires a login (see [Logging In](#logging-in)), but use HTTPS whenever it is reachable from outside your network.
+- **HTTPS / SSL**: open **Settings → HTTPS / SSL** to use custom PEM files, a self-signed LAN certificate, or Let's Encrypt (public DNS + inbound port 80). You can also set the **listen port** (default 5000; `https://` and `wss://` on that port). `JUSTTPRINT_PORT` seeds the port when unset. `JUSTTPRINT_TLS_*` environment variables override the certificate UI. Reverse proxies should leave in-app TLS off and upgrade WebSockets.
 
 ### STL Home Setting
 
@@ -117,7 +121,7 @@ New models found by a scan get thumbnails in the background. To stop automatic s
 
 ## MCP Server
 
-Printventory exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) endpoint so an AI agent (Cursor, Claude Desktop, VS Code Copilot, and similar) can search the library, manage tags and filaments, find duplicates, scan folders, update metadata, record print history, and write thumbnails.
+JusttPrint exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) endpoint so an AI agent (Cursor, Claude Desktop, VS Code Copilot, and similar) can search the library, manage tags and filaments, find duplicates, scan folders, update metadata, record print history, and write thumbnails.
 
 This is an **experimental** feature. By using it, you assume the risk: the API may change or break, and any client with the API token can read and change library data.
 
@@ -133,34 +137,34 @@ Open **Tools → MCP Server** for the URL and a client config that already inclu
 
 Agents can call the library, tag, filament, print-history, thumbnail, DeDup, scan, metadata, slicer, and backup tools listed in **Tools → MCP Server**. Destructive actions (`remove_model`, `trash_file`, `move_files`) require `confirm: true`.
 
-To generate thumbnails outside Printventory: list models with `get_models_missing_thumbnails`, open each `filePath` on disk, render an image, then call `set_thumbnail` with a PNG or JPEG data URL or raw base64.
+To generate thumbnails outside JusttPrint: list models with `get_models_missing_thumbnails`, open each `filePath` on disk, render an image, then call `set_thumbnail` with a PNG or JPEG data URL or raw base64.
 
 ## Development
 
 Requires [Node.js](https://nodejs.org/) 22 or later and a C++ toolchain for `better-sqlite3`.
 
 ```bash
-git clone https://github.com/ngolston/Printventory.git
-cd Printventory
+git clone https://github.com/ngolston/JusttPrint.git
+cd JusttPrint
 npm install
-PRINTVENTORY_PASSWORD=dev-password STL_HOME=/path/to/models npm start
+JUSTTPRINT_PASSWORD=dev-password STL_HOME=/path/to/models npm start
 ```
 
-`npm start` runs the server on plain Node (`src/server/index.js`) at `http://localhost:5000`. Thumbnails need a Chromium-based browser; set `PRINTVENTORY_CHROMIUM` to its path if Puppeteer's own download is missing.
+`npm start` runs the server on plain Node (`src/server/index.js`) at `http://localhost:5000`. Thumbnails need a Chromium-based browser; set `JUSTTPRINT_CHROMIUM` to its path if Puppeteer's own download is missing.
 
 - `npm test` runs every unit test (`*.test.js`).
 - `npm run test:e2e` starts the server with `tests/fixtures/library` and checks the API, security rules and the web UI in a browser (`CHROME_PATH` selects the browser; on macOS Google Chrome is found automatically).
 
 ## Testing Locally
 
-`docker-compose.local.yml` builds the image from your checkout and runs it on your computer. It reads its settings from `~/printventory-test/local.env`:
+`docker-compose.local.yml` builds the image from your checkout and runs it on your computer. It reads its settings from `~/justtprint-test/local.env`:
 
 ```
-PRINTVENTORY_MODELS=/Users/you/printventory-test/models   # your models folder
-PRINTVENTORY_MODELS_MODE=ro                               # rw to test delete, move and organize
-PRINTVENTORY_DATA=/Users/you/printventory-test/data       # database and thumbnails
-PRINTVENTORY_PASSWORD=choose-a-password                   # web UI login
-PRINTVENTORY_HOST_PORT=5055                               # 5000 is taken by AirPlay on macOS
+JUSTTPRINT_MODELS=/Users/you/justtprint-test/models   # your models folder
+JUSTTPRINT_MODELS_MODE=ro                               # rw to test delete, move and organize
+JUSTTPRINT_DATA=/Users/you/justtprint-test/data       # database and thumbnails
+JUSTTPRINT_PASSWORD=choose-a-password                   # web UI login
+JUSTTPRINT_HOST_PORT=5055                               # 5000 is taken by AirPlay on macOS
 ```
 
 ```bash
@@ -173,15 +177,15 @@ Run `npm run docker:local` again after code changes to rebuild. Use a copy of yo
 
 ## Docker Deployment (Linux Server Mode)
 
-Printventory can be deployed as a Docker container for easy server mode deployment on Linux systems. This is ideal for headless servers or containerized environments.
+JusttPrint can be deployed as a Docker container for easy server mode deployment on Linux systems. This is ideal for headless servers or containerized environments.
 
 The image runs the server on plain Node.js (no Electron, no virtual display). Thumbnails are rendered by a headless Chromium inside the container, using software WebGL by default or an NVIDIA GPU (see below).
 
 ### Distribution Options
 
 **Option 1: Release package (recommended)**
-- Download `printventory-docker-<version>.zip` from [GitHub Releases](https://github.com/ngolston/Printventory/releases) and unzip it
-- Put your models in the `models` folder next to `docker-compose.yml` (or change that mount to your models folder), and set `PRINTVENTORY_PASSWORD` in `docker-compose.yml`
+- Download `justtprint-docker-<version>.zip` from [GitHub Releases](https://github.com/ngolston/JusttPrint/releases) and unzip it
+- Put your models in the `models` folder next to `docker-compose.yml` (or change that mount to your models folder), and set `JUSTTPRINT_PASSWORD` in `docker-compose.yml`
 - Run `docker compose up -d --build`, then open `http://<server-ip>:5000`
 
 **Option 2: Build from source**
@@ -201,21 +205,21 @@ The image runs the server on plain Node.js (no Electron, no virtual display). Th
 
 From a clone of the repository:
 ```bash
-docker build -t printventory:latest .
+docker build -t justtprint:latest .
 ```
 
-The examples below run `printventory:latest`. To publish the image to your own Docker Hub account for Intel/AMD and ARM, set `DOCKER_HUB_USERNAME` and run `npm run docker:hub:multiarch`; then use `<your-username>/printventory:latest` in place of `printventory:latest`.
+The examples below run `justtprint:latest`. To publish the image to your own Docker Hub account for Intel/AMD and ARM, set `DOCKER_HUB_USERNAME` and run `npm run docker:hub:multiarch`; then use `<your-username>/justtprint:latest` in place of `justtprint:latest`.
 
 #### Running with Docker Run
 
 **Basic run command:**
 ```bash
 docker run -d \
-  --name printventory-server \
+  --name justtprint-server \
   -p 5000:5000 \
-  -v ./data:/root/.config/printventory \
+  -v ./data:/root/.config/justtprint \
   --restart unless-stopped \
-  printventory:latest
+  justtprint:latest
 ```
 
 **With network share mounted (Windows - mapped drive):**
@@ -226,15 +230,15 @@ net use Z: \\server\share /persistent:yes
 # Step 2: Run container with volume mount and STL_HOME environment variable
 # Maps Windows Z: drive to /mnt/network-share inside container
 docker run -d \
-  --name printventory-server \
+  --name justtprint-server \
   -p 5000:5000 \
-  -v ./data:/root/.config/printventory \
+  -v ./data:/root/.config/justtprint \
   -v Z:/:/mnt/network-share:ro \
   -e STL_HOME=/mnt/network-share/models \
   --restart unless-stopped \
-  printventory:latest
+  justtprint:latest
 
-# Step 3: Use Linux-style paths in Printventory
+# Step 3: Use Linux-style paths in JusttPrint
 # Example: /mnt/network-share/models/myfile.stl
 # STL Home is automatically configured via STL_HOME environment variable
 ```
@@ -248,15 +252,15 @@ sudo mount -t cifs //server/share /mnt/network-share -o username=user,password=p
 # Step 2: Run container with volume mount and STL_HOME environment variable
 # Maps host /mnt/network-share to /mnt/network-share inside container
 docker run -d \
-  --name printventory-server \
+  --name justtprint-server \
   -p 5000:5000 \
-  -v ./data:/root/.config/printventory \
+  -v ./data:/root/.config/justtprint \
   -v /mnt/network-share:/mnt/network-share:ro \
   -e STL_HOME=/mnt/network-share/models \
   --restart unless-stopped \
-  printventory:latest
+  justtprint:latest
 
-# Step 3: Use Linux-style paths in Printventory
+# Step 3: Use Linux-style paths in JusttPrint
 # Example: /mnt/network-share/models/myfile.stl
 # STL Home is automatically configured via STL_HOME environment variable
 ```
@@ -269,13 +273,13 @@ Create a `docker-compose.yml` file (or use the one from the repo / distribution 
 version: '3.8'
 
 services:
-  printventory:
-    image: printventory:latest
+  justtprint:
+    image: justtprint:latest
     # Built from this repository's Dockerfile
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: printventory-server
+    container_name: justtprint-server
     ports:
       - "5000:5000"
       # Let's Encrypt (Settings → HTTPS / SSL) needs port 80:
@@ -284,9 +288,9 @@ services:
       # - "443:5000"
     volumes:
       # Persist DB and app data (host ./data → container config dir)
-      - ./data:/root/.config/printventory
+      - ./data:/root/.config/justtprint
 
-      # Mount model files (pick one). Use the *container* path in Printventory / STL_HOME.
+      # Mount model files (pick one). Use the *container* path in JusttPrint / STL_HOME.
       # Windows mapped drive: net use Z: \\server\share /persistent:yes
       # - Z:/:/mnt/network-share:ro
       # Linux SMB/CIFS (mount on host first):
@@ -305,17 +309,17 @@ services:
       # - STL_HOME_EXCLUDE=/mnt/models/cache,/mnt/models/derivatives
 
       # Preview / memory tuning (optional)
-      # - PRINTVENTORY_PREVIEW_3MF_WORKER_MEMORY_MB=512
-      # - PRINTVENTORY_PREVIEW_3MF_MAX_FILE_SIZE_MB=200
-      # - PRINTVENTORY_MAX_OLD_SPACE_MB=8192
+      # - JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB=512
+      # - JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB=200
+      # - JUSTTPRINT_MAX_OLD_SPACE_MB=8192
 
       # Server-side thumbnail GPU: auto (default) | nvidia | swiftshader
-      # - PRINTVENTORY_GPU=auto
+      # - JUSTTPRINT_GPU=auto
 
       # HTTPS: prefer Settings → HTTPS / SSL in the UI. These env vars override the UI.
-      # - PRINTVENTORY_TLS_CERT=/certs/fullchain.pem
-      # - PRINTVENTORY_TLS_KEY=/certs/privkey.pem
-      # - PRINTVENTORY_TLS_CA=/certs/chain.pem
+      # - JUSTTPRINT_TLS_CERT=/certs/fullchain.pem
+      # - JUSTTPRINT_TLS_KEY=/certs/privkey.pem
+      # - JUSTTPRINT_TLS_CA=/certs/chain.pem
 
       # NVIDIA (only when using a host GPU — see section below)
       # - NVIDIA_VISIBLE_DEVICES=all
@@ -337,9 +341,9 @@ docker compose up -d
 
 | Option | What it does |
 |--------|----------------|
-| `image` | Image name (`printventory:latest` when built locally, or `<your-username>/printventory:latest` when published). |
+| `image` | Image name (`justtprint:latest` when built locally, or `<your-username>/justtprint:latest` when published). |
 | `build` | Build from the local `Dockerfile`. |
-| `container_name` | Fixed container name (`printventory-server`) for easy `docker logs` / `docker exec`. |
+| `container_name` | Fixed container name (`justtprint-server`) for easy `docker logs` / `docker exec`. |
 | `ports` | Maps host → container. `5000:5000` is the app (HTTP or HTTPS). Publish `80:80` for Let's Encrypt HTTP-01. Optional `443:5000` when TLS is on. |
 | `volumes` → `./data:...` | Persists the SQLite DB and app config on the host so updates/recreates keep your library. |
 | `volumes` → model mounts | Exposes host/network files inside the container. Always use the **container** path (e.g. `/mnt/models`) in the UI and in `STL_HOME`. `:ro` is read-only. |
@@ -350,34 +354,34 @@ docker compose up -d
 
 ##### Environment variables
 
-Variables marked **every start** win over the UI each time the container starts. The rest only fill a setting that is empty, unless `PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1`.
+Variables marked **every start** win over the UI each time the container starts. The rest only fill a setting that is empty, unless `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1`.
 
 | Variable | Purpose |
 |----------|---------|
 | `PUID` / `PGID` | User and group the app runs as, and the owner of files it writes. Match the owner of your library (`id -u`, `id -g`). Default `1000`/`1000`; `PUID=0` runs as root. |
-| `PRINTVENTORY_PASSWORD` | Web UI login password (**every start**). Unset: a random one is printed once in the log. |
-| `PRINTVENTORY_PORT` | Listen port inside the container (default `5000`). Map the same port in `ports:`. |
-| `PRINTVENTORY_ALLOWED_ORIGINS` | Extra browser addresses allowed to connect, comma separated (reverse proxies that rewrite `Host`). |
-| `PRINTVENTORY_TRUST_PROXY` | Number of reverse proxies in front (`1`), `true`, or their addresses, so the login rate limit sees real client addresses. |
-| `PRINTVENTORY_ENABLE_ZIP` | `true`/`false`: scan models inside zip archives (**every start**). |
-| `PRINTVENTORY_FILE_TYPES` | Extra file types to scan, comma separated: `obj`, `step`, `ply`, `3ds`, `amf`, `blender`, `chitubox`, `dae`, `dwg`, `dxf`, `f3d`, `f3z`, `fbx`, `gcode`, `igs`, `lys`, `svg`, `voxl`, `x3d` (**every start**). |
-| `PRINTVENTORY_SCAN_EXCLUDE` | Folder names to skip while scanning, comma separated (**every start**). |
-| `PRINTVENTORY_AI_SERVICE` | AI tagging service: `openai`, `claude`, `gemini`, `puter` or `custom` (**every start**). |
-| `PRINTVENTORY_AI_API_KEY` | API key for that service (**every start**; never written to the log). |
-| `PRINTVENTORY_AI_MODEL` / `PRINTVENTORY_AI_ENDPOINT` | AI model name, and endpoint URL for `custom` or self-hosted services (**every start**). |
+| `JUSTTPRINT_PASSWORD` | Web UI login password (**every start**). Unset: a random one is printed once in the log. |
+| `JUSTTPRINT_PORT` | Listen port inside the container (default `5000`). Map the same port in `ports:`. |
+| `JUSTTPRINT_ALLOWED_ORIGINS` | Extra browser addresses allowed to connect, comma separated (reverse proxies that rewrite `Host`). |
+| `JUSTTPRINT_TRUST_PROXY` | Number of reverse proxies in front (`1`), `true`, or their addresses, so the login rate limit sees real client addresses. |
+| `JUSTTPRINT_ENABLE_ZIP` | `true`/`false`: scan models inside zip archives (**every start**). |
+| `JUSTTPRINT_FILE_TYPES` | Extra file types to scan, comma separated: `obj`, `step`, `ply`, `3ds`, `amf`, `blender`, `chitubox`, `dae`, `dwg`, `dxf`, `f3d`, `f3z`, `fbx`, `gcode`, `igs`, `lys`, `svg`, `voxl`, `x3d` (**every start**). |
+| `JUSTTPRINT_SCAN_EXCLUDE` | Folder names to skip while scanning, comma separated (**every start**). |
+| `JUSTTPRINT_AI_SERVICE` | AI tagging service: `openai`, `claude`, `gemini`, `puter` or `custom` (**every start**). |
+| `JUSTTPRINT_AI_API_KEY` | API key for that service (**every start**; never written to the log). |
+| `JUSTTPRINT_AI_MODEL` / `JUSTTPRINT_AI_ENDPOINT` | AI model name, and endpoint URL for `custom` or self-hosted services (**every start**). |
 | `STL_HOME` | STL Home scan directories on start (Linux paths inside the container). One path, or several separated by commas, semicolons, or newlines, or a JSON array. |
 | `STL_HOME_EXCLUDE` | Directories STL Home scans skip. Comma, semicolon, or newline separated container paths, or a JSON array. Same empty-vs-override rules as `STL_HOME`. |
-| `PRINTVENTORY_ENV_OVERRIDES_SETTINGS` | Set to `1` to re-apply env settings on every start (legacy). By default, env fills unset DB settings only. |
-| `PRINTVENTORY_GPU` | Server thumbnail WebGL backend: `auto` (default), `nvidia`, or `swiftshader` (CPU). |
-| `PRINTVENTORY_PREVIEW_3MF_WORKER_MEMORY_MB` | Memory budget for 3MF preview workers (keep below container RAM). |
-| `PRINTVENTORY_PREVIEW_3MF_MAX_FILE_SIZE_MB` | Skip / limit very large 3MF files during preview. |
-| `PRINTVENTORY_MAX_OLD_SPACE_MB` | V8 heap size in MB. Defaults scale from the container memory limit; raise if logs show `OOM error in V8: Zone Allocation failed`. |
-| `PRINTVENTORY_DB_PATH` | Optional override for the SQLite DB path inside the container. |
-| `PRINTVENTORY_TLS_CERT` / `PRINTVENTORY_TLS_KEY` / `PRINTVENTORY_TLS_CA` | Ops override for in-container HTTPS (wins over **Settings → HTTPS / SSL**). Browser uses `https://` and `wss://`. If you terminate TLS at Traefik/Caddy/nginx instead, leave these unset, leave the UI on Off, and configure WebSocket upgrade on the proxy. |
+| `JUSTTPRINT_ENV_OVERRIDES_SETTINGS` | Set to `1` to re-apply env settings on every start (legacy). By default, env fills unset DB settings only. |
+| `JUSTTPRINT_GPU` | Server thumbnail WebGL backend: `auto` (default), `nvidia`, or `swiftshader` (CPU). |
+| `JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB` | Memory budget for 3MF preview workers (keep below container RAM). |
+| `JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB` | Skip / limit very large 3MF files during preview. |
+| `JUSTTPRINT_MAX_OLD_SPACE_MB` | V8 heap size in MB. Defaults scale from the container memory limit; raise if logs show `OOM error in V8: Zone Allocation failed`. |
+| `JUSTTPRINT_DB_PATH` | Optional override for the SQLite DB path inside the container. |
+| `JUSTTPRINT_TLS_CERT` / `JUSTTPRINT_TLS_KEY` / `JUSTTPRINT_TLS_CA` | Ops override for in-container HTTPS (wins over **Settings → HTTPS / SSL**). Browser uses `https://` and `wss://`. If you terminate TLS at Traefik/Caddy/nginx instead, leave these unset, leave the UI on Off, and configure WebSocket upgrade on the proxy. |
 | `NVIDIA_VISIBLE_DEVICES` | Which GPUs the container can see (`all` or a device index). |
 | `NVIDIA_DRIVER_CAPABILITIES` | Must include **`graphics`** for WebGL (`graphics,compute,utility`). `compute,utility` alone is enough for `nvidia-smi` but not Chromium. |
 
-**Memory note:** Host RAM (e.g. 96GB) is not used automatically. Unraid/Compose often caps the container. Raise `mem_limit` and, if needed, `PRINTVENTORY_MAX_OLD_SPACE_MB`. Logs showing `OOM error in V8: Zone Allocation failed` are the V8 heap limit, not the host running out of RAM.
+**Memory note:** Host RAM (e.g. 96GB) is not used automatically. Unraid/Compose often caps the container. Raise `mem_limit` and, if needed, `JUSTTPRINT_MAX_OLD_SPACE_MB`. Logs showing `OOM error in V8: Zone Allocation failed` are the V8 heap limit, not the host running out of RAM.
 
 #### NVIDIA GPU (optional)
 
@@ -388,13 +392,13 @@ Server-side thumbnail jobs render with WebGL inside the container. By default th
 
 ```yaml
 services:
-  printventory:
-    image: printventory:latest
+  justtprint:
+    image: justtprint:latest
     gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility
-      - PRINTVENTORY_GPU=auto   # or nvidia | swiftshader
+      - JUSTTPRINT_GPU=auto   # or nvidia | swiftshader
 ```
 
 Alternative Swarm / `deploy` syntax (Compose V2 on a normal Docker Engine host should prefer `gpus: all` plus the env vars above — `deploy.devices` alone does not always enable `graphics`):
@@ -417,7 +421,7 @@ If System Report still shows SwiftShader while `nvidia-smi` lists a card, `graph
 
 #### Accessing the Server
 
-Once the container is running, access Printventory from your browser:
+Once the container is running, access JusttPrint from your browser:
 
 - **Local machine:** `http://localhost:5000`
 - **Network access:** `http://<your-ip>:5000`
@@ -426,39 +430,39 @@ Once the container is running, access Printventory from your browser:
 
 **View logs:**
 ```bash
-docker logs printventory-server
+docker logs justtprint-server
 # Follow logs in real-time:
-docker logs -f printventory-server
+docker logs -f justtprint-server
 ```
 
 **Stop the container:**
 ```bash
-docker stop printventory-server
+docker stop justtprint-server
 ```
 
 **Start the container:**
 ```bash
-docker start printventory-server
+docker start justtprint-server
 ```
 
 **Restart the container:**
 ```bash
-docker restart printventory-server
+docker restart justtprint-server
 ```
 
 **Remove the container:**
 ```bash
-docker stop printventory-server
-docker rm printventory-server
+docker stop justtprint-server
+docker rm justtprint-server
 ```
 
 **Update to the latest version:**
 ```bash
 git pull
-docker build -t printventory:latest .
-docker stop printventory-server
-docker rm printventory-server
-docker run -d --name printventory-server -p 5000:5000 -v ./data:/root/.config/printventory --restart unless-stopped printventory:latest
+docker build -t justtprint:latest .
+docker stop justtprint-server
+docker rm justtprint-server
+docker run -d --name justtprint-server -p 5000:5000 -v ./data:/root/.config/justtprint --restart unless-stopped justtprint:latest
 ```
 
 #### Using Network Paths
@@ -479,17 +483,17 @@ When running in Docker, remember:
 **From distribution package:**
 ```bash
 # Extract the zip file
-unzip printventory-docker-*.zip
-cd printventory-docker-*
+unzip justtprint-docker-*.zip
+cd justtprint-docker-*
 
 # Build the image
-docker build -t printventory:latest .
+docker build -t justtprint:latest .
 ```
 
 **From source repository:**
 ```bash
 # Build the image from project root
-docker build -t printventory:latest .
+docker build -t justtprint:latest .
 ```
 
 ### Running with Docker
@@ -498,11 +502,11 @@ docker build -t printventory:latest .
 
 ```bash
 docker run -d \
-  --name printventory-server \
+  --name justtprint-server \
   -p 5000:5000 \
-  -v ./data:/root/.config/printventory \
+  -v ./data:/root/.config/justtprint \
   --restart unless-stopped \
-  printventory:latest
+  justtprint:latest
 ```
 
 #### Using Docker Compose (Recommended)
@@ -520,7 +524,7 @@ This will:
 
 ### Accessing the Server
 
-Once the container is running, access Printventory from any browser:
+Once the container is running, access JusttPrint from any browser:
 
 ```
 http://<your-server-ip>:5000
@@ -552,14 +556,14 @@ environment:
 
 A single path still works (`STL_HOME=/mnt/network-share/models`). For several directories, separate paths with commas, semicolons, or newlines, or pass a JSON array. This configures STL Home when the container starts. The list is visible under **Settings → STL Home**.
 
-`STL_HOME` is saved when the directory list is still empty. After you change it in the web UI, that saved list is kept on restart unless `PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1`.
+`STL_HOME` is saved when the directory list is still empty. After you change it in the web UI, that saved list is kept on restart unless `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1`.
 
-`STL_HOME_EXCLUDE` is the same excluded-directories list as in that dialog. Separate paths the same way, or pass a JSON array. A path can be absolute inside the container or relative to the STL Home directory being scanned. The list is saved when it is still empty (`[]`). After you change it in the web UI, that saved list is kept on restart unless `PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1`.
+`STL_HOME_EXCLUDE` is the same excluded-directories list as in that dialog. Separate paths the same way, or pass a JSON array. A path can be absolute inside the container or relative to the STL Home directory being scanned. The list is saved when it is still empty (`[]`). After you change it in the web UI, that saved list is kept on restart unless `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1`.
 
 **Option 2: Using the Web Interface**
 
 1. **Ensure your files are mounted** into the container (see [Path Mapping Guide](#path-mapping-guide) above)
-2. **Access the Printventory web interface** at `http://<your-server-ip>:5000` or `http://localhost:5000`
+2. **Access the JusttPrint web interface** at `http://<your-server-ip>:5000` or `http://localhost:5000`
 3. **Navigate to Settings → STL Home**
 4. **Add each directory using the container path format:**
    - Use Linux-style absolute paths (e.g., `/mnt/network-share/models`)
@@ -576,7 +580,7 @@ A single path still works (`STL_HOME=/mnt/network-share/models`). For several di
 
 #### How It Works in Docker
 
-- **On Container Startup**: When the Printventory container starts, it automatically scans every STL Home directory that is configured
+- **On Container Startup**: When the JusttPrint container starts, it automatically scans every STL Home directory that is configured
 - **Periodic Scanning**: The container scans each STL Home directory at the configured interval
 - **Path Requirements**: 
   - Must use Linux-style absolute paths starting with `/`
@@ -592,13 +596,13 @@ A single path still works (`STL_HOME=/mnt/network-share/models`). For several di
 version: '3.8'
 
 services:
-  printventory:
-    image: printventory:latest
-    container_name: printventory-server
+  justtprint:
+    image: justtprint:latest
+    container_name: justtprint-server
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/root/.config/printventory
+      - ./data:/root/.config/justtprint
       - Z:/:/mnt/network-share:ro  # Windows mapped drive
     environment:
       - STL_HOME=/mnt/network-share/models,/mnt/network-share/archive
@@ -620,28 +624,28 @@ To disable automatic scanning, remove every directory from the list and save. Th
 
 **View logs:**
 ```bash
-docker logs printventory-server
+docker logs justtprint-server
 # or with docker-compose:
 docker-compose logs -f
 ```
 
 **Stop the container:**
 ```bash
-docker stop printventory-server
+docker stop justtprint-server
 # or with docker-compose:
 docker-compose down
 ```
 
 **Start the container:**
 ```bash
-docker start printventory-server
+docker start justtprint-server
 # or with docker-compose:
 docker-compose up -d
 ```
 
 **Restart the container:**
 ```bash
-docker restart printventory-server
+docker restart justtprint-server
 # or with docker-compose:
 docker-compose restart
 ```
@@ -658,20 +662,20 @@ The Docker setup uses a local bind mount (`./data`) to persist your database and
 **Backup the data:**
 ```bash
 # On Linux/Mac
-tar czf printventory-backup.tar.gz -C ./data .
+tar czf justtprint-backup.tar.gz -C ./data .
 
 # On Windows (PowerShell)
-Compress-Archive -Path .\data\* -DestinationPath printventory-backup.zip
+Compress-Archive -Path .\data\* -DestinationPath justtprint-backup.zip
 ```
 
 **Restore from backup:**
 ```bash
 # On Linux/Mac
 mkdir -p ./data
-tar xzf printventory-backup.tar.gz -C ./data
+tar xzf justtprint-backup.tar.gz -C ./data
 
 # On Windows (PowerShell)
-Expand-Archive -Path printventory-backup.zip -DestinationPath .\data
+Expand-Archive -Path justtprint-backup.zip -DestinationPath .\data
 ```
 
 **Migrating from named volume to local directory:**
@@ -681,7 +685,7 @@ If you previously used a named volume and want to migrate to the local directory
 docker-compose down
 
 # Copy data from old volume to new location
-docker run --rm -v printventory-data:/source -v ${PWD}/data:/dest alpine sh -c "cp -r /source/. /dest/"
+docker run --rm -v justtprint-data:/source -v ${PWD}/data:/dest alpine sh -c "cp -r /source/. /dest/"
 
 # Start with new configuration
 docker-compose up -d
@@ -689,7 +693,7 @@ docker-compose up -d
 
 ### Path Mapping Guide
 
-Docker volumes allow you to map paths from your host machine (or network shares) into the container. Understanding this mapping is crucial for configuring Printventory to access your files.
+Docker volumes allow you to map paths from your host machine (or network shares) into the container. Understanding this mapping is crucial for configuring JusttPrint to access your files.
 
 #### Understanding Volume Mounts
 
@@ -699,11 +703,11 @@ Docker volume mounts use the format: `host-path:/container-path:options`
 - **/container-path**: The path inside the container where files will appear
 - **options**: Mount options like `ro` (read-only) or `rw` (read-write)
 
-**Important**: When using paths in Printventory, you must use the **container path** (`/container-path`), not the host path. The container path is what Printventory sees inside the Docker environment.
+**Important**: When using paths in JusttPrint, you must use the **container path** (`/container-path`), not the host path. The container path is what JusttPrint sees inside the Docker environment.
 
 #### Quick Reference Table
 
-| Host Path Type | Docker Volume Syntax | Container Path to Use in Printventory |
+| Host Path Type | Docker Volume Syntax | Container Path to Use in JusttPrint |
 |----------------|---------------------|--------------------------------------|
 | Windows mapped drive (Z:) | `- Z:/:/mnt/network-share:ro` | `/mnt/network-share/path/to/file` |
 | Linux mounted SMB share | `- /mnt/network-share:/mnt/network-share:ro` | `/mnt/network-share/path/to/file` |
@@ -721,12 +725,12 @@ Docker volume mounts use the format: `host-path:/container-path:options`
 2. **Add the volume mount to docker-compose.yml:**
    ```yaml
    volumes:
-     - ./data:/root/.config/printventory
+     - ./data:/root/.config/justtprint
      - Z:/:/mnt/network-share:ro
    ```
    This maps Windows drive `Z:` to `/mnt/network-share` inside the container.
 
-3. **Use the container path in Printventory:**
+3. **Use the container path in JusttPrint:**
    - When scanning or setting STL Home, use: `/mnt/network-share/path/to/files`
    - Do not use the Windows path (`Z:\path\to\files`) or UNC path (`\\server\share\path`)
 
@@ -747,12 +751,12 @@ Docker volume mounts use the format: `host-path:/container-path:options`
 3. **Add the volume mount to docker-compose.yml:**
    ```yaml
    volumes:
-     - ./data:/root/.config/printventory
+     - ./data:/root/.config/justtprint
      - /mnt/network-share:/mnt/network-share:ro
    ```
    This maps the host mount point to the same path inside the container.
 
-4. **Use the container path in Printventory:**
+4. **Use the container path in JusttPrint:**
    - When scanning or setting STL Home, use: `/mnt/network-share/path/to/files`
    - The path inside the container matches the host path in this example
 
@@ -777,11 +781,11 @@ Docker volume mounts use the format: `host-path:/container-path:options`
 3. **Add the mount to docker-compose.yml:**
    ```yaml
    volumes:
-     - ./data:/root/.config/printventory
+     - ./data:/root/.config/justtprint
      - /mnt/network-share:/mnt/network-share:ro
    ```
 
-4. **Use Linux-style paths** in Printventory:
+4. **Use Linux-style paths** in JusttPrint:
    - Format: `/mnt/network-share/path/to/files`
    - The application will automatically detect Docker and accept absolute paths
 
@@ -791,12 +795,12 @@ If your files are on the Docker host machine:
 
 ```yaml
 volumes:
-  - ./data:/root/.config/printventory
+  - ./data:/root/.config/justtprint
   # Maps host /host/path/to/models to /mnt/models inside container
   - /host/path/to/models:/mnt/models:ro
 ```
 
-**Usage in Printventory:**
+**Usage in JusttPrint:**
 - Use the container path: `/mnt/models/subdirectory`
 - Do not use the host path (`/host/path/to/models/subdirectory`)
 
@@ -812,9 +816,9 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 #### Troubleshooting Path Mapping Issues
 
-**Files not found in Printventory:**
-- Verify the volume mount is correct: `docker inspect printventory-server | grep -A 10 Mounts`
-- Check that the container path matches what you're using in Printventory
+**Files not found in JusttPrint:**
+- Verify the volume mount is correct: `docker inspect justtprint-server | grep -A 10 Mounts`
+- Check that the container path matches what you're using in JusttPrint
 - Ensure the host path exists and is accessible
 - For network shares, verify the share is mounted on the host before starting the container
 
@@ -831,19 +835,19 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ### Troubleshooting
 
 **Container won't start:**
-- Check logs: `docker logs printventory-server`
+- Check logs: `docker logs justtprint-server`
 - Verify port 5000 is not in use: `netstat -tuln | grep 5000`
 - Ensure Docker has sufficient resources (memory, CPU)
 
 **Can't access the web interface:**
 - Verify the container is running: `docker ps`
 - Check firewall rules allow port 5000
-- Verify port mapping: `docker port printventory-server`
+- Verify port mapping: `docker port justtprint-server`
 
 **Database issues:**
 - Ensure the `./data` directory has write permissions
 - Check that the directory exists: `ls -la ./data` (Linux/Mac) or `dir .\data` (Windows)
-- Verify the bind mount: `docker inspect printventory-server | grep -A 10 Mounts`
+- Verify the bind mount: `docker inspect justtprint-server | grep -A 10 Mounts`
 
 ### Resource Requirements
 
@@ -899,7 +903,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ## Database
 
-Printventory uses SQLite (via `better-sqlite3`) for data storage. The database file (`printventory.db`) is created in the user's application data directory and stores:
+JusttPrint uses SQLite (via `better-sqlite3`) for data storage. The database file (`justtprint.db`) is created in the user's application data directory and stores:
 - Model metadata (name, path, size, dates)
 - Thumbnails (as base64 or file references)
 - Tags, designers, print status, notes, and other custom fields

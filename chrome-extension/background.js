@@ -1,4 +1,4 @@
-/* global pvLog, pvSetDebug, PrintventoryInbox, PrintventoryExtract */
+/* global pvLog, pvSetDebug, JusttPrintInbox, JusttPrintExtract */
 'use strict';
 importScripts('debug.js', 'inbox.js', 'extractors.js');
 
@@ -124,8 +124,8 @@ async function liveExtract(tabId) {
 }
 
 function metadataFromUrl(href) {
-  if (!self.PrintventoryExtract || typeof self.PrintventoryExtract.metadataFromUrl !== 'function') return null;
-  return self.PrintventoryExtract.metadataFromUrl(href);
+  if (!self.JusttPrintExtract || typeof self.JusttPrintExtract.metadataFromUrl !== 'function') return null;
+  return self.JusttPrintExtract.metadataFromUrl(href);
 }
 
 function isLooseSiteUrl(url) {
@@ -136,7 +136,7 @@ function isLooseSiteUrl(url) {
   } catch (e) {
     return true;
   }
-  const cat = self.PrintventoryExtract && self.PrintventoryExtract.parseCatalog(url);
+  const cat = self.JusttPrintExtract && self.JusttPrintExtract.parseCatalog(url);
   return !(cat && cat.isModelPage);
 }
 
@@ -170,10 +170,10 @@ function mergeMeta(pageMeta, urlMeta) {
 }
 
 function parseCatalog(href) {
-  if (!href || !self.PrintventoryExtract || typeof self.PrintventoryExtract.parseCatalog !== 'function') {
+  if (!href || !self.JusttPrintExtract || typeof self.JusttPrintExtract.parseCatalog !== 'function') {
     return null;
   }
-  return self.PrintventoryExtract.parseCatalog(href);
+  return self.JusttPrintExtract.parseCatalog(href);
 }
 
 function catalogKey(hrefOrMeta) {
@@ -201,11 +201,11 @@ async function enrichCatalog(href, extraMeta) {
   const fromUrl = metadataFromUrl(href);
   const catalog = parseCatalog(href);
   let merged = mergeMeta(extraMeta, fromUrl);
-  if (!catalog || !catalog.isModelPage || !self.PrintventoryExtract.enrichFromApi) {
+  if (!catalog || !catalog.isModelPage || !self.JusttPrintExtract.enrichFromApi) {
     return merged || fromUrl;
   }
   try {
-    const api = await self.PrintventoryExtract.enrichFromApi(catalog, fetch);
+    const api = await self.JusttPrintExtract.enrichFromApi(catalog, fetch);
     if (!api) return merged || fromUrl;
     return {
       url: (merged && merged.url) || catalog.canonicalHref,
@@ -364,7 +364,7 @@ function pickSource(meta, item, tabUrl) {
 }
 
 async function queueInbox(fields) {
-  const result = await PrintventoryInbox.writeInbox(fields);
+  const result = await JusttPrintInbox.writeInbox(fields);
   if (typeof pvLog === 'function') pvLog('inbox written', result.filename, fields && fields.parentModel);
   return result;
 }
@@ -388,7 +388,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       notes: data.notes || null,
       license: data.license || null
     }).then((result) => {
-      notify('Queued for Printventory', data.parentModel || 'Model page');
+      notify('Queued for JusttPrint', data.parentModel || 'Model page');
       sendResponse({ ok: true, result: result });
     }).catch((err) => {
       sendResponse({ ok: false, error: err.message || String(err) });
@@ -413,8 +413,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason !== 'install') return;
-  chrome.storage.local.get({ printventoryFolderConfigured: false }, (items) => {
-    if (!items.printventoryFolderConfigured) chrome.runtime.openOptionsPage();
+  chrome.storage.local.get({ justtprintFolderConfigured: false }, (items) => {
+    if (!items.justtprintFolderConfigured) chrome.runtime.openOptionsPage();
   });
 });
 
@@ -453,9 +453,9 @@ chrome.downloads.onChanged.addListener((delta) => {
         notes: meta ? meta.notes : null,
         license: meta && meta.license !== 'Unknown' ? meta.license : (meta ? meta.license : null)
       });
-      notify('Queued for Printventory', parentModel);
+      notify('Queued for JusttPrint', parentModel);
     } catch (err) {
-      notify('Printventory inbox failed', err.message || String(err));
+      notify('JusttPrint inbox failed', err.message || String(err));
     }
   });
 });

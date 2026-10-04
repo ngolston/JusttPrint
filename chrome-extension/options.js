@@ -8,17 +8,17 @@ function setFolderStatus(kind, text) {
 
 function refreshFolderStatus() {
   chrome.storage.local.get(
-    { printventoryFolderConfigured: false, printventoryFolderName: '', printventoryFolderHasDb: false },
+    { justtprintFolderConfigured: false, justtprintFolderName: '', justtprintFolderHasDb: false },
     (items) => {
-      if (!items.printventoryFolderConfigured) {
+      if (!items.justtprintFolderConfigured) {
         setFolderStatus('', 'No folder selected yet. Inbox files will go to Downloads until you choose one.');
         return;
       }
-      const name = items.printventoryFolderName || 'selected folder';
-      if (items.printventoryFolderHasDb) {
-        setFolderStatus('ok', 'Using “' + name + '” (found printventory.db). Inbox: ' + name + '\\PrintventoryInbox');
+      const name = items.justtprintFolderName || 'selected folder';
+      if (items.justtprintFolderHasDb) {
+        setFolderStatus('ok', 'Using “' + name + '” (found justtprint.db). Inbox: ' + name + '\\JusttPrintInbox');
       } else {
-        setFolderStatus('warn', 'Using “' + name + '”, but printventory.db was not in that folder. Printventory must watch this same path, or pick the data folder that contains the database.');
+        setFolderStatus('warn', 'Using “' + name + '”, but justtprint.db was not in that folder. JusttPrint must watch this same path, or pick the data folder that contains the database.');
       }
     }
   );
@@ -30,18 +30,18 @@ async function chooseFolder() {
     return;
   }
   try {
-    const handle = await window.showDirectoryPicker({ id: 'pv-printventory-dir', mode: 'readwrite' });
-    const granted = await PrintventoryFolder.ensureWritePermission(handle);
+    const handle = await window.showDirectoryPicker({ id: 'pv-justtprint-dir', mode: 'readwrite' });
+    const granted = await JusttPrintFolder.ensureWritePermission(handle);
     if (!granted) {
       setFolderStatus('err', 'Permission was not granted for that folder.');
       return;
     }
-    const hasDb = await PrintventoryFolder.folderHasDatabase(handle);
-    await PrintventoryFolder.setDirectoryHandle(handle);
+    const hasDb = await JusttPrintFolder.folderHasDatabase(handle);
+    await JusttPrintFolder.setDirectoryHandle(handle);
     chrome.storage.local.set({
-      printventoryFolderConfigured: true,
-      printventoryFolderName: handle.name,
-      printventoryFolderHasDb: hasDb
+      justtprintFolderConfigured: true,
+      justtprintFolderName: handle.name,
+      justtprintFolderHasDb: hasDb
     }, refreshFolderStatus);
   } catch (err) {
     if (err && err.name === 'AbortError') return;
@@ -52,11 +52,11 @@ async function chooseFolder() {
 document.getElementById('chooseFolder').addEventListener('click', chooseFolder);
 
 document.getElementById('clearFolder').addEventListener('click', async () => {
-  await PrintventoryFolder.clearDirectoryHandle();
+  await JusttPrintFolder.clearDirectoryHandle();
   chrome.storage.local.set({
-    printventoryFolderConfigured: false,
-    printventoryFolderName: '',
-    printventoryFolderHasDb: false
+    justtprintFolderConfigured: false,
+    justtprintFolderName: '',
+    justtprintFolderHasDb: false
   }, refreshFolderStatus);
 });
 

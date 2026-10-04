@@ -15,15 +15,15 @@ function test(name, fn) {
   ));
 }
 
-test('app paths follow PRINTVENTORY_USER_DATA and XDG_CONFIG_HOME', () => {
+test('app paths follow JUSTTPRINT_USER_DATA and XDG_CONFIG_HOME', () => {
   const saved = { ...process.env };
   try {
-    process.env.PRINTVENTORY_USER_DATA = '/data/pv';
+    process.env.JUSTTPRINT_USER_DATA = '/data/pv';
     assert.strictEqual(shim.app.getPath('userData'), '/data/pv');
     assert.strictEqual(shim.app.getPath('logs'), '/data/pv/logs');
-    delete process.env.PRINTVENTORY_USER_DATA;
+    delete process.env.JUSTTPRINT_USER_DATA;
     process.env.XDG_CONFIG_HOME = '/root/.config';
-    assert.strictEqual(shim.app.getPath('userData'), '/root/.config/printventory');
+    assert.strictEqual(shim.app.getPath('userData'), '/root/.config/justtprint');
   } finally {
     process.env = saved;
   }

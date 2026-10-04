@@ -481,7 +481,7 @@ function initializeDefaultSettings() {
       { key: 'aiTagConcurrency', value: '3' }, // Number of concurrent tag generation requests
       { key: 'enableBrowserExtension', value: '0' }, // Legacy: extension no longer starts the local HTTP server
       { key: 'browserExtensionPort', value: '5000' }, // Port for MCP local server (default 5000)
-      { key: 'extensionInboxDirectory', value: '' }, // Empty = Downloads/PrintventoryInbox
+      { key: 'extensionInboxDirectory', value: '' }, // Empty = Downloads/JusttPrintInbox
       { key: 'extensionInboxLastStatus', value: '' },
       { key: 'enableMcpServer', value: '0' }, // MCP listener disabled by default in desktop mode
       { key: 'spoolmanUrl', value: '' },

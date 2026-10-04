@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Printventory - 3D Model Manager</title>
+  <title>JusttPrint - 3D Model Manager</title>
   <meta name="theme-color" content="#1e1e2e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Printventory">
+  <meta name="apple-mobile-web-app-title" content="JusttPrint">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -39,7 +39,7 @@
 
 <body>
   <div id="mobile-ui-overlay" hidden></div>
-  <header id="mobile-app-bar" hidden aria-label="Printventory">
+  <header id="mobile-app-bar" hidden aria-label="JusttPrint">
     <div class="mobile-bar-top">
       <span class="mobile-bar-logo" aria-hidden="true"></span>
       <div class="mobile-bar-text">
@@ -129,7 +129,7 @@
   </section>
   <div class="sidebar">
     <div class="sidebar-chrome">
-    <img src="logo.png" alt="Printventory Logo" id="logo">
+    <img src="logo.png" alt="JusttPrint Logo" id="logo">
     <div class="model-stats">
       <div id="view-count" class="model-count">0 models in view</div>
       <div id="total-count" class="model-count">0 models total</div>
@@ -958,13 +958,13 @@
     <dialog id="terms-of-service-dialog" class="modal tos-dialog">
       <div class="tos-dialog-content">
         <div class="tos-header">
-          <img src="logo.png" alt="Printventory Logo" class="tos-logo">
+          <img src="logo.png" alt="JusttPrint Logo" class="tos-logo">
           <h2>Terms of Service</h2>
         </div>
         <div class="tos-body">
           <div class="tos-scroll-content">
             <h3>MIT License</h3>
-            <p class="tos-copyright">Copyright (c) 2025 Printventory</p>
+            <p class="tos-copyright">Copyright (c) 2025 JusttPrint</p>
             <p>
               Permission is hereby granted, free of charge, to any person obtaining a copy
               of this software and associated documentation files (the "Software"), to deal
@@ -1129,7 +1129,7 @@
             <input type="checkbox" id="enable-zip-archives">
             <label for="enable-zip-archives">Enable ZIP Archive Support:</label>
           </div>
-          <p class="setting-description">When enabled, Printventory will scan inside ZIP files for 3D models (STL and 3MF files). Each model found within a ZIP file will be indexed separately.</p>
+          <p class="setting-description">When enabled, JusttPrint will scan inside ZIP files for 3D models (STL and 3MF files). Each model found within a ZIP file will be indexed separately.</p>
         </div>
         <div class="settings-group">
           <h4>Additional file types to discover during scan</h4>
@@ -1201,17 +1201,17 @@
     <dialog id="browser-extension-settings-dialog" class="modal">
       <form method="dialog">
         <h3>Browser Extension</h3>
-        <p class="setting-description">The Chrome extension writes queue files to an inbox folder. Printventory imports them on launch and every minute while this app is open. Printventory does not need to be running when you add models from the browser.</p>
-        <p class="setting-description"><a id="browser-extension-store-link" href="https://chromewebstore.google.com/detail/pigngedngcegmemgfbkaiihjnbplaedj?utm_source=item-share-cb">Download the Printventory Watcher on Chrome Web Store</a></p>
+        <p class="setting-description">The Chrome extension writes queue files to an inbox folder. JusttPrint imports them on launch and every minute while this app is open. JusttPrint does not need to be running when you add models from the browser.</p>
+        <p class="setting-description"><a id="browser-extension-store-link" href="https://chromewebstore.google.com/detail/pigngedngcegmemgfbkaiihjnbplaedj?utm_source=item-share-cb">Download the JusttPrint Watcher on Chrome Web Store</a></p>
         <div class="settings-group">
           <div class="form-group">
             <label for="extension-inbox-directory">Inbox directory:</label>
-            <input type="text" id="extension-inbox-directory" placeholder="Downloads/PrintventoryInbox">
+            <input type="text" id="extension-inbox-directory" placeholder="Downloads/JusttPrintInbox">
             <div class="dialog-buttons" style="margin-top: 8px; justify-content: flex-start;">
               <button type="button" id="choose-extension-inbox-directory">Choose folder</button>
               <button type="button" id="import-extension-inbox-now">Import now</button>
             </div>
-            <p class="setting-description">Optional override. Printventory always also checks <code>Downloads/PrintventoryInbox</code> and <code>PrintventoryInbox</code> next to <code>printventory.db</code> (the folder the Chrome extension asks you to pick).</p>
+            <p class="setting-description">Optional override. JusttPrint always also checks <code>Downloads/JusttPrintInbox</code> and <code>JusttPrintInbox</code> next to <code>justtprint.db</code> (the folder the Chrome extension asks you to pick).</p>
             <p class="setting-description" id="extension-inbox-last-status"></p>
           </div>
           <p class="setting-description" style="margin-top: 12px; font-weight: 500;">Path mapping (optional, Docker/NAS)</p>
@@ -1241,7 +1241,7 @@
       <form method="dialog">
         <h3>MCP Server</h3>
         <p class="warning-text">Experimental feature. MCP Server is unfinished and may change, break, or expose library data to any client that can reach the endpoint. By enabling or using it, you assume all risk.</p>
-        <p class="setting-description">Connect a local AI agent (Cursor, Claude Desktop, VS Code, and similar) to search your library, read model details, and write thumbnails while Printventory is running. The URL uses <code>https://</code> when TLS is enabled under Tools → MCP Server → HTTPS / SSL.</p>
+        <p class="setting-description">Connect a local AI agent (Cursor, Claude Desktop, VS Code, and similar) to search your library, read model details, and write thumbnails while JusttPrint is running. The URL uses <code>https://</code> when TLS is enabled under Tools → MCP Server → HTTPS / SSL.</p>
         <div class="settings-group">
           <div id="mcp-server-desktop-controls">
             <div class="form-group checkbox-container">
@@ -1299,7 +1299,7 @@
               <button type="button" id="server-access-change-password">Change password</button>
             </div>
           </div>
-          <p id="server-access-env-note" class="setting-description" hidden>The password is set by the <code>PRINTVENTORY_PASSWORD</code> environment variable. Change it there and restart the container.</p>
+          <p id="server-access-env-note" class="setting-description" hidden>The password is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.</p>
           <p id="server-access-status" class="setting-description" role="status"></p>
           <div class="form-group">
             <label for="server-access-api-token">API token</label>
@@ -1322,12 +1322,12 @@
         <p class="setting-description">Use a custom certificate, Let's Encrypt, or a self-signed cert. In desktop mode this applies to the Browser Extension and MCP localhost listener. In server/Docker mode it applies to the web UI (<code>https://</code> and <code>wss://</code>) on the listen port below. After enabling TLS, use the matching <code>https://</code> URL in the Chrome extension and MCP client.</p>
         <div class="settings-group" id="https-settings-fields">
           <p id="https-settings-status" class="setting-description"></p>
-          <p id="https-settings-env-note" class="warning-text" hidden>TLS is controlled by <code>PRINTVENTORY_TLS_CERT</code> / <code>PRINTVENTORY_TLS_KEY</code> (or <code>SSL_*</code>) on this process. Unset those environment variables to configure certificates here.</p>
+          <p id="https-settings-env-note" class="warning-text" hidden>TLS is controlled by <code>JUSTTPRINT_TLS_CERT</code> / <code>JUSTTPRINT_TLS_KEY</code> (or <code>SSL_*</code>) on this process. Unset those environment variables to configure certificates here.</p>
           <p id="https-settings-desktop-note" class="setting-description" hidden>Desktop: the main window stays on its local UI server. HTTPS is used by Browser Extension and MCP on the port configured in those dialogs. Self-signed certs include <code>localhost</code> and <code>127.0.0.1</code>.</p>
           <div class="form-group" id="tls-listen-port-group" hidden>
             <label for="tls-listen-port">Listen port</label>
             <input type="number" id="tls-listen-port" min="1" max="65535" value="5000">
-            <p class="setting-description">Port Printventory binds inside the container or server process (default 5000). On Synology or Docker, also publish that port on the host (for example <code>5001:5001</code> if you change this to 5001). DSM already uses host port 5000, so pick another host mapping. <code>PRINTVENTORY_PORT</code> seeds this when the setting is empty.</p>
+            <p class="setting-description">Port JusttPrint binds inside the container or server process (default 5000). On Synology or Docker, also publish that port on the host (for example <code>5001:5001</code> if you change this to 5001). DSM already uses host port 5000, so pick another host mapping. <code>JUSTTPRINT_PORT</code> seeds this when the setting is empty.</p>
           </div>
           <div class="form-group">
             <label for="tls-mode">Mode</label>
@@ -1357,7 +1357,7 @@
             <p class="setting-description">Let's Encrypt issues a trusted certificate for a <strong>public DNS name</strong>. Port <strong>80</strong> must reach this host (Docker: publish <code>80:80</code>). This will not work for LAN-only IPs — use self-signed or a custom certificate instead.</p>
             <div class="form-group">
               <label for="tls-domain">Domain</label>
-              <input type="text" id="tls-domain" placeholder="printventory.example.com" autocomplete="off">
+              <input type="text" id="tls-domain" placeholder="justtprint.example.com" autocomplete="off">
             </div>
             <div class="form-group">
               <label for="tls-email">Contact email</label>
@@ -1799,7 +1799,7 @@
       <div class="file-grid"></div>
       <dialog id="welcome-message" class="welcome-dialog">
         <div class="welcome-content">
-          <h2>Welcome to Printventory!</h2>
+          <h2>Welcome to JusttPrint!</h2>
           <button id="dismiss-welcome">Get Started!</button>
         </div>
       </dialog>
@@ -1893,10 +1893,10 @@
       </dialog>
       <dialog id="guide-dialog" class="modal guide-dialog">
         <form method="dialog">
-          <h2>Printventory Guide</h2>
+          <h2>JusttPrint Guide</h2>
           
           <h3>Getting Started</h3>
-          <p>Click the "Scan Directory" button to select a folder containing your 3D model files (.stl and .3mf). Printventory will scan and catalog your models.</p>
+          <p>Click the "Scan Directory" button to select a folder containing your 3D model files (.stl and .3mf). JusttPrint will scan and catalog your models.</p>
 
           <h3>Managing Models</h3>
           <ul>
@@ -1935,8 +1935,8 @@
         <form method="dialog">
           <div class="about-header">
             <button type="button" class="about-close-x" aria-label="Close" data-close-dialog="about-dialog">×</button>
-            <img src="logo.png" alt="Printventory Logo" class="about-logo">
-            <h2>Printventory</h2>
+            <img src="logo.png" alt="JusttPrint Logo" class="about-logo">
+            <h2>JusttPrint</h2>
             <p class="about-version-text" id="about-version">Version: Loading...</p>
           </div>
           <div class="about-content">
@@ -1944,7 +1944,7 @@
               <div class="about-section">
                 <div class="about-link-item">
                   <span class="link-icon">🌐</span>
-                  <a href="#" id="website-link" class="about-link">https://github.com/ngolston/Printventory</a>
+                  <a href="#" id="website-link" class="about-link">https://github.com/ngolston/JusttPrint</a>
                 </div>
               </div>
               
@@ -1959,7 +1959,7 @@
                     <label for="auto-update-check">Check for updates on startup</label>
                   </div>
                   <p class="about-card-description">
-                    Asks GitHub for the latest Printventory release. Nothing else is sent.
+                    Asks GitHub for the latest JusttPrint release. Nothing else is sent.
                   </p>
                 </div>
               </div>
@@ -1972,7 +1972,7 @@
                   <h3>Terms of Service</h3>
                 </div>
                 <div class="about-card-content">
-                  <p class="about-card-description">Printventory is licensed under the MIT License:</p>
+                  <p class="about-card-description">JusttPrint is licensed under the MIT License:</p>
                   <ul class="about-terms-list">
                     <li>Free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell.</li>
                     <li>Must include copyright and permission notices in all copies.</li>
@@ -2015,18 +2015,18 @@
             <div class="about-tos">
               <h3>What is Server Mode?</h3>
               <div class="about-tos-content">
-                <p>Server Mode allows you to run Printventory as a web server that can be accessed from any browser on your network. This is useful for accessing your 3D model library from multiple computers or devices without installing the application on each one.</p>
-                <p>Server Mode runs Printventory as an HTTP server on port 5000, making it accessible from any device on your local network through a web browser.</p>
+                <p>Server Mode allows you to run JusttPrint as a web server that can be accessed from any browser on your network. This is useful for accessing your 3D model library from multiple computers or devices without installing the application on each one.</p>
+                <p>Server Mode runs JusttPrint as an HTTP server on port 5000, making it accessible from any device on your local network through a web browser.</p>
               </div>
             </div>
 
             <div class="about-tos">
               <h3>How to Start in Server Mode</h3>
               <div class="about-tos-content">
-                <p>To start Printventory in Server Mode, launch it with the <code>--server</code> flag:</p>
+                <p>To start JusttPrint in Server Mode, launch it with the <code>--server</code> flag:</p>
                 <ul>
-                  <li><strong>Windows:</strong> <code>printventory.exe --server</code></li>
-                  <li><strong>Command Line:</strong> <code>printventory --server</code></li>
+                  <li><strong>Windows:</strong> <code>justtprint.exe --server</code></li>
+                  <li><strong>Command Line:</strong> <code>justtprint --server</code></li>
                 </ul>
                 <p>The server will start and continue running until you close the application.</p>
               </div>
@@ -2047,7 +2047,7 @@
             <div class="about-tos">
               <h3>Accessing the Server</h3>
               <div class="about-tos-content">
-                <p>Once started, you can access Printventory from any browser on your network:</p>
+                <p>Once started, you can access JusttPrint from any browser on your network:</p>
                 <p><strong>http://&lt;your-computer-ip&gt;:5000</strong></p>
                 <p>For example, if your computer's IP address is 192.168.1.100:</p>
                 <p><strong>http://192.168.1.100:5000</strong></p>
@@ -2058,15 +2058,15 @@
             <div class="about-tos">
               <h3>Docker Deployment (Linux)</h3>
               <div class="about-tos-content">
-                <p>Printventory can be deployed as a Docker container for easy server mode deployment on Linux systems.</p>
+                <p>JusttPrint can be deployed as a Docker container for easy server mode deployment on Linux systems.</p>
                 
                 <h4>Quick Start:</h4>
                 <p><strong>Build and run with Docker Compose:</strong></p>
                 <pre><code>docker-compose up -d</code></pre>
                 
                 <p><strong>Or build and run manually:</strong></p>
-                <pre><code>docker build -t printventory:latest .
-docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root/.config/printventory printventory:latest</code></pre>
+                <pre><code>docker build -t justtprint:latest .
+docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.config/justtprint justtprint:latest</code></pre>
                 
                 <h4>Accessing Network Shares:</h4>
                 <p>Docker containers cannot directly access Windows UNC paths. You need to mount network shares:</p>
@@ -2078,7 +2078,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
                     <pre><code>volumes:
   - /mnt/network-share:/mnt/network-share:ro</code></pre>
                   </li>
-                  <li><strong>Use Linux paths in Printventory:</strong> <code>/mnt/network-share/path/to/files</code></li>
+                  <li><strong>Use Linux paths in JusttPrint:</strong> <code>/mnt/network-share/path/to/files</code></li>
                 </ol>
                 
                 <p><strong>Note:</strong> When running in Docker, the application automatically accepts Linux-style absolute paths (starting with <code>/</code>) instead of requiring UNC paths.</p>

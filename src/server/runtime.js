@@ -13,7 +13,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const APP_NAME = 'printventory';
+const APP_NAME = 'justtprint';
 
 function configHome() {
   return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -50,7 +50,7 @@ class App extends EventEmitter {
   getAppPath() { return path.resolve(__dirname, '..', '..'); }
 
   getPath(name) {
-    const userData = process.env.PRINTVENTORY_USER_DATA || path.join(configHome(), APP_NAME);
+    const userData = process.env.JUSTTPRINT_USER_DATA || path.join(configHome(), APP_NAME);
     switch (name) {
       case 'userData': return userData;
       case 'appData': return configHome();

@@ -6221,7 +6221,7 @@ async function initializeAboutDialog() {
     if (licenseLink && typeof window.electron?.openExternal === 'function') {
       licenseLink.addEventListener('click', async (e) => {
         e.preventDefault();
-        await window.electron.openExternal('https://github.com/ngolston/Printventory/blob/main/LICENSE.txt');
+        await window.electron.openExternal('https://github.com/ngolston/JusttPrint/blob/main/LICENSE.txt');
       });
     }
   } catch (e) {
@@ -7042,7 +7042,7 @@ async function createServerMenuBar() {
     }},
     { label: '---', action: null },
     { label: 'GitHub', action: () => {
-      window.electron.openExternal('https://github.com/ngolston/Printventory');
+      window.electron.openExternal('https://github.com/ngolston/JusttPrint');
     }},
     { label: '---', action: null },
     { label: 'Library Stats', action: () => {
@@ -7056,7 +7056,7 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Server Mode Info', action: () => {
-      window.electron.openExternal('https://github.com/ngolston/Printventory?tab=readme-ov-file#server-mode');
+      window.electron.openExternal('https://github.com/ngolston/JusttPrint?tab=readme-ov-file#server-mode');
     }}
   ]);
   
@@ -7165,8 +7165,8 @@ async function extractLYSThumbnail(filePath) {
 
 // Update the DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', async () => {
-  if (window.__printventoryPrimaryUiInit) return;
-  window.__printventoryPrimaryUiInit = true;
+  if (window.__justtprintPrimaryUiInit) return;
+  window.__justtprintPrimaryUiInit = true;
   // In server mode, the loading overlay blocks UI. Hide it early.
   const initialOverlay = document.getElementById('loading-overlay');
   if (initialOverlay) initialOverlay.style.display = 'none';
@@ -8744,7 +8744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Website link handler
   document.getElementById('website-link')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    await window.electron.openExternal('https://github.com/ngolston/Printventory');
+    await window.electron.openExternal('https://github.com/ngolston/JusttPrint');
   });
 
   // Initialize new designer dialog handlers
@@ -10552,7 +10552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Update the About dialog content in index.html
   const tosContent = `
   <h4>MIT License</h4>
-  <p class="tos-copyright">Copyright (c) 2025 Printventory</p>
+  <p class="tos-copyright">Copyright (c) 2025 JusttPrint</p>
   <p>
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -11922,7 +11922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function mcpClientConfigJson(url) {
     return JSON.stringify({
       mcpServers: {
-        printventory: { url }
+        justtprint: { url }
       }
     }, null, 2);
   }
@@ -11955,7 +11955,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (check?.checked) {
         statusEl.textContent = 'Status: Enabled. Click Save to start the listener.';
       } else {
-        statusEl.textContent = 'Status: Disabled. Enable and Save to start the listener while Printventory is running.';
+        statusEl.textContent = 'Status: Disabled. Enable and Save to start the listener while JusttPrint is running.';
       }
     }
     const extra = document.getElementById('mcp-server-extra-urls');
@@ -19325,7 +19325,7 @@ async function confirmHtmlContextDestructiveAction(item, menuData) {
   const title = isDelete ? 'Confirm Delete' : 'Confirm Remove';
   const message = isDelete
     ? `Are you sure you want to DELETE ${count} file${count !== 1 ? 's' : ''} from disk?\nThis will permanently delete the files and cannot be undone!\n\nFiles:\n${fileList}${extra}`
-    : `Are you sure you want to remove ${count} file${count !== 1 ? 's' : ''} from the library?\nFiles will remain on disk but will be removed from Printventory.\n\nFiles:\n${fileList}${extra}`;
+    : `Are you sure you want to remove ${count} file${count !== 1 ? 's' : ''} from the library?\nFiles will remain on disk but will be removed from JusttPrint.\n\nFiles:\n${fileList}${extra}`;
   const result = await window.electron.showMessage(title, message, ['Yes', 'No']);
   return result === 'Yes';
 }
@@ -19425,9 +19425,9 @@ function showHtmlContextMenu(menuData, x, y, options = {}) {
                 subMenuItem.addEventListener('click', async (e) => {
                   e.stopPropagation();
                   try {
-                    if (subItem.clientAction && window.PrintventorySlicerProtocol) {
+                    if (subItem.clientAction && window.JusttPrintSlicerProtocol) {
                       try {
-                        window.PrintventorySlicerProtocol.launchFromCommand(subItem.clientAction);
+                        window.JusttPrintSlicerProtocol.launchFromCommand(subItem.clientAction);
                       } finally {
                         removeHtmlContextMenu();
                       }
@@ -20295,11 +20295,11 @@ function initializeListButtons() {
 
 // First, declare all initialization functions outside of any event listeners
 async function initializeApp() {
-  if (window.__printventoryInitializeAppPromise) {
-    return window.__printventoryInitializeAppPromise;
+  if (window.__justtprintInitializeAppPromise) {
+    return window.__justtprintInitializeAppPromise;
   }
-  window.__printventoryInitializeAppPromise = initializeAppOnce();
-  return window.__printventoryInitializeAppPromise;
+  window.__justtprintInitializeAppPromise = initializeAppOnce();
+  return window.__justtprintInitializeAppPromise;
 }
 
 async function initializeAppOnce() {

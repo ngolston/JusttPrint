@@ -15,7 +15,7 @@ const SYSTEM_DIR_NAMES = new Set([
   'boot',
   'efi',
   '__macosx',
-  'printventory-extracts'
+  'justtprint-extracts'
 ]);
 
 function isDotSegment(name) {
@@ -51,7 +51,7 @@ function shouldSkipDirectoryName(dirName, extraLower) {
 function shouldSkipFileName(fileName) {
   if (!fileName) return false;
   if (isDotSegment(fileName)) return true;
-  if (String(fileName).startsWith('printventory_')) return true;
+  if (String(fileName).startsWith('justtprint_')) return true;
   return false;
 }
 

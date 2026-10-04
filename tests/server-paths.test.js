@@ -24,9 +24,9 @@ test('web assets are served', () => {
 test('secrets, server code and dependencies are not served', () => {
   for (const p of [
     '/secrets.json', '/package.json', '/package-lock.json', '/.env', '/.git/config',
-    '/main.js', '/server-auth.js', '/mcp-server.js', '/printventory.db',
+    '/main.js', '/server-auth.js', '/mcp-server.js', '/justtprint.db',
     '/node_modules/express/index.js', '/scripts/docker-hub-push.js', '/tests/test-utils.js',
-    '/helper/printventory-helper.js', '/data/printventory.db', '/server-auth.test.js',
+    '/helper/justtprint-helper.js', '/data/justtprint.db', '/server-auth.test.js',
     '/src/server/index.js', '/src/server/runtime.js',
     '/vendor/..%2Fmain.js', '/%2e%2e/etc/passwd', '/vendor/%5c..%5cmain.js'
   ]) {
@@ -56,27 +56,27 @@ test('stored model paths are allowed even outside the roots', () => {
 });
 
 test('zip-extract temp files made by the app are allowed', () => {
-  const ctx = { roots: [], isExtractTemp: (p) => p === '/tmp/printventory-extracts/printventory_abc.stl' };
-  assert.ok(isLibraryPathAllowed('/tmp/printventory-extracts/printventory_abc.stl', ctx));
+  const ctx = { roots: [], isExtractTemp: (p) => p === '/tmp/justtprint-extracts/justtprint_abc.stl' };
+  assert.ok(isLibraryPathAllowed('/tmp/justtprint-extracts/justtprint_abc.stl', ctx));
   assert.ok(!isLibraryPathAllowed('/tmp/other.stl', ctx));
 });
 
 test('only backup and export files are allowed from the data folder', () => {
   const ctx = { roots: [], generatedDir: '/config/data' };
-  assert.ok(isLibraryPathAllowed('/config/data/printventory-backup-2026-10-03T10-00-00-000Z.db', ctx));
-  assert.ok(isLibraryPathAllowed('/config/data/printventory-library-2026-10-03T10-00-00-000Z.json', ctx));
-  assert.ok(!isLibraryPathAllowed('/config/data/printventory.db', ctx));
+  assert.ok(isLibraryPathAllowed('/config/data/justtprint-backup-2026-10-03T10-00-00-000Z.db', ctx));
+  assert.ok(isLibraryPathAllowed('/config/data/justtprint-library-2026-10-03T10-00-00-000Z.json', ctx));
+  assert.ok(!isLibraryPathAllowed('/config/data/justtprint.db', ctx));
   assert.ok(!isLibraryPathAllowed('/config/data/certs/privkey.pem', ctx));
-  assert.ok(!isLibraryPathAllowed('/config/data/sub/printventory-backup-x.db', ctx));
+  assert.ok(!isLibraryPathAllowed('/config/data/sub/justtprint-backup-x.db', ctx));
 });
 
 const { assertNetworkIpcArgs, assertMcpToolArgs } = require('../src/server/server-paths');
 
 const guardCtx = {
   roots: ['/mnt/library'],
-  generatedDir: '/root/.config/printventory/data',
+  generatedDir: '/root/.config/justtprint/data',
   appDir: '/app',
-  dataDir: '/root/.config/printventory',
+  dataDir: '/root/.config/justtprint',
   isKnownModel: (p) => p === '/old/scan/known.stl'
 };
 
@@ -90,7 +90,7 @@ test('network file arguments must be library files', () => {
   assertNetworkIpcArgs('delete-file', ['/mnt/library/pack.zip::inner/a.stl'], guardCtx);
   assertNetworkIpcArgs('trash-file', ['url::https://example.com/model'], guardCtx);
   refused(() => assertNetworkIpcArgs('read-model-file', ['/etc/passwd'], guardCtx));
-  refused(() => assertNetworkIpcArgs('delete-file', ['/root/.config/printventory/data/printventory.db'], guardCtx));
+  refused(() => assertNetworkIpcArgs('delete-file', ['/root/.config/justtprint/data/justtprint.db'], guardCtx));
   refused(() => assertNetworkIpcArgs('delete-file', ['/etc/shadow.zip::x.stl'], guardCtx));
   refused(() => assertNetworkIpcArgs('check-files-exist', [['/mnt/library/a.stl', '/etc/hosts']], guardCtx));
 });
@@ -110,7 +110,7 @@ test('moves stay inside the library', () => {
 test('scans may add new folders but not system, app or data folders', () => {
   assertNetworkIpcArgs('scan-directory', ['/media/nas/models'], guardCtx);
   assertNetworkIpcArgs('save-directory', ['/srv/prints'], guardCtx);
-  for (const dir of ['/', '/etc', '/proc/self', '/app', '/app/node_modules', '/root/.config/printventory/data', '/usr/share']) {
+  for (const dir of ['/', '/etc', '/proc/self', '/app', '/app/node_modules', '/root/.config/justtprint/data', '/usr/share']) {
     refused(() => assertNetworkIpcArgs('scan-directory', [dir], guardCtx));
   }
 });
@@ -131,7 +131,7 @@ test('channels without path arguments pass through', () => {
 
 test('MCP tools that write files only write to the library or the data folder', () => {
   assertMcpToolArgs('backup_database', {}, guardCtx);
-  assertMcpToolArgs('backup_database', { destPath: '/root/.config/printventory/data/printventory-backup-x.db' }, guardCtx);
+  assertMcpToolArgs('backup_database', { destPath: '/root/.config/justtprint/data/justtprint-backup-x.db' }, guardCtx);
   assertMcpToolArgs('export_library', { destPath: '/mnt/library/export.json' }, guardCtx);
   refused(() => assertMcpToolArgs('backup_database', { destPath: '/etc/cron.d/evil' }, guardCtx));
   refused(() => assertMcpToolArgs('export_library', { destPath: '/app/index.html' }, guardCtx));

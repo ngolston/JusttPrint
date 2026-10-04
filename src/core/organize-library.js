@@ -537,7 +537,7 @@ async function relocatePlannedFile(move, deps = {}) {
 
   const tempPath = path.join(
     path.dirname(move.to),
-    `.printventory-copy-${crypto.randomBytes(8).toString('hex')}`
+    `.justtprint-copy-${crypto.randomBytes(8).toString('hex')}`
   );
   try {
     await mkdir(path.dirname(move.to));

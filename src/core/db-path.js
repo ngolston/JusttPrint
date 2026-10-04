@@ -15,12 +15,12 @@ function copySqliteDbFiles(srcBase, destBase) {
 }
 
 /**
- * Docker/server previously used isDev → printventory.db in the app folder (ephemeral /app).
+ * Docker/server previously used isDev → justtprint.db in the app folder (ephemeral /app).
  * If the persisted userData DB does not exist yet, copy from that legacy file once.
  */
 function migrateLegacyServerDbIfNeeded(persistedPath) {
   if (fs.existsSync(persistedPath)) return;
-  const legacy = path.join(__dirname, '..', '..', 'printventory.db');
+  const legacy = path.join(__dirname, '..', '..', 'justtprint.db');
   if (!fs.existsSync(legacy)) return;
   try {
     copySqliteDbFiles(legacy, persistedPath);
@@ -33,7 +33,7 @@ function migrateLegacyServerDbIfNeeded(persistedPath) {
 // Update the database path handling
 function getDatabasePath() {
   try {
-    const envDb = process.env.PRINTVENTORY_DB_PATH?.trim();
+    const envDb = process.env.JUSTTPRINT_DB_PATH?.trim();
     if (envDb) {
       const resolved = path.isAbsolute(envDb) ? envDb : path.resolve(process.cwd(), envDb);
       const dir = path.dirname(resolved);
@@ -50,7 +50,7 @@ function getDatabasePath() {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
 
-    const dbPath = path.join(userDataPath, 'printventory.db');
+    const dbPath = path.join(userDataPath, 'justtprint.db');
     migrateLegacyServerDbIfNeeded(dbPath);
     return dbPath;
   } catch (error) {

@@ -53,19 +53,19 @@ function memFs(files) {
 }
 
 (async () => {
-  await test('default inbox is Downloads/PrintventoryInbox', () => {
+  await test('default inbox is Downloads/JusttPrintInbox', () => {
     const dir = inbox.defaultInboxDirectory('/home/sam');
-    assert.ok(dir.replace(/\\/g, '/').endsWith('/Downloads/PrintventoryInbox'));
+    assert.ok(dir.replace(/\\/g, '/').endsWith('/Downloads/JusttPrintInbox'));
   });
 
   await test('resolveInboxDirectory prefers custom path', () => {
     assert.strictEqual(inbox.resolveInboxDirectory('  D:\\inbox  ', { homedir: '/x' }), 'D:\\inbox');
-    assert.ok(inbox.resolveInboxDirectory('', { homedir: '/x' }).includes('PrintventoryInbox'));
+    assert.ok(inbox.resolveInboxDirectory('', { homedir: '/x' }).includes('JusttPrintInbox'));
   });
 
   await test('inbox beside database and unique dirs', () => {
-    const beside = inbox.inboxDirectoryBesideDatabase(path.join('/app', 'data', 'printventory.db'));
-    assert.ok(beside.replace(/\\/g, '/').endsWith('/data/PrintventoryInbox'));
+    const beside = inbox.inboxDirectoryBesideDatabase(path.join('/app', 'data', 'justtprint.db'));
+    assert.ok(beside.replace(/\\/g, '/').endsWith('/data/JusttPrintInbox'));
     const uniq = inbox.uniqueInboxDirectories([beside, beside, '']);
     assert.strictEqual(uniq.length, 1);
   });

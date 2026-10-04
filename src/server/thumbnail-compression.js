@@ -8,12 +8,12 @@ let isCompressingThumbnailsBackground = false;
 
 const THUMBNAIL_MIGRATION_DELAY_MS = Math.max(
   15000,
-  Number.parseInt(process.env.PRINTVENTORY_THUMBNAIL_MIGRATION_DELAY_MS || '30000', 10) || 30000
+  Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_DELAY_MS || '30000', 10) || 30000
 );
 
 const THUMBNAIL_MIGRATION_MAX_PER_SESSION = Math.max(
   25,
-  Number.parseInt(process.env.PRINTVENTORY_THUMBNAIL_MIGRATION_MAX_PER_SESSION || '200', 10) || 200
+  Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_MAX_PER_SESSION || '200', 10) || 200
 );
 
 const THUMBNAIL_MIGRATION_YIELD_MS = 25;

@@ -644,7 +644,7 @@ function getMcpToolContext() {
       const exportData = buildLibraryExportData();
       const destPath = String(args.destPath || '').trim() || path.join(
         path.dirname(getDatabasePath()),
-        `printventory-library-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+        `justtprint-library-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
       );
       await fs.promises.writeFile(destPath, JSON.stringify(exportData, null, 2), 'utf8');
       return { success: true, filePath: destPath, modelCount: exportData.models.length };
@@ -653,7 +653,7 @@ function getMcpToolContext() {
       const dbPath = getDatabasePath();
       const destPath = String(args.destPath || '').trim() || path.join(
         path.dirname(dbPath),
-        `printventory-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
+        `justtprint-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
       );
       if (path.resolve(destPath) === path.resolve(dbPath)) {
         throw new Error('destPath cannot be the live database file');

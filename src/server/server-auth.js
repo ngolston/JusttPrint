@@ -5,7 +5,7 @@
  *
  * - Browsers log in with the server password and get a signed session cookie.
  * - MCP clients and the desktop window send `Authorization: Bearer <api token>`.
- * - The slicer helper gets a short-lived download token in its printventory:// link.
+ * - The slicer helper gets a short-lived download token in its justtprint:// link.
  *
  * Secrets live in the settings table. Changing the password rotates the
  * signing secret, which logs out every session and voids download tokens.
@@ -129,7 +129,7 @@ function originAllowed(req, extraOrigins = []) {
 }
 
 /**
- * Value for Express "trust proxy" from PRINTVENTORY_TRUST_PROXY: a hop count ("1"),
+ * Value for Express "trust proxy" from JUSTTPRINT_TRUST_PROXY: a hop count ("1"),
  * "true", or addresses/subnets ("loopback, 10.0.0.0/8"). Unset or "false": trust no proxy.
  */
 function parseTrustProxy(value) {
@@ -158,7 +158,7 @@ function loginPageHtml(next, error) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Printventory Login</title>
+<title>JusttPrint Login</title>
 <link rel="icon" href="/favicon.ico">
 <style>
   :root { color-scheme: light dark; --bg: #f4f5f7; --card: #fff; --text: #1e1e2e; --muted: #5b6070; --accent: #0891b2; --error: #b91c1c; --border: #d6d9e0; }
@@ -178,13 +178,13 @@ function loginPageHtml(next, error) {
 <body>
 <form method="post" action="/api/auth/login">
   <img src="/logo.png" alt="">
-  <h1>Printventory</h1>
+  <h1>JusttPrint</h1>
   <label for="password">Password</label>
   <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
   <input type="hidden" name="next" value="${escapeHtml(next)}">
   <button type="submit">Log in</button>
   ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ''}
-  <p class="hint">First start: the password is in the server log, or set <code>PRINTVENTORY_PASSWORD</code>.</p>
+  <p class="hint">First start: the password is in the server log, or set <code>JUSTTPRINT_PASSWORD</code>.</p>
 </form>
 </body>
 </html>`;
@@ -225,11 +225,11 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
   }
 
   /**
-   * Make sure a password exists. PRINTVENTORY_PASSWORD wins when set; otherwise a
+   * Make sure a password exists. JUSTTPRINT_PASSWORD wins when set; otherwise a
    * random password is generated once and printed to the log.
    */
   function ensureCredentials() {
-    const envPassword = env.PRINTVENTORY_PASSWORD;
+    const envPassword = env.JUSTTPRINT_PASSWORD;
     if (envPassword) {
       if (!verifyPassword(envPassword)) setPassword(envPassword);
       return { source: 'env' };
@@ -240,9 +240,9 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     logger.warn([
       '',
       '================================================================',
-      ' Printventory server password (shown once):',
+      ' JusttPrint server password (shown once):',
       `   ${generated}`,
-      ' Change it under Tools > Server Access, or set PRINTVENTORY_PASSWORD.',
+      ' Change it under Tools > Server Access, or set JUSTTPRINT_PASSWORD.',
       '================================================================',
       ''
     ].join('\n'));

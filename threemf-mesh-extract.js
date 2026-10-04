@@ -33,12 +33,12 @@ function readEnvInt(name, fallback) {
 
 const PREVIEW_3MF_TARGET_TRIANGLES = Math.max(
   100000,
-  readEnvInt('PRINTVENTORY_PREVIEW_3MF_TARGET_TRIANGLES', 1000000) || 1000000
+  readEnvInt('JUSTTPRINT_PREVIEW_3MF_TARGET_TRIANGLES', 1000000) || 1000000
 );
 
 const FAST_PATH_XML_BYTES = Math.max(
   512 * 1024,
-  readEnvInt('PRINTVENTORY_PREVIEW_3MF_FAST_PATH_BYTES', 2 * 1024 * 1024) || 2 * 1024 * 1024
+  readEnvInt('JUSTTPRINT_PREVIEW_3MF_FAST_PATH_BYTES', 2 * 1024 * 1024) || 2 * 1024 * 1024
 );
 
 const MESH_BLOCK_RE = /<(?:\w+:)?mesh\b[^>]*>([\s\S]*?)<\/(?:\w+:)?mesh>/gi;

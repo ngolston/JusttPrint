@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Printventory server entry point.
+ * JusttPrint server entry point.
  *
  *   node src/server/index.js     (npm start)
  */

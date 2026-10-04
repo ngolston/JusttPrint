@@ -54,7 +54,7 @@ ipcMain.handle('backup-database', async () => {
     const dbPath = getDatabasePath();
     const dbDir = path.dirname(dbPath);
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(dbDir, `printventory-backup-${timestamp}.db`);
+    const backupPath = path.join(dbDir, `justtprint-backup-${timestamp}.db`);
 
     if (database.db.open) {
       database.db.close();
@@ -87,14 +87,14 @@ function checkBackupFile(filePath) {
     const models = candidate.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='models'").get();
     if (!models) throw new Error('it has no models table');
   } catch (error) {
-    throw new Error(`Not a Printventory backup: ${error.message}`);
+    throw new Error(`Not a JusttPrint backup: ${error.message}`);
   } finally {
     if (candidate) candidate.close();
   }
 }
 
 // Replaces the library database with an uploaded backup. The upload is checked in a temp
-// file first; the current database is kept next to it as printventory.db.before-restore.
+// file first; the current database is kept next to it as justtprint.db.before-restore.
 ipcMain.handle('restore-database', async (event, payload = null) => {
   if (!payload || !payload.base64) {
     return { success: false, message: 'Upload a backup file to restore.' };
@@ -369,7 +369,7 @@ ipcMain.handle('export-library', async () => {
     const exportData = buildLibraryExportData();
     const exportDir = path.dirname(getDatabasePath());
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const exportPath = path.join(exportDir, `printventory-library-${timestamp}.json`);
+    const exportPath = path.join(exportDir, `justtprint-library-${timestamp}.json`);
     await fs.promises.writeFile(exportPath, JSON.stringify(exportData, null, 2), 'utf8');
     return { success: true, filePath: exportPath };
   } catch (error) {

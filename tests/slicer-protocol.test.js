@@ -15,7 +15,7 @@ function test(name, fn) {
 }
 
 test('open URL round-trips files, origin, and slicer path', () => {
-  const href = protocol.buildPrintventoryOpenUrl({
+  const href = protocol.buildJusttPrintOpenUrl({
     origin: 'https://nas.local:8443/library',
     slicerName: 'OrcaSlicer',
     slicerPath: 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe',
@@ -24,7 +24,7 @@ test('open URL round-trips files, origin, and slicer path', () => {
       '/data/models/box.zip::parts/lid.3mf'
     ]
   });
-  const parsed = protocol.parsePrintventoryProtocolUrl(href);
+  const parsed = protocol.parseJusttPrintProtocolUrl(href);
   assert.strictEqual(parsed.origin, 'https://nas.local:8443');
   assert.strictEqual(parsed.slicerName, 'OrcaSlicer');
   assert.strictEqual(parsed.slicerPath, 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe');
@@ -35,13 +35,13 @@ test('open URL round-trips files, origin, and slicer path', () => {
 });
 
 test('quoted protocol arguments still parse', () => {
-  const href = protocol.buildPrintventoryOpenUrl({
+  const href = protocol.buildJusttPrintOpenUrl({
     origin: 'http://127.0.0.1:5000',
     slicerName: 'PrusaSlicer',
     slicerPath: '/Applications/PrusaSlicer.app',
     filePaths: ['/library/My Model.stl']
   });
-  const parsed = protocol.parsePrintventoryProtocolUrl('"' + href + '"');
+  const parsed = protocol.parseJusttPrintProtocolUrl('"' + href + '"');
   assert.strictEqual(parsed.filePaths[0], '/library/My Model.stl');
 });
 
@@ -51,13 +51,13 @@ test('download URL stays on the allowed origin', () => {
 });
 
 test('download token travels in the link and onto each download URL', () => {
-  const href = protocol.buildPrintventoryOpenUrl({
+  const href = protocol.buildJusttPrintOpenUrl({
     origin: 'https://nas.local:8443',
     slicerPath: 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe',
     filePaths: ['/library/a.stl'],
     downloadToken: 'dl.123.sig'
   });
-  const parsed = protocol.parsePrintventoryProtocolUrl(href);
+  const parsed = protocol.parseJusttPrintProtocolUrl(href);
   assert.strictEqual(parsed.downloadToken, 'dl.123.sig');
   assert.strictEqual(
     protocol.buildModelDownloadUrl(parsed.origin, parsed.filePaths[0], parsed.downloadToken),

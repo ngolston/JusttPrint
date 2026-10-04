@@ -165,7 +165,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     console.error('Error getting slicers:', error);
   }
 
-  // Send to Slicer hands the files to the helper on the user's computer (printventory://).
+  // Send to Slicer hands the files to the helper on the user's computer (justtprint://).
   if (slicers.length > 0 && filePaths.length >= 1) {
     const slicerSubmenu = {
       label: 'Open in Slicer',

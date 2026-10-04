@@ -15,9 +15,9 @@ function test(name, fn) {
 }
 
 test('stable users read the latest release, beta users the release list', () => {
-  assert.match(releasesApiUrl(false), /\/repos\/ngolston\/Printventory\/releases\/latest$/);
-  assert.match(releasesApiUrl(true), /\/repos\/ngolston\/Printventory\/releases\?per_page=20$/);
-  assert.strictEqual(releasesPageUrl(false), 'https://github.com/ngolston/Printventory/releases/latest');
+  assert.match(releasesApiUrl(false), /\/repos\/ngolston\/JusttPrint\/releases\/latest$/);
+  assert.match(releasesApiUrl(true), /\/repos\/ngolston\/JusttPrint\/releases\?per_page=20$/);
+  assert.strictEqual(releasesPageUrl(false), 'https://github.com/ngolston/JusttPrint/releases/latest');
 });
 
 test('the tag becomes a plain version number', () => {

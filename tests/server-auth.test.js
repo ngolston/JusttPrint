@@ -70,8 +70,8 @@ test('first start generates a password and prints it once', () => {
   assert.strictEqual(auth.ensureCredentials().source, 'stored');
 });
 
-test('PRINTVENTORY_PASSWORD sets the password', () => {
-  const { auth } = makeAuth({ env: { PRINTVENTORY_PASSWORD: 'from-the-env' } });
+test('JUSTTPRINT_PASSWORD sets the password', () => {
+  const { auth } = makeAuth({ env: { JUSTTPRINT_PASSWORD: 'from-the-env' } });
   assert.strictEqual(auth.ensureCredentials().source, 'env');
   assert.ok(auth.verifyPassword('from-the-env'));
 });
@@ -179,7 +179,7 @@ test('origin checks accept this host, the forwarded host and extras', () => {
   assert.ok(originAllowed(req()));
   assert.ok(originAllowed(req({ origin: 'http://nas.local:5000' })));
   assert.ok(!originAllowed(req({ origin: 'http://nas.local:5001' })));
-  const proxied = req({ origin: 'https://library.example.com', host: 'printventory:5000' });
+  const proxied = req({ origin: 'https://library.example.com', host: 'justtprint:5000' });
   proxied.headers['x-forwarded-host'] = 'library.example.com';
   assert.ok(originAllowed(proxied));
   assert.ok(originAllowed(req({ origin: 'http://127.0.0.1:61234' }), ['http://127.0.0.1:61234']));
@@ -197,7 +197,7 @@ test('cookies parse with encoded values', () => {
   assert.deepStrictEqual(parseCookies(`a=1; ${SESSION_COOKIE}=x%2Ey`), { a: '1', [SESSION_COOKIE]: 'x.y' });
 });
 
-test('PRINTVENTORY_TRUST_PROXY parses hops, true, and address lists', () => {
+test('JUSTTPRINT_TRUST_PROXY parses hops, true, and address lists', () => {
   const { parseTrustProxy } = require('../src/server/server-auth');
   assert.strictEqual(parseTrustProxy(undefined), false);
   assert.strictEqual(parseTrustProxy('false'), false);

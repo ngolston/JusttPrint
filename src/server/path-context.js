@@ -5,7 +5,7 @@ const { app } = require('./runtime');
 const fs = require('fs');
 const path = require('path');
 const { getLibraryRootPaths, readScannedDirectorySetting } = require('../core/library-paths');
-const { isPrintventoryExtractTempPath } = require('../core/extract-temp');
+const { isJusttPrintExtractTempPath } = require('../core/extract-temp');
 const { isLibraryPathAllowed } = require('./server-paths');
 const { getDatabasePath } = require('../core/db-path');
 
@@ -24,7 +24,7 @@ function networkPathContext() {
     generatedDir,
     appDir: path.join(__dirname, '..', '..'),
     dataDir,
-    isExtractTemp: (candidate) => isPrintventoryExtractTempPath(candidate),
+    isExtractTemp: (candidate) => isJusttPrintExtractTempPath(candidate),
     realpath: (candidate) => fs.realpathSync.native(candidate),
     isKnownModel: (candidate) => !!(database.db && database.db.prepare('SELECT 1 FROM models WHERE filePath = ? LIMIT 1').get(candidate))
   };

@@ -21,7 +21,7 @@ async function checkForUpdates(isBeta = false) {
 
       https.get(versionUrl, {
         // GitHub's API requires a User-Agent.
-        headers: { 'User-Agent': 'Printventory', Accept: 'application/vnd.github+json' }
+        headers: { 'User-Agent': 'JusttPrint', Accept: 'application/vnd.github+json' }
       }, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);

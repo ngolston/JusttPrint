@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Docker Hub push script for Printventory
+// Docker Hub push script for JusttPrint
 // Handles building, tagging, and pushing Docker images to Docker Hub
 
 const { execSync } = require('child_process');
@@ -33,9 +33,9 @@ if (dockerHubUsername !== dockerHubUsernameRaw) {
   );
 }
 
-const imageName = 'printventory';
+const imageName = 'justtprint';
 // Short Docker Hub form (docker.io implied). Lowercase namespace avoids the client
-// treating "Printventory/..." as a custom registry hostname. Do not prefix with
+// treating "JusttPrint/..." as a custom registry hostname. Do not prefix with
 // registry-1.docker.io — that key does not match credentials from `docker login`.
 const fullImageName = `${dockerHubUsername}/${imageName}`;
 const versionTag = `${fullImageName}:${version}`;
@@ -162,15 +162,15 @@ function pushImage(tag = null) {
 
 // Build for several CPU architectures and push one multi-platform tag (Docker Buildx).
 // Each machine pulls the image for its own CPU: Intel/AMD PCs and NAS boxes, Raspberry Pi,
-// Apple Silicon. Override the list with PRINTVENTORY_PLATFORMS (comma separated).
+// Apple Silicon. Override the list with JUSTTPRINT_PLATFORMS (comma separated).
 function buildAndPushMultiArch() {
   const runtime = containerRuntime.getRuntime();
   if (runtime.endsWith('podman')) {
     console.error('Multi-architecture builds use Docker Buildx. Run this with Docker, not Podman.');
     process.exit(1);
   }
-  const platforms = (process.env.PRINTVENTORY_PLATFORMS || 'linux/amd64,linux/arm64').replace(/\s+/g, '');
-  const builder = 'printventory-multiarch';
+  const platforms = (process.env.JUSTTPRINT_PLATFORMS || 'linux/amd64,linux/arm64').replace(/\s+/g, '');
+  const builder = 'justtprint-multiarch';
 
   // The default "docker" driver cannot build several platforms at once; use a container builder.
   try {
@@ -235,12 +235,12 @@ switch (command) {
     console.log('');
     console.log('=== Complete ===');
     console.log('');
-    console.log('Your Printventory Docker image is now available on Docker Hub!');
+    console.log('Your JusttPrint Docker image is now available on Docker Hub!');
     console.log(`Pull it with: docker pull ${latestTag}`);
     break;
     
   default:
-    console.log('Docker Hub Push Script for Printventory');
+    console.log('Docker Hub Push Script for JusttPrint');
     console.log('');
     console.log('Usage: node scripts/docker-hub-push.js <command>');
     console.log('');

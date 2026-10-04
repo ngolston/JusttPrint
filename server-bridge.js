@@ -70,7 +70,7 @@
   const MAX_IPC_IN_FLIGHT = 32;
   let ipcInFlight = 0;
   const ipcWaitQueue = [];
-  const BRIDGE_DEBUG = (typeof window !== 'undefined' && window.PRINTVENTORY_BRIDGE_DEBUG === true);
+  const BRIDGE_DEBUG = (typeof window !== 'undefined' && window.JUSTTPRINT_BRIDGE_DEBUG === true);
 
   function acquireIpcSlot() {
     return new Promise(function(resolve) {
@@ -110,7 +110,7 @@
   }
 
   function markConnected(socket) {
-    console.log('WebSocket connected to Printventory server');
+    console.log('WebSocket connected to JusttPrint server');
     console.log('[Bridge] WebSocket readyState after open:', socket ? socket.readyState : ws?.readyState);
     reconnectAttempts = 0;
     connectInFlight = false;
@@ -424,7 +424,7 @@
             const answer = kind === 'input'
               ? showBrowserInput(options).then((value) => ({ value }))
               : showBrowserMessage(
-                options.title || 'Printventory',
+                options.title || 'JusttPrint',
                 [options.message, options.detail].filter(Boolean).join('\n\n'),
                 options.buttons,
                 options.cancelId
@@ -853,7 +853,7 @@
   };
   
   // Commands the server hands to this browser. Nothing runs on the server: files download
-  // here, and Send to Slicer opens a printventory:// link for the helper on this computer.
+  // here, and Send to Slicer opens a justtprint:// link for the helper on this computer.
   window.electron.on('execute-client-command', (commandData) => {
     if (!commandData || !commandData.type) {
       console.error('[Bridge] Invalid command data:', commandData);
@@ -874,12 +874,12 @@
 
   /** Open the helper link for an open-in-slicer command from the server. */
   window.electron.launchSlicerCommand = function(command) {
-    if (!window.PrintventorySlicerProtocol) {
+    if (!window.JusttPrintSlicerProtocol) {
       alert('Send to Slicer needs slicer-protocol.js, which did not load. Download the file and open it in your slicer.');
       return;
     }
     try {
-      window.PrintventorySlicerProtocol.launchFromCommand(command);
+      window.JusttPrintSlicerProtocol.launchFromCommand(command);
     } catch (error) {
       alert(`Could not send to slicer:\n${error.message}`);
     }

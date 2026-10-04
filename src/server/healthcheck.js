@@ -12,11 +12,11 @@ const path = require('path');
 
 let listen = {};
 try {
-  listen = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), 'printventory-listen.json'), 'utf8'));
+  listen = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), 'justtprint-listen.json'), 'utf8'));
 } catch (_) {
   // Not written yet: fall back to the configured or default port.
 }
-const port = Number(listen.port) || Number(process.env.PRINTVENTORY_PORT) || 5000;
+const port = Number(listen.port) || Number(process.env.JUSTTPRINT_PORT) || 5000;
 const scheme = listen.scheme === 'https' ? 'https' : 'http';
 const client = require(scheme);
 

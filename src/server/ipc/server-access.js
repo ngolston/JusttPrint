@@ -121,13 +121,13 @@ function getMcpConnectionInfo() {
 
 ipcMain.handle('get-server-access-info', async () => ({
   apiToken: getServerAuth().apiToken(),
-  passwordFromEnv: !!process.env.PRINTVENTORY_PASSWORD,
+  passwordFromEnv: !!process.env.JUSTTPRINT_PASSWORD,
   minPasswordLength: MIN_PASSWORD_LENGTH
 }));
 
 ipcMain.handle('set-server-password', async (event, currentPassword, newPassword) => {
-  if (process.env.PRINTVENTORY_PASSWORD) {
-    throw new Error('The password is set by PRINTVENTORY_PASSWORD. Change it there and restart.');
+  if (process.env.JUSTTPRINT_PASSWORD) {
+    throw new Error('The password is set by JUSTTPRINT_PASSWORD. Change it there and restart.');
   }
   const auth = getServerAuth();
   // The desktop window may reset a forgotten password; browsers must know the current one.
@@ -164,7 +164,7 @@ ipcMain.handle('apply-tls-settings', async (_event, payload = {}) => {
   if (serverTls.hasEnvTlsOverride()) {
     return {
       success: false,
-      message: 'TLS is overridden by PRINTVENTORY_TLS_CERT / PRINTVENTORY_TLS_KEY (or SSL_*). Unset those environment variables to use this UI.',
+      message: 'TLS is overridden by JUSTTPRINT_TLS_CERT / JUSTTPRINT_TLS_KEY (or SSL_*). Unset those environment variables to use this UI.',
       status: getTlsStatusForUi()
     };
   }

@@ -1,8 +1,8 @@
-# Printventory TODO
+# JusttPrint TODO
 
 ## Direction
 
-**Printventory is Docker-only.** Everything happens in a browser against the container. The Electron desktop app and the Windows, macOS and Linux desktop builds are being removed (section 4); Phase 2 is dropped.
+**JusttPrint is Docker-only.** Everything happens in a browser against the container. The Electron desktop app and the Windows, macOS and Linux desktop builds are being removed (section 4); Phase 2 is dropped.
 
 Items are ordered from most important to least within each phase. Line numbers are approximate and were taken at version 2.2.16.
 
@@ -39,19 +39,19 @@ docs/        GUIDE.md, guide/ images
 - [x] **Add authentication to server mode**: password login with a signed session cookie, an API token for MCP, and short-lived download tokens for the slicer helper (`server-auth.js`).
 - [x] **Restrict `/api/file/*` and `/api/download/*`** to library folders, stored model paths, and backups/exports (`server-paths.js`).
 - [x] **Check the origin of WebSocket connections and require auth on them.** Open sockets are also closed when the password changes.
-- [x] **Replace `Access-Control-Allow-Origin: *`** with same-origin plus `PRINTVENTORY_ALLOWED_ORIGINS`, and refuse cross-site state-changing requests.
+- [x] **Replace `Access-Control-Allow-Origin: *`** with same-origin plus `JUSTTPRINT_ALLOWED_ORIGINS`, and refuse cross-site state-changing requests.
 - [x] **Stop serving the whole app folder as static files.** Secret config files, `package.json`, `main.js` and `node_modules` were public. Only web assets are served now.
 - [x] **Validate every path the web UI and MCP send.** One guard checks the path arguments of 30 IPC channels and 14 MCP tools: files must be in the library, moves stay in the library, new scan and organize folders cannot be system, app or data folders, and MCP backups/exports only write to the library or data folder. "Open on server" actions are desktop only.
 - [x] **Replace `xmldom`** with `@xmldom/xmldom` 0.9, and rebuild `vendor/xmldom-worker-bundle.js`.
 - [x] **Fix the vulnerable dependencies**: `npm audit fix`, Puppeteer 24 → 25, and removed the `overrides` that pinned the vulnerable `basic-ftp` 5.3.1. Down from 21 to 2.
 - [x] **Remove channels that skipped the secret-settings guard or could stop the server**: `getSetting`, `saveSetting`, `quitApp`, and the unused `get-db`.
-- [x] **Stop running slicer programs on the server.** The `execute-client-command` channel (which started any program path a browser sent) and all server-side spawning are gone. `open-file-in-slicer` returns an open-in-slicer command with a short-lived download token; the browser opens it as a `printventory://` link and the helper on the user's computer (`helper/`, with `helper/slicer-launch.js`) downloads the files and starts the slicer there. MCP `open_in_slicer` sends the command to the open browsers. Also fixed: Send to Slicer from the 3D preview sent no download token.
+- [x] **Stop running slicer programs on the server.** The `execute-client-command` channel (which started any program path a browser sent) and all server-side spawning are gone. `open-file-in-slicer` returns an open-in-slicer command with a short-lived download token; the browser opens it as a `justtprint://` link and the helper on the user's computer (`helper/`, with `helper/slicer-launch.js`) downloads the files and starts the slicer there. MCP `open_in_slicer` sends the command to the open browsers. Also fixed: Send to Slicer from the 3D preview sent no download token.
 - [ ] **`node-forge` (via `acme-client`)**: no fixed release exists yet (1.4.0 is the latest). Only used to create Let's Encrypt requests, not to verify untrusted signatures. Update when a fix ships.
 - [x] **Add security headers**: `frame-ancestors`/`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `object-src 'none'`, `base-uri`, `form-action`; removed `X-Powered-By`.
 - [x] **Add `script-src` to the Content Security Policy.** `script-src 'self' 'wasm-unsafe-eval'`: the three inline `<script>` blocks moved to `page-init.js`, the 53 `onclick=` attributes became `data-close-dialog` / `data-action` (or listeners in `page-init.js`), and the server no longer inlines `server-bridge.js` into the page. The model parse worker alone also allows `'unsafe-eval'`, because the STEP library builds functions from strings.
 - [ ] **Drop `'unsafe-eval'` from the parse worker.** Rebuild `vendor/occt-import-js` with Emscripten `-sDYNAMIC_EXECUTION=0` (embind then avoids `new Function`), or replace it; the e2e STEP check will confirm.
 - [x] **Resolve symlinks before the library-folder check.** Paths must be inside the library both as written and after following links; this also covers move destinations, write targets and new scan folders.
-- [x] **Make the login rate limit work behind a reverse proxy.** `PRINTVENTORY_TRUST_PROXY` (hop count, `true`, or addresses) makes it use the client address from `X-Forwarded-For`; off by default.
+- [x] **Make the login rate limit work behind a reverse proxy.** `JUSTTPRINT_TRUST_PROXY` (hop count, `true`, or addresses) makes it use the client address from `X-Forwarded-For`; off by default.
 - [x] **Remove the legacy `/api/extension-upload` route.** No extension build since 2.2.4 uses it (they use the inbox folder), and it silently overwrote files. Removed with its IPC handler, setting and `EXTENSION_UPLOAD_DIR`. Web uploads come back properly as a section 8 feature.
 
 ## 🟠 2. High: remove usage tracking, and privacy
@@ -78,17 +78,17 @@ docs/        GUIDE.md, guide/ images
 - [x] **Add a `HEALTHCHECK` to the Dockerfile.** `healthcheck.js` asks `/api/health` on the port and scheme the server actually listens on.
 - [x] **Make configuration available through environment variables.** Port, password, library paths, TLS and the database path already had variables; added zip support, extra file types, scan exclusions and AI settings (`env-settings.js`), documented in the README table. Setting values (including API keys) are no longer written to the log.
 - [x] **Shut down cleanly on `docker stop`.** On every quit (`docker stop`, closing the window, Ctrl+C) a `will-quit` handler cancels the thumbnail job, closes connections, checkpoints and closes the database, then copies the backup. Tested by stopping the container in the middle of a 22,000-model thumbnail job: database intact.
-- [x] **Publish a multi-arch image.** `npm run docker:hub:multiarch` builds `linux/amd64` and `linux/arm64` with Buildx and pushes one tag (`PRINTVENTORY_PLATFORMS` to change the list). Keep both: Intel/AMD for most NAS boxes and PCs, ARM for Raspberry Pi and Apple Silicon.
+- [x] **Publish a multi-arch image.** `npm run docker:hub:multiarch` builds `linux/amd64` and `linux/arm64` with Buildx and pushes one tag (`JUSTTPRINT_PLATFORMS` to change the list). Keep both: Intel/AMD for most NAS boxes and PCs, ARM for Raspberry Pi and Apple Silicon.
 
 ## 🟡 4. Medium: standalone server (remove Electron from the container)
 
 The Docker image runs on plain Node. `src/server/index.js` starts `src/server/app.js`; library logic is in `src/core/`, the server and its IPC handlers in `src/server/`.
 
 - [x] **Create `src/server/`**: `node src/server/index.js` runs server mode with no Electron (Electron stand-in: app paths and events, IPC registry, dialogs that answer Cancel, freedesktop trash, no windows).
-- [x] **Generate thumbnails without Electron or Xvfb.** The server starts headless Chromium (Puppeteer, system Chromium) on the web UI as a worker client, identified by a secret cookie, and sends it the thumbnail jobs. It restarts after a crash. NVIDIA WebGL still works via `PRINTVENTORY_GPU`.
+- [x] **Generate thumbnails without Electron or Xvfb.** The server starts headless Chromium (Puppeteer, system Chromium) on the web UI as a worker client, identified by a secret cookie, and sends it the thumbnail jobs. It restarts after a crash. NVIDIA WebGL still works via `JUSTTPRINT_GPU`.
 - [x] **Run STL Home scans in the server.** They were started by the hidden Electron window; the server now scans at startup and on the configured interval, then renders thumbnails for new models.
 - [x] **Slim the Docker image**: no Electron, Xvfb, D-Bus, GTK or X11; production dependencies only. 2.46 GB → 1.11 GB.
-- [x] **Keep a migration path**: same data path (`/root/.config/printventory`) and database, so existing volumes keep working.
+- [x] **Keep a migration path**: same data path (`/root/.config/justtprint`) and database, so existing volumes keep working.
 - [x] **Remove Electron completely.** `electron` and `electron-builder` are gone from `package.json`, along with the desktop window, menus, hidden worker window, preload, native input dialog and model viewer. `npm start` runs `src/server/index.js` on plain Node, and the DB tests run on plain Node. Text prompts use an in-page dialog. Since then the rewrite removed the remaining desktop branches, windows and native dialogs from `main.js`, and the Electron stand-in became `src/server/runtime.js` (paths, lifecycle, IPC registry, trash), required directly.
 - [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper and the Chrome extension.
 - [x] **Rewrite `main.js` to be cleaner and lighter.** `main.js` (12.6k lines) is gone. Its code now lives in modules under `src/core/` (database, models, search/filter SQL, thumbnails, library paths, file formats) and `src/server/` (HTTP/WebSocket server, MCP, thumbnail worker, and one IPC module per area in `src/server/ipc/`); `src/server/app.js` only starts and stops the server. Removed on the way: duplicate handler registrations, the always-off `DEBUG` logging, the Electron-era event fallbacks, dead functions and ~120 unused imports, `node-fetch`. Server-only libraries moved from the root into `src/`, so they are no longer served as static files. The e2e suite grew from 58 to 108 checks to cover each moved area.
@@ -135,11 +135,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🔵 7. Cleanup
 
-- [ ] **Rename and rebrand the project.** Choose the new name first, then change it everywhere:
-  - Name, logo, icons and wording in the web UI, PWA manifest, login page, README, GUIDE and CHANGELOG.
-  - `package.json` name, GitHub repository name, Docker image and container names, and the release zip.
-  - Technical names: `PRINTVENTORY_*` environment variables, the `/root/.config/printventory` data path, the `printventory://` slicer helper protocol, cookies and log prefixes. Keep reading the old names for a release or two so existing installs keep working.
-  - Best done before the React rewrite (section 5), so new screens use the new name from the start.
+- [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
+- [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` and the browser extension icons still show the old artwork (the owner is providing new images).
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
 - [ ] **Remove unneeded dependencies:**
   - `fs`: an empty placeholder package.
@@ -174,4 +171,4 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 # Phase 2: Desktop app (dropped)
 
-Printventory is Docker-only. The desktop items that were here (hardening Electron windows, desktop packaging, packaged-app tests, the slicer-detect path bug, `viewer.html`) are replaced by "Remove Electron completely" and "Remove everything specific to Windows, macOS and Linux desktops" in section 4.
+JusttPrint is Docker-only. The desktop items that were here (hardening Electron windows, desktop packaging, packaged-app tests, the slicer-detect path bug, `viewer.html`) are replaced by "Remove Electron completely" and "Remove everything specific to Windows, macOS and Linux desktops" in section 4.

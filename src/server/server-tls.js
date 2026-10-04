@@ -42,9 +42,9 @@ function getAccountKeyPath(certsDir) {
 }
 
 function envTlsPaths() {
-  const certEnv = process.env.PRINTVENTORY_TLS_CERT || process.env.SSL_CERT_FILE;
-  const keyEnv = process.env.PRINTVENTORY_TLS_KEY || process.env.SSL_KEY_FILE;
-  const caEnv = process.env.PRINTVENTORY_TLS_CA || '';
+  const certEnv = process.env.JUSTTPRINT_TLS_CERT || process.env.SSL_CERT_FILE;
+  const keyEnv = process.env.JUSTTPRINT_TLS_KEY || process.env.SSL_KEY_FILE;
+  const caEnv = process.env.JUSTTPRINT_TLS_CA || '';
   return {
     certPath: certEnv ? path.resolve(certEnv) : '',
     keyPath: keyEnv ? path.resolve(keyEnv) : '',
@@ -107,7 +107,7 @@ function readPemTlsOptions(certPath, keyPath, caPath) {
 
 /**
  * Resolve TLS for the app listener.
- * Env PRINTVENTORY_TLS_* / SSL_* wins over UI settings.
+ * Env JUSTTPRINT_TLS_* / SSL_* wins over UI settings.
  */
 function resolveServerTls({ getSetting, certsDir }) {
   const envPaths = envTlsPaths();
@@ -229,7 +229,7 @@ function handleAcmeOrRedirectRequest(req, res, { getSetting, appPort = 5000, tls
 
   res.statusCode = 404;
   res.setHeader('Content-Type', 'text/plain');
-  res.end('Printventory ACME HTTP-01 listener');
+  res.end('JusttPrint ACME HTTP-01 listener');
 }
 
 function ensureDir(dir) {

@@ -27,7 +27,7 @@ const STATIC_BLOCKED_FILES = new Set([
   'extension-inbox.js', 'playwright.config.js', 'vitest.config.js'
 ]);
 
-const SERVER_GENERATED_FILE = /^printventory-(backup|library)-[\w.-]+\.(db|json|zip)$/i;
+const SERVER_GENERATED_FILE = /^justtprint-(backup|library)-[\w.-]+\.(db|json|zip)$/i;
 
 /** True when a URL path may be served from the app folder. */
 function isServableStaticPath(urlPath) {

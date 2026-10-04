@@ -29,14 +29,14 @@ function readForm() {
 }
 
 async function enrichInPopup(data, tabUrl) {
-  if (!self.PrintventoryExtract || typeof self.PrintventoryExtract.enrichFromApi !== 'function') {
+  if (!self.JusttPrintExtract || typeof self.JusttPrintExtract.enrichFromApi !== 'function') {
     return data;
   }
   const href = (data && (data.source || data.url)) || tabUrl;
-  const catalog = self.PrintventoryExtract.parseCatalog(href);
+  const catalog = self.JusttPrintExtract.parseCatalog(href);
   if (!catalog || !catalog.isModelPage) return data;
   try {
-    const api = await self.PrintventoryExtract.enrichFromApi(catalog, fetch);
+    const api = await self.JusttPrintExtract.enrichFromApi(catalog, fetch);
     if (!api || (!api.designer && !api.parentModel && !api.notes)) return data;
     return {
       url: (data && data.url) || catalog.canonicalHref,
@@ -66,8 +66,8 @@ function loadActive() {
     }
     let data = response.data;
     if (!data) {
-      data = self.PrintventoryExtract && self.PrintventoryExtract.metadataFromUrl
-        ? self.PrintventoryExtract.metadataFromUrl(response.tab && response.tab.url)
+      data = self.JusttPrintExtract && self.JusttPrintExtract.metadataFromUrl
+        ? self.JusttPrintExtract.metadataFromUrl(response.tab && response.tab.url)
         : null;
     }
     if (!data) {
@@ -103,7 +103,7 @@ $('addPage').addEventListener('click', () => {
       return;
     }
     if (response && response.ok) {
-      setStatus('ok', 'Queued. Printventory will import within a minute of opening.');
+      setStatus('ok', 'Queued. JusttPrint will import within a minute of opening.');
     } else {
       setStatus('err', (response && response.error) || 'Failed to write inbox file');
     }
@@ -116,8 +116,8 @@ $('openOptions').addEventListener('click', (e) => {
 });
 
 function refreshSetupBanner() {
-  chrome.storage.local.get({ printventoryFolderConfigured: false }, (items) => {
-    $('setupBanner').classList.toggle('visible', !items.printventoryFolderConfigured);
+  chrome.storage.local.get({ justtprintFolderConfigured: false }, (items) => {
+    $('setupBanner').classList.toggle('visible', !items.justtprintFolderConfigured);
   });
 }
 
@@ -127,22 +127,22 @@ $('chooseFolder').addEventListener('click', async () => {
     return;
   }
   try {
-    const handle = await window.showDirectoryPicker({ id: 'pv-printventory-dir', mode: 'readwrite' });
-    const granted = await PrintventoryFolder.ensureWritePermission(handle);
+    const handle = await window.showDirectoryPicker({ id: 'pv-justtprint-dir', mode: 'readwrite' });
+    const granted = await JusttPrintFolder.ensureWritePermission(handle);
     if (!granted) {
       setStatus('err', 'Folder permission was not granted');
       return;
     }
-    const hasDb = await PrintventoryFolder.folderHasDatabase(handle);
-    await PrintventoryFolder.setDirectoryHandle(handle);
+    const hasDb = await JusttPrintFolder.folderHasDatabase(handle);
+    await JusttPrintFolder.setDirectoryHandle(handle);
     chrome.storage.local.set({
-      printventoryFolderConfigured: true,
-      printventoryFolderName: handle.name,
-      printventoryFolderHasDb: hasDb
+      justtprintFolderConfigured: true,
+      justtprintFolderName: handle.name,
+      justtprintFolderHasDb: hasDb
     }, refreshSetupBanner);
     setStatus(hasDb ? 'ok' : '', hasDb
-      ? 'Folder saved. Inbox will go next to Printventory.'
-      : 'Folder saved, but printventory.db was not found there.');
+      ? 'Folder saved. Inbox will go next to JusttPrint.'
+      : 'Folder saved, but justtprint.db was not found there.');
   } catch (err) {
     if (err && err.name === 'AbortError') return;
     setStatus('err', err && err.message ? err.message : String(err));

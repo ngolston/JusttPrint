@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Printventory server on plain Node (src/server/index.js). No Electron, no X server.
+# JusttPrint server on plain Node (src/server/index.js). No Electron, no X server.
 
 # --- Run the app as PUID:PGID (default 1000:1000). PUID=0 keeps the old root behavior. ---
 # Files the app writes (database, moves, Organize Library) get this owner on mounted folders.
@@ -12,7 +12,7 @@ case "$PUID$PGID" in
 esac
 
 # Same data path as the Electron-based image, so existing volumes keep working.
-DATA_DIR=/root/.config/printventory
+DATA_DIR=/root/.config/justtprint
 mkdir -p "$DATA_DIR"
 export XDG_CONFIG_HOME=/root/.config
 RUN_AS=()
@@ -21,10 +21,10 @@ if [ "$PUID" = "0" ]; then
   echo "Running as root (PUID=0)"
 else
   if ! getent group "$PGID" >/dev/null; then
-    groupadd -g "$PGID" printventory
+    groupadd -g "$PGID" justtprint
   fi
   if ! getent passwd "$PUID" >/dev/null; then
-    useradd -u "$PUID" -g "$PGID" -d /home/printventory -s /usr/sbin/nologin printventory
+    useradd -u "$PUID" -g "$PGID" -d /home/justtprint -s /usr/sbin/nologin justtprint
   fi
   APP_USER="$(getent passwd "$PUID" | cut -d: -f1)"
   APP_HOME="$(getent passwd "$PUID" | cut -d: -f6)"
@@ -50,9 +50,9 @@ else
   echo "Running as $APP_USER ($PUID:$PGID). Set PUID/PGID to match the owner of your library files."
 fi
 
-# --- WebGL for thumbnails (headless Chromium). PRINTVENTORY_CHROMIUM_ARGS overrides this. ---
-# PRINTVENTORY_GPU=auto (default) | nvidia | swiftshader
-GPU_MODE="$(echo "${PRINTVENTORY_GPU:-auto}" | tr '[:upper:]' '[:lower:]')"
+# --- WebGL for thumbnails (headless Chromium). JUSTTPRINT_CHROMIUM_ARGS overrides this. ---
+# JUSTTPRINT_GPU=auto (default) | nvidia | swiftshader
+GPU_MODE="$(echo "${JUSTTPRINT_GPU:-auto}" | tr '[:upper:]' '[:lower:]')"
 USE_NVIDIA=0
 case "$GPU_MODE" in
   nvidia|hardware|gpu) USE_NVIDIA=1 ;;
@@ -64,21 +64,21 @@ case "$GPU_MODE" in
     ;;
 esac
 
-if [ -z "${PRINTVENTORY_CHROMIUM_ARGS:-}" ] && [ "$USE_NVIDIA" = "1" ]; then
+if [ -z "${JUSTTPRINT_CHROMIUM_ARGS:-}" ] && [ "$USE_NVIDIA" = "1" ]; then
   case ",${NVIDIA_DRIVER_CAPABILITIES:-}," in
     *,graphics,*|*,all,*) ;;
     *) echo "Warning: NVIDIA_DRIVER_CAPABILITIES='${NVIDIA_DRIVER_CAPABILITIES:-<unset>}' — WebGL needs 'graphics' (e.g. graphics,compute,utility)." ;;
   esac
-  export PRINTVENTORY_CHROMIUM_ARGS="--use-gl=angle --use-angle=vulkan --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE --disable-vulkan-surface --ignore-gpu-blocklist --enable-webgl --disable-gpu-sandbox"
+  export JUSTTPRINT_CHROMIUM_ARGS="--use-gl=angle --use-angle=vulkan --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE --disable-vulkan-surface --ignore-gpu-blocklist --enable-webgl --disable-gpu-sandbox"
   echo "Thumbnails: NVIDIA hardware WebGL"
 else
-  echo "Thumbnails: ${PRINTVENTORY_CHROMIUM_ARGS:+custom Chromium flags}${PRINTVENTORY_CHROMIUM_ARGS:-SwiftShader software WebGL}"
+  echo "Thumbnails: ${JUSTTPRINT_CHROMIUM_ARGS:+custom Chromium flags}${JUSTTPRINT_CHROMIUM_ARGS:-SwiftShader software WebGL}"
 fi
 
-# --- Node heap: ~60% of the container memory limit (2–16 GB), or PRINTVENTORY_MAX_OLD_SPACE_MB ---
+# --- Node heap: ~60% of the container memory limit (2–16 GB), or JUSTTPRINT_MAX_OLD_SPACE_MB ---
 resolve_max_old_space_mb() {
-  if [ -n "${PRINTVENTORY_MAX_OLD_SPACE_MB:-}" ]; then
-    echo "${PRINTVENTORY_MAX_OLD_SPACE_MB}"
+  if [ -n "${JUSTTPRINT_MAX_OLD_SPACE_MB:-}" ]; then
+    echo "${JUSTTPRINT_MAX_OLD_SPACE_MB}"
     return
   fi
   local limit_bytes=""
@@ -97,7 +97,7 @@ resolve_max_old_space_mb() {
 }
 
 MAX_OLD_SPACE_MB="$(resolve_max_old_space_mb)"
-echo "Node max-old-space-size: ${MAX_OLD_SPACE_MB}MB (override with PRINTVENTORY_MAX_OLD_SPACE_MB)"
+echo "Node max-old-space-size: ${MAX_OLD_SPACE_MB}MB (override with JUSTTPRINT_MAX_OLD_SPACE_MB)"
 
 # exec: Node is PID 1's direct replacement, so docker stop's SIGTERM reaches it and it exits cleanly.
 exec "${RUN_AS[@]}" node \

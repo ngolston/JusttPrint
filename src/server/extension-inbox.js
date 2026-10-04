@@ -4,7 +4,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
-const INBOX_FOLDER_NAME = 'PrintventoryInbox';
+const INBOX_FOLDER_NAME = 'JusttPrintInbox';
 const INBOX_EXT = '.pvimport.json';
 const POLL_INTERVAL_MS = 60 * 1000;
 

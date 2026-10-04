@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Update check against GitHub Releases of the Printventory repository.
+ * Update check against GitHub Releases of the JusttPrint repository.
  * Stable users get the latest release; beta users get the newest one, pre-releases included.
  */
 
-const RELEASES_REPO = 'ngolston/Printventory';
+const RELEASES_REPO = 'ngolston/JusttPrint';
 const PROJECT_URL = `https://github.com/${RELEASES_REPO}`;
 
 function releasesApiUrl(isBeta) {

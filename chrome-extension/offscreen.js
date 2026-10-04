@@ -2,7 +2,7 @@
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || message.action !== 'writeInboxToFolder') return;
-  const write = self.PrintventoryFolder && self.PrintventoryFolder.writePayloadToFolder;
+  const write = self.JusttPrintFolder && self.JusttPrintFolder.writePayloadToFolder;
   if (typeof write !== 'function') {
     sendResponse({ ok: false, reason: 'no-writer' });
     return;

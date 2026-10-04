@@ -17,8 +17,8 @@ function getSettingValueOr(key, fallback) {
 }
 
 function envOverridesSettings() {
-  return process.env.PRINTVENTORY_ENV_OVERRIDES_SETTINGS === '1'
-    || process.env.PRINTVENTORY_ENV_OVERRIDES_SETTINGS === 'true';
+  return process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1'
+    || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
 }
 
 function flushSettingsToDisk() {
