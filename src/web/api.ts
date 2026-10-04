@@ -88,3 +88,38 @@ export const parts = {
   save: (part: PartInput) => callAction<Part>('save-part', part),
   remove: (id: number) => callAction<unknown>('delete-part', id)
 };
+
+export const settings = {
+  get: <T = string | null>(key: string) => callAction<T>('get-setting', key),
+  save: (key: string, value: unknown) => callAction<unknown>('save-setting', key, value)
+};
+
+export interface Filament {
+  id: number;
+  name: string;
+  vendor: string | null;
+  material: string | null;
+  color_hex: string | null;
+  diameter: number | null;
+  spoolman_id: number | null;
+  source: 'manual' | 'spoolman' | string;
+  model_count: number;
+}
+
+export interface FilamentInput {
+  name: string;
+  vendor: string;
+  material: string;
+  color_hex: string;
+  diameter: number;
+  source: 'manual';
+}
+
+export const filaments = {
+  list: () => callAction<Filament[]>('get-all-filaments'),
+  save: (filament: FilamentInput) => callAction<Filament>('save-filament', filament),
+  remove: (id: number) => callAction<unknown>('delete-filament', id),
+  testSpoolman: (url: string, token: string) => callAction<{ version?: string }>('test-spoolman-connection', url, token),
+  syncSpoolman: (url: string, token: string) =>
+    callAction<{ total: number; created: number; updated: number }>('sync-spoolman-filaments', url, token)
+};

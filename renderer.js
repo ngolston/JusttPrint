@@ -426,20 +426,6 @@ window.saveFileTypeSettingsFromDialog = async function saveFileTypeSettingsFromD
 };
 
 // Modal fullscreen toggles (exposed early so icons work in Docker/server mode)
-window.syncFilamentManagerFullscreenButton = function syncFilamentManagerFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('filament-manager-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.toggleFilamentManagerFullscreen = function toggleFilamentManagerFullscreen() {
-  const dialog = document.getElementById('filament-manager-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncFilamentManagerFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
 window.syncPrinterManagementFullscreenButton = function syncPrinterManagementFullscreenButton(isFullscreen) {
   const btn = document.getElementById('printer-management-fullscreen-toggle');
   if (!btn) return;

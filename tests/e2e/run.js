@@ -479,11 +479,11 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => document.getElementById('about-dialog').showModal());
     await page.click('#about-dialog [data-close-dialog="about-dialog"]');
     check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
-    await page.evaluate(() => document.getElementById('filament-manager-dialog').showModal());
-    await page.click('#filament-manager-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('filament-manager-dialog').classList.contains('modal-fullscreen')));
-    await page.click('#filament-manager-fullscreen-toggle');
-    await page.evaluate(() => document.getElementById('filament-manager-dialog').close());
+    await page.evaluate(() => document.getElementById('printer-management-dialog').showModal());
+    await page.click('#printer-management-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('printer-management-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#printer-management-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('printer-management-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -649,6 +649,40 @@ async function browserChecks(base, wsUrl, session) {
     }
     await page.click('#parts-stock-close');
     check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
+
+    // Filament Manager (React): Spoolman panel, add with a color, remove.
+    const serverFilaments = async () => (await invoke(base, session, 'get-all-filaments')).result || [];
+    await page.evaluate(() => window.openFilamentManager());
+    check('Filament Manager opens', await page.isVisible('#filament-manager-dialog'));
+    await page.click('#spoolman-setup-toggle');
+    await page.fill('#spoolman-url', '');
+    await page.click('#spoolman-test-button');
+    await page.waitForSelector('#spoolman-setup-status:has-text("Enter a Spoolman URL first")', { timeout: 10000 }).catch(() => {});
+    check('Spoolman setup asks for a URL', /Enter a Spoolman URL first/.test(await page.textContent('#spoolman-setup-status')));
+    await page.click('#spoolman-setup-toggle');
+    check('Spoolman panel hides', !(await page.isVisible('#spoolman-setup-panel')));
+    await page.click('#filament-toggle-add-btn');
+    await page.fill('#new-filament-name', 'E2E Galaxy Black');
+    await page.fill('#new-filament-vendor', 'E2E Vendor');
+    await page.fill('#new-filament-material', 'PLA');
+    await page.fill('#new-filament-color', '1a2b3c');
+    check('typing a hex color updates the picker', (await page.inputValue('#new-filament-color-picker')) === '#1a2b3c');
+    await page.click('#add-filament-manager-button');
+    const filamentRow = await page.waitForSelector('#filament-manager-list .filament-manager-item:has-text("E2E Galaxy Black")', { timeout: 10000 }).catch(() => null);
+    const filament = (await serverFilaments()).find((f) => f.name === 'E2E Galaxy Black');
+    check('Filament Manager adds a filament', !!filamentRow && filament && filament.color_hex === '1A2B3C' && filament.material === 'PLA' && filament.diameter === 1.75, JSON.stringify(filament));
+    check('filament status is shown after adding', /Added E2E Galaxy Black/.test(await page.textContent('#filament-manager-status')));
+    if (filament) {
+      const added = await page.evaluate((id) => [...document.querySelectorAll('#filament-select option')].some((o) => o.value === String(id)), filament.id);
+      check('new filament appears in the model filament picker', added);
+      await page.click(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"] .filament-remove`);
+      const confirmRemove = await page.waitForSelector('dialog[open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+      if (confirmRemove) await confirmRemove.click();
+      await page.waitForSelector(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"]`, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Filament Manager removes a filament after asking', !!confirmRemove && !(await serverFilaments()).some((f) => f.id === filament.id));
+    }
+    await page.click('#filament-manager-close');
+    check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
 
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));

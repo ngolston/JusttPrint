@@ -9712,3 +9712,8 @@ body.is-panel-resizing * {
   cursor: col-resize !important;
   user-select: none !important;
 }
+
+.filament-manager-empty-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}

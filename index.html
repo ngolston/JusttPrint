@@ -2177,103 +2177,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
         </form>
       </dialog>
 
-      <dialog id="filament-manager-dialog" class="modal">
-        <form method="dialog" id="filament-manager-form">
-          <div class="filament-manager-header">
-            <div class="filament-manager-header-row">
-              <h3>🧵 Filament Manager</h3>
-              <div class="filament-header-actions">
-                <button type="button" id="spoolman-setup-toggle" class="filament-header-btn" aria-expanded="false" aria-controls="spoolman-setup-panel">Spoolman Setup</button>
-                <button type="button" id="filament-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="toggleFilamentManagerFullscreen">
-                  <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
-                  </svg>
-                  <svg class="fullscreen-icon-shrink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <p class="setting-description">Manage your 3D printing filament library, assign spools to models, or sync with Spoolman.</p>
-          </div>
-
-          <div id="spoolman-setup-panel" class="form-group spoolman-setup-panel" hidden>
-            <div class="spoolman-section-header">
-              <label>Spoolman Integration</label>
-            </div>
-            <div class="spoolman-grid">
-              <div class="filament-field">
-                <label class="filament-field-label" for="spoolman-url">Instance URL</label>
-                <input type="text" id="spoolman-url" placeholder="http://localhost:7912" autocomplete="off" spellcheck="false">
-              </div>
-              <div class="filament-field">
-                <label class="filament-field-label" for="spoolman-api-token">API Token (Optional)</label>
-                <input type="password" id="spoolman-api-token" placeholder="Optional token" autocomplete="off">
-              </div>
-            </div>
-            <div class="filament-spoolman-actions">
-              <button type="button" id="spoolman-test-button" class="spoolman-btn">Test Connection</button>
-              <button type="button" id="spoolman-sync-button" class="spoolman-btn spoolman-btn-primary">Sync Now</button>
-            </div>
-            <div id="spoolman-setup-status" class="filament-manager-status"></div>
-          </div>
-
-          <div class="form-group filament-form-section collapsed" id="filament-form-section">
-            <div class="filament-section-header">
-              <label id="filament-form-label" for="new-filament-name">Add a filament</label>
-              <button type="button" id="filament-toggle-add-btn" class="filament-toggle-add-btn" aria-expanded="false">+ Add Filament</button>
-            </div>
-            <div id="filament-form-body" hidden>
-              <div class="filament-add-grid">
-                <div class="filament-field filament-span">
-                  <label class="filament-field-label" for="new-filament-name">Filament Name <span class="required">*</span></label>
-                  <input type="text" id="new-filament-name" placeholder="Name (e.g. PolyLite PLA Black, Prusament Galaxy Silver…)" autocomplete="off">
-                </div>
-                <div class="filament-field">
-                  <label class="filament-field-label" for="new-filament-vendor">Vendor / Brand</label>
-                  <input type="text" id="new-filament-vendor" placeholder="e.g. Polymaker, Bambu Lab, eSUN" autocomplete="off">
-                </div>
-                <div class="filament-field">
-                  <label class="filament-field-label" for="new-filament-material">Material</label>
-                  <input type="text" id="new-filament-material" placeholder="e.g. PLA, PETG, ABS, TPU" autocomplete="off">
-                </div>
-                <div class="filament-field">
-                  <label class="filament-field-label" for="new-filament-color">Color</label>
-                  <div class="filament-color-row">
-                    <input type="color" id="new-filament-color-picker" value="#808080" title="Click to pick color">
-                    <input type="text" id="new-filament-color" placeholder="Hex (e.g. 808080)" autocomplete="off">
-                  </div>
-                </div>
-                <div class="filament-field">
-                  <label class="filament-field-label" for="new-filament-diameter">Diameter (mm)</label>
-                  <input type="number" id="new-filament-diameter" placeholder="1.75" value="1.75" step="0.05" min="0">
-                </div>
-              </div>
-              <div class="filament-form-actions">
-                <button type="button" id="add-filament-manager-button" class="filament-btn-primary">Add Filament</button>
-                <button type="button" id="cancel-filament-manager-button" class="filament-btn-cancel">Cancel</button>
-              </div>
-              <div id="filament-manager-status" class="filament-manager-status"></div>
-            </div>
-          </div>
-
-          <div class="form-group filament-list-section">
-            <div class="filament-section-header">
-              <label for="filament-manager-search">Filaments Inventory</label>
-              <span id="filament-count-badge" class="filament-count-badge"></span>
-            </div>
-            <div class="input-with-icon">
-              <input type="text" id="filament-manager-search" placeholder="Search filaments by name, vendor, material...">
-              <button type="button" id="clear-filament-search" class="icon-button" title="Clear search">×</button>
-            </div>
-            <div id="filament-manager-list" class="filament-manager-list"></div>
-          </div>
-
-          <div class="dialog-buttons">
-            <button type="button" id="filament-manager-close" class="filament-btn-close" data-close-dialog="filament-manager-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
 
       <dialog id="printer-management-dialog" class="modal">
         <div class="printer-management-header">
@@ -2710,7 +2613,7 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
       </div>
     </div>
   </template>
-  <!-- React screens (src/web/): Server Access, Tag Manager, Parts Manager -->
+  <!-- React screens (src/web/): Server Access, Tag Manager, Parts Manager, Filament Manager -->
   <div id="react-root"></div>
   <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>

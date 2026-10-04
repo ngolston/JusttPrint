@@ -11,6 +11,7 @@ All notable changes contributed via pull request are documented in this file.
 - The Docker image builds the React screens in a separate stage; the runtime image has no build tools.
 - **Tag Manager** is rebuilt in React: create, rename inline (renaming onto an existing name merges the two after asking), search, delete, full screen.
 - **Parts Manager** is rebuilt in React: add, edit, step or type quantities, low-stock flags, search, remove. Removing a part now asks in the app's own dialog, and "Part saved." is no longer hidden when the form collapses.
+- **Filament Manager** is rebuilt in React: add filaments (with a color picker), Spoolman setup, test and sync, search, remove (asked in the app's own dialog). Assigning filaments to models is unchanged.
 - Fixed: opening a dialog or running a menu action (Tag Manager, Clear New, Regenerate Thumbnails, ...) in one browser also did it in every other open browser. Those events now stay in the page that sent them, and the server no longer relays browser events to other browsers.
 
 ## [4.1.1] - 2026-10-04

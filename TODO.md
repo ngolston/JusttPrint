@@ -148,6 +148,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
 - [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
+- [ ] **Filament Manager: the hex color field is squeezed to nothing** next to the color picker, so a hex value cannot be typed (`.filament-color-row`).
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)

@@ -13,6 +13,10 @@ declare global {
     refreshTagRelatedUi?: () => Promise<void>;
     /** renderer.js: the full refresh after the Tag Manager closed with changes (also redraws model cards). */
     refreshAfterTagManagerClose?: () => Promise<void>;
+    /** filament.js: refresh the filament pickers and the sidebar filament filter. */
+    refreshFilamentPickers?: () => Promise<void>;
+    /** filament.js: also reload the open model's filaments and the grid. */
+    refreshAfterFilamentManagerClose?: () => Promise<void>;
   }
 }
 
@@ -33,6 +37,14 @@ export async function refreshTagRelatedUi(): Promise<void> {
 
 export async function refreshAfterTagManagerClose(): Promise<void> {
   await window.refreshAfterTagManagerClose?.();
+}
+
+export async function refreshFilamentPickers(): Promise<void> {
+  await window.refreshFilamentPickers?.();
+}
+
+export async function refreshAfterFilamentManagerClose(): Promise<void> {
+  await window.refreshAfterFilamentManagerClose?.();
 }
 
 /** Make a function callable from the rest of the page as window[name] while a screen is mounted. */
