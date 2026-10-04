@@ -7,4 +7,4 @@
  *   node src/server/index.js     (npm start)
  */
 
-require('../../main.js');
+require('./app');

@@ -3,7 +3,7 @@
 /**
  * Process services the server needs: data paths and lifecycle events (`app`), the IPC handler
  * registry that the WebSocket dispatcher calls (`ipcMain`), and Move to Trash (`shell.trashItem`).
- * The names match what main.js used under Electron, so it can be split into modules gradually.
+ * The names match what the old Electron code used.
  *
  * nativeImage cannot decode images on Node, so stored thumbnails are not re-compressed.
  */
@@ -67,7 +67,6 @@ class App extends EventEmitter {
   }
 
   setPath() {}
-  requestSingleInstanceLock() { return true; }
   getGPUInfo() { return Promise.resolve({}); }
   getGPUFeatureStatus() { return {}; }
   relaunch() {}

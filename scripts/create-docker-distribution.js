@@ -40,7 +40,7 @@ for (const file of filesToCopy) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(file, target);
 }
-for (const required of ['Dockerfile', 'docker-entrypoint.sh', '.npmrc', 'package.json', 'package-lock.json', 'main.js', 'src/server/index.js']) {
+for (const required of ['Dockerfile', 'docker-entrypoint.sh', '.npmrc', 'package.json', 'package-lock.json', 'src/server/index.js', 'src/server/app.js']) {
   if (!fs.existsSync(path.join(dockerDistDir, required))) {
     console.error(`Missing required file in the distribution: ${required}`);
     process.exit(1);

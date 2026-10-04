@@ -15,6 +15,7 @@ require('./previews');
 require('./print-events');
 require('./printers');
 require('./scan');
+require('./server-access');
 require('./settings');
 require('./slicers');
 require('./system-report');
