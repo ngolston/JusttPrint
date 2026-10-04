@@ -9,7 +9,8 @@ All notable changes contributed via pull request are documented in this file.
 
 **Changes:**
 - Declining the Terms of Service logs that browser out instead of shutting down the server
-- `main.js` is being split into modules under `src/server/ipc/` (printers, print events, parts, filaments, AI tagging); no behavior change
+- **Restore Database** checks the uploaded file first (it must be a readable Printventory database) and keeps the current database as `printventory.db.before-restore`; before, any file overwrote the library
+- `main.js` is being split into modules under `src/core/` and `src/server/`; no behavior change
 
 ## [3.0.0] - 2026-10-03
 

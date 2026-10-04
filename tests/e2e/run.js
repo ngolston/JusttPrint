@@ -316,6 +316,15 @@ async function apiChecks(base, wsUrl) {
   const backupPath = backup.result && backup.result.filePath;
   check('backup created', !!backupPath, backup.error);
   if (backupPath) check('backup downloadable', (await http.request(download(backupPath))).status === 200);
+  const junk = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
+  check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a Printventory backup/.test(junk.result.message), JSON.stringify(junk));
+  check('library still works after a refused restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+  if (backupPath) {
+    const restored = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
+    check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
+    check('library works after restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+    check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'printventory.db.before-restore')));
+  }
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
   const trash = await invoke(wsUrl, { cookie, origin }, 'trash-file', [part]);
   const trashed = !fs.existsSync(part) && fs.readdirSync(WORK, { recursive: true }).some((p) => String(p).endsWith('part one.stl.trashinfo'));
