@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.1.0**
+**Version 4.1.1**
 
 JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -880,6 +880,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ### Tests
 - `tests/` - Unit tests (`npm test`) and the end-to-end suite (`tests/e2e/run.js`, `npm run test:e2e`)
+- `.github/workflows/tests.yml` - Runs both on GitHub Actions for every push (Node 22, Google Chrome)
 
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling

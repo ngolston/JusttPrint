@@ -4,6 +4,16 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-10-04
+
+**Upgrading:** no changes needed.
+
+**Changes:**
+- Removed server handlers that nothing called (`check-files-exist`, `extract-zip-archive`, `get-duplicate-files`, `calculate-missing-hashes`, `get-models-by-designer`, `get-models-by-directory`, `get-models-page`, `is-server-mode`, `start-extension-server`, `stop-extension-server`, `get-tag-model-count`; `generate-tags` remains an MCP tool only).
+- Zip and 3MF files are read with `fflate` only; `jszip` is gone. Entries are listed without decompressing and read on demand. The Send to Slicer helper download is built with `fflate` and keeps its executable installers.
+- Removed the empty `fs` package.
+- GitHub Actions runs the unit and end-to-end tests on every push (Node 22); the TestDriver workflow moves to Node 22.
+
 ## [4.1.0] - 2026-10-04
 
 **Upgrading:** no changes needed. Reload open browser tabs after updating. Behind a reverse proxy, the browser now also sends `POST /api/actions/...` requests; they need the same host or `JUSTTPRINT_ALLOWED_ORIGINS` setup as before.
