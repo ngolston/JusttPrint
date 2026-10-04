@@ -681,10 +681,6 @@
     window.electron.on('open-theme-settings', callback);
   };
   
-  window.electron.onOpenPerformanceSettings = function(callback) {
-    window.electron.on('open-performance-settings', callback);
-  };
-  
   window.electron.onStartPrintRoulette = function(callback) {
     window.electron.on('start-print-roulette', callback);
   };

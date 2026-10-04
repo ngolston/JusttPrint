@@ -17,6 +17,7 @@ All notable changes contributed via pull request are documented in this file.
 - **System Report** is rebuilt in React. Each section shows its result as soon as its check finishes, instead of waiting for both benchmarks.
 - **Backup/Restore** is rebuilt in React. Backups and library exports download directly without an extra "download should start" message, buttons show progress and can't be pressed twice, and the grid refreshes before the import result is shown.
 - **Keyboard Shortcuts** and **About** are rebuilt in React. The About links are ordinary links that open in a new tab.
+- **Performance Settings** is rebuilt in React. Enter saves, and a value like `2.5` is refused instead of being cut to `2`.
 - Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
 - Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
 - Backups use SQLite's online backup, so the database stays open while a backup is written.

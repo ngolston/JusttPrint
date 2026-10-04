@@ -828,6 +828,24 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#about-dialog .about-close-x');
     check('About closes', !(await page.isVisible('#about-dialog')));
 
+    // Performance Settings (React): loads the setting, refuses a bad value, saves a good one.
+    const savedMaxSize = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
+    await page.evaluate(() => window.openPerformanceSettings());
+    await page.waitForSelector('#performance-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Performance Settings opens with the saved value', await page.inputValue('#max-file-size') === (savedMaxSize || '50'), await page.inputValue('#max-file-size'));
+    await page.fill('#max-file-size', '0');
+    await page.click('#save-performance-settings');
+    const badSize = await page.waitForSelector('dialog[open]:has-text("Invalid max file size") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    check('Performance Settings refuses 0 MB', !!badSize);
+    if (badSize) await badSize.click();
+    await page.fill('#max-file-size', '75');
+    await page.click('#save-performance-settings');
+    const sizeSaved = await page.waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (sizeSaved) await sizeSaved.click();
+    check('Performance Settings saves', !!sizeSaved && (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result === '75'
+      && !(await page.isVisible('#performance-settings-dialog')));
+    await invoke(base, session, 'save-setting', ['maxFileSizeMB', savedMaxSize || '50']);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

@@ -10,6 +10,7 @@ import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
+import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { StatsDialog } from './StatsDialog';
@@ -29,6 +30,7 @@ function Screens() {
       <BackupRestoreDialog />
       <KeyboardShortcutsDialog />
       <AboutDialog />
+      <PerformanceSettingsDialog />
     </>
   );
 }

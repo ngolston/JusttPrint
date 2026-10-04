@@ -21,6 +21,8 @@ declare global {
     refreshAfterFilamentManagerClose?: () => Promise<void>;
     /** renderer.js: reload the models and redraw the grid. */
     refreshModelDisplay?: () => Promise<void>;
+    /** renderer.js: use a new max file size (MB) for the browser's own size checks. */
+    applyMaxFileSizeMB?: (mb: number) => void;
   }
 }
 

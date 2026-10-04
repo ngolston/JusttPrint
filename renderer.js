@@ -1,11 +1,5 @@
 // Add this at the very top of the file
 const DEBUG = true; // Enable debugging temporarily
-/** Parse max file size (MB) from Performance settings input; requires integer >= 1. */
-function parseMaxFileSizeMBInput(raw) {
-  const n = parseInt(raw, 10);
-  if (Number.isNaN(n) || n < 1) return null;
-  return n;
-}
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -105,27 +99,9 @@ earlyEventChannels.forEach(function(channel) {
   });
 });
 
-// Performance dialog: register before main DOMContentLoaded async work (avoids menu IPC race + bridge log)
-window._openPerformanceSettingsDialog = async function _openPerformanceSettingsDialog() {
-  const dialog = document.getElementById('performance-settings-dialog');
-  if (!dialog) return;
-  try {
-    if (window.electron && typeof window.electron.getSetting === 'function') {
-      const maxFileSize = (await window.electron.getSetting('maxFileSizeMB')) || '50';
-      const input = document.getElementById('max-file-size');
-      if (input) input.value = maxFileSize;
-    }
-  } catch (e) {
-    console.error('Error loading performance settings for dialog:', e);
-  }
-  try {
-    dialog.showModal();
-  } catch (e) {
-    console.error('Error opening performance settings dialog:', e);
-  }
-};
+// Performance Settings is React (src/web/PerformanceSettingsDialog.tsx); it defines window.openPerformanceSettings.
 window._electronRealEventHandlers['open-performance-settings'] = function() {
-  window._openPerformanceSettingsDialog();
+  window.openPerformanceSettings?.();
 };
 
 function selectedTlsMode() {
@@ -656,30 +632,6 @@ window.saveAIConfigFromDialog = async function saveAIConfigFromDialog() {
   }
 };
 
-// Performance Save (early for Docker/server)
-window.savePerformanceSettingsFromDialog = async function savePerformanceSettingsFromDialog() {
-  if (!window.electron?.saveSetting) return;
-  const maxFileSizeEl = document.getElementById('max-file-size');
-  if (!maxFileSizeEl) {
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Could not find max file size input');
-    return;
-  }
-  const newMaxFileSize = parseMaxFileSizeMBInput(maxFileSizeEl.value);
-  try {
-    if (newMaxFileSize == null) {
-      throw new Error('Invalid max file size. Must be at least 1 MB.');
-    }
-    await window.electron.saveSetting('maxFileSizeMB', String(newMaxFileSize));
-    MAX_FILE_SIZE_MB = newMaxFileSize;
-    const dialog = document.getElementById('performance-settings-dialog');
-    if (dialog && typeof dialog.close === 'function') dialog.close();
-    if (window.electron.showMessage) await window.electron.showMessage('Success', 'Performance settings saved successfully');
-  } catch (err) {
-    console.error('Performance save error:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', err.message || 'Failed to save');
-  }
-};
-
 // STL Home: clear every directory (early for Docker/server)
 window.clearSTLHomeDirectory = async function clearSTLHomeDirectory() {
   window._stlHomeDirs = [];
@@ -910,6 +862,10 @@ const DEFER_SCAN_BATCH_THUMBNAILS_THRESHOLD = 80;
 
 let BATCH_SIZE = 50; // Default batch size for database operations
 let MAX_FILE_SIZE_MB = 50; // Default max file size in MB
+/** Called by the Performance Settings screen (React) after it saves maxFileSizeMB. */
+window.applyMaxFileSizeMB = function applyMaxFileSizeMB(mb) {
+  MAX_FILE_SIZE_MB = mb;
+};
 const THUMBNAIL_BATCH_SIZE = 10; // Default batch size for thumbnails
 // Higher concurrency in Server/Docker mode to compensate for slower file system operations
 // Docker file system operations (especially on network shares) can be 10-100ms per operation
@@ -6570,12 +6526,7 @@ async function createServerMenuBar() {
       await loadAndShowFileTypeSettings();
     }},
     { label: 'Performance', action: () => {
-      const dialog = document.getElementById('performance-settings-dialog');
-      if (dialog) {
-        dialog.showModal();
-      } else {
-        window.electron.send('open-performance-settings');
-      }
+      window.openPerformanceSettings?.();
     }},
     { label: 'Slicer', action: async () => {
       if (typeof window.openSlicerSettings === 'function') {
@@ -9524,54 +9475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   </p>
   `;
 
-  // Add this function to initialize performance settings
-  async function initializePerformanceSettings() {
-    try {
-      // Load max file size setting
-      const maxFileSize = await window.electron.getSetting('maxFileSizeMB') || '50';
-      const input = document.getElementById('max-file-size');
-      if (input) {
-        input.value = maxFileSize;
-        MAX_FILE_SIZE_MB = parseInt(maxFileSize);
-      }
-    } catch (error) {
-      console.error('Error initializing performance settings:', error);
-    }
-  }
-
-  async function savePerformanceSettings() {
-    try {
-      const input = document.getElementById('max-file-size');
-      if (!input) {
-        throw new Error('Could not find max file size input');
-      }
-
-      const maxFileSize = parseMaxFileSizeMBInput(input.value);
-      
-      // Validate input
-      if (maxFileSize == null) {
-        throw new Error('Invalid max file size. Must be at least 1 MB.');
-      }
-
-      // Save to database
-      await window.electron.saveSetting('maxFileSizeMB', maxFileSize.toString());
-      
-      // Update the global variable
-      MAX_FILE_SIZE_MB = maxFileSize;
-      
-      // Close dialog and show success message
-      const dialog = document.getElementById('performance-settings-dialog');
-      if (dialog) {
-        dialog.close();
-      }
-      await window.electron.showMessage('Success', 'Performance settings saved successfully');
-    } catch (error) {
-      console.error('Error saving performance settings:', error);
-      await window.electron.showMessage('Error', error.message);
-    }
-  }
-
-  // Add performance settings event listeners (handler registered at top with _openPerformanceSettingsDialog)
+  // Run a Performance Settings open that arrived before this point (handler registered at the top).
   document.addEventListener('DOMContentLoaded', async () => {
     await initializeSettings();
 
@@ -9582,56 +9486,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       delete window._electronPendingEvents['open-performance-settings'];
     }
 
-    // Save/cancel use onclick in index.html + savePerformanceSettingsFromDialog (avoid duplicate handlers)
-  });
-
-  // Add performance settings dialog handler
-  document.getElementById('performance-settings-dialog').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    
-    try {
-      const newBatchSize = parseInt(document.getElementById('batch-size').value);
-      const newConcurrentRenders = parseInt(document.getElementById('concurrent-renders').value);
-      const newMaxFileSize = parseMaxFileSizeMBInput(document.getElementById('max-file-size').value);
-      const newThumbnailBatchSize = parseInt(document.getElementById('thumbnail-batch-size').value);
-      const newRenderDelay = parseInt(document.getElementById('render-delay').value);
-
-      // Validate inputs
-      if (isNaN(newBatchSize) || newBatchSize < 1 || newBatchSize > 100) {
-        throw new Error('Invalid batch size. Must be between 1 and 100.');
-      }
-      if (isNaN(newConcurrentRenders) || newConcurrentRenders < 1 || newConcurrentRenders > 10) {
-        throw new Error('Invalid concurrent renders. Must be between 1 and 10.');
-      }
-      if (newMaxFileSize == null) {
-        throw new Error('Invalid max file size. Must be at least 1 MB.');
-      }
-      if (isNaN(newThumbnailBatchSize) || newThumbnailBatchSize < 5 || newThumbnailBatchSize > 20) {
-        throw new Error('Invalid thumbnail batch size. Must be between 5 and 20.');
-      }
-      if (isNaN(newRenderDelay) || newRenderDelay < 0 || newRenderDelay > 100) {
-        throw new Error('Invalid render delay. Must be between 0 and 100 ms.');
-      }
-
-      // Save settings
-      await window.electron.saveSetting('batchSize', newBatchSize.toString());
-      await window.electron.saveSetting('maxConcurrentRenders', newConcurrentRenders.toString());
-      await window.electron.saveSetting('maxFileSizeMB', newMaxFileSize.toString());
-      await window.electron.saveSetting('thumbnailBatchSize', newThumbnailBatchSize.toString());
-      await window.electron.saveSetting('renderDelay', newRenderDelay.toString());
-
-      // Update variables
-      BATCH_SIZE = newBatchSize;
-      MAX_CONCURRENT_RENDERS = newConcurrentRenders;
-      MAX_FILE_SIZE_MB = newMaxFileSize;
-      THUMBNAIL_BATCH_SIZE = newThumbnailBatchSize;
-      RENDER_DELAY = newRenderDelay;
-
-      document.getElementById('performance-settings-dialog').close();
-    } catch (error) {
-      console.error('Error saving performance settings:', error);
-      await window.electron.showMessage('Error', error.message);
-    }
   });
 
   // Update the file scanning function to use MAX_FILE_SIZE_MB
@@ -10087,8 +9941,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Initialize dialog handlers
       initializeDialogHandlers();
       
-      // Initialize performance settings handlers
-      initializePerformanceSettings();
       
       // About dialog: handled by early listener (electron.on('open-about')) which calls
       // _electronRealEventHandlers['open-about'] set in initializeDialogHandlers() above.
@@ -19353,12 +19205,6 @@ async function initializeAppOnce() {
       const maxFileSize = await window.electron.getSetting('maxFileSizeMB');
       if (maxFileSize) {
         MAX_FILE_SIZE_MB = parseInt(maxFileSize);
-      }
-
-      // Set the input value if the element exists
-      const maxFileSizeInput = document.getElementById('max-file-size');
-      if (maxFileSizeInput) {
-        maxFileSizeInput.value = MAX_FILE_SIZE_MB.toString();
       }
     } catch (error) {
       console.error('Error initializing performance settings:', error);
