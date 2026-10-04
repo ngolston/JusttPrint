@@ -4,6 +4,10 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-10-04
+
+**Upgrading:** no changes needed. Send to Slicer keeps working through the helper; if you used it from the 3D preview and it failed to download, it works now.
+
 **Security:**
 - The server never starts a program for Send to Slicer. A logged-in browser could ask it to run any program in the container (the old `execute-client-command` channel); that channel and all server-side slicer launching are removed. The helper on your computer opens the slicer, as before.
 
