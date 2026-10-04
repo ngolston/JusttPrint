@@ -2880,71 +2880,7 @@ async function saveThumbnail(filePath, thumbnail) {
 
 require('./src/server/ipc/files');
 
-// Update the fetch-thangs-page handler
-ipcMain.handle('fetch-thangs-page', async (event, url) => {
-  try {
-    if (!fetch) {
-      throw new Error('Fetch not initialized');
-    }
-    console.log('Fetching Thangs page:', url);
-    
-    const browser = await puppeteer.launch({
-      headless: true
-    });
-    
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle0' });
-
-    // Get and log the full HTML source
-    const htmlContent = await page.content();
-    console.log('Page HTML:', htmlContent);
-
-    // Extract the data
-    const data = await page.evaluate(() => {
-      // Get model title (which will be the parent model)
-      const titleElement = document.querySelector('div[class^="ModelTitle_Text-"]');
-      const parentModel = titleElement ? titleElement.textContent.trim() : null;
-
-      // Get designer name
-      const designerElement = document.querySelector('a[class^="ModelDesigner_ProfileLink-"]');
-      const designer = designerElement ? designerElement.textContent.trim() : null;
-
-      // Get license info - look for license text in the description
-      const descriptionElement = document.querySelector('div[class^="ModelDescription_"]');
-      const description = descriptionElement ? descriptionElement.textContent.toLowerCase() : '';
-      
-      let license = 'Unknown';
-      if (description.includes('personal use')) {
-        license = 'For Personal Use';
-      } else if (description.includes('creative commons')) {
-        license = 'Creative Commons';
-      } else if (description.includes('commercial use')) {
-        license = 'Commercial Use Allowed';
-      }
-
-      // Log the found elements for debugging
-      console.log('Found elements:', {
-        titleElement: titleElement?.outerHTML,
-        designerElement: designerElement?.outerHTML,
-        descriptionElement: descriptionElement?.outerHTML
-      });
-
-      return {
-        parentModel,
-        designer,
-        license
-      };
-    });
-
-    await browser.close();
-    console.log('Scraped data:', data);
-    
-    return data;
-  } catch (error) {
-    console.error('Error fetching Thangs page:', error);
-    throw error;
-  }
-});
+require('./src/server/ipc/web-pages');
 
 require('./src/server/ipc/metadata');
 
@@ -3371,56 +3307,6 @@ ipcMain.handle('get-models-with-default-thumbnails', async () => {
 });
 
 // Add this new IPC handler
-ipcMain.handle('fetch-makerworld-page', async (event, url) => {
-  try {
-    if (!fetch) {
-      throw new Error('Fetch not initialized');
-    }
-    const response = await fetch(url);
-    const html = await response.text();
-    
-    // Extract model name from the page title
-    const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-                      html.match(/<title>([^<]+)</i);
-    let modelName = '';
-    if (titleMatch && titleMatch[1]) {
-      modelName = titleMatch[1].split('|')[0].trim();
-    }
-    
-    // Extract designer name using multiple possible patterns
-    const designerPatterns = [
-      /class="author-name"[^>]*>([^<]+)</i,
-      /data-username="([^"]+)"/i,
-      /profileId-[0-9]+">([^<]+)</i
-    ];
-    
-    let designer = 'Unknown';
-    for (const pattern of designerPatterns) {
-      const match = html.match(pattern);
-      if (match && match[1]) {
-        designer = match[1].trim();
-        break;
-      }
-    }
-
-    return {
-      modelName,
-      designer
-    };
-  } catch (error) {
-    console.error('Error fetching MakerWorld page:', error);
-    throw error;
-  }
-});
-
-
-
-
-// Add this near the top after other imports
-let fetch;
-(async () => {
-  fetch = (await import('node-fetch')).default;
-})();
 
 
 

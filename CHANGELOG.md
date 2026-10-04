@@ -6,6 +6,7 @@ All notable changes contributed via pull request are documented in this file.
 
 **Security:**
 - Removed the old `getSetting`, `saveSetting`, `quitApp` and `get-db` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
+- The Thangs page lookup only loads https links on thangs.com; before, the server would load any address a browser sent (internal services, `file://`). The unused MakerWorld page fetch is removed.
 
 **Changes:**
 - Declining the Terms of Service logs that browser out instead of shutting down the server

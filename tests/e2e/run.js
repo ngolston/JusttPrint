@@ -195,6 +195,8 @@ async function apiChecks(base, wsUrl) {
   check('read /etc/passwd refused', refused(await invoke(wsUrl, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
   check('delete live database refused', refused(await invoke(wsUrl, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'printventory.db')]), /outside the library/));
   check('scan /etc refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
+  check('page fetch outside Thangs refused', refused(await invoke(wsUrl, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']), /Only https links to thangs\.com/));
+  check('fetch-makerworld-page removed', !!(await invoke(wsUrl, { cookie, origin }, 'fetch-makerworld-page', ['https://makerworld.com/'])).error);
   check('open-path refused', refused(await invoke(wsUrl, { cookie, origin }, 'open-path', [LIBRARY]), /desktop app/));
   check('move out of library refused', refused(await invoke(wsUrl, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
   const read = await invoke(wsUrl, { cookie, origin }, 'read-model-file', [cube]);

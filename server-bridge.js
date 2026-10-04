@@ -712,7 +712,6 @@
     'puterAIChat': 'puter-ai-chat',
     'getModelsWithoutThumbnails': 'get-models-without-thumbnails',
     'getModelsWithDefaultThumbnails': 'get-models-with-default-thumbnails',
-    'fetchMakerWorldPage': 'fetch-makerworld-page',
     'getSlicers': 'get-slicers',
     'openFileInSlicer': 'open-file-in-slicer',
     'saveSlicer': 'save-slicer',
