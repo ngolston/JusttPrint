@@ -483,9 +483,9 @@ async function browserChecks(base, wsUrl, session) {
     }
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('about-dialog').showModal());
-    await page.click('#about-dialog [data-close-dialog="about-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
+    await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
+    await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('new-tag-dialog').open));
     await page.evaluate(() => document.getElementById('dedup-dialog').showModal());
     await page.click('#dedup-fullscreen-toggle');
     check('data-action button calls its function', await page.evaluate(() => document.getElementById('dedup-dialog').classList.contains('modal-fullscreen')));
@@ -805,6 +805,28 @@ async function browserChecks(base, wsUrl, session) {
     if (refused) await page.click('dialog[open]:has-text("Not a JusttPrint backup") button:text-is("OK")');
     await page.click('#save-backup-restore');
     check('Backup/Restore closes', !(await page.isVisible('#backup-restore-dialog')));
+
+    // Keyboard Shortcuts and About (React).
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+?' : 'Control+Shift+?');
+    check('Ctrl+Shift+? opens Keyboard Shortcuts', await page.isVisible('#keyboard-shortcuts-dialog')
+      && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 12);
+    await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
+    check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
+    await page.evaluate(() => window.openAbout());
+    const aboutVersion = await page.waitForFunction((version) => {
+      const text = document.getElementById('about-version')?.textContent || '';
+      return text.includes(version) ? text : null;
+    }, require('../../package.json').version, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('About shows the version', !!aboutVersion, aboutVersion);
+    await page.uncheck('#auto-update-check');
+    const updateSetting = await waitFor(async () => {
+      const value = (await invoke(base, session, 'get-setting', ['autoUpdateCheck'])).result;
+      return value === '0' ? value : null;
+    }, 10000, 'autoUpdateCheck').catch(() => null);
+    check('About saves the update check setting', updateSetting === '0');
+    await page.check('#auto-update-check');
+    await page.click('#about-dialog .about-close-x');
+    check('About closes', !(await page.isVisible('#about-dialog')));
 
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));

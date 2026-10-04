@@ -6349,6 +6349,15 @@ dialog:not([open]) {
   line-height: 1.5;
 }
 
+.about-license-note {
+  margin-top: 0.75rem;
+  font-size: 0.85em;
+}
+
+.about-license-note a {
+  color: #4a9eff;
+}
+
 .about-terms-list {
   margin: 8px 0 0 0;
   padding-left: 24px;

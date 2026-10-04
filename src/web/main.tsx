@@ -5,8 +5,10 @@
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AboutDialog } from './AboutDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
@@ -25,6 +27,8 @@ function Screens() {
       <StatsDialog />
       <SystemReportDialog />
       <BackupRestoreDialog />
+      <KeyboardShortcutsDialog />
+      <AboutDialog />
     </>
   );
 }

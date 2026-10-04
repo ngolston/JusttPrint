@@ -6046,75 +6046,6 @@ window.openSTLHomeDialog = async function() {
   stlHomeDialog.showModal();
 };
 
-// About dialog functions - defined at top level for accessibility
-function bindAboutCloseButton() {
-  const dialog = document.getElementById('about-dialog');
-  const closeXButton = dialog?.querySelector('.about-close-x');
-  if (!dialog || !closeXButton) {
-    return;
-  }
-
-  // Remove any existing event listeners by cloning and replacing the button
-  // This ensures we don't have duplicate listeners
-  const newButton = closeXButton.cloneNode(true);
-  closeXButton.parentNode.replaceChild(newButton, closeXButton);
-  
-  // Add the click handler to the new button
-  newButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dialog.close();
-  });
-}
-
-async function initializeAboutDialog() {
-  const versionElement = document.getElementById('about-version');
-  const dialog = document.getElementById('about-dialog');
-  if (!dialog) return;
-
-  // Version: load defensively so dialog always shows something
-  try {
-    let currentVersion = null;
-    if (typeof window.electron?.getSetting === 'function') {
-      currentVersion = await window.electron.getSetting('currentVersion').catch(() => null);
-    }
-    if (!currentVersion && typeof window.electron?.getAppVersion === 'function') {
-      currentVersion = await window.electron.getAppVersion().catch(() => null);
-    }
-    if (versionElement) {
-      versionElement.textContent = `Version: ${currentVersion || 'Unknown'}`;
-    }
-  } catch (e) {
-    console.error('About dialog version:', e);
-    if (versionElement) versionElement.textContent = 'Version: Unknown';
-  }
-
-  const autoUpdateCheckbox = document.getElementById('auto-update-check');
-  if (autoUpdateCheckbox && typeof window.electron?.getSetting === 'function') {
-    const autoUpdateCheck = await window.electron.getSetting('autoUpdateCheck').catch(() => null);
-    autoUpdateCheckbox.checked = autoUpdateCheck !== '0';
-    autoUpdateCheckbox.onchange = (e) => {
-      window.electron.saveSetting('autoUpdateCheck', e.target.checked ? '1' : '0');
-    };
-  }
-
-  // Close X is handled by inline onclick in HTML; bind for any extra behavior
-  bindAboutCloseButton();
-
-  // License link
-  try {
-    const licenseLink = document.getElementById('license-link');
-    if (licenseLink && typeof window.electron?.openExternal === 'function') {
-      licenseLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await window.electron.openExternal('https://github.com/ngolston/JusttPrint/blob/main/LICENSE.txt');
-      });
-    }
-  } catch (e) {
-    console.error('About dialog license link:', e);
-  }
-}
-
 // Shared function to load AI config settings and show dialog (must be top-level for server menu access)
 async function loadAndShowAIConfig() {
   const dialog = document.getElementById('ai-config-dialog');
@@ -6672,21 +6603,10 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Keyboard Shortcuts', action: () => {
-      const dialog = document.getElementById('keyboard-shortcuts-dialog');
-      if (dialog) dialog.showModal();
+      window.openKeyboardShortcuts?.();
     }},
-    { label: 'About', action: async () => {
-      const aboutDialog = document.getElementById('about-dialog');
-      if (!aboutDialog) return;
-      aboutDialog.showModal();
-      bindAboutCloseButton();
-      try {
-        await initializeAboutDialog();
-      } catch (e) {
-        console.error('Error initializing about dialog:', e);
-        const versionEl = document.getElementById('about-version');
-        if (versionEl) versionEl.textContent = 'Version: Unknown';
-      }
+    { label: 'About', action: () => {
+      window.openAbout?.();
     }},
     { label: '---', action: null },
     { label: 'GitHub', action: () => {
@@ -7051,7 +6971,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindGridBackgroundDeselect();
   }
   const settingsDialog = document.getElementById('settings-dialog');
-  const aboutDialog = document.getElementById('about-dialog');
   const tagDialog = document.getElementById('new-tag-dialog');
   const newTagInput = document.getElementById('new-tag-name');
   const addTagButton = document.getElementById('add-tag-button');
@@ -8094,10 +8013,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
  
 
-  // About dialog handler
+  // Keyboard Shortcuts and About are React (src/web/KeyboardShortcutsDialog.tsx, AboutDialog.tsx).
   window._electronRealEventHandlers['open-keyboard-shortcuts'] = function() {
-    const dialog = document.getElementById('keyboard-shortcuts-dialog');
-    if (dialog) dialog.showModal();
+    window.openKeyboardShortcuts?.();
   };
   if (window._electronPendingEvents['open-keyboard-shortcuts']) {
     window._electronPendingEvents['open-keyboard-shortcuts'].forEach((args) => {
@@ -8106,22 +8024,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-keyboard-shortcuts'];
   }
 
-  window._electronRealEventHandlers['open-about'] = async function() {
-    const dialog = document.getElementById('about-dialog');
-    if (!dialog) {
-      console.error('About dialog element not found');
-      return;
-    }
-    dialog.showModal();
-    bindAboutCloseButton();
-    try {
-      await initializeAboutDialog();
-    } catch (error) {
-      console.error('Error initializing about dialog:', error);
-      const versionEl = document.getElementById('about-version');
-      if (versionEl) versionEl.textContent = 'Version: Unknown';
-    }
+  window._electronRealEventHandlers['open-about'] = function() {
+    window.openAbout?.();
   };
+
   if (window._electronPendingEvents['open-about']) {
     window._electronPendingEvents['open-about'].forEach((args) => {
       window._electronRealEventHandlers['open-about'].apply(null, args);
@@ -8161,12 +8067,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-system-report'];
   }
-
-  // Website link handler
-  document.getElementById('website-link')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await window.electron.openExternal('https://github.com/ngolston/JusttPrint');
-  });
 
   // Initialize new designer dialog handlers
   if (newDesignerDialog) {
@@ -10173,7 +10073,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Remove any nested DOMContentLoaded listeners and consolidate into one
   document.addEventListener('DOMContentLoaded', async () => {
     try {
-      bindAboutCloseButton();
       // Scan STL Home: ensure delegated handler is attached (fallback if main block ran before body existed)
       if (typeof window.attachScanStlHomeHandler === 'function') window.attachScanStlHomeHandler();
       // If user clicked "Scan STL Home" before runScanSTLHome was ready, run the queued scan now
@@ -15818,8 +15717,7 @@ document.addEventListener('keydown', async (event) => {
   // Show keyboard shortcuts dialog: Ctrl+Shift+/ (?) or Cmd+Shift+/
   if (mod && event.shiftKey && event.key === '?') {
     event.preventDefault();
-    const dialog = document.getElementById('keyboard-shortcuts-dialog');
-    if (dialog) dialog.showModal();
+    window.openKeyboardShortcuts?.();
     return;
   }
 
