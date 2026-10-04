@@ -4,9 +4,14 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-04
+
+**Upgrading:** no changes needed for Docker installs. The image's health check now runs `src/server/healthcheck.js`; if you override `HEALTHCHECK` in your own compose file, update the path.
+
 **Security:**
 - Removed the old `getSetting`, `saveSetting`, `quitApp` and `get-db` server channels. The first two skipped the protection on secret settings, so any logged-in browser could read the password hash and API token. `quitApp` let any logged-in browser stop the server.
 - The Thangs page lookup only loads https links on thangs.com; before, the server would load any address a browser sent (internal services, `file://`). The unused MakerWorld page fetch is removed.
+- Server source files that sat next to the web UI (Spoolman sync, print history, ZIP handling and others) could be downloaded from the web server. They now live under `src/`, which is never served.
 
 **Changes:**
 - Declining the Terms of Service logs that browser out instead of shutting down the server

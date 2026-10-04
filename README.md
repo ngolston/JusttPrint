@@ -1,6 +1,6 @@
 # Printventory
 
-**Version 3.0.0**
+**Version 3.1.0**
 
 Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -12,7 +12,7 @@ Printventory is a self-hosted web app for managing your 3D printing model collec
 - **Directory Scanning**: Automatically scan and catalog STL and 3MF files (up to 50MB per file)
 - **3D Model Preview**: View thumbnails of your 3D models with customizable background colors
 - **File Management**: Quick access to file locations, delete files with database cleanup
-- **Database Backup & Restore**: Protect your data with backup and restore functionality
+- **Database Backup & Restore**: Back up the library database and restore it from the browser; a restore checks the file first and keeps the previous database
 
 ### Organization & Metadata
 - **Tagging System**: Organize models with custom tags and categories
