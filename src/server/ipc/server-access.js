@@ -146,11 +146,6 @@ ipcMain.handle('regenerate-server-api-token', async () => ({
   apiToken: getServerAuth().regenerateApiToken()
 }));
 
-// IPC handler to expose server mode
-ipcMain.handle('is-server-mode', () => {
-  return true;
-});
-
 // IPC handler to restart server
 ipcMain.handle('restart-server', async () => {
   return await restartHttpServer();
@@ -273,15 +268,6 @@ ipcMain.handle('generate-self-signed-cert', async (_event, payload = {}) => {
     serverTls.setLastTlsError(err.message);
     return { success: false, message: err.message || 'Failed to generate certificate', status: getTlsStatusForUi() };
   }
-});
-
-// Browser extension / MCP local HTTP server control (normal mode)
-ipcMain.handle('start-extension-server', async (event, port) => {
-  return { success: true, running: true, message: 'Server mode already listening' };
-});
-
-ipcMain.handle('stop-extension-server', async () => {
-  return { success: false, message: 'Not available in server mode' };
 });
 
 ipcMain.handle('sync-local-http-server', async (event, port) => {

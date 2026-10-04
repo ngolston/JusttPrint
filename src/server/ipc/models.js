@@ -11,7 +11,6 @@ const printEvents = require('../../core/print-events');
 const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
-const { loadThumbnailForModel } = require('../../core/thumbnails');
 const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable, replaceModelFilaments } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
 const { isMacOsResourceForkEntry } = require('../../core/zip-entries');
@@ -105,22 +104,6 @@ ipcMain.handle('get-licenses', async () => {
     return rows.map(row => row.license);
   } catch (error) {
     console.error('Error getting licenses:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('get-models-by-designer', async (event, designer) => {
-  try {
-    const rows = database.db.prepare(`
-      SELECT id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite
-      FROM models WHERE designer = ?
-    `).all(designer);
-    return rows.map((row) => ({
-      ...row,
-      thumbnail: loadThumbnailForModel(row.filePath)
-    }));
-  } catch (error) {
-    console.error('Error getting models by designer:', error);
     throw error;
   }
 });
@@ -421,36 +404,6 @@ ipcMain.handle('get-folder-tree', async () => {
   } catch (error) {
     console.error('Error building folder tree:', error);
     return { roots: [] };
-  }
-});
-
-// Add this new IPC handler to fetch models by directory
-ipcMain.handle('get-models-by-directory', async (event, directoryPath) => {
-  try {
-const selectCols = MODEL_LIST_COLUMNS;
-    const models = database.db.prepare(`
-      SELECT ${selectCols} FROM models
-      WHERE REPLACE(LOWER(filePath), CHAR(92), '/') LIKE ?
-    `).all(directoryScanPrefixSqlParam(directoryPath));
-    return models;
-  } catch (error) {
-    console.error('Error fetching models by directory:', error);
-    throw error;
-  }
-});
-
-// Example: Get models for a given page (limit and offset)
-ipcMain.handle('get-models-page', async (event, { page, pageSize, sortOption }) => {
-  try {
-    const offset = (page - 1) * pageSize;
-const selectCols = MODEL_LIST_COLUMNS;
-    const models = database.db.prepare(
-      `SELECT ${selectCols} FROM models ORDER BY ${sortOption} LIMIT ? OFFSET ?`
-    ).all(pageSize, offset);
-    return models;
-  } catch (error) {
-    console.error('Error fetching models page:', error);
-    return [];
   }
 });
 

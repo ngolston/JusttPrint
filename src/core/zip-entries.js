@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const fflate = require('fflate');
 const { getScanExcludeNames } = require('./library-paths');
 const { EXTRACT_TEMP_FILE_PREFIX, ensureExtractTempDir } = require('./extract-temp');
 const { shouldSkipEntryPath } = require('./scan-skip');
@@ -39,7 +40,35 @@ async function extractModelFromZip(zipPath, entryPath, destinationPath = null) {
   return tempPath;
 }
 
-/** Locate main model part in a 3MF zip (JSZip contents). Handles alternate paths/casing. */
+/**
+ * Open a zip held in memory (3MF files are zips). Lists the entries without decompressing
+ * them; an entry is decompressed when it is read. Throws when the data is not a zip.
+ * @returns {{ files: Object<string, { name: string, dir: boolean, size: number, read: (type?: 'nodebuffer'|'string'|'base64') => Buffer|string }> }}
+ */
+function openZip(data) {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const files = {};
+  fflate.unzipSync(bytes, {
+    filter(info) {
+      files[info.name] = {
+        name: info.name,
+        dir: info.name.endsWith('/'),
+        size: info.originalSize,
+        read(type = 'nodebuffer') {
+          const out = fflate.unzipSync(bytes, { filter: (entry) => entry.name === info.name })[info.name];
+          const buffer = Buffer.from(out.buffer, out.byteOffset, out.byteLength);
+          if (type === 'string') return buffer.toString('utf8');
+          if (type === 'base64') return buffer.toString('base64');
+          return buffer;
+        }
+      };
+      return false;
+    }
+  });
+  return { files };
+}
+
+/** Locate main model part in a 3MF zip (openZip contents). Handles alternate paths/casing. */
 function find3dModelZipEntry(contents) {
   if (!contents || !contents.files) return null;
   const preferred = ['3D/3dmodel.model', '/3D/3dmodel.model'];
@@ -56,4 +85,4 @@ function find3dModelZipEntry(contents) {
   return null;
 }
 
-module.exports = { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry };
+module.exports = { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry, openZip };

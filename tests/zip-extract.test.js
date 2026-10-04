@@ -7,11 +7,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const fflate = require('fflate');
-const JSZip = require('jszip');
 const {
   extractZipEntryBuffer,
   extractWithFflate,
-  extractWithJszip,
   findZipEntry,
   isFragileZipError
 } = require('../src/core/zip-extract');
@@ -30,16 +28,10 @@ function makeFake3mf(label) {
 }
 
 async function writeOuterZip(filePath, files, compression) {
-  const zip = new JSZip();
-  for (const [name, data] of Object.entries(files)) {
-    zip.file(name, data, { compression });
-  }
-  const buf = await zip.generateAsync({
-    type: 'nodebuffer',
-    compression,
-    compressionOptions: compression === 'DEFLATE' ? { level: 6 } : undefined
-  });
-  await fs.promises.writeFile(filePath, buf);
+  const level = compression === 'DEFLATE' ? 6 : 0;
+  const entries = {};
+  for (const [name, data] of Object.entries(files)) entries[name] = [new Uint8Array(data), { level }];
+  await fs.promises.writeFile(filePath, Buffer.from(fflate.zipSync(entries)));
 }
 
 before(async () => {
@@ -110,18 +102,29 @@ describe('zip-extract nested 3mf', () => {
     assert.notEqual(leftHash, rightHash);
   });
 
-  test('fflate and JSZip fallbacks return the same bytes as stream-zip', async () => {
+  test('the fflate fallback returns the same bytes as stream-zip', async () => {
     const payload = makeFake3mf('fallback');
     const zipPath = path.join(tempDir, 'fallback.zip');
     await writeOuterZip(zipPath, { 'model.3mf': payload }, 'DEFLATE');
 
     const fromStreamZip = await extractZipEntryBuffer(zipPath, 'model.3mf');
     const fromFflate = await extractWithFflate(zipPath, 'model.3mf');
-    const fromJszip = await extractWithJszip(zipPath, 'model.3mf');
 
     assert.deepEqual(fromFflate, fromStreamZip);
-    assert.deepEqual(fromJszip, fromStreamZip);
     assert.deepEqual(fromStreamZip, payload);
+  });
+
+  test('openZip lists entries and reads them on demand', () => {
+    const { openZip, find3dModelZipEntry } = require('../src/core/zip-entries');
+    const contents = openZip(makeFake3mf('listed'));
+    assert.deepEqual(Object.keys(contents.files).sort(), ['3D/3dmodel.model', '[Content_Types].xml']);
+    const model = find3dModelZipEntry(contents);
+    assert.equal(model.dir, false);
+    assert.equal(model.size, Buffer.byteLength('<?xml version="1.0"?><model unit="millimeter">listed</model>'));
+    assert.match(model.read('string'), /listed/);
+    assert.equal(Buffer.from(model.read('base64'), 'base64').toString(), model.read('string'));
+    assert.ok(Buffer.isBuffer(model.read()));
+    assert.throws(() => openZip(Buffer.from('not a zip at all, just some bytes')));
   });
 
   test('findZipEntry matches slash variants', () => {

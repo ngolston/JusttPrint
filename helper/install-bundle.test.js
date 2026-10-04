@@ -3,7 +3,7 @@
 
 const assert = require('assert');
 const path = require('path');
-const JSZip = require('jszip');
+const { openZip } = require('../src/core/zip-entries');
 const bundle = require('./install-bundle');
 
 async function test(name, fn) {
@@ -56,25 +56,35 @@ async function main() {
     origin: 'http://nas.local:5000',
     insecure: true
   });
-  const zip = await JSZip.loadAsync(bytes);
-  const config = JSON.parse(await zip.file('helper-config.json').async('string'));
+  const { files } = openZip(bytes);
+  const read = (name) => files[name].read('string');
+  const config = JSON.parse(read('helper-config.json'));
   assert.deepStrictEqual(config.origins, ['http://nas.local:5000']);
   assert.strictEqual(config.tlsInsecure, true);
-  assert.ok(zip.file('justtprint-helper.js'));
-  assert.ok(zip.file('slicer-protocol.js'));
-  assert.ok(zip.file('slicer-launch.js'));
-  assert.ok(zip.file('install.cmd'));
-  assert.ok(zip.file('install.command'));
-  const readme = await zip.file('INSTALL.txt').async('string');
+  assert.ok(files['justtprint-helper.js']);
+  assert.ok(files['slicer-protocol.js']);
+  assert.ok(files['slicer-launch.js']);
+  assert.ok(files['install.cmd']);
+  assert.ok(files['install.command']);
+  const readme = read('INSTALL.txt');
   assert.ok(readme.includes('http://nas.local:5000'));
-  const cmd = await zip.file('install.cmd').async('string');
+  const cmd = read('install.cmd');
   assert.ok(cmd.includes('install --from-bundle'));
   assert.ok(cmd.includes('https://nodejs.org/dist/latest-lts/'));
   assert.ok(!cmd.includes('nas.local'));
-  const sh = await zip.file('install.sh').async('string');
+  const sh = read('install.sh');
   assert.ok(sh.includes('https://nodejs.org/dist/latest-lts/'));
   assert.ok(sh.includes('darwin-arm64'));
   assert.ok(sh.includes('linux-x64'));
+  // Unix permissions from the central directory: the installers are executable.
+  const modes = {};
+  for (let at = bytes.indexOf(Buffer.from([0x50, 0x4b, 1, 2])); at >= 0; at = bytes.indexOf(Buffer.from([0x50, 0x4b, 1, 2]), at + 4)) {
+    const nameLength = bytes.readUInt16LE(at + 28);
+    modes[bytes.toString('utf8', at + 46, at + 46 + nameLength)] = (bytes.readUInt32LE(at + 38) >>> 16) & 0o777;
+  }
+  assert.strictEqual(modes['install.sh'], 0o755);
+  assert.strictEqual(modes['install.command'], 0o755);
+  assert.strictEqual(modes['INSTALL.txt'], 0o644);
   });
 }
 

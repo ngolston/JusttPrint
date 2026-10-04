@@ -92,7 +92,7 @@ test('network file arguments must be library files', () => {
   refused(() => assertNetworkIpcArgs('read-model-file', ['/etc/passwd'], guardCtx));
   refused(() => assertNetworkIpcArgs('delete-file', ['/root/.config/justtprint/data/justtprint.db'], guardCtx));
   refused(() => assertNetworkIpcArgs('delete-file', ['/etc/shadow.zip::x.stl'], guardCtx));
-  refused(() => assertNetworkIpcArgs('check-files-exist', [['/mnt/library/a.stl', '/etc/hosts']], guardCtx));
+  refused(() => assertNetworkIpcArgs('pull-3mf-metadata', [['/mnt/library/a.stl', '/etc/hosts']], guardCtx));
 });
 
 test('context menu file lists are checked in both shapes', () => {
@@ -104,7 +104,7 @@ test('context menu file lists are checked in both shapes', () => {
 test('moves stay inside the library', () => {
   assertNetworkIpcArgs('move-files', [['/mnt/library/a.stl'], '/mnt/library/sorted'], guardCtx);
   refused(() => assertNetworkIpcArgs('move-files', [['/mnt/library/a.stl'], '/etc'], guardCtx));
-  refused(() => assertNetworkIpcArgs('extract-zip-archive', ['/mnt/library/p.zip::a.stl', '/tmp'], guardCtx));
+  refused(() => assertNetworkIpcArgs('move-files', [['/mnt/library/p.zip::a.stl'], '/tmp'], guardCtx));
 });
 
 test('scans may add new folders but not system, app or data folders', () => {

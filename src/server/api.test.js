@@ -15,7 +15,7 @@ ipcMain.handle('get-default-ai-prompt', async () => Buffer.from([0, 1, 2, 255]))
 ipcMain.handle('get-gpu-info', async () => { throw new Error('no GPU here'); });
 ipcMain.handle('benchmark-filesystem', async () => { await wait(160); return Buffer.from('slow bytes'); });
 ipcMain.handle('benchmark-database', async () => { await wait(160); throw new Error('slow failure'); });
-ipcMain.handle('get-tag-model-count', async () => 1); // a handler that is not an action
+ipcMain.handle('internal-only', async () => 1); // a handler that is not an action
 
 async function main() {
   const app = express();
@@ -48,7 +48,7 @@ async function main() {
     assert.strictEqual(res.status, 500);
     assert.deepStrictEqual(await res.json(), { error: 'no GPU here' });
 
-    assert.strictEqual((await call('get-tag-model-count', { args: [1] })).status, 404, 'handlers that are not actions are refused');
+    assert.strictEqual((await call('internal-only', { args: [1] })).status, 404, 'handlers that are not actions are refused');
     assert.strictEqual((await call('no-such-action', { args: [] })).status, 404);
     assert.strictEqual((await call('get-stats', { args: ['extra'] })).status, 400);
     assert.strictEqual((await call('get-stats', { args: 'nope' })).status, 400);
