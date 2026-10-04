@@ -85,10 +85,10 @@ test('folder tags are added for new files and do not remove existing tags', () =
 });
 
 test('scan applies folder tags only to paths inserted by that scan', () => {
-  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
-  assert.ok(main.includes('ingestState.newFilePaths.push(file.filePath)'));
-  assert.ok(main.includes('applyFolderTagsToNewScanFiles(ingestState.newFilePaths)'));
-  assert.ok(!main.includes('applyFolderTagsToNewScanFiles(allFilePaths)'));
+  const scan = fs.readFileSync(path.join(__dirname, '..', 'src', 'server', 'ipc', 'scan.js'), 'utf8');
+  assert.ok(scan.includes('ingestState.newFilePaths.push(file.filePath)'));
+  assert.ok(scan.includes('applyFolderTagsToNewScanFiles(ingestState.newFilePaths)'));
+  assert.ok(!scan.includes('applyFolderTagsToNewScanFiles(allFilePaths)'));
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'renderer.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.ok(html.includes('id="auto-tag-from-folder-on-scan"'));
