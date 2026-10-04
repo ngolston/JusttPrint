@@ -273,6 +273,11 @@ async function apiChecks(base, wsUrl) {
   const meta = await ask('get-all-metadata');
   check('metadata lists load', !!meta.result && !meta.error, meta.error);
 
+  const gpu = await ask('get-gpu-info');
+  check('System Report GPU info', !gpu.error && gpu.result !== undefined, gpu.error);
+  const dbBench = await ask('benchmark-database');
+  check('System Report database benchmark', !dbBench.error && !!dbBench.result, dbBench.error);
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
