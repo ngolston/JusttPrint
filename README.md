@@ -880,6 +880,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 - `index.html`, `styles.css` - Page structure and styling
 - `renderer.js` - UI logic (to be replaced screen by screen with React + TypeScript)
 - `server-bridge.js` - Connects the UI to the server over a WebSocket
+- `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide
 
 ### Configuration

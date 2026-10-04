@@ -606,7 +606,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="add-designer-button">Add</button>
-          <button type="button" id="cancel-designer-button" onclick="document.getElementById('new-designer-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-designer-button" data-close-dialog="new-designer-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -619,7 +619,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="add-parent-button">Add</button>
-          <button type="button" id="cancel-parent-button" onclick="document.getElementById('new-parent-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-parent-button" data-close-dialog="new-parent-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -628,15 +628,11 @@
         <h3>Add New Tag</h3>
         <div class="form-group">
           <label for="new-tag-name">Tag Name:</label>
-          <div class="input-with-icon">
-            <input type="text" id="new-tag-name">
-            <button type="button" id="refresh-tag-input" class="icon-button refresh-button" title="Reset input field (click if field is not editable)" onclick="return resetTagInputField();">↻</button>
-          </div>
-          <small style="display: block; margin-top: 5px; color: #aaa; font-style: italic;">If field is not editable, click the refresh button or refocus the window.</small>
+          <input type="text" id="new-tag-name">
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="add-tag-submit">Add</button>
-          <button type="button" id="cancel-tag-button" onclick="document.getElementById('new-tag-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-tag-button" data-close-dialog="new-tag-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -650,7 +646,7 @@
           <ul id="searchable-list-items" class="searchable-list"></ul>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="searchable-list-cancel" onclick="document.getElementById('searchable-list-dialog')?.close()">Cancel</button>
+          <button type="button" id="searchable-list-cancel" data-close-dialog="searchable-list-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -695,7 +691,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="bulk-save-button">Save Changes</button>
-          <button type="button" id="bulk-cancel-button" onclick="document.getElementById('bulk-edit-dialog')?.close()">Cancel</button>
+          <button type="button" id="bulk-cancel-button" data-close-dialog="bulk-edit-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -813,7 +809,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="add-license-button">Add</button>
-          <button type="button" id="cancel-license-button" onclick="document.getElementById('new-license-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-license-button" data-close-dialog="new-license-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -837,7 +833,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="submit" id="save-notes-button">Save</button>
-          <button type="button" id="cancel-notes-button" onclick="document.getElementById('notes-modal-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-notes-button" data-close-dialog="notes-modal-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -877,11 +873,11 @@
             </label>
           </div>
           <div class="dialog-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-            <button type="button" id="dedup-easy-button" class="easy-button" title="Select all but one per group. Keeps a copy in the preferred directory when one exists, otherwise an archived/ZIP copy." onclick="if(typeof window.dedupEasyFromDialog==='function')window.dedupEasyFromDialog()">Easy</button>
-            <button type="button" id="dedup-clear-button" class="modal-fullscreen-toggle" title="Clear all selections" onclick="if(typeof window.dedupClearFromDialog==='function')window.dedupClearFromDialog()">Clear</button>
+            <button type="button" id="dedup-easy-button" class="easy-button" title="Select all but one per group. Keeps a copy in the preferred directory when one exists, otherwise an archived/ZIP copy." data-action="dedupEasyFromDialog">Easy</button>
+            <button type="button" id="dedup-clear-button" class="modal-fullscreen-toggle" title="Clear all selections" data-action="dedupClearFromDialog">Clear</button>
             <button type="button" id="delete-selected" class="danger-button">Delete Selected</button>
-            <button type="button" id="dedup-fullscreen-toggle" class="modal-fullscreen-toggle" title="Toggle full screen" onclick="if(typeof window.toggleDedupFullscreen==='function')window.toggleDedupFullscreen()">Full Screen</button>
-            <button type="button" id="close-dedup" onclick="document.getElementById('dedup-dialog')?.close()">Close</button>
+            <button type="button" id="dedup-fullscreen-toggle" class="modal-fullscreen-toggle" title="Toggle full screen" data-action="toggleDedupFullscreen">Full Screen</button>
+            <button type="button" id="close-dedup" data-close-dialog="dedup-dialog">Close</button>
           </div>
         </div>
         <div class="duplicate-groups" style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
@@ -954,8 +950,8 @@
         <h3>Purge Models</h3>
         <p class="setting-description">This will remove all model data from the database. This action cannot be undone.</p>
         <div class="dialog-buttons">
-          <button type="button" id="confirm-purge-button" class="danger-button" onclick="if(typeof window.confirmPurgeModelsFromDialog==='function')window.confirmPurgeModelsFromDialog()">Purge All Models</button>
-          <button type="button" onclick="document.getElementById('purge-models-dialog')?.close()">Cancel</button>
+          <button type="button" id="confirm-purge-button" class="danger-button" data-action="confirmPurgeModelsFromDialog">Purge All Models</button>
+          <button type="button" data-close-dialog="purge-models-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1016,8 +1012,8 @@
         </div>
 
         <div class="dialog-buttons">
-          <button type="button" id="save-performance-settings" onclick="if(typeof window.savePerformanceSettingsFromDialog==='function')window.savePerformanceSettingsFromDialog()">Save</button>
-          <button type="button" id="cancel-performance-settings" onclick="document.getElementById('performance-settings-dialog')?.close()">Cancel</button>
+          <button type="button" id="save-performance-settings" data-action="savePerformanceSettingsFromDialog">Save</button>
+          <button type="button" id="cancel-performance-settings" data-close-dialog="performance-settings-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -1059,7 +1055,7 @@
         </div>
         <div class="form-group" id="stl-home-path-metadata-group">
           <div class="form-group checkbox-container stl-home-path-metadata-checkbox-row">
-            <input type="checkbox" id="stl-home-path-metadata-enabled" value="1" onclick="setTimeout(function(){ if(window.updateStlHomePathMetadataGrayed) window.updateStlHomePathMetadataGrayed(); }, 0)">
+            <input type="checkbox" id="stl-home-path-metadata-enabled" value="1">
             <label for="stl-home-path-metadata-enabled">Enable: use folder path to set Designer and Parent model</label>
           </div>
           <div id="stl-home-path-metadata-options" class="stl-home-path-metadata-options">
@@ -1095,8 +1091,8 @@
           </div>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="save-stl-home-button" onclick="if(window.saveSTLHomeFromDialog) window.saveSTLHomeFromDialog()">Save</button>
-          <button type="button" id="cancel-stl-home-button" onclick="document.getElementById('stl-home-dialog')?.close()">Cancel</button>
+          <button type="button" id="save-stl-home-button" data-action="saveSTLHomeFromDialog">Save</button>
+          <button type="button" id="cancel-stl-home-button" data-close-dialog="stl-home-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1119,7 +1115,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="button" id="save-slicer-settings">Save</button>
-          <button type="button" id="cancel-slicer-settings" onclick="document.getElementById('slicer-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-slicer-settings" data-close-dialog="slicer-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1197,8 +1193,8 @@
           </div>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="save-file-type-settings" onclick="if(typeof window.saveFileTypeSettingsFromDialog==='function')window.saveFileTypeSettingsFromDialog()">Save</button>
-          <button type="button" id="cancel-file-type-settings" onclick="document.getElementById('file-type-settings-dialog')?.close()">Cancel</button>
+          <button type="button" id="save-file-type-settings" data-action="saveFileTypeSettingsFromDialog">Save</button>
+          <button type="button" id="cancel-file-type-settings" data-close-dialog="file-type-settings-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1237,7 +1233,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="button" id="save-browser-extension-settings">Save</button>
-          <button type="button" id="cancel-browser-extension-settings" onclick="document.getElementById('browser-extension-settings-dialog')?.close()">Cancel</button>
+          <button type="button" id="cancel-browser-extension-settings" data-close-dialog="browser-extension-settings-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1316,7 +1312,7 @@
           </div>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="close-server-access" onclick="document.getElementById('server-access-dialog')?.close()">Close</button>
+          <button type="button" id="close-server-access" data-close-dialog="server-access-dialog">Close</button>
         </div>
       </form>
     </dialog>
@@ -1376,7 +1372,7 @@
               <label for="tls-use-staging">Use Let's Encrypt staging (testing only; browsers will not trust it)</label>
             </div>
             <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="tls-issue-letsencrypt" onclick="if(typeof window.issueLetsEncryptCertificate==='function')window.issueLetsEncryptCertificate()">Issue / renew certificate</button>
+              <button type="button" id="tls-issue-letsencrypt" data-action="issueLetsEncryptCertificate">Issue / renew certificate</button>
             </div>
           </div>
           <div id="tls-panel-selfsigned" class="tls-mode-panel" hidden>
@@ -1386,7 +1382,7 @@
               <input type="text" id="tls-selfsigned-host" placeholder="localhost" autocomplete="off">
             </div>
             <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="tls-generate-selfsigned" onclick="if(typeof window.generateSelfSignedCertificate==='function')window.generateSelfSignedCertificate()">Generate certificate</button>
+              <button type="button" id="tls-generate-selfsigned" data-action="generateSelfSignedCertificate">Generate certificate</button>
             </div>
           </div>
           <div class="form-group checkbox-container">
@@ -1396,8 +1392,8 @@
           <p class="setting-description">Certificates issued by Let's Encrypt or generated here are stored under the app data directory (Docker volume <code>./data</code>), not in the settings database.</p>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="save-https-settings" onclick="if(typeof window.saveHttpsSettingsFromDialog==='function')window.saveHttpsSettingsFromDialog()">Save and apply</button>
-          <button type="button" id="cancel-https-settings" onclick="document.getElementById('https-settings-dialog')?.close()">Cancel</button>
+          <button type="button" id="save-https-settings" data-action="saveHttpsSettingsFromDialog">Save and apply</button>
+          <button type="button" id="cancel-https-settings" data-close-dialog="https-settings-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1488,9 +1484,9 @@
           <small>Customize the system prompt used for tag generation. Reset restores the built-in default.</small>
         </div>
         <div class="dialog-buttons">
-          <button type="button" id="test-ai-config" onclick="event.preventDefault(); event.stopPropagation(); if(typeof window.testAIConfigFromDialog==='function'){ window.testAIConfigFromDialog(); }">Test</button>
-          <button type="button" id="save-ai-config" onclick="if(typeof window.saveAIConfigFromDialog==='function')window.saveAIConfigFromDialog()">Save</button>
-          <button type="button" id="cancel-ai-config" onclick="document.getElementById('ai-config-dialog')?.close()">Cancel</button>
+          <button type="button" id="test-ai-config">Test</button>
+          <button type="button" id="save-ai-config" data-action="saveAIConfigFromDialog">Save</button>
+          <button type="button" id="cancel-ai-config" data-close-dialog="ai-config-dialog">Cancel</button>
         </div>
         <div id="ai-config-result" class="result-message"></div>
       </form>
@@ -1531,7 +1527,7 @@
         </div>
         <div class="dialog-buttons">
           <button type="button" id="tag-preview-apply">Apply Selected Tags</button>
-          <button type="button" id="tag-preview-cancel" onclick="document.getElementById('tag-preview-dialog')?.close()">Cancel</button>
+          <button type="button" id="tag-preview-cancel" data-close-dialog="tag-preview-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1554,7 +1550,7 @@
         <div class="preview-header">
           <h3 id="preview-model-name">Model Preview</h3>
           <div class="preview-header-actions">
-            <button type="button" id="preview-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" onclick="if(typeof window.togglePreviewFullscreen==='function')window.togglePreviewFullscreen()">
+            <button type="button" id="preview-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="togglePreviewFullscreen">
               <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
               </svg>
@@ -1891,7 +1887,7 @@
           </div>
           <div class="dialog-buttons">
             <button type="submit" id="save-settings">Save</button>
-            <button type="button" id="cancel-settings" onclick="document.getElementById('settings-dialog')?.close()">Cancel</button>
+            <button type="button" id="cancel-settings" data-close-dialog="settings-dialog">Cancel</button>
           </div>
         </form>
       </dialog>
@@ -1931,14 +1927,14 @@
           </ul>
 
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('guide-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="guide-dialog">Close</button>
           </div>
         </form>
       </dialog>
       <dialog id="about-dialog" class="modal">
         <form method="dialog">
           <div class="about-header">
-            <button type="button" class="about-close-x" aria-label="Close" onclick="document.getElementById('about-dialog')?.close()">×</button>
+            <button type="button" class="about-close-x" aria-label="Close" data-close-dialog="about-dialog">×</button>
             <img src="logo.png" alt="Printventory Logo" class="about-logo">
             <h2>Printventory</h2>
             <p class="about-version-text" id="about-version">Version: Loading...</p>
@@ -2009,7 +2005,7 @@
             <div class="shortcut-row"><span class="shortcut-action">Italic in notes</span><kbd>Ctrl</kbd>+<kbd>I</kbd></div>
             <div class="shortcut-row"><span class="shortcut-action">Show this shortcuts dialog</span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>?</kbd></div>
           </div>
-          <button type="button" onclick="document.getElementById('keyboard-shortcuts-dialog')?.close()">Close</button>
+          <button type="button" data-close-dialog="keyboard-shortcuts-dialog">Close</button>
         </form>
       </dialog>
       <dialog id="server-mode-info-dialog" class="modal">
@@ -2092,7 +2088,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('server-mode-info-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="server-mode-info-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2174,7 +2170,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('stats-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="stats-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2192,7 +2188,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
               <div class="form-group">
                 <label>Database Restore</label>
                 <p class="setting-description">Restore your database from a previous backup. This will replace all current data.</p>
-                <button type="button" id="restore-button" class="full-width-button" onclick="if(typeof window.restoreBackupFromDialog==='function')window.restoreBackupFromDialog()">Restore from Backup</button>
+                <button type="button" id="restore-button" class="full-width-button" data-action="restoreBackupFromDialog">Restore from Backup</button>
               </div>
             </div>
             <div style="flex: 1;">
@@ -2200,17 +2196,17 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
               <div class="form-group">
                 <label>Library Export</label>
                 <p class="setting-description">Export your library (models and tags) as a JSON file for backup or sharing.</p>
-                <button type="button" id="export-library-button" class="full-width-button" onclick="if(typeof window.exportLibraryFromDialog==='function')window.exportLibraryFromDialog()">Export Library</button>
+                <button type="button" id="export-library-button" class="full-width-button" data-action="exportLibraryFromDialog">Export Library</button>
               </div>
               <div class="form-group">
                 <label>Library Import</label>
                 <p class="setting-description">Import a library JSON file to merge models and tags into your current library.</p>
-                <button type="button" id="import-library-button" class="full-width-button" onclick="if(typeof window.importLibraryFromDialog==='function')window.importLibraryFromDialog()">Import Library</button>
+                <button type="button" id="import-library-button" class="full-width-button" data-action="importLibraryFromDialog">Import Library</button>
               </div>
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" id="save-backup-restore" onclick="document.getElementById('backup-restore-dialog')?.close()">Close</button>
+            <button type="button" id="save-backup-restore" data-close-dialog="backup-restore-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2222,7 +2218,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
               <h3>🧵 Filament Manager</h3>
               <div class="filament-header-actions">
                 <button type="button" id="spoolman-setup-toggle" class="filament-header-btn" aria-expanded="false" aria-controls="spoolman-setup-panel">Spoolman Setup</button>
-                <button type="button" id="filament-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" onclick="if(typeof window.toggleFilamentManagerFullscreen==='function')window.toggleFilamentManagerFullscreen()">
+                <button type="button" id="filament-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="toggleFilamentManagerFullscreen">
                   <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
                   </svg>
@@ -2308,7 +2304,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
           </div>
 
           <div class="dialog-buttons">
-            <button type="button" id="filament-manager-close" class="filament-btn-close" onclick="document.getElementById('filament-manager-dialog')?.close()">Close</button>
+            <button type="button" id="filament-manager-close" class="filament-btn-close" data-close-dialog="filament-manager-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2317,7 +2313,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
         <div class="printer-management-header">
           <div class="printer-management-header-row">
             <h3>🖨️ Printer Manager</h3>
-            <button type="button" id="printer-management-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" onclick="if(typeof window.togglePrinterManagementFullscreen==='function')window.togglePrinterManagementFullscreen()">
+            <button type="button" id="printer-management-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="togglePrinterManagementFullscreen">
               <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
               </svg>
@@ -2591,7 +2587,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
           <div class="parts-stock-header">
             <div class="parts-stock-header-row">
               <h3>🔩 Parts Manager</h3>
-              <button type="button" id="parts-stock-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" onclick="if(typeof window.togglePartsStockFullscreen==='function')window.togglePartsStockFullscreen()">
+              <button type="button" id="parts-stock-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="togglePartsStockFullscreen">
                 <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
                 </svg>
@@ -2674,7 +2670,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
         <form method="dialog">
           <div class="modal-header-row">
             <h3>Tag Manager</h3>
-            <button type="button" id="tag-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" onclick="if(typeof window.toggleTagManagerFullscreen==='function')window.toggleTagManagerFullscreen()">
+            <button type="button" id="tag-manager-fullscreen-toggle" class="icon-button modal-fullscreen-icon-btn" title="Full Screen" aria-label="Full Screen" aria-pressed="false" data-action="toggleTagManagerFullscreen">
               <svg class="fullscreen-icon-expand" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
               </svg>
@@ -2702,7 +2698,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('tag-manager-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="tag-manager-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2726,7 +2722,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('metadata-editor-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="metadata-editor-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2779,7 +2775,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('system-report-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="system-report-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2794,7 +2790,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
             </div>
           </div>
           <div class="dialog-buttons">
-            <button type="button" onclick="document.getElementById('manage-thumbnails-dialog')?.close()">Close</button>
+            <button type="button" data-close-dialog="manage-thumbnails-dialog">Close</button>
           </div>
         </form>
       </dialog>
@@ -2804,7 +2800,7 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
     <div class="spinner">
       <div class="loader"></div>
       <p>Loading model database...</p>
-      <button id="continue-anyways" onclick="document.getElementById('loading-overlay').style.display='none'"><strong>CONTINUE ANYWAYS</strong><br><i>MAY IMPACT PERFORMANCE</i></button>
+      <button id="continue-anyways"><strong>CONTINUE ANYWAYS</strong><br><i>MAY IMPACT PERFORMANCE</i></button>
     </div>
   </div>
 
@@ -2827,53 +2823,9 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
     </div>
   </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById("dup-button").addEventListener("click", function() {
-        window.electron.send('open-dedup');
-      });
-      document.getElementById("tag-button").addEventListener("click", function() {
-        window.electron.send('open-tag-manager');
-      });
-      document.getElementById("filament-button").addEventListener("click", function() {
-        window.electron.send('open-filament-manager');
-      });
-      document.getElementById("roulette-button").addEventListener("click", function() {
-        window.electron.send('start-print-roulette');
-      });
-    });
-  </script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const loadingMessageElem = document.querySelector("#loading-overlay .spinner p");
-      const messages = [
-        "Layering up your models...",
-        "Slicing through the data...",
-        "Extruding models for you...",
-        "Assembling your assets...",
-        "Loading model database...",
-        "Rendering your repositories...",
-        "Constructing your creations...",
-        "Manifesting your models...",
-        "Loading your models...",
-        "Preparing your prints...",
-        "Optimizing your assets...",
-        "Compiling your collections..."
-      ];
-
-      const intervalId = setInterval(() => {
-        // If the loading overlay is hidden, stop cycling messages
-        if (!loadingMessageElem || loadingMessageElem.offsetParent === null) {
-          clearInterval(intervalId);
-          return;
-        }
-        const randomIndex = Math.floor(Math.random() * messages.length);
-        loadingMessageElem.textContent = messages[randomIndex];
-      }, 5000);
-    });
-  </script>
   <script src="thumbnail-progress.js"></script>
   <script src="slicer-protocol.js"></script>
+  <script src="server-bridge.js"></script>
   <script src="preview.js"></script>
   <script src="query-builder.js"></script>
   <script src="grid-refresh.js"></script>
@@ -2912,14 +2864,6 @@ docker run -d --name printventory-server -p 5000:5000 -v printventory-data:/root
       </div>
     </div>
   </template>
-  <script>
-    document.getElementById('dismiss-welcome')?.addEventListener('click', () => {
-      const welcomeDialog = document.getElementById('welcome-message');
-      welcomeDialog.close();
-      setTimeout(() => {
-        showGuide();
-      }, 500);
-    });
-  </script>
+  <script src="page-init.js"></script>
 </body>
 </html>
