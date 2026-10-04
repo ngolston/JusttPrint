@@ -187,7 +187,8 @@ const openFileInSlicerHandler = async (event, options = {}) => {
   }
 
   const command = slicerCommand(slicer, paths);
-  if (event && event.wsClient) {
+  // A browser asked: it opens the command itself. MCP: send it to the open browsers.
+  if (event && event.fromNetwork) {
     return { success: true, count: paths.length, command };
   }
   events.broadcast('execute-client-command', command);
