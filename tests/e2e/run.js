@@ -486,11 +486,11 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => document.getElementById('about-dialog').showModal());
     await page.click('#about-dialog [data-close-dialog="about-dialog"]');
     check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
-    await page.evaluate(() => document.getElementById('printer-management-dialog').showModal());
-    await page.click('#printer-management-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('printer-management-dialog').classList.contains('modal-fullscreen')));
-    await page.click('#printer-management-fullscreen-toggle');
-    await page.evaluate(() => document.getElementById('printer-management-dialog').close());
+    await page.evaluate(() => document.getElementById('dedup-dialog').showModal());
+    await page.click('#dedup-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('dedup-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#dedup-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('dedup-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -690,6 +690,62 @@ async function browserChecks(base, wsUrl, session) {
     }
     await page.click('#filament-manager-close');
     check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
+
+    // Printer Manager (React): add, edit, maintenance reminders and log, delete.
+    const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
+    await page.evaluate(() => window.openPrinterManagement());
+    check('Printer Manager opens', await page.isVisible('#printer-management-dialog'));
+    await page.click('#printer-toggle-add-btn');
+    await page.fill('#printer-form-nickname', 'E2E Voron');
+    await page.selectOption('#printer-form-firmware', 'Marlin');
+    check('choosing non-Klipper firmware unticks Klipper', !(await page.isChecked('#printer-form-klipper')));
+    await page.fill('#printer-form-web-url', 'voron.local');
+    await page.click('#printer-form-submit');
+    const printerCard = await page.waitForSelector('#printer-cards-list .printer-card:has-text("E2E Voron")', { timeout: 10000 }).catch(() => null);
+    let voron = (await serverPrinters()).find((p) => p.nickname === 'E2E Voron');
+    check('Printer Manager adds a printer', !!printerCard && voron && voron.firmware_type === 'Marlin' && voron.web_url === 'http://voron.local', JSON.stringify(voron));
+    if (voron) {
+      const card = `#printer-cards-list .printer-card[data-printer-id="${voron.id}"]`;
+      await page.click(`${card} .printer-action-btn:has-text("Edit")`);
+      check('Edit fills the printer form', (await page.textContent('#printer-form-title')) === 'Edit Printer: E2E Voron' && (await page.inputValue('#printer-form-nickname')) === 'E2E Voron');
+      await page.fill('#printer-form-model', '2.4r2');
+      await page.click('#printer-form-submit');
+      await page.waitForSelector(`${card}:has-text("2.4r2")`, { timeout: 10000 }).catch(() => {});
+      voron = (await serverPrinters()).find((p) => p.id === voron.id);
+      check('Printer Manager saves an edit', voron && voron.model === '2.4r2');
+      await page.click(`${card} .printer-action-btn.maintenance`);
+      check('Maintenance opens for that printer', await page.isVisible('#printer-view-maintenance') && (await page.inputValue('#maintenance-printer-select')) === String(voron.id));
+      await page.fill('#reminder-form-title', 'E2E grease rails');
+      await page.selectOption('#reminder-form-interval', '30');
+      await page.click('#reminder-form button[type=submit]');
+      const reminderItem = await page.waitForSelector('#maintenance-reminders-list .reminder-item:has-text("E2E grease rails")', { timeout: 10000 }).catch(() => null);
+      check('a reminder is scheduled', !!reminderItem && /Repeats every 30 days/.test(await reminderItem.textContent()));
+      await page.fill('#log-form-title', 'E2E swapped nozzle');
+      await page.click('#log-maintenance-form button[type=submit]');
+      const logItem = await page.waitForSelector('#maintenance-logs-list .log-item:has-text("E2E swapped nozzle")', { timeout: 10000 }).catch(() => null);
+      check('maintenance is logged', !!logItem);
+      if (reminderItem) {
+        await page.click('#maintenance-reminders-list .reminder-item:has-text("E2E grease rails") .reminder-done-btn');
+        const notesInput = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+        if (notesInput) {
+          await notesInput.fill('E2E done notes');
+          await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+        }
+        const logs = await waitFor(async () => {
+          const list = (await invoke(base, session, 'get-printer-maintenance-logs', [voron.id])).result || [];
+          return list.length >= 2 ? list : null;
+        }, 10000, 'completed reminder log').catch(() => []);
+        check('completing a reminder asks for notes and records it', !!notesInput && logs.length >= 2, JSON.stringify(logs.map((l) => l.title)));
+      }
+      await page.click('#printer-tab-printers');
+      await page.click(`${card} .printer-action-btn.danger`);
+      const confirmDelete = await page.waitForSelector('dialog[open]:has-text("Delete Printer") button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmDelete) await confirmDelete.click();
+      await page.waitForSelector(card, { state: 'detached', timeout: 10000 }).catch(() => {});
+      check('Printer Manager deletes a printer after asking', !!confirmDelete && !(await serverPrinters()).some((p) => p.id === voron.id));
+    }
+    await page.click('#printer-management-close');
+    check('Printer Manager closes', !(await page.isVisible('#printer-management-dialog')));
 
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));

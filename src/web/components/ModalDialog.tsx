@@ -17,6 +17,12 @@ interface ModalDialogProps {
   /** Class names for the header, when a dialog has its own header styles. */
   headerClassName?: string;
   headerRowClassName?: string;
+  footerClassName?: string;
+  /**
+   * No <form method="dialog"> around the content: header, content and footer are the dialog's
+   * direct children (for dialogs whose CSS lays them out, or that hold forms of their own).
+   */
+  plain?: boolean;
   onClose?: () => void;
 }
 
@@ -26,7 +32,7 @@ interface ModalDialogProps {
  */
 export function ModalDialog({
   id, title, dialogRef, children, footer, fullscreenToggle, headerActions, headerActionsClassName, description,
-  headerClassName, headerRowClassName = 'modal-header-row', onClose
+  headerClassName, headerRowClassName = 'modal-header-row', footerClassName = 'dialog-buttons', plain, onClose
 }: ModalDialogProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const toggleLabel = fullscreen ? 'Exit Full Screen' : 'Full Screen';
@@ -52,6 +58,20 @@ export function ModalDialog({
     </div>
   );
 
+  const content = (
+    <>
+      {headerClassName ? (
+        <div className={headerClassName}>{headerRow}{description}</div>
+      ) : (
+        <>{headerRow}{description}</>
+      )}
+      {children}
+      <div className={footerClassName}>
+        {footer ?? <button type="button" onClick={() => dialogRef.current?.close()}>Close</button>}
+      </div>
+    </>
+  );
+
   return (
     <dialog
       id={id}
@@ -62,17 +82,9 @@ export function ModalDialog({
         onClose?.();
       }}
     >
-      <form method="dialog" onSubmit={(event) => event.preventDefault()}>
-        {headerClassName ? (
-          <div className={headerClassName}>{headerRow}{description}</div>
-        ) : (
-          <>{headerRow}{description}</>
-        )}
-        {children}
-        <div className="dialog-buttons">
-          {footer ?? <button type="button" onClick={() => dialogRef.current?.close()}>Close</button>}
-        </div>
-      </form>
+      {plain ? content : (
+        <form method="dialog" onSubmit={(event) => event.preventDefault()}>{content}</form>
+      )}
     </dialog>
   );
 }

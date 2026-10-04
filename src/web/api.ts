@@ -123,3 +123,64 @@ export const filaments = {
   syncSpoolman: (url: string, token: string) =>
     callAction<{ total: number; created: number; updated: number }>('sync-spoolman-filaments', url, token)
 };
+
+export interface Printer {
+  id: number;
+  nickname: string;
+  manufacturer: string | null;
+  model: string | null;
+  printer_type: string | null;
+  firmware_type: string | null;
+  is_klipper: number;
+  web_url: string | null;
+  notes: string | null;
+  total_prints?: number;
+  due_reminders_count?: number;
+}
+
+export interface PrinterInput {
+  id: number | null;
+  nickname: string;
+  manufacturer: string | null;
+  model: string | null;
+  printerType: string | null;
+  firmwareType: string | null;
+  isKlipper: boolean;
+  webUrl: string | null;
+  notes: string | null;
+}
+
+export interface PrinterReminder {
+  id: number;
+  printer_id: number;
+  title: string;
+  maintenance_type: string | null;
+  due_date: string;
+  interval_days: number;
+  notes: string | null;
+  status: 'pending' | 'completed' | string;
+}
+
+export interface MaintenanceLog {
+  id: number;
+  printer_id: number;
+  maintenance_type: string;
+  title: string | null;
+  description: string | null;
+  performed_at: string;
+}
+
+export const printers = {
+  list: () => callAction<Printer[]>('get-all-printers'),
+  save: (printer: PrinterInput) => callAction<Printer>('save-printer', printer),
+  remove: (id: number) => callAction<unknown>('delete-printer', id),
+  reminders: (printerId: number) => callAction<PrinterReminder[]>('get-printer-reminders', printerId),
+  saveReminder: (reminder: { printerId: number; title: string; maintenanceType: string; dueDate: string; intervalDays: number; notes: string | null }) =>
+    callAction<PrinterReminder>('save-printer-reminder', reminder),
+  completeReminder: (id: number, notes: string) => callAction<unknown>('complete-printer-reminder', { id, notes }),
+  removeReminder: (id: number) => callAction<unknown>('delete-printer-reminder', id),
+  logs: (printerId: number) => callAction<MaintenanceLog[]>('get-printer-maintenance-logs', printerId),
+  saveLog: (entry: { printerId: number; maintenanceType: string; title: string; performedAt: string; description: string | null }) =>
+    callAction<MaintenanceLog>('save-printer-maintenance-log', entry),
+  removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id)
+};

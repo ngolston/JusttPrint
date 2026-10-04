@@ -426,20 +426,6 @@ window.saveFileTypeSettingsFromDialog = async function saveFileTypeSettingsFromD
 };
 
 // Modal fullscreen toggles (exposed early so icons work in Docker/server mode)
-window.syncPrinterManagementFullscreenButton = function syncPrinterManagementFullscreenButton(isFullscreen) {
-  const btn = document.getElementById('printer-management-fullscreen-toggle');
-  if (!btn) return;
-  const full = !!isFullscreen;
-  btn.title = full ? 'Exit Full Screen' : 'Full Screen';
-  btn.setAttribute('aria-label', btn.title);
-  btn.setAttribute('aria-pressed', full ? 'true' : 'false');
-};
-window.togglePrinterManagementFullscreen = function togglePrinterManagementFullscreen() {
-  const dialog = document.getElementById('printer-management-dialog');
-  if (!dialog) return;
-  dialog.classList.toggle('modal-fullscreen');
-  window.syncPrinterManagementFullscreenButton(dialog.classList.contains('modal-fullscreen'));
-};
 window.toggleDedupFullscreen = function toggleDedupFullscreen() {
   const dialog = document.getElementById('dedup-dialog');
   const btn = document.getElementById('dedup-fullscreen-toggle');

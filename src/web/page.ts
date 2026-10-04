@@ -8,6 +8,8 @@ declare global {
     electron?: {
       /** In-page message dialog (server-bridge.js). Resolves to the clicked button's label. */
       showMessage?: (title: string, message: string, buttons?: string[]) => Promise<string>;
+      /** In-page text prompt (server-bridge.js). Resolves to the text, or null when cancelled. */
+      showInputDialog?: (options: { title?: string; message?: string; defaultValue?: string; placeholder?: string }) => Promise<string | null>;
     };
     /** renderer.js: refresh tag pickers, the tag filter, the open model's tags and the grid. */
     refreshTagRelatedUi?: () => Promise<void>;
@@ -29,6 +31,12 @@ export async function showMessage(title: string, message: string, buttons: strin
     return buttons[0];
   }
   return window.confirm(`${title}\n\n${message}`) ? buttons[0] : buttons[buttons.length - 1];
+}
+
+/** Ask for a line of text with the page's in-page prompt. Resolves to null when cancelled. */
+export async function askText(title: string, message: string, defaultValue = ''): Promise<string | null> {
+  if (window.electron?.showInputDialog) return window.electron.showInputDialog({ title, message, defaultValue });
+  return window.prompt(`${title}\n\n${message}`, defaultValue);
 }
 
 export async function refreshTagRelatedUi(): Promise<void> {

@@ -12,6 +12,7 @@ All notable changes contributed via pull request are documented in this file.
 - **Tag Manager** is rebuilt in React: create, rename inline (renaming onto an existing name merges the two after asking), search, delete, full screen.
 - **Parts Manager** is rebuilt in React: add, edit, step or type quantities, low-stock flags, search, remove. Removing a part now asks in the app's own dialog, and "Part saved." is no longer hidden when the form collapses.
 - **Filament Manager** is rebuilt in React: add filaments (with a color picker), Spoolman setup, test and sync, search, remove (asked in the app's own dialog). Assigning filaments to models is unchanged.
+- **Printer Manager** is rebuilt in React: onboard and edit printers, open their web interfaces, schedule and complete maintenance reminders, and keep a maintenance log. Confirmations and the notes prompt use the app's own dialogs instead of the browser's, and "Printer added" is no longer hidden when the form collapses.
 - Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
 - Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
 - Backups use SQLite's online backup, so the database stays open while a backup is written.

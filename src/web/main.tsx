@@ -7,6 +7,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
+import { PrinterManagerDialog } from './PrinterManagerDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 
@@ -17,6 +18,7 @@ function Screens() {
       <TagManagerDialog />
       <PartsManagerDialog />
       <FilamentManagerDialog />
+      <PrinterManagerDialog />
     </>
   );
 }
