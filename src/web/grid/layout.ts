@@ -372,3 +372,26 @@ export function scrollTopForSelection(layout: Layout, viewportHeight: number, is
   const centered = row.top - Math.max(0, (viewportHeight - row.height) / 2);
   return Math.max(0, Math.min(centered, Math.max(0, layout.totalHeight - viewportHeight)));
 }
+
+/**
+ * Thumbnail queue priority for a cell: on-screen cells by distance from the top of the view,
+ * then cells below the view, then cells above it. Lower runs first.
+ */
+export function thumbnailPriority(scrollTop: number, viewportHeight: number, itemTop: number, itemHeight: number, column = 0): number {
+  const EPS = 1;
+  if (itemTop + itemHeight <= scrollTop + EPS) return 3e9 + itemTop + column * 1e-6;
+  if (itemTop >= scrollTop + viewportHeight - EPS) return 2e9 + itemTop + column * 1e-6;
+  return itemTop - scrollTop + column * 1e-6;
+}
+
+/** CSS classes that join the children of an expanded group into one band. */
+export function groupBandClasses(records: DisplayRecord[], index: number): string[] {
+  const record = records[index];
+  const key = record?.type === 'model' ? record.parentGroupKey : undefined;
+  if (!key) return [];
+  const sameGroup = (other: DisplayRecord | undefined) => other?.type === 'model' && other.parentGroupKey === key;
+  const before = sameGroup(records[index - 1]);
+  const after = sameGroup(records[index + 1]);
+  const position = !before && !after ? 'single' : !before ? 'start' : !after ? 'end' : 'middle';
+  return ['parent-model-group-child', `parent-model-group-child-${position}`];
+}

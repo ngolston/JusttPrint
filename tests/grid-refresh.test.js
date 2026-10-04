@@ -46,28 +46,6 @@ test('detailed and preview keep a selection in view', () => {
   assert.strictEqual(gridRefresh.shouldFocusSelectionOnViewSwitch('detailed', 'list', true), false);
   assert.strictEqual(gridRefresh.shouldFocusSelectionOnViewSwitch('preview', 'detailed', false), false);
 
-  const layout = {
-    totalHeight: 4000,
-    rows: [
-      { type: 'models', top: 10, height: 200, records: [{ type: 'model', model: { filePath: 'a.stl' } }] },
-      {
-        type: 'models',
-        top: 1800,
-        height: 200,
-        records: [
-          { type: 'group', children: [{ filePath: 'grouped.stl' }] },
-          { type: 'model', model: { filePath: 'b.stl' } }
-        ]
-      }
-    ]
-  };
-  const selected = (filePath) => filePath === 'b.stl';
-  assert.strictEqual(gridRefresh.scrollTopForSelectedLayout(layout, 600, selected), 1600);
-  assert.strictEqual(
-    gridRefresh.scrollTopForSelectedLayout(layout, 600, (filePath) => filePath === 'grouped.stl'),
-    1600
-  );
-  assert.strictEqual(gridRefresh.scrollTopForSelectedLayout(layout, 600, () => false), null);
 });
 
 test('progressive render holds a short page only while preserving scroll', () => {
@@ -177,7 +155,9 @@ test('renderer wires off-screen patches to a coalesced scroll-preserving refresh
   assert.ok(renderer.includes('window.gridRefresh.createCoalescedRefresh'));
   assert.ok(renderer.includes('performCombinedSearch({ preserveScroll: true })'));
   assert.ok(renderer.includes('shouldFocusSelectionOnViewSwitch'));
-  assert.ok(renderer.includes('scrollTopForSelectedLayout'));
+  // Centering the selection moved to the React grid (src/web/grid/layout.ts, tested there).
+  const grid = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'grid', 'LibraryGrid.tsx'), 'utf8');
+  assert.ok(grid.includes('scrollTopForSelection('));
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const gridAt = html.indexOf('src="grid-refresh.js"');
   const searchAt = html.indexOf('src="search.js"');

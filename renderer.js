@@ -366,50 +366,12 @@ let currentGridView = 'detailed'; // Current grid view mode: 'list', 'preview', 
 /** Preview wall tile size: small / medium / large (persisted as previewTileSize). */
 let currentPreviewTileSize = 'm';
 const PREVIEW_TILE_PX = { s: 140, m: 180, l: 240 };
-const PREVIEW_COLUMNS = { s: 10, m: 6, l: 4 };
-const PREVIEW_COLUMNS_MOBILE = { s: 3, m: 2, l: 2 };
-
-function mobileListMetrics() {
-  if (!document.body?.classList.contains('mobile-ui')) return null;
-  return { height: 64, gap: 12, headerOffset: 52 };
-}
 
 function mobileLibraryColumns() {
   if (!document.body?.classList.contains('mobile-ui')) return 0;
   if (document.body.classList.contains('mobile-ui-wide')) return 3;
   if (window.matchMedia('(orientation: landscape)').matches) return 3;
   return 2;
-}
-
-function mobileDetailedMetrics(containerWidth) {
-  const cols = Math.max(1, mobileLibraryColumns() || 2);
-  const pad = 8;
-  const gap = 8;
-  const available = Math.max(0, containerWidth - pad * 2);
-  const width = Math.max(96, Math.floor((available - gap * (cols - 1)) / cols));
-  const thumb = Math.max(80, width - 12);
-  return { cols, pad, gap, width, height: thumb + 40, thumb };
-}
-
-function previewColumnCount() {
-  const mobileCols = mobileLibraryColumns();
-  if (mobileCols) return mobileCols;
-  return PREVIEW_COLUMNS[currentPreviewTileSize] || PREVIEW_COLUMNS.m;
-}
-
-/**
- * Fixed preview columns per size; tile dimension scales to fill row width.
- * S → 10 columns; M → 6 columns; L → 4 columns.
- */
-function computePreviewTilePxFromWidth(availableWidth, horizontalGap = 2) {
-  const g = horizontalGap;
-  const aw = Math.max(0, availableWidth);
-  const cols = previewColumnCount();
-  if (cols <= 0) return PREVIEW_TILE_PX.m;
-
-  // Use fixed column count and scale tile so the row fills available width.
-  const computed = Math.floor((aw - (cols - 1) * g) / cols);
-  return Math.max(1, computed);
 }
 
 function getPreviewTileSizePx() {
@@ -423,11 +385,6 @@ function getPreviewTileSizePx() {
     return grid._previewTilePx;
   }
   return PREVIEW_TILE_PX[currentPreviewTileSize] || PREVIEW_TILE_PX.m;
-}
-
-function getPreviewTileDims() {
-  const tile = getPreviewTileSizePx();
-  return { width: tile, height: tile, itemWidth: tile };
 }
 
 // Per-folder view preference (when "View Entire Library" is off): remember list/preview/detailed per scanned root
@@ -492,33 +449,12 @@ function persistGridViewPreference(view) {
   }
 }
 
-function invalidateVirtualGridRenderer(container) {
-  if (!container) return;
-  container._gridRenderGeneration = (container._gridRenderGeneration || 0) + 1;
-  if (container.resizeObserver) {
-    try { container.resizeObserver.disconnect(); } catch (_) { /* ignore */ }
-    container.resizeObserver = null;
-  }
-  if (container.virtualScrollHandler) {
-    container.removeEventListener('scroll', container.virtualScrollHandler);
-    container.virtualScrollHandler = null;
-  }
-  container.renderVisibleItemsFn = null;
-  container.pendingModels = null;
-  container.isRendering = false;
-}
-
+/** Re-show the grid from models already loaded (view or tile size changed). False when there are none. */
 function rebuildVirtualGridFromCache(container, cachedModels) {
-  invalidateVirtualGridRenderer(container);
   if (typeof closeListViewColumnsPopover === 'function') {
     closeListViewColumnsPopover();
   }
-  if (container) {
-    clearFileItemPathIndex();
-    container.innerHTML = '';
-    container.currentModels = null;
-    container.currentDisplayRecords = null;
-  }
+  if (container) container.currentModels = null;
   if (cachedModels && cachedModels.length > 0) {
     renderVirtualGrid(cachedModels);
     return true;
@@ -816,18 +752,6 @@ function effectiveMaxConcurrentRenders() {
   return renderQueueHasOnlyLowPriorityWork()
     ? Math.min(MAX_CONCURRENT_RENDERS, MAX_CONCURRENT_RENDERS_BACKGROUND)
     : MAX_CONCURRENT_RENDERS;
-}
-
-function computeThumbPriorityForScroll(scrollTop, clientHeight, itemContentY, itemHeight, col = 0) {
-  const EPS = 1;
-  const itemBottom = itemContentY + itemHeight;
-  if (itemBottom <= scrollTop + EPS) {
-    return 3e9 + itemContentY + col * 1e-6;
-  }
-  if (itemContentY >= scrollTop + clientHeight - EPS) {
-    return 2e9 + itemContentY + col * 1e-6;
-  }
-  return itemContentY - scrollTop + col * 1e-6;
 }
 
 function refreshThumbnailQueuePriorities() {
@@ -6310,11 +6234,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // After Purge Models (src/web/PurgeModelsDialog.tsx): empty the grid and counts, and reset the filters.
   window.afterModelsPurged = async function afterModelsPurged() {
-    const container = document.querySelector('.file-grid');
-    if (container) {
-      clearFileItemPathIndex();
-      container.innerHTML = '';
-    }
+    clearFileItemPathIndex();
+    renderVirtualGrid([]);
     await updateModelCounts(0);
     for (const [id, value] of [['designer-select', ''], ['parent-select', ''], ['printed-select', 'all'], ['new-select', 'all'], ['tag-filter', ''], ['filament-filter', '']]) {
       const select = document.getElementById(id);
@@ -15941,7 +15862,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ==================== NEW CODE: Virtual Grid Implementation ====================
 
 /**
  * Grid queries omit the full `thumbnail` blob (only hasThumbnail / hasMultipleThumbnails).
@@ -17862,11 +17782,10 @@ function isProgressiveModelListExtension(prevModels, nextModels) {
 const parentModelExpandedGroups = new Set();
 const zipArchiveExpandedGroups = new Set();
 const bundleExpandedGroups = new Set();
-let virtualGridGroupLayoutGen = 0;
 
-function invalidateVirtualGridLayoutCache(container = document.querySelector('.file-grid')) {
-  virtualGridGroupLayoutGen += 1;
-  if (container) container._virtualLayoutCache = null;
+/** Group expanded or collapsed: lay the grid out again. */
+function invalidateVirtualGridLayoutCache() {
+  window.libraryGrid?.refresh();
 }
 let groupThumbnailPreferencesLoaded = false;
 let groupThumbnailPreferencesLoading = null;
@@ -17947,217 +17866,6 @@ function getParentModelGroupLabel(model) {
 
 function getParentModelGroupKey(parentModel) {
   return String(parentModel || '').trim().toLocaleLowerCase();
-}
-
-function getModelRenderKey(model) {
-  if (!model) return '';
-  if (model.id != null && model.id !== '') return `id:${model.id}`;
-  return `path:${model.filePath || ''}`;
-}
-
-function getParentModelGroupHeight(view) {
-  if (view === 'list') return mobileListMetrics()?.height || 52;
-  if (view === 'preview') return getPreviewTileSizePx();
-  return 450;
-}
-
-function getZipArchiveGroupLabel(model) {
-  const parsed = parseZipPath(model?.filePath || '');
-  if (!parsed.isZipEntry || !parsed.zipPath) return '';
-  const normalized = String(parsed.zipPath).replace(/\\/g, '/');
-  const parts = normalized.split('/').filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : '';
-}
-
-function getZipArchiveGroupKey(model) {
-  const parsed = parseZipPath(model?.filePath || '');
-  if (!parsed.isZipEntry || !parsed.zipPath) return '';
-  return normalizePathForComparison(parsed.zipPath);
-}
-
-function buildGroupedDisplayRecords(records, options) {
-  const {
-    groupKind,
-    keyPrefix,
-    expandedSet,
-    getGroupLabelFromModel,
-    getGroupKeyFromModel
-  } = options || {};
-
-  const groupedRecords = [];
-  const recordIndexByGroupKey = new Map();
-
-  (records || []).forEach(record => {
-    if (!record || record.type !== 'model' || !record.model) {
-      groupedRecords.push(record);
-      return;
-    }
-
-    const groupLabel = getGroupLabelFromModel(record.model);
-    const groupKeyRaw = getGroupKeyFromModel(record.model);
-    if (!groupLabel || !groupKeyRaw) {
-      groupedRecords.push(record);
-      return;
-    }
-
-    const groupKey = `${keyPrefix}:${groupKeyRaw}`;
-    const existingIndex = recordIndexByGroupKey.get(groupKey);
-    if (existingIndex == null) {
-      groupedRecords.push(record);
-      recordIndexByGroupKey.set(groupKey, groupedRecords.length - 1);
-      return;
-    }
-
-    const existingRecord = groupedRecords[existingIndex];
-    if (existingRecord?.type === 'model') {
-      groupedRecords[existingIndex] = {
-        type: 'group',
-        key: `group:${groupKey}`,
-        groupKind,
-        groupKey,
-        groupLabel,
-        children: [existingRecord.model, record.model]
-      };
-      return;
-    }
-
-    if (existingRecord?.type === 'group') {
-      existingRecord.children.push(record.model);
-    }
-  });
-
-  const flattened = [];
-  groupedRecords.forEach(record => {
-    if (record.type !== 'group') {
-      flattened.push(record);
-      return;
-    }
-    if ((record.children || []).length <= 1) {
-      const onlyModel = (record.children || [])[0];
-      if (onlyModel) {
-        flattened.push({
-          type: 'model',
-          key: `model:${getModelRenderKey(onlyModel)}`,
-          model: onlyModel
-        });
-      }
-      return;
-    }
-
-    const expanded = expandedSet.has(record.groupKey);
-    flattened.push({ ...record, expanded });
-    if (expanded) {
-      record.children.forEach(model => {
-        flattened.push({
-          type: 'model',
-          key: `child:${record.groupKey}:${getModelRenderKey(model)}`,
-          model,
-          parentGroupKey: record.groupKey
-        });
-      });
-    }
-  });
-
-  return flattened;
-}
-
-function buildParentModelDisplayRecords(models) {
-  const records = [];
-  const seenModelKeys = new Set();
-
-  (models || []).forEach((model, index) => {
-    let dedupeKey = getGridModelDedupeKey(model);
-    if (!dedupeKey) dedupeKey = `__row__:${index}`;
-    if (seenModelKeys.has(dedupeKey)) {
-      return;
-    }
-    seenModelKeys.add(dedupeKey);
-
-    const modelRenderKey = getModelRenderKey(model);
-
-    records.push({
-      type: 'model',
-      key: `model:${modelRenderKey}`,
-      model
-    });
-  });
-
-  const bundleGroupedRecords = buildGroupedDisplayRecords(records, {
-    groupKind: 'bundle',
-    keyPrefix: 'bundle',
-    expandedSet: bundleExpandedGroups,
-    getGroupLabelFromModel: getBundleGroupLabel,
-    getGroupKeyFromModel: getBundleGroupKey
-  });
-
-  return buildGroupedDisplayRecords(bundleGroupedRecords, {
-    groupKind: 'parentModel',
-    keyPrefix: 'parent',
-    expandedSet: parentModelExpandedGroups,
-    getGroupLabelFromModel: getParentModelGroupLabel,
-    getGroupKeyFromModel: (model) => getParentModelGroupKey(getParentModelGroupLabel(model))
-  });
-}
-
-function buildParentModelLayoutRows(displayRecords, columns, view, itemHeight, paddingVertical, verticalGap) {
-  const rows = [];
-  let currentModelRow = [];
-
-  const flushModelRow = () => {
-    if (currentModelRow.length === 0) return;
-    rows.push({
-      type: 'models',
-      key: `models:${currentModelRow.map(record => record.key).join('|')}`,
-      records: currentModelRow,
-      height: itemHeight
-    });
-    currentModelRow = [];
-  };
-
-  displayRecords.forEach(record => {
-    if (record.type === 'group' && (record.children || []).length <= 1) {
-      const onlyModel = (record.children || [])[0];
-      if (onlyModel) {
-        currentModelRow.push({
-          type: 'model',
-          key: `model:${getModelRenderKey(onlyModel)}`,
-          model: onlyModel
-        });
-        if (currentModelRow.length >= columns) {
-          flushModelRow();
-        }
-      }
-      return;
-    }
-
-    if (record.type === 'group' && view === 'list') {
-      flushModelRow();
-      rows.push({
-        type: 'group',
-        key: record.key,
-        record,
-        height: getParentModelGroupHeight(view)
-      });
-      return;
-    }
-
-    currentModelRow.push(record);
-    if (currentModelRow.length >= columns) {
-      flushModelRow();
-    }
-  });
-
-  flushModelRow();
-
-  let top = paddingVertical;
-  rows.forEach((row, index) => {
-    row.top = top;
-    row.bottom = top + row.height;
-    top = row.bottom + (index < rows.length - 1 ? verticalGap : 0);
-  });
-
-  const totalHeight = rows.length > 0 ? rows[rows.length - 1].bottom + paddingVertical : paddingVertical * 2;
-  return { rows, totalHeight };
 }
 
 /** Cap group-card carousels so large folders don't become 1/500+ counters. */
@@ -19167,60 +18875,32 @@ function createParentModelGroupItem(groupRecord, viewMode = null) {
   return item;
 }
 
-// Virtual grid function—renders only items visible in the scroll window.
+// The grid is React (src/web/grid/LibraryGrid.tsx): it lays out and virtualizes the cards.
+// renderVirtualGrid hands it the model list; window.gridHost builds and syncs the cards, which
+// are still made here (createModelItem, createParentModelGroupItem).
 function renderVirtualGrid(models) {
   const container = document.querySelector('.file-grid');
   if (!container) return;
 
-  const previousVirtualView = container._virtualGridView;
-  const gridViewForThisRender = currentGridView;
-  const viewStructureChanged = !!(previousVirtualView && previousVirtualView !== gridViewForThisRender);
-  if (
+  const previousView = container._virtualGridView;
+  const view = currentGridView;
+  const viewChanged = !!(previousView && previousView !== view);
+  const focusSelection = !!(
     window.gridRefresh &&
-    window.gridRefresh.shouldFocusSelectionOnViewSwitch(
-      previousVirtualView,
-      gridViewForThisRender,
-      selectedModels.size > 0
-    )
-  ) {
-    container._focusSelectedOnPaint = true;
-  } else if (viewStructureChanged) {
-    container._focusSelectedOnPaint = false;
-  }
+    window.gridRefresh.shouldFocusSelectionOnViewSwitch(previousView, view, selectedModels.size > 0)
+  );
 
   models = dedupeModelsForVirtualGrid(models || []);
-  const expandSizeBefore = parentModelExpandedGroups.size + zipArchiveExpandedGroups.size + bundleExpandedGroups.size;
   pruneBundleExpandedGroups(models);
   pruneParentModelExpandedGroups(models);
   pruneZipArchiveExpandedGroups(models);
-  if (parentModelExpandedGroups.size + zipArchiveExpandedGroups.size + bundleExpandedGroups.size !== expandSizeBefore) {
-    invalidateVirtualGridLayoutCache(container);
-  }
-
-  if (currentGridView === 'preview') {
-    container.classList.add('preview-wall');
-    container.style.setProperty('--preview-tile', `${getPreviewTileSizePx()}px`);
-  } else {
-    container.classList.remove('preview-wall');
-    container.style.removeProperty('--preview-tile');
-  }
 
   if (!groupThumbnailPreferencesLoaded) {
-    loadGroupThumbnailPreferences().then(() => {
-      if (container.renderVisibleItemsFn) container.renderVisibleItemsFn();
-    }).catch(() => {});
+    loadGroupThumbnailPreferences().then(() => window.libraryGrid?.refresh()).catch(() => {});
   }
-  
-  // Prevent multiple simultaneous renders
-  if (container.isRendering) {
-    // Queue the render for later
-    container.pendingModels = models;
-    return;
-  }
-  container.isRendering = true;
-  
+
   const currentModels = container.currentModels || [];
-  // Detect append-only updates BEFORE sorting/stringifying all IDs (was O(n log n) per chunk → multi-second freezes).
+  // Detect append-only updates before comparing every id (sorting all ids per page froze big libraries).
   const progressiveAppend =
     currentModels.length > 0 &&
     models.length > currentModels.length &&
@@ -19232,691 +18912,88 @@ function renderVirtualGrid(models) {
         prevAnalysis.hasLicense && prevAnalysis.hasTags) {
       window.modelFieldAnalysis = prevAnalysis;
     } else {
-      const tail = models.slice(currentModels.length);
-      window.modelFieldAnalysis = mergeModelFieldAnalysis(prevAnalysis, analyzeModelFields(tail));
+      window.modelFieldAnalysis = mergeModelFieldAnalysis(prevAnalysis, analyzeModelFields(models.slice(currentModels.length)));
     }
   } else {
     window.modelFieldAnalysis = analyzeModelFields(models);
   }
 
-  let modelsSetChanged;
-  let orderChanged;
-  if (progressiveAppend) {
-    modelsSetChanged = false;
-    orderChanged = false;
-  } else {
-    const currentModelIds = currentModels.map(m => m.id || m.filePath).sort();
-    const newModelIds = models.map(m => m.id || m.filePath).sort();
-    modelsSetChanged = JSON.stringify(currentModelIds) !== JSON.stringify(newModelIds);
-    const currentModelIdsOrdered = currentModels.map(m => m.id || m.filePath);
-    const newModelIdsOrdered = models.map(m => m.id || m.filePath);
-    orderChanged = JSON.stringify(currentModelIdsOrdered) !== JSON.stringify(newModelIdsOrdered);
+  let modelsChanged = false;
+  if (!progressiveAppend) {
+    const ids = (list) => list.map((m) => m.id || m.filePath);
+    const currentIds = ids(currentModels);
+    const nextIds = ids(models);
+    modelsChanged = JSON.stringify(currentIds) !== JSON.stringify(nextIds)
+      || JSON.stringify([...currentIds].sort()) !== JSON.stringify([...nextIds].sort());
   }
 
-  // Models changed if either the set changed or the order changed (unless only appending to the list)
-  const modelsChanged = (modelsSetChanged || orderChanged) && !progressiveAppend;
-  
-  // Only clear if models actually changed or the view structure does not match
-  if (modelsChanged || viewStructureChanged) {
-    console.log('renderVirtualGrid: Models changed! Clearing container and re-rendering.');
-    console.log('Current model count:', currentModels.length, 'New model count:', models.length);
-    // Keep selection across the DOM wipe. Visible tiles can hold .selected
-    // before selectedModels is updated, and createModelItem restores from the set.
+  const rebuild = modelsChanged || viewChanged || !previousView;
+  if (rebuild) {
+    // Keep the selection across the rebuild: a tile can show .selected before selectedModels has it.
     container.querySelectorAll('.file-item.selected').forEach((item) => {
       const filePath = item.getAttribute('data-filepath') || item.dataset.filepath;
       if (filePath) addToSelectedModels(filePath);
     });
     clearFileItemPathIndex();
-    container.innerHTML = ''; // clear existing content
-    container._virtualLayoutCache = null;
-    container._virtualLayoutItemsByKey = new Map();
-    // Drop queued hydrate jobs whose cells were just destroyed (in-flight jobs keep pending).
-    pruneDisconnectedRenderTasks();
-    
-    // Add header for list view
-    if (currentGridView === 'list') {
-      const header = createListViewHeader();
-      container.appendChild(header);
-      // Update sort indicators after header is created
-      if (header.updateSortIndicators) {
-        header.updateSortIndicators();
-      }
-    }
   }
   container.currentModels = models;
-  
-  // Check if grid structure already exists
-  let spacer = container.querySelector('.virtual-spacer');
-  let virtualContent = container.querySelector('.virtual-content');
-  let listHeader = container.querySelector('.list-view-header');
-  
-  // Ensure header exists for list view (in case it was removed)
-  if (currentGridView === 'list' && !listHeader) {
-    const header = createListViewHeader();
-    // Insert header before spacer or at the beginning
-    if (spacer) {
-      container.insertBefore(header, spacer);
-    } else {
-      container.appendChild(header);
-    }
-    // Update sort indicators after header is created
-    if (header.updateSortIndicators) {
-      header.updateSortIndicators();
-    }
-  } else if (currentGridView === 'list' && listHeader && listHeader.updateSortIndicators) {
-    // Update sort indicators for existing header
-    listHeader.updateSortIndicators();
-  }
-  
-  // Remove header if not in list view
-  if (currentGridView !== 'list' && listHeader) {
-    listHeader.remove();
-  }
-  
-  // If grid structure exists and models haven't changed, just trigger re-render
-  // But if order changed, we need to re-render even if the set is the same
-  if (spacer && virtualContent && !modelsChanged && !viewStructureChanged) {
-    container.isRendering = false;
-    // Store renderVisibleItems function reference if it exists
-    if (container.renderVisibleItemsFn) {
-      container.renderVisibleItemsFn();
-    }
-    // Process any pending render
-    if (container.pendingModels) {
-      const pending = container.pendingModels;
-      container.pendingModels = null;
-      container.isRendering = false;
-      renderVirtualGrid(pending);
-    }
-    return;
-  }
-
-  // Invalidate in-flight rAF paints only when installing a new renderer.
-  // Bumping this on every call (including progressive appends) made the first
-  // launch paint no-op until the user switched views.
-  const gridGeneration = (container._gridRenderGeneration = (container._gridRenderGeneration || 0) + 1);
-  container._virtualGridView = gridViewForThisRender;
-  
-  container.style.position = 'relative';
-  container.style.overflowY = 'auto';
-  container.style.overflowX = 'hidden';
-  container.style.display = 'block'; // Override CSS grid display for virtual scrolling
-  
-  // Calculate proper height based on viewport, accounting for any headers/footers
-  const containerRect = container.getBoundingClientRect();
-  const viewportHeight = window.innerHeight;
-  const containerTop = containerRect.top;
-  const mobileChrome = document.body.classList.contains('mobile-ui')
-    ? (document.getElementById('mobile-bottom-nav')?.offsetHeight || 72)
-    : 0;
-  container.style.height = `calc(100vh - ${containerTop}px - ${mobileChrome}px)`;
-  container.style.maxHeight = `calc(100vh - ${containerTop}px - ${mobileChrome}px)`;
-
-  // Assume fixed item size (in pixels) - optimized gaps
-  let paddingVertical = currentGridView === 'preview' ? 8 : 10;
-  let paddingHorizontal = currentGridView === 'preview' ? 0 : 20;
-  // Different gaps for different views - optimized for better visual spacing
-  let verticalGap, horizontalGap;
-  const mobileList = currentGridView === 'list' ? mobileListMetrics() : null;
-  if (currentGridView === 'list') {
-    verticalGap = mobileList ? mobileList.gap : 4;
-    horizontalGap = 0;
-  } else if (currentGridView === 'preview') {
-    verticalGap = 2;
-    horizontalGap = 2;
-  } else {
-    // Detailed view: improved spacing for better visual hierarchy
-    verticalGap = 28; // Better vertical spacing between rows with slight bottom padding
-    horizontalGap = 20; // Consistent horizontal spacing
-  }
-
-  const containerWidth = container.clientWidth;
-  const mobileDetailed = currentGridView === 'detailed' ? mobileDetailedMetrics(containerWidth) : null;
-  if (mobileDetailed && mobileLibraryColumns()) {
-    paddingVertical = 8;
-    paddingHorizontal = mobileDetailed.pad;
-    verticalGap = mobileDetailed.gap;
-    horizontalGap = mobileDetailed.gap;
-  }
-  const previewAvailableW = containerWidth - paddingHorizontal * 2;
-  let previewTilePx = null;
-  if (currentGridView === 'preview') {
-    previewTilePx = computePreviewTilePxFromWidth(previewAvailableW, horizontalGap);
-    container._previewTilePx = previewTilePx;
-    container.style.setProperty('--preview-tile', `${previewTilePx}px`);
-  } else {
-    delete container._previewTilePx;
-  }
-
-  // Define item dimensions based on view mode
-  const viewDimensions = {
-    'list': { width: '100%', height: mobileList?.height || 52, itemWidth: '100%' },
-    'preview':
-      currentGridView === 'preview' && previewTilePx != null
-        ? { width: previewTilePx, height: previewTilePx, itemWidth: previewTilePx }
-        : getPreviewTileDims(),
-    'detailed': mobileDetailed && mobileLibraryColumns()
-      ? { width: mobileDetailed.width, height: mobileDetailed.height, itemWidth: mobileDetailed.width }
-      : { width: 300, height: 490, itemWidth: 300 }
-  };
-
-  const dimensions = viewDimensions[currentGridView] || viewDimensions['detailed'];
-  const itemWidth = dimensions.itemWidth;   // fixed model width
-  const itemHeight = dimensions.height;  // fixed model height
-  const itemHeightWithGap = itemHeight + verticalGap; // Total height including gap
-
-  // Calculate number of columns (at least 1), accounting for padding.
-  // Group headers are laid out after this because they span the full row.
-  let columns;
-  if (currentGridView === 'list') {
-    columns = 1;
-  } else if (currentGridView === 'preview') {
-    // Keep fixed column count by preview size; tile dimensions scale to fit width.
-    columns = previewColumnCount();
-  } else if (mobileDetailed && mobileLibraryColumns()) {
-    columns = mobileDetailed.cols;
-    container._centeredOffset = 0;
-  } else {
-    // For detailed view, calculate columns and center the grid
-    const availableWidth = containerWidth - (paddingHorizontal * 2);
-    columns = Math.max(Math.floor(availableWidth / itemWidth), 1);
-    
-    // Center the grid if we have fewer columns than would fill the width
-    if (currentGridView === 'detailed') {
-      const totalItemsWidth = columns * itemWidth;
-      const totalGapsWidth = (columns - 1) * horizontalGap;
-      const usedWidth = totalItemsWidth + totalGapsWidth;
-      const leftOffset = (availableWidth - usedWidth) / 2;
-      // Store offset for positioning items
-      container._centeredOffset = leftOffset;
-    } else {
-      container._centeredOffset = 0;
-    }
-  }
-
-  const displayRecords = buildParentModelDisplayRecords(models);
-  const initialLayout = buildParentModelLayoutRows(displayRecords, columns, currentGridView, itemHeight, paddingVertical, verticalGap);
-  container.currentDisplayRecords = displayRecords;
-
-  // Create a spacer element of full height to allow scrolling
-  if (!spacer) {
-    spacer = document.createElement('div');
-    spacer.className = 'virtual-spacer';
-    spacer.style.width = '100%';
-    spacer.style.position = 'relative';
-    container.appendChild(spacer);
-  }
-  // Calculate total height including variable-height group rows.
-  spacer.style.height = initialLayout.totalHeight + 'px';
-  
-  // Position spacer below header for list view
-  if (currentGridView === 'list' && spacer) {
-    spacer.style.marginTop = '0';
-  }
-
-  // Create an absolutely positioned element within the container to hold the items
-  if (!virtualContent) {
-    virtualContent = document.createElement('div');
-    virtualContent.className = 'virtual-content';
-    virtualContent.style.position = 'absolute';
-    virtualContent.style.left = '0';
-    virtualContent.style.width = '100%';
-    virtualContent.style.height = '100%';
-    virtualContent.style.pointerEvents = 'none'; // Let clicks pass through to items
-    container.appendChild(virtualContent);
-  }
-  bindFileItemPathIndex(virtualContent);
-  
-  // Adjust virtual content top position for list view header (always update, not just on creation)
-  if (currentGridView === 'list') {
-    virtualContent.style.top = (mobileList?.headerOffset || 40) + 'px';
-  } else {
-    virtualContent.style.top = '0';
-  }
-
-  // Store the resize observer to disconnect later if needed
-  if (container.resizeObserver) {
-    container.resizeObserver.disconnect();
-  }
-
-  // Throttle render function to prevent excessive re-renders
-  let renderTimeout = null;
-  let isRendering = false;
-  
-  // Function to (re)render only the visible rows (plus a small buffer)
-  function renderVisibleItems() {
-    if (container._gridRenderGeneration !== gridGeneration) return;
-    if (currentGridView !== gridViewForThisRender) return;
-
-    // Cancel any pending render
-    if (renderTimeout) {
-      cancelAnimationFrame(renderTimeout);
-    }
-    
-    // Skip if already rendering
-    if (isRendering) return;
-    
-    // Use currentModels from container to ensure we have the latest data
-    // This is critical for showing updated metadata after edits
-    const currentModels = container.currentModels || models;
-    
-    // Recalculate values each time to ensure we use current view settings
-    let currentVerticalGap, currentHorizontalGap;
-    if (currentGridView === 'list') {
-      currentVerticalGap = mobileListMetrics()?.gap || 4;
-      currentHorizontalGap = 0;
-    } else if (currentGridView === 'preview') {
-      currentVerticalGap = 2;
-      currentHorizontalGap = 2;
-    } else {
-      // Detailed view: gap between rows
-      currentVerticalGap = 20;
-      currentHorizontalGap = 20;
-    }
-    
-    // Use requestAnimationFrame for smooth updates
-    renderTimeout = requestAnimationFrame(() => {
-      if (container._gridRenderGeneration !== gridGeneration || currentGridView !== gridViewForThisRender) {
-        isRendering = false;
-        renderTimeout = null;
-        return;
-      }
-      isRendering = true;
-      
-      try {
-        let scrollTop = container.scrollTop;
-        const containerHeight = container.clientHeight;
-
-        // Recalculate columns in case of resize
-        const currentContainerWidth = container.clientWidth;
-        let effectivePreviewTilePx = itemWidth;
-        let effectiveItemHeight = itemHeight;
-        let currentColumns;
-        if (currentGridView === 'list') {
-          currentColumns = 1;
-        } else if (currentGridView === 'preview') {
-          const currentAvailableWidth = currentContainerWidth - (paddingHorizontal * 2);
-          effectivePreviewTilePx = computePreviewTilePxFromWidth(currentAvailableWidth, currentHorizontalGap);
-          container._previewTilePx = effectivePreviewTilePx;
-          container.style.setProperty('--preview-tile', `${effectivePreviewTilePx}px`);
-          effectiveItemHeight = effectivePreviewTilePx;
-          currentColumns = previewColumnCount();
-        } else {
-          const currentAvailableWidth = currentContainerWidth - (paddingHorizontal * 2);
-          currentColumns = Math.max(Math.floor(currentAvailableWidth / itemWidth), 1);
-          
-          // Center the grid for detailed view
-          if (currentGridView === 'detailed') {
-            const totalItemsWidth = currentColumns * itemWidth;
-            const totalGapsWidth = (currentColumns - 1) * currentHorizontalGap;
-            const usedWidth = totalItemsWidth + totalGapsWidth;
-            const leftOffset = (currentAvailableWidth - usedWidth) / 2;
-            container._centeredOffset = leftOffset;
-          } else {
-            container._centeredOffset = 0;
-          }
-        }
-
-        const layoutRowHeight =
-          currentGridView === 'preview' ? effectiveItemHeight : itemHeight;
-        const cache = container._virtualLayoutCache;
-        let currentDisplayRecords;
-        let layout;
-        if (
-          cache &&
-          cache.modelsRef === currentModels &&
-          cache.modelsLen === currentModels.length &&
-          cache.expandGen === virtualGridGroupLayoutGen &&
-          cache.width === currentContainerWidth &&
-          cache.columns === currentColumns &&
-          cache.view === currentGridView &&
-          cache.rowHeight === layoutRowHeight &&
-          cache.verticalGap === currentVerticalGap
-        ) {
-          currentDisplayRecords = cache.displayRecords;
-          layout = cache.layout;
-        } else {
-          currentDisplayRecords = buildParentModelDisplayRecords(currentModels);
-          currentDisplayRecords.forEach((record, index) => {
-            record._displayIndex = index;
-          });
-          layout = buildParentModelLayoutRows(
-            currentDisplayRecords,
-            currentColumns,
-            currentGridView,
-            layoutRowHeight,
-            paddingVertical,
-            currentVerticalGap
-          );
-          container._virtualLayoutCache = {
-            modelsRef: currentModels,
-            modelsLen: currentModels.length,
-            expandGen: virtualGridGroupLayoutGen,
-            width: currentContainerWidth,
-            columns: currentColumns,
-            view: currentGridView,
-            rowHeight: layoutRowHeight,
-            verticalGap: currentVerticalGap,
-            displayRecords: currentDisplayRecords,
-            layout
-          };
-        }
-        container.currentDisplayRecords = currentDisplayRecords;
-        spacer.style.height = layout.totalHeight + 'px';
-
-        if (container._focusSelectedOnPaint && window.gridRefresh?.scrollTopForSelectedLayout) {
-          container._focusSelectedOnPaint = false;
-          const target = window.gridRefresh.scrollTopForSelectedLayout(
-            layout,
-            containerHeight,
-            (filePath) => isInSelectedModels(filePath)
-          );
-          if (target != null) {
-            scrollTop = target;
-            if (container.scrollTop !== target) container.scrollTop = target;
-          }
-        }
-
-        const groupH =
-          currentGridView === 'preview' ? effectivePreviewTilePx : getParentModelGroupHeight(currentGridView);
-        const bufferPx = Math.max(layoutRowHeight, groupH) * 2;
-        const visibleRows = layout.rows.filter(row => {
-          return row.bottom >= scrollTop - bufferPx && row.top <= scrollTop + containerHeight + bufferPx;
-        });
-
-        // Track which items should be visible
-        const visibleKeys = new Set();
-        visibleRows.forEach(row => {
-          if (row.type === 'group') {
-            visibleKeys.add(row.key);
-          } else {
-            row.records.forEach(record => visibleKeys.add(record.key));
-          }
-        });
-
-        const layoutItemsByKey = container._virtualLayoutItemsByKey || (container._virtualLayoutItemsByKey = new Map());
-
-        // Remove items that are no longer visible
-        const existingItems = Array.from(virtualContent.children);
-        existingItems.forEach(item => {
-          const layoutKey = item.dataset.layoutKey;
-          if (!layoutKey || !visibleKeys.has(layoutKey)) {
-            if (layoutKey && layoutItemsByKey.get(layoutKey) === item) {
-              layoutItemsByKey.delete(layoutKey);
-            }
-            item.remove();
-          }
-        });
-        // Drop queued thumbnail work for cells that scrolled off-screen so
-        // Docker/server mode does not keep extracting 3MF images / WebGL-rendering them.
-        pruneDisconnectedRenderTasks();
-        refreshThumbnailQueuePriorities();
-
-        const findExistingLayoutItem = (layoutKey) => {
-          const existing = layoutItemsByKey.get(layoutKey);
-          if (existing && existing.parentNode === virtualContent) return existing;
-          if (existing) layoutItemsByKey.delete(layoutKey);
-          return null;
-        };
-
-        const registerLayoutItem = (layoutKey, item) => {
-          const prevKey = item.dataset.layoutKey;
-          if (prevKey && prevKey !== layoutKey && layoutItemsByKey.get(prevKey) === item) {
-            layoutItemsByKey.delete(prevKey);
-          }
-          item.dataset.layoutKey = layoutKey;
-          layoutItemsByKey.set(layoutKey, item);
-        };
-
-        const positionModelItem = (item, row, col) => {
-          item.style.top = row.top + 'px';
-          if (currentGridView === 'list') {
-            item.style.left = paddingHorizontal + 'px';
-            item.style.width = `calc(100% - ${paddingHorizontal * 2}px)`;
-          } else if (currentGridView === 'preview') {
-            const w = effectivePreviewTilePx;
-            const leftPosition = (col * (w + currentHorizontalGap)) + paddingHorizontal;
-            item.style.left = leftPosition + 'px';
-            item.style.width = w + 'px';
-            item.style.height = w + 'px';
-            item.style.minHeight = w + 'px';
-            item.style.maxHeight = w + 'px';
-          } else {
-            const centeredOffset = container._centeredOffset || 0;
-            const leftPosition = (col * (itemWidth + currentHorizontalGap)) + paddingHorizontal + centeredOffset;
-            item.style.left = leftPosition + 'px';
-            item.style.width = typeof itemWidth === 'number' ? itemWidth + 'px' : itemWidth;
-            if (mobileDetailed && mobileLibraryColumns()) {
-              item.style.height = itemHeight + 'px';
-              item.style.minHeight = itemHeight + 'px';
-              item.style.maxHeight = itemHeight + 'px';
-            }
-          }
-        };
-
-        const positionGroupItem = (item, row) => {
-          item.style.top = row.top + 'px';
-          item.style.left = paddingHorizontal + 'px';
-          item.style.width = `calc(100% - ${paddingHorizontal * 2}px)`;
-          item.style.height = row.height + 'px';
-        };
-
-        const applyParentGroupHighlightClasses = (item, record, recordIndex) => {
-          item.classList.remove(
-            'parent-model-group-child',
-            'parent-model-group-child-start',
-            'parent-model-group-child-middle',
-            'parent-model-group-child-end',
-            'parent-model-group-child-single'
-          );
-          delete item.dataset.parentGroupKey;
-
-          const parentGroupKey = record.parentGroupKey;
-          if (!parentGroupKey) return;
-
-          item.classList.add('parent-model-group-child');
-          item.dataset.parentGroupKey = parentGroupKey;
-
-          const prevRecord = recordIndex > 0 ? currentDisplayRecords[recordIndex - 1] : null;
-          const nextRecord = recordIndex < currentDisplayRecords.length - 1 ? currentDisplayRecords[recordIndex + 1] : null;
-          const hasPrevInGroup = prevRecord?.parentGroupKey === parentGroupKey;
-          const hasNextInGroup = nextRecord?.parentGroupKey === parentGroupKey;
-
-          if (!hasPrevInGroup && !hasNextInGroup) {
-            item.classList.add('parent-model-group-child-single');
-          } else if (!hasPrevInGroup) {
-            item.classList.add('parent-model-group-child-start');
-          } else if (!hasNextInGroup) {
-            item.classList.add('parent-model-group-child-end');
-          } else {
-            item.classList.add('parent-model-group-child-middle');
-          }
-        };
-
-        // Add or update visible items
-        for (const row of visibleRows) {
-          if (row.type === 'group') {
-            const existingGroup = findExistingLayoutItem(row.key);
-            if (existingGroup &&
-                existingGroup.dataset.childCount === String(row.record.children.length) &&
-                existingGroup.dataset.expanded === (row.record.expanded ? '1' : '0') &&
-                existingGroup.classList.contains(`file-item-${gridViewForThisRender}`)) {
-              positionGroupItem(existingGroup, row);
-              continue;
-            }
-            if (existingGroup) {
-              if (layoutItemsByKey.get(row.key) === existingGroup) {
-                layoutItemsByKey.delete(row.key);
-              }
-              existingGroup.remove();
-            }
-
-            const item = createParentModelGroupItem(row.record, currentGridView);
-            registerLayoutItem(row.key, item);
-            item.style.position = 'absolute';
-            item.style.pointerEvents = 'auto';
-            positionGroupItem(item, row);
-            virtualContent.appendChild(item);
-            continue;
-          }
-
-          for (let col = 0; col < row.records.length; col++) {
-            const record = row.records[col];
-            const recordIndex = Number.isInteger(record._displayIndex)
-              ? record._displayIndex
-              : currentDisplayRecords.indexOf(record);
-            const existingItem = findExistingLayoutItem(record.key);
-
-            if (record.type === 'group') {
-              if (existingItem &&
-                  existingItem.dataset.childCount === String(record.children.length) &&
-                  existingItem.dataset.expanded === (record.expanded ? '1' : '0') &&
-                  existingItem.classList.contains(`file-item-${gridViewForThisRender}`)) {
-                positionModelItem(existingItem, row, col);
-                continue;
-              }
-              if (existingItem) {
-                if (layoutItemsByKey.get(record.key) === existingItem) {
-                  layoutItemsByKey.delete(record.key);
-                }
-                existingItem.remove();
-              }
-
-              const item = createParentModelGroupItem(record, currentGridView);
-              registerLayoutItem(record.key, item);
-              item.style.position = 'absolute';
-              positionModelItem(item, row, col);
-              item.style.pointerEvents = 'auto';
-              virtualContent.appendChild(item);
-              continue;
-            }
-
-            const model = record.model;
-            const listHeaderOffset = currentGridView === 'list' ? (mobileListMetrics()?.headerOffset || 40) : 0;
-            const itemContentY = listHeaderOffset + row.top;
-            const thumbPriority = computeThumbPriorityForScroll(
-              scrollTop,
-              containerHeight,
-              itemContentY,
-              layoutRowHeight,
-              col
-            );
-
-            if (existingItem) {
-              const existingFilePath = existingItem.getAttribute('data-filepath');
-              const normalizedExistingPath = normalizePathForComparison(existingFilePath);
-              const normalizedExpectedPath = normalizePathForComparison(model.filePath);
-              if (normalizedExistingPath === normalizedExpectedPath &&
-                  existingItem.classList.contains(`file-item-${gridViewForThisRender}`)) {
-                applyParentGroupHighlightClasses(existingItem, record, recordIndex);
-                positionModelItem(existingItem, row, col);
-                syncModelNewBadge(existingItem, model);
-                if (isInSelectedModels(model.filePath)) {
-                  existingItem.classList.add('selected');
-                } else {
-                  existingItem.classList.remove('selected');
-                }
-                // On-screen placeholders must re-enter the queue after prune/soft-cap;
-                // recycled DOM nodes skip createModelItem so nothing else would enqueue them.
-                if (thumbPriority < THUMB_PRIORITY_LOW_TIER_MIN) {
-                  ensureVisibleThumbnailQueued(existingItem, model, thumbPriority);
-                } else {
-                  const queued = findQueuedThumbnailTask(model.filePath);
-                  if (queued) {
-                    const tc = existingItem.querySelector('.thumbnail-container');
-                    if (tc) queued.container = tc;
-                    queued.thumbPriority = thumbPriority;
-                  }
-                }
-                continue;
-              }
-              if (layoutItemsByKey.get(record.key) === existingItem) {
-                layoutItemsByKey.delete(record.key);
-              }
-              existingItem.remove();
-            }
-
-            // Create new item — prioritize thumbnails for cells in/near the viewport
-            const item = createModelItem(model, currentGridView, thumbPriority);
-            item.dataset.index = String(recordIndex);
-            registerLayoutItem(record.key, item);
-            if (isInSelectedModels(model.filePath)) {
-              item.classList.add('selected');
-            } else {
-              item.classList.remove('selected');
-            }
-            applyParentGroupHighlightClasses(item, record, recordIndex);
-            item.style.position = 'absolute';
-            // Note: Header offset is handled by virtualContent top position for list view
-            positionModelItem(item, row, col);
-            item.style.pointerEvents = 'auto'; // Re-enable pointer events for items
-
-            virtualContent.appendChild(item);
-          }
-        }
-      } finally {
-        isRendering = false;
-        renderTimeout = null;
-        refreshThumbnailQueuePriorities();
-        processRenderQueue();
-      }
-    });
-
-
-  }
-
-  // Throttled scroll handler to prevent excessive renders
-  let scrollTimeout = null;
-  function throttledScrollHandler() {
-    if (scrollTimeout) return;
-    scrollTimeout = requestAnimationFrame(() => {
-      renderVisibleItems();
-      scrollTimeout = null;
-    });
-  }
-  
-  // Attach the scroll event handler to update visible items on scroll
-  container.removeEventListener('scroll', container.virtualScrollHandler);
-  container.virtualScrollHandler = throttledScrollHandler;
-  container.addEventListener('scroll', throttledScrollHandler, { passive: true });
-
-  // Throttled resize handler
-  let resizeTimeout = null;
-  function throttledResizeHandler() {
-    if (resizeTimeout) {
-      cancelAnimationFrame(resizeTimeout);
-    }
-    resizeTimeout = requestAnimationFrame(() => {
-      renderVisibleItems();
-      resizeTimeout = null;
-    });
-  }
-  
-  // Handle window resize
-  if (container.resizeObserver) {
-    container.resizeObserver.disconnect();
-  }
-  container.resizeObserver = new ResizeObserver(throttledResizeHandler);
-  container.resizeObserver.observe(container);
-
-  // Store renderVisibleItems function reference for later use
-  container.renderVisibleItemsFn = renderVisibleItems;
-  
-  // Mark rendering as complete
-  container.isRendering = false;
-  
-  // Process any pending render
-  if (container.pendingModels) {
-    const pending = container.pendingModels;
-    container.pendingModels = null;
-    renderVirtualGrid(pending);
-    return;
-  }
-  
-  // Initial render of visible items
-  renderVisibleItems();
+  container._virtualGridView = view;
+  // Callers repaint with container.renderVisibleItemsFn() after editing currentModels in place.
+  container.renderVisibleItemsFn = refreshLibraryGrid;
+  showLibraryGrid({ rebuild, focusSelection });
 }
-// ==================== END NEW CODE ====================
+
+function refreshLibraryGrid() {
+  window.libraryGrid?.refresh();
+}
+
+function showLibraryGrid(options) {
+  if (window.libraryGrid) {
+    window.libraryGrid.show(options);
+  } else {
+    // The React grid mounts after this script; it picks this up.
+    window._pendingGridShow = { rebuild: true, focusSelection: !!options.focusSelection };
+  }
+}
+
+/** What the React grid (src/web/grid/LibraryGrid.tsx) asks of this file. */
+window.gridHost = {
+  models: () => document.querySelector('.file-grid')?.currentModels || [],
+  view: () => currentGridView,
+  previewSize: () => currentPreviewTileSize,
+  mobileColumns: () => mobileLibraryColumns(),
+  expanded: () => ({ bundles: bundleExpandedGroups, parentModels: parentModelExpandedGroups }),
+  createModelCard: (model, view, priority) => createModelItem(model, view, priority),
+  createGroupCard: (record, view) => createParentModelGroupItem(record, view),
+  syncModelCard: (card, model, priority) => {
+    syncModelNewBadge(card, model);
+    card.classList.toggle('selected', isInSelectedModels(model.filePath));
+    // On-screen placeholders re-enter the thumbnail queue after a prune; reused cards
+    // skip createModelItem, so nothing else would queue them.
+    if (priority < THUMB_PRIORITY_LOW_TIER_MIN) {
+      ensureVisibleThumbnailQueued(card, model, priority);
+    } else {
+      const queued = findQueuedThumbnailTask(model.filePath);
+      if (queued) {
+        const thumbnailContainer = card.querySelector('.thumbnail-container');
+        if (thumbnailContainer) queued.container = thumbnailContainer;
+        queued.thumbPriority = priority;
+      }
+    }
+  },
+  createListHeader: () => createListViewHeader(),
+  isSelected: (filePath) => isInSelectedModels(filePath),
+  afterPaint: () => {
+    const content = document.querySelector('.file-grid .virtual-content');
+    if (content) bindFileItemPathIndex(content);
+    pruneDisconnectedRenderTasks();
+    refreshThumbnailQueuePriorities();
+    processRenderQueue();
+  },
+  bottomChrome: () => (document.body.classList.contains('mobile-ui')
+    ? (document.getElementById('mobile-bottom-nav')?.offsetHeight || 72)
+    : 0)
+};
 
 // Change the multi-source event listener from 'change' back to 'input' with debounce
 document.getElementById('multi-source')?.addEventListener('input', debounce(async (e) => {

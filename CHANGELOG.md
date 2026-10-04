@@ -4,6 +4,10 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Changes:**
+- The library grid's layout and scrolling are React (`src/web/grid/`): the views, columns, ZIP and parent-model groups and the rows near the viewport are computed by tested TypeScript. The cards themselves are still built by `renderer.js` for now, so they look and behave the same.
+- Removed about 1,400 lines of unused or replaced grid code from `renderer.js`.
+
 ## [4.2.0] - 2026-10-04
 
 **Upgrading:** no changes needed for Docker. Building from source now needs `npm run build:web` before `npm start` (the Docker image does this itself). Puter.com AI does not work in the browser yet (the page's security policy blocks Puter.js); use another AI service for now.

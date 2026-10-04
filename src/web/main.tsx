@@ -13,6 +13,7 @@ import { DedupDialog } from './DedupDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
+import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
@@ -55,6 +56,7 @@ function Screens() {
       <StlHomeDialog />
       <OrganizeLibraryDialog />
       <DedupDialog />
+      <LibraryGrid />
     </>
   );
 }

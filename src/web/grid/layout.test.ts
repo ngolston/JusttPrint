@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, dedupeModels, normalizePath, scrollTopForSelection,
-  viewMetrics, visibleRows, type GridModel
+  viewMetrics, visibleRows, type DisplayRecord, type GridModel, type Layout
 } from './layout';
 
 const none = { bundles: new Set<string>(), parentModels: new Set<string>() };
@@ -99,5 +99,19 @@ describe('layout', () => {
     const row = layout.rows[20];
     expect(target).toBe(row.top - (300 - 52) / 2);
     expect(scrollTopForSelection(layout, 300, () => false)).toBeNull();
+  });
+
+  it('centers the row of a selected model, or of a group holding the selection', () => {
+    const group: DisplayRecord = { type: 'group', key: 'group:parent:g', groupKind: 'parentModel', groupKey: 'parent:g', groupLabel: 'G', children: [model(9, 'grouped.stl')], expanded: false };
+    const layout: Layout = {
+      totalHeight: 4000,
+      rows: [
+        { type: 'models', key: 'r1', top: 10, bottom: 210, height: 200, records: [{ type: 'model', key: 'a', model: model(1, 'a.stl') }] },
+        { type: 'models', key: 'r2', top: 1800, bottom: 2000, height: 200, records: [group, { type: 'model', key: 'b', model: model(2, 'b.stl') }] }
+      ]
+    };
+    expect(scrollTopForSelection(layout, 600, (path) => path === 'b.stl')).toBe(1600);
+    expect(scrollTopForSelection(layout, 600, (path) => path === 'grouped.stl')).toBe(1600);
+    expect(scrollTopForSelection(layout, 600, () => false)).toBeNull();
   });
 });
