@@ -1,4 +1,4 @@
-# Printventory server image: plain Node, no Electron.
+# JusttPrint server image: plain Node, no Electron.
 # The server is src/server/index.js. Thumbnails render in headless Chromium (Puppeteer).
 
 # --- Dependencies: production packages only, with better-sqlite3 built for Node ---
@@ -36,7 +36,7 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PRINTVENTORY_CHROMIUM=/usr/bin/chromium \
+    JUSTTPRINT_CHROMIUM=/usr/bin/chromium \
     NODE_ENV=production
 
 EXPOSE 5000

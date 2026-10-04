@@ -44,9 +44,9 @@ function send(channel, ...args) {
   socket.send(jsonStringifyForWs({ type: 'event', channel, args }));
 }
 
-/** Chromium flags: software WebGL (SwiftShader) unless PRINTVENTORY_CHROMIUM_ARGS replaces them. */
+/** Chromium flags: software WebGL (SwiftShader) unless JUSTTPRINT_CHROMIUM_ARGS replaces them. */
 function chromiumArgs() {
-  const custom = String(process.env.PRINTVENTORY_CHROMIUM_ARGS || '').trim();
+  const custom = String(process.env.JUSTTPRINT_CHROMIUM_ARGS || '').trim();
   const gpu = custom
     ? custom.split(/\s+/)
     : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
@@ -64,7 +64,7 @@ async function start(options) {
   const origin = options.origin();
   if (!origin) return;
   try {
-    const executablePath = process.env.PRINTVENTORY_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+    const executablePath = process.env.JUSTTPRINT_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
     const launched = await puppeteer.launch({
       headless: true,
       executablePath,

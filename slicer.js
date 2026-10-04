@@ -181,7 +181,7 @@ function downloadSlicerHelper(event) {
   const insecure = document.getElementById('slicer-helper-insecure')?.checked;
   const link = document.createElement('a');
   link.href = '/api/helper/bundle' + (insecure ? '?insecure=1' : '');
-  link.download = 'Printventory-Helper.zip';
+  link.download = 'JusttPrint-Helper.zip';
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();

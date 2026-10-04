@@ -78,7 +78,7 @@ function resolveAppTls() {
 }
 
 /**
- * Optional TLS for server mode. Env PRINTVENTORY_TLS_* / SSL_* overrides UI settings.
+ * Optional TLS for server mode. Env JUSTTPRINT_TLS_* / SSL_* overrides UI settings.
  */
 function loadOptionalServerTlsOptions() {
   return resolveAppTls().options || null;
@@ -254,7 +254,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   auth.ensureCredentials();
   expressApp.disable('x-powered-by');
   // Behind a reverse proxy, req.ip (login rate limit) comes from X-Forwarded-For only when trusted.
-  expressApp.set('trust proxy', parseTrustProxy(process.env.PRINTVENTORY_TRUST_PROXY));
+  expressApp.set('trust proxy', parseTrustProxy(process.env.JUSTTPRINT_TRUST_PROXY));
   expressApp.use((req, res, next) => {
     // Scripts only from this server's files: no inline <script>, onclick="" or eval. STEP previews
     // compile a WebAssembly module, which needs 'wasm-unsafe-eval' (WebAssembly only, not JS eval).
@@ -584,17 +584,17 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
           console.warn('[TLS] Port 80 listener:', err.message);
         });
       } else {
-        console.log(`Printventory server mode started`);
+        console.log(`JusttPrint server mode started`);
         console.log(`Server running at ${scheme}://${HOST}:${PORT}`);
         // The Docker HEALTHCHECK reads this to find the port and scheme (both can change in Settings).
         try {
-          fs.writeFileSync(path.join(os.tmpdir(), 'printventory-listen.json'), JSON.stringify({ port: PORT, scheme }));
+          fs.writeFileSync(path.join(os.tmpdir(), 'justtprint-listen.json'), JSON.stringify({ port: PORT, scheme }));
         } catch (err) {
           console.warn('Could not write listen info for the health check:', err.message);
         }
         console.log(`Access from remote browsers: ${scheme}://<your-ip>:${PORT}`);
         if (useTls) {
-          console.log(`TLS enabled (source: ${tlsResolved.source}): browser will use wss:// for the Printventory bridge (same port).`);
+          console.log(`TLS enabled (source: ${tlsResolved.source}): browser will use wss:// for the JusttPrint bridge (same port).`);
         }
         if (!localhostOnly) {
           syncPort80Server().catch((err) => {
@@ -646,7 +646,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     const MAX_WS_IPC_CONCURRENT = 24;
     let wsIpcInFlight = 0;
     const wsIpcWaiters = [];
-    const wsIpcDebug = process.env.PRINTVENTORY_WS_IPC_DEBUG === '1';
+    const wsIpcDebug = process.env.JUSTTPRINT_WS_IPC_DEBUG === '1';
 
     function acquireWsIpcSlot() {
       if (wsIpcInFlight < MAX_WS_IPC_CONCURRENT) {
@@ -975,7 +975,7 @@ function getConfiguredHttpPort() {
 }
 
 function getEnvServerListenPort() {
-  const raw = process.env.PRINTVENTORY_PORT;
+  const raw = process.env.JUSTTPRINT_PORT;
   if (raw == null || String(raw).trim() === '') return null;
   const parsed = parseListenPort(raw, 0);
   return parsed > 0 ? parsed : null;

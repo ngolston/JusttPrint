@@ -1,8 +1,8 @@
-# Printventory
+# JusttPrint
 
-## Only push to ngolston/Printventory
+## Only push to ngolston/JusttPrint
 
-All work goes to https://github.com/ngolston/Printventory (`origin`). Never push, open pull requests, create releases or issues, or call the API on any other GitHub repository, including the upstream project this was forked from. A local `.git/hooks/pre-push` hook also refuses pushes to the upstream repository.
+All work goes to https://github.com/ngolston/JusttPrint (`origin`). Never push, open pull requests, create releases or issues, or call the API on any other GitHub repository, including the upstream project this was forked from. A local `.git/hooks/pre-push` hook also refuses pushes to the upstream repository.
 
 ## Before every merge into `main`
 
@@ -12,7 +12,7 @@ Every time, in this order:
 2. Bump the version (`npm version <x.y.z> --no-git-tag-version`; semver: breaking = major, features = minor, fixes = patch) and turn `## [Unreleased]` in `CHANGELOG.md` into `## [x.y.z] - <date>` with upgrade notes when needed.
 3. Run `npm test` and `npm run test:e2e`.
 4. Commit, merge into `main`, push `main`.
-5. Tag `vx.y.z`, push the tag, and create the GitHub release on ngolston/Printventory with the changelog entry as notes.
+5. Tag `vx.y.z`, push the tag, and create the GitHub release on ngolston/JusttPrint with the changelog entry as notes.
 
 ## `todo:` shortcut
 

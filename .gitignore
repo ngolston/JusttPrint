@@ -1,8 +1,8 @@
 dist
 node_modules
-printventory.db
-printventory.db-shm
-printventory.db-wal
+justtprint.db
+justtprint.db-shm
+justtprint.db-wal
 package-lock.json
 test-files.zip
 git_credentials
@@ -15,7 +15,7 @@ tests/playwright-report/
 tests/test-user-data/
 tests/test-dedup-stress/
 tests/test-user-data-stress/
-tests/printventory.db
+tests/justtprint.db
 app.log
 *.log
 .macssh
@@ -36,3 +36,9 @@ spoolman-data/
 
 # End-to-end test working folder
 tests/e2e/.work/
+
+# Local databases from before the rename
+printventory.db
+printventory.db-shm
+printventory.db-wal
+tests/printventory.db

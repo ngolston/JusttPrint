@@ -8,9 +8,9 @@ const { readStlHomeDirectories } = require('./library-paths');
 const os = require('os');
 
 /** Dedicated OS-temp folder for zip-entry extracts — never the library / STL home. */
-const EXTRACT_TEMP_DIR_NAME = 'printventory-extracts';
+const EXTRACT_TEMP_DIR_NAME = 'justtprint-extracts';
 
-const EXTRACT_TEMP_FILE_PREFIX = 'printventory_';
+const EXTRACT_TEMP_FILE_PREFIX = 'justtprint_';
 
 /** Slicer may still be reading the file after launch; delay cleanup. */
 const EXTRACT_TEMP_SLICER_CLEANUP_MS = 10 * 60 * 1000;
@@ -51,7 +51,7 @@ function ensureExtractTempDir() {
   return dir;
 }
 
-function isPrintventoryExtractTempPath(filePath) {
+function isJusttPrintExtractTempPath(filePath) {
   if (!filePath || typeof filePath !== 'string') return false;
   try {
     const resolved = path.resolve(filePath);
@@ -77,7 +77,7 @@ function isPrintventoryExtractTempPath(filePath) {
 }
 
 async function cleanupExtractTempFile(filePath) {
-  if (!isPrintventoryExtractTempPath(filePath)) return false;
+  if (!isJusttPrintExtractTempPath(filePath)) return false;
   try {
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);
@@ -91,7 +91,7 @@ async function cleanupExtractTempFile(filePath) {
 }
 
 function scheduleExtractTempCleanup(filePath, delayMs = EXTRACT_TEMP_SLICER_CLEANUP_MS) {
-  if (!isPrintventoryExtractTempPath(filePath)) return;
+  if (!isJusttPrintExtractTempPath(filePath)) return;
   pendingExtractTempCleanups.add(filePath);
   setTimeout(() => {
     cleanupExtractTempFile(filePath).catch(() => {});
@@ -143,10 +143,10 @@ async function cleanupExtractTempDirectory({
   for (const dir of dirs) {
     await sweepDir(dir);
   }
-  // Legacy flat printventory_* files written directly under OS temp (quit / explicit only)
+  // Legacy flat justtprint_* files written directly under OS temp (quit / explicit only)
   if (includeLegacyOsTempRoot) {
     await sweepDir(getOsTempRoot());
   }
 }
 
-module.exports = { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempDirectory, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany };
+module.exports = { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempDirectory, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isJusttPrintExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany };

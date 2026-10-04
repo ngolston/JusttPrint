@@ -1,6 +1,6 @@
-# Printventory - 3D Model Manager
+# JusttPrint - 3D Model Manager
 
-Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker and you use it from any browser on your network.
+JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker and you use it from any browser on your network.
 
 ## Features
 
@@ -94,8 +94,8 @@ Printventory is a self-hosted web app for managing your 3D printing model collec
 - **MCP Server**: Experimental Streamable HTTP endpoint at `/mcp` so a local AI agent can search the library, update metadata, and write thumbnails (Tools → MCP Server)
 
 ## Data Persistence
-- The database and thumbnails live in the container's data folder (`/root/.config/printventory`); mount it as a volume so it survives updates
-- A backup copy (`backup_printventory.db`) is written every time the server stops
+- The database and thumbnails live in the container's data folder (`/root/.config/justtprint`); mount it as a volume so it survives updates
+- A backup copy (`backup_justtprint.db`) is written every time the server stops
 - Manual backups can be downloaded through the Backup/Restore menu
 - **Important**: Keep a manual backup before removing the container or its data volume
 
@@ -114,7 +114,7 @@ Printventory is a self-hosted web app for managing your 3D printing model collec
 
 ## View Modes
 
-Printventory offers three different view modes to suit your workflow:
+JusttPrint offers three different view modes to suit your workflow:
 
 - **List View**: Compact list showing essential information, ideal for quick browsing
 - **Preview View**: Medium-sized thumbnails with basic metadata
@@ -157,7 +157,7 @@ AI Tagging uses artificial intelligence to automatically suggest tags for your 3
 
 ## Settings Overview
 
-Printventory offers comprehensive settings to customize your experience:
+JusttPrint offers comprehensive settings to customize your experience:
 
 ### AI Config
 - API key (optional for local OpenAI-compatible servers) and endpoint configuration
@@ -179,14 +179,14 @@ Printventory offers comprehensive settings to customize your experience:
 
 ### Slicer Path
 - Configure one or more slicer applications (name + path). The path is where the slicer is installed **on your computer**, not in the container
-- Send to Slicer uses the Printventory helper on your computer: download it from **Settings → Slicer** and run the installer once. The helper downloads the models from the server and starts the slicer locally; the server never runs a slicer itself
+- Send to Slicer uses the JusttPrint helper on your computer: download it from **Settings → Slicer** and run the installer once. The helper downloads the models from the server and starts the slicer locally; the server never runs a slicer itself
 - **Open in Slicer** from the right-click context menu
 - **Send to Slicer** from the 3D preview dialog (single model or full bundle)
 - On a Mac, the helper opens a **new slicer instance** for each send so models load even when the slicer is already open
 
 ### Bundle groups (folders and ZIP archives)
 
-When a scan finds **two or more** STL/3MF files in the same folder or inside the same ZIP file, Printventory shows them as one **bundle** row instead of many separate entries.
+When a scan finds **two or more** STL/3MF files in the same folder or inside the same ZIP file, JusttPrint shows them as one **bundle** row instead of many separate entries.
 
 | Action | Result |
 |--------|--------|

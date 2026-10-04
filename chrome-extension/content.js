@@ -2,7 +2,7 @@
   'use strict';
 
   function extractNow() {
-    const Extract = self.PrintventoryExtract;
+    const Extract = self.JusttPrintExtract;
     if (!Extract) return Promise.resolve(null);
     return Extract.extractPage(location.href, document, typeof fetch === 'function' ? fetch.bind(self) : null);
   }

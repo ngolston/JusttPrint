@@ -15,7 +15,7 @@ function getServerAuth() {
         database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
       },
       extraOrigins: () => {
-        const origins = String(process.env.PRINTVENTORY_ALLOWED_ORIGINS || '')
+        const origins = String(process.env.JUSTTPRINT_ALLOWED_ORIGINS || '')
           .split(',').map((origin) => origin.trim()).filter(Boolean);
         return origins;
       }

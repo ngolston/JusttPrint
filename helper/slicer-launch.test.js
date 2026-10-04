@@ -89,7 +89,7 @@ test('a missing slicer exe is rejected before launch', () => {
 });
 
 test('an existing program file is a valid slicer path', () => {
-  const file = path.join(os.tmpdir(), 'printventory-slicer-ok.exe');
+  const file = path.join(os.tmpdir(), 'justtprint-slicer-ok.exe');
   fs.writeFileSync(file, '');
   try {
     assert.strictEqual(invalidSlicerPathError(file, 'Lychee Slicer'), null);
@@ -99,7 +99,7 @@ test('an existing program file is a valid slicer path', () => {
 });
 
 test('a folder is not a valid slicer program', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'printventory-slicer-dir-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'justtprint-slicer-dir-'));
   try {
     const invalid = invalidSlicerPathError(dir, 'Lychee Slicer');
     assert.ok(invalid);

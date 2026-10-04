@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Cross-platform script to create Docker distribution package for Printventory
+// Cross-platform script to create Docker distribution package for JusttPrint
 
 const fs = require('fs');
 const path = require('path');
@@ -9,10 +9,10 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const version = packageJson.version;
 
 const distDir = 'dist';
-const dockerDistDir = path.join(distDir, `printventory-docker-${version}`);
-const dockerDistZip = path.join(distDir, `printventory-docker-${version}.zip`);
+const dockerDistDir = path.join(distDir, `justtprint-docker-${version}`);
+const dockerDistZip = path.join(distDir, `justtprint-docker-${version}.zip`);
 
-console.log(`Creating Docker distribution for Printventory ${version}...`);
+console.log(`Creating Docker distribution for JusttPrint ${version}...`);
 
 // Create distribution directory
 if (!fs.existsSync(distDir)) {
@@ -48,21 +48,21 @@ for (const required of ['Dockerfile', 'docker-entrypoint.sh', '.npmrc', 'package
 }
 
 // Create README
-const readmeContent = `# Printventory Docker Distribution
+const readmeContent = `# JusttPrint Docker Distribution
 
-This package contains everything needed to run Printventory in server mode using Docker.
+This package contains everything needed to run JusttPrint in server mode using Docker.
 
 ## Quick Start
 
 1. **Extract this archive:**
    \`\`\`bash
-   unzip printventory-docker-*.zip
-   cd printventory-docker-*
+   unzip justtprint-docker-*.zip
+   cd justtprint-docker-*
    \`\`\`
 
 2. **Add your models and a password:**
    Put your models in the \`models\` folder (or change the \`./models\` mount in \`docker-compose.yml\`),
-   and set \`PRINTVENTORY_PASSWORD\` in \`docker-compose.yml\`.
+   and set \`JUSTTPRINT_PASSWORD\` in \`docker-compose.yml\`.
 
 3. **Build and run with Docker Compose:**
    \`\`\`bash
@@ -78,21 +78,21 @@ Use **Settings → HTTPS / SSL** in the web UI to point at custom PEM files, gen
 
 Let's Encrypt HTTP-01 needs the hostname reachable on **port 80** — publish \`80:80\` in compose. The app still serves on port 5000 (\`https://\` / \`wss://\`).
 
-Environment variables \`PRINTVENTORY_TLS_CERT\` and \`PRINTVENTORY_TLS_KEY\` still override the UI (mount PEMs and point the vars at them). If you terminate TLS on Traefik/Caddy/nginx instead, leave TLS unset and configure **WebSocket upgrade** on the proxy.
+Environment variables \`JUSTTPRINT_TLS_CERT\` and \`JUSTTPRINT_TLS_KEY\` still override the UI (mount PEMs and point the vars at them). If you terminate TLS on Traefik/Caddy/nginx instead, leave TLS unset and configure **WebSocket upgrade** on the proxy.
 
 ## Alternative: Build and Run Manually
 
 \`\`\`bash
 # Build the image
-docker build -t printventory:latest .
+docker build -t justtprint:latest .
 
 # Run the container
 docker run -d \\
-  --name printventory-server \\
+  --name justtprint-server \\
   -p 5000:5000 \\
-  -v printventory-data:/root/.config/printventory \\
+  -v justtprint-data:/root/.config/justtprint \\
   --restart unless-stopped \\
-  printventory:latest
+  justtprint:latest
 \`\`\`
 
 ## Network Shares
@@ -115,7 +115,7 @@ fs.writeFileSync(path.join(dockerDistDir, 'README.md'), readmeContent);
 // Create zip archive
 console.log('Creating zip archive...');
 try {
-  // Zip the folder itself, so unzipping gives printventory-docker-<version>/.
+  // Zip the folder itself, so unzipping gives justtprint-docker-<version>/.
   if (fs.existsSync(dockerDistZip)) fs.unlinkSync(dockerDistZip);
   execSync(`zip -qr ${path.basename(dockerDistZip)} ${path.basename(dockerDistDir)}`, { cwd: distDir, stdio: 'inherit' });
 } catch (err) {

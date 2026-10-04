@@ -87,7 +87,7 @@ async function collectServerGpuInfo() {
   const { promisify } = require('util');
   const execFileAsync = promisify(execFile);
 
-  const glBackend = process.env.PRINTVENTORY_GL_BACKEND
+  const glBackend = process.env.JUSTTPRINT_GL_BACKEND
     || (process.argv.includes('--use-angle=swiftshader') ? 'swiftshader'
       : (process.argv.some((a) => a.includes('vulkan') || a === '--use-gl=egl') ? 'nvidia' : 'unknown'));
 
@@ -180,7 +180,7 @@ async function collectServerGpuInfo() {
         result.usingSwiftShader = true;
         if (result.nvidia?.available) {
           result.warnings.push(
-            'Host NVIDIA GPU is visible, but Electron WebGL is still on software rendering (SwiftShader/llvmpipe). Check PRINTVENTORY_GL_BACKEND and NVIDIA_DRIVER_CAPABILITIES=graphics.'
+            'Host NVIDIA GPU is visible, but Electron WebGL is still on software rendering (SwiftShader/llvmpipe). Check JUSTTPRINT_GL_BACKEND and NVIDIA_DRIVER_CAPABILITIES=graphics.'
           );
         }
       } else if (result.activeRenderer && glBackend === 'nvidia') {
@@ -193,7 +193,7 @@ async function collectServerGpuInfo() {
 
   if (glBackend === 'swiftshader') {
     result.warnings.push(
-      'Container is using SwiftShader (CPU WebGL). Set PRINTVENTORY_GPU=nvidia (or auto with a working NVIDIA device) to attempt hardware WebGL.'
+      'Container is using SwiftShader (CPU WebGL). Set JUSTTPRINT_GPU=nvidia (or auto with a working NVIDIA device) to attempt hardware WebGL.'
     );
   }
 

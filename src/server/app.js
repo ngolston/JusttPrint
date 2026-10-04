@@ -61,7 +61,7 @@ function closeDatabaseOnQuit() {
       database.db.pragma('wal_checkpoint(TRUNCATE)');
       database.db.close();
       // A plain copy is consistent only after the checkpoint and close.
-      fs.copyFileSync(getDatabasePath(), path.join(app.getPath('userData'), 'backup_printventory.db'));
+      fs.copyFileSync(getDatabasePath(), path.join(app.getPath('userData'), 'backup_justtprint.db'));
       console.log('[Quit] Database closed and backed up.');
     }
   } catch (error) {
@@ -83,11 +83,11 @@ async function beforeQuit() {
   }
 }
 
-/** STL_HOME and PRINTVENTORY_* settings; see env-settings-apply.js for when env wins over saved values. */
+/** STL_HOME and JUSTTPRINT_* settings; see env-settings-apply.js for when env wins over saved values. */
 function applyEnvironment() {
   applyStlHomeEnvIfNeeded(process.env.STL_HOME);
   applyStlHomeExcludeEnvIfNeeded(process.env.STL_HOME_EXCLUDE);
-  applyDockerEnvSettingIfNeeded('serverHttpPort', process.env.PRINTVENTORY_PORT);
+  applyDockerEnvSettingIfNeeded('serverHttpPort', process.env.JUSTTPRINT_PORT);
   applyEnvSettings();
 }
 

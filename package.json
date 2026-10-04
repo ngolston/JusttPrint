@@ -1,7 +1,7 @@
 {
-  "name": "printventory",
-  "version": "3.1.2",
-  "description": "Printventory",
+  "name": "justtprint",
+  "version": "4.0.0",
+  "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
     "start": "node src/server/index.js",
@@ -13,9 +13,9 @@
     "docker:push:latest": "node scripts/docker-hub-push.js push-latest",
     "docker:hub:all": "node scripts/docker-hub-push.js all",
     "docker:hub:multiarch": "node scripts/docker-hub-push.js multiarch",
-    "docker:local": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env up -d --build && echo Printventory is starting at http://localhost:5055",
-    "docker:local:logs": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env logs -f",
-    "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/printventory-test/local.env down",
+    "docker:local": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env up -d --build && echo JusttPrint is starting at http://localhost:5055",
+    "docker:local:logs": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env logs -f",
+    "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
     "test": "node scripts/run-unit-tests.js",
     "test:e2e": "node tests/e2e/run.js",
     "test:bundle": "node tests/bundle-keys.test.js",
@@ -41,7 +41,7 @@
     "test:runtime": "node src/server/runtime.test.js",
     "test:releases": "node src/server/releases.test.js"
   },
-  "author": "Printventory",
+  "author": "JusttPrint",
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.57.0",

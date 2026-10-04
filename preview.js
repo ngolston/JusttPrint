@@ -43,7 +43,7 @@ console.log('[Preview] preview.js script loaded');
   let previewStudioAvailable = true;
   let previewImageOnlyMode = false;
 
-  const STUDIO_STORAGE_KEY = 'printventory.previewStudio.v5';
+  const STUDIO_STORAGE_KEY = 'justtprint.previewStudio.v5';
   const STUDIO_DEFAULTS = {
     color: '#4a9eff',
     finish: 'matte',

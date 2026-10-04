@@ -4,20 +4,20 @@
 #   npm run docker:local:logs     follow the server log
 #   npm run docker:local:down     stop and remove the container (data is kept)
 #
-# Settings come from ~/printventory-test/local.env (models folder, data folder, password, port).
+# Settings come from ~/justtprint-test/local.env (models folder, data folder, password, port).
 services:
-  printventory:
+  justtprint:
     build:
       context: .
       dockerfile: Dockerfile
-    image: printventory:local
-    container_name: printventory-local
+    image: justtprint:local
+    container_name: justtprint-local
     ports:
-      - "${PRINTVENTORY_HOST_PORT:-5055}:5000"
+      - "${JUSTTPRINT_HOST_PORT:-5055}:5000"
     volumes:
-      - "${PRINTVENTORY_DATA:?set PRINTVENTORY_DATA in local.env}:/root/.config/printventory"
-      - "${PRINTVENTORY_MODELS:?set PRINTVENTORY_MODELS in local.env}:/mnt/models:${PRINTVENTORY_MODELS_MODE:-ro}"
+      - "${JUSTTPRINT_DATA:?set JUSTTPRINT_DATA in local.env}:/root/.config/justtprint"
+      - "${JUSTTPRINT_MODELS:?set JUSTTPRINT_MODELS in local.env}:/mnt/models:${JUSTTPRINT_MODELS_MODE:-ro}"
     environment:
       - STL_HOME=/mnt/models
-      - PRINTVENTORY_PASSWORD=${PRINTVENTORY_PASSWORD:?set PRINTVENTORY_PASSWORD in local.env}
+      - JUSTTPRINT_PASSWORD=${JUSTTPRINT_PASSWORD:?set JUSTTPRINT_PASSWORD in local.env}
     restart: "no"

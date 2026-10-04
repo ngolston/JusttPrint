@@ -4,6 +4,26 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-04
+
+**Printventory is now JusttPrint.** This is a clean break: the old names are no longer read, so existing installs need the steps below.
+
+**Before upgrading (existing Printventory installs):**
+1. Stop the container cleanly (`docker compose down`), so the database is fully written.
+2. In your data folder, rename `data/printventory.db` to `data/justtprint.db`. If `printventory.db-wal` or `printventory.db-shm` files are still there, rename them the same way.
+3. In your compose file or `docker run` command:
+   - change the volume target from `/root/.config/printventory` to `/root/.config/justtprint` (the host folder stays the same);
+   - rename every `PRINTVENTORY_*` environment variable to `JUSTTPRINT_*` (for example `PRINTVENTORY_PASSWORD` → `JUSTTPRINT_PASSWORD`);
+   - use the image `justtprint:latest` (build it from this release) and, if you like, rename the service and container.
+4. Start it and log in. The 3D preview's studio settings (kept in each browser) start fresh; all other settings are in the database and carry over. An installed web app (PWA) should be reinstalled.
+5. **Send to Slicer helper:** download the helper again from **Settings → Slicer** and run its installer; it now registers `justtprint://`. To remove the old helper, run `node printventory-helper.js uninstall` in its folder (Windows `%APPDATA%\Printventory`, macOS `~/Library/Application Support/Printventory`, Linux `~/.config/printventory`).
+6. **Browser extension:** reload it from the new `chrome-extension` folder and choose your data folder again. It now writes to `JusttPrintInbox`; move anything still waiting in `PrintventoryInbox` across.
+
+**Changes:**
+- New name everywhere: web UI, login page, PWA manifest, docs, package and Docker image (`justtprint`), data folder (`/root/.config/justtprint`), database (`justtprint.db`), environment variables (`JUSTTPRINT_*`), slicer helper (`justtprint-helper.js`, `justtprint://`), MCP server name, backup and export file names, and the browser extension
+- The GitHub repository is now `ngolston/JusttPrint`; the update check uses it
+- The original MIT copyright notice is kept in `LICENSE.txt`
+
 ## [3.1.2] - 2026-10-04
 
 **Upgrading:** no changes needed. If you put Printventory behind a reverse proxy that sets its own `Content-Security-Policy`, make sure it does not replace Printventory's.

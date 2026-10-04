@@ -1,13 +1,13 @@
 services:
-  printventory:
-    image: printventory:latest
+  justtprint:
+    image: justtprint:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: printventory-server
+    container_name: justtprint-server
     ports:
       - "5000:5000"
-      # Host:container. If Settings → HTTPS / SSL listen port is not 5000 (or PRINTVENTORY_PORT),
+      # Host:container. If Settings → HTTPS / SSL listen port is not 5000 (or JUSTTPRINT_PORT),
       # change both sides to match, e.g. "5001:5001". On Synology, avoid host 5000 (DSM uses it).
       # Let's Encrypt HTTP-01 (Settings → HTTPS / SSL) needs port 80 published:
       # - "80:80"
@@ -15,9 +15,9 @@ services:
       # - "443:5000"
     volumes:
       # Persist database and application data to local directory
-      # Server mode stores the SQLite DB at /root/.config/printventory/data/printventory.db
-      # (host path: ./data/data/printventory.db). Optional: PRINTVENTORY_DB_PATH to override.
-      - ./data:/root/.config/printventory
+      # Server mode stores the SQLite DB at /root/.config/justtprint/data/justtprint.db
+      # (host path: ./data/data/justtprint.db). Optional: JUSTTPRINT_DB_PATH to override.
+      - ./data:/root/.config/justtprint
       # Your models (read-only). Change ./models to your models folder, or remove :ro to allow
       # delete, move and Organize Library.
       - ./models:/mnt/models:ro
@@ -26,7 +26,7 @@ services:
       # 1. Map network share to drive: net use Z: \\msi\folder1 /persistent:yes
       # 2. Uncomment the line below to mount it into the container
       # - Z:/:/mnt/msi-folder1:ro
-      # Then use Linux paths in Printventory: /mnt/msi-folder1/path/to/file
+      # Then use Linux paths in JusttPrint: /mnt/msi-folder1/path/to/file
       # 
       # Option 1: Mount mapped Windows network drive (Windows Docker Desktop)
       # - Z:/:/mnt/msi-folder1:ro
@@ -36,7 +36,7 @@ services:
       # Then uncomment: - /mnt/network-share:/mnt/network-share:ro
       # Option 3: Mount local directory (if files are on the Docker host)
       # - /path/to/local/files:/mnt/models:ro
-      # Optional: custom PEM files for Settings → HTTPS / SSL (custom mode) or PRINTVENTORY_TLS_*
+      # Optional: custom PEM files for Settings → HTTPS / SSL (custom mode) or JUSTTPRINT_TLS_*
       # Let's Encrypt / self-signed certs are written under this data volume (./data), not ./certs.
       # - ./certs:/certs:ro
     environment:
@@ -44,23 +44,23 @@ services:
       # Keep worker memory well below the container/host RAM budget — OOM kills the whole
       # Electron process and drops all WebSocket clients (browser shows "WebSocket connection failed").
       # Recommend Docker Desktop / host RAM of 4GB+ for this container when scanning large libraries.
-      - PRINTVENTORY_PREVIEW_3MF_WORKER_MEMORY_MB=512
-      - PRINTVENTORY_PREVIEW_3MF_MAX_FILE_SIZE_MB=200
+      - JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB=512
+      - JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB=200
       # GPU for server-side thumbnail WebGL: auto (default) | nvidia | swiftshader
-      # - PRINTVENTORY_GPU=auto
+      # - JUSTTPRINT_GPU=auto
       # ANGLE backend when using NVIDIA: vulkan (default) | gl | egl
-      # - PRINTVENTORY_ANGLE=vulkan
+      # - JUSTTPRINT_ANGLE=vulkan
       # V8 heap MB (optional). Default auto-scales from the container memory limit
       # (or 8192 when unlimited). Raise if logs show "OOM error in V8: Zone Allocation".
-      # - PRINTVENTORY_MAX_OLD_SPACE_MB=8192
+      # - JUSTTPRINT_MAX_OLD_SPACE_MB=8192
       # Optional: STL Home directories (applied when the list is unset in the DB, or always when
-      # PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1). One path, or several separated by commas,
+      # JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1). One path, or several separated by commas,
       # semicolons, or newlines, or a JSON array. Use Linux paths inside the container.
       # - STL_HOME=/mnt/models,/mnt/archive
       - STL_HOME=/mnt/models
       # Optional: directories STL Home scans skip. Comma, semicolon, or newline separated
       # container paths (or a JSON array). Relative paths are resolved against STL Home.
-      # Applied when the exclude list is empty, or always when PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1.
+      # Applied when the exclude list is empty, or always when JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1.
       # - STL_HOME_EXCLUDE=/mnt/models/cache,/mnt/models/derivatives
       # User and group that own files the app writes (database, moved and organized models).
       # Match the owner of your library folder (`id -u` / `id -g` on the host; Synology is often 1026/100).
@@ -69,31 +69,31 @@ services:
       # - PGID=1000
       # Login password for the web UI. Unset: a random password is printed once in `docker logs`.
       # When set, it replaces the stored password on every start (also how to reset a lost one).
-      # - PRINTVENTORY_PASSWORD=change-me-please
+      # - JUSTTPRINT_PASSWORD=change-me-please
       # Extra browser origins allowed to connect, e.g. behind a reverse proxy that rewrites Host.
-      # - PRINTVENTORY_ALLOWED_ORIGINS=https://library.example.com
+      # - JUSTTPRINT_ALLOWED_ORIGINS=https://library.example.com
       # Number of reverse proxies in front, so the login rate limit sees real client addresses.
-      # - PRINTVENTORY_TRUST_PROXY=1
+      # - JUSTTPRINT_TRUST_PROXY=1
       # Library and AI settings. These win over the UI on every start (README: Environment variables).
-      # - PRINTVENTORY_ENABLE_ZIP=true
-      # - PRINTVENTORY_FILE_TYPES=obj,step
-      # - PRINTVENTORY_SCAN_EXCLUDE=cache,renders
-      # - PRINTVENTORY_AI_SERVICE=openai
-      # - PRINTVENTORY_AI_API_KEY=sk-...
-      # - PRINTVENTORY_AI_MODEL=gpt-5-nano
+      # - JUSTTPRINT_ENABLE_ZIP=true
+      # - JUSTTPRINT_FILE_TYPES=obj,step
+      # - JUSTTPRINT_SCAN_EXCLUDE=cache,renders
+      # - JUSTTPRINT_AI_SERVICE=openai
+      # - JUSTTPRINT_AI_API_KEY=sk-...
+      # - JUSTTPRINT_AI_MODEL=gpt-5-nano
       # Listen port inside the container (Settings → HTTPS / SSL). Default 5000. Map the same
-      # port in `ports:` above. PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1 makes this win every start.
-      # - PRINTVENTORY_PORT=5001
+      # port in `ports:` above. JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1 makes this win every start.
+      # - JUSTTPRINT_PORT=5001
       #
-      # --- HTTPS (optional): TLS terminates in Printventory (no reverse proxy required) ---
+      # --- HTTPS (optional): TLS terminates in JusttPrint (no reverse proxy required) ---
       # Preferred: open Settings → HTTPS / SSL in the UI (custom PEM paths, Let's Encrypt, or self-signed).
       # Settings persist in ./data. Let's Encrypt also needs ports 80:80 published.
       #
       # Ops override (wins over the UI): mount PEMs and set these env vars.
-      # - PRINTVENTORY_TLS_CERT=/certs/fullchain.pem
-      # - PRINTVENTORY_TLS_KEY=/certs/privkey.pem
+      # - JUSTTPRINT_TLS_CERT=/certs/fullchain.pem
+      # - JUSTTPRINT_TLS_KEY=/certs/privkey.pem
       # Optional intermediate CA bundle:
-      # - PRINTVENTORY_TLS_CA=/certs/chain.pem
+      # - JUSTTPRINT_TLS_CA=/certs/chain.pem
       # (SSL_CERT_FILE / SSL_KEY_FILE are also accepted.)
       #
       # If you terminate TLS with Traefik/Caddy/nginx instead, leave TLS unset in the UI and env
@@ -102,7 +102,7 @@ services:
     # Give the container enough RAM. Under ~2G, hash/scan/preview work often OOMs Electron
     # (see "OOM error in V8: Zone Allocation failed"), which looks like WebSocket failures in the browser.
     # Host RAM (e.g. 64–96GB) does not help if the *container* is capped low — raise this limit
-    # (and/or PRINTVENTORY_MAX_OLD_SPACE_MB). V8 heap auto-scales from the cgroup limit.
+    # (and/or JUSTTPRINT_MAX_OLD_SPACE_MB). V8 heap auto-scales from the cgroup limit.
     # deploy:
     #   resources:
     #     limits:
@@ -118,7 +118,7 @@ services:
     # environment additions:
     #   - NVIDIA_VISIBLE_DEVICES=all
     #   - NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility
-    #   - PRINTVENTORY_GPU=auto
+    #   - JUSTTPRINT_GPU=auto
     # Or Compose deploy syntax:
     # deploy:
     #   resources:
@@ -131,5 +131,5 @@ services:
 # Using bind mount instead of named volume for better control and persistence
 # Database is now stored in ./data directory on the host filesystem
 # volumes:
-#   printventory-data:
+#   justtprint-data:
 #     driver: local

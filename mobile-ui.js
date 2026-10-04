@@ -312,13 +312,13 @@
   }
 
   function nudgePreviewView() {
-    if (window.__printventoryMobileViewNudged) return;
+    if (window.__justtprintMobileViewNudged) return;
     let tries = 0;
     const tick = setInterval(() => {
       const active = document.querySelector('.view-button.active');
       tries += 1;
       if (!active && tries <= 40) return;
-      window.__printventoryMobileViewNudged = true;
+      window.__justtprintMobileViewNudged = true;
       clearInterval(tick);
       if (active?.dataset.view === 'detailed') {
         document.querySelector('.view-button[data-view="preview"]')?.click();

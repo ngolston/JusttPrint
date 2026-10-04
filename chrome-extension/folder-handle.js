@@ -1,12 +1,12 @@
 /**
- * Persist the Printventory folder (File System Access) and write inbox JSON there.
+ * Persist the JusttPrint folder (File System Access) and write inbox JSON there.
  */
 (function (root) {
   'use strict';
 
-  const DB_NAME = 'printventory-watcher';
+  const DB_NAME = 'justtprint-watcher';
   const STORE = 'handles';
-  const KEY = 'printventoryDir';
+  const KEY = 'justtprintDir';
 
   function openDb() {
     return new Promise(function (resolve, reject) {
@@ -65,7 +65,7 @@
 
   async function folderHasDatabase(handle) {
     try {
-      await handle.getFileHandle('printventory.db');
+      await handle.getFileHandle('justtprint.db');
       return true;
     } catch (e) {
       return false;
@@ -76,7 +76,7 @@
     const handle = await getDirectoryHandle();
     if (!handle) return { ok: false, reason: 'no-folder' };
     if (!(await ensureWritePermission(handle))) return { ok: false, reason: 'permission' };
-    const inbox = await handle.getDirectoryHandle('PrintventoryInbox', { create: true });
+    const inbox = await handle.getDirectoryHandle('JusttPrintInbox', { create: true });
     const name = String((payload && payload.id) || 'item') + '.pvimport.json';
     const file = await inbox.getFileHandle(name, { create: true });
     const writable = await file.createWritable();
@@ -85,7 +85,7 @@
     return { ok: true, via: 'folder', filename: name, folderName: handle.name };
   }
 
-  root.PrintventoryFolder = {
+  root.JusttPrintFolder = {
     getDirectoryHandle: getDirectoryHandle,
     setDirectoryHandle: setDirectoryHandle,
     clearDirectoryHandle: clearDirectoryHandle,

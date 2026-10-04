@@ -7,7 +7,7 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = api;
   }
-  root.PrintventoryExtract = api;
+  root.JusttPrintExtract = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 

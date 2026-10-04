@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Printventory",
-  "short_name": "Printventory",
+  "name": "JusttPrint",
+  "short_name": "JusttPrint",
   "description": "3D model library manager for Bambu Lab, Snapmaker, and Panda Verse workflows.",
   "start_url": "/",
   "scope": "/",

@@ -46,7 +46,7 @@ verify.spec.js
 .env
 
 # Database files (will be created in container)
-printventory.db
+justtprint.db
 *.db-journal
 
 # Local runtime / test data (Windows lock files break docker build context)
@@ -77,3 +77,7 @@ chrome-extension/
 .claude/
 demos/
 *.test.js
+
+# Local databases from before the rename
+printventory.db
+printventory.db-*

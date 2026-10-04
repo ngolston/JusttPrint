@@ -2,8 +2,8 @@
 
 /**
  * Settings that Docker users can set with environment variables. These apply on every start
- * (the container's configuration wins over the UI), unlike STL_HOME and PRINTVENTORY_PORT,
- * which only fill an empty setting unless PRINTVENTORY_ENV_OVERRIDES_SETTINGS=1.
+ * (the container's configuration wins over the UI), unlike STL_HOME and JUSTTPRINT_PORT,
+ * which only fill an empty setting unless JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1.
  */
 
 const AI_SERVICES = ['openai', 'claude', 'gemini', 'puter', 'custom'];
@@ -21,29 +21,29 @@ function splitList(value) {
 
 /** [env name, setting key, convert(value, ctx) -> stored string] */
 const ENV_SETTINGS = [
-  ['PRINTVENTORY_ENABLE_ZIP', 'enableZipArchives', parseBoolean],
-  ['PRINTVENTORY_FILE_TYPES', 'scanAdditionalFileTypes', (value, ctx) => {
+  ['JUSTTPRINT_ENABLE_ZIP', 'enableZipArchives', parseBoolean],
+  ['JUSTTPRINT_FILE_TYPES', 'scanAdditionalFileTypes', (value, ctx) => {
     const ids = splitList(value).map((id) => id.toLowerCase().replace(/^\./, ''));
     const unknown = ids.filter((id) => !ctx.fileTypeIds.includes(id));
     if (unknown.length) throw new Error(`unknown file types: ${unknown.join(', ')} (known: ${ctx.fileTypeIds.join(', ')})`);
     return JSON.stringify([...new Set(ids)]);
   }],
-  ['PRINTVENTORY_SCAN_EXCLUDE', 'scanExcludeFolders', (value) => splitList(value).join('\n')],
-  ['PRINTVENTORY_AI_SERVICE', 'aiService', (value) => {
+  ['JUSTTPRINT_SCAN_EXCLUDE', 'scanExcludeFolders', (value) => splitList(value).join('\n')],
+  ['JUSTTPRINT_AI_SERVICE', 'aiService', (value) => {
     const service = String(value).trim().toLowerCase();
     if (!AI_SERVICES.includes(service)) throw new Error(`expected one of ${AI_SERVICES.join(', ')}`);
     return service;
   }],
-  ['PRINTVENTORY_AI_API_KEY', 'apiKey', (value) => String(value).trim()],
-  ['PRINTVENTORY_AI_MODEL', 'aiModel', (value) => String(value).trim()],
-  ['PRINTVENTORY_AI_ENDPOINT', 'apiEndpoint', (value) => {
+  ['JUSTTPRINT_AI_API_KEY', 'apiKey', (value) => String(value).trim()],
+  ['JUSTTPRINT_AI_MODEL', 'aiModel', (value) => String(value).trim()],
+  ['JUSTTPRINT_AI_ENDPOINT', 'apiEndpoint', (value) => {
     const url = new URL(String(value).trim());
     return url.toString().replace(/\/$/, '');
   }]
 ];
 
 /** Values that must not be printed in the log. */
-const SECRET_ENV = new Set(['PRINTVENTORY_AI_API_KEY']);
+const SECRET_ENV = new Set(['JUSTTPRINT_AI_API_KEY']);
 
 /**
  * @param {object} env process.env

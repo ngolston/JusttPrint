@@ -45,9 +45,9 @@ function windowsInstaller() {
     '@echo off',
     'setlocal EnableExtensions',
     'cd /d "%~dp0"',
-    'set "DEST=%LOCALAPPDATA%\\Printventory\\helper"',
+    'set "DEST=%LOCALAPPDATA%\\JusttPrint\\helper"',
     'mkdir "%DEST%" 2>nul',
-    'copy /Y "%~dp0printventory-helper.js" "%DEST%\\" >nul',
+    'copy /Y "%~dp0justtprint-helper.js" "%DEST%\\" >nul',
     'copy /Y "%~dp0slicer-protocol.js" "%DEST%\\" >nul',
     'copy /Y "%~dp0slicer-launch.js" "%DEST%\\" >nul',
     'copy /Y "%~dp0helper-config.json" "%DEST%\\" >nul',
@@ -62,9 +62,9 @@ function windowsInstaller() {
     '  exit /b 1',
     ')',
     'if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (set "NODE_ARCH=win-arm64") else (set "NODE_ARCH=win-x64")',
-    'set "SUMS=%TEMP%\\printventory-node-shasums.txt"',
-    'set "NODE_ZIP=%TEMP%\\printventory-node.zip"',
-    'set "NODE_TMP=%TEMP%\\printventory-node-unpack"',
+    'set "SUMS=%TEMP%\\justtprint-node-shasums.txt"',
+    'set "NODE_ZIP=%TEMP%\\justtprint-node.zip"',
+    'set "NODE_TMP=%TEMP%\\justtprint-node-unpack"',
     'curl.exe -fsSL -o "%SUMS%" https://nodejs.org/dist/latest-lts/SHASUMS256.txt',
     'if errorlevel 1 (',
     '  echo Could not reach https://nodejs.org',
@@ -101,13 +101,13 @@ function windowsInstaller() {
     '  exit /b 1',
     ')',
     ':run_install',
-    '"%NODE%" "%DEST%\\printventory-helper.js" install --from-bundle',
+    '"%NODE%" "%DEST%\\justtprint-helper.js" install --from-bundle',
     'if errorlevel 1 (',
     '  echo Install failed.',
     '  pause',
     '  exit /b 1',
     ')',
-    'echo Printventory helper installed. It will connect to the server that created this package.',
+    'echo JusttPrint helper installed. It will connect to the server that created this package.',
     'echo You can close this window.',
     'pause',
     ''
@@ -124,7 +124,7 @@ function unixInstaller() {
     '  if [ "$code" -ne 0 ]; then',
     '    echo "Install failed."',
     '  else',
-    '    echo "Printventory helper installed. It will connect to the server that created this package."',
+    '    echo "JusttPrint helper installed. It will connect to the server that created this package."',
     '  fi',
     '  if [ "$(uname)" = "Darwin" ] || [ "$code" -ne 0 ]; then',
     '    echo "Press Enter to close."',
@@ -133,12 +133,12 @@ function unixInstaller() {
     '  exit "$code"',
     '}',
     'if [ "$(uname)" = "Darwin" ]; then',
-    '  DEST="$HOME/Library/Application Support/Printventory/helper"',
+    '  DEST="$HOME/Library/Application Support/JusttPrint/helper"',
     'else',
-    '  DEST="${XDG_DATA_HOME:-$HOME/.local/share}/printventory/helper"',
+    '  DEST="${XDG_DATA_HOME:-$HOME/.local/share}/justtprint/helper"',
     'fi',
     'mkdir -p "$DEST" || finish 1',
-    'cp -f printventory-helper.js slicer-protocol.js slicer-launch.js helper-config.json "$DEST/" || finish 1',
+    'cp -f justtprint-helper.js slicer-protocol.js slicer-launch.js helper-config.json "$DEST/" || finish 1',
     'NODE=""',
     'if command -v node >/dev/null 2>&1; then',
     '  NODE=$(command -v node)',
@@ -167,7 +167,7 @@ function unixInstaller() {
     '  NODE="$DEST/node/bin/node"',
     '  if [ ! -x "$NODE" ]; then echo "Node.js did not unpack correctly."; finish 1; fi',
     'fi',
-    '"$NODE" "$DEST/printventory-helper.js" install --from-bundle || finish 1',
+    '"$NODE" "$DEST/justtprint-helper.js" install --from-bundle || finish 1',
     'finish 0',
     ''
   ].join('\n');
@@ -175,7 +175,7 @@ function unixInstaller() {
 
 function installReadme(origin) {
   return [
-    'Printventory helper',
+    'JusttPrint helper',
     '',
     'This package was built by ' + origin + ' and will connect only to that server.',
     '',
@@ -184,19 +184,19 @@ function installReadme(origin) {
     'Linux: bash install.sh',
     '',
     'If Node.js is not already installed, the installer downloads the official LTS release from nodejs.org.',
-    'After it finishes, add the slicer path in Printventory Slicer Settings.',
+    'After it finishes, add the slicer path in JusttPrint Slicer Settings.',
     ''
   ].join('\n');
 }
 
 async function buildHelperBundle({ appDir, origin, insecure }) {
   const config = bundleConfig(origin, insecure);
-  const helperJs = fs.readFileSync(path.join(appDir, 'helper', 'printventory-helper.js'));
+  const helperJs = fs.readFileSync(path.join(appDir, 'helper', 'justtprint-helper.js'));
   const protocolJs = fs.readFileSync(path.join(appDir, 'slicer-protocol.js'));
   const launchJs = fs.readFileSync(path.join(appDir, 'helper', 'slicer-launch.js'));
   const shell = unixInstaller();
   const zip = new JSZip();
-  zip.file('printventory-helper.js', helperJs);
+  zip.file('justtprint-helper.js', helperJs);
   zip.file('slicer-protocol.js', protocolJs);
   zip.file('slicer-launch.js', launchJs);
   zip.file('helper-config.json', JSON.stringify(config, null, 2) + '\n');
@@ -214,7 +214,7 @@ function registerHelperBundleRoute(expressApp, appDir) {
       const insecure = req.query.insecure === '1' || req.query.insecure === 'true';
       const body = await buildHelperBundle({ appDir, origin, insecure });
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="Printventory-Helper.zip"');
+      res.setHeader('Content-Disposition', 'attachment; filename="JusttPrint-Helper.zip"');
       res.send(body);
     } catch (error) {
       const message = error && error.message ? error.message : 'Could not build helper bundle';

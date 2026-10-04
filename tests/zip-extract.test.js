@@ -43,7 +43,7 @@ async function writeOuterZip(filePath, files, compression) {
 }
 
 before(async () => {
-  tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'printventory-zip-extract-'));
+  tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'justtprint-zip-extract-'));
 });
 
 after(async () => {

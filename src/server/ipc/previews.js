@@ -28,17 +28,17 @@ const PREVIEW_3MF_CACHE_LIMIT = 1;
 
 const PREVIEW_3MF_MAX_FILE_SIZE_MB = Math.max(
   10,
-  Number.parseInt(process.env.PRINTVENTORY_PREVIEW_3MF_MAX_FILE_SIZE_MB || '200', 10) || 200
+  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB || '200', 10) || 200
 );
 
 const PREVIEW_3MF_WORKER_MEMORY_MB = Math.max(
   512,
-  Number.parseInt(process.env.PRINTVENTORY_PREVIEW_3MF_WORKER_MEMORY_MB || '2048', 10) || 2048
+  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB || '2048', 10) || 2048
 );
 
 const PREVIEW_3MF_MAX_DISK_CACHE_MB = Math.max(
   50,
-  Number.parseInt(process.env.PRINTVENTORY_PREVIEW_3MF_MAX_DISK_CACHE_MB || '150', 10) || 150
+  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_DISK_CACHE_MB || '150', 10) || 150
 );
 
 function getPreview3mfCacheDir() {
@@ -134,7 +134,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
   }
 
   const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
-  const verbose = opts.verbose === true || process.env.PRINTVENTORY_DEBUG_3MF === '1';
+  const verbose = opts.verbose === true || process.env.JUSTTPRINT_DEBUG_3MF === '1';
   const maxImagesRaw = Number(opts.maxImages);
   const maxImages = Number.isFinite(maxImagesRaw) && maxImagesRaw > 0
     ? Math.min(Math.floor(maxImagesRaw), 250)

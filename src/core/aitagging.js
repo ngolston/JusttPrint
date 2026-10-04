@@ -723,7 +723,7 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     const status = error && error.status;
     const is400NoBody = status === 400 && msg && msg.includes('no body');
     if (is400NoBody) {
-      const hint = 'If you are running Printventory in Docker or behind a proxy, the API may be returning 400 with an empty response. Check that the container can reach the AI provider (e.g. generativelanguage.googleapis.com for Gemini), that no proxy is altering requests, and that the API key and model name are correct.';
+      const hint = 'If you are running JusttPrint in Docker or behind a proxy, the API may be returning 400 with an empty response. Check that the container can reach the AI provider (e.g. generativelanguage.googleapis.com for Gemini), that no proxy is altering requests, and that the API key and model name are correct.';
       return { success: false, error: msg + ' ' + hint };
     }
     return { success: false, error: msg || String(error) };

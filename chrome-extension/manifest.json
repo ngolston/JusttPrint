@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Printventory Watcher",
+  "name": "JusttPrint Watcher",
   "version": "2.1.6",
-  "description": "Queue 3D model pages and downloads for Printventory. No running app required.",
+  "description": "Queue 3D model pages and downloads for JusttPrint. No running app required.",
   "permissions": ["storage", "activeTab", "downloads", "notifications", "tabs", "offscreen"],
   "icons": {
     "16": "icon16.png",
@@ -10,7 +10,7 @@
     "128": "icon128.png"
   },
   "action": {
-    "default_title": "Add to Printventory",
+    "default_title": "Add to JusttPrint",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",

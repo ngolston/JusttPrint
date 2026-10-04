@@ -1,8 +1,8 @@
 /**
- * Printventory MCP (Model Context Protocol) server.
+ * JusttPrint MCP (Model Context Protocol) server.
  * Streamable HTTP JSON-RPC at POST /mcp so local AI agents can search the library,
  * manage tags/filaments/print history, update metadata, and write thumbnails
- * while Printventory is running.
+ * while JusttPrint is running.
  */
 'use strict';
 
@@ -15,13 +15,13 @@ const SUPPORTED_PROTOCOL_VERSIONS = new Set([
   '2025-06-18',
   '2025-11-25'
 ]);
-const SERVER_NAME = 'printventory';
+const SERVER_NAME = 'justtprint';
 
 const TOOL_DEFINITIONS = [
   {
     name: 'search_models',
     description:
-      'Search and filter the Printventory library. Returns model metadata without thumbnail image data. Use get_model for full details.',
+      'Search and filter the JusttPrint library. Returns model metadata without thumbnail image data. Use get_model for full details.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -320,7 +320,7 @@ const TOOL_DEFINITIONS = [
   {
     name: 'set_thumbnail',
     description:
-      'Replace the primary thumbnail for a model. Pass a PNG or JPEG as a data URL (data:image/...) or raw base64. Intended for local AI agents that render thumbnails outside Printventory.',
+      'Replace the primary thumbnail for a model. Pass a PNG or JPEG as a data URL (data:image/...) or raw base64. Intended for local AI agents that render thumbnails outside JusttPrint.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -587,7 +587,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'open_in_slicer',
-    description: 'Open one or more models in a configured slicer on the user\'s computer. The open Printventory browser tabs hand the files to the Printventory helper, which downloads them and starts the slicer there. Nothing runs on the server.',
+    description: 'Open one or more models in a configured slicer on the user\'s computer. The open JusttPrint browser tabs hand the files to the JusttPrint helper, which downloads them and starts the slicer there. Nothing runs on the server.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -634,7 +634,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'sync_spoolman_filaments',
-    description: 'Pull filaments from the configured Spoolman server into Printventory.',
+    description: 'Pull filaments from the configured Spoolman server into JusttPrint.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -699,7 +699,7 @@ function buildMcpClientConfig(url, apiToken) {
   if (apiToken) server.headers = { Authorization: `Bearer ${apiToken}` };
   return {
     mcpServers: {
-      printventory: server
+      justtprint: server
     }
   };
 }
@@ -881,7 +881,7 @@ function initializeResult(params, getVersion) {
       version: typeof getVersion === 'function' ? String(getVersion() || '0') : '0'
     },
     instructions:
-      'Printventory library MCP. Search and update models, manage tags/filaments/print history, find duplicates, scan folders, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
+      'JusttPrint library MCP. Search and update models, manage tags/filaments/print history, find duplicates, scan folders, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
   };
 }
 

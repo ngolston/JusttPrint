@@ -71,14 +71,14 @@ function startServer(port) {
     stdio: ['ignore', log, log],
     env: {
       ...process.env,
-      PRINTVENTORY_USER_DATA: DATA,
-      PRINTVENTORY_PORT: String(port),
-      PRINTVENTORY_PASSWORD: PASSWORD,
-      PRINTVENTORY_ENABLE_ZIP: 'true',
+      JUSTTPRINT_USER_DATA: DATA,
+      JUSTTPRINT_PORT: String(port),
+      JUSTTPRINT_PASSWORD: PASSWORD,
+      JUSTTPRINT_ENABLE_ZIP: 'true',
       STL_HOME: LIBRARY,
       // Keep Move to Trash inside the work folder (the home trash is the fallback on a single-drive machine).
       XDG_DATA_HOME: path.join(WORK, 'share'),
-      ...(CHROME ? { PRINTVENTORY_CHROMIUM: CHROME } : {})
+      ...(CHROME ? { JUSTTPRINT_CHROMIUM: CHROME } : {})
     }
   });
   return child;
@@ -177,7 +177,7 @@ async function apiChecks(base, wsUrl) {
   check('/etc/passwd via file refused', (await http.request(file('/etc/passwd'))).status === 403);
   check('/etc/passwd via download refused', (await http.request(download('/etc/passwd'))).status === 403);
   check('traversal out of library refused', (await http.request(file(path.join(LIBRARY, '..', '..', 'package.json')))).status === 403);
-  check('live database refused', (await http.request(download(path.join(DATA, 'data', 'printventory.db')))).status === 403);
+  check('live database refused', (await http.request(download(path.join(DATA, 'data', 'justtprint.db')))).status === 403);
   const crossSite = await http.request('/api/auth/logout', { method: 'POST', headers: { origin: 'https://evil.example' } });
   check('cross-site POST refused', crossSite.status === 403);
 
@@ -197,7 +197,7 @@ async function apiChecks(base, wsUrl) {
   console.log('\n# Path guard');
   const refused = (res, pattern) => typeof res.error === 'string' && pattern.test(res.error);
   check('read /etc/passwd refused', refused(await invoke(wsUrl, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
-  check('delete live database refused', refused(await invoke(wsUrl, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'printventory.db')]), /outside the library/));
+  check('delete live database refused', refused(await invoke(wsUrl, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'justtprint.db')]), /outside the library/));
   check('scan /etc refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
   check('page fetch outside Thangs refused', refused(await invoke(wsUrl, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']), /Only https links to thangs\.com/));
   check('fetch-makerworld-page removed', !!(await invoke(wsUrl, { cookie, origin }, 'fetch-makerworld-page', ['https://makerworld.com/'])).error);
@@ -347,13 +347,13 @@ async function apiChecks(base, wsUrl) {
   check('backup created', !!backupPath, backup.error);
   if (backupPath) check('backup downloadable', (await http.request(download(backupPath))).status === 200);
   const junk = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
-  check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a Printventory backup/.test(junk.result.message), JSON.stringify(junk));
+  check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a JusttPrint backup/.test(junk.result.message), JSON.stringify(junk));
   check('library still works after a refused restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
   if (backupPath) {
     const restored = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
     check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
     check('library works after restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
-    check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'printventory.db.before-restore')));
+    check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
   const trash = await invoke(wsUrl, { cookie, origin }, 'trash-file', [part]);
@@ -396,7 +396,7 @@ async function browserChecks(base, wsUrl, session) {
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
       // No helper is installed here, so Chrome cannot open the Send to Slicer link. Expected.
-      if (/Failed to launch 'printventory:\/\/.*does not have a registered handler/.test(message.text())) return;
+      if (/Failed to launch 'justtprint:\/\/.*does not have a registered handler/.test(message.text())) return;
       const where = message.location();
       errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber})`);
     });
@@ -461,17 +461,17 @@ async function browserChecks(base, wsUrl, session) {
     }, fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'step-cube.stp')).toString('base64'));
     check('STEP preview parses in the browser (WebAssembly under CSP)', stepResult.success === true && stepResult.geometries > 0, JSON.stringify(stepResult));
 
-    // Send to Slicer in the page: the server's command becomes a printventory:// link for the helper.
+    // Send to Slicer in the page: the server's command becomes a justtprint:// link for the helper.
     await invoke(wsUrl, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
     const helperLink = await page.evaluate(async (file) => {
       const slicers = await window.electron.getSlicers();
       const slicer = slicers.find((s) => s.name === 'Browser Slicer');
       const result = await window.electron.openFileInSlicer({ filePaths: [file], slicerId: slicer.id });
       window.electron.launchSlicerCommand(result.command);
-      const frame = [...document.querySelectorAll('iframe')].find((f) => String(f.src).startsWith('printventory://'));
+      const frame = [...document.querySelectorAll('iframe')].find((f) => String(f.src).startsWith('justtprint://'));
       return frame ? frame.src : null;
     }, path.join(LIBRARY, 'Designer A', 'cube.stl'));
-    check('Send to Slicer opens a helper link with a download token', /^printventory:\/\/open\/\?.*token=/.test(helperLink || '') && helperLink.includes('browser-slicer'), helperLink);
+    check('Send to Slicer opens a helper link with a download token', /^justtprint:\/\/open\/\?.*token=/.test(helperLink || '') && helperLink.includes('browser-slicer'), helperLink);
     const browserSlicer = ((await invoke(wsUrl, session, 'get-slicers')).result || []).find((s) => s.name === 'Browser Slicer');
     if (browserSlicer) await invoke(wsUrl, session, 'delete-slicer', [browserSlicer.id]);
 

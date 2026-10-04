@@ -104,12 +104,12 @@ test('lists expected tools', () => {
 
 test('buildMcpClientConfig uses streamable HTTP url', () => {
   const cfg = buildMcpClientConfig('http://127.0.0.1:5000/mcp');
-  assert.strictEqual(cfg.mcpServers.printventory.url, 'http://127.0.0.1:5000/mcp');
+  assert.strictEqual(cfg.mcpServers.justtprint.url, 'http://127.0.0.1:5000/mcp');
 });
 
 test('buildMcpClientConfig adds the API token as a bearer header', () => {
   const cfg = buildMcpClientConfig('http://127.0.0.1:5000/mcp', 'pv_abc');
-  assert.deepStrictEqual(cfg.mcpServers.printventory.headers, { Authorization: 'Bearer pv_abc' });
+  assert.deepStrictEqual(cfg.mcpServers.justtprint.headers, { Authorization: 'Bearer pv_abc' });
 });
 
 test('toDataUrl accepts data URLs and raw base64', () => {
@@ -127,7 +127,7 @@ async function runAsync() {
       params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test' } }
     }, mockCtx());
     assert.strictEqual(res.result.protocolVersion, MCP_PROTOCOL_VERSION);
-    assert.strictEqual(res.result.serverInfo.name, 'printventory');
+    assert.strictEqual(res.result.serverInfo.name, 'justtprint');
     assert.strictEqual(res.result.serverInfo.version, '2.2.9');
     assert.ok(res.result.capabilities.tools);
   });

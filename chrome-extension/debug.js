@@ -3,7 +3,7 @@
  */
 (function (g) {
   'use strict';
-  const PREFIX = '[Printventory Watcher]';
+  const PREFIX = '[JusttPrint Watcher]';
   var enabled = false;
   g.pvSetDebug = function (v) {
     enabled = !!v;

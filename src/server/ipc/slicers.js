@@ -10,7 +10,7 @@ const { getServerAuth } = require('../auth');
  * Send to Slicer never runs anything on the server (a desktop slicer cannot open in a
  * headless container, and the server must not start programs a browser names). The server
  * builds an open-in-slicer command with a short-lived download token; the browser turns it
- * into a printventory:// link, and the helper on the user's computer (helper/) downloads
+ * into a justtprint:// link, and the helper on the user's computer (helper/) downloads
  * the files and starts the slicer there.
  */
 
