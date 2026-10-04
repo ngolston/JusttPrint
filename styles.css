@@ -8510,27 +8510,6 @@ dialog:not([open]) {
   margin-bottom: 15px;
 }
 
-@keyframes rotate360 {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.rotating {
-  animation: rotate360 0.5s linear;
-}
-
-.refresh-button {
-  font-size: 20px;
-  font-weight: bold;
-  color: #4a9eff;
-  padding: 2px 5px;
-  transition: color 0.2s, transform 0.3s;
-}
-
-.refresh-button:hover {
-  color: #7bb8ff;
-}
-
 /* ===========================
    Preview Modal Styles
    =========================== */

@@ -556,7 +556,7 @@ console.log('[Preview] preview.js script loaded');
         <div style="color: #ff6b6b; text-align: center; padding: 20px; max-width: 500px;">
           <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">Error loading model</p>
           <p style="font-size: 14px; line-height: 1.6; white-space: pre-line;">${displayMessage}</p>
-          <button onclick="document.getElementById('preview-dialog').close()" 
+          <button data-close-dialog="preview-dialog" 
                   style="margin-top: 20px; padding: 10px 20px; background: rgba(255,255,255,0.1); 
                          border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; 
                          color: white; cursor: pointer; font-size: 14px;">
@@ -1247,7 +1247,7 @@ console.log('[Preview] preview.js script loaded');
         <div style="color: #ff6b6b; text-align: center; padding: 20px; max-width: 500px;">
           <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">Could not load bundle preview</p>
           <p style="font-size: 14px; line-height: 1.6;">No models in this bundle could be loaded for 3D preview.</p>
-          <button onclick="document.getElementById('preview-dialog').close()"
+          <button data-close-dialog="preview-dialog"
                   style="margin-top: 20px; padding: 10px 20px; background: rgba(255,255,255,0.1);
                          border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
                          color: white; cursor: pointer; font-size: 14px;">

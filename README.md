@@ -1,6 +1,6 @@
 # Printventory
 
-**Version 3.1.1**
+**Version 3.1.2**
 
 Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -880,6 +880,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 - `index.html`, `styles.css` - Page structure and styling
 - `renderer.js` - UI logic (to be replaced screen by screen with React + TypeScript)
 - `server-bridge.js` - Connects the UI to the server over a WebSocket
+- `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide
 
 ### Configuration

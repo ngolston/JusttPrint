@@ -4,6 +4,16 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-10-04
+
+**Upgrading:** no changes needed. If you put Printventory behind a reverse proxy that sets its own `Content-Security-Policy`, make sure it does not replace Printventory's.
+
+**Security:**
+- The Content Security Policy now allows scripts only from Printventory's own files (`script-src 'self'`), so injected `<script>` tags and inline event handlers cannot run. Inline scripts and `onclick=` handlers in the page moved to `page-init.js`, and the server no longer inlines `server-bridge.js`. The 3D model parse worker also allows eval, which the STEP library needs.
+
+**Changes:**
+- Removed the non-working refresh button and "field not editable" hint from Add New Tag (an old desktop workaround)
+
 ## [3.1.1] - 2026-10-04
 
 **Upgrading:** no changes needed. Send to Slicer keeps working through the helper; if you used it from the 3D preview and it failed to download, it works now.

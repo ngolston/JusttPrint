@@ -256,8 +256,15 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   // Behind a reverse proxy, req.ip (login rate limit) comes from X-Forwarded-For only when trusted.
   expressApp.set('trust proxy', parseTrustProxy(process.env.PRINTVENTORY_TRUST_PROXY));
   expressApp.use((req, res, next) => {
-    // No script-src yet: the UI still relies on inline scripts and onclick handlers.
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    // Scripts only from this server's files: no inline <script>, onclick="" or eval. STEP previews
+    // compile a WebAssembly module, which needs 'wasm-unsafe-eval' (WebAssembly only, not JS eval).
+    // The model parse worker also gets 'unsafe-eval': the STEP library (occt-import-js, Emscripten
+    // embind) builds functions from strings. A worker runs under its own response's policy and
+    // has no access to the page, so the page itself stays strict.
+    const scriptSrc = req.path === '/parse-worker.js'
+      ? "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'"
+      : "script-src 'self' 'wasm-unsafe-eval'";
+    res.setHeader('Content-Security-Policy', `${scriptSrc}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -281,61 +288,14 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   // Ensure renderer.js, styles.css, images, and server-bridge.js are served
   // Without this, the browser won't load app scripts and buttons won't work
 
-  /** Inject server-bridge before the first app script (same order as static index.html). */
-  function injectBridgeIntoIndexHtml(htmlData, bridgeCode, bridgeReadError) {
-    const bridgeScript = bridgeReadError
-      ? '<script src="/server-bridge.js"></script>'
-      : `<script>
-// Server bridge initialization
-try {
-${bridgeCode}
-} catch (error) {
-  console.error('[Bridge] Error initializing server bridge:', error);
-  if (typeof window !== 'undefined' && !window.electron) {
-    window.electron = {};
-    window.electron.on = function() {};
-    window.electron.send = function() {};
-    console.warn('[Bridge] Created fallback window.electron object');
-  }
-}
-</script>`;
-    const appScriptRegex = /(<script(?:\s+type=["']module["'])?\s+src=["'](?:search|renderer|slicer|preview|guide)\.js["'][^>]*>)/i;
-    if (appScriptRegex.test(htmlData)) {
-      return htmlData.replace(appScriptRegex, `${bridgeScript}\n$1`);
-    }
-    if (htmlData.includes('<script type="module" src="search.js"></script>')) {
-      return htmlData.replace('<script type="module" src="search.js"></script>', `${bridgeScript}\n<script type="module" src="search.js"></script>`);
-    }
-    if (htmlData.includes('<script src="renderer.js"></script>')) {
-      return htmlData.replace('<script src="renderer.js"></script>', `${bridgeScript}\n<script src="renderer.js"></script>`);
-    }
-    if (htmlData.includes('</body>')) {
-      return htmlData.replace('</body>', `${bridgeScript}\n</body>`);
-    }
-    return htmlData;
+  /** The page. index.html loads server-bridge.js itself; nothing is inlined (CSP script-src 'self'). */
+  function sendIndexHtml(res) {
+    res.sendFile(path.join(appDir, 'index.html'), (err) => {
+      if (err && !res.headersSent) res.status(500).send('Error loading index.html');
+    });
   }
 
-  // CRITICAL: Inject server-bridge.js route handler BEFORE express.static
-  // This ensures the route handler runs and injects the bridge code
-  // Inject server-bridge.js into HTML for server mode
-  expressApp.get('/', (req, res) => {
-    const htmlPath = path.join(appDir, 'index.html');
-    const bridgePath = path.join(appDir, 'server-bridge.js');
-    
-    fs.readFile(htmlPath, 'utf8', (err, htmlData) => {
-      if (err) {
-        res.status(500).send('Error loading index.html');
-        return;
-      }
-      
-      fs.readFile(bridgePath, 'utf8', (err, bridgeCode) => {
-        if (err) {
-          console.error('Error loading server-bridge.js, falling back to script tag:', err);
-        }
-        res.send(injectBridgeIntoIndexHtml(htmlData, bridgeCode, !!err));
-      });
-    });
-  });
+  expressApp.get('/', (req, res) => sendIndexHtml(res));
 
   // Add middleware to set proper MIME types for JavaScript modules
   expressApp.use((req, res, next) => {
@@ -592,7 +552,7 @@ ${bridgeCode}
     }
   })));
 
-  // Handle 404 - serve index.html for SPA routing (with bridge injection)
+  // Other page paths get the page too (SPA routing).
   expressApp.get('*', (req, res) => {
     // Missing static files: express.static already called next(); respond or the client hangs (blocks parser on <script src>)
     if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|bmp|webp|json|webmanifest|map)$/)) {
@@ -600,22 +560,7 @@ ${bridgeCode}
       return;
     }
     
-    const htmlPath = path.join(appDir, 'index.html');
-    const bridgePath = path.join(appDir, 'server-bridge.js');
-    
-    fs.readFile(htmlPath, 'utf8', (err, htmlData) => {
-      if (err) {
-        res.status(500).send('Error loading index.html');
-        return;
-      }
-      
-      fs.readFile(bridgePath, 'utf8', (err, bridgeCode) => {
-        if (err) {
-          console.error('Error loading server-bridge.js for SPA fallback, using script tag:', err);
-        }
-        res.send(injectBridgeIntoIndexHtml(htmlData, bridgeCode, !!err));
-      });
-    });
+    sendIndexHtml(res);
   });
 
   const tlsResolved = forcePlainHttp ? { options: null, source: 'none' } : resolveAppTls();

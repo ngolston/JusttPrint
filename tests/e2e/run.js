@@ -165,6 +165,10 @@ async function apiChecks(base, wsUrl) {
   const health = await http.request('/api/health');
   check('nosniff', health.headers.get('x-content-type-options') === 'nosniff');
   check('frame-ancestors', /frame-ancestors 'self'/.test(health.headers.get('content-security-policy') || ''));
+  check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
+  const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
+  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/renderer.js')));
+  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/parse-worker.js')));
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
   console.log('\n# Library files');
@@ -432,6 +436,30 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForTimeout(1500);
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
     }
+
+    // CSP (script-src 'self'): controls that used inline onclick="" still work.
+    await page.evaluate(() => document.getElementById('about-dialog').showModal());
+    await page.click('#about-dialog [data-close-dialog="about-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('about-dialog').open));
+    await page.evaluate(() => document.getElementById('tag-manager-dialog').showModal());
+    await page.click('#tag-manager-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('tag-manager-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#tag-manager-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('tag-manager-dialog').close());
+    // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
+    const stepResult = await page.evaluate(async (base64) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const worker = new Worker('parse-worker.js');
+      const reply = await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve({ success: false, error: 'timeout' }), 60000);
+        worker.onmessage = (event) => { clearTimeout(timer); resolve(event.data); };
+        worker.onerror = (event) => { clearTimeout(timer); resolve({ success: false, error: event.message }); };
+        worker.postMessage({ id: 1, fileExtension: 'stp', arrayBuffer: bytes.buffer }, [bytes.buffer]);
+      });
+      worker.terminate();
+      return { success: reply.success, geometries: (reply.geometries || []).length, error: reply.error };
+    }, fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'step-cube.stp')).toString('base64'));
+    check('STEP preview parses in the browser (WebAssembly under CSP)', stepResult.success === true && stepResult.geometries > 0, JSON.stringify(stepResult));
 
     // Send to Slicer in the page: the server's command becomes a printventory:// link for the helper.
     await invoke(wsUrl, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
