@@ -642,8 +642,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     const clientId = registerClient(ws);
     ws.send(JSON.stringify({ type: 'hello', clientId }));
 
-    // Browsers send only answers and events here: dialog answers, Puter AI replies,
-    // and events relayed to every browser.
+    // Browsers send only answers here: to dialogs the server asked, and to Puter AI requests.
     ws.on('message', (message) => {
       let parsed;
       try {
@@ -675,11 +674,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         } else {
           pending.resolve(result ? result.response : null);
         }
-        return;
-      }
-
-      if (type === 'send') {
-        events.broadcast(channel, ...(args || []));
         return;
       }
 

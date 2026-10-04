@@ -62,7 +62,6 @@
   const wsUrl = `${wsProtocol}//${window.location.host}`;
   let ws = null;
   let reconnectAttempts = 0;
-  let requestIdCounter = 0;
   // Id the server gave this page's WebSocket; sent on API calls so the server can ask
   // this browser (dialogs, Puter AI). See src/server/api.js.
   let clientId = null;
@@ -122,11 +121,18 @@
   }
 
   // Define send() method - will be enhanced when WebSocket connects
-  let sendFunction = function(channel, ...args) {
-    // Will be enhanced when WebSocket connects
-    console.warn('window.electron.send called before WebSocket connected:', channel);
-  };
-  window.electron.send = sendFunction;
+  /** Call this page's listeners for an event (from the server, or sent by the page itself). */
+  function dispatchToListeners(channel, args) {
+    const listeners = (window._electronEventListeners || {})[channel] || [];
+    if (BRIDGE_DEBUG) console.log('[Bridge] Event', channel, 'listeners:', listeners.length, 'args:', args);
+    listeners.forEach((listener) => {
+      try {
+        listener(...(args || []));
+      } catch (error) {
+        console.error('[Bridge] Error in event listener:', error);
+      }
+    });
+  }
 
   function showBrowserMessage(title, message, buttons = ['OK'], cancelIndex = buttons.length > 1 ? buttons.length - 1 : 0) {
     return new Promise((resolve) => {
@@ -340,43 +346,8 @@
               }
             });
           } else if (data.type === 'event') {
-            // Handle events (like 'refresh-grid', 'scan-progress', etc.)
-            if (BRIDGE_DEBUG) console.log('[Bridge] Received event:', data.channel, 'with args:', data.args);
-            const eventListeners = window._electronEventListeners || {};
-            const listeners = eventListeners[data.channel] || [];
-            console.log('[Bridge] Found', listeners.length, 'listener(s) for channel:', data.channel);
-            if (listeners.length === 0) {
-              console.warn('[Bridge] No listeners registered for event channel:', data.channel);
-              // Debug: Show all registered channels
-              const allChannels = Object.keys(eventListeners);
-              console.log('[Bridge] All registered channels:', allChannels);
-              // Debug: Check if onHashGenerationProgress exists
-              if (data.channel === 'hash-generation-progress') {
-                console.log('[Bridge] window.electron.onHashGenerationProgress exists:', typeof window.electron?.onHashGenerationProgress);
-                console.log('[Bridge] window.electron.on exists:', typeof window.electron?.on);
-                console.log('[Bridge] _electronEventListeners type:', typeof window._electronEventListeners);
-                console.log('[Bridge] _electronEventListeners keys:', Object.keys(window._electronEventListeners || {}));
-              }
-              // Debug for tag generation events
-              if (data.channel === 'start-single-tag-generation' || data.channel === 'start-batch-tag-generation') {
-                console.log('[Bridge] Tag generation event received but no listeners!');
-                console.log('[Bridge] window.electron.on exists:', typeof window.electron?.on);
-                console.log('[Bridge] _electronEventListeners keys:', Object.keys(window._electronEventListeners || {}));
-                console.log('[Bridge] Attempting to register listener now...');
-                // Try to register listener if window.electron.on exists
-                if (typeof window.electron.on === 'function') {
-                  console.log('[Bridge] window.electron.on is a function, listeners should be registerable');
-                }
-              }
-            }
-            listeners.forEach((listener, index) => {
-              try {
-                console.log('[Bridge] Calling listener', index, 'for channel:', data.channel, 'with args:', data.args);
-                listener(...(data.args || []));
-              } catch (error) {
-                console.error('[Bridge] Error in event listener:', error);
-              }
-            });
+            // Events from the server ('refresh-grid', 'scan-progress', ...)
+            dispatchToListeners(data.channel, data.args);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
@@ -937,25 +908,19 @@
     return Promise.resolve(true);
   };
   
-  // Update send method to use WebSocket when available
-  sendFunction = function(channel, ...args) {
-    // Send events (fire and forget)
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      if (channel === 'puter-ai-chat-response') {
-        console.log('[Bridge] Sending puter-ai-chat-response via WebSocket, requestId:', args[0], 'has result:', !!args[1]);
+  // Events the page sends itself ('open-tag-manager', 'clear-new-flags', ...) stay in this page.
+  // Only the answer to a Puter AI request goes to the server, which is waiting for it.
+  window.electron.send = function(channel, ...args) {
+    if (channel === 'puter-ai-chat-response') {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'event', channel, args }));
+      } else {
+        console.warn('[Bridge] Cannot answer the Puter AI request: not connected');
       }
-      ws.send(JSON.stringify({
-        id: `send_${++requestIdCounter}_${Date.now()}`,
-        channel,
-        args,
-        type: 'send'
-      }));
-    } else {
-      // WebSocket not ready yet - will be queued or logged
-      console.warn('window.electron.send called before WebSocket connected:', channel);
+      return;
     }
+    setTimeout(() => dispatchToListeners(channel, args), 0);
   };
-  window.electron.send = sendFunction;
   
   // Copy over any other methods from original that we haven't overridden
   Object.keys(originalElectron).forEach(key => {

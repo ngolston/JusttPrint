@@ -559,6 +559,17 @@ async function browserChecks(base, wsUrl, session) {
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
 
+    // Opening a dialog in one tab must not open it in another tab.
+    const otherTab = await page.context().newPage();
+    await otherTab.goto(base + '/');
+    await otherTab.waitForFunction(() => window._electronBridgeReady === true && typeof window.openTagManager === 'function', null, { timeout: 60000 });
+    await page.evaluate(() => window.electron.send('open-tag-manager'));
+    await page.waitForSelector('#tag-manager-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await otherTab.waitForTimeout(1000);
+    check('a dialog opened in one tab stays in that tab', await page.isVisible('#tag-manager-dialog') && !(await otherTab.isVisible('#tag-manager-dialog')));
+    await otherTab.close();
+    await page.evaluate(() => document.getElementById('tag-manager-dialog').close());
+
     // Tag Manager (React): create, rename inline, search and delete.
     const serverTagNames = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
     await page.evaluate(() => window.openTagManager());

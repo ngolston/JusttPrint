@@ -9,6 +9,8 @@ All notable changes contributed via pull request are documented in this file.
 **Changes:**
 - First React + TypeScript screen: **Tools → Server Access** is rebuilt in React (`src/web/`), built with Vite into `web-build/app.js` and mounted into the existing page. It calls the HTTP API directly. Same behavior: change the password (when it is not set by `JUSTTPRINT_PASSWORD`), copy or regenerate the API token.
 - The Docker image builds the React screens in a separate stage; the runtime image has no build tools.
+- **Tag Manager** is rebuilt in React: create, rename inline (renaming onto an existing name merges the two after asking), search, delete, full screen.
+- Fixed: opening a dialog or running a menu action (Tag Manager, Clear New, Regenerate Thumbnails, ...) in one browser also did it in every other open browser. Those events now stay in the page that sent them, and the server no longer relays browser events to other browsers.
 
 ## [4.1.1] - 2026-10-04
 
