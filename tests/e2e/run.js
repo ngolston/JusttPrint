@@ -357,6 +357,10 @@ async function browserChecks(base, wsUrl, session) {
     return Array.isArray(res.result) && res.result.length === 0 ? 'done' : null;
   }, 120000, 'thumbnails').catch((error) => error.message);
   check('worker rendered all thumbnails', missing === 'done', missing);
+  const jobStatus = (await invoke(wsUrl, session, 'get-server-thumbnail-job-status')).result || {};
+  check('thumbnail job finished', jobStatus.status === 'idle', JSON.stringify(jobStatus));
+  const cubeThumbs = (await invoke(wsUrl, session, 'get-all-thumbnails', [path.join(LIBRARY, 'Designer A', 'cube.stl')])).result;
+  check('rendered thumbnail stored for a model', JSON.stringify(cubeThumbs || '').includes('data:image'), JSON.stringify(cubeThumbs).slice(0, 120));
   await invoke(wsUrl, session, 'save-setting', ['tosAcceptedDate', new Date().toISOString()]);
   await invoke(wsUrl, session, 'save-setting', ['hasRunBefore', 'true']);
 

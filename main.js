@@ -1,4 +1,6 @@
 const events = require('./src/server/events');
+const thumbnailWorker = require('./src/server/thumbnail-worker');
+const { jsonStringifyForWs } = require('./src/server/ws-json');
 const database = require('./src/core/database');
 const { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting } = require('./src/core/settings');
 const { app, ipcMain, shell } = require('./src/server/runtime');
@@ -91,16 +93,10 @@ const { libraryPathAllowed, networkPathContext } = require('./src/server/path-co
 
 const { getMcpToolContext } = require('./src/server/mcp-tools');
 
+const { requestThumbnailJobCancel, startServerThumbnailJobInternal, thumbnailJobRunning } = require('./src/server/ipc/thumbnails');
+
 require('./src/server/ipc/previews');
 
-function jsonStringifyForWs(payload) {
-  return JSON.stringify(payload, (_key, value) => {
-    if (ArrayBuffer.isView(value)) {
-      return Array.from(value);
-    }
-    return value;
-  });
-}
 const JSZip = require('jszip');
 const {
   extractZipEntryBuffer,
@@ -774,10 +770,10 @@ ${bridgeCode}
   wsClients = new Set(); // Track all connected clients
 
   wss.on('connection', (ws, req) => {
-    const isThumbnailWorker = isThumbnailWorkerRequest(req);
+    const isThumbnailWorker = thumbnailWorker.isWorkerRequest(req);
     console.log(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
     wsClients.add(ws);
-    if (isThumbnailWorker) thumbnailWorkerWs = ws;
+    if (isThumbnailWorker) thumbnailWorker.attach(ws);
 
     // Bound concurrent IPC work per client. Unbounded Promise.all-style floods
     // (tens of thousands of getThumbnail calls) otherwise stall past client timeouts.
@@ -982,7 +978,7 @@ ${bridgeCode}
       console.log('WebSocket client disconnected');
       wsClients.delete(ws);
       clientDialogs.dropClient(ws);
-      if (thumbnailWorkerWs === ws) thumbnailWorkerWs = null;
+      thumbnailWorker.detach(ws);
     });
 
     ws.on('error', (error) => {
@@ -1112,9 +1108,9 @@ let databaseClosedOnQuit = false;
 function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
-  stopThumbnailWorkerBrowser();
+  thumbnailWorker.stop();
   try {
-    if (serverThumbnailJob.status === 'running') serverThumbnailJob.cancelRequested = true;
+    requestThumbnailJobCancel();
   } catch (_) { /* job state not initialized */ }
   try {
     if (wsClients) wsClients.forEach((client) => { try { client.close(1001, 'Server shutting down'); } catch (_) { /* ignore */ } });
@@ -1349,7 +1345,7 @@ async function runServerStlHomeScan(reason) {
       }
     }
     events.broadcast('refresh-grid');
-    if (newModels > 0 && thumbnailWorkerReady() && serverThumbnailJob.status !== 'running') {
+    if (newModels > 0 && thumbnailWorker.ready() && !thumbnailJobRunning()) {
       startServerThumbnailJobInternal('missing').catch((error) => console.error('[STL Home] thumbnail job:', error.message));
     }
   } finally {
@@ -1357,82 +1353,6 @@ async function runServerStlHomeScan(reason) {
   }
 }
 
-// --- Thumbnail worker on Node: headless Chromium running the web UI as a worker client ---
-const THUMBNAIL_WORKER_COOKIE = 'pv_worker';
-const thumbnailWorkerSecret = crypto.randomBytes(24).toString('hex');
-let thumbnailWorkerWs = null;
-let thumbnailWorkerBrowser = null;
-let thumbnailWorkerRestartTimer = null;
-
-function isThumbnailWorkerRequest(req) {
-  const cookies = parseCookies(req && req.headers && req.headers.cookie);
-  const value = cookies[THUMBNAIL_WORKER_COOKIE];
-  return !!value && value.length === thumbnailWorkerSecret.length
-    && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(thumbnailWorkerSecret));
-}
-
-/** Chromium flags: software WebGL (SwiftShader) unless PRINTVENTORY_CHROMIUM_ARGS replaces them. */
-function thumbnailWorkerChromiumArgs() {
-  const custom = String(process.env.PRINTVENTORY_CHROMIUM_ARGS || '').trim();
-  const gpu = custom
-    ? custom.split(/\s+/)
-    : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', ...gpu];
-}
-
-async function startThumbnailWorkerBrowser() {
-  if (thumbnailWorkerBrowser) return;
-  const port = getHttpServerListenPort();
-  if (!port) return;
-  const scheme = resolveAppTls().options ? 'https' : 'http';
-  const origin = `${scheme}://127.0.0.1:${port}`;
-  try {
-    const executablePath = process.env.PRINTVENTORY_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath,
-      acceptInsecureCerts: true,
-      args: thumbnailWorkerChromiumArgs()
-    });
-    thumbnailWorkerBrowser = browser;
-    browser.on('disconnected', () => {
-      thumbnailWorkerBrowser = null;
-      thumbnailWorkerWs = null;
-      if (databaseClosedOnQuit) return;
-      console.warn('[Thumbnail worker] Chromium stopped; restarting in 10 seconds');
-      clearTimeout(thumbnailWorkerRestartTimer);
-      thumbnailWorkerRestartTimer = setTimeout(() => {
-        startThumbnailWorkerBrowser().catch((error) => console.error('[Thumbnail worker] restart:', error.message));
-      }, 10000);
-    });
-    const page = await browser.newPage();
-    page.on('pageerror', (error) => console.error('[Thumbnail worker] page error:', error.message));
-    page.on('console', (message) => {
-      if (message.type() === 'error') console.error('[Thumbnail worker]', message.text().slice(0, 300));
-    });
-    await browser.setCookie(
-      { name: SESSION_COOKIE_NAME, value: getServerAuth().issueSessionToken(), domain: '127.0.0.1', path: '/', httpOnly: true },
-      { name: THUMBNAIL_WORKER_COOKIE, value: thumbnailWorkerSecret, domain: '127.0.0.1', path: '/', httpOnly: true }
-    );
-    await page.goto(`${origin}/?pv-thumbnail-worker=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    console.log('[Thumbnail worker] Headless Chromium started');
-  } catch (error) {
-    thumbnailWorkerBrowser = null;
-    console.error('[Thumbnail worker] Could not start Chromium:', error.message);
-  }
-}
-
-function stopThumbnailWorkerBrowser() {
-  clearTimeout(thumbnailWorkerRestartTimer);
-  const browser = thumbnailWorkerBrowser;
-  thumbnailWorkerBrowser = null;
-  if (browser) {
-    try {
-      const child = browser.process();
-      if (child) child.kill('SIGKILL');
-    } catch (_) { /* already gone */ }
-  }
-}
 
 /** First scan at startup, then every stlHomeUpdateFrequency minutes (default 60). */
 function startServerStlHomeScans() {
@@ -1892,7 +1812,13 @@ if (!gotTheLock) {
         });
       });
       // Thumbnails render in headless Chromium; STL Home scans run in the server.
-      await startThumbnailWorkerBrowser();
+      await thumbnailWorker.start({
+        origin: () => {
+          const port = getHttpServerListenPort();
+          return port ? `${resolveAppTls().options ? 'https' : 'http'}://127.0.0.1:${port}` : null;
+        },
+        sessionToken: () => getServerAuth().issueSessionToken()
+      });
       startServerStlHomeScans();
       // Schedule background hash generation for any existing models with missing hashes
       scheduleBackgroundHashGeneration('startup');
@@ -1933,16 +1859,6 @@ if (!gotTheLock) {
 
 
 
-ipcMain.handle('save-thumbnail', async (event, filePath, thumbnail) => {
-  try {
-    await saveThumbnail(filePath, thumbnail);
-    return true;
-  } catch (error) {
-    console.error('Error saving thumbnail:', error);
-    throw error;
-  }
-});
-
 require('./src/server/ipc/parts');
 
 require('./src/server/ipc/print-events');
@@ -1950,118 +1866,6 @@ require('./src/server/ipc/print-events');
 require('./src/server/ipc/printers');
 
 require('./src/server/ipc/settings');
-
-ipcMain.handle('purge-thumbnails', async () => {
-  try {
-    database.db.prepare('UPDATE models SET thumbnail = NULL').run();
-    return true;
-  } catch (error) {
-    console.error('Error purging thumbnails:', error);
-    throw error;
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Server/Docker: bulk thumbnail jobs run in the hidden Electron window (WebGL),
-// so browser-tab focus throttling cannot stall Generate Missing / Regenerate.
-// ---------------------------------------------------------------------------
-let serverThumbnailJob = {
-  status: 'idle', // idle | running
-  mode: null,
-  cancelRequested: false
-};
-
-function broadcastThumbnailJobEvent(channel, payload) {
-  events.broadcast(channel, payload);
-}
-
-function thumbnailWorkerReady() {
-  return !!(thumbnailWorkerWs && thumbnailWorkerWs.readyState === WebSocket.OPEN);
-}
-
-function sendToThumbnailWorker(channel, ...args) {
-  if (!thumbnailWorkerReady()) throw new Error('Thumbnail worker is not connected yet');
-  thumbnailWorkerWs.send(jsonStringifyForWs({ type: 'event', channel, args }));
-  return;
-}
-
-async function startServerThumbnailJobInternal(mode) {
-  if (serverThumbnailJob.status === 'running') {
-    return { success: false, error: 'A thumbnail job is already running' };
-  }
-  if (!thumbnailWorkerReady()) {
-    return { success: false, error: 'Server thumbnail worker is not ready' };
-  }
-
-  const jobMode = mode === 'all' ? 'all' : 'missing';
-  serverThumbnailJob = { status: 'running', mode: jobMode, cancelRequested: false };
-
-  try {
-    if (jobMode === 'all') {
-      database.db.prepare('UPDATE models SET thumbnail = NULL').run();
-    }
-    sendToThumbnailWorker('run-server-thumbnail-job', { mode: jobMode });
-    broadcastThumbnailJobEvent('thumbnail-job-progress', {
-      phase: jobMode === 'all' ? 'Starting regeneration on server...' : 'Starting generation on server...',
-      processed: 0,
-      total: 0,
-      mode: jobMode
-    });
-    return { success: true, mode: jobMode };
-  } catch (error) {
-    serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
-    console.error('[Server thumbnails] Failed to start job:', error);
-    return { success: false, error: error.message || String(error) };
-  }
-}
-
-ipcMain.handle('start-server-thumbnail-job', async (_event, options) => {
-  const mode = options && options.mode === 'all' ? 'all' : 'missing';
-  return startServerThumbnailJobInternal(mode);
-});
-
-ipcMain.handle('cancel-server-thumbnail-job', async () => {
-  if (serverThumbnailJob.status !== 'running') {
-    return { success: false, error: 'No thumbnail job running' };
-  }
-  serverThumbnailJob.cancelRequested = true;
-  try {
-    sendToThumbnailWorker('cancel-server-thumbnail-job');
-  } catch (error) {
-    console.warn('[Server thumbnails] Cancel notify failed:', error.message);
-  }
-  return { success: true };
-});
-
-ipcMain.handle('report-server-thumbnail-progress', async (_event, progress) => {
-  broadcastThumbnailJobEvent('thumbnail-job-progress', progress || {});
-  return true;
-});
-
-ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
-  const info = result || {};
-  console.log(`[Server thumbnails] Job ${info.cancelled ? 'cancelled' : 'finished'}: ${Number(info.count) || 0} rendered`);
-  serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
-  broadcastThumbnailJobEvent('thumbnail-job-complete', result || {});
-  events.broadcast('refresh-grid');
-  return true;
-});
-
-ipcMain.handle('report-server-thumbnail-error', async (_event, errorInfo) => {
-  console.error('[Server thumbnails] Job failed:', (errorInfo && errorInfo.message) || 'unknown error');
-  serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
-  const message = (errorInfo && (errorInfo.message || errorInfo.error)) || String(errorInfo || 'Thumbnail job failed');
-  broadcastThumbnailJobEvent('thumbnail-job-error', { error: message });
-  return true;
-});
-
-ipcMain.handle('get-server-thumbnail-job-status', async () => {
-  return {
-    status: serverThumbnailJob.status,
-    mode: serverThumbnailJob.mode,
-    cancelRequested: !!serverThumbnailJob.cancelRequested
-  };
-});
 
 function shouldSkipDirectory(dirName) {
   return shouldSkipDirectoryName(dirName, getScanExcludeNames());
@@ -2369,231 +2173,9 @@ async function cleanupExtractTempDirectory({
   }
 }
 
-// Add this IPC handler for thumbnails
-ipcMain.handle('getThumbnail', async (event, filePath) => {
-  try {
-    const stored = loadThumbnailForModel(filePath);
-    if (!stored) return null;
-    return getDefaultThumbnail(stored, 0);
-  } catch (error) {
-    console.error('Error getting thumbnail:', error);
-    return null;
-  }
-});
-
-// IPC handler to get all thumbnails for a model
-ipcMain.handle('get-all-thumbnails', async (event, filePath) => {
-  try {
-    const stored = loadThumbnailForModel(filePath);
-    if (!stored) return [];
-    return parseThumbnails(stored);
-  } catch (error) {
-    console.error('Error getting all thumbnails:', error);
-    return [];
-  }
-});
-
-// IPC handler to add a thumbnail to a model
-ipcMain.handle('add-thumbnail', async (event, filePath, imageDataUrl) => {
-  try {
-    const currentThumbnail = readThumbnailColumn(filePath);
-    const compressedImage = compressDataUrl(imageDataUrl);
-    const thumbnailsWithNew = addThumbnailToModel(currentThumbnail, compressedImage);
-
-    // Parse thumbnails to get count and new index
-    const thumbnails = parseThumbnails(thumbnailsWithNew);
-    const newImageIndex = thumbnails.length - 1; // The new image is at the end
-
-    // Make the new image the default (move it to the front)
-    const updatedThumbnail = setDefaultThumbnailIndex(thumbnailsWithNew, newImageIndex);
-    await saveThumbnail(filePath, updatedThumbnail);
-
-    // Verify the save was successful
-    const finalThumbnails = parseThumbnails(readThumbnailColumn(filePath) || '');
-
-    events.broadcast('thumbnail-added', {
-      filePath: filePath,
-      thumbnailCount: finalThumbnails.length,
-      hasMultiple: finalThumbnails.length > 1,
-      newImageIsDefault: true
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Error adding thumbnail:', error);
-    throw error;
-  }
-});
-
-// IPC handler to add multiple thumbnails at once (for 3MF files)
-ipcMain.handle('add-multiple-thumbnails', async (event, filePath, imageDataUrls) => {
-  try {
-    if (!imageDataUrls || !Array.isArray(imageDataUrls) || imageDataUrls.length === 0) {
-      return false;
-    }
-    
-    // Check if model exists in database
-    let model = getModelByFilePath(filePath);
-    if (!model) {
-      // Model doesn't exist yet - create it with just the thumbnails
-      // Extract fileName from filePath
-      const path = require('path');
-      const fileName = path.basename(filePath);
-      // Create model entry
-      const dateAdded = new Date().toISOString();
-      const bundle = deriveBundleFromFilePath(filePath);
-      database.db.prepare(`
-        INSERT INTO models (filePath, fileName, thumbnail, dateAdded, isNew, bundleKey, bundleLabel, bundleKind)
-        VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-      `).run(
-        filePath,
-        fileName,
-        '',
-        dateAdded,
-        bundle.bundleKey || null,
-        bundle.bundleLabel || null,
-        bundle.bundleKind || null
-      );
-      // Re-fetch the model
-      model = getModelByFilePath(filePath);
-      if (!model) {
-        return false;
-      }
-    }
-    
-    const currentThumbnail = readThumbnailColumn(filePath);
-    
-    // Filter out any null/undefined/empty images and compress on ingest
-    const validImages = imageDataUrls
-      .filter(img => img && typeof img === 'string' && img.length > 0)
-      .map((img) => compressDataUrl(img));
-    
-    if (validImages.length === 0) {
-      return false;
-    }
-    
-    const updatedThumbnail = addMultipleThumbnails(currentThumbnail, validImages);
-    const finalCount = parseThumbnails(updatedThumbnail).length;
-    
-    // Save the thumbnail
-    await saveThumbnail(filePath, updatedThumbnail);
-    
-    // Verify it was saved
-    const verifyThumbnail = readThumbnailColumn(filePath);
-    const verifyCount = verifyThumbnail ? parseThumbnails(verifyThumbnail).length : 0;
-    
-    if (verifyCount !== finalCount) {
-      // Try to save again
-      await saveThumbnail(filePath, updatedThumbnail);
-    }
-    
-    // Return the updated thumbnail string so renderer can use it
-    return {
-      success: true,
-      thumbnailCount: verifyCount,
-      thumbnailString: verifyThumbnail || updatedThumbnail
-    };
-  } catch (error) {
-    console.error('Error adding multiple thumbnails:', error);
-    console.error('Error stack:', error.stack);
-    throw error;
-  }
-});
-
-// IPC handler to set the default thumbnail index
-ipcMain.handle('set-default-thumbnail', async (event, filePath, index) => {
-  try {
-    const thumbnail = readThumbnailColumn(filePath);
-    if (!thumbnail) return false;
-    const updatedThumbnail = setDefaultThumbnailIndex(thumbnail, index);
-    await saveThumbnail(filePath, updatedThumbnail);
-    const thumbs = parseThumbnails(updatedThumbnail);
-    const payload = {
-      filePath,
-      thumbnailCount: thumbs.length,
-      defaultChanged: true
-    };
-    events.broadcast('thumbnail-default-changed', payload);
-    return true;
-  } catch (error) {
-    console.error('Error setting default thumbnail:', error);
-    throw error;
-  }
-});
-
-// IPC handler to delete a thumbnail by index
-ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
-  try {
-    const thumbnail = readThumbnailColumn(filePath);
-    if (!thumbnail) return false;
-    
-    const thumbnails = parseThumbnails(thumbnail).filter(t => t && t !== '3d.png' && t.length > 0 && t.startsWith('data:image'));
-    
-    // Ensure model has at least one thumbnail and index is valid
-    if (thumbnails.length <= 1) {
-      throw new Error('Cannot delete thumbnail: model must have at least one thumbnail');
-    }
-    
-    if (index < 0 || index >= thumbnails.length) {
-      throw new Error('Invalid thumbnail index');
-    }
-    
-    // Cannot delete the active (first) thumbnail
-    if (index === 0) {
-      throw new Error('Cannot delete the active thumbnail');
-    }
-    
-    // Remove the thumbnail at the specified index
-    thumbnails.splice(index, 1);
-    const updatedThumbnail = thumbnails.join('::');
-    await saveThumbnail(filePath, updatedThumbnail);
-    
-    // Send refresh event
-    if (event && event.sender) {
-      event.sender.send('thumbnail-deleted', {
-        filePath: filePath,
-        thumbnailCount: thumbnails.length
-      });
-    } else events.broadcast('thumbnail-deleted', {
-      filePath: filePath,
-      thumbnailCount: thumbnails.length
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting thumbnail:', error);
-    throw error;
-  }
-});
-
 require('./src/server/ipc/updates');
 
 require('./src/server/ipc/organize');
-
-// Add or update this function to get models without thumbnails
-ipcMain.handle('get-models-without-thumbnails', async () => {
-  try {
-    const modelsWithoutThumbnails = database.db.prepare(`
-      SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
-    `).all();
-    return modelsWithoutThumbnails;
-  } catch (error) {
-    console.error('Error fetching models without thumbnails:', error);
-    return [];
-  }
-});
-
-ipcMain.handle('get-models-with-default-thumbnails', async () => {
-  try {
-    const modelsWithDefaultThumbnails = database.db.prepare(`
-      SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
-    `).all();
-    return modelsWithDefaultThumbnails;
-  } catch (error) {
-    console.error('Error fetching models with default thumbnails:', error);
-    return [];
-  }
-});
 
 // Add this new IPC handler
 
