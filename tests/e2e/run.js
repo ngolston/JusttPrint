@@ -543,12 +543,13 @@ async function browserChecks(base, wsUrl, session) {
     const box3mf = path.join(LIBRARY, 'Designer B', 'box.3mf');
     await invoke(base, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
     const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
-    const confirmDialog = await page.waitForSelector('dialog[open] button:text-is("No")', { timeout: 15000 }).catch(() => null);
-    check('server confirmation appears in the browser', !!confirmDialog);
+    const confirmDialog = await page.waitForSelector('dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")', { timeout: 15000 }).catch(() => null);
+    const openDialogs = () => page.evaluate(() => [...document.querySelectorAll('dialog[open]')].map((d) => `${d.id || d.className}: ${d.textContent.trim().slice(0, 80)}`));
+    check('server confirmation appears in the browser', !!confirmDialog, JSON.stringify(await openDialogs()));
     if (confirmDialog) {
       await confirmDialog.click();
       const pullResult = await pull.catch((error) => ({ error: error.message }));
-      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, JSON.stringify(pullResult));
+      check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, `${JSON.stringify(pullResult)}; open dialogs: ${JSON.stringify(await openDialogs())}`);
       const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
