@@ -31,6 +31,13 @@ declare global {
     performCombinedSearch?: () => Promise<void>;
     /** renderer.js: empty the grid, counts and filters after every model was purged. */
     afterModelsPurged?: () => Promise<void>;
+    /** renderer.js: set the accent colors for a UI theme. */
+    applyThemeColors?: (theme: string) => void;
+    /** renderer.js: re-render every thumbnail (after the model color or lighting changed). */
+    regenerateAllThumbnails?: () => Promise<void>;
+    /** renderer.js: model color and lighting used for new thumbnails. */
+    currentRenderColor?: string;
+    currentRenderLighting?: boolean;
   }
 }
 

@@ -22,6 +22,7 @@ import { ServerAccessDialog } from './ServerAccessDialog';
 import { StatsDialog } from './StatsDialog';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
+import { ThemeSettingsDialog } from './ThemeSettingsDialog';
 
 function Screens() {
   return (
@@ -43,6 +44,7 @@ function Screens() {
       <HttpsSettingsDialog />
       <AiConfigDialog />
       <PurgeModelsDialog />
+      <ThemeSettingsDialog />
     </>
   );
 }

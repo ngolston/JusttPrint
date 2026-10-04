@@ -5775,7 +5775,7 @@ async function createServerMenuBar() {
       await window.openSTLHomeDialog();
     }},
     { label: 'Theme', action: () => {
-      window.electron.send('open-theme-settings');
+      window.openThemeSettings?.();
     }}
   ];
   const settingsMenu = createMenuDropdown('Settings', settingsMenuItems);
@@ -6157,7 +6157,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof bindGridBackgroundDeselect === 'function') {
     bindGridBackgroundDeselect();
   }
-  const settingsDialog = document.getElementById('settings-dialog');
   const tagDialog = document.getElementById('new-tag-dialog');
   const newTagInput = document.getElementById('new-tag-name');
   const addTagButton = document.getElementById('add-tag-button');
@@ -6397,122 +6396,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
   if (backgroundColor) {
     document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-    document.getElementById('model-background-color').value = backgroundColor;
   }
 
   // Load render color setting
   const renderColor = await window.electron.getSetting('renderColor');
-  if (renderColor) {
-    const renderColorSelect = document.getElementById('render-color');
-    if (renderColorSelect) {
-      renderColorSelect.value = renderColor;
-    }
-    window.currentRenderColor = renderColor;
-  } else {
-    window.currentRenderColor = '#cccccc';
-  }
+  window.currentRenderColor = renderColor || '#cccccc';
 
   // Load lighting setting
   const renderLighting = await window.electron.getSetting('renderLighting');
-  if (renderLighting !== null && renderLighting !== undefined) {
-    const renderLightingCheckbox = document.getElementById('render-lighting');
-    if (renderLightingCheckbox) {
-      renderLightingCheckbox.checked = renderLighting === 'true';
+  window.currentRenderLighting = renderLighting !== null && renderLighting !== undefined ? renderLighting === 'true' : true;
+
+  // Theme settings are React (src/web/ThemeSettingsDialog.tsx). After it saves, it applies the
+  // theme with applyThemeColors and, when the model color or lighting changed, may call this.
+  window.regenerateAllThumbnails = async function regenerateAllThumbnails() {
+    const sortSelect = document.getElementById('sort-select');
+    const allModels = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
+    if (allModels.length === 0) return;
+    const serverJob = await startAndWatchServerThumbnailJob('all', 'Regenerate Thumbnails');
+    if (serverJob) {
+      if (serverJob.backgrounded || serverJob.cancelled) return;
+      invalidatePrimaryThumbnailCache();
+      await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
+      await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0));
+      return;
     }
-    window.currentRenderLighting = renderLighting === 'true';
-  } else {
-    window.currentRenderLighting = true; // Default to true
-  }
-
-  // Settings dialog handlers
-  window.electron.onOpenSettings(() => {
-    settingsDialog.showModal();
-  });
-
-  document.getElementById('cancel-settings')?.addEventListener('click', () => {
-    settingsDialog.close();
-  });
-
-  document.getElementById('save-settings')?.addEventListener('click', async () => {
-    const color = document.getElementById('model-background-color').value;
-    const renderColor = document.getElementById('render-color').value;
-    const renderLighting = document.getElementById('render-lighting').checked;
-    const theme = document.getElementById('ui-theme')?.value || 'modern-cyan';
-    
-    // Check if render settings changed
-    const oldRenderColor = window.currentRenderColor || '#cccccc';
-    const oldRenderLighting = window.currentRenderLighting !== undefined ? window.currentRenderLighting : true;
-    
-    const renderSettingsChanged = (oldRenderColor !== renderColor) || (oldRenderLighting !== renderLighting);
-
-    // Update CSS variable for model background
-    document.documentElement.style.setProperty('--model-background-color', color);
-    
-    // Update UI theme
-    document.body.setAttribute('data-theme', theme);
-    
-    // Save to settings
-    await window.electron.saveSetting('modelBackgroundColor', color);
-    await window.electron.saveSetting('renderColor', renderColor);
-    await window.electron.saveSetting('renderLighting', renderLighting.toString());
-    await window.electron.saveSetting('uiTheme', theme);
-    
-    // Update global variable
-    window.currentRenderColor = renderColor;
-    window.currentRenderLighting = renderLighting;
-    
-    // Apply theme colors dynamically
-    applyThemeColors(theme);
-    
-    settingsDialog.close();
-
-    // Ask to regenerate thumbnails if color or lighting changed
-    if (renderSettingsChanged) {
-        const userChoice = await window.electron.showMessage(
-            'Regenerate Thumbnails?',
-            'You have changed model rendering settings. Would you like to regenerate all thumbnails to apply this change?',
-            ['Yes', 'No']
-        );
-
-        if (userChoice === 'Yes') {
-             // Get all models
-            const sortSelect = document.getElementById('sort-select');
-            const allModels = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-            
-            if (allModels.length > 0) {
-                const serverJob = await startAndWatchServerThumbnailJob('all', 'Regenerate Thumbnails');
-                if (serverJob) {
-                  if (serverJob.backgrounded || serverJob.cancelled) {
-                    return;
-                  }
-                  invalidatePrimaryThumbnailCache();
-                  await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
-                  const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-                  await renderFiles(models);
-                  return;
-                }
-
-                window.ThumbnailProgress?.show({
-                  title: 'Regenerate Thumbnails',
-                  phase: 'Clearing existing thumbnails...',
-                  cancellable: false
-                });
-                 // Purge existing thumbnails to force regeneration
-                await window.electron.purgeThumbnails();
-                invalidatePrimaryThumbnailCache();
-                
-                // Regenerate thumbnails for all models
-                await generateThumbnailsForModels(allModels);
-                
-                await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
-                
-                // Refresh the grid to show the new thumbnails
-                const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0);
-                await renderFiles(models);
-            }
-        }
-    }
-  });
+    window.ThumbnailProgress?.show({ title: 'Regenerate Thumbnails', phase: 'Clearing existing thumbnails...', cancellable: false });
+    await window.electron.purgeThumbnails();
+    invalidatePrimaryThumbnailCache();
+    await generateThumbnailsForModels(allModels);
+    await window.electron.showMessage('Success', 'Thumbnail regeneration completed successfully.');
+    await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc', 0));
+  };
 
   // Function to apply theme colors
   function applyThemeColors(theme) {
@@ -6573,13 +6487,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.setProperty('--primary-gradient-hover', accentHover);
   }
 
+  window.applyThemeColors = applyThemeColors;
+
   // Load theme on startup
   const savedTheme = await window.electron.getSetting('uiTheme') || 'modern-cyan';
   document.body.setAttribute('data-theme', savedTheme);
-  const uiThemeSelect = document.getElementById('ui-theme');
-  if (uiThemeSelect) {
-    uiThemeSelect.value = savedTheme;
-  }
   applyThemeColors(savedTheme);
 
   // Add dismiss button handler
@@ -8454,9 +8366,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Add this near other dialog event listeners
+  // Theme settings are React (src/web/ThemeSettingsDialog.tsx); it defines window.openThemeSettings.
   window._electronRealEventHandlers['open-theme-settings'] = function() {
-    const themeDialog = document.getElementById('settings-dialog');
-    if (themeDialog) themeDialog.showModal();
+    window.openThemeSettings?.();
   };
   if (window._electronPendingEvents['open-theme-settings']) {
     window._electronPendingEvents['open-theme-settings'].forEach((args) => {
@@ -8726,7 +8638,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
       if (backgroundColor) {
         document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-        document.getElementById('model-background-color').value = backgroundColor;
       }
     } catch (error) {
       console.error('Error initializing settings:', error);
@@ -17812,19 +17723,11 @@ async function initializeAppOnce() {
       const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
       if (backgroundColor) {
         document.documentElement.style.setProperty('--model-background-color', backgroundColor);
-        const colorPicker = document.getElementById('model-background-color');
-        if (colorPicker) {
-          colorPicker.value = backgroundColor;
-        }
       }
       
       // Load UI theme
       const savedTheme = await window.electron.getSetting('uiTheme') || 'modern-cyan';
       document.body.setAttribute('data-theme', savedTheme);
-      const uiThemeSelect = document.getElementById('ui-theme');
-      if (uiThemeSelect) {
-        uiThemeSelect.value = savedTheme;
-      }
       
       // Apply theme colors if function exists
       if (typeof applyThemeColors === 'function') {

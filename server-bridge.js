@@ -622,10 +622,6 @@
     window.electron.on('open-metadata-editor', callback);
   };
   
-  window.electron.onOpenSettings = function(callback) {
-    window.electron.on('open-settings', callback);
-  };
-  
   window.electron.onOpenGuide = function(callback) {
     window.electron.on('open-guide', callback);
   };

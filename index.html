@@ -1412,66 +1412,6 @@
           </div>
         </div>
       </dialog>
-      <dialog id="settings-dialog" class="modal">
-        <form method="dialog">
-          <h3>Theme Settings</h3>
-          <div class="form-group">
-            <label for="ui-theme">UI Theme:</label>
-            <select id="ui-theme">
-              <option value="modern-cyan">Modern Cyan (Default)</option>
-              <option value="modern-purple">Modern Purple</option>
-              <option value="modern-green">Modern Green</option>
-              <option value="modern-orange">Modern Orange</option>
-              <option value="modern-pink">Modern Pink</option>
-              <option value="dark-minimal">Dark Minimal</option>
-            </select>
-            <div class="setting-description">Change the overall color scheme of the application</div>
-          </div>
-          <div class="form-group">
-            <label for="model-background-color">Model Background Color:</label>
-            <select id="model-background-color">
-              <option value="#070147">Dark Blue</option>
-              <option value="#1a1a1a">Dark Gray</option>
-              <option value="#000000">Black</option>
-              <option value="#1a0f3c">Navy Purple</option>
-              <option value="#0a0a23">Midnight Blue</option>
-            </select>
-            <div class="setting-description">Background color for 3D model thumbnails</div>
-          </div>
-          <p class="setting-description" style="margin-top: 15px; margin-bottom: 5px; font-style: italic; color: #888;">
-            Note: These settings are for STLs and 3MFs without embedded data.
-          </p>
-          <div class="form-group">
-            <label for="render-color">Model Color:</label>
-            <select id="render-color">
-              <option value="#cccccc">Default (Light Gray)</option>
-              <option value="#333333">Dark Gray</option>
-              <option value="#000000">Black</option>
-              <option value="#ffffff">White</option>
-              <option value="#ff0000">Red</option>
-              <option value="#00ff00">Green</option>
-              <option value="#0000ff">Blue</option>
-              <option value="#ffff00">Yellow</option>
-              <option value="#ff00ff">Magenta</option>
-              <option value="#00ffff">Cyan</option>
-              <option value="rainbow">Rainbow</option>
-              <option value="pastel-rainbow">Pastel Rainbow</option>
-            </select>
-            <div class="setting-description">Color of the 3D model in thumbnails</div>
-          </div>
-          <div class="form-group checkbox-container" style="align-items: flex-start; margin-top: 15px;">
-            <input type="checkbox" id="render-lighting" checked>
-            <div>
-              <label for="render-lighting" style="font-weight: bold; margin-bottom: 4px; display: block;">Enable Advanced Lighting</label>
-              <div class="setting-description" style="margin-top: 0;">Adds ambient and directional lighting for better depth. Disabling may improve performance on lower-end devices.</div>
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="submit" id="save-settings">Save</button>
-            <button type="button" id="cancel-settings" data-close-dialog="settings-dialog">Cancel</button>
-          </div>
-        </form>
-      </dialog>
       <dialog id="guide-dialog" class="modal guide-dialog">
         <form method="dialog">
           <h2>JusttPrint Guide</h2>

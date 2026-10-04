@@ -942,6 +942,19 @@ async function browserChecks(base, wsUrl, session) {
       && aiAfter.aiModel === 'llava' && aiAfter.aiTagMaxTags === '7', JSON.stringify(aiAfter));
     for (const key of aiKeys) await invoke(base, session, 'save-setting', [key, savedAi[key] == null ? '' : savedAi[key]]);
 
+    // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
+    const savedTheme = (await invoke(base, session, 'get-setting', ['uiTheme'])).result;
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Theme settings opens with the saved theme', await page.inputValue('#ui-theme') === (savedTheme || 'modern-cyan'));
+    await page.selectOption('#ui-theme', 'modern-purple');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
+    check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
+      && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));

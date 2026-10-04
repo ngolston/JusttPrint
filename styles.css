@@ -6567,6 +6567,29 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* Theme settings (src/web/ThemeSettingsDialog.tsx) */
+.theme-render-note {
+  margin-top: 15px;
+  margin-bottom: 5px;
+  font-style: italic;
+  color: #888;
+}
+
+.theme-lighting {
+  align-items: flex-start;
+  margin-top: 15px;
+}
+
+.theme-lighting-label {
+  font-weight: bold;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.theme-lighting-help {
+  margin-top: 0;
+}
+
 /* AI Configuration (src/web/AiConfigDialog.tsx) */
 .ai-config-divider {
   margin: 20px 0;
