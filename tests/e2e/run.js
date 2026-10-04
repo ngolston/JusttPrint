@@ -994,6 +994,39 @@ async function browserChecks(base, wsUrl, session) {
       && savedSlicers.some((s) => s.name === 'Orca Slicer' && s.path === '/opt/OrcaSlicer/orca-slicer'), JSON.stringify(savedSlicers));
     await invoke(base, session, 'clear-and-save-slicers', [[]]);
 
+    // STL Home (React): loads the saved directory, edits the lists and path options, saves.
+    // (No directory is left on save: the web UI may not scan the e2e library, inside the app folder.)
+    const stlHomeKeys = ['stlHomeDirectories', 'stlHome', 'stlHomeExcludeDirectories', 'pathMetadataStlHomeEnabled', 'pathMetadataStlHomeDirection'];
+    const savedStlHome = {};
+    for (const key of stlHomeKeys) savedStlHome[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    await page.evaluate(() => window.openStlHome());
+    const homeRow = await page.waitForSelector(`#stl-home-directories-list li:has-text("${LIBRARY}")`, { timeout: 10000 }).catch(() => null);
+    check('STL Home opens with the saved directory', !!homeRow);
+    await page.fill('#stl-home-directories-input', '/srv/models');
+    await page.press('#stl-home-directories-input', 'Enter');
+    await page.fill('#stl-home-directories-input', '/srv/models/');
+    await page.click('#stl-home-directories-add');
+    check('STL Home ignores a duplicate directory', (await page.locator('#stl-home-directories-list .stl-home-exclude-item').count()) === 2);
+    await page.click('#stl-home-directories-list li:has-text("/srv/models") .stl-home-exclude-remove');
+    if (homeRow) await page.click(`#stl-home-directories-list li:has-text("${LIBRARY}") .stl-home-exclude-remove`);
+    check('STL Home shows the empty list', await page.isVisible('#stl-home-directories-list .stl-home-exclude-empty'));
+    await page.fill('#stl-home-exclude-input', 'Designer C');
+    await page.click('#stl-home-exclude-add');
+    check('path options are grayed until enabled', await page.evaluate(() => document.getElementById('stl-home-path-metadata-options').classList.contains('grayed')));
+    await page.check('#stl-home-path-metadata-enabled');
+    await page.selectOption('#stl-home-path-direction', 'fromRoot');
+    check('From Root explains its levels', /From Root: level 0/.test(await page.textContent('#stl-home-dialog .stl-home-path-direction-desc')));
+    await page.click('#save-stl-home-button');
+    await page.waitForSelector('#stl-home-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const stlHomeAfter = {};
+    for (const key of stlHomeKeys) stlHomeAfter[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    check('STL Home saves directories, exclusions and path options', stlHomeAfter.stlHomeDirectories === '[]' && !stlHomeAfter.stlHome
+      && stlHomeAfter.stlHomeExcludeDirectories === '["Designer C"]' && stlHomeAfter.pathMetadataStlHomeEnabled === '1'
+      && stlHomeAfter.pathMetadataStlHomeDirection === 'fromRoot', JSON.stringify(stlHomeAfter));
+    check('Scan STL Home button hides with no directories', await page.waitForSelector('#scan-stl-home-button', { state: 'hidden', timeout: 10000 }).then(() => true).catch(() => false));
+    for (const key of stlHomeKeys) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
+    await page.evaluate(() => window.updateScanStlHomeButtonVisibility?.());
+
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));

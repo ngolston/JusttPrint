@@ -228,21 +228,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// STL Home: clear every directory (early for Docker/server)
-window.clearSTLHomeDirectory = async function clearSTLHomeDirectory() {
-  window._stlHomeDirs = [];
-  window._stlHomeDirsLoaded = true;
-  if (typeof renderStlHomeDirectoryList === 'function') renderStlHomeDirectoryList([]);
-  if (window.electron?.saveSetting) {
-    await window.electron.saveSetting('stlHomeDirectories', '[]');
-    await window.electron.saveSetting('stlHome', '');
-  }
-  if (typeof window.updateScanStlHomeButtonVisibility === 'function') window.updateScanStlHomeButtonVisibility();
-  if (typeof window.stopPeriodicSTLHomeScan === 'function') window.stopPeriodicSTLHomeScan();
-  const dialog = document.getElementById('stl-home-dialog');
-  if (dialog && typeof dialog.close === 'function') dialog.close();
-};
-
 // Lazy load Puter.js only when needed to avoid unnecessary socket.io connections
 let puterLoadingPromise = null;
 function isPuterJsSupportedHere() {
@@ -5186,26 +5171,6 @@ function createMenuDropdown(label, items) {
   return menuContainer;
 }
 
-  // Show/hide direction description paragraphs when "Use folder path" dropdown changes (STL Home dialog)
-  function updateStlHomePathDirectionDesc() {
-    const sel = document.getElementById('stl-home-path-direction');
-    const fromModelDesc = document.getElementById('stl-home-path-desc-from-model');
-    const fromRootDesc = document.getElementById('stl-home-path-desc-from-root');
-    if (!sel || !fromModelDesc || !fromRootDesc) return;
-    const isFromRoot = sel.value === 'fromRoot';
-    fromModelDesc.style.display = isFromRoot ? 'none' : '';
-    fromRootDesc.style.display = isFromRoot ? '' : 'none';
-  }
-  window.updateStlHomePathDirectionDesc = updateStlHomePathDirectionDesc;
-
-  // Gray out path-metadata options when "Enable" is unchecked (used by STL Home dialog)
-  function updateStlHomePathMetadataGrayed() {
-  const enableEl = document.getElementById('stl-home-path-metadata-enabled');
-  const optionsEl = document.getElementById('stl-home-path-metadata-options');
-  if (optionsEl) optionsEl.classList.toggle('grayed', !enableEl?.checked);
-}
-window.updateStlHomePathMetadataGrayed = updateStlHomePathMetadataGrayed;
-
 function parseStlHomeExcludeSetting(raw) {
   if (!raw) return [];
   try {
@@ -5228,116 +5193,6 @@ function parseStlHomeExcludeSetting(raw) {
   }
 }
 
-function renderStlHomeExcludeList(dirs) {
-  const list = document.getElementById('stl-home-exclude-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!dirs.length) {
-    const empty = document.createElement('li');
-    empty.className = 'stl-home-exclude-empty';
-    empty.textContent = 'No directories excluded.';
-    list.appendChild(empty);
-    return;
-  }
-  dirs.forEach((dir, index) => {
-    const li = document.createElement('li');
-    li.className = 'stl-home-exclude-item';
-    const span = document.createElement('span');
-    span.className = 'stl-home-exclude-path';
-    span.textContent = dir;
-    span.title = dir;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'secondary-button stl-home-exclude-remove';
-    btn.textContent = 'Remove';
-    btn.dataset.index = String(index);
-    li.appendChild(span);
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-function addStlHomeExcludeDir(dir) {
-  const p = String(dir || '').trim();
-  if (!p) return false;
-  const current = Array.isArray(window._stlHomeExcludeDirs) ? window._stlHomeExcludeDirs.slice() : [];
-  const key = p.replace(/[\\/]+$/, '').toLowerCase();
-  if (current.some(d => d.replace(/[\\/]+$/, '').toLowerCase() === key)) return false;
-  current.push(p);
-  window._stlHomeExcludeDirs = current;
-  renderStlHomeExcludeList(current);
-  revealStlHomeExcludeAddRow();
-  return true;
-}
-
-function revealStlHomeExcludeAddRow() {
-  const list = document.getElementById('stl-home-exclude-list');
-  if (list && list.scrollHeight > list.clientHeight) {
-    list.scrollTop = list.scrollHeight;
-  }
-  const row = document.querySelector('#stl-home-dialog .stl-home-exclude-add-row');
-  if (row && typeof row.scrollIntoView === 'function') {
-    row.scrollIntoView({ block: 'nearest' });
-  }
-}
-
-async function saveStlHomeExcludeDirectoriesSetting() {
-  if (!window._stlHomeExcludeDirsLoaded) return;
-  const dirs = Array.isArray(window._stlHomeExcludeDirs) ? window._stlHomeExcludeDirs : [];
-  await window.electron.saveSetting('stlHomeExcludeDirectories', JSON.stringify(dirs));
-}
-window.saveStlHomeExcludeDirectoriesSetting = saveStlHomeExcludeDirectoriesSetting;
-
-function bindStlHomeExcludeControls() {
-  const list = document.getElementById('stl-home-exclude-list');
-  const browseBtn = document.getElementById('stl-home-exclude-browse');
-  const addBtn = document.getElementById('stl-home-exclude-add');
-  const input = document.getElementById('stl-home-exclude-input');
-  if (list && !list.dataset.bound) {
-    list.dataset.bound = '1';
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest && e.target.closest('.stl-home-exclude-remove');
-      if (!btn || !list.contains(btn)) return;
-      const index = Number(btn.dataset.index);
-      if (!Number.isInteger(index)) return;
-      const next = (window._stlHomeExcludeDirs || []).slice();
-      if (index < 0 || index >= next.length) return;
-      next.splice(index, 1);
-      window._stlHomeExcludeDirs = next;
-      renderStlHomeExcludeList(next);
-    });
-  }
-  const addFromInput = () => {
-    if (!input) return;
-    if (addStlHomeExcludeDir(input.value)) input.value = '';
-  };
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.dataset.bound = '1';
-    addBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      addFromInput();
-    });
-  }
-  if (input && !input.dataset.bound) {
-    input.dataset.bound = '1';
-    input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      e.stopPropagation();
-      addFromInput();
-    });
-  }
-  if (browseBtn && !browseBtn.dataset.bound) {
-    browseBtn.dataset.bound = '1';
-    browseBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const directory = await window.electron.openFileDialog();
-      if (directory && directory[0]) addStlHomeExcludeDir(directory[0]);
-    });
-  }
-}
-window.bindStlHomeExcludeControls = bindStlHomeExcludeControls;
-
 function parseLegacyStlHomeSetting(raw) {
   const text = String(raw || '').trim();
   if (!text) return [];
@@ -5358,245 +5213,6 @@ async function getStlHomeDirectories() {
   return parseLegacyStlHomeSetting(legacy);
 }
 window.getStlHomeDirectories = getStlHomeDirectories;
-
-function renderStlHomeDirectoryList(dirs) {
-  const list = document.getElementById('stl-home-directories-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!dirs.length) {
-    const empty = document.createElement('li');
-    empty.className = 'stl-home-exclude-empty';
-    empty.textContent = 'No directories selected.';
-    list.appendChild(empty);
-    return;
-  }
-  dirs.forEach((dir, index) => {
-    const li = document.createElement('li');
-    li.className = 'stl-home-exclude-item';
-    const span = document.createElement('span');
-    span.className = 'stl-home-exclude-path';
-    span.textContent = dir;
-    span.title = dir;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'secondary-button stl-home-exclude-remove';
-    btn.textContent = 'Remove';
-    btn.dataset.index = String(index);
-    li.appendChild(span);
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-function addStlHomeDirectory(dir) {
-  const p = String(dir || '').trim();
-  if (!p) return false;
-  const current = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-  const key = p.replace(/[\\/]+$/, '').toLowerCase();
-  if (current.some((d) => d.replace(/[\\/]+$/, '').toLowerCase() === key)) return false;
-  current.push(p);
-  window._stlHomeDirs = current;
-  renderStlHomeDirectoryList(current);
-  revealStlHomeDirectoryAddRow();
-  return true;
-}
-
-function revealStlHomeDirectoryAddRow() {
-  const list = document.getElementById('stl-home-directories-list');
-  if (list && list.scrollHeight > list.clientHeight) {
-    list.scrollTop = list.scrollHeight;
-  }
-  const row = document.querySelector('#stl-home-directories-group .stl-home-exclude-add-row');
-  if (row && typeof row.scrollIntoView === 'function') {
-    row.scrollIntoView({ block: 'nearest' });
-  }
-}
-
-async function saveStlHomeDirectoriesSetting() {
-  if (!window._stlHomeDirsLoaded) return;
-  const dirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs : [];
-  await window.electron.saveSetting('stlHomeDirectories', JSON.stringify(dirs));
-  await window.electron.saveSetting('stlHome', dirs[0] || '');
-}
-window.saveStlHomeDirectoriesSetting = saveStlHomeDirectoriesSetting;
-
-function bindStlHomeDirectoryControls() {
-  const list = document.getElementById('stl-home-directories-list');
-  const browseBtn = document.getElementById('stl-home-directories-browse');
-  const addBtn = document.getElementById('stl-home-directories-add');
-  const input = document.getElementById('stl-home-directories-input');
-  if (list && !list.dataset.bound) {
-    list.dataset.bound = '1';
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest && e.target.closest('.stl-home-exclude-remove');
-      if (!btn || !list.contains(btn)) return;
-      const index = Number(btn.dataset.index);
-      if (!Number.isInteger(index)) return;
-      const next = (window._stlHomeDirs || []).slice();
-      if (index < 0 || index >= next.length) return;
-      next.splice(index, 1);
-      window._stlHomeDirs = next;
-      renderStlHomeDirectoryList(next);
-    });
-  }
-  const addFromInput = () => {
-    if (!input) return;
-    if (addStlHomeDirectory(input.value)) input.value = '';
-  };
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.dataset.bound = '1';
-    addBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      addFromInput();
-    });
-  }
-  if (input && !input.dataset.bound) {
-    input.dataset.bound = '1';
-    input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      e.stopPropagation();
-      addFromInput();
-    });
-  }
-  if (browseBtn && !browseBtn.dataset.bound) {
-    browseBtn.dataset.bound = '1';
-    browseBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const directory = await window.electron.openFileDialog();
-      if (directory && directory[0]) addStlHomeDirectory(directory[0]);
-    });
-  }
-}
-window.bindStlHomeDirectoryControls = bindStlHomeDirectoryControls;
-
-// Shared function to initialize and open STL Home dialog
-window.openSTLHomeDialog = async function() {
-  const stlHomeDialog = document.getElementById('stl-home-dialog');
-  if (!stlHomeDialog) return;
-  
-  // Check if we're in server mode
-  const serverMode = await window.electron.isServerMode().catch(() => false);
-  
-  window._stlHomeDirs = await getStlHomeDirectories();
-  window._stlHomeDirsLoaded = true;
-  renderStlHomeDirectoryList(window._stlHomeDirs);
-  bindStlHomeDirectoryControls();
-  requestAnimationFrame(() => revealStlHomeDirectoryAddRow());
-  const directoryInput = document.getElementById('stl-home-directories-input');
-  if (directoryInput) directoryInput.value = '';
-  
-  // Load the update frequency setting (default to 60 minutes)
-  const updateFrequency = await window.electron.getSetting('stlHomeUpdateFrequency');
-  const updateFrequencyInput = document.getElementById('stl-home-update-frequency');
-  const updateFrequencyGroup = document.getElementById('stl-home-update-frequency-group');
-  const directoryBrowse = document.getElementById('stl-home-directories-browse');
-
-  // Load path metadata from folder (STL Home only): enabled + direction + use Designer/Parent checkboxes + segment indices
-  const pathMetaEnabled = await window.electron.getSetting('pathMetadataStlHomeEnabled');
-  const pathMetaDirection = await window.electron.getSetting('pathMetadataStlHomeDirection');
-  const pathMetaUseDesigner = await window.electron.getSetting('pathMetadataUseDesigner');
-  const pathMetaUseParentModel = await window.electron.getSetting('pathMetadataUseParentModel');
-  const pathMetaDesignerIndex = await window.electron.getSetting('pathMetadataDesignerIndex');
-  const pathMetaParentModelIndex = await window.electron.getSetting('pathMetadataParentModelIndex');
-  const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-  const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-  const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-  const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-  const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-  const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-  if (pathMetaEnabledEl) pathMetaEnabledEl.checked = pathMetaEnabled === '1';
-  if (pathMetaDirectionEl) pathMetaDirectionEl.value = (pathMetaDirection === 'fromRoot' || pathMetaDirection === 'fromModel') ? pathMetaDirection : 'fromModel';
-  if (pathMetaUseDesignerEl) pathMetaUseDesignerEl.checked = pathMetaUseDesigner !== '0';
-  if (pathMetaUseParentModelEl) pathMetaUseParentModelEl.checked = pathMetaUseParentModel !== '0';
-  if (pathMetaDesignerIndexEl) pathMetaDesignerIndexEl.value = (pathMetaDesignerIndex !== null && pathMetaDesignerIndex !== '') ? String(pathMetaDesignerIndex) : '1';
-  if (pathMetaParentModelIndexEl) pathMetaParentModelIndexEl.value = (pathMetaParentModelIndex !== null && pathMetaParentModelIndex !== '') ? String(pathMetaParentModelIndex) : '0';
-  if (typeof window.updateStlHomePathDirectionDesc === 'function') window.updateStlHomePathDirectionDesc();
-  updateStlHomePathMetadataGrayed();
-  // Re-apply grayed state after paint (fixes Docker/server mode where checkbox state wasn't reflected)
-  requestAnimationFrame(() => updateStlHomePathMetadataGrayed());
-
-  const excludeRaw = await window.electron.getSetting('stlHomeExcludeDirectories');
-  window._stlHomeExcludeDirs = parseStlHomeExcludeSetting(excludeRaw);
-  window._stlHomeExcludeDirsLoaded = true;
-  renderStlHomeExcludeList(window._stlHomeExcludeDirs);
-  bindStlHomeExcludeControls();
-  requestAnimationFrame(() => revealStlHomeExcludeAddRow());
-  const excludeBrowse = document.getElementById('stl-home-exclude-browse');
-  const excludeInput = document.getElementById('stl-home-exclude-input');
-  if (excludeInput) excludeInput.value = '';
-  
-  if (serverMode) {
-    // In server mode: hide folder pickers, show Update Frequency, type paths instead
-    if (directoryBrowse) directoryBrowse.style.display = 'none';
-    if (directoryInput) directoryInput.placeholder = 'Enter a directory path';
-    if (excludeBrowse) excludeBrowse.style.display = 'none';
-    if (excludeInput) excludeInput.placeholder = 'Enter a path to exclude';
-    if (updateFrequencyGroup) updateFrequencyGroup.style.display = 'block';
-    if (updateFrequencyInput) {
-      updateFrequencyInput.value = updateFrequency || '60';
-    }
-  } else {
-    if (directoryBrowse) directoryBrowse.style.display = '';
-    if (directoryInput) directoryInput.placeholder = 'Paste a path or use Add Directory';
-    if (excludeBrowse) excludeBrowse.style.display = '';
-    if (excludeInput) excludeInput.placeholder = 'Paste a path or use Add Directory';
-    if (updateFrequencyGroup) updateFrequencyGroup.style.display = 'none';
-  }
-
-  // Bind Save button when dialog opens - run save logic directly so it always works (Docker/server load order)
-  const saveBtn = document.getElementById('save-stl-home-button');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', async function onSaveClick(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[STL Home] Save button clicked');
-      const stlDirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-      const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-      const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-      const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-      const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-      const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-      const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-      try {
-        console.log('[STL Home] Saving directories:', stlDirs);
-        await saveStlHomeDirectoriesSetting();
-        await window.electron.saveSetting('pathMetadataStlHomeEnabled', pathMetaEnabledEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataStlHomeDirection', (pathMetaDirectionEl?.value === 'fromRoot' || pathMetaDirectionEl?.value === 'fromModel') ? pathMetaDirectionEl.value : 'fromModel');
-        await window.electron.saveSetting('pathMetadataUseDesigner', pathMetaUseDesignerEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataUseParentModel', pathMetaUseParentModelEl?.checked ? '1' : '0');
-        await window.electron.saveSetting('pathMetadataDesignerIndex', pathMetaDesignerIndexEl?.value ?? '1');
-        await window.electron.saveSetting('pathMetadataParentModelIndex', pathMetaParentModelIndexEl?.value ?? '0');
-        await saveStlHomeExcludeDirectoriesSetting();
-        // Show "Scan STL Home" in sidebar from value we just saved (Docker/server: getSetting can lag)
-        const scanStlHomeBtn = document.getElementById('scan-stl-home-button');
-        if (scanStlHomeBtn) scanStlHomeBtn.style.display = stlDirs.length ? '' : 'none';
-        if (typeof window.updateScanStlHomeButtonVisibility === 'function') await window.updateScanStlHomeButtonVisibility();
-        const serverMode = await window.electron.isServerMode().catch(() => false);
-        if (serverMode) {
-          const updateFrequencyEl = document.getElementById('stl-home-update-frequency');
-          const updateFrequency = updateFrequencyEl ? updateFrequencyEl.value : '60';
-          await window.electron.saveSetting('stlHomeUpdateFrequency', updateFrequency);
-          if (stlDirs.length) {
-            if (typeof window.performSTLHomeScan === 'function') window.performSTLHomeScan(stlDirs).catch(err => console.error('STL Home scan on save:', err));
-            if (typeof window.startPeriodicSTLHomeScan === 'function') window.startPeriodicSTLHomeScan();
-          } else {
-            if (typeof window.stopPeriodicSTLHomeScan === 'function') window.stopPeriodicSTLHomeScan();
-          }
-        }
-        console.log('[STL Home] Save complete, closing dialog');
-        if (typeof stlHomeDialog.close === 'function') stlHomeDialog.close();
-      } catch (err) {
-        console.error('[STL Home] Save failed:', err);
-        if (window.electron && typeof window.electron.showMessage === 'function') {
-          await window.electron.showMessage('Error', 'Failed to save STL Home: ' + (err.message || String(err)));
-        }
-      }
-    }, { once: true });
-  }
-
-  stlHomeDialog.showModal();
-};
 
 // Function to create server mode menu bar
 async function createServerMenuBar() {
@@ -5767,8 +5383,8 @@ async function createServerMenuBar() {
     { label: 'Slicer', action: () => {
       window.openSlicerSettings?.();
     }},
-    { label: 'STL Home', action: async () => {
-      await window.openSTLHomeDialog();
+    { label: 'STL Home', action: () => {
+      window.openStlHome?.(); // React: src/web/StlHomeDialog.tsx
     }},
     { label: 'Theme', action: () => {
       window.openThemeSettings?.();
@@ -8834,32 +8450,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update the parent directory click handler to show the clear button
 
-  // Open STL Home dialog when the main process sends the event
-  window.electron.onOpenSTLHome(async () => {
-    await window.openSTLHomeDialog();
-  });
-
-  if (typeof bindStlHomeDirectoryControls === 'function') bindStlHomeDirectoryControls();
-  if (!window._stlHomeDirsLoaded && typeof renderStlHomeDirectoryList === 'function') {
-    renderStlHomeDirectoryList([]);
-  }
-  if (typeof bindStlHomeExcludeControls === 'function') bindStlHomeExcludeControls();
-  if (!window._stlHomeExcludeDirsLoaded && typeof renderStlHomeExcludeList === 'function') {
-    renderStlHomeExcludeList([]);
-  }
-
-  // Handler for Cancel button in the STL Home dialog (inline onclick also set in HTML for Docker/server mode)
-  document.getElementById('cancel-stl-home-button')?.addEventListener('click', () => {
-    document.getElementById('stl-home-dialog').close();
-  });
-
-  // Gray out path-metadata options when "Enable" is unchecked (change + click for Docker/server mode)
-  const stlHomePathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-  if (stlHomePathMetaEnabledEl) {
-    stlHomePathMetaEnabledEl.addEventListener('change', updateStlHomePathMetadataGrayed);
-    stlHomePathMetaEnabledEl.addEventListener('click', updateStlHomePathMetadataGrayed);
-  }
-
   // Show or hide "Scan STL Home" sidebar button based on whether STL Home path is set
   async function updateScanStlHomeButtonVisibility() {
     const stlHomes = await getStlHomeDirectories();
@@ -8868,7 +8458,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   window.updateScanStlHomeButtonVisibility = updateScanStlHomeButtonVisibility;
 
-  document.getElementById('stl-home-path-direction')?.addEventListener('change', () => { if (window.updateStlHomePathDirectionDesc) window.updateStlHomePathDirectionDesc(); });
 
   // Periodic STL Home scanning for server mode
   let stlHomeScanInterval = null;
@@ -8954,58 +8543,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.performSTLHomeScan = performSTLHomeScan;
   window.startPeriodicSTLHomeScan = startPeriodicSTLHomeScan;
   window.stopPeriodicSTLHomeScan = stopPeriodicSTLHomeScan;
-
-  // Shared save logic for STL Home (used by Save click, form submit, and inline onclick for Docker/server/Electron)
-  async function saveSTLHomeFromDialog() {
-    console.log('[STL Home] saveSTLHomeFromDialog started');
-    const pathMetaEnabledEl = document.getElementById('stl-home-path-metadata-enabled');
-    const pathMetaUseDesignerEl = document.getElementById('stl-home-use-designer');
-    const pathMetaUseParentModelEl = document.getElementById('stl-home-use-parent-model');
-    const pathMetaDirectionEl = document.getElementById('stl-home-path-direction');
-    const pathMetaDesignerIndexEl = document.getElementById('stl-home-designer-index');
-    const pathMetaParentModelIndexEl = document.getElementById('stl-home-parent-model-index');
-    const stlDirs = Array.isArray(window._stlHomeDirs) ? window._stlHomeDirs.slice() : [];
-    try {
-      console.log('[STL Home] Saving directories:', stlDirs);
-      if (typeof saveStlHomeDirectoriesSetting === 'function') await saveStlHomeDirectoriesSetting();
-      await window.electron.saveSetting('pathMetadataStlHomeEnabled', pathMetaEnabledEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataStlHomeDirection', (pathMetaDirectionEl?.value === 'fromRoot' || pathMetaDirectionEl?.value === 'fromModel') ? pathMetaDirectionEl.value : 'fromModel');
-      await window.electron.saveSetting('pathMetadataUseDesigner', pathMetaUseDesignerEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataUseParentModel', pathMetaUseParentModelEl?.checked ? '1' : '0');
-      await window.electron.saveSetting('pathMetadataDesignerIndex', pathMetaDesignerIndexEl?.value ?? '1');
-      await window.electron.saveSetting('pathMetadataParentModelIndex', pathMetaParentModelIndexEl?.value ?? '0');
-      if (typeof saveStlHomeExcludeDirectoriesSetting === 'function') await saveStlHomeExcludeDirectoriesSetting();
-      if (typeof updateScanStlHomeButtonVisibility === 'function') updateScanStlHomeButtonVisibility();
-      const serverMode = await window.electron.isServerMode().catch(() => false);
-      if (serverMode) {
-        const updateFrequencyEl = document.getElementById('stl-home-update-frequency');
-        const updateFrequency = updateFrequencyEl ? updateFrequencyEl.value : '60';
-        await window.electron.saveSetting('stlHomeUpdateFrequency', updateFrequency);
-        if (stlDirs.length) {
-          if (typeof performSTLHomeScan === 'function') performSTLHomeScan(stlDirs).catch(err => console.error('STL Home scan on save:', err));
-          if (typeof startPeriodicSTLHomeScan === 'function') startPeriodicSTLHomeScan();
-        } else {
-          if (typeof stopPeriodicSTLHomeScan === 'function') stopPeriodicSTLHomeScan();
-        }
-      }
-      console.log('[STL Home] Save complete, closing dialog');
-      const dialog = document.getElementById('stl-home-dialog');
-      if (dialog && typeof dialog.close === 'function') dialog.close();
-    } catch (err) {
-      console.error('STL Home save failed:', err);
-      if (window.electron && typeof window.electron.showMessage === 'function') {
-        await window.electron.showMessage('Error', 'Failed to save STL Home: ' + (err.message || String(err)));
-      }
-    }
-  }
-  window.saveSTLHomeFromDialog = saveSTLHomeFromDialog;
-
-  // Save button uses inline onclick in HTML so it works in Docker/server/Electron; form submit for Enter key
-  // Form submit: prevent default and run same save (e.g. Enter key)
-  document.getElementById('stl-home-dialog').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    await saveSTLHomeFromDialog();
-  });
 
   // Show/hide "Scan STL Home" button based on STL Home setting
   updateScanStlHomeButtonVisibility();

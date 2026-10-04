@@ -22,6 +22,7 @@ import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
+import { StlHomeDialog } from './StlHomeDialog';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 import { ThemeSettingsDialog } from './ThemeSettingsDialog';
@@ -49,6 +50,7 @@ function Screens() {
       <ThemeSettingsDialog />
       <SlicerSettingsDialog />
       <MetadataEditorDialog />
+      <StlHomeDialog />
     </>
   );
 }

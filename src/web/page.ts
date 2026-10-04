@@ -37,6 +37,11 @@ declare global {
     regenerateAllThumbnails?: () => Promise<void>;
     /** renderer.js: reload the designer, parent model and license pickers and filters, and the grid. */
     refreshAfterMetadataChange?: () => Promise<void>;
+    /** renderer.js STL Home scanning: show or hide the sidebar button, scan now, run on a timer. */
+    updateScanStlHomeButtonVisibility?: () => Promise<void>;
+    performSTLHomeScan?: (dirs: string[]) => Promise<void>;
+    startPeriodicSTLHomeScan?: () => Promise<void>;
+    stopPeriodicSTLHomeScan?: () => void;
     /** renderer.js: model color and lighting used for new thumbnails. */
     currentRenderColor?: string;
     currentRenderLighting?: boolean;

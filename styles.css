@@ -6567,6 +6567,26 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* STL Home (src/web/StlHomeDialog.tsx) */
+.stl-home-use-row {
+  margin-bottom: 0.5rem;
+}
+
+.stl-home-path-intro {
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.stl-home-path-direction-desc {
+  margin-bottom: 0.25rem;
+  font-size: 0.9em;
+}
+
+.stl-home-path-example {
+  margin-bottom: 0.5rem;
+  font-size: 0.85em;
+}
+
 /* Theme settings (src/web/ThemeSettingsDialog.tsx) */
 .theme-render-note {
   margin-top: 15px;

@@ -28,13 +28,6 @@
     });
   });
 
-  // STL Home: gray out the path-metadata options after the checkbox has changed.
-  document.getElementById('stl-home-path-metadata-enabled')?.addEventListener('click', () => {
-    setTimeout(() => {
-      if (window.updateStlHomePathMetadataGrayed) window.updateStlHomePathMetadataGrayed();
-    }, 0);
-  });
-
   // Loading overlay: "Continue anyway" hides it.
   document.getElementById('continue-anyways')?.addEventListener('click', () => {
     const overlay = document.getElementById('loading-overlay');

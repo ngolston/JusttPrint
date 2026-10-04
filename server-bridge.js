@@ -663,10 +663,6 @@
     window.electron.on('start-print-roulette', callback);
   };
   
-  window.electron.onOpenSTLHome = function(callback) {
-    window.electron.on('open-stl-home', callback);
-  };
-  
 
   
   // Commands the server hands to this browser. Nothing runs on the server: files download
