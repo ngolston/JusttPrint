@@ -35,6 +35,8 @@ declare global {
     applyThemeColors?: (theme: string) => void;
     /** renderer.js: re-render every thumbnail (after the model color or lighting changed). */
     regenerateAllThumbnails?: () => Promise<void>;
+    /** renderer.js: reload the designer, parent model and license pickers and filters, and the grid. */
+    refreshAfterMetadataChange?: () => Promise<void>;
     /** renderer.js: model color and lighting used for new thumbnails. */
     currentRenderColor?: string;
     currentRenderLighting?: boolean;

@@ -5676,7 +5676,7 @@ async function createServerMenuBar() {
       }
     }},
     { label: 'Metadata Manager', action: () => {
-      window.electron.send('open-metadata-editor');
+      window.openMetadataEditor?.();
     }},
     { label: '---', action: null },
     { label: 'Clear New Flag', action: () => {
@@ -6775,13 +6775,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear the input and close the dialog
         document.getElementById('new-parent-name').value = '';
         newParentDialog.close();
-        
-        // Refresh metadata editor list if dialog is open
-        const metadataDialog = document.getElementById('metadata-editor-dialog');
-        if (metadataDialog && metadataDialog.open && currentMetadataType === 'parentModel') {
-          allMetadata = []; // Clear cache to force refresh
-          await refreshMetadataList('parentModel');
-        }
       }
     });
   }
@@ -7289,13 +7282,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             licenseSelect.value = newLicenseName;
           }
         }
-        
-        // Refresh metadata editor list if dialog is open
-        const metadataDialog = document.getElementById('metadata-editor-dialog');
-        if (metadataDialog && metadataDialog.open && currentMetadataType === 'license') {
-          allMetadata = []; // Clear cache to force refresh
-          await refreshMetadataList('license');
-        }
       }
     });
   }
@@ -7456,268 +7442,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-purge-models'];
   }
 
-  // Metadata Editor functionality
-  let allMetadata = []; // Store all metadata for filtering
-  let currentMetadataType = 'designer'; // Track current active tab
-  let metadataEditorChanged = false; // Track if any changes were made
-
+  // The Metadata Manager is React (src/web/MetadataEditorDialog.tsx); it defines window.openMetadataEditor.
   window._electronRealEventHandlers['open-metadata-editor'] = function() {
-    const metadataDialog = document.getElementById('metadata-editor-dialog');
-    if (!metadataDialog) return;
-    currentMetadataType = 'designer';
-    metadataEditorChanged = false;
-    updateMetadataTabs();
-    refreshMetadataList('designer');
-    metadataDialog.showModal();
-    const searchInput = document.getElementById('metadata-editor-search');
-    if (searchInput) searchInput.value = '';
-    initializeMetadataTabs();
-    initializeMetadataSearch();
-
-    // Refresh grid when dialog closes (only if changes were made)
-    const closeHandler = async () => {
-      if (metadataEditorChanged) {
-        // Force full grid re-render by clearing cache
-        const container = document.querySelector('.file-grid');
-        if (container) {
-          container.currentModels = null; // Clear cache to force re-render
-        }
-        // Small delay to ensure database writes are flushed
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Refresh the grid to show updated metadata values
-        if (typeof window.performCombinedSearch === 'function') {
-          await window.performCombinedSearch();
-        } else {
-          // Fallback: Get current sort option and refresh the grid
-          const sortSelect = document.getElementById('sort-select');
-          const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-          await renderFiles(models);
-        }
-        metadataEditorChanged = false; // Reset flag after refresh
-      }
-    };
-    
-    metadataDialog.removeEventListener('close', closeHandler);
-    metadataDialog.addEventListener('close', closeHandler);
+    window.openMetadataEditor?.();
   };
   if (window._electronPendingEvents['open-metadata-editor']) {
     window._electronPendingEvents['open-metadata-editor'].forEach((args) => {
       window._electronRealEventHandlers['open-metadata-editor'].apply(null, args);
     });
     delete window._electronPendingEvents['open-metadata-editor'];
-  }
-
-  // Tab switching functionality - initialize when dialog is available
-  function initializeMetadataTabs() {
-    document.querySelectorAll('.metadata-tab').forEach(tab => {
-      // Remove existing listeners to avoid duplicates
-      const newTab = tab.cloneNode(true);
-      tab.parentNode.replaceChild(newTab, tab);
-      
-      newTab.addEventListener('click', () => {
-        const type = newTab.dataset.type;
-        currentMetadataType = type;
-        updateMetadataTabs();
-        refreshMetadataList(type);
-        // Clear search when switching tabs
-        const searchInput = document.getElementById('metadata-editor-search');
-        if (searchInput) {
-          searchInput.value = '';
-        }
-      });
-    });
-  }
-
-  // Initialize tabs on DOMContentLoaded as well
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeMetadataTabs();
-  });
-
-  function updateMetadataTabs() {
-    document.querySelectorAll('.metadata-tab').forEach(tab => {
-      if (tab.dataset.type === currentMetadataType) {
-        tab.classList.add('active');
-      } else {
-        tab.classList.remove('active');
-      }
-    });
-
-    // Update label
-    const label = document.getElementById('metadata-type-label');
-    const labels = {
-      'designer': 'Designers',
-      'parentModel': 'Parent Models',
-      'license': 'Licenses'
-    };
-    if (label) {
-      label.textContent = labels[currentMetadataType] || 'Metadata';
-    }
-  }
-
-  async function refreshMetadataList(type, searchTerm = '') {
-    const metadataList = document.getElementById('metadata-editor-list');
-    metadataList.innerHTML = '';
-    
-    try {
-      // Always refresh metadata to ensure we have the latest data
-      allMetadata = await window.electron.getAllMetadata();
-      
-      // Filter metadata by type and search term
-      let filteredMetadata = allMetadata.filter(item => item.type === type);
-      
-      // Deduplicate by name (case-insensitive) - keep the one with the highest model_count
-      const metadataMap = new Map();
-      filteredMetadata.forEach(item => {
-        const key = item.name.toLowerCase();
-        const existing = metadataMap.get(key);
-        if (!existing || (item.model_count || 0) > (existing.model_count || 0)) {
-          metadataMap.set(key, item);
-        }
-      });
-      filteredMetadata = Array.from(metadataMap.values());
-      
-      // Further filter by search term if provided
-      if (searchTerm) {
-        filteredMetadata = filteredMetadata.filter(item => 
-          item.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      
-      // Sort alphabetically by name
-      filteredMetadata.sort((a, b) => a.name.localeCompare(b.name));
-      
-      if (filteredMetadata.length === 0) {
-        metadataList.innerHTML = '<div class="no-metadata">No items found</div>';
-        return;
-      }
-      
-      filteredMetadata.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'metadata-item';
-        itemElement.innerHTML = `
-          <span class="metadata-name">${escapeHtml(item.name)}</span>
-          <span class="metadata-count">${item.model_count}</span>
-          <button type="button" class="metadata-rename" title="Rename">✎</button>
-          <button type="button" class="metadata-delete" title="Delete">×</button>
-        `;
-        
-        // Rename functionality
-        itemElement.querySelector('.metadata-rename')?.addEventListener('click', async () => {
-          const newName = await window.electron.showInputDialog({
-            title: `Rename ${type === 'designer' ? 'Designer' : type === 'parentModel' ? 'Parent Model' : 'License'}`,
-            message: `Enter new name for "${item.name}":`,
-            defaultValue: item.name,
-            placeholder: 'Enter new name...'
-          });
-          
-          if (newName && newName.trim() !== '' && newName.trim() !== item.name) {
-            try {
-              // Check if the new name already exists (merge scenario)
-              const trimmedNewName = newName.trim();
-              const existingItem = allMetadata.find(m => 
-                m.type === type && 
-                m.name.toLowerCase() === trimmedNewName.toLowerCase() &&
-                m.name !== item.name
-              );
-              
-              let shouldProceed = true;
-              
-              // If merging, show confirmation dialog
-              if (existingItem) {
-                const confirmResult = await window.electron.showMessageBox({
-                  type: 'question',
-                  title: 'Merge Metadata',
-                  message: `A ${type === 'designer' ? 'designer' : type === 'parentModel' ? 'parent model' : 'license'} with the name "${trimmedNewName}" already exists.`,
-                  detail: `This will merge "${item.name}" (${item.model_count} model${item.model_count !== 1 ? 's' : ''}) into "${trimmedNewName}" (${existingItem.model_count} model${existingItem.model_count !== 1 ? 's' : ''}).`,
-                  buttons: ['Merge', 'Cancel'],
-                  defaultId: 0,
-                  cancelId: 1
-                });
-                
-                shouldProceed = confirmResult.response === 0;
-              }
-              
-              if (shouldProceed) {
-                const result = await window.electron.renameMetadata(type, item.name, trimmedNewName);
-                metadataEditorChanged = true; // Mark that changes were made
-                allMetadata = []; // Reset cache to force refresh
-                await refreshMetadataList(type, searchTerm);
-                // Refresh all relevant dropdowns
-                await refreshMetadataDropdowns();
-                // Force full grid re-render by clearing cache
-                const container = document.querySelector('.file-grid');
-                if (container) {
-                  container.currentModels = null; // Clear cache to force re-render
-                }
-                // Refresh the grid immediately to show updated metadata values
-                // Small delay to ensure database write is complete
-                await new Promise(resolve => setTimeout(resolve, 50));
-                if (typeof window.performCombinedSearch === 'function') {
-                  await window.performCombinedSearch();
-                } else {
-                  const sortSelect = document.getElementById('sort-select');
-                  const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-                  await renderFiles(models);
-                }
-                
-                // Show success message if merge occurred
-                if (result.merged) {
-                  await window.electron.showMessage('Success', 
-                    `Successfully merged "${item.name}" into "${trimmedNewName}". ${result.updated} model${result.updated !== 1 ? 's' : ''} updated.`);
-                }
-              }
-            } catch (error) {
-              console.error('Error renaming metadata:', error);
-              await window.electron.showMessage('Error', error.message || 'Failed to rename');
-            }
-          }
-        });
-        
-        // Delete functionality
-        itemElement.querySelector('.metadata-delete')?.addEventListener('click', async () => {
-          const typeLabel = type === 'designer' ? 'Designer' : type === 'parentModel' ? 'Parent Model' : 'License';
-          const response = await window.electron.showMessage(
-            `Delete ${typeLabel}`,
-            `Delete for ${item.model_count} model${item.model_count !== 1 ? 's' : ''}?`,
-            ['Yes', 'No']
-          );
-          
-          if (response === 'Yes') {
-            try {
-              await window.electron.deleteMetadata(type, item.name);
-              metadataEditorChanged = true; // Mark that changes were made
-              allMetadata = []; // Reset cache to force refresh
-              await refreshMetadataList(type, searchTerm);
-              // Refresh all relevant dropdowns
-              await refreshMetadataDropdowns();
-              // Force full grid re-render by clearing cache
-              const container = document.querySelector('.file-grid');
-              if (container) {
-                container.currentModels = null; // Clear cache to force re-render
-              }
-              // Refresh the grid immediately to show updated metadata values
-              // Small delay to ensure database write is complete
-              await new Promise(resolve => setTimeout(resolve, 50));
-              if (typeof window.performCombinedSearch === 'function') {
-                await window.performCombinedSearch();
-              } else {
-                const sortSelect = document.getElementById('sort-select');
-                const models = await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc');
-                await renderFiles(models);
-              }
-            } catch (error) {
-              console.error('Error deleting metadata:', error);
-              await window.electron.showMessage('Error', 'Failed to delete');
-            }
-          }
-        });
-        
-        metadataList.appendChild(itemElement);
-      });
-    } catch (error) {
-      console.error('Error loading metadata:', error);
-      metadataList.innerHTML = '<div class="error-message">Error loading metadata</div>';
-    }
   }
 
   async function refreshMetadataDropdowns() {
@@ -7749,40 +7482,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Add search functionality - initialize when available
-  function initializeMetadataSearch() {
-    const metadataSearchInput = document.getElementById('metadata-editor-search');
-    if (metadataSearchInput) {
-      // Remove existing listener to avoid duplicates
-      const newInput = metadataSearchInput.cloneNode(true);
-      metadataSearchInput.parentNode.replaceChild(newInput, metadataSearchInput);
-      
-      newInput.addEventListener('input', debounce(async (e) => {
-        await refreshMetadataList(currentMetadataType, e.target.value.trim());
-      }, 300));
+  // After the Metadata Manager renamed or cleared a value: pickers, filters, and the grid.
+  window.refreshAfterMetadataChange = async function refreshAfterMetadataChange() {
+    await refreshMetadataDropdowns();
+    const container = document.querySelector('.file-grid');
+    if (container) container.currentModels = null; // force a full re-render
+    if (typeof window.performCombinedSearch === 'function') {
+      await window.performCombinedSearch();
+    } else {
+      const sortSelect = document.getElementById('sort-select');
+      await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc'));
     }
-
-    // Add clear search functionality
-    const clearButton = document.getElementById('clear-metadata-search');
-    if (clearButton) {
-      // Remove existing listener to avoid duplicates
-      const newButton = clearButton.cloneNode(true);
-      clearButton.parentNode.replaceChild(newButton, clearButton);
-      
-      newButton.addEventListener('click', async () => {
-        const searchInput = document.getElementById('metadata-editor-search');
-        if (searchInput) {
-          searchInput.value = '';
-          await refreshMetadataList(currentMetadataType);
-        }
-      });
-    }
-  }
-
-  // Initialize search on DOMContentLoaded
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeMetadataSearch();
-  });
+  };
 
   window._electronRealEventHandlers['clear-new-flags'] = async function() {
     if (isClearingNewFlags) return;
@@ -14504,13 +14215,6 @@ document.getElementById('new-designer-dialog').addEventListener('submit', async 
       if (designerSelect) {
         designerSelect.value = newDesignerName;
       }
-    }
-    
-    // Refresh metadata editor list if dialog is open
-    const metadataDialog = document.getElementById('metadata-editor-dialog');
-    if (metadataDialog && metadataDialog.open && currentMetadataType === 'designer') {
-      allMetadata = []; // Clear cache to force refresh
-      await refreshMetadataList('designer');
     }
   }
 });

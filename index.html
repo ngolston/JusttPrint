@@ -1518,29 +1518,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
 
 
 
-      <dialog id="metadata-editor-dialog" class="modal">
-        <form method="dialog">
-          <h3>Metadata Editor</h3>
-          <div class="metadata-tabs">
-            <button type="button" class="metadata-tab active" data-type="designer">Designer</button>
-            <button type="button" class="metadata-tab" data-type="parentModel">Parent Model</button>
-            <button type="button" class="metadata-tab" data-type="license">License</button>
-          </div>
-          <div class="form-group">
-            <label id="metadata-type-label">Designers</label>
-            <div class="input-with-icon">
-              <input type="text" id="metadata-editor-search" placeholder="Search...">
-              <button type="button" id="clear-metadata-search" class="icon-button" title="Clear search">×</button>
-            </div>
-            <div id="metadata-editor-list" class="metadata-list">
-              <!-- Metadata items will be added here dynamically -->
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="metadata-editor-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
 
 
       <dialog id="manage-thumbnails-dialog" class="modal">

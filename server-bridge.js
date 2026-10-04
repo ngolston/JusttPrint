@@ -522,10 +522,7 @@
     'setPrintStatusBatch': 'set-print-status-batch',
     'testSpoolmanConnection': 'test-spoolman-connection',
     'syncSpoolmanFilaments': 'sync-spoolman-filaments',
-    'getAllMetadata': 'get-all-metadata',
     'getStats': 'get-stats',
-    'renameMetadata': 'rename-metadata',
-    'deleteMetadata': 'delete-metadata',
     'getModelTags': 'get-model-tags',
     'getGroupTags': 'get-group-tags',
     'getSetting': 'get-setting',
@@ -615,10 +612,6 @@
 
   window.electron.onOpenPartsStock = function(callback) {
     window.electron.on('open-parts-stock', callback);
-  };
-  
-  window.electron.onOpenMetadataEditor = function(callback) {
-    window.electron.on('open-metadata-editor', callback);
   };
   
   window.electron.onOpenGuide = function(callback) {

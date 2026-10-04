@@ -358,3 +358,21 @@ export const slicers = {
   /** Replaces the whole slicer list. */
   replaceAll: (list: Slicer[]) => callAction<unknown>('clear-and-save-slicers', list)
 };
+
+export type MetadataType = 'designer' | 'parentModel' | 'license';
+
+export interface MetadataEntry {
+  type: MetadataType;
+  name: string;
+  model_count: number;
+}
+
+export const metadata = {
+  /** Every designer, parent model and license in use, with how many models use it. */
+  list: () => callAction<MetadataEntry[]>('get-all-metadata'),
+  /** Renaming onto an existing name merges the two. */
+  rename: (type: MetadataType, oldName: string, newName: string) =>
+    callAction<{ merged?: boolean; updated?: number }>('rename-metadata', type, oldName, newName),
+  /** Clears the value on every model that has it. */
+  remove: (type: MetadataType, name: string) => callAction<unknown>('delete-metadata', type, name)
+};

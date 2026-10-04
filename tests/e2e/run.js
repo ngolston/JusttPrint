@@ -546,6 +546,19 @@ async function browserChecks(base, wsUrl, session) {
           return model.result && model.result.designer === 'New Designer';
         }, 15000, 'designer rename').catch(() => false);
         check('designer renamed on the server', renamed === true);
+        const listed = await page.waitForSelector('#metadata-editor-dialog .metadata-item:has-text("New Designer")', { timeout: 10000 }).catch(() => null);
+        check('Metadata Manager list shows the new name', !!listed && !(await page.isVisible('#metadata-editor-dialog .metadata-item:has-text("Old Designer")')));
+        await page.fill('#metadata-editor-search', 'zzz-no-match');
+        check('Metadata Manager search filters the list', await page.isVisible('#metadata-editor-dialog .no-metadata'));
+        await page.click('#clear-metadata-search');
+        await page.click('#metadata-editor-dialog .metadata-item:has-text("New Designer") .metadata-delete');
+        const confirmClear = await page.waitForSelector('dialog[open]:has-text("Delete Designer") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+        if (confirmClear) await confirmClear.click();
+        const cleared = await waitFor(async () => {
+          const model = await invoke(base, session, 'get-model', [cube]);
+          return model.result && !model.result.designer;
+        }, 15000, 'designer cleared').catch(() => false);
+        check('Metadata Manager clears a designer after asking', !!confirmClear && cleared === true);
       }
     } else {
       check('Metadata Manager lists the designer', false, 'rename button not found');

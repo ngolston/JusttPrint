@@ -27,6 +27,7 @@ All notable changes contributed via pull request are documented in this file.
 - **Purge Models** is rebuilt in React. Fixed: purging failed with "FOREIGN KEY constraint failed" once any print had been logged. It now also removes print history (as removing a single model does), in one transaction.
 - **Theme** settings are rebuilt in React. The dialog now shows the saved model color and lighting when it opens (it could show stale values before).
 - **Slicer** settings are rebuilt in React (`slicer.js` is removed). The Browse button is gone: browsers only reveal a file's name, never its path, so it could not fill in the path. Type the slicer's full path on your computer; an empty name is suggested from it.
+- **Metadata Manager** is rebuilt in React: rename (or merge) and clear designers, parent models and licenses. Search filters as you type, and the delete prompt names the value it removes.
 - Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
 - Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
 - Backups use SQLite's online backup, so the database stays open while a backup is written.
