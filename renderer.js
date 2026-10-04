@@ -5764,12 +5764,8 @@ async function createServerMenuBar() {
     { label: 'Performance', action: () => {
       window.openPerformanceSettings?.();
     }},
-    { label: 'Slicer', action: async () => {
-      if (typeof window.openSlicerSettings === 'function') {
-        await window.openSlicerSettings();
-        return;
-      }
-      window.electron.send('open-slicer-settings');
+    { label: 'Slicer', action: () => {
+      window.openSlicerSettings?.();
     }},
     { label: 'STL Home', action: async () => {
       await window.openSTLHomeDialog();
@@ -11217,16 +11213,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  window._electronRealEventHandlers['open-slicer-settings'] = async function() {
-    if (typeof window.openSlicerSettings === 'function') {
-      window.openSlicerSettings();
-      return;
-    }
-    const dialog = document.getElementById('slicer-dialog');
-    if (dialog) {
-      try { dialog.showModal(); } catch (err) { console.error('Error opening slicer settings:', err); }
-    }
+  // Slicer settings are React (src/web/SlicerSettingsDialog.tsx); it defines window.openSlicerSettings.
+  window._electronRealEventHandlers['open-slicer-settings'] = function() {
+    window.openSlicerSettings?.();
   };
+
   if (window._electronPendingEvents['open-slicer-settings']) {
     window._electronPendingEvents['open-slicer-settings'].forEach((args) => {
       window._electronRealEventHandlers['open-slicer-settings'].apply(null, args);

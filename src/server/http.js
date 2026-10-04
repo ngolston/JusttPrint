@@ -297,18 +297,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Add middleware to set proper MIME types for JavaScript modules
   expressApp.use((req, res, next) => {
-    // Set proper Content-Type for JavaScript modules
-    if (req.path.endsWith('.js')) {
-      // Check if it's requested as a module (from script type="module")
-      // or if it's search.js, slicer.js which are known modules
-      if (req.path.includes('search.js') || req.path.includes('slicer.js') || 
-          req.get('Accept')?.includes('application/javascript') ||
-          req.get('Accept')?.includes('text/javascript')) {
-        res.type('application/javascript');
-      } else {
-        res.type('application/javascript');
-      }
-    }
+    // Module scripts (type="module") need a JavaScript Content-Type.
+    if (req.path.endsWith('.js')) res.type('application/javascript');
     next();
   });
 

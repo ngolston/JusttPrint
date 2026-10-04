@@ -572,7 +572,6 @@
     'openFileInSlicer': 'open-file-in-slicer',
     'saveSlicer': 'save-slicer',
     'deleteSlicer': 'delete-slicer',
-    'clearAndSaveSlicers': 'clear-and-save-slicers',
     'getFileStats': 'get-file-stats',
     'getAllModelReferences': 'get-all-model-references',
     'showContextMenu': 'show-context-menu',
@@ -675,9 +674,7 @@
     window.electron.on('open-stl-home', callback);
   };
   
-  window.electron.onOpenSlicerSettings = function(callback) {
-    window.electron.on('open-slicer-settings', callback);
-  };
+
   
   // Commands the server hands to this browser. Nothing runs on the server: files download
   // here, and Send to Slicer opens a justtprint:// link for the helper on this computer.
@@ -901,11 +898,6 @@
     console.error('[Bridge] ERROR: receive method not created!');
   } else {
     console.log('[Bridge] ✓ receive method exists');
-  }
-  if (typeof window.electron.onOpenSlicerSettings !== 'function') {
-    console.error('[Bridge] ERROR: onOpenSlicerSettings method not created!');
-  } else {
-    console.log('[Bridge] ✓ onOpenSlicerSettings method exists');
   }
   
   // Signal that bridge is ready

@@ -19,6 +19,7 @@ import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
+import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
@@ -45,6 +46,7 @@ function Screens() {
       <AiConfigDialog />
       <PurgeModelsDialog />
       <ThemeSettingsDialog />
+      <SlicerSettingsDialog />
     </>
   );
 }

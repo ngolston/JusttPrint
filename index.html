@@ -1065,29 +1065,6 @@
         </div>
       </form>
     </dialog>
-    <dialog id="slicer-dialog" class="modal">
-      <form method="dialog">
-        <h3>Slicer Settings</h3>
-        <div id="slicer-list">
-          <!-- Slicer entries will be added here dynamically -->
-        </div>
-        <div class="slicer-list-actions">
-          <button type="button" id="add-slicer-button" class="full-width-button">Add New Slicer</button>
-        </div>
-        <div id="slicer-helper-install" hidden>
-          <p class="setting-description">Send to Slicer uses a helper on this computer. Download the package for this server, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
-          <div class="form-group checkbox-container" id="slicer-helper-insecure-row" hidden>
-            <input type="checkbox" id="slicer-helper-insecure">
-            <label for="slicer-helper-insecure">This server uses a self-signed certificate</label>
-          </div>
-          <button type="button" id="download-slicer-helper" class="full-width-button">Download helper for this server</button>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="save-slicer-settings">Save</button>
-          <button type="button" id="cancel-slicer-settings" data-close-dialog="slicer-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
 
 
     <!-- Tag preview dialog -->
@@ -1626,29 +1603,11 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="organize-library-ui.js"></script>
   <script src="filament.js"></script>
   <script src="print-history.js"></script>
-  <script type="module" src="slicer.js"></script>
   <script src="guide.js"></script>
   <script src="pwa.js"></script>
   <script src="mobile-ui.js"></script>
 
-  <!-- Add this template for slicer entries -->
-  <template id="slicer-entry-template">
-    <div class="slicer-entry">
-      <div class="form-group slicer-entry-fields">
-        <label class="slicer-field-label">Name</label>
-        <input type="text" class="slicer-name" placeholder="e.g. Orca Slicer" autocomplete="off">
-        <label class="slicer-field-label">Path</label>
-        <div class="input-with-icon">
-          <input type="text" class="slicer-path" placeholder="Path on your computer, e.g. C:\Program Files\OrcaSlicer\orca-slicer.exe" autocomplete="off">
-          <button type="button" class="browse-slicer-button icon-button" title="Browse for slicer">
-            <img src="file-icon.png" alt="Browse">
-          </button>
-          <button type="button" class="remove-slicer-button icon-button" title="Remove slicer">×</button>
-        </div>
-      </div>
-    </div>
-  </template>
-  <!-- React screens (src/web/): Server Access, Tag Manager, Parts Manager, Filament Manager, Printer Manager -->
+  <!-- React screens (src/web/, mounted by main.tsx) -->
   <div id="react-root"></div>
   <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>

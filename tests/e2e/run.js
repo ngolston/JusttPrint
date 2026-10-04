@@ -955,6 +955,32 @@ async function browserChecks(base, wsUrl, session) {
       && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
 
+    // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.
+    await invoke(base, session, 'save-slicer', [{ name: 'Seed Slicer', path: '/usr/bin/seed-slicer' }]);
+    await page.evaluate(() => window.openSlicerSettings());
+    await page.waitForSelector('#slicer-dialog[open] .slicer-entry', { timeout: 10000 }).catch(() => {});
+    const slicerRows = await page.locator('#slicer-dialog .slicer-entry').count();
+    check('Slicer settings lists the saved slicers', slicerRows >= 1 && (await page.inputValue('#slicer-dialog .slicer-name')) !== '');
+    await page.click('#add-slicer-button');
+    const newRow = page.locator('#slicer-dialog .slicer-entry').last();
+    await newRow.locator('.slicer-path').fill('/opt/OrcaSlicer/orca-slicer');
+    await newRow.locator('.slicer-path').blur();
+    check('a typed path suggests a name', await newRow.locator('.slicer-name').inputValue() === 'Orca Slicer');
+    const firstName = await page.inputValue('#slicer-dialog .slicer-name');
+    await newRow.locator('.slicer-name').fill(firstName);
+    await page.click('#save-slicer-settings');
+    const duplicate = await page.waitForSelector('dialog[open]:has-text("is already used") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    check('Slicer settings refuses a duplicate name', !!duplicate);
+    if (duplicate) await duplicate.click();
+    await newRow.locator('.slicer-name').fill('Orca Slicer');
+    await page.click('#save-slicer-settings');
+    const slicersSaved = await page.waitForSelector('dialog[open]:has-text("Slicer settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (slicersSaved) await slicersSaved.click();
+    const savedSlicers = (await invoke(base, session, 'get-slicers')).result || [];
+    check('Slicer settings saves the list', !!slicersSaved && savedSlicers.length === slicerRows + 1
+      && savedSlicers.some((s) => s.name === 'Orca Slicer' && s.path === '/opt/OrcaSlicer/orca-slicer'), JSON.stringify(savedSlicers));
+    await invoke(base, session, 'clear-and-save-slicers', [[]]);
+
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));

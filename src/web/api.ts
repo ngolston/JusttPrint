@@ -346,3 +346,15 @@ export const purge = {
   /** Removes every model from the library database (files on disk are untouched). */
   allModels: () => callAction<boolean>('purge-models', { confirmedInDialog: true })
 };
+
+export interface Slicer {
+  id?: number;
+  name: string;
+  path: string;
+}
+
+export const slicers = {
+  list: () => callAction<Slicer[]>('get-slicers'),
+  /** Replaces the whole slicer list. */
+  replaceAll: (list: Slicer[]) => callAction<unknown>('clear-and-save-slicers', list)
+};
