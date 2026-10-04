@@ -555,9 +555,9 @@ async function browserChecks(base, wsUrl, session) {
         }, true);
       }
     });
-    // Start the call without keeping page.evaluate waiting on it (on Linux CI, input does not reach the page meanwhile).
-    await page.evaluate((file) => { window.__pull = window.electron.pull3MFMetadata([file]); }, box3mf);
-    const pull = page.evaluate(() => window.__pull);
+    const frames = await page.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => { const r = f.getBoundingClientRect(); const info = `${f.src.slice(0, 30)} ${r.width}x${r.height} ${getComputedStyle(f).display}`; f.remove(); return info; }));
+    console.log(`     iframes removed: ${JSON.stringify(frames)}`);
+    const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
     const confirmDialog = await page.waitForSelector('dialog[open]:has-text("Confirm Metadata Overwrite") button:text-is("No")', { timeout: 15000 }).catch(() => null);
     const openDialogs = () => page.evaluate(() => [...document.querySelectorAll('dialog[open]')].map((d) => `${d.id || d.className}: ${d.textContent.trim().slice(0, 80)}`));
     check('server confirmation appears in the browser', !!confirmDialog, JSON.stringify(await openDialogs()));
