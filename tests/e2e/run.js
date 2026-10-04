@@ -278,6 +278,9 @@ async function apiChecks(base, wsUrl) {
   const dbBench = await ask('benchmark-database');
   check('System Report database benchmark', !dbBench.error && !!dbBench.result, dbBench.error);
 
+  const menu = (await ask('show-context-menu', [[cube]])).result || {};
+  check('context menu built for a model', menu.type === 'html-menu' && Array.isArray(menu.items) && menu.items.some((i) => i.label), JSON.stringify(menu).slice(0, 200));
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
