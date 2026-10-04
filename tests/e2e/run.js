@@ -846,6 +846,23 @@ async function browserChecks(base, wsUrl, session) {
       && !(await page.isVisible('#performance-settings-dialog')));
     await invoke(base, session, 'save-setting', ['maxFileSizeMB', savedMaxSize || '50']);
 
+    // MCP Server settings (React): this page's URL, and a client config that carries the API token.
+    const apiToken = ((await invoke(base, session, 'get-server-access-info')).result || {}).apiToken;
+    await page.evaluate(() => window.openMcpServerSettings());
+    check('MCP Server settings opens', await page.isVisible('#mcp-server-settings-dialog'));
+    check('MCP URL is this server', await page.inputValue('#mcp-server-url') === `${base}/mcp`, await page.inputValue('#mcp-server-url'));
+    const mcpConfig = await page.waitForFunction(() => {
+      const text = document.getElementById('mcp-server-config')?.textContent || '';
+      return text.includes('Bearer') ? text : null;
+    }, null, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => '');
+    let parsedConfig = null;
+    try { parsedConfig = JSON.parse(mcpConfig).mcpServers.justtprint; } catch (_) { /* checked below */ }
+    check('MCP client config has the URL and API token', !!parsedConfig && parsedConfig.url === `${base}/mcp`
+      && parsedConfig.headers && parsedConfig.headers.Authorization === `Bearer ${apiToken}`, mcpConfig.slice(0, 200));
+    check('MCP settings list the tools', /search_models/.test(await page.textContent('#mcp-server-tools').catch(() => '')));
+    await page.click('#cancel-mcp-server-settings');
+    check('MCP Server settings closes', !(await page.isVisible('#mcp-server-settings-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

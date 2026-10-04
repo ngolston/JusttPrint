@@ -6391,12 +6391,8 @@ async function createServerMenuBar() {
     {
       label: 'MCP Server',
       submenu: [
-        { label: 'Settings', action: async () => {
-          if (typeof window.openMcpServerSettings === 'function') {
-            await window.openMcpServerSettings();
-          } else {
-            window.electron.send('open-mcp-server-settings');
-          }
+        { label: 'Settings', action: () => {
+          window.openMcpServerSettings?.();
         }},
         { label: 'HTTPS / SSL', action: async () => {
           if (typeof window.openHttpsSettings === 'function') {
@@ -10680,134 +10676,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  async function copyTextToClipboard(text) {
-    const value = text == null ? '' : String(text);
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(value);
-        return true;
-      }
-    } catch (_) { /* fall through */ }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = value;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function flashButtonCopied(btn) {
-    if (!btn) return;
-    const original = btn.textContent;
-    btn.textContent = 'Copied';
-    setTimeout(() => {
-      if (btn.textContent === 'Copied') btn.textContent = original;
-    }, 1200);
-  }
-
-  function mcpClientConfigJson(url) {
-    return JSON.stringify({
-      mcpServers: {
-        justtprint: { url }
-      }
-    }, null, 2);
-  }
-
-  function getMcpDialogPort() {
-    return Math.min(65535, Math.max(1024, parseInt(document.getElementById('mcp-server-port')?.value || '5000', 10) || 5000));
-  }
-
-  function updateMcpDialogPreview(info, serverMode) {
-    const check = document.getElementById('enable-mcp-server');
-    const port = getMcpDialogPort();
-    const scheme = (info && info.url && String(info.url).startsWith('https:')) ? 'https' : 'http';
-    let url = `${scheme}://127.0.0.1:${port}/mcp`;
-    if (serverMode && window.location && window.location.origin) {
-      url = String(window.location.origin).replace(/\/$/, '') + '/mcp';
-    } else if (!serverMode && info && info.url) {
-      url = String(info.url).replace(/:\d+(\/mcp)?$/, ':' + port + '/mcp');
-    }
-    const urlInput = document.getElementById('mcp-server-url');
-    if (urlInput) urlInput.value = url;
-    const configEl = document.getElementById('mcp-server-config');
-    if (configEl) configEl.textContent = mcpClientConfigJson(url);
-
-    const statusEl = document.getElementById('mcp-server-status');
-    if (statusEl) {
-      if (serverMode) {
-        statusEl.textContent = 'Status: MCP endpoint is available on this server.';
-      } else if (check?.checked && info && info.running) {
-        statusEl.textContent = 'Status: Listening at ' + url;
-      } else if (check?.checked) {
-        statusEl.textContent = 'Status: Enabled. Click Save to start the listener.';
-      } else {
-        statusEl.textContent = 'Status: Disabled. Enable and Save to start the listener while JusttPrint is running.';
-      }
-    }
-    const extra = document.getElementById('mcp-server-extra-urls');
-    if (extra) {
-      const alts = ((info && info.urls) || []).filter((u) => u && u !== url);
-      extra.textContent = alts.length ? ('Also reachable at: ' + alts.join('  ·  ')) : '';
-    }
-  }
-
-  async function populateMcpServerSettingsDialog() {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    if (!dialog) return;
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    const desktopControls = document.getElementById('mcp-server-desktop-controls');
-    const serverNote = document.getElementById('mcp-server-server-mode-note');
-    const saveBtn = document.getElementById('save-mcp-server-settings');
-    const cancelBtn = document.getElementById('cancel-mcp-server-settings');
-    if (desktopControls) desktopControls.hidden = !!serverMode;
-    if (serverNote) serverNote.hidden = !serverMode;
-    if (saveBtn) saveBtn.hidden = !!serverMode;
-    if (cancelBtn) cancelBtn.textContent = serverMode ? 'Close' : 'Cancel';
-
-    const enabled = await window.electron.getSetting('enableMcpServer');
-    const port = await window.electron.getSetting('browserExtensionPort');
-    const check = document.getElementById('enable-mcp-server');
-    const portInput = document.getElementById('mcp-server-port');
-    if (check) check.checked = enabled === '1';
-    if (portInput) portInput.value = port || '5000';
-
-    let info = {};
-    try {
-      info = await window.electron.getMcpConnectionInfo() || {};
-    } catch (err) {
-      console.error('MCP connection info failed:', err);
-    }
-    dialog._mcpInfo = info;
-    dialog._mcpServerMode = serverMode;
-
-    const toolsEl = document.getElementById('mcp-server-tools');
-    if (toolsEl) {
-      const tools = info.tools || [];
-      toolsEl.textContent = tools.length ? ('Tools: ' + tools.join(', ')) : '';
-    }
-    updateMcpDialogPreview(info, serverMode);
-  }
-
-  window.openMcpServerSettings = async function openMcpServerSettings() {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    if (!dialog) {
-      window.electron.send('open-mcp-server-settings');
-      return;
-    }
-    await populateMcpServerSettingsDialog();
-    dialog.showModal();
-  };
-
-  window._electronRealEventHandlers['open-mcp-server-settings'] = async function() {
-    await window.openMcpServerSettings();
+  // MCP Server settings are React (src/web/McpServerSettingsDialog.tsx); it defines window.openMcpServerSettings.
+  window._electronRealEventHandlers['open-mcp-server-settings'] = function() {
+    window.openMcpServerSettings?.();
   };
   if (window._electronPendingEvents['open-mcp-server-settings']) {
     window._electronPendingEvents['open-mcp-server-settings'].forEach((args) => {
@@ -10815,31 +10686,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-mcp-server-settings'];
   }
-
-  document.getElementById('save-mcp-server-settings')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    const serverMode = await window.electron.isServerMode().catch(() => false);
-    if (serverMode) {
-      document.getElementById('mcp-server-settings-dialog')?.close();
-      return;
-    }
-    const check = document.getElementById('enable-mcp-server');
-    const portInput = document.getElementById('mcp-server-port');
-    const enabled = check?.checked ? '1' : '0';
-    const port = Math.min(65535, Math.max(1024, parseInt(portInput?.value || '5000', 10) || 5000));
-    await window.electron.saveSetting('enableMcpServer', enabled);
-    await window.electron.saveSetting('browserExtensionPort', String(port));
-    const result = await window.electron.syncLocalHttpServer(port);
-    if (enabled === '1' && result && !result.success) {
-      await window.electron.showMessage('MCP Server', result.message || 'Failed to start the MCP listener. On macOS, check the main process console or rebuild with the network.server entitlement.');
-      return;
-    }
-    document.getElementById('mcp-server-settings-dialog')?.close();
-  });
-
-  document.getElementById('cancel-mcp-server-settings')?.addEventListener('click', () => {
-    document.getElementById('mcp-server-settings-dialog')?.close();
-  });
 
   // Server Access dialog: React (src/web/ServerAccessDialog.tsx) defines window.openServerAccess.
 
@@ -10855,26 +10701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await window.openServerAccess();
   };
 
-  const refreshMcpDialogPreview = () => {
-    const dialog = document.getElementById('mcp-server-settings-dialog');
-    updateMcpDialogPreview(dialog?._mcpInfo || {}, !!dialog?._mcpServerMode);
-  };
-  document.getElementById('enable-mcp-server')?.addEventListener('change', refreshMcpDialogPreview);
-  document.getElementById('mcp-server-port')?.addEventListener('input', refreshMcpDialogPreview);
-
   bindHttpsSettingsDialog();
-
-  document.getElementById('copy-mcp-server-url')?.addEventListener('click', async () => {
-    const url = document.getElementById('mcp-server-url')?.value || '';
-    const ok = await copyTextToClipboard(url);
-    if (ok) flashButtonCopied(document.getElementById('copy-mcp-server-url'));
-  });
-
-  document.getElementById('copy-mcp-server-config')?.addEventListener('click', async () => {
-    const text = document.getElementById('mcp-server-config')?.textContent || '';
-    const ok = await copyTextToClipboard(text);
-    if (ok) flashButtonCopied(document.getElementById('copy-mcp-server-config'));
-  });
 
   // Store pending tags for preview (can handle multiple models)
   let pendingTagData = [];

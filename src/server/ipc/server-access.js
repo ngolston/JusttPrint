@@ -93,10 +93,6 @@ function collectLanAddresses() {
   return out;
 }
 
-async function syncLocalHttpServer(port) {
-  return { success: true, running: true, port: getHttpServerListenPort() || getAppListenPort() };
-}
-
 function getMcpConnectionInfo() {
   const port = getHttpServerListenPort() || getConfiguredHttpPort();
   const enabled = true;
@@ -268,10 +264,6 @@ ipcMain.handle('generate-self-signed-cert', async (_event, payload = {}) => {
     serverTls.setLastTlsError(err.message);
     return { success: false, message: err.message || 'Failed to generate certificate', status: getTlsStatusForUi() };
   }
-});
-
-ipcMain.handle('sync-local-http-server', async (event, port) => {
-  return syncLocalHttpServer(port);
 });
 
 ipcMain.handle('import-extension-inbox', async () => {

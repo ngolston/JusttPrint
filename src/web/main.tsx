@@ -9,6 +9,7 @@ import { AboutDialog } from './AboutDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
@@ -31,6 +32,7 @@ function Screens() {
       <KeyboardShortcutsDialog />
       <AboutDialog />
       <PerformanceSettingsDialog />
+      <McpServerSettingsDialog />
     </>
   );
 }

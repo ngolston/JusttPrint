@@ -1216,51 +1216,6 @@
         </div>
       </form>
     </dialog>
-    <dialog id="mcp-server-settings-dialog" class="modal">
-      <form method="dialog">
-        <h3>MCP Server</h3>
-        <p class="warning-text">Experimental feature. MCP Server is unfinished and may change, break, or expose library data to any client that can reach the endpoint. By enabling or using it, you assume all risk.</p>
-        <p class="setting-description">Connect a local AI agent (Cursor, Claude Desktop, VS Code, and similar) to search your library, read model details, and write thumbnails while JusttPrint is running. The URL uses <code>https://</code> when TLS is enabled under Tools → MCP Server → HTTPS / SSL.</p>
-        <div class="settings-group">
-          <div id="mcp-server-desktop-controls">
-            <div class="form-group checkbox-container">
-              <input type="checkbox" id="enable-mcp-server">
-              <label for="enable-mcp-server">Enable MCP Server</label>
-            </div>
-            <div class="form-group">
-              <label for="mcp-server-port">Port:</label>
-              <input type="number" id="mcp-server-port" min="1024" max="65535" value="5000">
-              <p class="setting-description">When enabled, a local listener runs on this port (default 5000). Shared with the Browser Extension local server.</p>
-            </div>
-          </div>
-          <div id="mcp-server-server-mode-note" hidden>
-            <p class="setting-description">Server/Docker mode: the MCP endpoint is always available on this host. No toggle is required.</p>
-          </div>
-          <p id="mcp-server-status" class="setting-description"></p>
-          <div class="form-group">
-            <label for="mcp-server-url">MCP URL</label>
-            <input type="text" id="mcp-server-url" readonly>
-            <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="copy-mcp-server-url">Copy URL</button>
-            </div>
-            <p id="mcp-server-extra-urls" class="setting-description"></p>
-          </div>
-          <div class="form-group">
-            <label for="mcp-server-config">Client config (Cursor / Claude Desktop / VS Code)</label>
-            <pre id="mcp-server-config" class="mcp-config"></pre>
-            <div class="dialog-buttons mcp-inline-actions">
-              <button type="button" id="copy-mcp-server-config">Copy config</button>
-            </div>
-            <p class="setting-description">Place this under <code>mcpServers</code> in your MCP client settings. The agent can search the library, manage tags, find duplicates, scan folders, update metadata, and set thumbnails.</p>
-            <p id="mcp-server-tools" class="setting-description"></p>
-          </div>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="save-mcp-server-settings">Save</button>
-          <button type="button" id="cancel-mcp-server-settings">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="https-settings-dialog" class="modal">
       <form method="dialog">
         <h3>HTTPS / SSL</h3>

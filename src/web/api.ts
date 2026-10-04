@@ -242,3 +242,18 @@ export const backup = {
 export function downloadUrl(filePath: string): string {
   return `/api/download/${encodeURIComponent(filePath)}`;
 }
+
+export interface McpConnectionInfo {
+  running: boolean;
+  port: number;
+  url: string;
+  /** Other addresses the endpoint answers on (LAN addresses, 127.0.0.1, a <server-host> placeholder). */
+  urls: string[];
+  /** { mcpServers: { justtprint: { url, headers: { Authorization } } } } with the server's API token. */
+  clientConfig: { mcpServers: Record<string, { url: string; headers?: Record<string, string> }> };
+  tools: string[];
+}
+
+export const mcp = {
+  connectionInfo: () => callAction<McpConnectionInfo>('get-mcp-connection-info')
+};

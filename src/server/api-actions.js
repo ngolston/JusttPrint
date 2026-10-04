@@ -151,7 +151,6 @@ const ACTIONS = {
   'get-tls-status': [],
   'apply-tls-settings': ['object?'],
   'generate-self-signed-cert': ['object?'],
-  'sync-local-http-server': ['any?'],
   'import-extension-inbox': [],
   'get-default-extension-inbox-directory': [],
   'get-mcp-connection-info': [],
