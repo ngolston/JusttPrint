@@ -281,6 +281,17 @@ async function apiChecks(base, wsUrl) {
   const menu = (await ask('show-context-menu', [[cube]])).result || {};
   check('context menu built for a model', menu.type === 'html-menu' && Array.isArray(menu.items) && menu.items.some((i) => i.label), JSON.stringify(menu).slice(0, 200));
 
+  const before = (await ask('get-model', [cube])).result;
+  check('model loaded with tags', !!before && Array.isArray(before.tags), JSON.stringify(before).slice(0, 200));
+  if (before) {
+    const saved = await ask('save-model', [{ ...before, thumbnail: undefined, notes: 'e2e note', designer: 'E2E Designer', tags: ['e2e-model-tag'] }]);
+    const after = (await ask('get-model', [cube])).result || {};
+    check('model edits saved', !saved.error && after.notes === 'e2e note' && after.designer === 'E2E Designer' && (after.tags || []).includes('e2e-model-tag'), saved.error || JSON.stringify({ notes: after.notes, designer: after.designer, tags: after.tags }));
+    check('designer list includes the edit', ((await ask('get-designers')).result || []).some((d) => JSON.stringify(d).includes('E2E Designer')));
+  }
+  const tree = await ask('get-folder-tree');
+  check('folder tree builds', !tree.error && JSON.stringify(tree.result || '').includes('Designer A'), tree.error);
+
   const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
   const extracted = (await ask('extract-model-from-zip', [zipEntry])).result;
   check('ZIP entry extracted to a temp file', typeof extracted === 'string' && fs.existsSync(extracted), extracted);
