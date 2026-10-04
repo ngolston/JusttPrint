@@ -30,7 +30,6 @@
   <script src="vendor/fflate.min.js"></script>
   <!-- Local vendor copies — CDN scripts blocked first paint / ready-to-show on cold install -->
   <script src="vendor/fuse.min.js"></script>
-  <script src="vendor/chart.umd.js"></script>
   <!-- Puter.js is loaded dynamically only when needed to avoid unnecessary socket.io connections -->
 
 
@@ -2055,88 +2054,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
           </div>
           <div class="dialog-buttons">
             <button type="button" data-close-dialog="server-mode-info-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
-      <dialog id="stats-dialog" class="modal">
-        <form method="dialog">
-          <h2>Library Statistics</h2>
-          <div class="stats-content">
-            <div class="stats-grid">
-              <div class="stats-section stats-summary">
-                <h3>Total Models</h3>
-                <div class="stats-value-large" id="stats-total-models">0</div>
-                <div class="stats-subsection">
-                  <div class="stats-row-compact">
-                    <span class="stats-label-small">Archived:</span>
-                    <span class="stats-value-small" id="stats-archived">0</span>
-                  </div>
-                  <div class="stats-row-compact">
-                    <span class="stats-label-small">Disk Usage:</span>
-                    <span class="stats-value-small" id="stats-total-bytes">0 B</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="stats-section stats-chart-section">
-                <h3>Model Types</h3>
-                <div class="stats-row-compact">
-                  <span class="stats-label-small">3MF:</span>
-                  <span class="stats-value-small"><span id="stats-type-3mf">0</span> <span class="stats-bytes" id="stats-type-3mf-bytes">(0 B)</span></span>
-                </div>
-                <div class="stats-row-compact">
-                  <span class="stats-label-small">STL:</span>
-                  <span class="stats-value-small"><span id="stats-type-stl">0</span> <span class="stats-bytes" id="stats-type-stl-bytes">(0 B)</span></span>
-                </div>
-                <div class="stats-row-compact">
-                  <span class="stats-label-small">Other:</span>
-                  <span class="stats-value-small"><span id="stats-type-other">0</span> <span class="stats-bytes" id="stats-type-other-bytes">(0 B)</span></span>
-                </div>
-                <div class="chart-container-small">
-                  <canvas id="file-type-chart"></canvas>
-                </div>
-              </div>
-              
-              <div class="stats-section stats-chart-section">
-                <h3>Metadata Completion</h3>
-                <div class="chart-container-small">
-                  <canvas id="metadata-chart"></canvas>
-                </div>
-                <div class="stats-grid-compact">
-                  <div class="stats-row-compact">
-                    <span class="stats-label-tiny">Designer:</span>
-                    <span class="stats-value-tiny" id="stats-percent-designer">0%</span>
-                  </div>
-                  <div class="stats-row-compact">
-                    <span class="stats-label-tiny">Parent:</span>
-                    <span class="stats-value-tiny" id="stats-percent-parent">0%</span>
-                  </div>
-                  <div class="stats-row-compact">
-                    <span class="stats-label-tiny">License:</span>
-                    <span class="stats-value-tiny" id="stats-percent-license">0%</span>
-                  </div>
-                  <div class="stats-row-compact">
-                    <span class="stats-label-tiny">Tags:</span>
-                    <span class="stats-value-tiny" id="stats-percent-tags">0%</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="stats-section stats-tags">
-                <h3>Tags</h3>
-                <div class="stats-row-compact">
-                  <span class="stats-label-small">Total:</span>
-                  <span class="stats-value-small" id="stats-total-tags">0</span>
-                </div>
-                <div class="stats-row-compact">
-                  <span class="stats-label-small">Most Used:</span>
-                  <span class="stats-value-small" id="stats-most-used-tag">-</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="stats-dialog">Close</button>
           </div>
         </form>
       </dialog>

@@ -747,6 +747,19 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#printer-management-close');
     check('Printer Manager closes', !(await page.isVisible('#printer-management-dialog')));
 
+    // Library Stats (React): counts match get-stats, and both charts draw.
+    const serverStats = (await invoke(base, session, 'get-stats')).result || {};
+    await page.evaluate(() => window.openStats());
+    check('Library Stats opens', await page.isVisible('#stats-dialog'));
+    const shownTotal = await page.waitForFunction((total) => {
+      const text = document.getElementById('stats-total-models')?.textContent;
+      return text === total ? text : null;
+    }, String(serverStats.totalModels || 0), { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('Library Stats shows the model count', shownTotal !== null, `${shownTotal} vs ${serverStats.totalModels}`);
+    check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
+    await page.click('#stats-dialog .dialog-buttons button');
+    check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

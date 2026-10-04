@@ -6558,12 +6558,69 @@ dialog:not([open]) {
   position: relative;
 }
 
-.chart-container canvas {
-  max-height: 200px;
+/* Stats charts (src/web/StatsDialog.tsx): an SVG pie with a legend, and CSS bars */
+.stats-pie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
 }
 
-.chart-container-small canvas {
-  max-height: 120px;
+.stats-pie svg {
+  height: 100%;
+  aspect-ratio: 1;
+}
+
+.stats-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 10px;
+  color: #e0e0e0;
+}
+
+.stats-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.stats-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.stats-bars {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.stats-bar-row {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #e0e0e0;
+}
+
+.stats-bar-label {
+  text-align: right;
+}
+
+.stats-bar-track {
+  height: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stats-bar-fill {
+  display: block;
+  height: 100%;
 }
 
 /* Add these rules to hide the save buttons */

@@ -184,3 +184,17 @@ export const printers = {
     callAction<MaintenanceLog>('save-printer-maintenance-log', entry),
   removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id)
 };
+
+export interface LibraryStats {
+  totalModels: number;
+  totalBytes: number;
+  fileTypes: { stl: number; threeMf: number; other: number; stlBytes: number; threeMfBytes: number; otherBytes: number };
+  archivedModels: number;
+  /** Percent of models with each field set, as strings with one decimal ("12.5"), or 0 for an empty library. */
+  percentages: { withDesigner: string | number; withParentModel: string | number; withLicense: string | number; withTags: string | number };
+  tags: { total: number; mostUsed: { name: string; count: number } | null };
+}
+
+export const library = {
+  stats: () => callAction<LibraryStats>('get-stats')
+};

@@ -6990,7 +6990,7 @@ async function createServerMenuBar() {
     }},
     { label: '---', action: null },
     { label: 'Library Stats', action: () => {
-      window.electron.send('open-stats');
+      window.openStats?.();
     }},
     { label: 'System Report', action: async () => {
       const systemReportDialog = document.getElementById('system-report-dialog');
@@ -8440,32 +8440,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-server-mode-info'];
   }
 
-  // Stats dialog handler
-  const statsDialog = document.getElementById('stats-dialog');
-  if (statsDialog) {
-    // Clean up charts when dialog closes (set up once, not per-open)
-    statsDialog.addEventListener('close', () => {
-      if (fileTypeChart) {
-        fileTypeChart.destroy();
-        fileTypeChart = null;
-      }
-      if (metadataChart) {
-        metadataChart.destroy();
-        metadataChart = null;
-      }
-    });
-  }
-  
-  window._electronRealEventHandlers['open-stats'] = async function() {
-    const dialog = document.getElementById('stats-dialog');
-    if (dialog) {
-      try {
-        await initializeStatsDialog();
-        dialog.showModal();
-      } catch (error) {
-        console.error('Error showing stats dialog:', error);
-      }
-    }
+  // Library Stats is React (src/web/StatsDialog.tsx); it defines window.openStats.
+  window._electronRealEventHandlers['open-stats'] = function() {
+    window.openStats?.();
   };
   if (window._electronPendingEvents['open-stats']) {
     window._electronPendingEvents['open-stats'].forEach((args) => {
@@ -8490,199 +8467,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       window._electronRealEventHandlers['open-system-report'].apply(null, args);
     });
     delete window._electronPendingEvents['open-system-report'];
-  }
-
-  // Chart instances storage
-  let fileTypeChart = null;
-  let metadataChart = null;
-
-  // Initialize stats dialog with data
-  async function initializeStatsDialog() {
-    try {
-      const stats = await window.electron.getStats();
-      
-      // Update total models
-      document.getElementById('stats-total-models').textContent = stats.totalModels.toLocaleString();
-      
-      // Update file types (count + disk usage)
-      document.getElementById('stats-type-3mf').textContent = stats.fileTypes.threeMf.toLocaleString();
-      document.getElementById('stats-type-stl').textContent = stats.fileTypes.stl.toLocaleString();
-      const otherEl = document.getElementById('stats-type-other');
-      if (otherEl) otherEl.textContent = (stats.fileTypes.other != null ? stats.fileTypes.other : 0).toLocaleString();
-
-      const threeMfBytesEl = document.getElementById('stats-type-3mf-bytes');
-      const stlBytesEl = document.getElementById('stats-type-stl-bytes');
-      const otherBytesEl = document.getElementById('stats-type-other-bytes');
-      const totalBytesEl = document.getElementById('stats-total-bytes');
-      if (threeMfBytesEl) threeMfBytesEl.textContent = `(${formatFileSize(stats.fileTypes.threeMfBytes || 0)})`;
-      if (stlBytesEl) stlBytesEl.textContent = `(${formatFileSize(stats.fileTypes.stlBytes || 0)})`;
-      if (otherBytesEl) otherBytesEl.textContent = `(${formatFileSize(stats.fileTypes.otherBytes || 0)})`;
-      if (totalBytesEl) totalBytesEl.textContent = formatFileSize(stats.totalBytes || 0);
-      
-      // Update archived models
-      document.getElementById('stats-archived').textContent = stats.archivedModels.toLocaleString();
-      
-      // Update percentages
-      document.getElementById('stats-percent-designer').textContent = stats.percentages.withDesigner + '%';
-      document.getElementById('stats-percent-parent').textContent = stats.percentages.withParentModel + '%';
-      document.getElementById('stats-percent-license').textContent = stats.percentages.withLicense + '%';
-      document.getElementById('stats-percent-tags').textContent = stats.percentages.withTags + '%';
-      
-      // Update tags
-      document.getElementById('stats-total-tags').textContent = stats.tags.total.toLocaleString();
-      const mostUsedTagElement = document.getElementById('stats-most-used-tag');
-      if (stats.tags.mostUsed) {
-        mostUsedTagElement.textContent = `${stats.tags.mostUsed.name} (${stats.tags.mostUsed.count})`;
-      } else {
-        mostUsedTagElement.textContent = 'None';
-      }
-      
-      // Destroy existing charts if they exist
-      if (fileTypeChart) {
-        fileTypeChart.destroy();
-        fileTypeChart = null;
-      }
-      if (metadataChart) {
-        metadataChart.destroy();
-        metadataChart = null;
-      }
-      
-      // Create pie chart for file types
-      const fileTypeCanvas = document.getElementById('file-type-chart');
-      if (fileTypeCanvas && typeof Chart !== 'undefined') {
-        const ctx = fileTypeCanvas.getContext('2d');
-        const otherCount = stats.fileTypes.other != null ? stats.fileTypes.other : 0;
-        fileTypeChart = new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: otherCount > 0 ? ['3MF', 'STL', 'Other'] : ['3MF', 'STL'],
-            datasets: [{
-              data: otherCount > 0 ? [stats.fileTypes.threeMf, stats.fileTypes.stl, otherCount] : [stats.fileTypes.threeMf, stats.fileTypes.stl],
-              backgroundColor: otherCount > 0 ? ['rgba(74, 158, 255, 0.8)', 'rgba(0, 212, 255, 0.8)', 'rgba(128, 128, 128, 0.8)'] : ['rgba(74, 158, 255, 0.8)', 'rgba(0, 212, 255, 0.8)'],
-              borderColor: otherCount > 0 ? ['rgba(74, 158, 255, 1)', 'rgba(0, 212, 255, 1)', 'rgba(128, 128, 128, 1)'] : ['rgba(74, 158, 255, 1)', 'rgba(0, 212, 255, 1)'],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 10
-                  },
-                  padding: 8,
-                  boxWidth: 12
-                }
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    const label = context.label || '';
-                    const value = context.parsed || 0;
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                    const bytesByLabel = {
-                      '3MF': stats.fileTypes.threeMfBytes || 0,
-                      'STL': stats.fileTypes.stlBytes || 0,
-                      'Other': stats.fileTypes.otherBytes || 0
-                    };
-                    const bytes = bytesByLabel[label] || 0;
-                    return `${label}: ${value.toLocaleString()} (${percentage}%) · ${formatFileSize(bytes)}`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-      
-      // Create bar chart for metadata completion
-      const metadataCanvas = document.getElementById('metadata-chart');
-      if (metadataCanvas && typeof Chart !== 'undefined') {
-        const ctx = metadataCanvas.getContext('2d');
-        metadataChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: ['Designer', 'Parent', 'License', 'Tags'],
-            datasets: [{
-              label: 'Completion %',
-              data: [
-                parseFloat(stats.percentages.withDesigner),
-                parseFloat(stats.percentages.withParentModel),
-                parseFloat(stats.percentages.withLicense),
-                parseFloat(stats.percentages.withTags)
-              ],
-              backgroundColor: [
-                'rgba(74, 158, 255, 0.8)',
-                'rgba(0, 212, 255, 0.8)',
-                'rgba(91, 159, 255, 0.8)',
-                'rgba(107, 170, 255, 0.8)'
-              ],
-              borderColor: [
-                'rgba(74, 158, 255, 1)',
-                'rgba(0, 212, 255, 1)',
-                'rgba(91, 159, 255, 1)',
-                'rgba(107, 170, 255, 1)'
-              ],
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            scales: {
-              x: {
-                beginAtZero: true,
-                max: 100,
-                ticks: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 9
-                  },
-                  callback: function(value) {
-                    return value + '%';
-                  }
-                },
-                grid: {
-                  color: 'rgba(255, 255, 255, 0.1)'
-                }
-              },
-              y: {
-                ticks: {
-                  color: '#e0e0e0',
-                  font: {
-                    size: 9
-                  }
-                },
-                grid: {
-                  color: 'rgba(255, 255, 255, 0.1)'
-                }
-              }
-            },
-            plugins: {
-              legend: {
-                display: false
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    return context.parsed.x.toFixed(1) + '%';
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing stats dialog:', error);
-      throw error;
-    }
   }
 
   // Website link handler
