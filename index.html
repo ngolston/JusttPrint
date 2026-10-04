@@ -1177,45 +1177,6 @@
         </div>
       </form>
     </dialog>
-    <dialog id="browser-extension-settings-dialog" class="modal">
-      <form method="dialog">
-        <h3>Browser Extension</h3>
-        <p class="setting-description">The Chrome extension writes queue files to an inbox folder. JusttPrint imports them on launch and every minute while this app is open. JusttPrint does not need to be running when you add models from the browser.</p>
-        <p class="setting-description"><a id="browser-extension-store-link" href="https://chromewebstore.google.com/detail/pigngedngcegmemgfbkaiihjnbplaedj?utm_source=item-share-cb">Download the JusttPrint Watcher on Chrome Web Store</a></p>
-        <div class="settings-group">
-          <div class="form-group">
-            <label for="extension-inbox-directory">Inbox directory:</label>
-            <input type="text" id="extension-inbox-directory" placeholder="Downloads/JusttPrintInbox">
-            <div class="dialog-buttons" style="margin-top: 8px; justify-content: flex-start;">
-              <button type="button" id="choose-extension-inbox-directory">Choose folder</button>
-              <button type="button" id="import-extension-inbox-now">Import now</button>
-            </div>
-            <p class="setting-description">Optional override. JusttPrint always also checks <code>Downloads/JusttPrintInbox</code> and <code>JusttPrintInbox</code> next to <code>justtprint.db</code> (the folder the Chrome extension asks you to pick).</p>
-            <p class="setting-description" id="extension-inbox-last-status"></p>
-          </div>
-          <p class="setting-description" style="margin-top: 12px; font-weight: 500;">Path mapping (optional, Docker/NAS)</p>
-          <div class="form-group">
-            <label for="extension-client-path-prefix">Client path prefix:</label>
-            <input type="text" id="extension-client-path-prefix" placeholder="e.g. C:\Users\You\Downloads">
-            <p class="setting-description">Path on the machine where the browser runs. Leave empty to disable mapping.</p>
-          </div>
-          <div class="form-group">
-            <label for="extension-container-path-prefix">Container path prefix:</label>
-            <input type="text" id="extension-container-path-prefix" placeholder="e.g. /mnt/downloads">
-            <p class="setting-description">Mounted path inside the container that corresponds to the client path above.</p>
-          </div>
-          <div class="form-group">
-            <label for="extension-copy-to-nas-path">Copy to NAS path:</label>
-            <input type="text" id="extension-copy-to-nas-path" placeholder="e.g. /mnt/network-share/models">
-            <p class="setting-description">If set, extension-added files are copied here and the library uses this path.</p>
-          </div>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="save-browser-extension-settings">Save</button>
-          <button type="button" id="cancel-browser-extension-settings" data-close-dialog="browser-extension-settings-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="https-settings-dialog" class="modal">
       <form method="dialog">
         <h3>HTTPS / SSL</h3>

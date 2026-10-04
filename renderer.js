@@ -6380,12 +6380,8 @@ async function createServerMenuBar() {
     { label: '---', action: null },
     {
       label: 'Browser Extension',
-      action: async () => {
-        if (typeof window.openBrowserExtensionSettings === 'function') {
-          await window.openBrowserExtensionSettings();
-          return;
-        }
-        window.electron.send('open-browser-extension-settings');
+      action: () => {
+        window.openBrowserExtensionSettings?.();
       }
     },
     {
@@ -10570,55 +10566,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('file-type-settings-dialog')?.close();
   });
 
-  async function fillBrowserExtensionDialog() {
-    const dialog = document.getElementById('browser-extension-settings-dialog');
-    if (!dialog) return null;
-    const inboxDir = await window.electron.getSetting('extensionInboxDirectory');
-    const clientPrefix = await window.electron.getSetting('extensionClientPathPrefix');
-    const containerPrefix = await window.electron.getSetting('extensionContainerPathPrefix');
-    const copyToNas = await window.electron.getSetting('extensionCopyToNasPath');
-    const lastStatus = await window.electron.getSetting('extensionInboxLastStatus');
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    const clientPrefixInput = document.getElementById('extension-client-path-prefix');
-    const containerPrefixInput = document.getElementById('extension-container-path-prefix');
-    const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
-    const statusEl = document.getElementById('extension-inbox-last-status');
-    if (inboxInput) {
-      inboxInput.value = inboxDir || '';
-      if (window.electron.getDefaultExtensionInboxDirectory) {
-        const def = await window.electron.getDefaultExtensionInboxDirectory().catch(() => '');
-        if (def) inboxInput.placeholder = def;
-      }
-    }
-    if (clientPrefixInput) clientPrefixInput.value = clientPrefix || '';
-    if (containerPrefixInput) containerPrefixInput.value = containerPrefix || '';
-    if (copyToNasInput) copyToNasInput.value = copyToNas || '';
-    if (statusEl) {
-      let text = 'Last import: none yet.';
-      if (lastStatus) {
-        try {
-          const s = JSON.parse(lastStatus);
-          const parts = [];
-          if (s.at) parts.push(s.at);
-          if (s.imported != null) parts.push(s.imported + ' imported');
-          if (s.failed) parts.push(s.failed + ' failed');
-          text = 'Last import: ' + parts.join(' · ');
-          if (s.errors && s.errors.length) text += ' — ' + s.errors[0];
-        } catch (_) { /* keep default */ }
-      }
-      statusEl.textContent = text;
-    }
-    return dialog;
-  }
-
-  window.openBrowserExtensionSettings = async function openBrowserExtensionSettings() {
-    const dialog = await fillBrowserExtensionDialog();
-    if (!dialog) return;
-    dialog.showModal();
-  };
-
-  window._electronRealEventHandlers['open-browser-extension-settings'] = async function() {
-    await window.openBrowserExtensionSettings();
+  // Browser Extension settings are React (src/web/BrowserExtensionSettingsDialog.tsx).
+  window._electronRealEventHandlers['open-browser-extension-settings'] = function() {
+    window.openBrowserExtensionSettings?.();
   };
   if (window._electronPendingEvents['open-browser-extension-settings']) {
     window._electronPendingEvents['open-browser-extension-settings'].forEach((args) => {
@@ -10626,55 +10576,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     delete window._electronPendingEvents['open-browser-extension-settings'];
   }
-
-  document.getElementById('save-browser-extension-settings')?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    const clientPrefixInput = document.getElementById('extension-client-path-prefix');
-    const containerPrefixInput = document.getElementById('extension-container-path-prefix');
-    const copyToNasInput = document.getElementById('extension-copy-to-nas-path');
-    await window.electron.saveSetting('extensionInboxDirectory', (inboxInput?.value || '').trim());
-    await window.electron.saveSetting('extensionClientPathPrefix', (clientPrefixInput?.value || '').trim());
-    await window.electron.saveSetting('extensionContainerPathPrefix', (containerPrefixInput?.value || '').trim());
-    await window.electron.saveSetting('extensionCopyToNasPath', (copyToNasInput?.value || '').trim());
-    document.getElementById('browser-extension-settings-dialog').close();
-  });
-
-  document.getElementById('choose-extension-inbox-directory')?.addEventListener('click', async () => {
-    const paths = await window.electron.openFileDialog();
-    const chosen = Array.isArray(paths) ? paths[0] : paths;
-    if (!chosen) return;
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    if (inboxInput) inboxInput.value = chosen;
-  });
-
-  document.getElementById('import-extension-inbox-now')?.addEventListener('click', async () => {
-    const inboxInput = document.getElementById('extension-inbox-directory');
-    await window.electron.saveSetting('extensionInboxDirectory', (inboxInput?.value || '').trim());
-    const result = await window.electron.importExtensionInbox();
-    const statusEl = document.getElementById('extension-inbox-last-status');
-    if (statusEl && result) {
-      const parts = [];
-      if (result.imported != null) parts.push(result.imported + ' imported');
-      if (result.failed) parts.push(result.failed + ' failed');
-      if (result.skipped) parts.push(result.skipped + ' skipped');
-      let text = 'Last import: just now · ' + (parts.join(' · ') || 'nothing to import');
-      if (result.errors && result.errors.length) text += ' — ' + result.errors[0];
-      statusEl.textContent = text;
-    }
-  });
-
-  document.getElementById('cancel-browser-extension-settings')?.addEventListener('click', () => {
-    document.getElementById('browser-extension-settings-dialog').close();
-  });
-
-  document.getElementById('browser-extension-store-link')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const url = e.currentTarget.getAttribute('href');
-    if (url && typeof window.electron?.openExternal === 'function') {
-      await window.electron.openExternal(url);
-    }
-  });
 
   // MCP Server settings are React (src/web/McpServerSettingsDialog.tsx); it defines window.openMcpServerSettings.
   window._electronRealEventHandlers['open-mcp-server-settings'] = function() {

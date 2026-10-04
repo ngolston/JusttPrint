@@ -7,6 +7,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
+import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
@@ -33,6 +34,7 @@ function Screens() {
       <AboutDialog />
       <PerformanceSettingsDialog />
       <McpServerSettingsDialog />
+      <BrowserExtensionSettingsDialog />
     </>
   );
 }

@@ -6567,6 +6567,17 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* Browser Extension (src/web/BrowserExtensionSettingsDialog.tsx) */
+.extension-inbox-actions {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+.extension-mapping-heading {
+  margin-top: 12px;
+  font-weight: 500;
+}
+
 /* Backup/Restore (src/web/BackupRestoreDialog.tsx) */
 .backup-restore-columns {
   display: flex;

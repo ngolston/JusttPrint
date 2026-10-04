@@ -534,8 +534,6 @@
     'getServerAccessInfo': 'get-server-access-info',
     'setServerPassword': 'set-server-password',
     'regenerateServerApiToken': 'regenerate-server-api-token',
-    'importExtensionInbox': 'import-extension-inbox',
-    'getDefaultExtensionInboxDirectory': 'get-default-extension-inbox-directory',
     'getAppVersion': 'get-app-version',
     'purgeThumbnails': 'purge-thumbnails',
     'startServerThumbnailJob': 'start-server-thumbnail-job',

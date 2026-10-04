@@ -863,6 +863,23 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#cancel-mcp-server-settings');
     check('MCP Server settings closes', !(await page.isVisible('#mcp-server-settings-dialog')));
 
+    // Browser Extension settings (React): Import now reports, Save stores the path mapping.
+    await page.evaluate(() => window.openBrowserExtensionSettings());
+    await page.waitForSelector('#browser-extension-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Browser Extension settings opens', await page.isVisible('#browser-extension-settings-dialog'));
+    await page.click('#import-extension-inbox-now');
+    const inboxStatus = await page.waitForFunction(() => {
+      const text = document.getElementById('extension-inbox-last-status')?.textContent || '';
+      return /just now|already running/.test(text) ? text : null;
+    }, null, { timeout: 30000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('Import now reports the result', !!inboxStatus, inboxStatus);
+    await page.fill('#extension-client-path-prefix', '  C:\\Downloads  ');
+    await page.click('#save-browser-extension-settings');
+    await page.waitForSelector('#browser-extension-settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    check('Browser Extension settings saves (trimmed)', (await invoke(base, session, 'get-setting', ['extensionClientPathPrefix'])).result === 'C:\\Downloads'
+      && !(await page.isVisible('#browser-extension-settings-dialog')));
+    await invoke(base, session, 'save-setting', ['extensionClientPathPrefix', '']);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
