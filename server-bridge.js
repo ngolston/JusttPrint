@@ -62,12 +62,13 @@
   const wsUrl = `${wsProtocol}//${window.location.host}`;
   let ws = null;
   let reconnectAttempts = 0;
-  const maxReconnectAttempts = 5;
-  const pendingRequests = new Map();
   let requestIdCounter = 0;
-  // Cap in-flight IPC so a grid flood (thousands of getThumbnail calls) cannot
-  // stampede the server / blow the 30s timeout window. Extra calls wait in FIFO.
-  const MAX_IPC_IN_FLIGHT = 32;
+  // Id the server gave this page's WebSocket; sent on API calls so the server can ask
+  // this browser (dialogs, Puter AI). See src/server/api.js.
+  let clientId = null;
+  // Browsers open at most 6 HTTP/1.1 connections per server. Queue the rest here, so a grid
+  // flood (thousands of getThumbnail calls) does not start their timeouts while they wait.
+  const MAX_IPC_IN_FLIGHT = 6;
   let ipcInFlight = 0;
   const ipcWaitQueue = [];
   const BRIDGE_DEBUG = (typeof window !== 'undefined' && window.JUSTTPRINT_BRIDGE_DEBUG === true);
@@ -118,77 +119,6 @@
       connectionReadyResolve();
       connectionReadyResolve = null;
     }
-  }
-
-  // Wait for an open socket instead of a fixed short timeout (remote Docker often needs >500ms).
-  // Also tolerates brief close/reconnect cycles (e.g. container OOM restart) within the timeout window.
-  function ensureConnected(timeoutMs) {
-    timeoutMs = typeof timeoutMs === 'number' ? timeoutMs : 15000;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      return Promise.resolve();
-    }
-    connect();
-    return new Promise(function(resolve, reject) {
-      let settled = false;
-      let pollTimer = null;
-      const deadline = Date.now() + timeoutMs;
-      const timer = setTimeout(function() {
-        finish(function() {
-          reject(new Error('WebSocket connection failed'));
-        });
-      }, timeoutMs);
-
-      function finish(fn) {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        if (pollTimer) clearTimeout(pollTimer);
-        if (ws) {
-          ws.removeEventListener('open', onOpen);
-        }
-        fn();
-      }
-      function onOpen() {
-        finish(resolve);
-      }
-      function attachToCurrentSocket() {
-        if (settled) return;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          finish(resolve);
-          return;
-        }
-        if (ws) {
-          ws.removeEventListener('open', onOpen);
-          ws.addEventListener('open', onOpen);
-        }
-      }
-      function poll() {
-        if (settled) return;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          finish(resolve);
-          return;
-        }
-        if (Date.now() >= deadline) {
-          finish(function() {
-            reject(new Error('WebSocket connection failed'));
-          });
-          return;
-        }
-        if (reconnectAttempts >= maxReconnectAttempts && (!ws || ws.readyState === WebSocket.CLOSED)) {
-          finish(function() {
-            reject(new Error('WebSocket connection unavailable'));
-          });
-          return;
-        }
-        // Keep trying connect while waiting (no-ops if already connecting/open)
-        connect();
-        attachToCurrentSocket();
-        pollTimer = setTimeout(poll, 250);
-      }
-
-      attachToCurrentSocket();
-      pollTimer = setTimeout(poll, 250);
-    });
   }
 
   // Define send() method - will be enhanced when WebSocket connects
@@ -391,33 +321,8 @@
         try {
           const data = JSON.parse(event.data);
           
-          if (data.type === 'result') {
-            const pending = pendingRequests.get(data.id);
-            if (pending) {
-              if (BRIDGE_DEBUG) console.log('[Bridge] Resolving pending request:', data.id);
-              
-              // Convert base64 ArrayBuffer back to ArrayBuffer if needed
-              let result = data.result;
-              if (result && result.__arrayBuffer === true) {
-                // Convert base64 string back to ArrayBuffer
-                const binaryString = atob(result.data);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                  bytes[i] = binaryString.charCodeAt(i);
-                }
-                result = bytes.buffer;
-              }
-              
-              pendingRequests.delete(data.id);
-              pending.resolve(result);
-            }
-          } else if (data.type === 'error') {
-            const pending = pendingRequests.get(data.id);
-            if (pending) {
-              if (BRIDGE_DEBUG) console.log('[Bridge] Rejecting pending request:', data.id, data.error);
-              pendingRequests.delete(data.id);
-              pending.reject(new Error(data.error));
-            }
+          if (data.type === 'hello') {
+            clientId = data.clientId || null;
           } else if (data.type === 'event' && data.channel === 'server-dialog-request') {
             // The server asks this browser to show a dialog and waits for the answer.
             const [dialogId, kind, options] = data.args || [];
@@ -495,11 +400,12 @@
             resetConnectionReady();
           }
           redirectToLoginIfLoggedOut();
-          if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++;
-            console.log('[Bridge] Reconnect attempt', reconnectAttempts, 'in', 1000 * reconnectAttempts, 'ms');
-            setTimeout(connect, 1000 * reconnectAttempts);
-          }
+          clientId = null;
+          // Actions use HTTP; keep trying so events and dialogs come back after a restart.
+          reconnectAttempts++;
+          const delay = Math.min(1000 * reconnectAttempts, 30000);
+          console.log('[Bridge] Reconnect attempt', reconnectAttempts, 'in', delay, 'ms');
+          setTimeout(connect, delay);
         }
       };
     } catch (error) {
@@ -508,22 +414,43 @@
     }
   }
   
-  // Helper function to make IPC calls via WebSocket
+  /** Turn an API response into the action's result, or throw its error. */
+  function readApiResponse(response) {
+    if (response.status === 401) redirectToLoginIfLoggedOut();
+    const type = response.headers.get('Content-Type') || '';
+    if (response.ok && type.indexOf('application/octet-stream') === 0) {
+      return response.arrayBuffer();
+    }
+    return response.text().then(function(text) {
+      let data;
+      try {
+        // Long calls start with keep-alive spaces; JSON.parse skips them.
+        data = text.trim() ? JSON.parse(text) : {};
+      } catch (_) {
+        throw new Error('Unexpected response from the server (HTTP ' + response.status + ')');
+      }
+      if (!response.ok || Object.prototype.hasOwnProperty.call(data, 'error')) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      let result = data.result;
+      // Binary results of long calls arrive as base64.
+      if (result && result.__arrayBuffer === true) {
+        const binaryString = atob(result.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        result = bytes.buffer;
+      }
+      return result;
+    });
+  }
+
+  // Call a server action: POST /api/actions/<channel> (see src/server/api.js).
   function makeIpcCall(channel, ...args) {
     if (BRIDGE_DEBUG) console.log('[Bridge] makeIpcCall:', channel, 'args:', args?.length);
-    
-    // If WebSocket is not connected, wait for open (or reconnect) instead of failing after 500ms
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      if (BRIDGE_DEBUG) console.log('[Bridge] WebSocket not open, state:', ws?.readyState, 'reconnectAttempts:', reconnectAttempts);
-      if (reconnectAttempts >= maxReconnectAttempts && (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING)) {
-        return Promise.reject(new Error('WebSocket connection unavailable'));
-      }
-      return ensureConnected().then(function() {
-        return makeIpcCall(channel, ...args);
-      });
-    }
 
-    // Heavy file IPC needs longer timeouts in Docker (UNC/CIFS + parse + JSON over WS).
+    // Heavy file calls need longer timeouts in Docker (UNC/CIFS + parse + JSON).
     // Default 30s caused mass read-model-file timeouts → "corrupted"/STL placeholders,
     // and parse-3mf-preview timeouts on ~25MB multi-color 3MFs.
     var heavyIpcChannels = {
@@ -547,47 +474,29 @@
 
     // Queue until a slot is free, then start the per-call timeout (queue wait does not burn it).
     return acquireIpcSlot().then(function() {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        releaseIpcSlot();
-        return makeIpcCall(channel, ...args);
-      }
-
-      const id = `req_${++requestIdCounter}_${Date.now()}`;
-      if (BRIDGE_DEBUG) console.log('[Bridge] Sending WebSocket message:', { id, channel, argsLength: args?.length });
-
-      return new Promise(function(resolve, reject) {
-        var settled = false;
-        function settle(fn, value) {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          pendingRequests.delete(id);
-          releaseIpcSlot();
-          fn(value);
-        }
-
-        var timer = setTimeout(function() {
-          if (pendingRequests.has(id)) {
-            console.error('[Bridge] IPC call timeout:', channel, 'id:', id);
-            settle(reject, new Error('IPC call timeout: ' + channel));
+      const controller = new AbortController();
+      const timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+      const headers = { 'Content-Type': 'application/json' };
+      if (clientId) headers['X-JusttPrint-Client'] = clientId;
+      return fetch('/api/actions/' + encodeURIComponent(channel), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers,
+        body: JSON.stringify({ args: args }),
+        signal: controller.signal
+      })
+        .then(readApiResponse)
+        .catch(function(error) {
+          if (error && error.name === 'AbortError') {
+            console.error('[Bridge] Call timed out:', channel);
+            throw new Error('IPC call timeout: ' + channel);
           }
-        }, timeoutMs);
-
-        pendingRequests.set(id, {
-          resolve: function(result) { settle(resolve, result); },
-          reject: function(err) { settle(reject, err); }
+          throw error;
+        })
+        .finally(function() {
+          clearTimeout(timer);
+          releaseIpcSlot();
         });
-
-        try {
-          ws.send(JSON.stringify({
-            id: id,
-            channel: channel,
-            args: args
-          }));
-        } catch (sendErr) {
-          settle(reject, sendErr);
-        }
-      });
     });
   }
   
@@ -742,7 +651,7 @@
     
     // Create the method immediately - don't wait for WebSocket connection
     window.electron[method] = function(...args) {
-      // In server mode, always use WebSocket (don't fall back to original)
+      // Every call goes to the server's HTTP API (makeIpcCall)
       // The original methods from preload.js won't work in a browser anyway
       return makeIpcCall(methodToChannel[method], ...args);
     };

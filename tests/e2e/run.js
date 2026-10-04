@@ -114,20 +114,46 @@ function client(base) {
   return { request, cookie: () => cookie };
 }
 
-/** One request over the IPC WebSocket. Resolves to { result } or { error } or { rejected: status }. */
-function invoke(wsUrl, { cookie, origin }, channel, args = []) {
+/** One call to the HTTP API (POST /api/actions/<name>). Resolves to { status, result } or { status, error }. */
+async function invoke(base, { cookie, origin }, channel, args = []) {
+  const headers = { 'content-type': 'application/json' };
+  if (origin) headers.origin = origin;
+  if (cookie) headers.cookie = cookie;
+  try {
+    const response = await fetch(`${base}/api/actions/${encodeURIComponent(channel)}`, { method: 'POST', headers, body: JSON.stringify({ args }) });
+    if (response.ok && (response.headers.get('content-type') || '').startsWith('application/octet-stream')) {
+      return { status: response.status, result: Buffer.from(await response.arrayBuffer()) };
+    }
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = { error: text };
+    }
+    return 'error' in data ? { status: response.status, error: data.error } : { status: response.status, result: data.result };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+/** Open the event WebSocket. Resolves to { hello } (the first message), { rejected: status } or { error }. */
+function openEvents(wsUrl, { cookie, origin }, send) {
   return new Promise((resolve) => {
     const headers = { Origin: origin };
     if (cookie) headers.Cookie = cookie;
     const ws = new WebSocket(wsUrl, { headers });
-    const timer = setTimeout(() => { ws.terminate(); resolve({ error: 'timeout' }); }, 30000);
-    ws.on('open', () => ws.send(JSON.stringify({ id: 1, type: 'invoke', channel, args })));
+    const timer = setTimeout(() => { ws.terminate(); resolve({ error: 'timeout' }); }, 10000);
+    const messages = [];
     ws.on('message', (raw) => {
-      const message = JSON.parse(String(raw));
-      if (message.id !== 1) return;
+      messages.push(JSON.parse(String(raw)));
+      if (messages.length === 1 && send) {
+        ws.send(JSON.stringify(send));
+        return;
+      }
       clearTimeout(timer);
       ws.close();
-      resolve(message.type === 'error' ? { error: message.error } : { result: message.result });
+      resolve({ hello: messages[0], reply: messages[1] });
     });
     ws.on('unexpected-response', (_req, res) => { clearTimeout(timer); resolve({ rejected: res.statusCode }); });
     ws.on('error', (error) => { clearTimeout(timer); resolve({ error: error.message }); });
@@ -151,7 +177,7 @@ async function apiChecks(base, wsUrl) {
   check('login', (await http.request('/api/auth/login', { method: 'POST', json: { password: PASSWORD } })).status === 200);
   // The server scans STL Home in the background after it starts listening.
   const scanned = await waitFor(async () => {
-    const stats = await invoke(wsUrl, { cookie: http.cookie(), origin: base }, 'get-stats');
+    const stats = await invoke(base, { cookie: http.cookie(), origin: base }, 'get-stats');
     return stats.result && stats.result.totalModels === 4 ? 4 : null;
   }, 60000, 'STL Home scan').catch((error) => error.message);
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
@@ -181,34 +207,46 @@ async function apiChecks(base, wsUrl) {
   const crossSite = await http.request('/api/auth/logout', { method: 'POST', headers: { origin: 'https://evil.example' } });
   check('cross-site POST refused', crossSite.status === 403);
 
-  console.log('\n# WebSocket');
+  console.log('\n# HTTP API');
   const origin = base;
   const cookie = http.cookie();
-  check('WS without login, other origin', (await invoke(wsUrl, { origin: 'https://evil.example' }, 'get-setting', ['currentVersion'])).rejected === 403);
-  check('WS without login, same origin', (await invoke(wsUrl, { origin }, 'get-setting', ['currentVersion'])).rejected === 401);
-  check('WS with login, other origin', (await invoke(wsUrl, { cookie, origin: 'https://evil.example' }, 'get-setting', ['currentVersion'])).rejected === 403);
   const version = require(path.join(ROOT, 'package.json')).version;
-  check('WS with login, same origin', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['currentVersion'])).result === version);
-  check('secret settings hidden', (await invoke(wsUrl, { cookie, origin }, 'get-setting', ['serverPasswordHash'])).result === null);
-  for (const channel of ['getSetting', 'saveSetting', 'quitApp']) {
-    check(`${channel} channel removed`, !!(await invoke(wsUrl, { cookie, origin }, channel, ['serverPasswordHash'])).error);
+  check('API without login refused', (await invoke(base, { origin }, 'get-setting', ['currentVersion'])).status === 401);
+  check('API from another origin refused', (await invoke(base, { cookie, origin: 'https://evil.example' }, 'get-setting', ['currentVersion'])).status === 403);
+  check('API with login', (await invoke(base, { cookie, origin }, 'get-setting', ['currentVersion'])).result === version);
+  check('secret settings hidden', (await invoke(base, { cookie, origin }, 'get-setting', ['serverPasswordHash'])).result === null);
+  for (const channel of ['getSetting', 'saveSetting', 'quitApp', 'open-path', 'fetch-makerworld-page', 'puter-ai-chat', 'is-server-mode']) {
+    check(`${channel} is not an action`, (await invoke(base, { cookie, origin }, channel, [])).status === 404);
   }
+  const wrongType = await invoke(base, { cookie, origin }, 'get-setting', [42]);
+  check('wrong argument type refused', wrongType.status === 400 && /must be a string/.test(wrongType.error), JSON.stringify(wrongType));
+  check('missing argument refused', (await invoke(base, { cookie, origin }, 'get-model', [])).status === 400);
+  check('extra arguments refused', (await invoke(base, { cookie, origin }, 'get-stats', ['extra'])).status === 400);
+  const badJson = await http.request('/api/actions/get-stats', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: '{not json' });
+  check('malformed JSON refused', badJson.status === 400 && /json/.test(badJson.headers.get('content-type') || ''));
+
+  console.log('\n# WebSocket (events)');
+  check('WS without login, other origin', (await openEvents(wsUrl, { origin: 'https://evil.example' })).rejected === 403);
+  check('WS without login, same origin', (await openEvents(wsUrl, { origin })).rejected === 401);
+  check('WS with login, other origin', (await openEvents(wsUrl, { cookie, origin: 'https://evil.example' })).rejected === 403);
+  const eventSocket = await openEvents(wsUrl, { cookie, origin }, { id: 1, channel: 'get-setting', args: ['currentVersion'] });
+  check('WS sends a client id', eventSocket.hello && eventSocket.hello.type === 'hello' && /^[0-9a-f]{32}$/.test(eventSocket.hello.clientId), JSON.stringify(eventSocket));
+  check('WS no longer runs actions', eventSocket.reply && eventSocket.reply.type === 'error' && /api\/actions/.test(eventSocket.reply.error), JSON.stringify(eventSocket.reply));
 
   console.log('\n# Path guard');
-  const refused = (res, pattern) => typeof res.error === 'string' && pattern.test(res.error);
-  check('read /etc/passwd refused', refused(await invoke(wsUrl, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
-  check('delete live database refused', refused(await invoke(wsUrl, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'justtprint.db')]), /outside the library/));
-  check('scan /etc refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
-  check('page fetch outside Thangs refused', refused(await invoke(wsUrl, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']), /Only https links to thangs\.com/));
-  check('fetch-makerworld-page removed', !!(await invoke(wsUrl, { cookie, origin }, 'fetch-makerworld-page', ['https://makerworld.com/'])).error);
-  check('scan of the app folder refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
-  check('open-path refused', refused(await invoke(wsUrl, { cookie, origin }, 'open-path', [LIBRARY]), /desktop app/));
-  check('move out of library refused', refused(await invoke(wsUrl, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
-  const read = await invoke(wsUrl, { cookie, origin }, 'read-model-file', [cube]);
-  check('read library file allowed', !read.error, read.error);
+  const refused = (res, pattern) => res.status === 403 && typeof res.error === 'string' && pattern.test(res.error);
+  check('read /etc/passwd refused', refused(await invoke(base, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
+  check('delete live database refused', refused(await invoke(base, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'justtprint.db')]), /outside the library/));
+  check('scan /etc refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
+  const thangs = await invoke(base, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']);
+  check('page fetch outside Thangs refused', /Only https links to thangs\.com/.test(thangs.error || ''), JSON.stringify(thangs));
+  check('scan of the app folder refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
+  check('move out of library refused', refused(await invoke(base, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
+  const read = await invoke(base, { cookie, origin }, 'read-model-file', [cube]);
+  check('read library file returns its bytes', Buffer.isBuffer(read.result) && read.result.equals(fs.readFileSync(cube)), read.error);
 
   console.log('\n# MCP');
-  const info = await invoke(wsUrl, { cookie, origin }, 'get-server-access-info');
+  const info = await invoke(base, { cookie, origin }, 'get-server-access-info');
   const token = info.result && info.result.apiToken;
   check('API token available', typeof token === 'string' && token.startsWith('pv_'));
   const mcpBody = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search_models', arguments: { limit: 10 } } };
@@ -231,7 +269,7 @@ async function apiChecks(base, wsUrl) {
   check('MCP backup outside data folder refused', /Can only write/.test(await backupMcp.text()));
 
   console.log('\n# Inventory');
-  const ask = (channel, args) => invoke(wsUrl, { cookie, origin }, channel, args);
+  const ask = (channel, args) => invoke(base, { cookie, origin }, channel, args);
   const printer = (await ask('save-printer', [{ nickname: 'E2E Printer', firmwareType: 'Klipper' }])).result;
   const printers = (await ask('get-all-printers')).result || [];
   check('printer saved and listed', !!printer && printers.some((p) => p.id === printer.id && p.nickname === 'E2E Printer'));
@@ -262,7 +300,7 @@ async function apiChecks(base, wsUrl) {
     await ask('rename-tag', [tag.id, 'e2e-renamed']);
     const renamed = ((await ask('get-all-tags')).result || []).find((t) => t.id === tag.id);
     check('tag renamed', renamed && renamed.name === 'e2e-renamed', JSON.stringify(renamed));
-    check('tag model count', (await ask('get-tag-model-count', [tag.id])).result === 0);
+    check('tag model count', renamed && renamed.model_count === 0, JSON.stringify(renamed));
     await ask('delete-tag', [tag.id]);
     check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
   }
@@ -342,21 +380,21 @@ async function apiChecks(base, wsUrl) {
   check('print event logged and listed', Array.isArray(events) && events.some((e) => e.id === logged.eventId), JSON.stringify(logged));
 
   console.log('\n# Backup and trash');
-  const backup = await invoke(wsUrl, { cookie, origin }, 'backup-database');
+  const backup = await invoke(base, { cookie, origin }, 'backup-database');
   const backupPath = backup.result && backup.result.filePath;
   check('backup created', !!backupPath, backup.error);
   if (backupPath) check('backup downloadable', (await http.request(download(backupPath))).status === 200);
-  const junk = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
+  const junk = await invoke(base, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
   check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a JusttPrint backup/.test(junk.result.message), JSON.stringify(junk));
-  check('library still works after a refused restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+  check('library still works after a refused restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
   if (backupPath) {
-    const restored = await invoke(wsUrl, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
+    const restored = await invoke(base, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
     check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
-    check('library works after restore', ((await invoke(wsUrl, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
+    check('library works after restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
     check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
-  const trash = await invoke(wsUrl, { cookie, origin }, 'trash-file', [part]);
+  const trash = await invoke(base, { cookie, origin }, 'trash-file', [part]);
   const trashed = !fs.existsSync(part) && fs.readdirSync(WORK, { recursive: true }).some((p) => String(p).endsWith('part one.stl.trashinfo'));
   check('Move to Trash keeps a restorable copy', !trash.error && trashed, trash.error);
 
@@ -372,20 +410,20 @@ async function browserChecks(base, wsUrl, session) {
   const { chromium } = require('@playwright/test');
   // The background thumbnail job renders through the headless Chromium worker.
   const missing = await waitFor(async () => {
-    const res = await invoke(wsUrl, session, 'get-models-with-default-thumbnails');
+    const res = await invoke(base, session, 'get-models-with-default-thumbnails');
     return Array.isArray(res.result) && res.result.length === 0 ? 'done' : null;
   }, 120000, 'thumbnails').catch((error) => error.message);
   check('worker rendered all thumbnails', missing === 'done', missing);
   // The last thumbnail is saved just before the worker reports the job complete.
   const jobStatus = await waitFor(async () => {
-    const status = (await invoke(wsUrl, session, 'get-server-thumbnail-job-status')).result || {};
+    const status = (await invoke(base, session, 'get-server-thumbnail-job-status')).result || {};
     return status.status === 'idle' ? status : null;
   }, 30000, 'thumbnail job').catch((error) => ({ error: error.message }));
   check('thumbnail job finished', jobStatus.status === 'idle', JSON.stringify(jobStatus));
-  const cubeThumbs = (await invoke(wsUrl, session, 'get-all-thumbnails', [path.join(LIBRARY, 'Designer A', 'cube.stl')])).result;
+  const cubeThumbs = (await invoke(base, session, 'get-all-thumbnails', [path.join(LIBRARY, 'Designer A', 'cube.stl')])).result;
   check('rendered thumbnail stored for a model', JSON.stringify(cubeThumbs || '').includes('data:image'), JSON.stringify(cubeThumbs).slice(0, 120));
-  await invoke(wsUrl, session, 'save-setting', ['tosAcceptedDate', new Date().toISOString()]);
-  await invoke(wsUrl, session, 'save-setting', ['hasRunBefore', 'true']);
+  await invoke(base, session, 'save-setting', ['tosAcceptedDate', new Date().toISOString()]);
+  await invoke(base, session, 'save-setting', ['hasRunBefore', 'true']);
 
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -462,7 +500,7 @@ async function browserChecks(base, wsUrl, session) {
     check('STEP preview parses in the browser (WebAssembly under CSP)', stepResult.success === true && stepResult.geometries > 0, JSON.stringify(stepResult));
 
     // Send to Slicer in the page: the server's command becomes a justtprint:// link for the helper.
-    await invoke(wsUrl, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
+    await invoke(base, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
     const helperLink = await page.evaluate(async (file) => {
       const slicers = await window.electron.getSlicers();
       const slicer = slicers.find((s) => s.name === 'Browser Slicer');
@@ -472,12 +510,12 @@ async function browserChecks(base, wsUrl, session) {
       return frame ? frame.src : null;
     }, path.join(LIBRARY, 'Designer A', 'cube.stl'));
     check('Send to Slicer opens a helper link with a download token', /^justtprint:\/\/open\/\?.*token=/.test(helperLink || '') && helperLink.includes('browser-slicer'), helperLink);
-    const browserSlicer = ((await invoke(wsUrl, session, 'get-slicers')).result || []).find((s) => s.name === 'Browser Slicer');
-    if (browserSlicer) await invoke(wsUrl, session, 'delete-slicer', [browserSlicer.id]);
+    const browserSlicer = ((await invoke(base, session, 'get-slicers')).result || []).find((s) => s.name === 'Browser Slicer');
+    if (browserSlicer) await invoke(base, session, 'delete-slicer', [browserSlicer.id]);
 
     // Rename a designer through the in-page input dialog (Metadata Manager).
     const cube = path.join(LIBRARY, 'Designer A', 'cube.stl');
-    await invoke(wsUrl, session, 'update-models-batch', [[{ filePath: cube, designer: 'Old Designer' }]]);
+    await invoke(base, session, 'update-models-batch', [[{ filePath: cube, designer: 'Old Designer' }]]);
     await page.evaluate(() => window.electron.send('open-metadata-editor'));
     await page.waitForSelector('#metadata-editor-dialog[open]', { timeout: 15000 }).catch(() => {});
     const renameButton = await page.waitForSelector(
@@ -491,7 +529,7 @@ async function browserChecks(base, wsUrl, session) {
         await prompt.fill('New Designer');
         await page.click('dialog.browser-input-dialog[open] button[type=submit]');
         const renamed = await waitFor(async () => {
-          const model = await invoke(wsUrl, session, 'get-model', [cube]);
+          const model = await invoke(base, session, 'get-model', [cube]);
           return model.result && model.result.designer === 'New Designer';
         }, 15000, 'designer rename').catch(() => false);
         check('designer renamed on the server', renamed === true);
@@ -503,7 +541,7 @@ async function browserChecks(base, wsUrl, session) {
 
     // Server-initiated confirmation (Pull Metadata over existing details) shows in this browser.
     const box3mf = path.join(LIBRARY, 'Designer B', 'box.3mf');
-    await invoke(wsUrl, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
+    await invoke(base, session, 'update-models-batch', [[{ filePath: box3mf, designer: 'Keep Me' }]]);
     const pull = page.evaluate((file) => window.electron.pull3MFMetadata([file]), box3mf);
     const confirmDialog = await page.waitForSelector('dialog[open] button:text-is("No")', { timeout: 15000 }).catch(() => null);
     check('server confirmation appears in the browser', !!confirmDialog);
@@ -511,7 +549,7 @@ async function browserChecks(base, wsUrl, session) {
       await confirmDialog.click();
       const pullResult = await pull.catch((error) => ({ error: error.message }));
       check('answering No cancels Pull Metadata', pullResult && pullResult.cancelled === true, JSON.stringify(pullResult));
-      const kept = await invoke(wsUrl, session, 'get-model', [box3mf]);
+      const kept = await invoke(base, session, 'get-model', [box3mf]);
       check('existing designer kept', kept.result && kept.result.designer === 'Keep Me');
     }
 

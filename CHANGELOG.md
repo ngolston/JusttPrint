@@ -4,6 +4,18 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-04
+
+**Upgrading:** no changes needed. Reload open browser tabs after updating. Behind a reverse proxy, the browser now also sends `POST /api/actions/...` requests; they need the same host or `JUSTTPRINT_ALLOWED_ORIGINS` setup as before.
+
+**Changes:**
+- The web UI calls the server over an HTTP API instead of sending calls through the WebSocket. Each action is a defined endpoint (`POST /api/actions/<name>`, listed in `src/server/api-actions.js`) with login, same-origin, argument and library-path checks, and clear status codes (400 bad arguments, 403 path outside the library, 404 unknown action, 500 failed).
+- Only the 130 actions the web UI uses can be called. Handlers it never calls (for example `is-server-mode`, `generate-tags`, `get-models-page`) are no longer reachable from browsers.
+- Files and previews come back as raw bytes instead of base64 inside JSON.
+- Long actions send keep-alive spaces every 15 seconds, so reverse proxies do not time them out.
+- The WebSocket now only carries events, server dialogs and Puter AI requests, and reconnects indefinitely (it used to give up after 5 tries).
+- `docker-compose.local.yml` names its compose project `justtprint`, whatever the checkout folder is called.
+
 ## [4.0.0] - 2026-10-04
 
 **Printventory is now JusttPrint.** This is a clean break: the old names are no longer read, so existing installs need the steps below.

@@ -4,10 +4,8 @@ const events = require('./events');
 const thumbnailWorker = require('./thumbnail-worker');
 const { jsonStringifyForWs } = require('./ws-json');
 const { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../core/settings');
-const { app, ipcMain } = require('./runtime');
-
-// The WebSocket dispatcher calls handlers straight from ipcMain's map.
-const ipcHandlerRegistry = ipcMain._handlers;
+const { app } = require('./runtime');
+const { registerApiRoutes, registerClient, unregisterClient } = require('./api');
 const { puterPendingRequests } = require('./ipc/ai');
 const fs = require('fs');
 const path = require('path');
@@ -19,10 +17,10 @@ const { RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./client-dialogs'
 const { parseZipPath } = require('../core/library-paths');
 const { cleanupExtractTempFile } = require('../core/extract-temp');
 const { clientDialogs } = require('./dialogs');
-const { isServableStaticPath, assertNetworkIpcArgs } = require('./server-paths');
+const { isServableStaticPath } = require('./server-paths');
 const { getServerAuth } = require('./auth');
 const { extractModelFromZip } = require('../core/zip-entries');
-const { libraryPathAllowed, networkPathContext } = require('./path-context');
+const { libraryPathAllowed } = require('./path-context');
 const { getMcpToolContext } = require('./mcp-tools');
 const os = require('os');
 const https = require('https');
@@ -277,8 +275,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   });
   auth.registerRoutes(expressApp, express);
   expressApp.use(auth.requireAuth);
+  registerApiRoutes(expressApp);
 
-  // JSON body parser for extension upload (large payloads for base64 file)
   expressApp.use(express.json({ limit: '50mb' }));
   registerMcpRoutes(expressApp, getMcpToolContext());
   registerPuterAiProxyRoute(expressApp);
@@ -623,7 +621,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     });
   });
 
-  // Create WebSocket server for IPC bridge
+  // WebSocket for what the server pushes to browsers (events, dialogs)
   wss = new WebSocket.Server({
     server: httpServer,
     verifyClient: (info, done) => {
@@ -632,7 +630,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       done(result.ok, result.status, result.reason);
     }
   });
-  const pendingRequests = new Map();
   wsClients = new Set(); // Track all connected clients
 
   wss.on('connection', (ws, req) => {
@@ -641,208 +638,61 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     wsClients.add(ws);
     if (isThumbnailWorker) thumbnailWorker.attach(ws);
 
-    // Bound concurrent IPC work per client. Unbounded Promise.all-style floods
-    // (tens of thousands of getThumbnail calls) otherwise stall past client timeouts.
-    const MAX_WS_IPC_CONCURRENT = 24;
-    let wsIpcInFlight = 0;
-    const wsIpcWaiters = [];
-    const wsIpcDebug = process.env.JUSTTPRINT_WS_IPC_DEBUG === '1';
+    // Actions go over the HTTP API; this id ties them back to this socket (dialogs, Puter AI).
+    const clientId = registerClient(ws);
+    ws.send(JSON.stringify({ type: 'hello', clientId }));
 
-    function acquireWsIpcSlot() {
-      if (wsIpcInFlight < MAX_WS_IPC_CONCURRENT) {
-        wsIpcInFlight++;
-        return Promise.resolve();
-      }
-      return new Promise((resolve) => {
-        wsIpcWaiters.push(resolve);
-      });
-    }
-
-    function releaseWsIpcSlot() {
-      const next = wsIpcWaiters.shift();
-      if (next) {
-        next();
-      } else {
-        wsIpcInFlight = Math.max(0, wsIpcInFlight - 1);
-      }
-    }
-
-    ws.on('message', async (message) => {
+    // Browsers send only answers and events here: dialog answers, Puter AI replies,
+    // and events relayed to every browser.
+    ws.on('message', (message) => {
       let parsed;
       try {
         parsed = JSON.parse(message.toString());
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
-        try {
-          ws.send(JSON.stringify({ type: 'error', error: error.message }));
-        } catch (_) { /* ignore */ }
+        return;
+      }
+      const { channel, args, type } = parsed || {};
+
+      // A browser answered a dialog the server asked it to show.
+      if (type === 'event' && channel === DIALOG_RESPONSE_CHANNEL) {
+        const [dialogId, dialogResult] = args || [];
+        clientDialogs.handleResponse(ws, dialogId, dialogResult);
         return;
       }
 
-      const { id, channel, args, type } = parsed;
-
-      // Fire-and-forget sends / special events: handle immediately (no IPC slot).
-      const isFireAndForget = type === 'send' || (type === 'event' && (channel === 'puter-ai-chat-response' || channel === DIALOG_RESPONSE_CHANNEL));
-      if (!isFireAndForget) {
-        await acquireWsIpcSlot();
+      // A browser answered a Puter AI request (Puter.js runs in the browser).
+      if ((type === 'event' || type === 'send') && channel === 'puter-ai-chat-response') {
+        const [requestId, result] = args || [];
+        const pending = puterPendingRequests.get(requestId);
+        if (!pending) {
+          console.warn('[Puter AI] No pending request for requestId:', requestId);
+          return;
+        }
+        puterPendingRequests.delete(requestId);
+        if (result && result.error) {
+          pending.reject(new Error(result.error));
+        } else {
+          pending.resolve(result ? result.response : null);
+        }
+        return;
       }
 
-      try {
-        // A browser answered a dialog the server asked it to show.
-        if (type === 'event' && channel === DIALOG_RESPONSE_CHANNEL) {
-          const [dialogId, dialogResult] = args || [];
-          clientDialogs.handleResponse(ws, dialogId, dialogResult);
-          return;
-        }
+      if (type === 'send') {
+        events.broadcast(channel, ...(args || []));
+        return;
+      }
 
-        // Handle puter-ai-chat-response events from WebSocket clients (server mode)
-        if (type === 'event' && channel === 'puter-ai-chat-response') {
-          const [requestId, result] = args || [];
-          console.log('[Puter AI] Received response via WebSocket event, requestId:', requestId, 'has result:', !!result, 'has error:', !!(result && result.error));
-          const pending = puterPendingRequests.get(requestId);
-          if (pending) {
-            console.log('[Puter AI] Found pending request, resolving');
-            puterPendingRequests.delete(requestId);
-            if (result && result.error) {
-              pending.reject(new Error(result.error));
-            } else {
-              pending.resolve(result ? result.response : null);
-            }
-          } else {
-            console.warn('[Puter AI] No pending request found for requestId:', requestId, 'Total pending:', puterPendingRequests.size);
-          }
-          return; // Don't process as regular event
-        }
-        
-        // Handle event sends (fire and forget) - these are events, not IPC handlers
-        if (type === 'send') {
-          // Special handling for puter-ai-chat-response: route to pending request
-          if (channel === 'puter-ai-chat-response') {
-            const [requestId, result] = args || [];
-            console.log('[Puter AI] Received response via WebSocket send, requestId:', requestId, 'has result:', !!result, 'has error:', !!(result && result.error));
-            const pending = puterPendingRequests.get(requestId);
-            if (pending) {
-              console.log('[Puter AI] Found pending request, resolving');
-              puterPendingRequests.delete(requestId);
-              if (result && result.error) {
-                pending.reject(new Error(result.error));
-              } else {
-                pending.resolve(result ? result.response : null);
-              }
-            } else {
-              console.warn('[Puter AI] No pending request found for requestId:', requestId, 'Total pending:', puterPendingRequests.size);
-            }
-            return; // Don't broadcast or process as regular event
-          }
-
-          // Broadcast to all WebSocket clients (they'll receive as type: 'event')
-          events.broadcast(channel, ...(args || []));
-          return; // Don't try to handle as IPC call
-        }
-
-        // Browsers may only pass paths inside the library (see server-paths.js).
-        try {
-          assertNetworkIpcArgs(channel, args || [], networkPathContext());
-        } catch (guardError) {
-          console.warn(`[Server] Refused ${channel}: ${guardError.message}`);
-          ws.send(JSON.stringify({ id, type: 'error', error: guardError.message }));
-          return;
-        }
-
-        // Call IPC handlers directly instead of through hidden window
-        // This is more reliable and faster
-        try {
-          // Create a mock event object for IPC handlers
-          const mockEvent = {
-            sender: {
-              send: (eventChannel, ...eventArgs) => {
-                events.broadcast(eventChannel, ...eventArgs);
-              }
-            },
-            // Add wsClient for server mode so createPuterIPCHandler can use it
-            wsClient: ws,
-            // Set for every call that arrives over the network (any mode)
-            fromNetwork: true
-          };
-          
-          // Check if handler exists in registry (for direct invocation)
-          const handler = ipcHandlerRegistry.get(channel);
-          if (handler) {
-            // Call the handler directly - much faster and more reliable
-            try {
-              // args is already the list of handler parameters after `event`
-              // (e.g. showContextMenu([p1,p2,p3]) → args = [[p1,p2,p3]]).
-              // Do NOT unwrap a sole nested array — that turns an intentional
-              // array argument into separate params and only the first is kept
-              // (broke multi-select Generate Tags / context menu).
-              const flatArgs = args || [];
-              if (wsIpcDebug) {
-                console.log('[WebSocket] Handler found for channel:', channel, 'Raw args:', args, 'Args length:', args?.length, 'Args type:', typeof args);
-                console.log('[WebSocket] Calling handler with flatArgs:', flatArgs, 'Length:', flatArgs.length);
-              }
-              const result = await handler(mockEvent, ...flatArgs);
-              
-              // Convert ArrayBuffer to base64 for WebSocket transmission
-              let serializedResult = result;
-              if (result instanceof ArrayBuffer) {
-                const buffer = Buffer.from(result);
-                serializedResult = {
-                  __arrayBuffer: true,
-                  data: buffer.toString('base64'),
-                  byteLength: result.byteLength
-                };
-              } else if (result && result.buffer instanceof ArrayBuffer) {
-                // Handle TypedArray (Uint8Array, etc.)
-                const buffer = Buffer.from(result.buffer, result.byteOffset, result.byteLength);
-                serializedResult = {
-                  __arrayBuffer: true,
-                  data: buffer.toString('base64'),
-                  byteLength: result.byteLength
-                };
-              }
-              
-              ws.send(jsonStringifyForWs({
-                id,
-                type: 'result',
-                result: serializedResult
-              }));
-            } catch (error) {
-              console.error(`Error in handler for '${channel}':`, error);
-              ws.send(JSON.stringify({
-                id,
-                type: 'error',
-                error: error.message || String(error)
-              }));
-            }
-          } else {
-            throw new Error(`IPC handler '${channel}' not found`);
-          }
-        } catch (error) {
-          console.error('Error executing IPC call:', error);
-          ws.send(JSON.stringify({
-            id,
-            type: 'error',
-            error: error.message || String(error)
-          }));
-        }
-      } catch (error) {
-        console.error('Error handling WebSocket message:', error);
-        try {
-          ws.send(JSON.stringify({
-            type: 'error',
-            error: error.message
-          }));
-        } catch (_) { /* ignore */ }
-      } finally {
-        if (!isFireAndForget) {
-          releaseWsIpcSlot();
-        }
+      // Actions moved to POST /api/actions/<name>.
+      if (parsed && parsed.id) {
+        ws.send(JSON.stringify({ id: parsed.id, type: 'error', error: 'Call actions with POST /api/actions/<name>' }));
       }
     });
 
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
       wsClients.delete(ws);
+      unregisterClient(clientId);
       clientDialogs.dropClient(ws);
       thumbnailWorker.detach(ws);
     });
@@ -850,6 +700,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
       wsClients.delete(ws);
+      unregisterClient(clientId);
     });
   });
 

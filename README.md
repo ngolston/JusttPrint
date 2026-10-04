@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.0.0**
+**Version 4.1.0**
 
 JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -97,7 +97,7 @@ Server Mode requires a password. Browsers log in once and stay logged in for 30 
 - **MCP clients and scripts**: send `Authorization: Bearer <API token>`. The token is shown under **Tools → Server Access**, and the client config under **MCP Server → Settings** already includes it.
 - **Send to Slicer helper**: links carry a download token that expires after 15 minutes. Helpers installed before login was added must be reinstalled from **Settings → Slicer**.
 - **Login rate limit behind a proxy**: set `JUSTTPRINT_TRUST_PROXY=1` (number of proxies in front, or their addresses such as `loopback, 10.0.0.0/8`) so failed logins are counted per real client. Leave it unset when the container is reached directly.
-- **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `JUSTTPRINT_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's WebSocket is refused as cross-site.
+- **Reverse proxies**: pass the original host (`X-Forwarded-Host`, or keep the `Host` header), or list your public address in `JUSTTPRINT_ALLOWED_ORIGINS` (comma separated, e.g. `https://library.example.com`). Otherwise the browser's actions and WebSocket are refused as cross-site. Long actions (scans, hashing, large previews) keep their connection alive by sending a space every 15 seconds, so the proxy's default read timeout does not cut them off.
 
 The file endpoints only serve files inside your library folders (scanned directories and STL Home), plus backups and exports the server creates. From the browser and MCP, deleting, moving and reading files works only inside the library, and system folders (such as `/etc`, `/usr` or the app's own folders) cannot be scanned or used as an Organize Library destination.
 
@@ -860,7 +860,8 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ### Server (`src/server/`)
 - `index.js` - Entry point (`npm start`); `app.js` - startup and shutdown
 - `http.js` - HTTP/WebSocket server, TLS and listen ports
-- `ipc/` - One module per area (models, tags, thumbnails, backup, organize, slicers, ...); each registers the channels the web UI calls over the WebSocket. `ipc/index.js` loads them all
+- `api.js`, `api-actions.js` - The HTTP API the web UI calls (`POST /api/actions/<name>` with `{ "args": [...] }`), and the list of actions with the arguments each one takes. Every call is checked for login, same origin, argument types and library paths. The WebSocket only carries what the server pushes: events and dialogs
+- `ipc/` - One module per area (models, tags, thumbnails, backup, organize, slicers, ...); each registers the handlers behind the actions. `ipc/index.js` loads them all
 - `mcp-server.js`, `mcp-tools.js` - MCP endpoint and its tools
 - `auth.js`, `server-auth.js` - Login, API token and download tokens
 - `server-paths.js`, `path-context.js` - Which files the server may serve, read, move or write
@@ -883,7 +884,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling
 - `renderer.js` - UI logic (to be replaced screen by screen with React + TypeScript)
-- `server-bridge.js` - Connects the UI to the server over a WebSocket
+- `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
 - `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide
 
@@ -894,7 +895,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ## Technology Stack
 
 - **Node.js** 22 - Server runtime (Docker image)
-- **Express** and **ws** - HTTP server and WebSocket
+- **Express** and **ws** - HTTP server, API and WebSocket
 - **better-sqlite3** - SQLite database
 - **Three.js** - 3D previews and thumbnails
 - **Puppeteer** + Chromium - Thumbnail rendering in the container and page imports

@@ -96,7 +96,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers ask for a container path until the folder browser exists.
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
-- [ ] **Replace the IPC-over-WebSocket shim with a proper HTTP API** (REST or JSON-RPC), so each action is a defined endpoint with auth and validation.
+- [x] **Replace the IPC-over-WebSocket shim with a proper HTTP API.** `POST /api/actions/<name>` (`src/server/api.js`), with the allowed actions and their argument types in `src/server/api-actions.js`. Login, same origin, arguments and library paths are checked before a handler runs. The WebSocket only pushes events and dialogs.
+- [ ] **Remove the IPC handlers that nothing calls.** Not HTTP actions, and not used by MCP or the server: `check-files-exist`, `extract-zip-archive`, `get-duplicate-files`, `calculate-missing-hashes`, `get-models-by-designer`, `get-models-by-directory`, `get-models-page`, `is-server-mode`, `start-extension-server`, `stop-extension-server`, `get-tag-model-count`, `generate-tags` (check the AI tagging flow first). Also drop the unregistered entries in the bridge's `methodToChannel` list.
 - [ ] **Replace Puppeteer scraping** (Thangs/MakerWorld) with plain HTTP and site APIs where possible. Chromium stays in the image for thumbnails either way.
 
 ## 🟡 5. Medium: web UI can do everything

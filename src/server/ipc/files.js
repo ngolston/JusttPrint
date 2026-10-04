@@ -115,10 +115,10 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 // Update the purge-models handler
 const purgeModelsHandler = async (event, options = {}) => {
   try {
-    // Skip native dialog only when user already confirmed in UI (in-app dialog or server/Docker)
-    const fromWebSocket = !!(event && event.wsClient);
+    // A browser asks for confirmation in its own dialog before calling.
+    const fromBrowser = !!(event && event.fromNetwork);
     const confirmedInDialog = !!(options && options.confirmedInDialog);
-    let doPurge = fromWebSocket || confirmedInDialog;
+    let doPurge = fromBrowser || confirmedInDialog;
 
     if (!doPurge) {
       const result = await clientDialogs.messageBox(event, {
