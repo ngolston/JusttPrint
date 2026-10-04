@@ -292,4 +292,69 @@ function ensureSlicersTableExists() {
   }
 }
 
+// Add this new IPC handler
+
+
+
+// IPC handler for executing commands on client machine (for server mode Electron clients)
+// Note: In server mode, browser clients receive this as an event and handle it in renderer.js
+const executeClientCommandHandler = async (event, commandData) => {
+  try {
+    if (!commandData || !commandData.type) {
+      throw new Error('Invalid command data');
+    }
+
+    const { type, filePath, slicerName, slicerPath, isZipEntry, zipPath, entryPath } = commandData;
+
+    if (type === 'open-file') {
+      // The file is on the server; the browser downloads it instead.
+      return { success: false, error: 'Download the file to open it on this computer.' };
+    } else if (type === 'open-in-slicer') {
+      const invalidSlicer = invalidSlicerPathError(slicerPath, slicerName);
+      if (invalidSlicer) {
+        return { success: false, error: invalidSlicer.message };
+      }
+
+      const rawPaths = Array.isArray(commandData.filePaths) && commandData.filePaths.length
+        ? commandData.filePaths
+        : (filePath ? [filePath] : []);
+
+      let modelPaths = [];
+      try {
+        modelPaths = await resolveModelPathsForSlicer(rawPaths);
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (!modelPaths.length) {
+        const detail = isZipEntry && zipPath && entryPath
+          ? `To open ${entryPath} from ${zipPath}:\n\n1. Extract ${entryPath} from the ZIP file\n2. Open the extracted file in ${slicerName}`
+          : `Could not resolve local model paths for the slicer.`;
+        clientDialogs.messageBox(event, {
+          type: 'info',
+          title: 'Send to Slicer',
+          message: 'Cannot open these models in slicer from here',
+          detail
+        });
+        return { success: false, message: 'No resolvable model paths' };
+      }
+
+      try {
+        await runSlicerWithModelPaths({ name: slicerName, path: slicerPath }, modelPaths);
+        return { success: true, count: modelPaths.length };
+      } catch (error) {
+        console.error('Error executing slicer command on client:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    return { success: false, error: 'Unknown command type' };
+  } catch (error) {
+    console.error('Error executing client command:', error);
+    throw error;
+  }
+};
+
+ipcMain.handle('execute-client-command', executeClientCommandHandler);
+
 module.exports = { ensureSlicersTableExists, isDockerContainer, openFileInSlicerHandler, resolveModelPathsForSlicer, runSlicerWithModelPaths };

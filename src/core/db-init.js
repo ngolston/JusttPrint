@@ -555,4 +555,29 @@ function ensureFilamentsTablesExist() {
   }
 }
 
-module.exports = { initializeDatabase };
+// Register save-model for Chrome extension (WebSocket works in normal and server mode)
+
+
+// Add this function before saveModel
+function verifyDatabaseIntegrity() {
+  try {
+    console.log('Verifying database integrity...');
+    
+    // Check if foreign keys are enabled
+    const foreignKeysEnabled = database.db.pragma('foreign_keys');
+    console.log(`Foreign keys enabled: ${foreignKeysEnabled}`);
+    
+    // Run integrity check
+    const integrityCheck = database.db.pragma('integrity_check');
+    console.log(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
+    
+    repairModelTagsTable();
+    
+    return true;
+  } catch (error) {
+    console.error('Database integrity check failed:', error);
+    return false;
+  }
+}
+
+module.exports = { initializeDatabase, verifyDatabaseIntegrity };

@@ -104,4 +104,49 @@ function scheduleExtractTempCleanupMany(filePaths, delayMs = EXTRACT_TEMP_SLICER
   }
 }
 
-module.exports = { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany };
+/** Remove leftover extract temps (startup / quit). Optionally only files older than maxAgeMs. */
+async function cleanupExtractTempDirectory({
+  maxAgeMs = 0,
+  // Full OS TEMP readdir is slow on busy machines — skip on cold start; still run on quit.
+  includeLegacyOsTempRoot = true,
+} = {}) {
+  const now = Date.now();
+  const dirs = new Set([getExtractTempDir(), path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)]);
+  try {
+    if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
+      dirs.add(path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME));
+    }
+  } catch (_) { /* ignore */ }
+
+  async function sweepDir(dir) {
+    if (!dir || !fs.existsSync(dir)) return;
+    let entries;
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch (_) {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.startsWith(EXTRACT_TEMP_FILE_PREFIX)) continue;
+      const full = path.join(dir, entry.name);
+      try {
+        if (maxAgeMs > 0) {
+          const stat = await fs.promises.stat(full);
+          if (now - stat.mtimeMs < maxAgeMs) continue;
+        }
+        await fs.promises.unlink(full);
+        pendingExtractTempCleanups.delete(full);
+      } catch (_) { /* ignore busy files */ }
+    }
+  }
+
+  for (const dir of dirs) {
+    await sweepDir(dir);
+  }
+  // Legacy flat printventory_* files written directly under OS temp (quit / explicit only)
+  if (includeLegacyOsTempRoot) {
+    await sweepDir(getOsTempRoot());
+  }
+}
+
+module.exports = { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempDirectory, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isPrintventoryExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany };

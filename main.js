@@ -7,6 +7,8 @@ const {
   app,
   ipcMain
 } = require('./src/server/runtime');
+const { verifyDatabaseIntegrity } = require('./src/core/db-init');
+const { cleanupExtractTempDirectory } = require('./src/core/extract-temp');
 require('./src/server/ipc');
 const {
   puterPendingRequests
@@ -1990,139 +1992,6 @@ function applyStlHomeExcludeEnvIfNeeded(envValue) {
   }
 }
 
-/** Remove leftover extract temps (startup / quit). Optionally only files older than maxAgeMs. */
-async function cleanupExtractTempDirectory({
-  maxAgeMs = 0,
-  // Full OS TEMP readdir is slow on busy machines — skip on cold start; still run on quit.
-  includeLegacyOsTempRoot = true,
-} = {}) {
-  const now = Date.now();
-  const dirs = new Set([getExtractTempDir(), path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)]);
-  try {
-    if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
-      dirs.add(path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME));
-    }
-  } catch (_) { /* ignore */ }
-
-  async function sweepDir(dir) {
-    if (!dir || !fs.existsSync(dir)) return;
-    let entries;
-    try {
-      entries = await fs.promises.readdir(dir, { withFileTypes: true });
-    } catch (_) {
-      return;
-    }
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.startsWith(EXTRACT_TEMP_FILE_PREFIX)) continue;
-      const full = path.join(dir, entry.name);
-      try {
-        if (maxAgeMs > 0) {
-          const stat = await fs.promises.stat(full);
-          if (now - stat.mtimeMs < maxAgeMs) continue;
-        }
-        await fs.promises.unlink(full);
-        pendingExtractTempCleanups.delete(full);
-      } catch (_) { /* ignore busy files */ }
-    }
-  }
-
-  for (const dir of dirs) {
-    await sweepDir(dir);
-  }
-  // Legacy flat printventory_* files written directly under OS temp (quit / explicit only)
-  if (includeLegacyOsTempRoot) {
-    await sweepDir(getOsTempRoot());
-  }
-}
 
 
-
-// Add this new IPC handler
-
-
-
-// IPC handler for executing commands on client machine (for server mode Electron clients)
-// Note: In server mode, browser clients receive this as an event and handle it in renderer.js
-const executeClientCommandHandler = async (event, commandData) => {
-  try {
-    if (!commandData || !commandData.type) {
-      throw new Error('Invalid command data');
-    }
-
-    const { type, filePath, slicerName, slicerPath, isZipEntry, zipPath, entryPath } = commandData;
-
-    if (type === 'open-file') {
-      // The file is on the server; the browser downloads it instead.
-      return { success: false, error: 'Download the file to open it on this computer.' };
-    } else if (type === 'open-in-slicer') {
-      const invalidSlicer = invalidSlicerPathError(slicerPath, slicerName);
-      if (invalidSlicer) {
-        return { success: false, error: invalidSlicer.message };
-      }
-
-      const rawPaths = Array.isArray(commandData.filePaths) && commandData.filePaths.length
-        ? commandData.filePaths
-        : (filePath ? [filePath] : []);
-
-      let modelPaths = [];
-      try {
-        modelPaths = await resolveModelPathsForSlicer(rawPaths);
-      } catch (error) {
-        return { success: false, error: error.message };
-      }
-
-      if (!modelPaths.length) {
-        const detail = isZipEntry && zipPath && entryPath
-          ? `To open ${entryPath} from ${zipPath}:\n\n1. Extract ${entryPath} from the ZIP file\n2. Open the extracted file in ${slicerName}`
-          : `Could not resolve local model paths for the slicer.`;
-        clientDialogs.messageBox(event, {
-          type: 'info',
-          title: 'Send to Slicer',
-          message: 'Cannot open these models in slicer from here',
-          detail
-        });
-        return { success: false, message: 'No resolvable model paths' };
-      }
-
-      try {
-        await runSlicerWithModelPaths({ name: slicerName, path: slicerPath }, modelPaths);
-        return { success: true, count: modelPaths.length };
-      } catch (error) {
-        console.error('Error executing slicer command on client:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    
-    return { success: false, error: 'Unknown command type' };
-  } catch (error) {
-    console.error('Error executing client command:', error);
-    throw error;
-  }
-};
-
-ipcMain.handle('execute-client-command', executeClientCommandHandler);
-
-// Register save-model for Chrome extension (WebSocket works in normal and server mode)
-
-
-// Add this function before saveModel
-function verifyDatabaseIntegrity() {
-  try {
-    console.log('Verifying database integrity...');
-    
-    // Check if foreign keys are enabled
-    const foreignKeysEnabled = database.db.pragma('foreign_keys');
-    console.log(`Foreign keys enabled: ${foreignKeysEnabled}`);
-    
-    // Run integrity check
-    const integrityCheck = database.db.pragma('integrity_check');
-    console.log(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
-    
-    repairModelTagsTable();
-    
-    return true;
-  } catch (error) {
-    console.error('Database integrity check failed:', error);
-    return false;
-  }
-}
+require('./src/server/ipc/slicers');
