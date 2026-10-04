@@ -10,6 +10,8 @@ declare global {
       showMessage?: (title: string, message: string, buttons?: string[]) => Promise<string>;
       /** In-page text prompt (server-bridge.js). Resolves to the text, or null when cancelled. */
       showInputDialog?: (options: { title?: string; message?: string; defaultValue?: string; placeholder?: string }) => Promise<string | null>;
+      /** Id of this page's WebSocket (server-bridge.js), so the server can send events back to this page. */
+      getClientId?: () => string | null;
     };
     /** renderer.js: refresh tag pickers, the tag filter, the open model's tags and the grid. */
     refreshTagRelatedUi?: () => Promise<void>;

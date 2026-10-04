@@ -6567,6 +6567,34 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* AI Configuration (src/web/AiConfigDialog.tsx) */
+.ai-config-divider {
+  margin: 20px 0;
+}
+
+.ai-config-subtitle {
+  margin-top: 0;
+}
+
+.ai-config-checkbox {
+  width: 100%;
+  margin-left: 0;
+  padding: 0;
+}
+
+.ai-prompt-actions {
+  margin-top: 6px;
+  justify-content: flex-start;
+}
+
+.ai-prompt-textarea {
+  width: 100%;
+  min-height: 280px;
+  resize: vertical;
+  font-family: inherit;
+  padding: 8px;
+}
+
 /* Browser Extension (src/web/BrowserExtensionSettingsDialog.tsx) */
 .extension-inbox-actions {
   margin-top: 8px;

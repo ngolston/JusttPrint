@@ -10,11 +10,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The page's WebSocket id goes with each call, so the server can ask this page (in-page
+ * dialogs, Puter AI) and send it progress events (src/server/api.js, CLIENT_HEADER).
+ */
+function clientHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const clientId = window.electron?.getClientId?.();
+  if (clientId) headers['X-JusttPrint-Client'] = clientId;
+  return headers;
+}
+
 export async function callAction<T>(name: string, ...args: unknown[]): Promise<T> {
   const response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
+    headers: clientHeaders(),
     body: JSON.stringify({ args })
   });
   if (response.status === 401) {
@@ -322,4 +333,11 @@ export const tls = {
   apply: (payload: TlsSettings & { tlsMode: TlsMode; issueNow?: boolean }) => callAction<TlsResult>('apply-tls-settings', payload),
   generateSelfSigned: (payload: { hostname: string; tlsDomain: string; tlsRedirectHttp: boolean; serverHttpPort: string }) =>
     callAction<TlsResult>('generate-self-signed-cert', payload)
+};
+
+export const ai = {
+  /** Asks the model to tag a test image; Puter.com runs in this page (puter-ai-chat-request). */
+  test: (apiKey: string, endpoint: string, model: string, service: string) =>
+    callAction<{ success: boolean; tags?: string[]; error?: string }>('test-ai-config', apiKey, endpoint, model, service),
+  defaultPrompt: () => callAction<string>('get-default-ai-prompt')
 };

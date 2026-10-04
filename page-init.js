@@ -28,13 +28,6 @@
     });
   });
 
-  // Test AI settings: the button sits inside the settings form; keep the click to itself.
-  document.getElementById('test-ai-config')?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof window.testAIConfigFromDialog === 'function') window.testAIConfigFromDialog();
-  });
-
   // STL Home: gray out the path-metadata options after the checkbox has changed.
   document.getElementById('stl-home-path-metadata-enabled')?.addEventListener('click', () => {
     setTimeout(() => {

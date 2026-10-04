@@ -909,6 +909,39 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#cancel-https-settings');
     check('HTTPS settings closes', !(await page.isVisible('#https-settings-dialog')));
 
+    // AI Configuration (React): service defaults, nothing saved until Save, and the prompt editor.
+    const aiKeys = ['aiService', 'apiEndpoint', 'aiModel', 'apiKey', 'aiTagMaxTags', 'aiTagPrompt'];
+    const savedAi = {};
+    for (const key of aiKeys) savedAi[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    await page.evaluate(() => window.openAiConfig());
+    await page.waitForSelector('#ai-config-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('AI Configuration opens', await page.isVisible('#ai-config-dialog'));
+    await page.selectOption('#ai-service-select', 'claude');
+    check('choosing Claude fills its endpoint and model', await page.inputValue('#ai-endpoint') === 'https://api.anthropic.com/v1/'
+      && await page.inputValue('#ai-model') === 'claude-haiku-4-5');
+    check('Claude asks for an API key', /^API Key:$/.test((await page.textContent('label[for="ai-api-key"]')).trim()));
+    await page.selectOption('#ai-service-select', 'custom');
+    check('a custom server makes the key optional', /optional/.test(await page.textContent('label[for="ai-api-key"]')));
+    await page.click('#cancel-ai-config');
+    check('Cancel saves nothing', (await invoke(base, session, 'get-setting', ['aiService'])).result === savedAi.aiService);
+    await page.evaluate(() => window.openAiConfig());
+    await page.waitForSelector('#ai-config-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await page.selectOption('#ai-service-select', 'custom');
+    await page.fill('#ai-endpoint', 'http://ollama.local:11434/v1');
+    await page.fill('#ai-model', 'llava');
+    await page.fill('#ai-tag-max-tags', '7');
+    await page.click('#edit-ai-prompt');
+    await page.waitForSelector('#ai-prompt-edit-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Edit Prompt shows the default prompt', (await page.inputValue('#ai-prompt-textarea')).length > 50);
+    await page.click('#cancel-ai-prompt-edit');
+    await page.click('#save-ai-config');
+    await page.waitForSelector('#ai-config-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const aiAfter = {};
+    for (const key of aiKeys) aiAfter[key] = (await invoke(base, session, 'get-setting', [key])).result;
+    check('Save stores the AI settings', aiAfter.aiService === 'custom' && aiAfter.apiEndpoint === 'http://ollama.local:11434/v1'
+      && aiAfter.aiModel === 'llava' && aiAfter.aiTagMaxTags === '7', JSON.stringify(aiAfter));
+    for (const key of aiKeys) await invoke(base, session, 'save-setting', [key, savedAi[key] == null ? '' : savedAi[key]]);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

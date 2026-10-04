@@ -6,6 +6,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
+import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
@@ -39,6 +40,7 @@ function Screens() {
       <BrowserExtensionSettingsDialog />
       <FileTypeSettingsDialog />
       <HttpsSettingsDialog />
+      <AiConfigDialog />
     </>
   );
 }

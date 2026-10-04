@@ -437,8 +437,7 @@
       'get-file-stats': 120000,
       'calculate-file-hash': 300000,
       'generateMissingHashes': 600000,
-      'scan-directory': 600000,
-      'test-ai-config': 60000
+      'scan-directory': 600000
     };
     var timeoutMs = heavyIpcChannels[channel] || 30000;
 
@@ -568,8 +567,6 @@
     'deleteThumbnail': 'delete-thumbnail',
     'checkForUpdates': 'check-for-updates',
     'openUpdatePage': 'open-update-page',
-    'testAIConfig': 'test-ai-config',
-    'getDefaultAIPrompt': 'get-default-ai-prompt',
     'getModelsWithoutThumbnails': 'get-models-without-thumbnails',
     'getModelsWithDefaultThumbnails': 'get-models-with-default-thumbnails',
     'getSlicers': 'get-slicers',
@@ -833,6 +830,11 @@
   
   window.electron.isServerMode = function() {
     return Promise.resolve(true);
+  };
+
+  // The React screens send this with their API calls, like ipcInvoke does (src/web/api.ts).
+  window.electron.getClientId = function() {
+    return clientId;
   };
   
   window.electron.invoke = function(channel, ...args) {
