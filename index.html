@@ -836,54 +836,6 @@
         </div>
       </form>
     </dialog>
-    <dialog id="dedup-dialog" class="modal dedup-dialog">
-      <form method="dialog">
-        <div class="dedup-header" style="position: sticky; top: 0; background: inherit; z-index: 1; padding: 0.5rem;">
-          <h3>Duplicate Files</h3>
-          <p style="font-size: 0.9rem; margin: 0.2rem 0; color: #555;">
-            De-duplication is performed using the file hash to ensure that only identical files are considered duplicates.
-            Limit the scan to your current library filters so a large collection does not have to be processed all at once.
-          </p>
-          <div id="dedup-scope-container" class="dedup-scope">
-            <span class="dedup-scope-label">Scope</span>
-            <label class="dedup-scope-option" for="dedup-scope-current">
-              <input type="radio" name="dedup-scope" id="dedup-scope-current" value="current">
-              <span>Current view</span>
-            </label>
-            <label class="dedup-scope-option" for="dedup-scope-entire">
-              <input type="radio" name="dedup-scope" id="dedup-scope-entire" value="entire" checked>
-              <span>Entire library</span>
-            </label>
-            <p id="dedup-scope-summary" class="dedup-scope-summary"></p>
-          </div>
-          <div id="dedup-preferred-directory" class="dedup-preferred">
-            <label class="dedup-scope-label" for="dedup-preferred-directory-input">Preferred directory</label>
-            <div class="dedup-preferred-row">
-              <input type="text" id="dedup-preferred-directory-input" placeholder="Folder whose copies should be kept" autocomplete="off" spellcheck="false">
-              <button type="button" id="dedup-preferred-browse" class="modal-fullscreen-toggle">Browse</button>
-              <button type="button" id="dedup-preferred-clear" class="modal-fullscreen-toggle" title="Clear the preferred directory">Clear path</button>
-            </div>
-            <p class="dedup-scope-summary">Easy keeps one copy from this folder, including subfolders, and selects the other duplicates.</p>
-          </div>
-          <div id="include-zip-container" style="display: none; margin: 0.5rem 0;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="checkbox" id="include-zipped-models" style="margin: 0;">
-              <span style="font-size: 0.9rem;">Include Zipped Models</span>
-            </label>
-          </div>
-          <div class="dialog-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-            <button type="button" id="dedup-easy-button" class="easy-button" title="Select all but one per group. Keeps a copy in the preferred directory when one exists, otherwise an archived/ZIP copy." data-action="dedupEasyFromDialog">Easy</button>
-            <button type="button" id="dedup-clear-button" class="modal-fullscreen-toggle" title="Clear all selections" data-action="dedupClearFromDialog">Clear</button>
-            <button type="button" id="delete-selected" class="danger-button">Delete Selected</button>
-            <button type="button" id="dedup-fullscreen-toggle" class="modal-fullscreen-toggle" title="Toggle full screen" data-action="toggleDedupFullscreen">Full Screen</button>
-            <button type="button" id="close-dedup" data-close-dialog="dedup-dialog">Close</button>
-          </div>
-        </div>
-        <div class="duplicate-groups" style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
-          <!-- Duplicate groups will be added here dynamically -->
-        </div>
-      </form>
-    </dialog>
     <dialog id="terms-of-service-dialog" class="modal tos-dialog">
       <div class="tos-dialog-content">
         <div class="tos-header">
@@ -1435,7 +1387,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>
   <script src="notes-markdown.js"></script>
-  <script src="dedup-preferred.js"></script>
   <script src="stl-sanity.js"></script>
   <script src="renderer.js"></script>
   <script src="filament.js"></script>

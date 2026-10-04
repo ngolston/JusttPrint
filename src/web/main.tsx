@@ -9,6 +9,7 @@ import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
+import { DedupDialog } from './DedupDialog';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
@@ -53,6 +54,7 @@ function Screens() {
       <MetadataEditorDialog />
       <StlHomeDialog />
       <OrganizeLibraryDialog />
+      <DedupDialog />
     </>
   );
 }

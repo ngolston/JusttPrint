@@ -486,11 +486,11 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
     await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');
     check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('new-tag-dialog').open));
-    await page.evaluate(() => document.getElementById('dedup-dialog').showModal());
-    await page.click('#dedup-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('dedup-dialog').classList.contains('modal-fullscreen')));
-    await page.click('#dedup-fullscreen-toggle');
-    await page.evaluate(() => document.getElementById('dedup-dialog').close());
+    await page.evaluate(() => document.getElementById('preview-dialog').showModal());
+    await page.click('#preview-fullscreen-toggle');
+    check('data-action button calls its function', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
+    await page.click('#preview-fullscreen-toggle');
+    await page.evaluate(() => document.getElementById('preview-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -1051,6 +1051,37 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#organize-close-button');
     check('Organize Library closes', !(await page.isVisible('#organize-library-dialog')));
     await invoke(base, session, 'save-setting', ['organizeLibraryLayers', savedLayers == null ? '' : savedLayers]);
+
+    // De-Dup (React): a copy of cube.stl shows as a duplicate; Easy with a preferred directory keeps the original; Delete removes the copy.
+    const dedupOriginal = path.join(LIBRARY, 'Designer A', 'cube.stl');
+    const dedupCopy = path.join(LIBRARY, 'Designer A', 'cube copy.stl');
+    fs.copyFileSync(dedupOriginal, dedupCopy);
+    await invoke(base, session, 'save-model', [{ filePath: dedupCopy, fileName: 'cube copy.stl' }]);
+    await invoke(base, session, 'calculate-file-hash', [dedupOriginal]);
+    await invoke(base, session, 'calculate-file-hash', [dedupCopy]);
+    await page.click('#dup-button');
+    const copyRow = `#dedup-dialog input[data-filepath="${dedupCopy}"]`;
+    const originalRow = `#dedup-dialog input[data-filepath="${dedupOriginal}"]`;
+    const dedupGroup = await page.waitForSelector(copyRow, { timeout: 30000 }).catch(() => null);
+    check('De-Dup lists the duplicate pair', !!dedupGroup && await page.isVisible(originalRow));
+    check('De-Dup scope: entire library without filters', await page.isChecked('#dedup-scope-entire') && await page.isDisabled('#dedup-scope-current'));
+    await page.fill('#dedup-preferred-directory-input', path.join(LIBRARY, 'Designer A'));
+    await page.press('#dedup-preferred-directory-input', 'Enter');
+    check('Easy with a preferred directory keeps the original', await page.isChecked(copyRow) && !(await page.isChecked(originalRow))
+      && (await page.locator('#dedup-dialog .preferred-directory-badge').count()) >= 2);
+    check('De-Dup saves the preferred directory', (await invoke(base, session, 'get-setting', ['dedupPreferredDirectory'])).result === path.join(LIBRARY, 'Designer A'));
+    await page.click('#dedup-clear-button');
+    check('Clear unselects everything', !(await page.isChecked(copyRow)));
+    await page.check(copyRow);
+    await page.click('#delete-selected');
+    const confirmDedupDelete = await page.waitForSelector('dialog[open]:has-text("Confirm Delete") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (confirmDedupDelete) await confirmDedupDelete.click();
+    const copyGone = await page.waitForSelector(copyRow, { state: 'detached', timeout: 15000 }).then(() => true).catch(() => false);
+    check('Delete Selected removes the copy from disk and the list', !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal));
+    await page.click('#close-dedup');
+    check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
+    await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
+    if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
 
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());

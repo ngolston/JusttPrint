@@ -3,6 +3,9 @@
  * typed in one place. Each hook disappears once the code behind it moves to React.
  */
 
+/** The sidebar filters as search.js builds them; passed to the server as-is. */
+export type LibraryFilters = Record<string, unknown>;
+
 declare global {
   interface Window {
     electron?: {
@@ -10,6 +13,9 @@ declare global {
       showMessage?: (title: string, message: string, buttons?: string[]) => Promise<string>;
       /** In-page text prompt (server-bridge.js). Resolves to the text, or null when cancelled. */
       showInputDialog?: (options: { title?: string; message?: string; defaultValue?: string; placeholder?: string }) => Promise<string | null>;
+      /** Server events over the page's WebSocket (server-bridge.js). */
+      on?: (channel: string, callback: (...args: any[]) => void) => void;
+      off?: (channel: string, callback: (...args: any[]) => void) => void;
       /** Id of this page's WebSocket (server-bridge.js), so the server can send events back to this page. */
       getClientId?: () => string | null;
     };
@@ -42,6 +48,14 @@ declare global {
     performSTLHomeScan?: (dirs: string[]) => Promise<void>;
     startPeriodicSTLHomeScan?: () => Promise<void>;
     stopPeriodicSTLHomeScan?: () => void;
+    /** search.js: the sidebar's current filters, whether any is set, and a short description of them. */
+    getCurrentLibraryFilters?: () => LibraryFilters | null;
+    libraryFiltersAreActive?: (filters: LibraryFilters | null) => boolean;
+    describeLibraryFilters?: (filters: LibraryFilters | null) => string;
+    /** renderer.js: draw a model to a PNG data URL in this browser (for files without a stored thumbnail). */
+    renderModelToPNG?: (filePath: string, container: HTMLElement) => Promise<string | null>;
+    /** renderer.js: after De-Dup deleted files, clear the grid selection and reload the grid. */
+    refreshAfterDedupDelete?: () => Promise<void>;
     /** renderer.js: model color and lighting used for new thumbnails. */
     currentRenderColor?: string;
     currentRenderLighting?: boolean;
@@ -83,6 +97,12 @@ export async function refreshAfterFilamentManagerClose(): Promise<void> {
 
 export async function refreshModelDisplay(): Promise<void> {
   await window.refreshModelDisplay?.();
+}
+
+/** Listen to a server event on this page's WebSocket. Returns the function that stops listening. */
+export function onServerEvent(channel: string, callback: (...args: any[]) => void): () => void {
+  window.electron?.on?.(channel, callback);
+  return () => window.electron?.off?.(channel, callback);
 }
 
 /** Make a function callable from the rest of the page as window[name] while a screen is mounted. */

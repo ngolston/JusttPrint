@@ -23,6 +23,8 @@ interface ModalDialogProps {
    * direct children (for dialogs whose CSS lays them out, or that hold forms of their own).
    */
   plain?: boolean;
+  /** Extra classes on the <dialog>, for dialogs styled by class. */
+  className?: string;
   onClose?: () => void;
 }
 
@@ -32,7 +34,7 @@ interface ModalDialogProps {
  */
 export function ModalDialog({
   id, title, dialogRef, children, footer, fullscreenToggle, headerActions, headerActionsClassName, description,
-  headerClassName, headerRowClassName = 'modal-header-row', footerClassName = 'dialog-buttons', plain, onClose
+  headerClassName, headerRowClassName = 'modal-header-row', footerClassName = 'dialog-buttons', plain, className, onClose
 }: ModalDialogProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const toggleLabel = fullscreen ? 'Exit Full Screen' : 'Full Screen';
@@ -75,7 +77,7 @@ export function ModalDialog({
   return (
     <dialog
       id={id}
-      className={fullscreen ? 'modal modal-fullscreen' : 'modal'}
+      className={['modal', className, fullscreen ? 'modal-fullscreen' : ''].filter(Boolean).join(' ')}
       ref={dialogRef}
       onClose={() => {
         setFullscreen(false);

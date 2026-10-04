@@ -422,3 +422,38 @@ export const organize = {
   preview: (job: OrganizeJob) => callAction<OrganizePreview>('organize-library-preview', job),
   run: (job: OrganizeJob) => callAction<OrganizeResult>('organize-library-run', job)
 };
+
+export interface DuplicateFile {
+  filePath: string;
+  size?: number;
+}
+
+export interface DuplicateGroup {
+  hash: string;
+  files: DuplicateFile[];
+}
+
+export interface HashProgress {
+  processed: number;
+  total: number;
+  success?: number;
+  failed?: number;
+}
+
+export const dedup = {
+  /** Groups of identical files (by hash); older servers sent { hash: files }. */
+  groups: async (options: { includeZip: boolean; filters?: Record<string, unknown> }): Promise<DuplicateGroup[]> => {
+    const raw = await callAction<DuplicateGroup[] | Record<string, DuplicateFile[]>>('get-duplicates', options);
+    if (!raw) return [];
+    const list = Array.isArray(raw) ? raw : Object.entries(raw).map(([hash, files]) => ({ hash, files }));
+    return list.filter((group) => group && Array.isArray(group.files) && group.files.length > 1);
+  },
+  modelsWithoutHash: (filters: Record<string, unknown> | null) => callAction<number>('getModelsWithoutHash', filters),
+  isGeneratingHashes: () => callAction<boolean>('is-generating-hashes'),
+  /** Starts hash generation in the background; progress comes as hash-generation-progress events. */
+  generateHashes: (filters: Record<string, unknown> | null) =>
+    callAction<{ started?: boolean; alreadyRunning?: boolean; total?: number; failed?: number }>('generateMissingHashes', filters),
+  thumbnail: (filePath: string) => callAction<string | null>('getThumbnail', filePath),
+  /** Deletes the file from disk (permanently) and removes it from the library. */
+  deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath)
+};

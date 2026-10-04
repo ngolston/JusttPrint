@@ -57,6 +57,14 @@
     console.log('[Bridge] Registered listener for channel:', channel, 'Total listeners:', window._electronEventListeners[channel].length);
   };
   console.log('[Bridge] window.electron.on method defined');
+
+  /** Remove a listener added with on(). */
+  window.electron.off = function(channel, callback) {
+    const list = window._electronEventListeners && window._electronEventListeners[channel];
+    if (!list) return;
+    const index = list.indexOf(callback);
+    if (index !== -1) list.splice(index, 1);
+  };
   
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${wsProtocol}//${window.location.host}`;
@@ -436,7 +444,6 @@
       'getVoxlImages': 120000,
       'get-file-stats': 120000,
       'calculate-file-hash': 300000,
-      'generateMissingHashes': 600000,
       'scan-directory': 600000
     };
     var timeoutMs = heavyIpcChannels[channel] || 30000;
@@ -550,10 +557,6 @@
     'get3MFSTL': 'get3MFSTL',
     'extractModelFromZip': 'extract-model-from-zip',
     'deleteTempFile': 'delete-temp-file',
-    'getDuplicates': 'get-duplicates',
-    'isGeneratingHashes': 'is-generating-hashes',
-    'getModelsWithoutHash': 'getModelsWithoutHash',
-    'generateMissingHashes': 'generateMissingHashes',
     'calculateFileHash': 'calculate-file-hash',
     'getThumbnail': 'getThumbnail',
     'getAllThumbnails': 'get-all-thumbnails',
@@ -698,73 +701,6 @@
     }
   };
 
-  window.electron.onHashGenerationProgress = function(callback) {
-    console.log('[Bridge] ===== onHashGenerationProgress CALLED =====');
-    console.log('[Bridge] Callback type:', typeof callback);
-    console.log('[Bridge] Stack trace:', new Error().stack);
-    // Ensure _electronEventListeners exists
-    if (!window._electronEventListeners) {
-      window._electronEventListeners = {};
-      console.log('[Bridge] Created _electronEventListeners in onHashGenerationProgress');
-    } else {
-      console.log('[Bridge] _electronEventListeners already exists with keys:', Object.keys(window._electronEventListeners));
-    }
-    // In server mode via WebSocket, the progress object comes as the first (and only) argument
-    // In normal mode via IPC, it comes as the second argument (event, progress)
-    const listener = (progress) => {
-      console.log('[Bridge] hash-generation-progress listener invoked with:', progress);
-      // If progress is actually the event object and we got a second argument, use that
-      // Otherwise, progress is the actual progress object
-      try {
-        callback(progress);
-      } catch (error) {
-        console.error('[Bridge] Error in hash-generation-progress callback:', error);
-      }
-    };
-    // Use the bridge's on method directly to ensure it's registered
-    if (typeof window.electron.on === 'function') {
-      window.electron.on('hash-generation-progress', listener);
-      console.log('[Bridge] Listener registered via window.electron.on');
-    } else {
-      // Fallback: register directly
-      if (!window._electronEventListeners['hash-generation-progress']) {
-        window._electronEventListeners['hash-generation-progress'] = [];
-      }
-      window._electronEventListeners['hash-generation-progress'].push(listener);
-      console.log('[Bridge] Listener registered directly');
-    }
-    console.log('[Bridge] onHashGenerationProgress completed, listeners for hash-generation-progress:', window._electronEventListeners?.['hash-generation-progress']?.length || 0);
-    console.log('[Bridge] All registered channels:', Object.keys(window._electronEventListeners || {}));
-  };
-  
-  window.electron.onHashGenerationComplete = function(callback) {
-    console.log('[Bridge] ===== onHashGenerationComplete CALLED =====');
-    // Ensure _electronEventListeners exists
-    if (!window._electronEventListeners) {
-      window._electronEventListeners = {};
-    }
-    const listener = (result) => {
-      console.log('[Bridge] hash-generation-complete listener invoked with:', result);
-      try {
-        callback(result || {});
-      } catch (error) {
-        console.error('[Bridge] Error in hash-generation-complete callback:', error);
-      }
-    };
-    // Use the bridge's on method directly to ensure it's registered
-    if (typeof window.electron.on === 'function') {
-      window.electron.on('hash-generation-complete', listener);
-      console.log('[Bridge] Completion listener registered via window.electron.on');
-    } else {
-      // Fallback: register directly
-      if (!window._electronEventListeners['hash-generation-complete']) {
-        window._electronEventListeners['hash-generation-complete'] = [];
-      }
-      window._electronEventListeners['hash-generation-complete'].push(listener);
-      console.log('[Bridge] Completion listener registered directly');
-    }
-  };
-  
   // WebSocket events call listeners with the broadcast args only (no IPC event object).
   window.electron.onScanProgress = function(callback) {
     if (!window._electronEventListeners) window._electronEventListeners = {};
@@ -892,7 +828,6 @@
   // Signal that bridge is ready
   window._electronBridgeReady = true;
   console.log('[Bridge] Server bridge initialized, all methods available. Total methods:', Object.keys(window.electron).length);
-  console.log('[Bridge] onHashGenerationProgress defined:', typeof window.electron.onHashGenerationProgress);
   console.log('[Bridge] on method defined:', typeof window.electron.on);
   console.log('[Bridge] _electronEventListeners initialized:', !!window._electronEventListeners);
   // preview-model is handled only by preview.js (loaded first after this bridge) to avoid
