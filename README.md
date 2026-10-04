@@ -1,6 +1,6 @@
 # Printventory
 
-**Version 3.1.0**
+**Version 3.1.1**
 
 Printventory is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -33,7 +33,7 @@ Printventory is a self-hosted web app for managing your 3D printing model collec
 - **Print Roulette**: Randomly select models from your collection
 - **AI Tagging**: Automated tag suggestions using AI
 - **3D bundle preview**: Open every STL/3MF in a folder or ZIP in a single preview layout
-- **Send to Slicer from preview**: Open the current model or entire bundle in your configured slicer (new instance when already running)
+- **Send to Slicer from preview**: Open the current model or entire bundle in the slicer on your computer, through the Printventory helper (new instance when already running)
 - **Search & Filter**: Real-time search by filename and filter by designer, folders, tags, print status, filament, parent model, or license
 - **Tag Manager**: Comprehensive tag management interface
 - **Metadata Editor**: Bulk metadata editing capabilities

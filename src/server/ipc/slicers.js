@@ -3,42 +3,16 @@
 const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const fs = require('fs');
-const { buildSlicerSpawnSpec, launchSlicerProcess, invalidSlicerPathError } = require('../slicer-launch');
-const { isUrlModel, parseZipPath } = require('../../core/library-paths');
-const { scheduleExtractTempCleanupMany } = require('../../core/extract-temp');
-const { clientDialogs } = require('../dialogs');
+const { parseZipPath } = require('../../core/library-paths');
 const { getServerAuth } = require('../auth');
-const { extractModelFromZip, isMacOsResourceForkEntry } = require('../../core/zip-entries');
 
-// Check if running in Docker container
-function isDockerContainer() {
-  // Check for Docker environment indicators
-  const hasDockerenv = fs.existsSync('/.dockerenv');
-  const hasCgroup = fs.existsSync('/proc/self/cgroup');
-  const cgroupContainsDocker = hasCgroup && fs.readFileSync('/proc/self/cgroup', 'utf8').includes('docker');
-  const result = hasDockerenv || cgroupContainsDocker;
-  return result;
-}
-
-async function resolveModelPathsForSlicer(filePaths) {
-  const rawPaths = (Array.isArray(filePaths) ? filePaths : [filePaths]).filter(Boolean);
-  const resolved = [];
-
-  for (const fp of rawPaths) {
-    if (typeof fp !== 'string' || isUrlModel(fp)) continue;
-
-    const pathInfo = parseZipPath(fp);
-    if (pathInfo.isZipEntry) {
-      if (isMacOsResourceForkEntry(pathInfo.entryPath)) continue;
-      resolved.push(await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath));
-    } else if (fs.existsSync(fp)) {
-      resolved.push(fp);
-    }
-  }
-
-  return resolved;
-}
+/*
+ * Send to Slicer never runs anything on the server (a desktop slicer cannot open in a
+ * headless container, and the server must not start programs a browser names). The server
+ * builds an open-in-slicer command with a short-lived download token; the browser turns it
+ * into a printventory:// link, and the helper on the user's computer (helper/) downloads
+ * the files and starts the slicer there.
+ */
 
 function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
   if (!Array.isArray(slicers) || slicers.length === 0) return null;
@@ -49,38 +23,6 @@ function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
     return slicers.find((slicer) => slicer.name === slicerName) || null;
   }
   return slicers[0];
-}
-
-function runSlicerWithModelPaths(slicer, modelPaths) {
-  if (!modelPaths.length) {
-    return Promise.reject(new Error('No model files to open in slicer'));
-  }
-
-  const invalid = invalidSlicerPathError(slicer.path, slicer.name);
-  if (invalid) return Promise.reject(invalid);
-
-  const inDocker = isDockerContainer();
-  if (inDocker && (/^[A-Za-z]:[\\/]/.test(slicer.path) || /^\\\\/.test(slicer.path))) {
-    return Promise.reject(new Error(
-      `The slicer path "${slicer.path}" is a Windows path, but the application is running in a Docker container (Linux). ` +
-      'Use a Linux slicer path or run Printventory in normal mode.'
-    ));
-  }
-
-  const spec = buildSlicerSpawnSpec(slicer.path, modelPaths);
-  console.log('[Slicer] Launching', spec.command, spec.args.join(' '));
-  // Resolve when the process starts. Slicers that are already open often hand the
-  // file to the existing window and exit non-zero; that is still a successful launch.
-  return launchSlicerProcess(spec, { name: slicer.name, slicerPath: slicer.path }).then(
-    () => {
-      scheduleExtractTempCleanupMany(modelPaths);
-      return { success: true, count: modelPaths.length };
-    },
-    (error) => {
-      scheduleExtractTempCleanupMany(modelPaths, 0);
-      throw error;
-    }
-  );
 }
 
 ipcMain.handle('get-slicers', () => {
@@ -210,9 +152,29 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
 
 ipcMain.handle('clear-and-save-slicers', clearAndSaveSlicersHandler);
 
+/** The open-in-slicer command the browser hands to the helper. */
+function slicerCommand(slicer, filePaths) {
+  const pathInfo = parseZipPath(filePaths[0]);
+  return {
+    type: 'open-in-slicer',
+    filePaths: filePaths.slice(),
+    filePath: filePaths[0],
+    slicerName: slicer.name,
+    slicerPath: slicer.path,
+    downloadToken: getServerAuth().issueDownloadToken(),
+    isZipEntry: pathInfo.isZipEntry,
+    zipPath: pathInfo.isZipEntry ? pathInfo.zipPath : null,
+    entryPath: pathInfo.isZipEntry ? pathInfo.entryPath : null
+  };
+}
+
+/**
+ * A browser gets the command back and launches the helper itself. MCP has no browser of its
+ * own, so its command goes to the open browsers, which hand it to their helper.
+ */
 const openFileInSlicerHandler = async (event, options = {}) => {
   const { filePaths, slicerId, slicerName } = options || {};
-  const paths = Array.isArray(filePaths) ? filePaths : (filePaths ? [filePaths] : []);
+  const paths = (Array.isArray(filePaths) ? filePaths : (filePaths ? [filePaths] : [])).filter(Boolean);
   if (!paths.length) {
     throw new Error('No file paths provided');
   }
@@ -224,40 +186,12 @@ const openFileInSlicerHandler = async (event, options = {}) => {
     throw new Error('No slicer configured. Add a slicer in Settings.');
   }
 
-  const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
-  {
-    const firstPath = paths[0];
-    const pathInfo = parseZipPath(firstPath);
-    const commandPayload = {
-      type: 'open-in-slicer',
-      filePaths: paths,
-      filePath: firstPath,
-      slicerName: slicer.name,
-      slicerPath: slicer.path,
-      downloadToken: getServerAuth().issueDownloadToken(),
-      isZipEntry: pathInfo.isZipEntry,
-      zipPath: pathInfo.isZipEntry ? pathInfo.zipPath : null,
-      entryPath: pathInfo.isZipEntry ? pathInfo.entryPath : null
-    };
-
-    events.broadcast('execute-client-command', commandPayload);
-    return { success: true, serverMode: true, count: paths.length };
+  const command = slicerCommand(slicer, paths);
+  if (event && event.wsClient) {
+    return { success: true, count: paths.length, command };
   }
-
-  const modelPaths = await resolveModelPathsForSlicer(paths);
-  if (!modelPaths.length) {
-    throw new Error('No valid local model files to open in slicer');
-  }
-
-  try {
-    return await runSlicerWithModelPaths(slicer, modelPaths);
-  } catch (error) {
-    // Launch failed — remove any extracts we just created
-    scheduleExtractTempCleanupMany(modelPaths, 0);
-    console.error('Error opening file in slicer:', error);
-    clientDialogs.messageBox(event, { type: 'error', title: 'Send to Slicer', message: error.message });
-    throw error;
-  }
+  events.broadcast('execute-client-command', command);
+  return { success: true, count: paths.length, sentToBrowsers: true };
 };
 
 ipcMain.handle('open-file-in-slicer', openFileInSlicerHandler);
@@ -292,69 +226,4 @@ function ensureSlicersTableExists() {
   }
 }
 
-// Add this new IPC handler
-
-
-
-// IPC handler for executing commands on client machine (for server mode Electron clients)
-// Note: In server mode, browser clients receive this as an event and handle it in renderer.js
-const executeClientCommandHandler = async (event, commandData) => {
-  try {
-    if (!commandData || !commandData.type) {
-      throw new Error('Invalid command data');
-    }
-
-    const { type, filePath, slicerName, slicerPath, isZipEntry, zipPath, entryPath } = commandData;
-
-    if (type === 'open-file') {
-      // The file is on the server; the browser downloads it instead.
-      return { success: false, error: 'Download the file to open it on this computer.' };
-    } else if (type === 'open-in-slicer') {
-      const invalidSlicer = invalidSlicerPathError(slicerPath, slicerName);
-      if (invalidSlicer) {
-        return { success: false, error: invalidSlicer.message };
-      }
-
-      const rawPaths = Array.isArray(commandData.filePaths) && commandData.filePaths.length
-        ? commandData.filePaths
-        : (filePath ? [filePath] : []);
-
-      let modelPaths = [];
-      try {
-        modelPaths = await resolveModelPathsForSlicer(rawPaths);
-      } catch (error) {
-        return { success: false, error: error.message };
-      }
-
-      if (!modelPaths.length) {
-        const detail = isZipEntry && zipPath && entryPath
-          ? `To open ${entryPath} from ${zipPath}:\n\n1. Extract ${entryPath} from the ZIP file\n2. Open the extracted file in ${slicerName}`
-          : `Could not resolve local model paths for the slicer.`;
-        clientDialogs.messageBox(event, {
-          type: 'info',
-          title: 'Send to Slicer',
-          message: 'Cannot open these models in slicer from here',
-          detail
-        });
-        return { success: false, message: 'No resolvable model paths' };
-      }
-
-      try {
-        await runSlicerWithModelPaths({ name: slicerName, path: slicerPath }, modelPaths);
-        return { success: true, count: modelPaths.length };
-      } catch (error) {
-        console.error('Error executing slicer command on client:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    
-    return { success: false, error: 'Unknown command type' };
-  } catch (error) {
-    console.error('Error executing client command:', error);
-    throw error;
-  }
-};
-
-ipcMain.handle('execute-client-command', executeClientCommandHandler);
-
-module.exports = { ensureSlicersTableExists, isDockerContainer, openFileInSlicerHandler, resolveModelPathsForSlicer, runSlicerWithModelPaths };
+module.exports = { ensureSlicersTableExists, openFileInSlicerHandler, slicerCommand };

@@ -273,6 +273,21 @@ async function apiChecks(base, wsUrl) {
   const slicer = ((await ask('get-slicers')).result || []).find((s) => s.name === 'E2E Slicer');
   check('slicer saved and listed', !!slicer);
   if (slicer) {
+    // Send to Slicer: the server only builds the helper command; it never starts a program.
+    const sent = await ask('open-file-in-slicer', [{ filePaths: [cube], slicerId: slicer.id }]);
+    const command = (sent.result || {}).command || {};
+    check('Send to Slicer returns a helper command', command.type === 'open-in-slicer' && command.slicerPath === '/usr/bin/e2e-slicer' && command.filePaths[0] === cube && !!command.downloadToken, sent.error || JSON.stringify(sent.result));
+    const helperDownload = await fetch(`${base}/api/download/${encodeURIComponent(cube)}?token=${encodeURIComponent(command.downloadToken || '')}`);
+    check('helper can download with the command token (no login)', helperDownload.status === 200, helperDownload.status);
+    const zipEntry = path.join(LIBRARY, 'Designer C', 'pack.zip') + '::inner/widget.stl';
+    const zipCommand = ((await ask('open-file-in-slicer', [{ filePaths: [zipEntry], slicerId: slicer.id }])).result || {}).command || {};
+    const zipDownload = await fetch(`${base}/api/download/${encodeURIComponent(zipEntry)}?token=${encodeURIComponent(zipCommand.downloadToken || '')}`);
+    check('helper can download a ZIP entry', zipCommand.isZipEntry === true && zipDownload.status === 200 && (await zipDownload.arrayBuffer()).byteLength > 0, zipDownload.status);
+    const menuWithSlicer = (await ask('show-context-menu', [[cube]])).result || {};
+    const slicerItem = (menuWithSlicer.items || []).flatMap((i) => i.submenu || []).find((i) => i.clientAction);
+    check('context menu slicer item carries a helper command', !!slicerItem && slicerItem.clientAction.slicerPath === '/usr/bin/e2e-slicer' && !!slicerItem.clientAction.downloadToken, JSON.stringify(slicerItem));
+    const spawn = await ask('execute-client-command', [{ type: 'open-in-slicer', slicerPath: '/bin/sh', filePaths: [cube] }]);
+    check('server cannot be told to run a program (execute-client-command removed)', !!spawn.error, JSON.stringify(spawn));
     await ask('delete-slicer', [slicer.id]);
     check('slicer deleted', !((await ask('get-slicers')).result || []).some((s) => s.id === slicer.id));
   }
@@ -376,6 +391,8 @@ async function browserChecks(base, wsUrl, session) {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
+      // No helper is installed here, so Chrome cannot open the Send to Slicer link. Expected.
+      if (/Failed to launch 'printventory:\/\/.*does not have a registered handler/.test(message.text())) return;
       const where = message.location();
       errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber})`);
     });
@@ -415,6 +432,20 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForTimeout(1500);
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
     }
+
+    // Send to Slicer in the page: the server's command becomes a printventory:// link for the helper.
+    await invoke(wsUrl, session, 'save-slicer', [{ name: 'Browser Slicer', path: '/usr/bin/browser-slicer' }]);
+    const helperLink = await page.evaluate(async (file) => {
+      const slicers = await window.electron.getSlicers();
+      const slicer = slicers.find((s) => s.name === 'Browser Slicer');
+      const result = await window.electron.openFileInSlicer({ filePaths: [file], slicerId: slicer.id });
+      window.electron.launchSlicerCommand(result.command);
+      const frame = [...document.querySelectorAll('iframe')].find((f) => String(f.src).startsWith('printventory://'));
+      return frame ? frame.src : null;
+    }, path.join(LIBRARY, 'Designer A', 'cube.stl'));
+    check('Send to Slicer opens a helper link with a download token', /^printventory:\/\/open\/\?.*token=/.test(helperLink || '') && helperLink.includes('browser-slicer'), helperLink);
+    const browserSlicer = ((await invoke(wsUrl, session, 'get-slicers')).result || []).find((s) => s.name === 'Browser Slicer');
+    if (browserSlicer) await invoke(wsUrl, session, 'delete-slicer', [browserSlicer.id]);
 
     // Rename a designer through the in-page input dialog (Metadata Manager).
     const cube = path.join(LIBRARY, 'Designer A', 'cube.stl');

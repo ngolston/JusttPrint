@@ -1,21 +1,19 @@
-'use strict';
-
+'use strict';;
 const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const { createPuterIPCHandler, getAISettings } = require('./ai');
 const fs = require('fs');
 const path = require('path');
-const { invalidSlicerPathError } = require('../slicer-launch');
 const { isUrlModel, parseZipPath } = require('../../core/library-paths');
 const { getThumbnailImagePayload, parseThumbnails, readThumbnailColumn } = require('../../core/thumbnails');
 const { deleteModelJunctionRows, deleteModelsByFilePaths, getModelByFilePath } = require('../../core/models');
 const { clientDialogs } = require('../dialogs');
 const { clampFolderLevels } = require('../../core/library-context');
 const { applyFolderTagsToModels: applyFolderTagsInDb } = require('../../core/folder-tags');
-const { getServerAuth } = require('../auth');
-const { extractModelFromZip } = require('../../core/zip-entries');
-const { ensureSlicersTableExists, isDockerContainer, runSlicerWithModelPaths } = require('./slicers');
+require("../auth");
+require("../../core/zip-entries");
+const { ensureSlicersTableExists, slicerCommand } = require('./slicers');
 const { extract3MFMetadata, filter3MFMetadataBySettings } = require('../../core/three-mf');
 
 // Store pending context menu actions for server mode (browser access)
@@ -167,93 +165,18 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     console.error('Error getting slicers:', error);
   }
 
-  // Server mode hands the files to the local helper via printventory://.
-  // Desktop mode launches the slicer here, and only for a single selection.
-  if (slicers.length > 0 && filePaths.length >= 1 && (true)) {
+  // Send to Slicer hands the files to the helper on the user's computer (printventory://).
+  if (slicers.length > 0 && filePaths.length >= 1) {
     const slicerSubmenu = {
       label: 'Open in Slicer',
       submenu: slicers.map(slicer => ({
         label: slicer.name,
         slicerName: slicer.name,
         slicerPath: slicer.path,
+        // The browser launches straight from the menu item's clientAction; this only runs
+        // when a client asks the server to run the item, and answers that browser alone.
         click: async () => {
-          try {
-            {
-              const commandPayload = {
-                type: 'open-in-slicer',
-                filePaths: filePaths.slice(),
-                filePath: filePaths[0],
-                slicerName: slicer.name,
-                slicerPath: slicer.path,
-                downloadToken: getServerAuth().issueDownloadToken(),
-                isZipEntry: Boolean(isZipEntry),
-                zipPath: isZipEntry && pathInfo ? pathInfo.zipPath : null,
-                entryPath: isZipEntry && pathInfo ? pathInfo.entryPath : null
-              };
-              events.broadcast('execute-client-command', commandPayload);
-              return;
-            }
-
-            // For hidden Electron window or normal mode, check Docker/Windows path compatibility
-            const inDocker = isDockerContainer();
-            if (inDocker) {
-              // Check if slicer path is a Windows path (starts with drive letter like C:\ or UNC like \\server)
-              const hasWindowsDrive = /^[A-Za-z]:[\\/]/.test(slicer.path);
-              const hasUncPath = /^\\\\/.test(slicer.path);
-              const isWindowsPath = hasWindowsDrive || hasUncPath;
-              
-              if (isWindowsPath) {
-                console.error('[Slicer] Cannot execute Windows slicer in Docker:', slicer.path);
-                const errorMessage = `The slicer path "${slicer.path}" is a Windows path, but the application is running in a Docker container (Linux).\n\n` +
-                  `In Docker/Server mode, slicer paths must be:\n` +
-                  `- Linux executable paths (e.g., /usr/bin/slicer)\n` +
-                  `- Paths accessible from within the container\n\n` +
-                  `If you need to use a Windows slicer, you must run Printventory in normal mode (not Docker/Server mode).`;
-
-                clientDialogs.messageBox(event, {
-                  type: 'warning',
-                  title: 'Slicer Path Not Compatible',
-                  message: 'Cannot execute Windows executable in Docker container',
-                  detail: errorMessage
-                });
-                return; // Exit early - don't try to execute
-              }
-            }
-
-            // Execute slicer command (only in normal mode, not server mode)
-            const invalidSlicer = invalidSlicerPathError(slicer.path, slicer.name);
-            if (invalidSlicer) {
-              presentInvalidSlicer(event, invalidSlicer);
-              return;
-            }
-
-            let modelPath = filePaths[0]; // Use the first file selected
-
-            // If it's a zip entry, extract to OS temp first
-            if (isZipEntry && pathInfo) {
-              modelPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-            }
-
-            // Final safety check: if we're in Docker and path looks like Windows, don't execute
-            if (inDocker && (/^[A-Za-z]:[\\/]/.test(slicer.path) || /^\\\\/.test(slicer.path))) {
-              console.error('[Slicer] Blocked Windows path execution in Docker:', slicer.path);
-              throw new Error('Cannot execute Windows executable in Docker container. Please use a Linux-compatible slicer path.');
-            }
-
-            await runSlicerWithModelPaths(slicer, [modelPath]);
-          } catch (error) {
-            console.error('Error slicing model:', error);
-            if (error && error.code === 'INVALID_SLICER') {
-              presentInvalidSlicer(event, error);
-            } else {
-              clientDialogs.messageBox(event, {
-                type: 'error',
-                title: 'Error',
-                message: 'Could not slice model',
-                detail: error.message
-              });
-            }
-          }
+          events.sendTo(event.wsClient, 'execute-client-command', slicerCommand(slicer, filePaths));
         }
       }))
     };
@@ -892,13 +815,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             subIndex: subIndex
           };
           if (subItem.slicerPath) {
-            entry.clientAction = {
-              type: 'open-in-slicer',
-              slicerName: subItem.slicerName || subItem.label,
-              slicerPath: subItem.slicerPath,
-              downloadToken: getServerAuth().issueDownloadToken(),
-              filePaths: filePaths
-            };
+            entry.clientAction = slicerCommand({ name: subItem.slicerName || subItem.label, path: subItem.slicerPath }, filePaths);
           }
           return entry;
         });
@@ -1063,15 +980,6 @@ async function deleteFile(filePath) {
     });
     return false;
   }
-}
-
-function presentInvalidSlicer(event, error) {
-  return clientDialogs.messageBox(event, {
-    type: 'error',
-    title: 'Slicer path is not valid',
-    message: 'Could not open the slicer',
-    detail: error.message
-  });
 }
 
 // Add this helper function (if it doesn't already exist) near the top of main.js

@@ -178,7 +178,8 @@ Printventory offers comprehensive settings to customize your experience:
 - Rendering performance optimization
 
 ### Slicer Path
-- Configure one or more slicer applications (name + path)
+- Configure one or more slicer applications (name + path). The path is where the slicer is installed **on your computer**, not in the container
+- Send to Slicer uses the Printventory helper on your computer: download it from **Settings → Slicer** and run the installer once. The helper downloads the models from the server and starts the slicer locally; the server never runs a slicer itself
 - **Open in Slicer** from the right-click context menu
 - **Send to Slicer** from the 3D preview dialog (single model or full bundle)
 - On a Mac, the helper opens a **new slicer instance** for each send so models load even when the slicer is already open
@@ -198,7 +199,7 @@ When a scan finds **two or more** STL/3MF files in the same folder or inside the
 **Notes:**
 - Single-file folders are not grouped (they stay normal model rows).
 - Bundle preview supports up to 32 STL/3MF parts per open; larger bundles show the first 32 with a notice.
-- ZIP entries are extracted to a temp file before sending to the slicer, same as the context menu.
+- ZIP entries: the helper downloads just that file from the archive, same as the context menu.
 
 ### STL Home
 - Set default directory for file operations

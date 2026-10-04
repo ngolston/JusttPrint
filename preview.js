@@ -1357,35 +1357,20 @@ console.log('[Preview] preview.js script loaded');
     menu.classList.remove('hidden');
   }
 
+  // The server answers with an open-in-slicer command (including a short-lived download
+  // token); the browser hands it to the helper on this computer.
   async function sendPreviewToSlicer(slicer, filePaths) {
-    if (window._electronBridgeReady && window.PrintventorySlicerProtocol) {
-      try {
-        window.PrintventorySlicerProtocol.launchFromCommand({
-          slicerName: slicer.name,
-          slicerPath: slicer.path,
-          filePaths
-        });
-      } catch (error) {
-        const message = error && error.message ? error.message : String(error);
-        alert(`Could not send to slicer:\n${message}`);
-      }
-      return;
-    }
-
-    if (!window.electron?.openFileInSlicer) {
+    if (!window.electron?.openFileInSlicer || !window.electron?.launchSlicerCommand) {
       alert('Send to slicer is not available in this mode.');
       return;
     }
-
     try {
       const result = await window.electron.openFileInSlicer({
         filePaths,
         slicerId: slicer.id,
         slicerName: slicer.name
       });
-      if (result?.success) {
-        console.log('[Preview] Sent to slicer:', slicer.name, result);
-      }
+      if (result?.command) window.electron.launchSlicerCommand(result.command);
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
       alert(`Could not send to slicer:\n${message}`);

@@ -193,7 +193,7 @@ async function buildHelperBundle({ appDir, origin, insecure }) {
   const config = bundleConfig(origin, insecure);
   const helperJs = fs.readFileSync(path.join(appDir, 'helper', 'printventory-helper.js'));
   const protocolJs = fs.readFileSync(path.join(appDir, 'slicer-protocol.js'));
-  const launchJs = fs.readFileSync(path.join(appDir, 'src', 'server', 'slicer-launch.js'));
+  const launchJs = fs.readFileSync(path.join(appDir, 'helper', 'slicer-launch.js'));
   const shell = unixInstaller();
   const zip = new JSZip();
   zip.file('printventory-helper.js', helperJs);
