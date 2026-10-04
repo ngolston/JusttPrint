@@ -24,6 +24,7 @@ All notable changes contributed via pull request are documented in this file.
 - **HTTPS / SSL** settings are rebuilt in React, without the desktop-mode text. Buttons are disabled while a certificate request or save runs, so Let's Encrypt can't be asked twice.
 - **AI Configuration** and its prompt editor are rebuilt in React. Changes are now saved only by **Save**; before, typing in the endpoint, model or key fields, or changing the service, saved right away, so Cancel did not undo them.
 - The React screens send the page's id with their requests, so the server can show dialogs in, and send progress to, the page that asked (needed for AI tests that run in the browser).
+- **Purge Models** is rebuilt in React. Fixed: purging failed with "FOREIGN KEY constraint failed" once any print had been logged. It now also removes print history (as removing a single model does), in one transaction.
 - Fixed: a database restore could break requests that arrived while the database was being swapped (on CI it stopped the thumbnail job), and could have created a new session secret, logging everyone out. Login checks now keep the session secret and API token in memory.
 - Restoring a backup keeps the server's current password, API token and sessions; they are no longer replaced by the ones stored in the backup.
 - Backups use SQLite's online backup, so the database stays open while a backup is written.

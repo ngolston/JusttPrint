@@ -942,6 +942,18 @@ async function browserChecks(base, wsUrl, session) {
       && aiAfter.aiModel === 'llava' && aiAfter.aiTagMaxTags === '7', JSON.stringify(aiAfter));
     for (const key of aiKeys) await invoke(base, session, 'save-setting', [key, savedAi[key] == null ? '' : savedAi[key]]);
 
+    // Purge Models (React). Empties the library, so it runs last among the library checks.
+    await page.evaluate(() => window.openPurgeModels());
+    check('Purge Models opens', await page.isVisible('#purge-models-dialog'));
+    await page.click('#cancel-purge-button');
+    check('Cancel keeps the models', ((await invoke(base, session, 'get-stats')).result || {}).totalModels > 0);
+    await page.evaluate(() => window.openPurgeModels());
+    await page.click('#confirm-purge-button');
+    const purged = await page.waitForSelector('dialog[open]:has-text("All models have been purged") button:text-is("OK")', { timeout: 15000 }).catch(() => null);
+    if (purged) await purged.click();
+    check('Purge Models empties the library and the grid', !!purged && ((await invoke(base, session, 'get-stats')).result || {}).totalModels === 0
+      && (await page.$$('.file-grid [data-filepath], .file-grid [data-file-path]')).length === 0);
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })

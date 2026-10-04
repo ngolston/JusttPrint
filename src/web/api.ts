@@ -341,3 +341,8 @@ export const ai = {
     callAction<{ success: boolean; tags?: string[]; error?: string }>('test-ai-config', apiKey, endpoint, model, service),
   defaultPrompt: () => callAction<string>('get-default-ai-prompt')
 };
+
+export const purge = {
+  /** Removes every model from the library database (files on disk are untouched). */
+  allModels: () => callAction<boolean>('purge-models', { confirmedInDialog: true })
+};

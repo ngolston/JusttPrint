@@ -29,6 +29,8 @@ declare global {
     populateFileTypeFilter?: () => Promise<void>;
     /** search.js: run the current search and filters again. */
     performCombinedSearch?: () => Promise<void>;
+    /** renderer.js: empty the grid, counts and filters after every model was purged. */
+    afterModelsPurged?: () => Promise<void>;
   }
 }
 

@@ -543,7 +543,6 @@
     'reportServerThumbnailError': 'report-server-thumbnail-error',
     'deleteFile': 'delete-file',
     'fetchThangsPage': 'fetch-thangs-page',
-    'purgeModels': 'purge-models',
     'clearNewFlags': 'clear-new-model-flags',
     'getAdditionalFileTypesCatalog': 'get-additional-file-types-catalog',
     'get3MFImages': 'get3MFImages',
@@ -717,10 +716,6 @@
     }
   };
 
-  window.electron.onOpenPurgeModels = function(callback) {
-    window.electron.on('open-purge-models', callback);
-  };
-  
   window.electron.onHashGenerationProgress = function(callback) {
     console.log('[Bridge] ===== onHashGenerationProgress CALLED =====');
     console.log('[Bridge] Callback type:', typeof callback);

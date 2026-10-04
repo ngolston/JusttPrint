@@ -145,35 +145,6 @@ window.toggleDedupFullscreen = function toggleDedupFullscreen() {
   btn.textContent = dialog.classList.contains('modal-fullscreen') ? 'Exit Full Screen' : 'Full Screen';
 };
 
-// Purge Models: expose confirm action early so Purge button onclick works in Docker/server mode
-window.confirmPurgeModelsFromDialog = async function confirmPurgeModelsFromDialog() {
-  if (!window.electron?.purgeModels) return;
-  try {
-    const success = await window.electron.purgeModels({ confirmedInDialog: true });
-    if (success) {
-      const container = document.querySelector('.file-grid');
-      if (container) container.innerHTML = '';
-      if (typeof window.updateModelCounts === 'function') await window.updateModelCounts(0);
-      const dialog = document.getElementById('purge-models-dialog');
-      if (dialog && typeof dialog.close === 'function') dialog.close();
-      if (window.electron?.showMessage) await window.electron.showMessage('Success', 'All models have been purged from the database.');
-      const designerSelect = document.getElementById('designer-select');
-      const parentSelect = document.getElementById('parent-select');
-      const printedSelect = document.getElementById('printed-select');
-      const newSelect = document.getElementById('new-select');
-      const tagFilter = document.getElementById('tag-filter');
-      if (designerSelect) designerSelect.value = '';
-      if (parentSelect) parentSelect.value = '';
-      if (printedSelect) printedSelect.value = 'all';
-      if (newSelect) newSelect.value = 'all';
-      if (tagFilter) tagFilter.value = '';
-    }
-  } catch (err) {
-    console.error('Error purging models:', err);
-    if (window.electron?.showMessage) await window.electron.showMessage('Error', 'Failed to purge models from the database.');
-  }
-};
-
 // DeDup Easy: select all but one per group. Prefer a copy under the preferred directory, then ZIP, then the first file.
 window.dedupEasyFromDialog = function dedupEasyFromDialog() {
   if (typeof window.applyDedupEasySelection === 'function' && window._dedupVirtualState?.groups?.length) {
@@ -5718,10 +5689,7 @@ async function createServerMenuBar() {
       window.electron.send('generate-missing-thumbnails');
     }},
     { label: 'Purge Models', action: () => {
-      const dialog = document.getElementById('purge-models-dialog');
-      if (dialog) {
-        dialog.showModal();
-      }
+      window.openPurgeModels?.();
     }},
     { label: '---', action: null },
     { label: 'Backup/Restore', action: () => {
@@ -7569,9 +7537,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.openTagManager?.();
   });
 
+  // Purge Models is React (src/web/PurgeModelsDialog.tsx); it defines window.openPurgeModels.
   window._electronRealEventHandlers['open-purge-models'] = function() {
-    const dialog = document.getElementById('purge-models-dialog');
-    if (dialog) dialog.showModal();
+    window.openPurgeModels?.();
   };
   if (window._electronPendingEvents['open-purge-models']) {
     window._electronPendingEvents['open-purge-models'].forEach((args) => {
@@ -8105,34 +8073,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['generate-missing-thumbnails'];
   }
 
-  // Purge Models: full implementation (overwrites early stub so updateModelCounts is available)
-  async function confirmPurgeModelsFromDialog() {
-    try {
-      const success = await window.electron.purgeModels({ confirmedInDialog: true });
-      if (success) {
-        const container = document.querySelector('.file-grid');
-        if (container) {
-          clearFileItemPathIndex();
-          container.innerHTML = '';
-        }
-        await updateModelCounts(0);
-        document.getElementById('purge-models-dialog')?.close();
-        await window.electron.showMessage('Success', 'All models have been purged from the database.');
-        document.getElementById('designer-select').value = '';
-        document.getElementById('parent-select').value = '';
-        document.getElementById('printed-select').value = 'all';
-        const newSelPurge = document.getElementById('new-select');
-        if (newSelPurge) newSelPurge.value = 'all';
-        document.getElementById('tag-filter').value = '';
-        const filamentFilterClear = document.getElementById('filament-filter');
-        if (filamentFilterClear) filamentFilterClear.value = '';
-      }
-    } catch (error) {
-      console.error('Error purging models:', error);
-      await window.electron.showMessage('Error', 'Failed to purge models from the database.');
+  // After Purge Models (src/web/PurgeModelsDialog.tsx): empty the grid and counts, and reset the filters.
+  window.afterModelsPurged = async function afterModelsPurged() {
+    const container = document.querySelector('.file-grid');
+    if (container) {
+      clearFileItemPathIndex();
+      container.innerHTML = '';
     }
-  }
-  window.confirmPurgeModelsFromDialog = confirmPurgeModelsFromDialog;
+    await updateModelCounts(0);
+    for (const [id, value] of [['designer-select', ''], ['parent-select', ''], ['printed-select', 'all'], ['new-select', 'all'], ['tag-filter', ''], ['filament-filter', '']]) {
+      const select = document.getElementById(id);
+      if (select) select.value = value;
+    }
+  };
 
   // Sort-select handler is now managed by search.js via initializeCombinedSearch()
   // which properly calls performCombinedSearch() to re-render with filters preserved

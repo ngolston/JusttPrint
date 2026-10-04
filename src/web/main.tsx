@@ -17,6 +17,7 @@ import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
+import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { StatsDialog } from './StatsDialog';
 import { SystemReportDialog } from './SystemReportDialog';
@@ -41,6 +42,7 @@ function Screens() {
       <FileTypeSettingsDialog />
       <HttpsSettingsDialog />
       <AiConfigDialog />
+      <PurgeModelsDialog />
     </>
   );
 }
