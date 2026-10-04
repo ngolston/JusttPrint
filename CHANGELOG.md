@@ -4,6 +4,8 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-04
+
 **Upgrading:** no changes needed. Reload open browser tabs after updating. Behind a reverse proxy, the browser now also sends `POST /api/actions/...` requests; they need the same host or `JUSTTPRINT_ALLOWED_ORIGINS` setup as before.
 
 **Changes:**
@@ -12,6 +14,7 @@ All notable changes contributed via pull request are documented in this file.
 - Files and previews come back as raw bytes instead of base64 inside JSON.
 - Long actions send keep-alive spaces every 15 seconds, so reverse proxies do not time them out.
 - The WebSocket now only carries events, server dialogs and Puter AI requests, and reconnects indefinitely (it used to give up after 5 tries).
+- `docker-compose.local.yml` names its compose project `justtprint`, whatever the checkout folder is called.
 
 ## [4.0.0] - 2026-10-04
 
