@@ -2122,58 +2122,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
         </form>
       </dialog>
 
-      <dialog id="system-report-dialog" class="modal">
-        <form method="dialog">
-          <h2>System Report</h2>
-          <div class="system-report-content" style="max-height: 70vh; overflow-y: auto; padding: 1rem;">
-            <div id="system-report-loading" style="text-align: center; padding: 2rem;">
-              <p>Loading system information...</p>
-            </div>
-            <div id="system-report-content" style="display: none;">
-              <div class="system-report-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
-                <h3 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">Client GPU (this browser)</h3>
-                <p style="font-size: 0.85rem; color: #888; margin: 0 0 0.75rem 0;">Used for interactive 3D previews in the UI.</p>
-                <div id="client-gpu-status" style="margin-bottom: 0.5rem;">
-                  <span style="font-weight: bold;">Status: </span>
-                  <span id="client-gpu-detected">Checking...</span>
-                </div>
-                <div id="client-gpu-details" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;"></div>
-              </div>
-
-              <div class="system-report-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
-                <h3 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">Server / App GPU</h3>
-                <p style="font-size: 0.85rem; color: #888; margin: 0 0 0.75rem 0;">Used for Docker/server thumbnail jobs (hidden Electron worker). In desktop mode this is the local app process.</p>
-                <div id="server-gpu-status" style="margin-bottom: 0.5rem;">
-                  <span style="font-weight: bold;">Status: </span>
-                  <span id="server-gpu-detected">Checking...</span>
-                </div>
-                <div id="server-gpu-details" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;"></div>
-              </div>
-
-              <div class="system-report-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
-                <h3 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">File System Benchmark</h3>
-                <div id="filesystem-status" style="margin-bottom: 0.5rem;">
-                  <span style="font-weight: bold;">Status: </span>
-                  <span id="filesystem-result">Running benchmark...</span>
-                </div>
-                <div id="filesystem-details" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;"></div>
-              </div>
-
-              <div class="system-report-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
-                <h3 style="margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">Database Performance</h3>
-                <div id="database-status" style="margin-bottom: 0.5rem;">
-                  <span style="font-weight: bold;">Status: </span>
-                  <span id="database-result">Running benchmark...</span>
-                </div>
-                <div id="database-details" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;"></div>
-              </div>
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="system-report-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
 
       <dialog id="manage-thumbnails-dialog" class="modal">
         <form method="dialog">

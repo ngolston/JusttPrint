@@ -6558,6 +6558,61 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* System Report (src/web/SystemReportDialog.tsx) */
+.system-report-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.system-report-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.system-report-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+}
+
+.system-report-description {
+  font-size: 0.85rem;
+  color: #888;
+  margin: 0 0 0.75rem 0;
+}
+
+.system-report-details {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-top: 0.5rem;
+}
+
+.system-report-gap {
+  margin-top: 0.5rem;
+}
+
+.system-report-indent {
+  margin-left: 0.5rem;
+}
+
+.system-report-status-warn {
+  color: #ff9800;
+}
+
+.system-report-warnings {
+  color: #ffb74d;
+}
+
+.system-report-status-ok {
+  color: #4caf50;
+}
+
+.system-report-status-bad {
+  color: #f44336;
+}
+
 /* Stats charts (src/web/StatsDialog.tsx): an SVG pie with a legend, and CSS bars */
 .stats-pie {
   display: flex;

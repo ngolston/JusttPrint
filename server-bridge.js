@@ -595,9 +595,7 @@
     'readModelFile': 'read-model-file',
     'parse3MFPreview': 'parse-3mf-preview',
     'cancel3MFPreview': 'cancel-3mf-preview',
-    'getGpuInfo': 'get-gpu-info',
-    'benchmarkFilesystem': 'benchmark-filesystem',
-    'benchmarkDatabase': 'benchmark-database'
+    'getGpuInfo': 'get-gpu-info'
   };
   
   // Create proxy methods for all IPC calls IMMEDIATELY and SYNCHRONOUSLY
@@ -654,18 +652,6 @@
   
   window.electron.onOpenServerModeInfo = function(callback) {
     window.electron.on('open-server-mode-info', async () => {
-      await callback();
-    });
-  };
-  
-  window.electron.onOpenStats = function(callback) {
-    window.electron.on('open-stats', async () => {
-      await callback();
-    });
-  };
-  
-  window.electron.onOpenSystemReport = function(callback) {
-    window.electron.on('open-system-report', async () => {
       await callback();
     });
   };

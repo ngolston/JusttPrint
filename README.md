@@ -887,7 +887,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling
 - `renderer.js` - UI logic (being replaced screen by screen with React + TypeScript)
-- `src/web/` - React + TypeScript screens, built with Vite into `web-build/app.js` and mounted into the page one at a time (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. So far: Server Access, Tag Manager, Parts Manager, Filament Manager, Printer Manager and Library Stats
+- `src/web/` - React + TypeScript screens, built with Vite into `web-build/app.js` and mounted into the page one at a time (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. So far: Server Access, Tag Manager, Parts Manager, Filament Manager, Printer Manager, Library Stats and System Report
 - `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
 - `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `preview.js`, `search.js`, `folder-tree.js`, `slicer.js`, `guide.js` - Preview, search, folder tree, slicer settings, guide

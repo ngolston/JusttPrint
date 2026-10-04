@@ -198,3 +198,30 @@ export interface LibraryStats {
 export const library = {
   stats: () => callAction<LibraryStats>('get-stats')
 };
+
+export interface ServerGpuInfo {
+  available: boolean;
+  serverMode?: boolean;
+  glBackend?: string;
+  activeRenderer?: string | null;
+  usingSwiftShader?: boolean;
+  nvidia?: { available: boolean; message?: string; gpus?: { index: string; name: string; driverVersion: string; memoryTotalMiB: string; memoryUsedMiB: string; utilizationPercent: string }[] } | null;
+  nvidiaVisibleDevices?: string | null;
+  nvidiaDriverCapabilities?: string | null;
+  warnings?: string[];
+  error?: string | null;
+}
+
+export type FilesystemBenchmark =
+  | { success: true; iterations: number; write: { time: number; speedMBps: string }; read: { time: number; speedMBps: string } }
+  | { success: false; error: string };
+
+export type DatabaseBenchmark =
+  | { success: true; write: { time: number; operations: number; opsPerSec: string }; read: { time: number; operations: number; opsPerSec: string } }
+  | { success: false; error: string };
+
+export const systemReport = {
+  gpu: () => callAction<ServerGpuInfo>('get-gpu-info'),
+  benchmarkFilesystem: () => callAction<FilesystemBenchmark>('benchmark-filesystem'),
+  benchmarkDatabase: () => callAction<DatabaseBenchmark>('benchmark-database')
+};

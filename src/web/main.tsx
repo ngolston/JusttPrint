@@ -10,6 +10,7 @@ import { PartsManagerDialog } from './PartsManagerDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { StatsDialog } from './StatsDialog';
+import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 
 function Screens() {
@@ -21,6 +22,7 @@ function Screens() {
       <FilamentManagerDialog />
       <PrinterManagerDialog />
       <StatsDialog />
+      <SystemReportDialog />
     </>
   );
 }

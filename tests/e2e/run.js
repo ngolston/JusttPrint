@@ -760,6 +760,19 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#stats-dialog .dialog-buttons button');
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
 
+    // System Report (React): every section finishes, and both benchmarks complete.
+    await page.evaluate(() => window.openSystemReport());
+    check('System Report opens', await page.isVisible('#system-report-dialog'));
+    const reportDone = await page.waitForFunction(() => {
+      const statuses = [...document.querySelectorAll('#system-report-dialog .system-report-section')]
+        .map((section) => section.querySelector('[class^="system-report-status-"]')?.textContent || '');
+      return statuses.length === 4 && statuses.every(Boolean) ? statuses : null;
+    }, null, { timeout: 30000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('System Report fills every section', !!reportDone, JSON.stringify(reportDone));
+    check('System Report benchmarks complete', !!reportDone && reportDone[2] === '✓ Completed' && reportDone[3] === '✓ Completed', JSON.stringify(reportDone));
+    await page.click('#system-report-dialog .dialog-buttons button');
+    check('System Report closes', !(await page.isVisible('#system-report-dialog')));
+
     await page.evaluate(() => window.openServerAccess());
     check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
