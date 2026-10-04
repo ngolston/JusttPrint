@@ -146,14 +146,17 @@ function openEvents(wsUrl, { cookie, origin }, send) {
     const timer = setTimeout(() => { ws.terminate(); resolve({ error: 'timeout' }); }, 10000);
     const messages = [];
     ws.on('message', (raw) => {
-      messages.push(JSON.parse(String(raw)));
+      const message = JSON.parse(String(raw));
+      messages.push(message);
       if (messages.length === 1 && send) {
         ws.send(JSON.stringify(send));
         return;
       }
+      // Broadcast events (refresh-grid, ...) can arrive in between; wait for the reply to `send`.
+      if (send && message.id !== send.id) return;
       clearTimeout(timer);
       ws.close();
-      resolve({ hello: messages[0], reply: messages[1] });
+      resolve({ hello: messages[0], reply: send ? message : undefined });
     });
     ws.on('unexpected-response', (_req, res) => { clearTimeout(timer); resolve({ rejected: res.statusCode }); });
     ws.on('error', (error) => { clearTimeout(timer); resolve({ error: error.message }); });
@@ -388,8 +391,12 @@ async function apiChecks(base, wsUrl) {
   check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a JusttPrint backup/.test(junk.result.message), JSON.stringify(junk));
   check('library still works after a refused restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
   if (backupPath) {
+    // The API token changes after the backup was taken; a restore must keep the current one.
+    const newToken = ((await invoke(base, { cookie, origin }, 'regenerate-server-api-token')).result || {}).apiToken;
     const restored = await invoke(base, { cookie, origin }, 'restore-database', [{ base64: fs.readFileSync(backupPath).toString('base64') }]);
     check('restore from a backup', restored.result && restored.result.success === true, JSON.stringify(restored));
+    const tokenAfter = ((await invoke(base, { cookie, origin }, 'get-server-access-info')).result || {}).apiToken;
+    check('restore keeps the current API token and session', !!newToken && tokenAfter === newToken, `${newToken} / ${tokenAfter}`);
     check('library works after restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
     check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }

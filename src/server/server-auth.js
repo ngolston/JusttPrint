@@ -201,14 +201,28 @@ function loginPageHtml(next, error) {
  */
 function createServerAuth({ getSetting, setSetting, env = process.env, logger = console, now = Date.now, extraOrigins = () => [] }) {
   const loginFailures = new Map();
+  // The signing secret and API token are checked on every request: read them once, then keep them.
+  const remembered = new Map();
+
+  function rememberedSetting(key, create) {
+    if (!remembered.has(key)) {
+      let value = getSetting(key);
+      if (!value) {
+        value = create();
+        setSetting(key, value);
+      }
+      remembered.set(key, value);
+    }
+    return remembered.get(key);
+  }
+
+  function storeRemembered(key, value) {
+    setSetting(key, value);
+    remembered.set(key, value);
+  }
 
   function signingSecret() {
-    let secret = getSetting(SETTING_KEYS.signingSecret);
-    if (!secret) {
-      secret = randomSecret();
-      setSetting(SETTING_KEYS.signingSecret, secret);
-    }
-    return secret;
+    return rememberedSetting(SETTING_KEYS.signingSecret, () => randomSecret());
   }
 
   function setPassword(password) {
@@ -216,7 +230,7 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
       throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
     }
     setSetting(SETTING_KEYS.passwordHash, hashPassword(password));
-    setSetting(SETTING_KEYS.signingSecret, randomSecret());
+    storeRemembered(SETTING_KEYS.signingSecret, randomSecret());
   }
 
   function verifyPassword(password) {
@@ -250,17 +264,12 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
   }
 
   function apiToken() {
-    let token = getSetting(SETTING_KEYS.apiToken);
-    if (!token) {
-      token = `pv_${randomSecret()}`;
-      setSetting(SETTING_KEYS.apiToken, token);
-    }
-    return token;
+    return rememberedSetting(SETTING_KEYS.apiToken, () => `pv_${randomSecret()}`);
   }
 
   function regenerateApiToken() {
     const token = `pv_${randomSecret()}`;
-    setSetting(SETTING_KEYS.apiToken, token);
+    storeRemembered(SETTING_KEYS.apiToken, token);
     return token;
   }
 
