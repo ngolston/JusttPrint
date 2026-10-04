@@ -197,6 +197,7 @@ async function apiChecks(base, wsUrl) {
   check('scan /etc refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
   check('page fetch outside Thangs refused', refused(await invoke(wsUrl, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']), /Only https links to thangs\.com/));
   check('fetch-makerworld-page removed', !!(await invoke(wsUrl, { cookie, origin }, 'fetch-makerworld-page', ['https://makerworld.com/'])).error);
+  check('scan of the app folder refused', refused(await invoke(wsUrl, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
   check('open-path refused', refused(await invoke(wsUrl, { cookie, origin }, 'open-path', [LIBRARY]), /desktop app/));
   check('move out of library refused', refused(await invoke(wsUrl, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
   const read = await invoke(wsUrl, { cookie, origin }, 'read-model-file', [cube]);
@@ -211,6 +212,14 @@ async function apiChecks(base, wsUrl) {
   const mcp = await anon.request('/mcp', { method: 'POST', json: mcpBody, useCookie: false, headers: { authorization: `Bearer ${token}` } });
   const mcpText = await mcp.text();
   check('MCP with token finds library models', mcp.status === 200 && mcpText.includes('cube.stl') && mcpText.includes('pack.zip::inner/widget.stl'));
+  const mcpTool = async (name, args = {}) => {
+    const res = await anon.request('/mcp', { method: 'POST', json: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, useCookie: false, headers: { authorization: `Bearer ${token}` } });
+    return { status: res.status, text: await res.text() };
+  };
+  const mcpStats = await mcpTool('get_library_stats');
+  check('MCP library stats', mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text), mcpStats.text.slice(0, 200));
+  const mcpTree = await mcpTool('get_folder_tree');
+  check('MCP folder tree', mcpTree.status === 200 && mcpTree.text.includes('Designer A') && !/"isError":\s*true/.test(mcpTree.text), mcpTree.text.slice(0, 200));
   const backupMcp = await anon.request('/mcp', {
     method: 'POST', useCookie: false, headers: { authorization: `Bearer ${token}` },
     json: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'backup_database', arguments: { destPath: '/etc/evil.db' } } }
