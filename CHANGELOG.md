@@ -4,6 +4,10 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-10-04
+
+**Upgrading:** no changes needed. `notes-markdown.js` and `print-history.js` are removed; if you serve the files yourself, rebuild with `npm run build:web`.
+
 **Changes:**
 - The library grid is React (`src/web/grid/`): its layout (views, columns, ZIP and parent-model groups, the rows near the viewport) is tested TypeScript, and the model cards and group cards (ZIP bundles, parent-model groups) in all three views are React components that redraw from their models. Editing a model updates its card without rebuilding it.
 - The details panel's name, source URL, designer, parent model, license and tags are React (`src/web/details/DetailsFields.tsx`). Each change saves once (picking from the ☰ list used to save twice). The + buttons ask for the new name in the app's own prompt.
