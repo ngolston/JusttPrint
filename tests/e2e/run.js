@@ -197,7 +197,7 @@ async function apiChecks(base, wsUrl) {
   check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
   check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/renderer.js')));
-  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/parse-worker.js')));
+  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
   console.log('\n# Library files');
@@ -799,7 +799,7 @@ async function browserChecks(base, wsUrl, session) {
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const worker = new Worker('parse-worker.js');
+      const worker = new Worker(window.parseWorkerUrl);
       const reply = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve({ success: false, error: 'timeout' }), 60000);
         worker.onmessage = (event) => { clearTimeout(timer); resolve(event.data); };

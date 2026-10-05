@@ -730,7 +730,6 @@ let isBackgrounded = false;
 let RENDER_DELAY = 200; // Increase delay between renders to 200ms
 let autoStartedRendering = false;
 let thumbnailCache = new Map();
-let sharedRenderer = null;
 let renderContext = null;
 
 // Inverted filter state - tracks which filters are inverted (NOT equal instead of equal)
@@ -759,18 +758,6 @@ function parseZipPath(filePath) {
   return { zipPath: filePath, entryPath: null, isZipEntry: false };
 }
 
-// Helper function to get model color based on settings
-function getModelColor() {
-  const colorSetting = window.currentRenderColor || '#cccccc';
-  
-  if (colorSetting === 'rainbow') {
-    return new THREE.Color().setHSL(Math.random(), 1.0, 0.5);
-  } else if (colorSetting === 'pastel-rainbow') {
-    return new THREE.Color().setHSL(Math.random(), 1.0, 0.8);
-  } else {
-    return new THREE.Color(colorSetting);
-  }
-}
 
 // Extensions that are valid for library (scan/add). Used for isValidFile.
 const EXTENSIONS_VALID_FOR_LIBRARY = new Set(['.stl', '.3mf', '.3ds', '.amf', '.blender', '.chitubox', '.dae', '.dxf', '.dwg', '.fbx', '.f3d', '.f3z', '.gcode', '.igs', '.iges', '.lys', '.lyt', '.obj', '.ply', '.step', '.stp', '.svg', '.voxl', '.x3d']);
@@ -1042,7 +1029,7 @@ async function collectStepAssemblyBuffers(rootPath, rootBuffer) {
 
 function getSharedStepParseWorker() {
   if (sharedStepParseWorker) return sharedStepParseWorker;
-  const worker = new Worker('parse-worker.js');
+  const worker = new Worker(window.parseWorkerUrl);
   worker.onmessage = function(e) {
     const handler = stepParseJobHandlers.get(e.data && e.data.id);
     if (handler) handler(e);
@@ -1289,7 +1276,7 @@ async function loadModelData(filePath, options = {}) {
     return new Promise((resolve, reject) => {
       const reuseWorker = fileExtension === 'step' || fileExtension === 'stp'
         || fileExtension === 'igs' || fileExtension === 'iges';
-      const worker = reuseWorker ? getSharedStepParseWorker() : new Worker('parse-worker.js');
+      const worker = reuseWorker ? getSharedStepParseWorker() : new Worker(window.parseWorkerUrl);
       const jobId = Date.now().toString() + Math.random().toString();
       let settled = false;
 
@@ -1368,63 +1355,13 @@ async function loadModelData(filePath, options = {}) {
   }
 }
 
-/** Build a three.js group (the page's global three.js, for thumbnails) from loadModelData. */
-async function loadModel(filePath, options = {}) {
-  const data = await loadModelData(filePath, options);
-  if (!data) return null;
-  const group = new THREE.Group();
-  const material = new THREE.MeshStandardMaterial({
-    color: getModelColor(),
-    metalness: 0.3,
-    roughness: 0.4
-  });
-  data.geometries.forEach((geoData) => {
-    if (!geoData.position || geoData.position.length < 9) return;
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(geoData.position, 3));
-    if (!geometry.index && geoData.normal && typeof repairZeroFaceNormals === 'function') {
-      repairZeroFaceNormals(geoData.position, geoData.normal);
-    }
-    const normalsMissing = !geoData.normal
-      || geoData.normal.length < geoData.position.length
-      || (typeof normalsAreMissing === 'function' && normalsAreMissing(geoData.normal));
-    if (!normalsMissing) {
-      geometry.setAttribute('normal', new THREE.BufferAttribute(geoData.normal, 3));
-    } else {
-      geometry.computeVertexNormals();
-    }
-    if (geoData.uv && geoData.uv.length >= (geoData.position.length / 3) * 2) {
-      geometry.setAttribute('uv', new THREE.BufferAttribute(geoData.uv, 2));
-    }
-    if (geoData.index) geometry.setIndex(new THREE.BufferAttribute(geoData.index, 1));
-    const meshMaterial = (geoData.color && geoData.color.length >= 3)
-      ? new THREE.MeshStandardMaterial({
-          color: new THREE.Color(geoData.color[0], geoData.color[1], geoData.color[2]),
-          metalness: 0.3,
-          roughness: 0.4
-        })
-      : material;
-    const mesh = new THREE.Mesh(geometry, meshMaterial);
-    if (geoData.matrix) mesh.applyMatrix4(new THREE.Matrix4().fromArray(geoData.matrix));
-    group.add(mesh);
-  });
-  if (group.children.length === 0) throw new Error('Model contains no drawable mesh geometry');
-  if (isRenderable3dExtension(data.fileExtension)) group.rotation.x = -Math.PI / 2;
-  return group;
-}
-
 window.loadModelData = loadModelData;
-window.loadModel = loadModel;
 
 // Add these variables at the top
 let totalThumbnailsToGenerate = 0;
 let generatedThumbnailsCount = 0;
 
 // Add WebGL context management variables
-let sharedScene = null;
-let sharedCamera = null;
-let contextUseCount = 0;
-const MAX_CONTEXT_USES = 20; // Reset context after this many uses
 const MAX_CONTEXT_REUSE_COUNT = 100; // Desktop default; server mode lowers this at init
 let maxContextReuseCount = MAX_CONTEXT_REUSE_COUNT;
 
@@ -4742,185 +4679,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // extract3MFThumbnail moved to top level for generateThumbnail access
   
-  async function extract3MFSTL(filePath) {
-    try {
-      return await window.electron.get3MFSTL(filePath); // Direct return
-    } catch (error) {
-      console.error('extract3MFSTL error:', error);
-      // throw error;  // Same consideration as above
-      return null;
-    }
-  }
-
-  // NOTE: renderModelToPNG is defined at top level (line ~5462) - duplicate removed
-  
-  function displayThumbnail(thumbnail, container, size) {
-    const img = document.createElement('img');
-    img.src = thumbnail;
-    img.style.width = size;
-    img.style.height = size;
-    img.className = 'model-thumbnail'; // Add a class for styling (optional)
-    container.innerHTML = ''; // Clear existing content
-    container.appendChild(img);
-    return thumbnail;
-  }
-
-  async function renderSTLThumbnail(filePath, container) {
-    const renderer = getSharedRenderer();
-    const thumbnailSize = '250px';
-  
-    let scene, camera, model;
-  
-    try {
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
-  
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-    
-    // Check if advanced lighting is enabled (default true)
-    const useAdvancedLighting = window.currentRenderLighting !== undefined ? window.currentRenderLighting : true;
-    
-    if (useAdvancedLighting) {
-      const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      keyLight.position.set(5, 10, 7.5); // Standard key light position
-      scene.add(keyLight);
-      
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      fillLight.position.set(-5, 5, -7.5); // Fill/Back light
-      scene.add(fillLight);
-    } else {
-      // Fallback to simple directional light if advanced lighting is disabled
-      const simpleLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      simpleLight.position.set(1, 1, 1).normalize();
-      scene.add(simpleLight);
-    }
-  
-      model = await loadModel(filePath, {
-        optimizeGeometry: true,
-        skipMaterials: true
-      });
-  
-      if (!model) {
-        throw new Error('Failed to load model');
-      }
-  
-      model.traverse(child => {
-        if (child.isMesh) {
-          if (useAdvancedLighting) {
-             child.material = new THREE.MeshStandardMaterial({
-              color: getModelColor(),
-              metalness: 0.3,
-              roughness: 0.4
-            }); 
-          } else {
-             child.material = new THREE.MeshBasicMaterial({ color: getModelColor() });
-          }
-        }
-      });
-  
-      scene.add(model);
-      fitCameraToObject(camera, model, scene, renderer);
-  
-      renderer.render(scene, camera);
-      const imgData = renderer.domElement.toDataURL('image/png', 0.8);
-  
-      thumbnailCache.set(filePath, imgData);
-  
-      return displayThumbnail(imgData, container, thumbnailSize);
-  
-    } catch (error) {
-      console.error('Error rendering STL:', error);
-      return displayThumbnail(generateCorruptedPlaceholder(), container, thumbnailSize);
-    } finally {
-      // Clean up THREE.js resources
-      if (scene) {
-        scene.traverse((object) => {
-          if (object.geometry) {
-            object.geometry.dispose();
-            object.geometry = null;
-          }
-          if (object.material) {
-            if (Array.isArray(object.material)) {
-              object.material.forEach(material => {
-                material.dispose();
-                material = null;
-              });
-            } else {
-              object.material.dispose();
-              object.material = null;
-            }
-          }
-        });
-        scene.clear();
-        scene = null;
-      }
-
-      // Explicitly clean up the model
-      if (model) {
-        model.traverse(child => {
-          if (child.geometry) {
-            child.geometry.dispose();
-            child.geometry = null;
-          }
-        });
-        model = null;
-      }
-
-      // Reset renderer state but keep the instance
-      if (sharedRenderer) {
-        // sharedRenderer.forceContextLoss(); // Do not force context loss as it destroys the WebGL context
-        sharedRenderer.resetState();
-        sharedRenderer.clear();
-      }
-
-      // Force garbage collection
-      if (typeof gc === 'function') gc();
-    }
-  }
-  
-
-  // NOTE: processRenderQueue is defined at top level (line ~5316) - duplicate removed
-  
-  // 8. Add memory management
-  function cleanupMemory() {
-    if (thumbnailCache.size > 1000) { // Limit cache size
-      const entriesToRemove = Array.from(thumbnailCache.keys()).slice(0, 500);
-      entriesToRemove.forEach(key => thumbnailCache.delete(key));
-    }
-    
-    if (sharedRenderer) {
-      sharedRenderer.state.reset();
-    }
-  }
-
-  // Add function for deep cleanup of Three.js resources.
-  // Do NOT call forceContextLoss — that restarts Chromium's GPU process and floods
-  // Docker logs with Skia OOM / CreateSharedImage errors (especially NVIDIA+ANGLE).
-  function deepCleanThreeResources() {
-    if (sharedRenderer) {
-      try {
-        sharedRenderer.dispose();
-      } catch (_) { /* ignore */ }
-      sharedRenderer = null;
-    }
-    if (sharedCanvas) {
-      try { sharedCanvas.remove(); } catch (_) { /* ignore */ }
-      sharedCanvas = null;
-    }
-    contextUseCount = 0;
-
-    // Force garbage collection
-    if (typeof gc === 'function') {
-      try { gc(); } catch (_) { /* ignore */ }
-    }
-
-    // Clear texture cache
-    if (typeof THREE !== 'undefined' && THREE.Cache) {
-      THREE.Cache.clear();
-    }
-  }
-
   // NOTE: loadModel is now defined at top level (line ~50) - duplicate removed
 
 
@@ -7546,8 +7304,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           // never forceContextLoss (restarts GPU process → Skia OOM log storms).
           if (maxConcurrentThumbnails === 1) {
             await new Promise((r) => setTimeout(r, 25));
-            if (processedInBatch % 15 === 0 && typeof deepCleanThreeResources === 'function') {
-              deepCleanThreeResources();
+            if (processedInBatch % 15 === 0 && window.thumbnailRenderer) {
+              await window.thumbnailRenderer.reset();
               await new Promise((r) => setTimeout(r, 50));
             } else if (typeof gc === 'function' && processedInBatch % 5 === 0) {
               try { gc(); } catch (_) { /* ignore */ }
@@ -7834,44 +7592,6 @@ async function toggleModelSelection(fileElement, filePath) {
 // NOTE: loadModel function is defined earlier in the file (around line 2840)
 // This duplicate has been removed to use the enhanced version that checks for embedded images
 
-function fitCameraToObject(camera, object, scene, renderer) {
-  // Orient first, then measure — otherwise large flat STLs (e.g. 400×420×4 plates)
-  // get framed for the wrong bbox and often land past the camera far plane.
-  object.rotation.x = -Math.PI / 2;
-  object.updateMatrixWorld(true);
-
-  const boundingBox = new THREE.Box3().setFromObject(object);
-  const size = boundingBox.getSize(new THREE.Vector3());
-  const center = boundingBox.getCenter(new THREE.Vector3());
-
-  if (Number.isFinite(center.x) && Number.isFinite(center.y) && Number.isFinite(center.z)) {
-    object.position.sub(center);
-    object.updateMatrixWorld(true);
-  }
-
-  const fittedBox = new THREE.Box3().setFromObject(object);
-  const fittedSize = fittedBox.getSize(new THREE.Vector3());
-  const maxDim = Math.max(fittedSize.x, fittedSize.y, fittedSize.z, 1e-3);
-
-  const fov = camera.fov * (Math.PI / 180);
-  const tanHalfFov = Math.tan(fov / 2);
-  let cameraZ =
-    maxDim > 0 && tanHalfFov > 0
-      ? Math.abs(maxDim / 2 / tanHalfFov) * 1.5
-      : 5;
-  if (!Number.isFinite(cameraZ) || cameraZ <= 0) cameraZ = 5;
-
-  // Camera sits on the (z,z,z) diagonal — keep far plane beyond that distance.
-  const cameraDistance = cameraZ * Math.sqrt(3);
-  camera.near = Math.max(0.01, cameraDistance / 1000);
-  camera.far = Math.max(10000, cameraDistance * 20);
-  camera.updateProjectionMatrix();
-
-  camera.position.set(cameraZ, cameraZ, cameraZ);
-  camera.lookAt(0, 0, 0);
-
-  renderer.render(scene, camera);
-}
 
 /** True when a thumbnail data-URL is effectively empty (transparent / clipped render). */
 function isMostlyEmptyThumbnailDataUrl(dataUrl) {
@@ -8661,103 +8381,6 @@ async function processRenderQueue() {
   }
 }
 
-// 2. Optimize renderer settings and reuse renderer instance
-let sharedCanvas = null;
-let sharedWebGLUnavailable = false;
-
-function createThumbnailWebGLRenderer(canvas) {
-  // Prefer options that succeed on macOS Electron; fall back if a preference is rejected.
-  const attempts = [
-    { antialias: false, alpha: true, canvas, preserveDrawingBuffer: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false },
-    { antialias: false, alpha: true, canvas, preserveDrawingBuffer: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false },
-    { antialias: false, alpha: true, canvas, preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false },
-    { antialias: false, alpha: true, canvas, preserveDrawingBuffer: true }
-  ];
-  let lastError = null;
-  for (const opts of attempts) {
-    try {
-      const renderer = new THREE.WebGLRenderer(opts);
-      if (renderer.debug) {
-        // Some WebGL stacks return null from getProgramInfoLog/getShaderInfoLog; Three.js calls .trim() and throws.
-        renderer.debug.checkShaderErrors = false;
-      }
-      return renderer;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('Error creating WebGL context.');
-}
-
-function getSharedRenderer() {
-  if (sharedWebGLUnavailable) {
-    throw new Error('Error creating WebGL context.');
-  }
-  if (!sharedRenderer || contextUseCount >= maxContextReuseCount) {
-    // Soft recycle: dispose only. forceContextLoss restarts the GPU process and
-    // produces Skia OOM / CreateSharedImage stderr storms in Docker (NVIDIA).
-    if (sharedRenderer) {
-      try {
-        sharedRenderer.dispose();
-      } catch (_) { /* ignore */ }
-      sharedRenderer = null;
-    }
-    if (sharedCanvas) {
-      sharedCanvas.remove();
-      sharedCanvas = null;
-    }
-
-    // Create new canvas and attach to DOM. Detached canvases often fail getContext('webgl') on macOS Electron.
-    sharedCanvas = document.createElement('canvas');
-    sharedCanvas.width = 250;
-    sharedCanvas.height = 250;
-    sharedCanvas.setAttribute('aria-hidden', 'true');
-    Object.assign(sharedCanvas.style, {
-      position: 'fixed',
-      left: '-9999px',
-      top: '0',
-      width: '250px',
-      height: '250px',
-      opacity: '0',
-      pointerEvents: 'none'
-    });
-    document.body.appendChild(sharedCanvas);
-
-    try {
-      sharedRenderer = createThumbnailWebGLRenderer(sharedCanvas);
-    } catch (err) {
-      sharedWebGLUnavailable = true;
-      if (sharedCanvas) {
-        sharedCanvas.remove();
-        sharedCanvas = null;
-      }
-      console.error('WebGL unavailable for thumbnails:', err && err.message ? err.message : err);
-      throw err;
-    }
-
-    contextUseCount = 0;
-
-    // Add context loss handler
-    sharedCanvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
-      sharedWebGLUnavailable = false;
-      try {
-        if (sharedRenderer) {
-          sharedRenderer.dispose();
-        }
-      } catch (_) { /* ignore */ }
-      sharedRenderer = null;
-      if (sharedCanvas) {
-        sharedCanvas.remove();
-        sharedCanvas = null;
-      }
-      contextUseCount = 0;
-    }, false);
-  }
-  contextUseCount++;
-  return sharedRenderer;
-}
-
 async function renderModelToPNG(filePath, container, existingThumbnail, options = {}) {
   const retainDetached = !!(options && options.retainDetached);
   const startTime = Date.now();
@@ -8902,181 +8525,41 @@ async function renderModelToPNG(filePath, container, existingThumbnail, options 
     return fallback;
   }
 
-  let scene, camera;
-  let model = null; // Declare model in outer scope
-  let renderer;
-  try {
-    renderer = getSharedRenderer();
-  } catch (webglError) {
-    console.error('WebGL unavailable, using placeholder:', webglError && webglError.message ? webglError.message : webglError);
-    const corruptedDataUrl = generateCorruptedPlaceholder();
+  // The 3D render is TypeScript on three.js (src/web/thumbnails/render.ts).
+  const showImage = (src, alt) => {
     const img = document.createElement('img');
-    img.src = corruptedDataUrl;
+    img.src = src;
     img.style.width = '250px';
     img.style.height = '250px';
-    img.alt = 'WebGL unavailable';
+    if (alt) img.alt = alt;
     container.innerHTML = '';
     container.appendChild(img);
-    return null;
-  }
-
+  };
+  let imgData;
   try {
-    renderer.setSize(250, 250);
-    scene = new THREE.Scene();
-    // Match preview.js far plane — large plates (400mm+) put the camera well past 1000.
-    camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
-
-    renderer.setClearColor(0x000000, 0);
-    
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-
-    // Check if advanced lighting is enabled (default true)
-    const useAdvancedLighting = window.currentRenderLighting !== undefined ? window.currentRenderLighting : true;
-
-    if (useAdvancedLighting) {
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      directionalLight.position.set(5, 10, 7.5);
-      scene.add(directionalLight);
-      
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      fillLight.position.set(-5, 5, -7.5);
-      scene.add(fillLight);
-    } else {
-       // Fallback to simple directional light if advanced lighting is disabled
-      const simpleLight = new THREE.DirectionalLight(0xffffff, 1.0);
-      simpleLight.position.set(1, 1, 1).normalize();
-      scene.add(simpleLight);
-    }
-
-    // Use loadModel function which has proper path encoding handling and embedded image check
-    // loadModel is available globally via window.loadModel
-    const loadModelFunc = window.loadModel || loadModel;
-    if (!loadModelFunc) {
-      throw new Error('loadModel function is not available.');
-    }
-
-    // Add a timeout to prevent hanging indefinitely (e.g. on network shares or parsing errors)
     // Split 3MF (MeshyAI / Bambu Production Extension) can be 100MB+ of XML.
-    const timeoutMs = fileExtension === '3mf' ? 120000 : 30000;
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(`Loading model timed out after ${timeoutMs}ms`)), timeoutMs);
+    imgData = await window.thumbnailRenderer.render(filePath, {
+      timeoutMs: fileExtension === '3mf' ? 120000 : 30000,
+      contextReuse: maxContextReuseCount,
+      lighting: window.currentRenderLighting !== undefined ? window.currentRenderLighting : true,
+      stillWanted: () => !container || container.isConnected || retainDetached
     });
-
-    try {
-      model = await Promise.race([
-        loadModelFunc(filePath),
-        timeoutPromise
-      ]);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    // Cell recycled / scrolled away during load — abandon; visible hydrate will re-queue.
-    if (container && !container.isConnected && !retainDetached) {
-      return null;
-    }
-
-    if (!model) {
-      console.log(`[DEBUG] renderModelToPNG: loadModel returned null (embedded image, zip container, or url), using placeholder`);
-      const img = document.createElement('img');
-      img.src = '3d.png';
-      img.style.width = '250px';
-      img.style.height = '250px';
-      container.innerHTML = '';
-      container.appendChild(img);
-      return '3d.png';
-    }
-    
-    scene.add(model);
-    fitCameraToObject(camera, model, scene, renderer);
-    renderer.render(scene, camera);
-
-    let imgData = renderer.domElement.toDataURL('image/png');
-    if (await isMostlyEmptyThumbnailDataUrl(imgData)) {
-      // One retry with a wider framing — common for large flat STLs that were clipped.
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z, 1e-3);
-      const cameraZ = maxDim * 2.5;
-      const cameraDistance = cameraZ * Math.sqrt(3);
-      camera.near = Math.max(0.01, cameraDistance / 1000);
-      camera.far = Math.max(20000, cameraDistance * 20);
-      camera.updateProjectionMatrix();
-      camera.position.set(cameraZ, cameraZ * 0.7, cameraZ);
-      camera.lookAt(0, 0, 0);
-      renderer.render(scene, camera);
-      imgData = renderer.domElement.toDataURL('image/png');
-    }
-
-    const img = document.createElement('img');
-    img.src = imgData;
-    img.style.width = '250px';
-    img.style.height = '250px';
-    container.innerHTML = '';
-    container.appendChild(img);
-
-    return imgData;
-
   } catch (error) {
-    console.error('Error rendering model:', error);
-    const corruptedDataUrl = generateCorruptedPlaceholder();
-    const img = document.createElement('img');
-    img.src = corruptedDataUrl;
-    img.style.width = '250px';
-    img.style.height = '250px';
-    img.alt = 'Model may be corrupted';
-    container.innerHTML = '';
-    container.appendChild(img);
+    const noWebGL = window.thumbnailRenderer?.isWebGLUnavailable(error);
+    console.error(noWebGL ? 'WebGL unavailable, using placeholder:' : 'Error rendering model:', error && error.message ? error.message : error);
+    showImage(generateCorruptedPlaceholder(), noWebGL ? 'WebGL unavailable' : 'Model may be corrupted');
     // Return null so callers do not persist failure art as a "real" thumbnail.
     return null;
-  } finally {
-    // Cleanup code that uses model
-    if (model) {
-      model.traverse(child => {
-        if (child.geometry) {
-          child.geometry.dispose();
-          child.geometry = null;
-        }
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => m && m.dispose());
-          } else {
-            child.material.dispose();
-          }
-        }
-      });
-      model = null;
-    }
-
-    if (scene) {
-      scene.traverse((object) => {
-        if (object.geometry) {
-          object.geometry.dispose();
-          object.geometry = null;
-        }
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach(material => {
-              material && material.dispose();
-            });
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
-      scene.clear();
-      scene = null;
-    }
-
-    // Reset renderer state but keep the instance
-    if (sharedRenderer) {
-      sharedRenderer.clear();
-    }
-
-    camera = null;
   }
+  // Cell recycled / scrolled away during load — abandon; visible hydrate will re-queue.
+  if (container && !container.isConnected && !retainDetached) return null;
+  if (!imgData) {
+    // Nothing to draw (zip container, url, or an embedded image is used instead).
+    showImage('3d.png');
+    return '3d.png';
+  }
+  showImage(imgData);
+  return imgData;
 }
 
 
@@ -11397,19 +10880,6 @@ const RENDER_CONFIG = {
   CLEANUP_INTERVAL: 60000
 };
 
-// Add WebGL context loss handling
-window.addEventListener('webglcontextlost', (event) => {
-  event.preventDefault();
-  try {
-    if (sharedRenderer) sharedRenderer.dispose();
-  } catch (_) { /* ignore */ }
-  sharedRenderer = null;
-  if (sharedCanvas) {
-    try { sharedCanvas.remove(); } catch (_) { /* ignore */ }
-    sharedCanvas = null;
-  }
-  contextUseCount = 0;
-}, false);
 
 // Searchable list dialog functionality
 /** onPick: hand the picked value (or null when cancelled) to the caller instead of a select. */

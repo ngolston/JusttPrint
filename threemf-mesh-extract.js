@@ -8,7 +8,7 @@
  * Oversized meshes are simplified with spatial vertex clustering (not
  * triangle stride), so previews stay solid instead of shredded.
  *
- * Works in Node (module.exports) and in the parse-worker (self.ThreeMFMeshExtract).
+ * Works in Node (module.exports) and in the parse worker, src/web/parse/worker.ts (self.ThreeMFMeshExtract).
  */
 
 (function (root, factory) {

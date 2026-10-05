@@ -259,7 +259,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     // The model parse worker also gets 'unsafe-eval': the STEP library (occt-import-js, Emscripten
     // embind) builds functions from strings. A worker runs under its own response's policy and
     // has no access to the page, so the page itself stays strict.
-    const scriptSrc = req.path === '/parse-worker.js'
+    const scriptSrc = req.path === '/web-build/parse-worker.js'
       ? "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'"
       : "script-src 'self' 'wasm-unsafe-eval'";
     res.setHeader('Content-Security-Policy', `${scriptSrc}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);

@@ -29,6 +29,8 @@ import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
 import './preview/files';
+import './thumbnails';
+import './parse';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';

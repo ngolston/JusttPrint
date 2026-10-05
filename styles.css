@@ -9179,6 +9179,11 @@ dialog:not([open]) {
   color: rgba(255, 255, 255, 0.75);
 }
 
+/* Rotate speed is hidden until Auto rotate is on. */
+.preview-studio-slider[hidden] {
+  display: none;
+}
+
 .preview-studio-slider input[type="range"] {
   width: 100%;
   accent-color: #4a9eff;

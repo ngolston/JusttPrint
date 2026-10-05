@@ -6,12 +6,20 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   publicDir: false,
+  // URLs relative to app.js (web-build/), e.g. the parse worker's.
+  base: './',
+  // The parse worker (src/web/parse/worker.ts) is a classic script so it can importScripts
+  // the helpers that are not modules (XML parser, OpenCascade, the 3MF/LYS/STL helpers).
+  worker: {
+    format: 'iife',
+    rollupOptions: { output: { entryFileNames: 'parse-worker.js' } }
+  },
   build: {
     outDir: 'web-build',
     emptyOutDir: true,
     // No inline scripts or eval: the page's CSP only runs script files from the server.
     modulePreload: false,
-    // The 3D preview's engine chunk (engine.js) carries three.js, loaded only when a preview opens.
+    // three.js (three.js chunk) is loaded only when a preview opens or a thumbnail is drawn.
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: 'src/web/main.tsx',
@@ -19,7 +27,9 @@ export default defineConfig({
         // A fixed name, so index.html can load it; the server sends JS with Cache-Control: no-cache.
         entryFileNames: 'app.js',
         chunkFileNames: '[name].js',
-        assetFileNames: '[name][extname]'
+        assetFileNames: '[name][extname]',
+        // three.js in its own chunk (three.js), shared by the 3D preview and the thumbnail renderer.
+        manualChunks: (id) => (id.includes('/node_modules/three/') ? 'three' : undefined)
       }
     }
   }
