@@ -5,6 +5,7 @@ import { askText, exposeGlobal } from '../page';
 import { bundleSummary, type PrintModel } from '../print/printStatus';
 import { formatFileSize } from '../StatsDialog';
 import { showFolder } from '../folders/store';
+import { pickFromList } from '../components/ListPicker';
 
 interface BundleChild extends PrintModel {
   filePath: string;
@@ -34,8 +35,6 @@ export interface BundleHost {
   tagNames(record: BundleRecord): Promise<string[]>;
   /** Add or remove tags on every model in the bundle (and update their cards). */
   changeTags(record: BundleRecord, change: { addTags?: string[]; removeTags?: string[] }): Promise<boolean>;
-  /** The searchable tag list; resolves to the picked tag, or null. */
-  pickTag(): Promise<string | null>;
   /** A new tag exists: refresh the tag filter and the other pickers. */
   tagCreated(): Promise<void>;
 }
@@ -157,7 +156,7 @@ export function BundleDetails() {
                   {allTags.filter((t) => !tagNames.includes(t)).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <button type="button" className="list-button icon-button" title="Search existing tags"
-                  onClick={async () => addTag(await host?.pickTag())}>☰</button>
+                  onClick={async () => addTag(await pickFromList('tag'))}>☰</button>
                 <button type="button" id="bundle-add-tag" className="icon-button" title="Add a new tag to all models in this archive"
                   onClick={addNewTag}>+</button>
               </div>

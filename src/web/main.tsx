@@ -20,6 +20,7 @@ import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { GridToolbar } from './grid/GridToolbar';
 import { LibraryGrid } from './grid/LibraryGrid';
+import { ListPicker } from './components/ListPicker';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
@@ -90,6 +91,7 @@ function Screens() {
       <ThumbnailJobDialog />
       <Sidebar />
       <FolderTree />
+      <ListPicker />
       <GridToolbar />
       <LibraryGrid />
       <DetailsFields />

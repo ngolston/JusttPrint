@@ -6,11 +6,10 @@ import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
 import { exposeGlobal } from '../page';
 import { getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
 import { filterActions, getFilterState, subscribeFilters } from './store';
+import { pickFromList } from '../components/ListPicker';
 
 /** What the sidebar asks of renderer.js. */
 export interface SidebarHost {
-  /** The searchable list dialog for a filter; resolves to the pick (a filament's id), or null. */
-  pickFromList(field: 'designer' | 'parent' | 'license' | 'tag' | 'filament'): Promise<string | null>;
   /** Clear the selection and the details panel (the result set is about to change). */
   resetSelection(): void;
 }
@@ -256,7 +255,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
   const { loading } = useSearchStatus();
   const disabledClass = loading ? 'disabled-during-loading' : undefined;
   const pick = async (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', use: (value: string) => void) => {
-    const value = await window.sidebarHost?.pickFromList(field);
+    const value = await pickFromList(field);
     if (value) applyFilterChange(() => use(value));
   };
   const listButton = (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', title: string, use: (value: string) => void) => (

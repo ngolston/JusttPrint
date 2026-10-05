@@ -4,9 +4,9 @@ import { filaments as filamentApi, libraryValues, models, tags as tagApi, type F
 import { askText, exposeGlobal, showMessage } from '../page';
 import { selection } from '../selection';
 import { STATUSES, STATUS_LABELS, colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
+import { pickFromList, type ListField } from '../components/ListPicker';
 
 type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
-type ListField = 'designer' | 'parent' | 'license' | 'tag' | 'filament';
 
 /** What the multi-edit panel asks of renderer.js, which owns the selection and the panel's visibility. */
 export interface MultiEditHost {
@@ -20,8 +20,6 @@ export interface MultiEditHost {
   saveField(field: Field, value: string | string[] | number[]): Promise<boolean>;
   /** Remove one tag or filament from every selected model, keeping their others. */
   removeFromSelected(field: 'tags' | 'filaments', value: string | number): Promise<void>;
-  /** The searchable list dialog; `remove` lists only values on the selected models. Resolves to the pick, or null. */
-  pickFromList(field: ListField, remove?: boolean): Promise<string | null>;
   openSource(url: string): void;
 }
 
@@ -215,7 +213,7 @@ export function MultiEditPanel() {
           {picked[field] && !values.includes(picked[field]) && <option value={picked[field]}>{picked[field]}</option>}
         </select>
         <button type="button" className="list-button icon-button" title={`Search existing ${PROMPTS[field]}s`}
-          onClick={async () => { const v = await host?.pickFromList(list); if (v) await pickValue(field, v); }}>☰</button>
+          onClick={async () => { const v = await pickFromList(list); if (v) await pickValue(field, v); }}>☰</button>
         <button type="button" id={`${id}-add`} className="icon-button" title={`New ${PROMPTS[field]}`} onClick={() => addNewValue(field)}>+</button>
       </div>
     </div>
@@ -273,7 +271,7 @@ export function MultiEditPanel() {
               {options.tags.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <button type="button" className="list-button icon-button" title="Search existing tags"
-              onClick={async () => addTag(await host?.pickFromList('tag'))}>☰</button>
+              onClick={async () => addTag(await pickFromList('tag'))}>☰</button>
             <button type="button" id="multi-add-tag" className="icon-button" title="New tag" onClick={addNewTag}>+</button>
           </div>
           <div style={{ marginTop: 8 }}>
@@ -285,7 +283,7 @@ export function MultiEditPanel() {
                 {onSelected.tags.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               <button type="button" className="list-button icon-button" title="Search tags to remove from selected files"
-                onClick={async () => removeTag(await host?.pickFromList('tag', true))}>☰</button>
+                onClick={async () => removeTag(await pickFromList('tag', true))}>☰</button>
             </div>
           </div>
           <button type="button" id="multi-edit-tags-button" className="full-width-button" onClick={() => window.openTagManager?.()}>Edit Tags</button>
@@ -300,7 +298,7 @@ export function MultiEditPanel() {
               {addableFilaments.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
             </select>
             <button type="button" className="list-button icon-button" title="Search existing filaments"
-              onClick={async () => addFilament(Number(await host?.pickFromList('filament')))}>☰</button>
+              onClick={async () => addFilament(Number(await pickFromList('filament')))}>☰</button>
             <button type="button" className="icon-button" title="Filament Manager" onClick={() => window.openFilamentManager?.()}>+</button>
           </div>
           <div id="multi-filaments" className="tags-list">
@@ -320,7 +318,7 @@ export function MultiEditPanel() {
                 {onSelected.filaments.map((f) => <option key={String(f.id)} value={String(f.id)}>{label(f)}</option>)}
               </select>
               <button type="button" className="list-button icon-button" title="Search filaments to remove from selected files"
-                onClick={async () => removeFilament(Number(await host?.pickFromList('filament', true)))}>☰</button>
+                onClick={async () => removeFilament(Number(await pickFromList('filament', true)))}>☰</button>
             </div>
           </div>
         </div>

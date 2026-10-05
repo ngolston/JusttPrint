@@ -97,20 +97,7 @@
       <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
       <div id="bundle-details-slot" style="display: contents"></div>
     </div>
-    <dialog id="searchable-list-dialog" class="modal">
-      <form method="dialog">
-        <h3 id="searchable-list-title">Select Item</h3>
-        <div class="form-group">
-          <input type="text" id="searchable-list-search" placeholder="Search..." autocomplete="off">
-        </div>
-        <div class="searchable-list-container">
-          <ul id="searchable-list-items" class="searchable-list"></ul>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="searchable-list-cancel" data-close-dialog="searchable-list-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
+    <!-- Searchable list: React (src/web/components/ListPicker.tsx) -->
     <div id="multi-edit-panel" class="model-details hidden">
       <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <span id="multi-header-slot" style="display: contents"></span></h3>
       <!-- Body: React (src/web/details/MultiEditPanel.tsx) -->

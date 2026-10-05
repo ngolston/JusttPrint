@@ -1119,13 +1119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Rest of initialization...
     await initializeTags();
     await populateTagFilter();
-    initializeListButtons();
   });
 
   // Remove the other DOMContentLoaded listener that's adding filter change handlers
 
   await initializeTags();
-  initializeListButtons();
 
 
   await populateTagFilter();
@@ -3522,293 +3520,6 @@ const RENDER_CONFIG = {
 };
 
 
-// Searchable list dialog functionality
-/** onPick: hand the picked value (or null when cancelled) to the caller instead of a select. */
-async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filter', containerId = null, isRemove = false, onPick = null) {
-  const dialog = document.getElementById('searchable-list-dialog');
-  const titleElement = document.getElementById('searchable-list-title');
-  const searchInput = document.getElementById('searchable-list-search');
-  const itemsList = document.getElementById('searchable-list-items');
-  const cancelButton = document.getElementById('searchable-list-cancel');
-  
-  if (!dialog || !titleElement || !searchInput || !itemsList) {
-    console.error('Searchable list dialog elements not found');
-    return;
-  }
-  
-  // Set title based on field type
-  const titles = {
-    designer: 'Select Designer',
-    parent: 'Select Parent Model',
-    license: 'Select License',
-    tag: isRemove ? 'Remove Tag' : 'Select Tag',
-    filament: isRemove ? 'Remove Filament' : 'Select Filament'
-  };
-  titleElement.textContent = titles[fieldType] || 'Select Item';
-  
-  // Clear previous content
-  searchInput.value = '';
-  itemsList.innerHTML = '';
-  
-  // Fetch data based on field type
-  let items = [];
-  let filamentValueByLabel = null;
-  try {
-    switch (fieldType) {
-      case 'designer':
-        items = await window.electron.getDesigners();
-        break;
-      case 'parent':
-        items = await window.electron.getParentModels();
-        // Remove duplicates
-        items = [...new Set(items.filter(p => p))];
-        break;
-      case 'license':
-        items = await window.electron.getLicenses();
-        break;
-      case 'tag':
-        if (isRemove && targetSelectId === 'multi-tag-remove-select') {
-          // For remove tags, get tags from selected files only
-          if (window.selection.size === 0) {
-            items = [];
-          } else {
-            const filePaths = Array.from(window.selection);
-            const tagPromises = filePaths.map(async (filePath) => {
-              try {
-                const model = await window.electron.getModel(filePath);
-                return model && model.tags ? (Array.isArray(model.tags) ? model.tags : []) : [];
-              } catch (error) {
-                console.error(`Error loading tags for ${filePath}:`, error);
-                return [];
-              }
-            });
-            const allTagsArrays = await Promise.all(tagPromises);
-            // Collect unique tags
-            const uniqueTags = new Set();
-            allTagsArrays.forEach(tags => {
-              if (Array.isArray(tags)) {
-                tags.forEach(tag => {
-                  if (tag && typeof tag === 'string') {
-                    const normalizedTag = tag.trim();
-                    if (normalizedTag) {
-                      uniqueTags.add(normalizedTag);
-                    }
-                  }
-                });
-              }
-            });
-            items = Array.from(uniqueTags);
-          }
-        } else {
-          // For add tags, get all tags
-          const tags = await window.electron.getAllTags();
-          items = tags.map(t => t.name);
-        }
-        break;
-      case 'filament':
-        if (isRemove && targetSelectId === 'multi-filament-remove-select') {
-          if (typeof window.selection === 'undefined' || window.selection.size === 0) {
-            items = [];
-          } else {
-            const filePaths = Array.from(window.selection);
-            const lists = await Promise.all(filePaths.map(async (filePath) => {
-              try {
-                const model = await window.electron.getModel(filePath);
-                return Array.isArray(model?.filaments) ? model.filaments : [];
-              } catch (error) {
-                return [];
-              }
-            }));
-            const byId = new Map();
-            lists.flat().forEach((f) => {
-              if (f && f.id != null && !byId.has(String(f.id))) byId.set(String(f.id), f);
-            });
-            items = Array.from(byId.values());
-          }
-        } else {
-          const filaments = await window.electron.getAllFilaments();
-          items = filaments || [];
-        }
-        break;
-      default:
-        console.error('Unknown field type:', fieldType);
-        return;
-    }
-    
-    if (fieldType === 'filament') {
-      filamentValueByLabel = new Map();
-      items = (items || []).map((f) => {
-        const id = String(f && f.id != null ? f.id : f);
-        const label = (typeof window.formatFilamentLabel === 'function' && f && typeof f === 'object')
-          ? window.formatFilamentLabel(f)
-          : String(f && f.name ? f.name : id);
-        filamentValueByLabel.set(label, id);
-        return label;
-      });
-    }
-
-    // Sort items alphabetically
-    items.sort((a, b) => a.localeCompare(b));
-    
-    // Filter out empty values
-    items = items.filter(item => item && item.trim() !== '');
-    
-    if (items.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = 'No items found';
-      li.style.color = '#888';
-      li.style.cursor = 'default';
-      itemsList.appendChild(li);
-    } else {
-      // Render items
-      renderListItems(items, itemsList, '');
-    }
-  } catch (error) {
-    console.error('Error fetching items for searchable list:', error);
-    const li = document.createElement('li');
-    li.textContent = 'Error loading items';
-    li.style.color = '#ff4444';
-    li.style.cursor = 'default';
-    itemsList.appendChild(li);
-    return;
-  }
-  
-  let picked = false;
-  if (onPick) {
-    dialog.addEventListener('close', () => { if (!picked) onPick(null); }, { once: true });
-  }
-
-  // Handle item selection
-  const handleItemClick = async (itemValue) => {
-    if (onPick) {
-      picked = true;
-      dialog.close();
-      onPick(filamentValueByLabel ? (filamentValueByLabel.get(itemValue) || itemValue) : itemValue);
-      return;
-    }
-    dialog.close();
-    
-    const targetSelect = document.getElementById(targetSelectId);
-    if (!targetSelect) {
-      console.error('Target select element not found:', targetSelectId);
-      return;
-    }
-
-    try {
-      const resolvedValue = filamentValueByLabel ? (filamentValueByLabel.get(itemValue) || itemValue) : itemValue;
-      targetSelect.value = resolvedValue;
-    
-      // For remove tags, trigger the remove handler
-      if (isRemove && targetSelectId === 'multi-tag-remove-select') {
-        // Trigger the change event which will call handleRemoveTagSelect
-        targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      } else if (isRemove && targetSelectId === 'multi-filament-remove-select') {
-        targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      } else if (fieldType === 'tag' && mode !== 'filter' && containerId) {
-        // For tags in edit mode, use addTagToModel
-        await addTagToModel(itemValue, containerId);
-        targetSelect.value = '';
-        if (typeof populateTagSelect === 'function') {
-          await populateTagSelect(targetSelectId, containerId);
-        }
-      } else if (fieldType === 'filament' && mode !== 'filter' && containerId) {
-        if (typeof window.addFilamentToModel === 'function') {
-          await window.addFilamentToModel({ id: Number(resolvedValue) }, containerId);
-        }
-        targetSelect.value = '';
-      } else if (mode === 'edit' || mode === 'multi') {
-        // For edit/multi mode, trigger auto-save
-        const fieldMap = {
-          designer: 'designer',
-          parent: 'parentModel',
-          license: 'license'
-        };
-      
-        if (fieldMap[fieldType]) {
-          const filePath = mode === 'edit' ? getCurrentModelFilePath() : null;
-          if (mode === 'multi') {
-            autoSaveMultipleModels(fieldMap[fieldType], itemValue);
-          } else if (filePath) {
-            autoSaveModel(fieldMap[fieldType], itemValue, filePath);
-          }
-        }
-      
-        // Trigger change event after setting value
-        targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      } else if (mode === 'filter') {
-        // For filter mode, trigger filter update
-        targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    } catch (error) {
-      console.error('Error applying searchable list selection:', error);
-    }
-  };
-  
-  // Render list items function
-  function renderListItems(itemsToRender, listElement, searchTerm) {
-    listElement.innerHTML = '';
-    
-    if (itemsToRender.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = 'No items found';
-      li.style.color = '#888';
-      li.style.cursor = 'default';
-      listElement.appendChild(li);
-      return;
-    }
-    
-    itemsToRender.forEach(item => {
-      const li = document.createElement('li');
-      li.textContent = item;
-      li.addEventListener('click', () => handleItemClick(item));
-      listElement.appendChild(li);
-    });
-  }
-  
-  // Handle search input with debounce
-  let searchTimeout;
-  const handleSearch = (e) => {
-    const searchTerm = e.target.value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      const filtered = items.filter(item => 
-        item.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      renderListItems(filtered, itemsList, searchTerm);
-    }, 200);
-  };
-  
-  searchInput.addEventListener('input', handleSearch);
-  
-  // Handle cancel button
-  const handleCancel = () => {
-    dialog.close();
-  };
-  cancelButton.addEventListener('click', handleCancel);
-  
-  // Close on Escape key
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      dialog.close();
-    }
-  };
-  dialog.addEventListener('keydown', handleKeyDown);
-  
-  // Clean up event listeners when dialog closes
-  dialog.addEventListener('close', () => {
-    searchInput.removeEventListener('input', handleSearch);
-    cancelButton.removeEventListener('click', handleCancel);
-    dialog.removeEventListener('keydown', handleKeyDown);
-  }, { once: true });
-  
-  // Show dialog
-  dialog.showModal();
-  
-  // Focus search input
-  requestAnimationFrame(() => {
-    searchInput.focus();
-  });
-}
 
 // Helper function to get current model file path
 function getCurrentModelFilePath() {
@@ -3822,26 +3533,6 @@ function getCurrentModelFilePath() {
   return null;
 }
 
-// Initialize List button event listeners
-function initializeListButtons() {
-  document.querySelectorAll('.list-button').forEach(button => {
-    // React screens (the details panel) handle their own list buttons and own those nodes.
-    if (!button.dataset.field) return;
-    // Remove existing listeners to avoid duplicates
-    const newButton = button.cloneNode(true);
-    button.parentNode.replaceChild(newButton, button);
-    
-    newButton.addEventListener('click', async () => {
-      const fieldType = newButton.dataset.field;
-      const targetSelectId = newButton.dataset.target;
-      const mode = newButton.dataset.mode || 'filter';
-      const containerId = newButton.dataset.container || null;
-      const isRemove = newButton.dataset.remove === 'true';
-      
-      await showSearchableListDialog(fieldType, targetSelectId, mode, containerId, isRemove);
-    });
-  });
-}
 
 // Remove all existing DOMContentLoaded event listeners and create a single one
 // Place this at the end of the file, after all function declarations
@@ -5200,9 +4891,6 @@ async function removeFromSelectedModelsField(field, value) {
 
 /** What the sidebar filters (src/web/filters/Sidebar.tsx) ask of this file. */
 window.sidebarHost = {
-  pickFromList: (field) => new Promise((resolve) => {
-    showSearchableListDialog(field, null, 'filter', null, false, resolve);
-  }),
   resetSelection: () => resetFilterSelectionAndDetails(),
 };
 
@@ -5214,10 +4902,6 @@ window.multiEditHost = {
   clearSelection: () => clearMultiSelection(),
   saveField: async (field, value) => !!(await autoSaveMultipleModels(field, value)),
   removeFromSelected: (field, value) => removeFromSelectedModelsField(field, value),
-  pickFromList: (field, remove) => new Promise((resolve) => {
-    const target = remove ? (field === 'tag' ? 'multi-tag-remove-select' : 'multi-filament-remove-select') : null;
-    showSearchableListDialog(field, target, 'multi', null, !!remove, resolve);
-  }),
   openSource: (url) => { openModelSourceUrl(url); }
 };
 
@@ -5226,9 +4910,6 @@ window.bundleHost = {
   openModel: (filePath) => { showModelDetails(filePath); },
   tagNames: (record) => getGroupTagNames(record),
   changeTags: (record, change) => applyBundleTagChange(record, change),
-  pickTag: () => new Promise((resolve) => {
-    showSearchableListDialog('tag', null, 'edit', null, false, resolve);
-  }),
   tagCreated: async () => {
     try {
       await populateTagFilter();
@@ -5244,9 +4925,6 @@ window.bundleHost = {
 /** What the details panel's React fields (src/web/details/DetailsFields.tsx) ask of this file. */
 window.detailsHost = {
   saveField: async (filePath, field, value) => !!(await autoSaveModel(field, value, filePath)),
-  pickFromList: (field) => new Promise((resolve) => {
-    showSearchableListDialog(field, null, 'edit', null, false, resolve);
-  }),
   openSource: (url) => { openModelSourceUrl(url); },
   valuesChanged: async (kind) => {
     try {

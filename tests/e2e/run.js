@@ -1001,9 +1001,19 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#preview-size-switcher [data-preview-size="m"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('searchable-list-dialog').showModal());
-    await page.click('#searchable-list-dialog [data-close-dialog="searchable-list-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('searchable-list-dialog').open));
+    await page.evaluate(() => document.getElementById('server-mode-info-dialog').showModal());
+    await page.click('#server-mode-info-dialog [data-close-dialog="server-mode-info-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('server-mode-info-dialog').open));
+    // Searchable list (React, src/web/components/ListPicker.tsx): search narrows it, Cancel picks nothing.
+    if (!(await page.isVisible('#tag-filter'))) await page.click('#filter-stack-toggle');
+    await page.click('#tag-filter + .list-button, .form-group:has(#tag-filter) .list-button');
+    await page.waitForSelector('#searchable-list-dialog[open] li', { timeout: 10000 }).catch(() => {});
+    const allTags = await page.locator('#searchable-list-dialog li').count();
+    await page.fill('#searchable-list-search', 'e2e-model');
+    const narrowed = await page.locator('#searchable-list-dialog li').count();
+    await page.click('#searchable-list-cancel');
+    check('the searchable list narrows as you type, and Cancel closes it without a pick', allTags > 1 && narrowed >= 1 && narrowed < allTags
+      && !(await page.isVisible('#searchable-list-dialog')) && (await page.evaluate(() => window.libraryFilters.state().tags.length)) === 0, `${allTags} -> ${narrowed}`);
     await page.evaluate(() => document.getElementById('preview-dialog').showModal());
     await page.click('#preview-fullscreen-toggle');
     check('the preview goes full screen', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
