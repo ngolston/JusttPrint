@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { callAction } from '../api';
 import { exposeGlobal } from '../page';
+import { plural, refreshTotal, setViewCount, useModelCounts } from './counts';
 import { runSearch } from './search';
 import { filterActions } from './store';
 
@@ -20,10 +20,8 @@ declare global {
   }
 }
 
-const plural = (n: number) => `${n} model${n === 1 ? '' : 's'}`;
-
 /** Clear every filter and show the whole library again. */
-async function viewEntireLibrary() {
+export async function viewEntireLibrary() {
   try {
     window.disableGridRefresh = false;
     const grid = document.querySelector<HTMLElement & { currentModels?: unknown }>('.file-grid');
@@ -43,11 +41,9 @@ async function viewEntireLibrary() {
  */
 export function SidebarActions() {
   const [container] = useState(() => document.getElementById('sidebar-actions-slot'));
-  const [viewCount, setViewCount] = useState(0);
-  const [total, setTotal] = useState(0);
+  const { view: viewCount, total } = useModelCounts();
   const [scanning, setScanning] = useState(false);
   const [hasStlHome, setHasStlHome] = useState(false);
-  const totalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkStlHome = async () => {
@@ -58,26 +54,12 @@ export function SidebarActions() {
       }
     };
     checkStlHome();
-    // The grid reports its count while it loads page by page; one total fetch afterwards is enough.
-    const refreshTotal = () => {
-      if (totalTimer.current) clearTimeout(totalTimer.current);
-      totalTimer.current = setTimeout(() => {
-        callAction<number>('getTotalModelCount').then((n) => setTotal(Number(n) || 0), (error) => console.error('Error updating total model count:', error));
-      }, 350);
-    };
     refreshTotal();
-    const unexposeStatus = exposeGlobal('sidebarStatus', {
-      setViewCount: (count: number) => {
-        setViewCount(count);
-        refreshTotal();
-      },
-      setScanning
-    });
+    const unexposeStatus = exposeGlobal('sidebarStatus', { setViewCount, setScanning });
     const unexposeStlHome = exposeGlobal('updateScanStlHomeButtonVisibility', checkStlHome);
     return () => {
       unexposeStatus();
       unexposeStlHome();
-      if (totalTimer.current) clearTimeout(totalTimer.current);
     };
   }, []);
 

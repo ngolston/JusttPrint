@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { createPortal } from 'react-dom';
 import { fileTypes as fileTypeApi, filaments as filamentApi, libraryValues, settings, tags as tagApi } from '../api';
 import { SORT_OPTIONS, filterStrip, type ChipRemove, type Combine, type FilterState, type MultiKind, type StripItem } from './query';
+import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
 import { exposeGlobal } from '../page';
 import { getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
 import { filterActions, getFilterState, subscribeFilters } from './store';
@@ -84,7 +85,7 @@ async function loadOptions(): Promise<Options> {
 }
 
 /** Run the search for a user change (the result set changes: drop the selection first). */
-function apply(change: () => void) {
+export function applyFilterChange(change: () => void) {
   change();
   window.sidebarHost?.resetSelection();
   runSearch({ force: true });
@@ -130,7 +131,7 @@ function FilterStrip({ container, body, actions }: { container: HTMLElement; bod
   const link = (id: string, text: string, title: string, run: () => void) => (
     <a href="#" id={id} className={`search-boolean-op-link${loading ? ' disabled-during-loading' : ''}`} title={title}
       aria-disabled={loading} tabIndex={loading ? -1 : 0}
-      onClick={(event) => { event.preventDefault(); if (!loading) apply(run); }}>{text}</a>
+      onClick={(event) => { event.preventDefault(); if (!loading) applyFilterChange(run); }}>{text}</a>
   );
   return (
     <>
@@ -140,10 +141,10 @@ function FilterStrip({ container, body, actions }: { container: HTMLElement; bod
           <div className="filter-pills-container">
             {strip.chain.length > 0 && (
               <div className="filter-pills-search-chain">
-                <StripView items={strip.chain} disabled={loading} onRemove={(remove) => apply(() => filterActions.removeChip(remove))} />
+                <StripView items={strip.chain} disabled={loading} onRemove={(remove) => applyFilterChange(() => filterActions.removeChip(remove))} />
               </div>
             )}
-            <StripView items={strip.chips} disabled={loading} onRemove={(remove) => apply(() => filterActions.removeChip(remove))} />
+            <StripView items={strip.chips} disabled={loading} onRemove={(remove) => applyFilterChange(() => filterActions.removeChip(remove))} />
           </div>
         </>
       ), body)}
@@ -177,7 +178,7 @@ function SearchControls({ container }: { container: HTMLElement }) {
   const [draft, setDraft] = useState('');
   const search = () => {
     const text = draft.trim();
-    apply(() => {
+    applyFilterChange(() => {
       if (text) filterActions.search('all', text);
       else filterActions.setViewingEntireLibrary(false);
     });
@@ -199,7 +200,7 @@ function SearchControls({ container }: { container: HTMLElement }) {
             style={{ display: draft.trim() ? 'block' : 'none' }}
             onClick={(e) => {
               setDraft('');
-              apply(() => filterActions.clearQuery());
+              applyFilterChange(() => filterActions.clearQuery());
               (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null)?.focus();
             }}>×</button>
         </div>
@@ -235,7 +236,7 @@ function ValueChips({ kind, values, labelOf, combine, combineLabels, disabled }:
           <span key={value} className="filter-value-chip" data-kind={kind} data-value={value}>
             {labelOf(value)}
             <button type="button" className="filter-chip-remove" aria-label="Remove" disabled={disabled}
-              onClick={() => apply(() => filterActions.removeValue(kind, value))}>×</button>
+              onClick={() => applyFilterChange(() => filterActions.removeValue(kind, value))}>×</button>
           </span>
         ))}
       </div>
@@ -259,7 +260,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
   const disabledClass = loading ? 'disabled-during-loading' : undefined;
   const pick = async (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', use: (value: string) => void) => {
     const value = await window.sidebarHost?.pickFromList(field);
-    if (value) apply(() => use(value));
+    if (value) applyFilterChange(() => use(value));
   };
   const listButton = (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', title: string, use: (value: string) => void) => (
     <button type="button" className="list-button icon-button" title={title} disabled={loading} onClick={() => pick(field, use)}>☰</button>
@@ -271,7 +272,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         <label htmlFor={id}>{label}</label>
         <div className="dropdown-with-list">
           <select id={id} value={current} disabled={loading} className={disabledClass}
-            onChange={(e) => apply(() => filterActions.setValue(kind, e.target.value))}>
+            onChange={(e) => applyFilterChange(() => filterActions.setValue(kind, e.target.value))}>
             <option value="">{all}</option>
             <option value="__none__">None</option>
             {values.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -286,7 +287,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
     <div className="form-group">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={state[key]} disabled={loading} className={disabledClass}
-        onChange={(e) => apply(() => filterActions.setSingle(key, e.target.value))}>
+        onChange={(e) => applyFilterChange(() => filterActions.setSingle(key, e.target.value))}>
         {choices.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
         {key === 'fileType' && state.fileType && !choices.some(([v]) => v === state.fileType) && <option value={state.fileType}>{state.fileType}</option>}
       </select>
@@ -314,7 +315,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         <div className="dropdown-with-list">
           <div className="tags-input-container">
             <select id="tag-filter" value="" disabled={loading} className={disabledClass}
-              onChange={(e) => { const v = e.target.value; if (v) apply(() => filterActions.addValue('tags', v)); }}>
+              onChange={(e) => { const v = e.target.value; if (v) applyFilterChange(() => filterActions.addValue('tags', v)); }}>
               <option value="">All Tags</option>
               {options.tags.map((t) => <option key={t.name} value={t.name}>{`${t.name} (${t.count})`}</option>)}
             </select>
@@ -329,7 +330,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         <div className="dropdown-with-list">
           <div className="tags-input-container">
             <select id="filament-filter" value="" disabled={loading} className={disabledClass}
-              onChange={(e) => { const v = e.target.value; if (v) apply(() => filterActions.addValue('filaments', v)); }}>
+              onChange={(e) => { const v = e.target.value; if (v) applyFilterChange(() => filterActions.addValue('filaments', v)); }}>
               <option value="">All Filaments</option>
               {options.filaments.map((f) => <option key={f.id} value={f.id}>{`${f.label} (${f.count})`}</option>)}
             </select>
@@ -344,24 +345,12 @@ function FilterControls({ container, options }: { container: HTMLElement; option
           title={anyInverted ? 'Filter is inverted (NOT equal)' : 'Invert the current filter (NOT equal instead of equal)'}
           onClick={() => {
             const draft = (document.getElementById('search-filter-input') as HTMLInputElement | null)?.value || '';
-            if (filterActions.invert(draft)) apply(() => {});
+            if (filterActions.invert(draft)) applyFilterChange(() => {});
           }}>Invert Filters</button>
       </div>
     </>,
     container
   );
-}
-
-const DETAIL_PANELS = ['model-details', 'bundle-details', 'multi-edit-panel'];
-
-/** Is a details panel showing? (renderer.js shows and hides them.) */
-function detailsAreOpen(): boolean {
-  const shown = (id: string) => {
-    const el = document.getElementById(id);
-    return !!el && !el.classList.contains('hidden');
-  };
-  if (shown('multi-edit-panel') || shown('bundle-details')) return true;
-  return shown('model-details') && !!document.getElementById('path-tree-container')?.getAttribute('data-file-path');
 }
 
 /**
@@ -370,33 +359,18 @@ function detailsAreOpen(): boolean {
  */
 function FilterStackToggle({ container }: { container: HTMLElement }) {
   const [expanded, setExpanded] = useState(false);
+  const detailsOpen = detailsAreOpen(useDetailsVisibility());
 
   useEffect(() => {
     document.querySelector('.sidebar')?.classList.toggle('filters-expanded', expanded);
   }, [expanded]);
 
   useEffect(() => {
-    const sync = () => {
-      const sidebar = document.querySelector('.sidebar');
-      if (!sidebar) return;
-      const open = detailsAreOpen();
-      if (open && !sidebar.classList.contains('details-open')) setExpanded(false);
-      sidebar.classList.toggle('details-open', open);
-    };
-    const observer = new MutationObserver(sync);
-    for (const id of DETAIL_PANELS) {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
-    }
-    const pathTree = document.getElementById('path-tree-container');
-    if (pathTree) observer.observe(pathTree, { attributes: true, attributeFilter: ['data-file-path'] });
-    sync();
-    const unexpose = exposeGlobal('collapseSidebarFilters', () => setExpanded(false));
-    return () => {
-      observer.disconnect();
-      unexpose();
-    };
-  }, []);
+    document.querySelector('.sidebar')?.classList.toggle('details-open', detailsOpen);
+    if (detailsOpen) setExpanded(false);
+  }, [detailsOpen]);
+
+  useEffect(() => exposeGlobal('collapseSidebarFilters', () => setExpanded(false)), []);
 
   return createPortal(
     <button type="button" id="filter-stack-toggle" className="filter-stack-toggle" aria-expanded={expanded} aria-controls="filter-stack"

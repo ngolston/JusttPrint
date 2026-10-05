@@ -35,6 +35,8 @@ import './filters/search';
 import { Sidebar } from './filters/Sidebar';
 import { SidebarActions } from './filters/SidebarActions';
 import { FolderTree } from './folders/FolderTree';
+import { MenuBar } from './shell/MenuBar';
+import { MobileShell } from './shell/MobileShell';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -72,6 +74,8 @@ function Screens() {
       <StlHomeDialog />
       <OrganizeLibraryDialog />
       <DedupDialog />
+      <MenuBar />
+      <MobileShell />
       <SidebarActions />
       <Sidebar />
       <FolderTree />

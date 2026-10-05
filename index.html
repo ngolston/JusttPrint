@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="server-mode">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -29,97 +29,12 @@
 </head>
 
 
-<body>
-  <div id="mobile-ui-overlay" hidden></div>
-  <header id="mobile-app-bar" hidden aria-label="JusttPrint">
-    <div class="mobile-bar-top">
-      <span class="mobile-bar-logo" aria-hidden="true"></span>
-      <div class="mobile-bar-text">
-        <div class="mobile-bar-title" id="mobile-bar-title">Library</div>
-        <div class="mobile-bar-subtitle" id="mobile-bar-count"></div>
-      </div>
-      <div class="mobile-view-switch" role="group" aria-label="Library view">
-        <button type="button" data-mobile-view="preview" aria-pressed="false" aria-label="Wall">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
-        </button>
-        <button type="button" data-mobile-view="list" aria-pressed="false" aria-label="List">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 5.5h16v2.6H4V5.5zm0 5.2h16v2.6H4v-2.6zm0 5.2h16v2.6H4v-2.6z"/></svg>
-        </button>
-      </div>
-    </div>
-    <div id="mobile-filter-chips" hidden></div>
-  </header>
-  <nav id="mobile-bottom-nav" hidden aria-label="Mobile navigation">
-    <div class="mobile-dock">
-      <button type="button" id="mobile-nav-library" data-nav="library">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
-        <span>Library</span>
-      </button>
-      <button type="button" id="mobile-nav-folders" data-nav="folders">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 6.5A2.5 2.5 0 0 1 4.5 4H9l2 2.2h8.5A2.5 2.5 0 0 1 22 8.7v8.8a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 17.5v-11z"/></svg>
-        <span>Folders</span>
-      </button>
-      <button type="button" id="mobile-nav-filters" data-nav="filters">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 4.5h18v2.4l-6.2 6.8V20l-5.6 2.2v-8.5L3 6.9V4.5z"/></svg>
-        <span>Filters</span>
-      </button>
-      <button type="button" id="mobile-nav-more" data-nav="more">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.35" fill="currentColor"/><circle cx="12" cy="12" r="2.35" fill="currentColor"/><circle cx="19" cy="12" r="2.35" fill="currentColor"/></svg>
-        <span>More</span>
-      </button>
-    </div>
-  </nav>
-  <section id="mobile-more-sheet" hidden aria-label="More">
-    <header id="mobile-more-head">
-      <span class="mobile-sheet-grab" aria-hidden="true"></span>
-      <div class="mobile-more-titlebar">
-        <button type="button" id="mobile-more-back" hidden>Back</button>
-        <h2 id="mobile-more-title">More</h2>
-        <button type="button" id="mobile-more-close">Close</button>
-      </div>
-    </header>
-    <div id="mobile-more-body">
-      <div id="mobile-more-home">
-        <div class="mobile-tool-grid">
-          <button type="button" class="mobile-tool" data-menu-label="Filament Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20.01A10 10 0 0 0 12 2zm0 4.2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6z"/></svg>
-            <span>Filament</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Printer Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v5H6V3zm-2 7h16a2 2 0 0 1 2 2v5h-4v4H6v-4H2v-5a2 2 0 0 1 2-2zm6 7v2h4v-2h-4z"/></svg>
-            <span>Printers</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Parts Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a5 5 0 0 1-6.6 6.6L8.4 18.6a2 2 0 1 1-2.8-2.8l6.5-6.5a5 5 0 0 1 6.6-6.6l-3.8 3.8z"/></svg>
-            <span>Parts</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Tag Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12.5V4h8.5l9.2 9.2a2 2 0 0 1 0 2.8l-5.7 5.7a2 2 0 0 1-2.8 0L3 12.5zM7.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
-            <span>Tags</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="De-Dup">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 3h10a2 2 0 0 1 2 2v10h-2V5H7V3zm-2 4h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
-            <span>De-Dup</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Organize Library">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 2h7v5h-7v-5z"/></svg>
-            <span>Organize</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Print Roulette">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20.01A10 10 0 0 0 12 2zm0 4a1.4 1.4 0 1 1 0 2.8A1.4 1.4 0 0 1 12 6zm5 7.5a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8zM12 16.2a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8zM7 13.5a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8z"/></svg>
-            <span>Roulette</span>
-          </button>
-        </div>
-        <div class="mobile-more-actions">
-          <button type="button" data-menu-label="Scan Directory">Scan Directory</button>
-          <button type="button" data-menu-label="View Entire Library">View Entire Library</button>
-        </div>
-        <div id="mobile-more-sections"></div>
-      </div>
-      <div id="mobile-more-drill" hidden></div>
-    </div>
-  </section>
+<body class="server-mode">
+  <!-- Phone layout: overlay, app bar, bottom nav and More sheet: React (src/web/shell/MobileShell.tsx) -->
+  <div id="mobile-shell-slot" style="display: contents"></div>
   <div class="sidebar">
+    <!-- Phone layout: the Filters sheet header: React (src/web/shell/MobileShell.tsx) -->
+    <div id="mobile-drawer-slot" style="display: contents"></div>
     <div class="sidebar-chrome">
     <img src="logo.png" alt="JusttPrint Logo" id="logo">
     <!-- Model counts, tool buttons, Scan Directory, Scan STL Home, View Entire Library: React (src/web/filters/SidebarActions.tsx) -->
@@ -137,7 +52,7 @@
       <div class="performance-notice">Scanning may impact performance.</div>
     </div>
     </div>
-    <!-- The current filter strip: React (src/web/filters/Sidebar.tsx). mobile-ui.js mirrors #current-filter-body. -->
+    <!-- The current filter strip: React (src/web/filters/Sidebar.tsx). -->
     <div id="current-filter">
       <div id="current-filter-body"></div>
       <div id="current-filter-actions" style="display: contents"></div>
@@ -162,11 +77,11 @@
     </div>
 
     <div id="model-details" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><span class="mobile-details-name" id="mobile-details-name" hidden></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-details-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-favorite" aria-pressed="false" aria-label="Favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.2s-6.8-4.3-9.2-8.2C1 9.2 2.2 5.8 5.6 5.2 7.6 4.8 9.4 5.8 12 8.2c2.6-2.4 4.4-3.4 6.4-3 3.4.6 4.6 4 2.8 6.8-2.4 3.9-9.2 8.2-9.2 8.2z"/></svg><span class="mobile-action-label">Favorite</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-log-print" aria-label="Log a print"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h9l3 3v15H6V3zm8 1.5V7h2.5L14 4.5zM8 11h8v1.8H8V11zm0 3.2h8v1.8H8v-1.8zM8 17.4h5.2V19H8v-1.6z"/></svg><span>Log print</span></button></span></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><!-- Phone header: React (src/web/shell/MobileShell.tsx) --><span id="details-header-slot" style="display: contents"></span></h3>
       <button type="button" id="enter-multi-edit-button" class="full-width-button">Enter Multi-Edit Mode</button>
       <!-- Print status: React (src/web/print/PrintHistory.tsx) -->
       <div id="details-print-slot" style="display: contents"></div>
-      <button type="button" id="mobile-details-more" aria-expanded="false">More details</button>
+      <div id="details-more-slot" style="display: contents"></div>
       <!-- Name: React (src/web/details/DetailsFields.tsx) -->
       <div id="details-name-slot" style="display: contents"></div>
       <div class="form-group mobile-detail-extra">
@@ -188,7 +103,7 @@
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-bundle-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button></span></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><span id="bundle-header-slot" style="display: contents"></span></h3>
       <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
       <div id="bundle-details-slot" style="display: contents"></div>
     </div>
@@ -207,7 +122,7 @@
       </form>
     </dialog>
     <div id="multi-edit-panel" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <span id="multi-header-slot" style="display: contents"></span></h3>
       <!-- Body: React (src/web/details/MultiEditPanel.tsx) -->
       <div id="multi-edit-slot" style="display: contents"></div>
     </div>
@@ -523,7 +438,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="filament.js"></script>
   <script src="guide.js"></script>
   <script src="pwa.js"></script>
-  <script src="mobile-ui.js"></script>
 
   <!-- React screens (src/web/, mounted by main.tsx) -->
   <div id="react-root"></div>

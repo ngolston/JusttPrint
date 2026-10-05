@@ -1207,8 +1207,10 @@ async function browserChecks(base, wsUrl, session) {
 
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
-    await page.evaluate(() => window.openStats());
-    check('Library Stats opens', await page.isVisible('#stats-dialog'));
+    // Opened from the menu bar (React, src/web/shell/MenuBar.tsx).
+    await page.click('#server-menu-bar .server-menu-button:text-is("Help")');
+    await page.click('#server-menu-bar .server-menu-item:text-is("Library Stats")');
+    check('Library Stats opens from the Help menu', await page.isVisible('#stats-dialog') && !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
     const shownTotal = await page.waitForFunction((total) => {
       const text = document.getElementById('stats-total-models')?.textContent;
       return text === total ? text : null;
@@ -1217,6 +1219,49 @@ async function browserChecks(base, wsUrl, session) {
     check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
     await page.click('#stats-dialog .dialog-buttons button');
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
+    await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
+    await page.hover('#server-menu-bar .server-menu-item-has-submenu:has-text("MCP Server")');
+    check('a menu submenu opens on hover', await page.isVisible('#server-menu-bar .server-menu-subitem:text-is("HTTPS / SSL")'));
+    await page.click('main');
+    check('a click outside closes the menu', !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+
+    // Phone layout (React, src/web/shell/MobileShell.tsx), same session at phone size.
+    const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+      storageState: await page.context().storageState() })).newPage();
+    phone.on('pageerror', (error) => errors.push(`phone: ${error.message}`));
+    await phone.goto(base + '/');
+    await phone.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const phoneTile = await phone.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => null);
+    check('the phone layout shows the app bar and bottom nav instead of the menu bar', await phone.isVisible('#mobile-app-bar') && await phone.isVisible('#mobile-bottom-nav')
+      && !(await phone.isVisible('#server-menu-bar')) && (await phone.textContent('#mobile-bar-title')) === 'Library'
+      && /^\d+ models?$/.test(await phone.textContent('#mobile-bar-count')));
+    check('the phone shows the wall, not the detailed cards', await phone.waitForSelector('.view-button.active[data-view="preview"]', { state: 'attached', timeout: 10000 }).then(() => true, () => false)
+      && await phone.isVisible('#mobile-app-bar [data-mobile-view="preview"].is-active'));
+    await phone.tap('#mobile-nav-filters');
+    check('Filters opens the sidebar as a sheet', await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))
+      && await phone.isVisible('#mobile-drawer-head') && await phone.isVisible('#mobile-nav-filters.is-active'));
+    await phone.tap('#mobile-drawer-done');
+    check('Done closes the Filters sheet', !(await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))) && !(await phone.isVisible('#mobile-ui-overlay')));
+    await phone.tap('#mobile-nav-more');
+    check('More lists the tools and the rest of the menu', await phone.isVisible('#mobile-more-sheet .mobile-tool[data-menu-label="Tag Manager"]')
+      && await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Theme")')
+      && !(await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Tag Manager")')));
+    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("MCP Server")');
+    check('a submenu opens as its own page', (await phone.textContent('#mobile-more-title')) === 'MCP Server' && await phone.isVisible('#mobile-more-drill .mobile-more-row:text-is("HTTPS / SSL")'));
+    await phone.tap('#mobile-more-back');
+    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("Library Stats")');
+    check('a More action closes the sheet and opens its screen', await phone.waitForSelector('#stats-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
+      && !(await phone.isVisible('#mobile-more-sheet')));
+    await phone.click('#stats-dialog .dialog-buttons button');
+    if (phoneTile) {
+      await phoneTile.tap();
+      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('mobile-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
+      check('tapping a model opens its details as a sheet with its name', phoneDetails
+        && (await phone.textContent('#mobile-details-name')).trim().length > 0 && await phone.isVisible('#mobile-details-open-preview'));
+      await phone.tap('#model-details .mobile-panel-close');
+      check('× closes the details sheet', await phone.waitForFunction(() => !document.body.classList.contains('mobile-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+    }
+    await phone.close();
 
     // System Report (React): every section finishes, and both benchmarks complete.
     await page.evaluate(() => window.openSystemReport());

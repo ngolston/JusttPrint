@@ -166,6 +166,7 @@ body.server-mode {
   overflow-x: hidden;
   padding-left: 0 !important;
   margin-left: 0 !important;
+  padding-top: 30px;
 }
 html.server-mode {
   overflow-x: hidden;

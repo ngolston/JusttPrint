@@ -109,7 +109,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The sidebar's search, sort and filters and the filter strip (`src/web/filters/`), replacing `search.js` and `query-builder.js`.
   - [x] The folder tree (select, popover, rail, Reveal in folders) and the sidebar layout (More filters, resize handles) in `src/web/folders/`, replacing `folder-tree.js` and `sidebar-layout.js`.
   - [x] The sidebar's counts and buttons (`src/web/filters/SidebarActions.tsx`).
-  - [ ] What is left in `renderer.js` and the other page scripts: the details panel header and the phone layout (`mobile-ui.js`), context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
+  - [x] The menu bar and the phone layout (`src/web/shell/`): one menu for both, the app bar, bottom nav, sheets, More sheet and the details panels' phone header, replacing `mobile-ui.js`.
+  - [ ] What is left in `renderer.js` and the other page scripts: context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:

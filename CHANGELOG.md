@@ -4,12 +4,13 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js` and `sidebar-layout.js` are removed.
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js`, `sidebar-layout.js` and `mobile-ui.js` are removed.
 
 **Changes:**
 - The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
 - The sidebar's Folders control, the folder tree popover and the folder rail beside the grid are React (`src/web/folders/`), as are **More filters** and the drag handles that resize the sidebar and the folder panels. `folder-tree.js` and `sidebar-layout.js` are gone. The Folders select now also follows folder changes made elsewhere (a path click in the details panel, a removed chip), and folder names are no longer inserted as HTML.
 - The top of the sidebar is React (`src/web/filters/SidebarActions.tsx`): the model counts, the De-Dup, Tag, Filament and Roulette buttons, **Scan Directory**, **Scan STL Home** and **View Entire Library**. **Scan Directory** asks for the folder in the app's own prompt (it used the browser's prompt and asked for a UNC path). Removed: the "Server Mode / UNC paths required" box at the top of the sidebar, and an empty banner under View Entire Library that was never shown.
+- The menu bar (Tools, Settings, Help) and the phone layout are React (`src/web/shell/`). Both read one menu definition, so the phone's More sheet no longer copies the menu bar's markup. The phone's app bar, bottom nav, Filters and More sheets, and the details panels' phone buttons (3D, Favorite, Log print) replace `mobile-ui.js`. **Restart Server** asks and reports in the app's own dialogs instead of the browser's.
 - Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
 - Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.
 - Fixed: **Invert Filters** on a query, and NOT in a query, left out every model whose field in the query was empty (for example a model with no designer when the query named a designer).
