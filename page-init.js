@@ -6,26 +6,16 @@
  * so markup declares what a control does with data attributes and this file attaches it:
  *
  *   data-close-dialog="dialog-id"   closes that <dialog> (works for markup added later too)
- *   data-action="functionName"      calls window.functionName() if the page defines it
  *
  * Loaded at the end of <body>, after the other app scripts.
  */
 (function () {
-  // Close buttons, including ones other scripts add later (preview.js builds some).
+  // Close buttons, including ones other scripts add later.
   document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-close-dialog]');
     if (!button) return;
     const dialog = document.getElementById(button.dataset.closeDialog);
     if (dialog && typeof dialog.close === 'function') dialog.close();
-  });
-
-  // Buttons that call a page function. Attached directly (not delegated) so they run before
-  // listeners other scripts add on DOMContentLoaded, as the inline handlers did.
-  document.querySelectorAll('[data-action]').forEach((element) => {
-    element.addEventListener('click', (event) => {
-      const action = window[element.dataset.action];
-      if (typeof action === 'function') action(event);
-    });
   });
 
   // Loading overlay: "Continue anyway" hides it.

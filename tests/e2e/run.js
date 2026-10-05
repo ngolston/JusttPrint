@@ -197,7 +197,7 @@ async function apiChecks(base, wsUrl) {
   check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
   check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/renderer.js')));
-  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/parse-worker.js')));
+  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
   console.log('\n# Library files');
@@ -359,6 +359,10 @@ async function apiChecks(base, wsUrl) {
     const after = (await ask('get-model', [cube])).result || {};
     check('model edits saved', !saved.error && after.notes === 'e2e note' && after.designer === 'E2E Designer' && (after.tags || []).includes('e2e-model-tag'), saved.error || JSON.stringify({ notes: after.notes, designer: after.designer, tags: after.tags }));
     check('designer list includes the edit', ((await ask('get-designers')).result || []).some((d) => JSON.stringify(d).includes('E2E Designer')));
+    await ask('update-models-batch', [[{ filePath: cube, tags: [] }]]);
+    const cleared = ((await ask('get-model', [cube])).result || {}).tags;
+    check('a batch update with no tags removes them', Array.isArray(cleared) && cleared.length === 0, JSON.stringify(cleared));
+    await ask('update-models-batch', [[{ filePath: cube, tags: ['e2e-model-tag'] }]]);
   }
   const tree = await ask('get-folder-tree');
   check('folder tree builds', !tree.error && JSON.stringify(tree.result || '').includes('Designer A'), tree.error);
@@ -475,8 +479,27 @@ async function browserChecks(base, wsUrl, session) {
         null, { timeout: 30000 }
       ).then(() => true, () => false);
       await page.waitForTimeout(1500);
-      check(`3D preview opens: ${path.basename(filePath)}`, opened, errors.slice(errorsBefore).join(' | '));
+      const loaded = await page.waitForFunction(() => /^Dimensions: [\d.]+ × [\d.]+ × [\d.]+ mm$/.test(document.getElementById('preview-dimensions')?.textContent || '')
+        && getComputedStyle(document.getElementById('preview-loading')).display === 'none', null, { timeout: 30000 })
+        .then(() => true, async () => page.textContent('#preview-loading').catch(() => ''));
+      check(`3D preview opens: ${path.basename(filePath)}`, opened && loaded === true, [String(loaded), ...errors.slice(errorsBefore)].join(' | '));
       if (process.env.E2E_DEBUG) console.log(`     errors while open: ${errors.length - errorsBefore}`);
+      if (filePath === tiles[0] && loaded === true) {
+        // Studio (React, src/web/preview/PreviewDialog.tsx): settings apply and are saved; Save Image downloads a PNG.
+        await page.click('#preview-toggle-studio');
+        const studioOpen = await page.isVisible('#preview-studio-panel');
+        await page.click('#preview-studio-backdrop [data-backdrop="mint"]');
+        const savedBackdrop = await page.evaluate(() => JSON.parse(localStorage.getItem('justtprint.previewStudio.v5') || '{}').backdrop);
+        check('the Studio panel opens and saves its settings', studioOpen && savedBackdrop === 'mint'
+          && await page.getAttribute('#preview-studio-backdrop [data-backdrop="mint"]', 'aria-checked') === 'true', String(savedBackdrop));
+        await page.click('#preview-studio-backdrop [data-backdrop="charcoal"]');
+        await page.click('#preview-studio-close');
+        await page.click('#preview-save-image');
+        const download = page.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+        await page.click('#preview-save-with-backdrop');
+        const file = await download;
+        check('Save Image downloads a PNG of the preview', !!file && /-preview\.png$/.test(file.suggestedFilename()), file && file.suggestedFilename());
+      }
       await page.keyboard.press('Escape');
       await page.waitForTimeout(1500);
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
@@ -617,6 +640,16 @@ async function browserChecks(base, wsUrl, session) {
       check('cancel leaves the notes unchanged', /<strong>world<\/strong>/.test(editorHtml) && (await panelModel()).notes === 'Hello **world**'
         && !(await page.isVisible('#notes-modal-dialog')), editorHtml);
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, notes: notesBefore }]]);
+      // Path row (React, src/web/details/DetailsPath.tsx): folders, then the file; a folder click filters the grid.
+      const cardDir = path.dirname(cardPath);
+      const pathFolder = `#path-tree-container .path-tree-folder[data-path="${cardDir.replace(/"/g, '\\"')}"]`;
+      check('details show the path', await page.isVisible(`#path-tree-container .path-tree-file:text-is("${path.basename(cardPath)}")`)
+        && await page.isVisible(pathFolder) && await page.getAttribute('#path-tree-container', 'data-file-path') === cardPath);
+      await page.click(pathFolder);
+      const folderFiltered = await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false);
+      check('clicking a folder in the path shows that folder', folderFiltered);
+      await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
+      await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
@@ -624,12 +657,84 @@ async function browserChecks(base, wsUrl, session) {
       await page.click(`${card} .model-favorite-btn`);
       const favorited = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).favorite ? true : null), 10000, 'favorite').catch(() => false);
       check('a card saves its favorite', favorited === true && await page.isVisible(`${card} .model-favorite-btn.is-favorited`));
+      // The favorite redraws the grid; wait for the cards before picking a second one.
+      await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item-detailed').length >= 2, null, { timeout: 10000 }).catch(() => {});
       const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      // Selection (src/web/selection.ts): the cards follow it.
+      const selectedPaths = () => page.$$eval('.file-grid .file-item.selected', (els) => els.map((el) => el.getAttribute('data-filepath')));
+      await page.evaluate(() => window.selection.clear());
+      await page.click(`${card} .file-name`);
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('ArrowDown');
+      const movedTo = await page.waitForFunction((from) => {
+        const path = document.getElementById('path-tree-container')?.getAttribute('data-file-path');
+        return path && path !== from ? path : null;
+      }, cardPath, { timeout: 10000 }).then((h) => h.jsonValue(), () => null);
+      await page.evaluate(() => window.libraryGrid?.refresh());
+      const afterArrow = await selectedPaths();
+      check('arrow keys move the selection to the next model', !!movedTo && afterArrow.length === 1 && afterArrow[0] === movedTo, JSON.stringify({ movedTo, afterArrow }));
+      await page.click(`.file-grid .file-item-detailed[data-filepath="${String(movedTo).replace(/"/g, '\\"')}"] .file-name`);
+      await page.waitForTimeout(300);
+      check('clicking the selected card again unselects it', (await selectedPaths()).length === 0 && !(await page.isVisible('#model-details')));
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
+      const allSelected = await page.waitForFunction(() => document.querySelector('#multi-edit-panel .selected-count')?.textContent?.trim() === '3 models selected', null, { timeout: 10000 }).then(() => true, () => false);
+      check('Ctrl/Cmd+A selects every model shown and opens multi-edit', allSelected && (await selectedPaths()).length === 3 && await page.isVisible('#multi-edit-panel'));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check('Escape clears the selection', (await selectedPaths()).length === 0 && !(await page.isVisible('#multi-edit-panel')));
+      await page.click('#roulette-button');
+      const rouletteDone = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Print Roulette") button', { timeout: 20000 }).catch(() => null);
+      const picked = await selectedPaths();
+      check('Print Roulette picks one model and shows it', !!rouletteDone && picked.length === 1
+        && await page.getAttribute('#path-tree-container', 'data-file-path') === picked[0], JSON.stringify(picked));
+      if (rouletteDone) await rouletteDone.click();
       // Ctrl-click is a right-click on macOS; the app takes Cmd there.
       const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
       await page.click(`${card} .file-name`, { modifiers: [multiKey] });
       await page.click(`.file-grid .file-item-detailed[data-filepath="${other.replace(/"/g, '\\"')}"] .file-name`, { modifiers: [multiKey] });
       check('Ctrl/Cmd-click selects several cards for multi-edit', (await page.locator('.file-grid .file-item.selected').count()) === 2 && await page.isVisible('#multi-edit-panel'));
+      // Multi-edit panel (React, src/web/details/MultiEditPanel.tsx): each change applies to both selected models.
+      const pair = [cardPath, other];
+      const pairModels = async () => Promise.all(pair.map(async (p) => (await invoke(base, session, 'get-model', [p])).result || {}));
+      const pairBefore = await pairModels();
+      const petg = (await invoke(base, session, 'save-filament', [{ name: 'E2E PETG', material: 'PETG', color_hex: '00ff00' }])).result;
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, filaments: [petg.id] }]]);
+      check('the multi-edit panel counts the selection', /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+      // The server asks every page to refresh its grid (after a scan, an MCP edit, ...): the selection stays.
+      await page.evaluate(() => Promise.all(((window._electronEventListeners || {})['refresh-grid'] || []).map((listener) => listener())));
+      await page.waitForTimeout(1000);
+      check('a server grid refresh keeps the multi-edit selection', (await page.locator('.file-grid .file-item.selected').count()) === 2
+        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+      await page.click('#multi-designer-add');
+      const multiPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (multiPrompt) {
+        await multiPrompt.fill('E2E Multi Designer');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const multiDesigner = await waitFor(async () => ((await pairModels()).every((m) => m.designer === 'E2E Multi Designer') ? true : null), 10000, 'multi designer').catch(() => false);
+      check('multi-edit sets a new designer on every selected model', multiDesigner === true);
+      await page.selectOption('#multi-tag-select', 'e2e-model-tag');
+      const hasTag = (m) => (m.tags || []).some((t) => (t.name || t) === 'e2e-model-tag');
+      const tagOnBoth = await waitFor(async () => ((await pairModels()).every(hasTag) ? true : null), 10000, 'multi tag').catch(() => false);
+      check('multi-edit adds a tag to every selected model', tagOnBoth === true);
+      await page.waitForSelector('#multi-tag-remove-select option[value="e2e-model-tag"]', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#multi-tag-remove-select', 'e2e-model-tag').catch(() => {});
+      const confirmRemoveTag = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      if (confirmRemoveTag) await confirmRemoveTag.click();
+      const tagOffBoth = await waitFor(async () => ((await pairModels()).every((m) => !hasTag(m)) ? true : null), 10000, 'multi untag').catch(() => false);
+      check('multi-edit removes a tag from every selected model after asking', !!confirmRemoveTag && tagOffBoth === true);
+      await page.selectOption('#multi-filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      const filamentNames = (m) => (m.filaments || []).map((f) => f.name);
+      const plaOnBoth = await waitFor(async () => ((await pairModels()).every((m) => filamentNames(m).includes('E2E PLA')) ? true : null), 10000, 'multi filament').catch(() => false);
+      check('multi-edit adds a filament to every selected model', plaOnBoth === true && await page.isVisible('#multi-filaments .filament-chip:has-text("E2E PLA")'));
+      await page.waitForSelector('#multi-filament-remove-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#multi-filament-remove-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      const plaRemoved = await waitFor(async () => {
+        const [first, second] = await pairModels();
+        return !filamentNames(first).includes('E2E PLA') && !filamentNames(second).includes('E2E PLA') && filamentNames(first).includes('E2E PETG') ? true : null;
+      }, 10000, 'multi filament removed').catch(async () => JSON.stringify((await pairModels()).map(filamentNames)));
+      check('multi-edit removes one filament and keeps the others', plaRemoved === true, String(plaRemoved));
+      await invoke(base, session, 'update-models-batch', [pairBefore.map((m) => ({ filePath: m.filePath, designer: m.designer || null, tags: m.tags || [], filaments: [] }))]);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
       check('Escape leaves multi-edit', !(await page.isVisible('#multi-edit-panel')));
@@ -658,6 +763,29 @@ async function browserChecks(base, wsUrl, session) {
           return thumbnail.split('::')[0] === second ? true : null;
         }, 10000, 'default image').catch(() => false);
         check('the image left showing becomes the default', saved === true);
+        // Manage Thumbnails (React, src/web/ManageThumbnailsDialog.tsx).
+        const storedImages = async () => ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).filter((t) => String(t).startsWith('data:image'));
+        await page.evaluate((p) => window.openManageThumbnails(p), cardPath);
+        const manage = await page.waitForSelector('#manage-thumbnails-dialog[open] .thumbnail-item', { timeout: 10000 }).catch(() => null);
+        const beforeManage = await storedImages();
+        check('Manage Thumbnails lists the images with the active one first', !!manage
+          && (await page.locator('#manage-thumbnails-dialog .thumbnail-item').count()) === beforeManage.length
+          && (await page.textContent('#manage-thumbnails-dialog .thumbnail-item.active .thumbnail-item-label')) === 'Active');
+        await page.click('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .set-active', { force: true });
+        const activated = await waitFor(async () => ((await storedImages())[0] === beforeManage[1] ? true : null), 10000, 'set active').catch(() => false);
+        check('Manage Thumbnails sets another image as active', activated === true);
+        await page.waitForSelector('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .delete:not([disabled])', { state: 'attached', timeout: 10000 }).catch(() => {});
+        await page.click('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .delete', { force: true });
+        const confirmThumbDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+        if (confirmThumbDelete) await confirmThumbDelete.click();
+        const deletedImage = await waitFor(async () => ((await storedImages()).length === beforeManage.length - 1 ? true : null), 10000, 'delete image').catch(() => false);
+        const listShrunk = await page.waitForFunction((n) => document.querySelectorAll('#manage-thumbnails-dialog .thumbnail-item').length === n, beforeManage.length - 1, { timeout: 10000 }).then(() => true, () => false);
+        check('Manage Thumbnails deletes an image after asking', !!confirmThumbDelete && deletedImage === true && listShrunk,
+          JSON.stringify({ confirm: !!confirmThumbDelete, saved: deletedImage, listShrunk, before: beforeManage.length, after: (await storedImages()).length }));
+        await page.click('#manage-thumbnails-dialog .dialog-buttons button');
+        const cardShowsActive = await page.waitForFunction(([sel, src]) => document.querySelector(`${sel} .thumbnail-container img`)?.getAttribute('src') === src,
+          [card, beforeManage[1]], { timeout: 10000 }).then(() => true, () => false);
+        check('closing Manage Thumbnails redraws the card with the active image', !(await page.isVisible('#manage-thumbnails-dialog')) && cardShowsActive);
       }
     }
     // Group cards (React, GroupCard.tsx): two models with one parent model show as a group.
@@ -688,18 +816,18 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('.view-button[data-view="preview"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
-    await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('new-tag-dialog').open));
+    await page.evaluate(() => document.getElementById('searchable-list-dialog').showModal());
+    await page.click('#searchable-list-dialog [data-close-dialog="searchable-list-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('searchable-list-dialog').open));
     await page.evaluate(() => document.getElementById('preview-dialog').showModal());
     await page.click('#preview-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
+    check('the preview goes full screen', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
     await page.click('#preview-fullscreen-toggle');
     await page.evaluate(() => document.getElementById('preview-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
     const stepResult = await page.evaluate(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const worker = new Worker('parse-worker.js');
+      const worker = new Worker(window.parseWorkerUrl);
       const reply = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve({ success: false, error: 'timeout' }), 60000);
         worker.onmessage = (event) => { clearTimeout(timer); resolve(event.data); };
@@ -1287,6 +1415,68 @@ async function browserChecks(base, wsUrl, session) {
     check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
     await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
     if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
+
+    // ZIP bundle panel (React, src/web/details/BundleDetails.tsx): a two-model archive groups into one card.
+    const kitDir = path.join(LIBRARY, 'Bundle Kit');
+    const kitZip = path.join(kitDir, 'kit.zip');
+    fs.mkdirSync(kitDir, { recursive: true });
+    // Different content from cube.stl and from each other, so De-Dup and hashes leave them alone.
+    const cubeText = fs.readFileSync(path.join(LIBRARY, 'Designer A', 'cube.stl'), 'utf8');
+    const kitPart = (name) => new TextEncoder().encode(cubeText.replace(/^solid[^\n]*/, `solid ${name}`));
+    fs.writeFileSync(kitZip, require('fflate').zipSync({ 'kit/left.stl': kitPart('left'), 'kit/right.stl': kitPart('right') }));
+    // The e2e library is inside the app folder, which scans refuse; register the entries directly.
+    for (const entry of ['kit/left.stl', 'kit/right.stl']) {
+      await invoke(base, session, 'save-model', [{ filePath: `${kitZip}::${entry}`, fileName: path.basename(entry) }]);
+    }
+    await page.click('.view-button[data-view="detailed"]');
+    await page.evaluate(() => window.performCombinedSearch?.({ force: true }));
+    const kitCard = '.file-grid .parent-model-group-detailed:has-text("kit.zip")';
+    const kitShown = await page.waitForSelector(kitCard, { timeout: 30000 }).catch(() => null);
+    check('a ZIP with two models shows as one bundle card', !!kitShown);
+    if (kitShown) {
+      await page.click(`${kitCard} .parent-model-group-meta`);
+      const bundlePanel = await page.waitForSelector('#bundle-details:not(.hidden) #bundle-contents-list li', { timeout: 10000 }).catch(() => null);
+      check('clicking a bundle shows the bundle panel', !!bundlePanel && await page.textContent('#bundle-details-title') === 'kit.zip'
+        && /ZIP archive • 2 files/.test(await page.textContent('#bundle-details-subtitle'))
+        && await page.inputValue('#bundle-details-path') === kitZip
+        && (await page.locator('#bundle-contents-list .bundle-contents-list-item').count()) === 2
+        && /2\s*models/.test(await page.textContent('#bundle-details-stats')));
+      const kitModels = [`${kitZip}::kit/left.stl`, `${kitZip}::kit/right.stl`];
+      const kitTagged = async (tag) => {
+        const models = await Promise.all(kitModels.map(async (p) => (await invoke(base, session, 'get-model', [p])).result || {}));
+        return models.map((m) => (m.tags || []).some((t) => (t.name || t) === tag));
+      };
+      await page.click('#bundle-add-tag');
+      const bundleTagPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (bundleTagPrompt) {
+        await bundleTagPrompt.fill('e2e-bundle-tag');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const tagAdded = await waitFor(async () => ((await kitTagged('e2e-bundle-tag')).every(Boolean) ? true : null), 10000, 'bundle tag').catch(() => false);
+      check('the bundle panel adds a tag to every model in it', tagAdded === true && await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]'));
+      await page.click('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"] .tag-remove');
+      const tagRemoved = await waitFor(async () => ((await kitTagged('e2e-bundle-tag')).every((v) => !v) ? true : null), 10000, 'bundle tag removed').catch(() => false);
+      check('the bundle panel removes a tag from every model', tagRemoved === true && !(await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]')),
+        JSON.stringify({ saved: await kitTagged('e2e-bundle-tag'), chip: await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]') }));
+      // 3D preview of the whole bundle: parts laid out side by side, each one selectable.
+      await page.evaluate(([zip]) => window.openBundlePreview({ groupLabel: 'kit.zip', children: [
+        { filePath: `${zip}::kit/left.stl`, fileName: 'left.stl', bundleKind: 'zip' },
+        { filePath: `${zip}::kit/right.stl`, fileName: 'right.stl', bundleKind: 'zip' }
+      ] }), [kitZip]);
+      const bundlePreview = await page.waitForFunction(() => document.getElementById('preview-file-type')?.textContent === 'ZIP bundle • 2 models'
+        && getComputedStyle(document.getElementById('preview-loading')).display === 'none', null, { timeout: 30000 })
+        .then(() => true, async () => page.textContent('#preview-dialog .preview-loading').catch(() => ''));
+      const partNames = await page.$$eval('#preview-part-select option', (opts) => opts.map((o) => o.textContent));
+      check('the bundle 3D preview lays out every model with a part picker', bundlePreview === true && await page.isVisible('#preview-part-picker')
+        && JSON.stringify(partNames) === JSON.stringify(['All parts', 'left.stl', 'right.stl']), `${bundlePreview} ${JSON.stringify(partNames)}`);
+      await page.selectOption('#preview-part-select', { label: 'right.stl' });
+      check('picking a part focuses it', /^Dimensions: /.test(await page.textContent('#preview-dimensions')));
+      await page.click('#close-preview');
+      await page.click('#bundle-contents-list .bundle-contents-list-item:text-is("left.stl")');
+      const openedChild = await page.waitForFunction(() => document.getElementById('path-tree-container')?.getAttribute('data-file-path')?.endsWith('::kit/left.stl')
+        && !document.getElementById('model-details')?.classList.contains('hidden'), null, { timeout: 10000 }).then(() => true, () => false);
+      check('a model in the bundle list opens its details', openedChild && await page.isHidden('#bundle-details'));
+    }
 
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());

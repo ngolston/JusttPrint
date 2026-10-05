@@ -614,7 +614,8 @@ button:disabled {
 }
 
 .bundle-details > .form-group,
-.bundle-details > .bundle-details-stats {
+.bundle-details > .bundle-details-stats,
+#bundle-details-slot > .bundle-details-stats {
   margin-bottom: 12px;
 }
 
@@ -810,6 +811,8 @@ button:disabled {
 #details-print-slot > .form-group,
 #details-filaments-slot > .form-group,
 #details-notes-slot > .form-group,
+#bundle-details-slot > .form-group,
+#multi-edit-slot > .form-group,
 #details-history-slot > .form-group {
   margin-bottom: 15px;
 }
@@ -3699,10 +3702,6 @@ dialog:not([open]) {
   background-color: #28a745; /* Different color for render progress */
 }
 
-.bulk-edit-button {
-  display: none;
-}
-
 .selected-count {
   color: #999;
   margin-bottom: 20px;
@@ -3713,14 +3712,6 @@ dialog:not([open]) {
   padding: 0 16px;
 }
 
-#multi-save-button {
-  background-color: #28a745;
-  margin-top: 20px;
-}
-
-#multi-save-button:hover {
-  background-color: #218838;
-}
 
 /* Make multi-edit panel match model details styling */
 #multi-edit-panel.model-details {
@@ -6875,13 +6866,6 @@ dialog:not([open]) {
   height: 100%;
 }
 
-/* Add these rules to hide the save buttons */
-#save-model-button,
-#save-multi-edit-button,
-#multi-save-button {
-  display: none !important;
-}
-
 /* Add styles for the multi-edit mode buttons - match filter section width */
 #enter-multi-edit-button,
 #exit-multi-edit-button {
@@ -9193,6 +9177,11 @@ dialog:not([open]) {
   margin-top: 8px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* Rotate speed is hidden until Auto rotate is on. */
+.preview-studio-slider[hidden] {
+  display: none;
 }
 
 .preview-studio-slider input[type="range"] {

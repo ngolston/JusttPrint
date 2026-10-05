@@ -4,6 +4,24 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-10-05
+
+**Upgrading:** no changes needed for Docker. If you build from source, run `npm run build:web` (it now also builds the parse worker, `web-build/parse-worker.js`). Removed files: `preview.js`, `parse-worker.js`, and the bundled three.js r128 copies in `vendor/` (`three.min.js`, its loaders, `OrbitControls.js`, `fflate.min.js`). Behind a strict proxy or CSP of your own, allow `'unsafe-eval'` for `/web-build/parse-worker.js` instead of `/parse-worker.js` (the STEP importer needs it).
+
+**Changes:**
+- The details panel's path row is React (`src/web/details/DetailsPath.tsx`). Clicking a folder in it now shows that folder in the library; it used to try to open the folder on the server, which the server refuses. Folder names are no longer inserted as HTML.
+- The ZIP bundle panel is React (`src/web/details/BundleDetails.tsx`). Its ↗ button shows the archive's folder in the library (it used to ask the server to open a folder, which the server refuses), and its + button asks for the new tag in the app's own prompt.
+- The multi-edit panel is React (`src/web/details/MultiEditPanel.tsx`), and about 2,000 lines of multi-edit and dialog code are gone from `renderer.js`. The + buttons ask for the new designer, parent model, license or tag in the app's own prompt; the separate Add Designer / Parent / License / Tag dialogs and an unreachable bulk-edit dialog are removed.
+- Fixed in multi-edit: changing the designer, parent model or license saved once more each time the panel had been opened, and adding a new tag or designer could save twice. **Remove Filament** removed every filament from the selected models instead of only the chosen one.
+- Fixed: when the server refreshed the grid (after a scan finished, an MCP edit or an import), the multi-edit selection was silently dropped while the panel still showed the old count, so the next change applied to nothing. The selection now stays, and selected cards stay highlighted.
+- **Manage Thumbnails** is React (`src/web/ManageThumbnailsDialog.tsx`). Deleting an image asks in the app's own dialog, the card is redrawn after a delete too (not only after changing the active image), and the buttons can't be pressed again while a change is saving. An unreachable group version of the dialog is removed.
+- The **3D preview** is React (`src/web/preview/`) on current three.js (0.181, from npm) instead of the bundled 2021 copy (r128). It looks the same: colors are not color-managed and light intensities are scaled to match the old renderer. three.js is loaded only when a preview first opens (`web-build/engine.js`). `preview.js` is gone.
+- Thumbnails and the model parse worker also use three.js 0.181: the thumbnail renderer is `src/web/thumbnails/` and the worker is `src/web/parse/worker.ts`, built to `web-build/parse-worker.js` (the server's relaxed script policy for the STEP library now applies to that path). Thumbnails look the same. The bundled three.js r128 files (`vendor/three.min.js` and its loaders, `OrbitControls.js`, `fflate.min.js`) and `parse-worker.js` are removed, and the page no longer loads three.js at startup: it is fetched with the first preview or thumbnail.
+- Fixed in the 3D preview: the 3D preview of a ZIP or folder bundle failed with an error. The canvas was sized once when the preview opened and could end up taller than its area (cut off at the bottom, slightly stretched); it now follows the dialog's size, including full screen and the Studio panel. Esc in "Sit on face" mode leaves that mode instead of closing the preview. Rotate speed is hidden while Auto rotate is off. Error messages are no longer inserted as HTML.
+- The grid selection is a TypeScript store (`src/web/selection.ts`) that the cards and the multi-edit panel follow, instead of a set in `renderer.js` kept in step with the cards' classes by hand.
+- Fixed: after moving through models with the arrow keys (or J/K) in the details panel, the next grid redraw highlighted the first model again. Print Roulette leaves the chosen model selected.
+- Fixed: removing the last tag from a ZIP bundle, or from selected models in multi-edit, did not save. A batch update with an empty tag list now removes the tags.
+
 ## [4.3.0] - 2026-10-04
 
 **Upgrading:** no changes needed. `notes-markdown.js` and `print-history.js` are removed; if you serve the files yourself, rebuild with `npm run build:web`.

@@ -27,8 +27,6 @@ declare global {
     updateModelElement?: (filePath: string) => Promise<void>;
     /** renderer.js: the model the details panel shows. */
     getCurrentModelFilePath?: () => string | null;
-    /** renderer.js: the selected grid cards' paths. */
-    selectedModels?: Set<string>;
     /** filament.js: display labels by filament id. */
     filamentLabelById?: Record<string, string>;
   }
@@ -97,6 +95,8 @@ const printHistory = {
   badgeClassNames,
   badgeTitle,
   openLogDialog,
+  /** Set the print status of several models and refresh their cards. */
+  setStatus: setStatusForPaths,
   openStatusMenu: (anchor: HTMLElement, filePath: string) => openStatusMenuImpl?.(anchor, filePath),
   populateDetails: async (model: PrintDetailsModel) => { window.detailsPrint?.show(model); },
   modelMatchesPrintFilter,
@@ -108,8 +108,6 @@ const printHistory = {
 
 // Set when the bundle loads, before renderer.js filters or draws cards with it.
 window.PrintHistory = printHistory;
-
-const selectedFilePaths = () => Array.from(window.selectedModels || []);
 
 interface ChosenPart {
   part: Part;
@@ -173,32 +171,10 @@ function LogPrintDialog() {
     return () => { if (openLogDialogImpl === open) openLogDialogImpl = null; };
   });
 
-  // The multi-edit panel's controls are still static markup in index.html.
   useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      if ((event.target as Element | null)?.closest?.('#multi-log-print-button')) {
-        const paths = selectedFilePaths();
-        if (paths.length) openLogDialog({ filePaths: paths });
-      }
-    };
-    const onChange = (event: Event) => {
-      const select = event.target as HTMLSelectElement;
-      if (select?.id !== 'multi-print-status') return;
-      const paths = selectedFilePaths();
-      if (!paths.length || !select.value) return;
-      const value = select.value;
-      select.value = '';
-      setStatusForPaths(paths, value);
-    };
     const onPrintersChanged = () => { if (dialogRef.current?.open) loadPrinters(); };
-    document.addEventListener('click', onClick);
-    document.addEventListener('change', onChange);
     document.addEventListener('printers-changed', onPrintersChanged);
-    return () => {
-      document.removeEventListener('click', onClick);
-      document.removeEventListener('change', onChange);
-      document.removeEventListener('printers-changed', onPrintersChanged);
-    };
+    return () => document.removeEventListener('printers-changed', onPrintersChanged);
   }, []);
 
   function addFilament(id: number) {

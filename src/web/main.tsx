@@ -10,20 +10,28 @@ import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { DedupDialog } from './DedupDialog';
+import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
 import { DetailsNotes } from './details/DetailsNotes';
+import { DetailsPath } from './details/DetailsPath';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
+import { MultiEditPanel } from './details/MultiEditPanel';
 import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
+import './preview/files';
+import './thumbnails';
+import './parse';
+import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
@@ -64,6 +72,11 @@ function Screens() {
       <DetailsFields />
       <DetailsFilaments />
       <DetailsNotes />
+      <DetailsPath />
+      <BundleDetails />
+      <MultiEditPanel />
+      <ManageThumbnailsDialog />
+      <PreviewDialog />
       <PrintHistory />
     </>
   );

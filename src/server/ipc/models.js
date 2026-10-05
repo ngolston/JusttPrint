@@ -590,8 +590,8 @@ async function updateModelsBatch(modelDataBatch) {
         );
         console.log(`[Batch ${i}] Update result:`, updateResult);
 
-        // Handle tags if provided
-        if (tags && Array.isArray(tags) && tags.length > 0) {
+        // Replace the tags when a list is given; an empty list removes them all.
+        if (Array.isArray(tags)) {
           const modelId = existingModel.id;
           
           // Delete existing tags
