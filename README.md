@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.3.0**
+**Version 4.4.0**
 
 JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -887,10 +887,10 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling
 - `renderer.js` - UI logic (being replaced screen by screen with React + TypeScript)
-- `src/web/` - React + TypeScript screens, built with Vite into `web-build/app.js` and mounted into the page one at a time (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. So far: Server Access, Tag Manager, Parts Manager, Filament Manager, Printer Manager, Library Stats, System Report, Backup/Restore, Keyboard Shortcuts, About, Performance Settings, MCP Server settings, Browser Extension settings, File Type settings, HTTPS / SSL settings, AI Configuration, Purge Models, Theme settings, Slicer settings, the Metadata Manager, STL Home, Organize Library and De-Dup; the library grid (`grid/`: layout, model cards, group cards); and the details panel's metadata fields, filaments and notes (`details/`), print status, print history and the Log Print dialog (`print/`), and the Markdown for notes (`notes/`)
+- `src/web/` - React + TypeScript, built with Vite into `web-build/` and mounted into the page (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. The dialogs and managers; the library grid (`grid/`) and its selection (`selection.ts`); the details, ZIP bundle and multi-edit panels (`details/`); print status, history and the Log Print dialog (`print/`); notes Markdown (`notes/`); the 3D preview (`preview/`); grid thumbnails (`thumbnails/`); and the model parse worker (`parse/worker.ts`, built to `web-build/parse-worker.js`). three.js is its own chunk, loaded with the first preview or thumbnail
 - `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
-- `page-init.js` - Wires up buttons declared with `data-close-dialog` / `data-action`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
-- `preview.js`, `search.js`, `folder-tree.js`, `guide.js` - Preview, search, folder tree, guide
+- `page-init.js` - Wires up buttons declared with `data-close-dialog` and the toolbar buttons. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
+- `search.js`, `query-builder.js`, `folder-tree.js`, `mobile-ui.js`, `guide.js` - Search and filters, folder tree, phone layout, guide
 
 ### Configuration
 - `package.json` - Dependencies and scripts
@@ -902,7 +902,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 - **Express** and **ws** - HTTP server, API and WebSocket
 - **React** + **TypeScript**, built with **Vite** - New web UI screens
 - **better-sqlite3** - SQLite database
-- **Three.js** - 3D previews and thumbnails
+- **three.js** (0.181) - 3D previews, thumbnails and model parsing
 - **Puppeteer** + Chromium - Thumbnail rendering in the container and page imports
 - **Fuse.js** - Fuzzy search
 - **OpenAI SDK** - AI tagging

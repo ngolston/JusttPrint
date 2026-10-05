@@ -4,6 +4,10 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-10-05
+
+**Upgrading:** no changes needed for Docker. If you build from source, run `npm run build:web` (it now also builds the parse worker, `web-build/parse-worker.js`). Removed files: `preview.js`, `parse-worker.js`, and the bundled three.js r128 copies in `vendor/` (`three.min.js`, its loaders, `OrbitControls.js`, `fflate.min.js`). Behind a strict proxy or CSP of your own, allow `'unsafe-eval'` for `/web-build/parse-worker.js` instead of `/parse-worker.js` (the STEP importer needs it).
+
 **Changes:**
 - The details panel's path row is React (`src/web/details/DetailsPath.tsx`). Clicking a folder in it now shows that folder in the library; it used to try to open the folder on the server, which the server refuses. Folder names are no longer inserted as HTML.
 - The ZIP bundle panel is React (`src/web/details/BundleDetails.tsx`). Its ↗ button shows the archive's folder in the library (it used to ask the server to open a folder, which the server refuses), and its + button asks for the new tag in the app's own prompt.
