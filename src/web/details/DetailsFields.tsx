@@ -20,7 +20,7 @@ type ListField = 'designer' | 'parent' | 'license' | 'tag' | 'filament';
 /** What this section asks of renderer.js. */
 export interface DetailsHost {
   /** Save one field of the model (autoSaveModel: also updates its grid card). */
-  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'filaments', value: string | string[] | number[]): Promise<boolean>;
+  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'filaments' | 'notes', value: string | string[] | number[]): Promise<boolean>;
   /** The searchable list dialog; resolves to the picked value (a filament's id), or null. */
   pickFromList(field: ListField): Promise<string | null>;
   /** Open the source URL in a new tab (checks it is http/https). */

@@ -410,14 +410,8 @@
       <div id="details-fields-slot" style="display: contents"></div>
       <!-- Filaments: React (src/web/details/DetailsFilaments.tsx) -->
       <div id="details-filaments-slot" style="display: contents"></div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-notes">Notes:</label>
-        <div class="notes-input-container">
-          <textarea id="model-notes" class="notes-source" aria-hidden="true" tabindex="-1"></textarea>
-          <div id="model-notes-preview" class="notes-preview notes-sidebar-preview" aria-label="Notes"></div>
-          <button type="button" id="open-notes-modal-button" class="icon-button" title="Edit notes">✏️</button>
-        </div>
-      </div>
+      <!-- Notes: React (src/web/details/DetailsNotes.tsx) -->
+      <div id="details-notes-slot" style="display: contents"></div>
       <!-- Print history: React (src/web/print/PrintHistory.tsx) -->
       <div id="details-history-slot" style="display: contents"></div>
     </div>
@@ -664,30 +658,6 @@
         <div class="dialog-buttons">
           <button type="submit" id="add-license-button">Add</button>
           <button type="button" id="cancel-license-button" data-close-dialog="new-license-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
-    <dialog id="notes-modal-dialog" class="modal notes-modal">
-      <form method="dialog">
-        <h3>Edit Notes</h3>
-        <div class="form-group">
-          <div class="notes-editor" data-notes-editor="modal">
-            <div class="notes-toolbar" role="toolbar" aria-label="Notes formatting">
-              <button type="button" data-md="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" data-md="italic" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" data-md="strike" title="Strikethrough"><s>S</s></button>
-              <button type="button" data-md="h2" title="Heading">H</button>
-              <button type="button" data-md="list" title="Bullet list">•</button>
-              <button type="button" data-md="link" title="Link">Link</button>
-              <button type="button" data-md="code" title="Code">&lt;/&gt;</button>
-            </div>
-            <div id="notes-richtext" class="notes-richtext" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Notes"></div>
-            <textarea id="notes-modal-textarea" class="notes-source" aria-hidden="true" tabindex="-1"></textarea>
-          </div>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="save-notes-button">Save</button>
-          <button type="button" id="cancel-notes-button" data-close-dialog="notes-modal-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1241,7 +1211,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="sidebar-layout.js"></script>
   <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>
-  <script src="notes-markdown.js"></script>
   <script src="stl-sanity.js"></script>
   <script src="renderer.js"></script>
   <script src="filament.js"></script>

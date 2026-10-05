@@ -590,6 +590,33 @@ async function browserChecks(base, wsUrl, session) {
         && await page.waitForSelector(filamentChip, { timeout: 10000 }).then(() => true, () => false));
       await page.click(`${filamentChip} .filament-chip-remove`);
       await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament cleanup').catch(() => {});
+      // Notes in the details panel and the Edit Notes dialog (React, src/web/details/DetailsNotes.tsx).
+      const notesBefore = (await panelModel()).notes || '';
+      await page.click('#model-notes-preview');
+      const notesEditor = await page.waitForSelector('#notes-modal-dialog[open] #notes-richtext', { timeout: 10000 }).catch(() => null);
+      check('clicking the notes preview opens the editor', !!notesEditor);
+      if (notesEditor) {
+        await page.evaluate(() => { document.getElementById('notes-richtext').innerHTML = ''; });
+        await page.focus('#notes-richtext');
+        await page.keyboard.type('Hello ');
+        await page.click('#notes-modal-dialog .notes-toolbar [data-md="bold"]');
+        await page.keyboard.type('world');
+        await page.click('#save-notes-button');
+      }
+      const notesSaved = await waitFor(async () => ((await panelModel()).notes === 'Hello **world**' ? true : null), 10000, 'notes saved')
+        .catch(async () => JSON.stringify((await panelModel()).notes));
+      check('the notes editor saves Markdown and the preview renders it', notesSaved === true && !(await page.isVisible('#notes-modal-dialog'))
+        && await page.isVisible('#model-notes-preview strong:text-is("world")'), String(notesSaved));
+      await page.click('#open-notes-modal-button');
+      await page.waitForSelector('#notes-modal-dialog[open]', { timeout: 10000 }).catch(() => {});
+      const editorHtml = await page.innerHTML('#notes-richtext').catch(() => '');
+      await page.focus('#notes-richtext');
+      await page.keyboard.type(' discarded');
+      await page.click('#cancel-notes-button');
+      await page.waitForTimeout(500);
+      check('cancel leaves the notes unchanged', /<strong>world<\/strong>/.test(editorHtml) && (await panelModel()).notes === 'Hello **world**'
+        && !(await page.isVisible('#notes-modal-dialog')), editorHtml);
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, notes: notesBefore }]]);
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);

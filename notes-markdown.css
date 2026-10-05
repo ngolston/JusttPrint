@@ -39,10 +39,6 @@
   box-shadow: none;
 }
 
-.notes-source {
-  display: none !important;
-}
-
 .notes-sidebar-preview {
   flex: 1 1 0;
   min-width: 0;

@@ -2245,19 +2245,7 @@ async function showModelDetails(filePath) {
     }
     renderPathTree(model.filePath || '', 'path-tree-container');
 
-    // Notes: the notes dialog writes #model-notes and fires change. Clone to drop the
-    // previous model's listener.
-    const oldNotes = document.getElementById('model-notes');
-    if (oldNotes) {
-      const notes = oldNotes.cloneNode(true);
-      oldNotes.parentNode.replaceChild(notes, oldNotes);
-      notes.value = model.notes || '';
-      window.NotesMarkdown?.sync(notes);
-      notes.addEventListener('change', async (event) => {
-        if (getCurrentModelFilePath() !== filePath) return;
-        await autoSaveModel('notes', event.target.value, filePath);
-      });
-    }
+    window.detailsNotes?.show(model);
 
     if (window.PrintHistory) {
       await window.PrintHistory.populateDetails(model);
@@ -4025,93 +4013,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     welcomeDialog.close();
   });
 
-  // Notes modal handlers
-  const notesModal = document.getElementById('notes-modal-dialog');
-  const notesModalTextarea = document.getElementById('notes-modal-textarea');
-  const openNotesModalButton = document.getElementById('open-notes-modal-button');
-  const saveNotesButton = document.getElementById('save-notes-button');
-  const cancelNotesButton = document.getElementById('cancel-notes-button');
-  const modelNotesTextarea = document.getElementById('model-notes');
-
-  // Open notes modal
-  openNotesModalButton?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Get fresh references to ensure we have the latest values
-    const currentNotesTextarea = document.getElementById('model-notes');
-    const currentModalTextarea = document.getElementById('notes-modal-textarea');
-    const currentModal = document.getElementById('notes-modal-dialog');
-    
-    if (currentModal && currentModalTextarea && currentNotesTextarea) {
-      // Always read the current value from the textarea
-      currentModalTextarea.value = currentNotesTextarea.value || '';
-      window.NotesMarkdown?.sync(currentModalTextarea);
-      currentModal.showModal();
-      // Focus the textarea after a short delay to ensure modal is fully rendered
-      setTimeout(() => {
-        document.getElementById('notes-richtext')?.focus();
-      }, 100);
-    }
-  });
-
-  // Save notes from modal
-  saveNotesButton?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    // Get fresh references to ensure we have the latest elements
-    const currentModalTextarea = document.getElementById('notes-modal-textarea');
-    const currentNotesTextarea = document.getElementById('model-notes');
-    const currentModal = document.getElementById('notes-modal-dialog');
-    
-    if (currentModal && currentModalTextarea && currentNotesTextarea) {
-      window.NotesMarkdown?.commit();
-      const newValue = currentModalTextarea.value || '';
-      // Update the main textarea with the new value
-      currentNotesTextarea.value = newValue;
-      window.NotesMarkdown?.sync(currentNotesTextarea);
-      
-      // Trigger change event to auto-save
-      const changeEvent = new Event('change', { bubbles: true });
-      currentNotesTextarea.dispatchEvent(changeEvent);
-      
-      currentModal.close();
-    }
-  });
-
-  // Cancel notes modal
-  cancelNotesButton?.addEventListener('click', () => {
-    if (notesModal) {
-      notesModal.close();
-    }
-  });
-
-  // Handle form submission (e.g., pressing Enter in textarea)
-  const notesModalForm = notesModal?.querySelector('form');
-  notesModalForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    // Get fresh references
-    const currentModalTextarea = document.getElementById('notes-modal-textarea');
-    const currentNotesTextarea = document.getElementById('model-notes');
-    
-    if (currentModalTextarea && currentNotesTextarea) {
-      window.NotesMarkdown?.commit();
-      const newValue = currentModalTextarea.value || '';
-      currentNotesTextarea.value = newValue;
-      window.NotesMarkdown?.sync(currentNotesTextarea);
-      
-      // Trigger change event to auto-save
-      const changeEvent = new Event('change', { bubbles: true });
-      currentNotesTextarea.dispatchEvent(changeEvent);
-      
-      notesModal.close();
-    }
-  });
-
-  // Close modal on backdrop click
-  notesModal?.addEventListener('click', (e) => {
-    if (e.target === notesModal) {
-      notesModal.close();
-    }
-  });
 
 
   // Update the multi-save button handler
@@ -10362,11 +10263,7 @@ function clearModelDetailsSidebar() {
     pathTreeContainer.removeAttribute('data-file-path');
   }
   window.detailsFields?.clear();
-  const mnotes = document.getElementById('model-notes');
-  if (mnotes) {
-    mnotes.value = '';
-    window.NotesMarkdown?.sync(mnotes);
-  }
+  window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
   previousSelectionHash = '';
@@ -13348,27 +13245,6 @@ function exitMultiEditMode() {
   currentModelDetailsPath = null;
   currentModelDetailsAbort = true;
   
-  // Remove event listeners from model details form fields by cloning them
-  const modelDetailsFields = [
-    'model-notes'
-  ];
-  
-  modelDetailsFields.forEach(fieldId => {
-    const element = document.getElementById(fieldId);
-    if (element) {
-      // Clone and replace to remove all event listeners
-      const newElement = element.cloneNode(true);
-      element.parentNode.replaceChild(newElement, element);
-      
-      // Reset element states
-      if (newElement.tagName === 'SELECT') {
-        newElement.value = '';
-      } else if (newElement.tagName === 'INPUT') {
-        newElement.value = '';
-      }
-    }
-  });
-  
   // Clear the form
   const pathTreeContainer = document.getElementById('path-tree-container');
   if (pathTreeContainer) {
@@ -13376,8 +13252,7 @@ function exitMultiEditMode() {
     pathTreeContainer.removeAttribute('data-file-path');
   }
   window.detailsFields?.clear();
-  document.getElementById('model-notes').value = '';
-  window.NotesMarkdown?.sync(document.getElementById('model-notes'));
+  window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
   
