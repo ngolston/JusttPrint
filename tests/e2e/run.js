@@ -648,6 +648,41 @@ async function browserChecks(base, wsUrl, session) {
       await page.click(pathFolder);
       const folderFiltered = await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false);
       check('clicking a folder in the path shows that folder', folderFiltered);
+      // Folder tree (React, src/web/folders/): the select, Reveal in folders, the popover, the rail and the panel widths.
+      const treeRow = (scope) => `${scope} .folder-tree-row[data-path="${cardDir.replace(/"/g, '\\"')}"]`;
+      check('the Folders select follows the folder shown', (await page.inputValue('#folder-select')) === cardDir);
+      await page.click('#reveal-in-folders-button');
+      check('Reveal in folders opens the tree at the model\'s folder',
+        await page.waitForSelector(`${treeRow('#folder-tree-popover')}.is-selected`, { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#folder-tree-button');
+      check('the ☰ button closes the folder popover', await page.waitForSelector('#folder-tree-popover', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
+      await page.selectOption('#folder-select', '');
+      check('"All folders" clears the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#folder-tree-button');
+      await page.fill('#folder-tree-search', path.basename(cardDir));
+      await page.click(treeRow('#folder-tree-popover'));
+      check('picking a folder in the popover shows it and closes the popover',
+        await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false)
+        && !(await page.isVisible('#folder-tree-popover')));
+      await page.click('#folder-rail-toggle');
+      check('the Folders toggle opens the rail beside the grid',
+        await page.waitForSelector(`${treeRow('#folder-rail')}.is-selected`, { timeout: 10000 }).then(() => true, () => false)
+        && await page.evaluate(() => document.body.classList.contains('folder-rail-open')));
+      await page.click('#folder-rail-close');
+      const railSetting = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['folderRailOpen'])).result === 'false' ? true : null), 5000, 'rail setting').catch(() => false);
+      check('closing the rail hides it and saves that', railSetting === true && !(await page.isVisible('#folder-rail')));
+      const handle = await page.locator('#sidebar-resize-handle').boundingBox();
+      const widthBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sidebar')).width);
+      if (handle) {
+        await page.mouse.move(handle.x + handle.width / 2, handle.y + 200);
+        await page.mouse.down();
+        await page.mouse.move(handle.x + handle.width / 2 + 40, handle.y + 200, { steps: 4 });
+        await page.mouse.up();
+      }
+      const savedWidth = await waitFor(async () => (await invoke(base, session, 'get-setting', ['sidebarWidth'])).result || null, 5000, 'sidebar width').catch(() => null);
+      check('dragging the sidebar edge resizes it and saves the width', !!handle && Number(savedWidth) > parseInt(widthBefore, 10) - 5
+        && (await page.evaluate(() => document.documentElement.style.getPropertyValue('--sidebar-width'))) === `${savedWidth}px`, `${widthBefore} → ${savedWidth}`);
+      await page.evaluate(() => document.documentElement.style.removeProperty('--sidebar-width'));
       await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
       await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);

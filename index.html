@@ -168,20 +168,11 @@
       <div class="filter-pinned">
       <!-- Search, notes and sort: React (src/web/filters/Sidebar.tsx) -->
       <div id="sidebar-search-slot" style="display: contents"></div>
-      <div class="form-group">
-        <label for="folder-select">Folders:</label>
-        <div class="dropdown-with-list">
-          <select id="folder-select">
-            <option value="">All folders</option>
-          </select>
-          <button type="button" id="folder-tree-button" class="list-button icon-button folder-tree-button" title="Browse folder tree">☰</button>
-        </div>
+      <!-- Folders: React (src/web/folders/FolderTree.tsx) -->
+      <div id="sidebar-folders-slot" style="display: contents"></div>
       </div>
-      </div>
-      <button type="button" id="filter-stack-toggle" class="filter-stack-toggle" aria-expanded="false" aria-controls="filter-stack">
-        <span class="filter-stack-toggle-label">More filters</span>
-        <span class="filter-stack-toggle-chevron" aria-hidden="true">▸</span>
-      </button>
+      <!-- More filters: React (src/web/filters/Sidebar.tsx) -->
+      <div id="filter-stack-toggle-slot" style="display: contents"></div>
       <div id="filter-stack" class="filter-stack">
       <!-- Filters: React (src/web/filters/Sidebar.tsx) -->
       <div id="sidebar-filters-slot" style="display: contents"></div>
@@ -204,7 +195,8 @@
         <label for="model-path">Path:</label>
         <div class="path-tree-field">
           <div id="path-tree-container" class="path-tree-container"></div>
-          <button type="button" id="reveal-in-folders-button" class="icon-button" title="Reveal in folders">☰</button>
+          <!-- Reveal in folders: React (src/web/details/DetailsPath.tsx) -->
+          <div id="details-reveal-slot" style="display: contents"></div>
         </div>
       </div>
       <!-- Source, designer, parent model, license and tags: React (src/web/details/DetailsFields.tsx) -->
@@ -322,30 +314,14 @@
     
     <!-- Preview Model Dialog -->
   </div>
-  <div id="sidebar-resize-handle" class="panel-resize-handle sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" title="Drag to resize sidebar"></div>
-  <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden>
-    <div class="folder-rail-header">
-      <span>Folders</span>
-      <button type="button" id="folder-rail-close" class="icon-button" title="Hide folder tree">×</button>
-    </div>
-    <div id="folder-rail-search-wrap" class="folder-tree-search-wrap">
-      <input type="search" id="folder-rail-search" placeholder="Find folder..." autocomplete="off">
-    </div>
-    <div id="folder-rail-tree" class="folder-tree"></div>
-    <div id="folder-rail-resize-handle" class="panel-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize folders panel" title="Drag to resize folders panel"></div>
-  </aside>
-  <div id="folder-tree-popover" class="folder-tree-popover hidden" role="dialog" aria-label="Folder tree" hidden>
-    <input type="search" id="folder-tree-search" placeholder="Find folder..." autocomplete="off">
-    <div id="folder-tree-popover-tree" class="folder-tree"></div>
-    <div id="folder-tree-resize-handle" class="panel-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize folders panel" title="Drag to resize folders panel"></div>
-  </div>
+  <!-- Sidebar resize handle, folder rail contents and the folder popover: React (src/web/folders/FolderTree.tsx) -->
+  <div id="sidebar-resize-slot" style="display: contents"></div>
+  <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden></aside>
   <div class="main-content">
     <main>
       <div class="grid-view-selector-background"></div>
       <div class="grid-view-selector">
-        <button type="button" id="folder-rail-toggle" class="folder-rail-toggle" title="Show folder tree beside the grid">
-          <span>Folders</span>
-        </button>
+        <div id="folder-rail-toggle-slot" style="display: contents"></div>
         <button class="view-button active" data-view="detailed" title="Detailed - Large thumbnails with full details">
           <span>Detailed</span>
         </button>
@@ -563,8 +539,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="slicer-protocol.js"></script>
   <script src="server-bridge.js"></script>
   <script src="grid-refresh.js"></script>
-  <script src="sidebar-layout.js"></script>
-  <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>
   <script src="stl-sanity.js"></script>
   <script src="renderer.js"></script>

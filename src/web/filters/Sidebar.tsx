@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { createPortal } from 'react-dom';
 import { fileTypes as fileTypeApi, filaments as filamentApi, libraryValues, settings, tags as tagApi } from '../api';
 import { SORT_OPTIONS, filterStrip, type ChipRemove, type Combine, type FilterState, type MultiKind, type StripItem } from './query';
+import { exposeGlobal } from '../page';
 import { getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
 import { filterActions, getFilterState, subscribeFilters } from './store';
 
@@ -18,6 +19,8 @@ export interface SidebarHost {
 declare global {
   interface Window {
     sidebarHost?: SidebarHost;
+    /** renderer.js: fold "More filters" away when a details panel opens. */
+    collapseSidebarFilters?: () => void;
   }
 }
 
@@ -349,6 +352,62 @@ function FilterControls({ container, options }: { container: HTMLElement; option
   );
 }
 
+const DETAIL_PANELS = ['model-details', 'bundle-details', 'multi-edit-panel'];
+
+/** Is a details panel showing? (renderer.js shows and hides them.) */
+function detailsAreOpen(): boolean {
+  const shown = (id: string) => {
+    const el = document.getElementById(id);
+    return !!el && !el.classList.contains('hidden');
+  };
+  if (shown('multi-edit-panel') || shown('bundle-details')) return true;
+  return shown('model-details') && !!document.getElementById('path-tree-container')?.getAttribute('data-file-path');
+}
+
+/**
+ * "More filters": shows or hides the filter stack (.sidebar.filters-expanded). It folds away
+ * when a details panel opens, and the sidebar is marked .details-open while one is showing.
+ */
+function FilterStackToggle({ container }: { container: HTMLElement }) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    document.querySelector('.sidebar')?.classList.toggle('filters-expanded', expanded);
+  }, [expanded]);
+
+  useEffect(() => {
+    const sync = () => {
+      const sidebar = document.querySelector('.sidebar');
+      if (!sidebar) return;
+      const open = detailsAreOpen();
+      if (open && !sidebar.classList.contains('details-open')) setExpanded(false);
+      sidebar.classList.toggle('details-open', open);
+    };
+    const observer = new MutationObserver(sync);
+    for (const id of DETAIL_PANELS) {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    }
+    const pathTree = document.getElementById('path-tree-container');
+    if (pathTree) observer.observe(pathTree, { attributes: true, attributeFilter: ['data-file-path'] });
+    sync();
+    const unexpose = exposeGlobal('collapseSidebarFilters', () => setExpanded(false));
+    return () => {
+      observer.disconnect();
+      unexpose();
+    };
+  }, []);
+
+  return createPortal(
+    <button type="button" id="filter-stack-toggle" className="filter-stack-toggle" aria-expanded={expanded} aria-controls="filter-stack"
+      onClick={(e) => { e.preventDefault(); setExpanded(!expanded); }}>
+      <span className="filter-stack-toggle-label">{expanded ? 'Filters' : 'More filters'}</span>
+      <span className="filter-stack-toggle-chevron" aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+    </button>,
+    container
+  );
+}
+
 /** The sidebar's filters: the strip, the search box and sort, and the filter controls. */
 export function Sidebar() {
   const [slots] = useState(() => ({
@@ -356,7 +415,8 @@ export function Sidebar() {
     stripBody: document.getElementById('current-filter-body'),
     stripActions: document.getElementById('current-filter-actions'),
     search: document.getElementById('sidebar-search-slot'),
-    filters: document.getElementById('sidebar-filters-slot')
+    filters: document.getElementById('sidebar-filters-slot'),
+    stackToggle: document.getElementById('filter-stack-toggle-slot')
   }));
   const [options, setOptions] = useState<Options>({ designers: [], licenses: [], parents: [], tags: [], filaments: [], fileTypes: [] });
   const { loading } = useSearchStatus();
@@ -381,6 +441,7 @@ export function Sidebar() {
     parts.push(<FilterStrip key="strip" container={slots.strip} body={slots.stripBody} actions={slots.stripActions} />);
   }
   if (slots.search) parts.push(<SearchControls key="search" container={slots.search} />);
+  if (slots.stackToggle) parts.push(<FilterStackToggle key="stack-toggle" container={slots.stackToggle} />);
   if (slots.filters) parts.push(<FilterControls key="filters" container={slots.filters} options={options} />);
   return <>{parts}</>;
 }

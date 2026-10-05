@@ -253,10 +253,10 @@
       chipObserver.observe(filterBody, { childList: true, subtree: true, characterData: true });
     }
     if (titleObserver) titleObserver.disconnect();
-    const railTree = document.getElementById('folder-rail-tree');
-    if (railTree) {
+    const rail = document.getElementById('folder-rail');
+    if (rail) {
       titleObserver = new MutationObserver(syncContextTitle);
-      titleObserver.observe(railTree, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+      titleObserver.observe(rail, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
     if (viewObserver) viewObserver.disconnect();
     const switcher = document.querySelector('.grid-view-selector');

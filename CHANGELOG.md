@@ -4,10 +4,12 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js` and `query-builder.js` are removed.
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js` and `sidebar-layout.js` are removed.
 
 **Changes:**
 - The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
+- The sidebar's Folders control, the folder tree popover and the folder rail beside the grid are React (`src/web/folders/`), as are **More filters** and the drag handles that resize the sidebar and the folder panels. `folder-tree.js` and `sidebar-layout.js` are gone. The Folders select now also follows folder changes made elsewhere (a path click in the details panel, a removed chip), and folder names are no longer inserted as HTML.
+- Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
 - Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.
 - Fixed: **Invert Filters** on a query, and NOT in a query, left out every model whose field in the query was empty (for example a model with no designer when the query named a designer).
 

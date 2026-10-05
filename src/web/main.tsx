@@ -33,6 +33,7 @@ import './thumbnails';
 import './parse';
 import './filters/search';
 import { Sidebar } from './filters/Sidebar';
+import { FolderTree } from './folders/FolderTree';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -71,6 +72,7 @@ function Screens() {
       <OrganizeLibraryDialog />
       <DedupDialog />
       <Sidebar />
+      <FolderTree />
       <LibraryGrid />
       <DetailsFields />
       <DetailsFilaments />

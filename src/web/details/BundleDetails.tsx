@@ -4,6 +4,7 @@ import { tags as tagApi } from '../api';
 import { askText, exposeGlobal } from '../page';
 import { bundleSummary, type PrintModel } from '../print/printStatus';
 import { formatFileSize } from '../StatsDialog';
+import { showFolder } from '../folders/store';
 
 interface BundleChild extends PrintModel {
   filePath: string;
@@ -138,7 +139,7 @@ export function BundleDetails() {
                 disabled={!containerPath}
                 onClick={(event) => {
                   event.preventDefault();
-                  if (containerPath) window.FolderTree?.applyDirectoryFilter(containerPath);
+                  if (containerPath) showFolder(containerPath);
                 }}>↗</button>
             </div>
           </div>

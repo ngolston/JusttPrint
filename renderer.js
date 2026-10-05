@@ -1869,9 +1869,7 @@ async function showModelDetails(filePath) {
 
     // Show the details panel
     detailsPanel.classList.remove('hidden');
-    if (typeof window.SidebarLayout?.collapseFiltersForDetails === 'function') {
-      window.SidebarLayout.collapseFiltersForDetails();
-    }
+    window.collapseSidebarFilters?.();
     requestAnimationFrame(() => {
       detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -7759,9 +7757,7 @@ async function scanAndRenderDirectory(directoryPath, background = false, isStlHo
     window._scanThumbnailProgress = null;
     // Clean up event listener
     stopButton.removeEventListener('click', handleStopClick);
-    if (typeof window.FolderTree?.refresh === 'function') {
-      window.FolderTree.refresh().catch(() => {});
-    }
+    window.folderTree?.refresh().catch(() => {});
     
     if (!background) {
       progressSection.classList.add('hidden');
@@ -10306,7 +10302,6 @@ function getCurrentModelFilePath() {
 // Initialize List button event listeners
 function initializeListButtons() {
   document.querySelectorAll('.list-button').forEach(button => {
-    if (button.id === 'folder-tree-button') return;
     // React screens (the details panel) handle their own list buttons and own those nodes.
     if (!button.dataset.field) return;
     // Remove existing listeners to avoid duplicates
@@ -11217,9 +11212,7 @@ async function showBundleDetails(groupRecord) {
 
   document.getElementById('model-details')?.classList.add('hidden');
   document.getElementById('multi-edit-panel')?.classList.add('hidden');
-  if (typeof window.SidebarLayout?.collapseFiltersForDetails === 'function') {
-    window.SidebarLayout.collapseFiltersForDetails();
-  }
+  window.collapseSidebarFilters?.();
 
   const panel = document.getElementById('bundle-details');
   if (!panel) return;
@@ -11656,10 +11649,7 @@ async function filterGridByModelDirectory(filePath) {
     const lastSlash = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'));
     directory = lastSlash > 0 ? filePath.substring(0, lastSlash) : '';
   }
-  window.currentDirectoryFilter = directory;
-  if (window.viewingEntireLibrary) window.viewingEntireLibrary = false;
-  if (typeof window.applyViewForCurrentFolder === 'function') await window.applyViewForCurrentFolder();
-  if (typeof window.performCombinedSearch === 'function') await window.performCombinedSearch();
+  await window.folderTree?.show(directory);
 }
 
 const tagNameList = (tags) => (Array.isArray(tags) ? tags : [])

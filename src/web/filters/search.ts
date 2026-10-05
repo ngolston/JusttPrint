@@ -161,7 +161,7 @@ declare global {
   }
 }
 
-// The page's search API (renderer.js, folder-tree.js, filament.js and the React dialogs call these).
+// The page's search API (renderer.js, filament.js and the React dialogs call these).
 if (typeof window !== 'undefined') installSearchGlobals();
 function installSearchGlobals() {
   window.performCombinedSearch = runSearch;
