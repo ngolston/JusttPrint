@@ -19,6 +19,7 @@ All notable changes contributed via pull request are documented in this file.
 - After a scan, the server's thumbnail worker renders every model still without a thumbnail, in the background (it used to be the browser, and only for up to 80 models). Every open page follows a running thumbnail job in the sidebar, also one started by another page, by the server after an STL Home scan, or before the page was reloaded.
 - Pages refresh after the server's own STL Home scans. The browser no longer runs its own periodic STL Home scan next to the server's, and a changed STL Home update interval applies from the next scan without a restart.
 - A model that fails to render shows its failure image instead of being retried over and over while on screen, and placeholder images are drawn once instead of for every check.
+- The grid's toolbar (Detailed / Preview / List, the tile size, Show/Hide columns) and the list view's column header are React (`src/web/grid/`), with the column layout in a tested module (`columns.ts`). About 900 lines of `renderer.js` are gone. Columns are ordered with CSS instead of moving the rows' elements, which React owns.
 - Fixed: rendering a thumbnail for a ZIP entry left a temporary copy of the file on the server each time.
 - Fixed: the backup, restore and organize progress dialogs moved the sidebar's scan progress bar (both used the id `progress-bar`).
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).

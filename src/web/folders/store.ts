@@ -6,6 +6,7 @@
 import { folders as folderApi, settings } from '../api';
 import { runSearch } from '../filters/search';
 import { filterActions } from '../filters/store';
+import { gridViewActions } from '../grid/view';
 import {
   directoryOfFile, findNode, findWithAncestors, parseRecent, pushRecent, toDirectoryFilter,
   type FolderForest, type FolderNode, type RecentFolder
@@ -69,7 +70,7 @@ export async function showFolder(directory: string, node?: FolderNode | RecentFo
       settings.save(RECENT_SETTING, JSON.stringify(recent)).catch(() => {});
     }
   }
-  await window.applyViewForCurrentFolder?.();
+  await gridViewActions.applyFolderView(directory);
   await runSearch();
 }
 
@@ -128,8 +129,6 @@ export async function initFolderTree() {
 
 declare global {
   interface Window {
-    /** renderer.js: show the grid view saved for the current folder. */
-    applyViewForCurrentFolder?: () => Promise<void>;
     /** The folder tree for renderer.js: reload it after a scan, or show one folder in the grid. */
     folderTree?: { refresh: () => Promise<void>; show: (directory: string) => Promise<void> };
   }

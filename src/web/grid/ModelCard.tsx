@@ -3,6 +3,7 @@ import { cachedThumbnail, fetchPrimaryThumbnail, isImageOnlyMiss } from '../thum
 import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQueue } from '../thumbnails/cards';
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
 import type { GridModel, GridView } from './layout';
+import { applyColumns } from './columns';
 
 /** What a model card asks of renderer.js (selection, menus, filters, saving). */
 export interface CardHost {
@@ -29,8 +30,6 @@ export interface CardHost {
   tagNames(model: GridModel): Promise<string[]>;
   /** The print-status badge (PrintHistory.applyBadge/bindBadge): class, text and click. */
   printBadge(element: HTMLElement, model: GridModel): void;
-  /** List view: column widths and order from the user's column settings. */
-  applyListColumns(fileInfo: HTMLElement): void;
 }
 
 const FAILURE_FREE = (thumbnail: unknown): thumbnail is string =>
@@ -307,7 +306,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
   }, []);
 
   useLayoutEffect(() => {
-    if (view === 'list' && fileInfoRef.current) host.applyListColumns(fileInfoRef.current);
+    if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
   const classes = ['file-item', `file-item-${view}`, view === 'preview' && 'preview-tile', host.isSelected(model.filePath) && 'selected', ...bandClasses]

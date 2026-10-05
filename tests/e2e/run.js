@@ -938,7 +938,67 @@ async function browserChecks(base, wsUrl, session) {
     }
     await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: null, rating: 0 }))]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
+
+    // Grid toolbar and list view columns (React, src/web/grid/GridToolbar.tsx, ListHeader.tsx, columns.ts).
+    await page.click('.view-button[data-view="list"]');
+    const listShown = await page.waitForSelector('.file-grid .list-view-header [data-list-col="name"] .sortable-header', { timeout: 10000 }).then(() => true, () => false);
+    const savedView = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['gridView'])).result === 'list' ? true : null), 5000, 'gridView').catch(() => false);
+    check('the List button shows the list with its column header, and is saved', listShown && savedView === true
+      && await page.isVisible('#list-view-columns-toolbar-btn') && await page.isVisible('.view-button.active[data-view="list"]'));
+    await page.click('.list-view-header [data-list-col="name"] .sortable-header');
+    const sortedByName = await page.waitForFunction(() => window.libraryFilters.state().sort === 'name-asc'
+      && document.querySelector('.list-view-header [data-list-col="name"] .sort-indicator')?.textContent === '↑', null, { timeout: 5000 }).then(() => true, () => false);
+    await page.click('.list-view-header [data-list-col="name"] .sortable-header');
+    const sortedDesc = await page.waitForFunction(() => window.libraryFilters.state().sort === 'name-desc', null, { timeout: 5000 }).then(() => true, () => false);
+    check('clicking a column title sorts by it, and again the other way', sortedByName && sortedDesc);
+    await page.evaluate(() => window.libraryFilters.setSort('dateAdded DESC'));
+    await page.click('#list-view-columns-toolbar-btn');
+    await page.uncheck('.list-view-columns-popover input[data-col-id="size"]');
+    const sizeHidden = await page.waitForFunction(() => [...document.querySelectorAll('.file-grid [data-list-col="size"]')].every((el) => el.style.display === 'none'), null, { timeout: 5000 }).then(() => true, () => false);
+    const layoutSaved = await waitFor(async () => {
+      const raw = (await invoke(base, session, 'get-setting', ['listViewColumnLayout'])).result;
+      return raw && JSON.parse(raw).visibility.size === false ? true : null;
+    }, 5000, 'column layout').catch(() => false);
+    check('Show/Hide columns hides a column in the header and rows, and saves it', sizeHidden && layoutSaved === true);
+    await page.check('.list-view-columns-popover input[data-col-id="size"]');
+    await page.mouse.click(5, 5);
+    check('a click outside closes the columns popover', !(await page.isVisible('.list-view-columns-popover')));
+    const nameCell = await page.locator('.list-view-header [data-list-col="name"]').boundingBox();
+    const handle = await page.locator('.list-view-header [data-list-col="name"] .list-view-col-resize-handle').boundingBox();
+    if (handle) {
+      // The handle straddles the cell edge; the cell clips its outer half.
+      await page.mouse.move(handle.x + 1, handle.y + handle.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handle.x + 61, handle.y + handle.height / 2, { steps: 4 });
+      await page.mouse.up();
+    }
+    const widened = await page.evaluate(() => document.querySelector('.list-view-header [data-list-col="name"]').getBoundingClientRect().width);
+    const rowWidth = await page.evaluate(() => document.querySelector('.file-grid .file-info [data-list-col="name"]')?.getBoundingClientRect().width);
+    check('dragging a column edge widens the column in the header and rows', !!nameCell && widened > nameCell.width + 40 && Math.abs(rowWidth - widened) < 2,
+      `${nameCell && nameCell.width} -> ${widened} (row ${rowWidth})`);
+    const dragColumn = async (from, to) => {
+      const a = await page.locator(`.list-view-header [data-list-col="${from}"] .sortable-header`).boundingBox();
+      const b = await page.locator(`.list-view-header [data-list-col="${to}"]`).boundingBox();
+      await page.mouse.move(a.x + 10, a.y + a.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(b.x + 5, b.y + b.height / 2, { steps: 6 });
+      await page.mouse.up();
+    };
+    await dragColumn('size', 'name');
+    const moved = await page.evaluate(() => {
+      const left = (sel) => document.querySelector(sel)?.getBoundingClientRect().left ?? 0;
+      return left('.list-view-header [data-list-col="size"]') < left('.list-view-header [data-list-col="name"]')
+        && left('.file-grid .file-info [data-list-col="size"]') < left('.file-grid .file-info [data-list-col="name"]');
+    });
+    check('dragging a column title moves the column in the header and rows, without sorting', moved
+      && await page.evaluate(() => window.libraryFilters.state().sort) === 'dateAdded DESC');
+    await dragColumn('name', 'size');
     await page.click('.view-button[data-view="preview"]');
+    await page.click('#preview-size-switcher [data-preview-size="s"]');
+    const smallTiles = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['previewTileSize'])).result === 's' ? true : null), 5000, 'tile size').catch(() => false);
+    check('the tile size switcher shows smaller tiles and saves the size', smallTiles === true
+      && await page.isVisible('#preview-size-switcher [data-preview-size="s"].active') && !(await page.isVisible('.list-view-header')));
+    await page.click('#preview-size-switcher [data-preview-size="m"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
     await page.evaluate(() => document.getElementById('searchable-list-dialog').showModal());

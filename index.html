@@ -143,23 +143,8 @@
       <div class="grid-view-selector-background"></div>
       <div class="grid-view-selector">
         <div id="folder-rail-toggle-slot" style="display: contents"></div>
-        <button class="view-button active" data-view="detailed" title="Detailed - Large thumbnails with full details">
-          <span>Detailed</span>
-        </button>
-        <button class="view-button" data-view="preview" title="Preview - Wall of thumbnails">
-          <span>Preview</span>
-        </button>
-        <button class="view-button" data-view="list" title="List - Horizontal list view">
-          <span>List</span>
-        </button>
-        <div class="preview-size-switcher" id="preview-size-switcher" hidden title="Tile size">
-          <button type="button" data-preview-size="s" title="Small tiles">S</button>
-          <button type="button" data-preview-size="m" class="active" title="Medium tiles">M</button>
-          <button type="button" data-preview-size="l" title="Large tiles">L</button>
-        </div>
-        <button type="button" id="list-view-columns-toolbar-btn" class="list-view-columns-toolbar-btn" title="Show or hide columns. Drag column headers to reorder; drag a column edge to resize." hidden>
-          Show/Hide columns
-        </button>
+        <!-- View buttons, tile size and Show/Hide columns: React (src/web/grid/GridToolbar.tsx) -->
+        <div id="grid-toolbar-slot" style="display: contents"></div>
       </div>
       <div class="file-grid"></div>
       <dialog id="quickstart-guide" class="modal" style="width: 80%; max-width: 1000px;" tabindex="-1">

@@ -10,6 +10,7 @@ import { filterActions, getFilterState, subscribeFilters } from '../filters/stor
 import { folderTreeActions, getFolderTreeState, subscribeFolderTree } from '../folders/store';
 import { findNode, folderName } from '../folders/tree';
 import { Icon, type IconName } from './icons';
+import { gridViewActions, useGridView } from '../grid/view';
 import { useLayout } from './layout';
 import { MENU, findMenuAction, tidySeparators, type MenuItem } from './menu';
 
@@ -32,21 +33,6 @@ const PROMOTED = new Set([...TOOLS.map(([label]) => label), ...ACTIONS]);
 /** Where a swipe down on a sheet's header closes it. */
 const SWIPE_HANDLES = '#mobile-drawer-head, #mobile-more-head, .folder-rail-header, #model-details > h3, #bundle-details > h3, #multi-edit-panel > h3';
 
-/** The grid view (.view-button.active, renderer.js). */
-function useGridView(): string {
-  const [view, setView] = useState(() => document.querySelector<HTMLElement>('.view-button.active')?.dataset.view || '');
-  useEffect(() => {
-    const switcher = document.querySelector('.grid-view-selector');
-    if (!switcher) return;
-    const observer = new MutationObserver(() => setView(document.querySelector<HTMLElement>('.view-button.active')?.dataset.view || ''));
-    observer.observe(switcher, { attributes: true, subtree: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
-  return view;
-}
-
-const showGridView = (view: string) => document.querySelector<HTMLElement>(`.view-button[data-view="${view}"]`)?.click();
-
 function chipText(item: StripItem): string {
   if (item.kind === 'op') return item.text;
   if (item.kind !== 'chip') return '';
@@ -58,7 +44,7 @@ function AppBar({ barRef }: { barRef: RefObject<HTMLElement | null> }) {
   const filters = useSyncExternalStore(subscribeFilters, getFilterState);
   const { forest } = useSyncExternalStore(subscribeFolderTree, getFolderTreeState);
   const { view: viewCount } = useModelCounts();
-  const gridView = useGridView();
+  const gridView = useGridView().view;
   const directory = filters.directory;
   const title = directory ? findNode(forest.roots, directory)?.label || folderName(directory) || 'Folder' : 'Library';
   const strip = filterStrip(filters, labels);
@@ -75,7 +61,7 @@ function AppBar({ barRef }: { barRef: RefObject<HTMLElement | null> }) {
         <div className="mobile-view-switch" role="group" aria-label="Library view">
           {([['preview', 'grid', 'Wall'], ['list', 'list', 'List']] as const).map(([view, icon, label]) => (
             <button key={view} type="button" data-mobile-view={view} className={active === view ? 'is-active' : undefined}
-              aria-pressed={active === view} aria-label={label} onClick={() => showGridView(view)}>
+              aria-pressed={active === view} aria-label={label} onClick={() => gridViewActions.setView(view)}>
               <Icon name={icon} />
             </button>
           ))}
@@ -278,7 +264,7 @@ export function MobileShell() {
   const mobile = layout.mobile;
   const details = useDetailsVisibility();
   const { railOpen } = useSyncExternalStore(subscribeFolderTree, getFolderTreeState);
-  const gridView = useGridView();
+  const gridView = useGridView().view;
   const [sheet, setSheet] = useState<Sheet>(null);
   const barRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -330,7 +316,7 @@ export function MobileShell() {
 
   // The phone shows the wall or the list, not the detailed cards.
   useEffect(() => {
-    if (mobile && gridView === 'detailed') showGridView('preview');
+    if (mobile && gridView === 'detailed') gridViewActions.setView('preview');
   }, [mobile, gridView]);
 
   // The app bar's and nav's heights, for the page's padding (mobile-ui.css).

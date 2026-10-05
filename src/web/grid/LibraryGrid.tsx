@@ -4,10 +4,13 @@ import { selection } from '../selection';
 import { GroupCard, type GroupCardHost } from './GroupCard';
 import { ModelCard, type CardHost } from './ModelCard';
 import { afterGridPaint } from '../thumbnails/cards';
+import { applyColumns, loadColumnLayout, subscribeColumns } from './columns';
+import { ListHeader } from './ListHeader';
+import { useGridView } from './view';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
   viewMetrics, visibleRows, type DisplayRecord, type ExpandedGroups, type GridModel, type GridView, type GroupRecord,
-  type PreviewTileSize, type ViewMetrics
+  type ViewMetrics
 } from './layout';
 
 /**
@@ -17,12 +20,11 @@ import {
 export interface GridHost extends CardHost, GroupCardHost {
   /** The models on screen: renderer.js edits this array in place, then calls refresh(). */
   models(): GridModel[];
-  view(): GridView;
-  previewSize(): PreviewTileSize;
   /** Phone layout columns, or 0 on the desktop layout. */
   mobileColumns(): number;
   expanded(): ExpandedGroups;
-  createListHeader(): HTMLElement & { updateSortIndicators?: () => void };
+  /** Lay the shown models out again (the view or tile size changed). */
+  rebuild?(): void;
   isSelected(filePath: string): boolean;
   /** After cards were added or removed: drop jobs for gone cards, re-sort and run the queue. */
   afterPaint(): void;
@@ -65,7 +67,6 @@ export function LibraryGrid() {
   const [scrollTop, setScrollTop] = useState(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [content, setContent] = useState<HTMLElement | null>(null);
-  const headerHostRef = useRef<HTMLDivElement>(null);
   const focusRef = useRef(false);
   const host = window.gridHost;
 
@@ -121,10 +122,10 @@ export function LibraryGrid() {
     };
   }, [container]);
 
-  const view = host?.view() ?? 'detailed';
+  const { view, previewSize } = useGridView();
   const width = size.width || container?.clientWidth || 0;
   const metrics: ViewMetrics = useMemo(
-    () => viewMetrics({ view, width, previewSize: host?.previewSize() ?? 'm', mobileColumns: host?.mobileColumns() ?? 0 }),
+    () => viewMetrics({ view, width, previewSize, mobileColumns: host?.mobileColumns() ?? 0 }),
     // tick/generation: the preview size, phone layout and view are read from renderer.js.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [view, width, host, tick, generation]
@@ -162,16 +163,11 @@ export function LibraryGrid() {
     }
   }, [container, host, view, metrics, generation]);
 
-  // The list view's column header, built by renderer.js, sits above the rows.
-  useLayoutEffect(() => {
-    const hostEl = headerHostRef.current;
-    if (!hostEl || !host) return undefined;
-    if (view !== 'list') return undefined;
-    const header = host.createListHeader();
-    hostEl.appendChild(header);
-    header.updateSortIndicators?.();
-    return () => header.remove();
-  }, [host, view, generation]);
+  // The list view's columns follow their saved layout (also on rows drawn before it loaded).
+  useEffect(() => {
+    loadColumnLayout();
+    return subscribeColumns(() => applyColumns(container));
+  }, [container]);
 
   // After switching between detailed and preview, bring the selection into view.
   useLayoutEffect(() => {
@@ -223,7 +219,7 @@ export function LibraryGrid() {
 
   return createPortal(
     <>
-      <div ref={headerHostRef} className="list-view-header-host" style={{ display: 'contents' }} />
+      {view === 'list' && <ListHeader />}
       <div className="virtual-spacer" style={{ width: '100%', position: 'relative', height: layout.totalHeight }} />
       <div ref={setContent} className="virtual-content"
         style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }}>

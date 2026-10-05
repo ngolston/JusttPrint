@@ -18,6 +18,7 @@ import { DetailsPath } from './details/DetailsPath';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
+import { GridToolbar } from './grid/GridToolbar';
 import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
@@ -89,6 +90,7 @@ function Screens() {
       <ThumbnailJobDialog />
       <Sidebar />
       <FolderTree />
+      <GridToolbar />
       <LibraryGrid />
       <DetailsFields />
       <DetailsFilaments />

@@ -13,8 +13,6 @@ export interface SidebarHost {
   pickFromList(field: 'designer' | 'parent' | 'license' | 'tag' | 'filament'): Promise<string | null>;
   /** Clear the selection and the details panel (the result set is about to change). */
   resetSelection(): void;
-  /** The list view's column header shows the sort; redraw it. */
-  sortChanged(): void;
 }
 
 declare global {
@@ -215,7 +213,6 @@ function SearchControls({ container }: { container: HTMLElement }) {
         <select id="sort-select" value={state.sort} disabled={loading} className={disabledClass}
           onChange={(e) => {
             filterActions.setSort(e.target.value);
-            window.sidebarHost?.sortChanged();
             runSearch({ force: true });
           }}>
           {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
