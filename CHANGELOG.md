@@ -21,6 +21,7 @@ All notable changes contributed via pull request are documented in this file.
 - A model that fails to render shows its failure image instead of being retried over and over while on screen, and placeholder images are drawn once instead of for every check.
 - The grid's toolbar (Detailed / Preview / List, the tile size, Show/Hide columns) and the list view's column header are React (`src/web/grid/`), with the column layout in a tested module (`columns.ts`). About 900 lines of `renderer.js` are gone. Columns are ordered with CSS instead of moving the rows' elements, which React owns.
 - The searchable list behind the ☰ buttons (designers, parent models, licenses, tags, filaments) is React (`src/web/components/ListPicker.tsx`), about 330 lines of `renderer.js` less.
+- The grid's model list, the bundle and parent-model groups, selection, the details and bundle panels, multi-edit mode and saving are TypeScript (`src/web/library/`), with the filter check after an edit and the path labels tested. About 2,300 lines of `renderer.js` are gone, along with code nothing called (group tag prompts, a per-card element index, field statistics nobody read).
 - Fixed: rendering a thumbnail for a ZIP entry left a temporary copy of the file on the server each time.
 - Fixed: the backup, restore and organize progress dialogs moved the sidebar's scan progress bar (both used the id `progress-bar`).
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).

@@ -77,7 +77,8 @@ test('renderer wires off-screen patches to a coalesced scroll-preserving refresh
   assert.ok(renderer.includes('window.gridRefresh.patchLoadedModel'));
   assert.ok(renderer.includes('window.gridRefresh.createCoalescedRefresh'));
   assert.ok(renderer.includes('performCombinedSearch({ preserveScroll: true })'));
-  assert.ok(renderer.includes('shouldFocusSelectionOnViewSwitch'));
+  // Bringing the selection into view after a view switch is in src/web/library/models.ts.
+  assert.ok(fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'library', 'models.ts'), 'utf8').includes('focusSelection'));
   // Centering the selection moved to the React grid (src/web/grid/layout.ts, tested there).
   const grid = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'grid', 'LibraryGrid.tsx'), 'utf8');
   assert.ok(grid.includes('scrollTopForSelection('));

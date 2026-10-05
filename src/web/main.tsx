@@ -34,6 +34,7 @@ import './preview/files';
 import './thumbnails';
 import './parse';
 import './filters/search';
+import './library/hosts';
 import { Sidebar } from './filters/Sidebar';
 import { SidebarActions } from './filters/SidebarActions';
 import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';

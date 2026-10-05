@@ -116,7 +116,9 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Review Generated Tags (`src/web/tags/`), with its state and merge rule tested.
   - [x] Scanning, the thumbnail queue and the model loader, and the bulk thumbnail jobs with their progress (`src/web/scan/`, `src/web/thumbnails/`).
   - [x] The grid toolbar (views, tile size, Show/Hide columns) and the list view's columns and header (`src/web/grid/`).
-  - [ ] What is left in `renderer.js` (~5,300 lines): the grid glue (the model list, bundle and parent-model cards and their images), opening the details panel and multi-edit mode, startup, and page event handlers (Clear New Flag, downloads, Add Image, Pull Metadata and the like).
+  - [x] The searchable list dialog (`src/web/components/ListPicker.tsx`).
+  - [x] The grid's model list and groups, selection, the details and bundle panels, multi-edit mode and saving (`src/web/library/`).
+  - [ ] What is left in `renderer.js` (~2,600 lines): startup, and page event handlers (Clear New Flag, downloads, Add Image, Pull Metadata, thumbnail events, Puter AI and the like).
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:

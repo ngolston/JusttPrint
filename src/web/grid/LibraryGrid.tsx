@@ -26,8 +26,6 @@ export interface GridHost extends CardHost, GroupCardHost {
   /** Lay the shown models out again (the view or tile size changed). */
   rebuild?(): void;
   isSelected(filePath: string): boolean;
-  /** After cards were added or removed: drop jobs for gone cards, re-sort and run the queue. */
-  afterPaint(): void;
   /** Bottom chrome height on phones (the tab bar), so the grid ends above it. */
   bottomChrome(): number;
 }
@@ -187,7 +185,6 @@ export function LibraryGrid() {
 
   useLayoutEffect(() => {
     committing = false;
-    host?.afterPaint();
     afterGridPaint();
   });
 

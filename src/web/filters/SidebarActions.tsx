@@ -11,7 +11,6 @@ declare global {
   interface Window {
     /** renderer.js: re-read every model and redraw the grid. */
     forceGridRefresh?: () => Promise<void>;
-    disableGridRefresh?: boolean;
     /** For renderer.js: the number of models in the grid. */
     sidebarStatus?: { setViewCount: (count: number) => void };
   }
@@ -20,7 +19,6 @@ declare global {
 /** Clear every filter and show the whole library again. */
 export async function viewEntireLibrary() {
   try {
-    window.disableGridRefresh = false;
     const grid = document.querySelector<HTMLElement & { currentModels?: unknown }>('.file-grid');
     if (grid) grid.currentModels = null;
     filterActions.clearAll();
