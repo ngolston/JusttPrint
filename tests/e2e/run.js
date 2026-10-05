@@ -570,6 +570,26 @@ async function browserChecks(base, wsUrl, session) {
       check('shift-click on a card badge sets the status', !!wantItem && wanted === true && !(await page.isVisible('.print-status-menu'))
         && await page.waitForFunction(() => document.getElementById('model-print-status')?.value === 'want', null, { timeout: 10000 }).then(() => true, () => false));
       await invoke(base, session, 'set-print-status', [{ filePath: cardPath, printStatus: 'unprinted' }]);
+      // Filaments in the details panel (React, src/web/details/DetailsFilaments.tsx).
+      const hasPanelFilament = async () => ((await panelModel()).filaments || []).some((f) => f.name === 'E2E PLA');
+      const filamentChip = '#model-filaments .filament-chip:has(.filament-chip-text:text-is("E2E PLA (PLA)"))';
+      await page.waitForSelector('#filament-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      check('details add a filament from the picker', await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament added').catch(() => false) === true
+        && await page.isVisible(filamentChip)
+        && !(await page.$('#filament-select option:text-is("E2E PLA (PLA)")')));
+      await page.click(`${filamentChip} .filament-chip-remove`);
+      check('details remove a filament', await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament removed').catch(() => false) === true
+        && !(await page.isVisible(filamentChip)));
+      await page.click('.form-group:has(#filament-select) .list-button');
+      const filamentItem = await page.waitForSelector('#searchable-list-dialog[open] li:text-is("E2E PLA (PLA)")', { timeout: 10000 }).catch(() => null);
+      if (filamentItem) await filamentItem.click();
+      else await page.evaluate(() => document.getElementById('searchable-list-dialog')?.close());
+      check('details pick a filament from the list', !!filamentItem
+        && await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament picked').catch(() => false) === true
+        && await page.waitForSelector(filamentChip, { timeout: 10000 }).then(() => true, () => false));
+      await page.click(`${filamentChip} .filament-chip-remove`);
+      await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament cleanup').catch(() => {});
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);

@@ -84,8 +84,12 @@
       .filter((id) => Number.isInteger(id) && id > 0);
   }
 
-  async function addFilamentToModel(filament, containerId, options = {}) {
-    const { skipSave = false } = options;
+  /** Add a filament in the details panel ('model-filaments') or to the selected models ('multi-filaments'). */
+  async function addFilamentToModel(filament, containerId) {
+    if (containerId === 'model-filaments') {
+      await window.detailsFilaments?.add(filamentIdOf(filament));
+      return;
+    }
     const tagContainer = document.getElementById(containerId);
     if (!tagContainer) return;
     const id = filamentIdOf(filament);
@@ -114,48 +118,25 @@
     `;
     chip.querySelector('.filament-chip-remove')?.addEventListener('click', async () => {
       chip.remove();
-      const ids = currentFilamentIds(containerId);
-      if (containerId === 'multi-filaments') {
-        await autoSaveMultipleModels('filaments', ids, { replaceFilaments: true });
-      } else {
-        const filePath = typeof getModelFilePath === 'function' ? getModelFilePath() : null;
-        if (filePath) await autoSaveModel('filaments', ids, filePath);
-      }
-      await window.populateFilamentSelect?.(containerId === 'multi-filaments' ? 'multi-filament-select' : 'filament-select', containerId);
+      await autoSaveMultipleModels('filaments', currentFilamentIds(containerId), { replaceFilaments: true });
+      await populateFilamentSelect('multi-filament-select', containerId);
     });
     tagContainer.appendChild(chip);
 
-    if (skipSave) return;
-
-    if (containerId === 'multi-filaments') {
-      await autoSaveMultipleModels('filaments', [id]);
-    } else {
-      const filePath = typeof getModelFilePath === 'function' ? getModelFilePath() : null;
-      if (filePath) await autoSaveModel('filaments', currentFilamentIds(containerId), filePath);
-    }
-    await window.populateFilamentSelect?.(containerId === 'multi-filaments' ? 'multi-filament-select' : 'filament-select', containerId);
+    await autoSaveMultipleModels('filaments', [id]);
+    await populateFilamentSelect('multi-filament-select', containerId);
   }
 
-  async function loadModelFilaments(modelIdOrPath) {
-    const container = document.getElementById('model-filaments');
-    if (!container) return;
-    container.innerHTML = '';
-    try {
-      const model = await window.electron.getModel(modelIdOrPath);
-      if (!model || !model.id) return;
-      const filaments = await window.electron.getModelFilaments(model.id);
-      const list = Array.isArray(filaments) ? filaments : [];
-      list.sort((a, b) => formatFilamentLabel(a).localeCompare(formatFilamentLabel(b)));
-      for (const filament of list) {
-        await addFilamentToModel(filament, 'model-filaments', { skipSave: true });
-      }
-      await window.populateFilamentSelect?.('filament-select', 'model-filaments');
-    } catch (error) {
-      console.error('Error loading model filaments:', error);
-    }
+  /** The details panel's filaments are React (src/web/details/DetailsFilaments.tsx). */
+  async function loadModelFilaments(filePath) {
+    await window.detailsFilaments?.load(filePath);
   }
 
   async function populateFilamentSelect(selectId = 'filament-select', containerId = 'model-filaments') {
+    if (selectId === 'filament-select') {
+      await window.detailsFilaments?.reloadOptions();
+      return;
+    }
     const select = document.getElementById(selectId);
     if (!select) return;
     const selected = new Set(currentFilamentIds(containerId).map(String));
@@ -243,15 +224,6 @@
   }
 
   function wireAssignmentControls() {
-    const filamentSelect = document.getElementById('filament-select');
-    filamentSelect?.addEventListener('change', async () => {
-      const id = Number(filamentSelect.value);
-      if (id) {
-        await addFilamentToModel({ id }, 'model-filaments');
-        filamentSelect.value = '';
-      }
-    });
-
     const multiSelect = document.getElementById('multi-filament-select');
     multiSelect?.addEventListener('change', async () => {
       const id = Number(multiSelect.value);
@@ -274,9 +246,6 @@
       await populateFilamentSelect('multi-filament-select', 'multi-filaments');
     });
 
-    document.getElementById('add-filament-button')?.addEventListener('click', () => {
-      window.openFilamentManager?.();
-    });
     document.querySelectorAll('.add-filament-button').forEach((button) => {
       button.addEventListener('click', () => window.openFilamentManager?.());
     });

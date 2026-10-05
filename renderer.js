@@ -2235,9 +2235,7 @@ async function showModelDetails(filePath) {
 
     // Name, source, designer, parent model, license and tags are React (src/web/details/DetailsFields.tsx).
     window.detailsFields?.show(model);
-
-    const modelFilamentsEl = document.getElementById('model-filaments');
-    if (modelFilamentsEl) modelFilamentsEl.innerHTML = '';
+    window.detailsFilaments?.show(model);
 
     // The path row and getCurrentModelFilePath() read the path from this attribute.
     const pathTreeContainer = document.getElementById('path-tree-container');
@@ -2263,10 +2261,6 @@ async function showModelDetails(filePath) {
 
     if (window.PrintHistory) {
       await window.PrintHistory.populateDetails(model);
-    }
-    if (!isCurrent()) return;
-    if (typeof window.loadModelFilaments === 'function') {
-      await window.loadModelFilaments(filePath);
     }
     if (!isCurrent()) return;
 
@@ -10374,8 +10368,7 @@ function clearModelDetailsSidebar() {
     window.NotesMarkdown?.sync(mnotes);
   }
   window.detailsPrint?.clear();
-  const mfil = document.getElementById('model-filaments');
-  if (mfil) mfil.innerHTML = '';
+  window.detailsFilaments?.clear();
   previousSelectionHash = '';
 }
 
@@ -13386,8 +13379,7 @@ function exitMultiEditMode() {
   document.getElementById('model-notes').value = '';
   window.NotesMarkdown?.sync(document.getElementById('model-notes'));
   window.detailsPrint?.clear();
-  const modelFilamentsClear = document.getElementById('model-filaments');
-  if (modelFilamentsClear) modelFilamentsClear.innerHTML = '';
+  window.detailsFilaments?.clear();
   
   // Clear the multi-edit tag container as well
   const multiTagsContainer = document.getElementById('multi-tags');

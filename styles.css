@@ -808,6 +808,7 @@ button:disabled {
 #details-name-slot > .form-group,
 #details-fields-slot > .form-group,
 #details-print-slot > .form-group,
+#details-filaments-slot > .form-group,
 #details-history-slot > .form-group {
   margin-bottom: 15px;
 }
