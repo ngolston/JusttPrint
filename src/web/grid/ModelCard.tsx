@@ -39,7 +39,7 @@ export interface CardHost {
   /** Save one field of one model; resolves false when it failed. */
   saveField(filePath: string, field: 'rating' | 'favorite', value: number | boolean): Promise<boolean>;
   tagNames(model: GridModel): Promise<string[]>;
-  /** The print-status badge (print-history.js): class, text and click. */
+  /** The print-status badge (PrintHistory.applyBadge/bindBadge): class, text and click. */
   printBadge(element: HTMLElement, model: GridModel): void;
   /** List view: column widths and order from the user's column settings. */
   applyListColumns(fileInfo: HTMLElement): void;
@@ -232,7 +232,7 @@ function EngagementBar({ host, model }: { host: CardHost; model: GridModel }) {
   );
 }
 
-/** The print-status badge; print-history.js owns its class, text and click. */
+/** The print-status badge; window.PrintHistory sets its class, text and click. */
 function PrintBadge({ host, model, style }: { host: CardHost; model: GridModel; style?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {

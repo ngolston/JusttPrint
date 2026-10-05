@@ -464,3 +464,43 @@ export const libraryValues = {
   parentModels: () => callAction<string[]>('get-parent-models'),
   licenses: () => callAction<string[]>('get-licenses')
 };
+
+export interface PrintEvent {
+  id: number;
+  model_id: number;
+  printed_at: string;
+  outcome: string;
+  quantity: number;
+  notes: string | null;
+  printer_nickname?: string | null;
+  printer_name?: string | null;
+  printer_model?: string | null;
+  printer_type?: string | null;
+  filaments?: { id: number; vendor?: string | null; name?: string | null; material?: string | null; color_hex?: string | null }[];
+  parts?: { id: number; name?: string | null; quantity: number }[];
+}
+
+export interface LogPrintInput {
+  printedAt: string;
+  outcome: string;
+  quantity: number;
+  notes: string;
+  printerId: number | null;
+  filamentIds: number[];
+  parts: { id: number; quantity: number }[];
+}
+
+export const prints = {
+  events: (modelId: number) => callAction<PrintEvent[]>('get-print-events', modelId),
+  log: (filePath: string, input: LogPrintInput) => callAction<unknown>('log-print-event', { ...input, filePath }),
+  logMany: (filePaths: string[], input: LogPrintInput) => callAction<unknown>('log-print-events-batch', { ...input, filePaths }),
+  removeEvent: (id: number) => callAction<unknown>('delete-print-event', id),
+  setStatus: (filePaths: string[], printStatus: string) => (filePaths.length === 1
+    ? callAction<unknown>('set-print-status', { filePath: filePaths[0], printStatus })
+    : callAction<unknown>('set-print-status-batch', { filePaths, printStatus }))
+};
+
+/** The full model record (fields vary; only the ones the screens read are typed where used). */
+export const models = {
+  get: <T = Record<string, unknown>>(filePath: string) => callAction<T | null>('get-model', filePath)
+};

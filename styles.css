@@ -806,7 +806,9 @@ button:disabled {
 
 .model-details > .form-group,
 #details-name-slot > .form-group,
-#details-fields-slot > .form-group {
+#details-fields-slot > .form-group,
+#details-print-slot > .form-group,
+#details-history-slot > .form-group {
   margin-bottom: 15px;
 }
 
@@ -7181,6 +7183,16 @@ dialog:not([open]) {
   text-align: right;
   overflow-wrap: anywhere;
 }
+.print-history-printer-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.18);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
 .print-history-delete.icon-button {
   grid-column: 2;
   grid-row: 1;

@@ -10373,12 +10373,7 @@ function clearModelDetailsSidebar() {
     mnotes.value = '';
     window.NotesMarkdown?.sync(mnotes);
   }
-  const mp = document.getElementById('model-print-status');
-  if (mp) mp.value = 'unprinted';
-  const hist = document.getElementById('print-history-list');
-  if (hist) hist.innerHTML = '';
-  const hint = document.getElementById('print-history-hint');
-  if (hint) hint.textContent = '';
+  window.detailsPrint?.clear();
   const mfil = document.getElementById('model-filaments');
   if (mfil) mfil.innerHTML = '';
   previousSelectionHash = '';
@@ -13362,7 +13357,6 @@ function exitMultiEditMode() {
   
   // Remove event listeners from model details form fields by cloning them
   const modelDetailsFields = [
-    'model-print-status',
     'model-notes'
   ];
   
@@ -13374,9 +13368,7 @@ function exitMultiEditMode() {
       element.parentNode.replaceChild(newElement, element);
       
       // Reset element states
-      if (fieldId === 'model-print-status') {
-        newElement.value = 'unprinted';
-      } else if (newElement.tagName === 'SELECT') {
+      if (newElement.tagName === 'SELECT') {
         newElement.value = '';
       } else if (newElement.tagName === 'INPUT') {
         newElement.value = '';
@@ -13393,8 +13385,7 @@ function exitMultiEditMode() {
   window.detailsFields?.clear();
   document.getElementById('model-notes').value = '';
   window.NotesMarkdown?.sync(document.getElementById('model-notes'));
-  const printStatusSelect = document.getElementById('model-print-status');
-  if (printStatusSelect) printStatusSelect.value = 'unprinted';
+  window.detailsPrint?.clear();
   const modelFilamentsClear = document.getElementById('model-filaments');
   if (modelFilamentsClear) modelFilamentsClear.innerHTML = '';
   

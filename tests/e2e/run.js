@@ -535,6 +535,41 @@ async function browserChecks(base, wsUrl, session) {
       await page.click('#model-tags .tag[data-tag-name="e2e-panel-tag"] .tag-remove');
       check('details remove a tag', await waitFor(async () => (!(await hasPanelTag()) ? true : null), 10000, 'tag removed').catch(() => false) === true
         && !(await page.isVisible('#model-tags .tag[data-tag-name="e2e-panel-tag"]')));
+      // Print status and history in the details panel, and the Log Print dialog (React, src/web/print/PrintHistory.tsx).
+      await page.selectOption('#model-print-status', 'queued');
+      const queued = await waitFor(async () => ((await panelModel()).print_status === 'queued' ? true : null), 10000, 'status').catch(() => false);
+      check('details set the print status', queued === true
+        && await page.waitForFunction((sel) => document.querySelector(`${sel} .print-status`)?.textContent === 'Queued', card, { timeout: 10000 }).then(() => true, () => false));
+      const printsBefore = Number((await panelModel()).print_count) || 0;
+      await page.click('#log-print-button');
+      const logDialog = await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => null);
+      check('log print dialog opens from the details panel', !!logDialog && await page.textContent('#log-print-title') === 'Log a print'
+        && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(await page.inputValue('#log-print-when')));
+      if (logDialog) {
+        await page.fill('#log-print-quantity', '2');
+        await page.fill('#log-print-notes', 'e2e log entry');
+        await page.click('#log-print-save');
+      }
+      const loggedPrint = await waitFor(async () => (Number((await panelModel()).print_count) === printsBefore + 2 ? true : null), 10000, 'print logged')
+        .catch(async () => `print_count ${(await panelModel()).print_count}, before ${printsBefore}`);
+      const historyItem = '#print-history-list .print-history-item:has(.print-history-notes:text-is("e2e log entry"))';
+      const historyShown = await page.waitForSelector(historyItem, { timeout: 10000 }).then(() => true, () => false);
+      check('logging a print saves it and lists it in the history', loggedPrint === true && historyShown && !(await page.isVisible('#log-print-dialog'))
+        && /×2/.test(await page.textContent(`${historyItem} .print-history-outcome`).catch(() => ''))
+        && await page.inputValue('#model-print-status') === 'printed', String(loggedPrint));
+      await page.click(`${historyItem} .print-history-delete`);
+      const confirmDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmDelete) await confirmDelete.click();
+      const deletedPrint = await waitFor(async () => ((Number((await panelModel()).print_count) || 0) === printsBefore ? true : null), 10000, 'print deleted').catch(() => false);
+      check('deleting a history entry removes it', !!confirmDelete && deletedPrint === true
+        && await page.waitForSelector(historyItem, { state: 'detached', timeout: 10000 }).then(() => true, () => false));
+      await page.click(`${card} .print-status`, { modifiers: ['Shift'] });
+      const wantItem = await page.waitForSelector('.print-status-menu .print-status-menu-item:text-is("Want")', { timeout: 10000 }).catch(() => null);
+      if (wantItem) await wantItem.click();
+      const wanted = await waitFor(async () => ((await panelModel()).print_status === 'want' ? true : null), 10000, 'badge status').catch(() => false);
+      check('shift-click on a card badge sets the status', !!wantItem && wanted === true && !(await page.isVisible('.print-status-menu'))
+        && await page.waitForFunction(() => document.getElementById('model-print-status')?.value === 'want', null, { timeout: 10000 }).then(() => true, () => false));
+      await invoke(base, session, 'set-print-status', [{ filePath: cardPath, printStatus: 'unprinted' }]);
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);

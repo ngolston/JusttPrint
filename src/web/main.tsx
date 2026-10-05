@@ -22,6 +22,7 @@ import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
+import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
@@ -59,6 +60,7 @@ function Screens() {
       <DedupDialog />
       <LibraryGrid />
       <DetailsFields />
+      <PrintHistory />
     </>
   );
 }
