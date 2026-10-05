@@ -1328,6 +1328,14 @@ async function browserChecks(base, wsUrl, session) {
       && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 12);
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
+    // Shortcuts (React, src/web/shortcuts.ts).
+    const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${modKey}+/`);
+    check('Ctrl+/ focuses the search box', await page.evaluate(() => document.activeElement?.id === 'search-filter-input'));
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.evaluate(() => window.libraryFilters.setFromSelect('favorite-select', 'favorited'));
+    await page.keyboard.press(`${modKey}+Shift+C`);
+    check('Ctrl+Shift+C clears the filters', await page.waitForFunction(() => window.libraryFilters.state().favorite === 'all', null, { timeout: 5000 }).then(() => true, () => false));
     await page.evaluate(() => window.openAbout());
     const aboutVersion = await page.waitForFunction((version) => {
       const text = document.getElementById('about-version')?.textContent || '';

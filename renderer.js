@@ -7767,15 +7767,6 @@ function exitMultiEditPanelOnly() {
   }
 }
 
-// Helper: true when focus is in a form control (don't trigger app shortcuts)
-function isFocusInFormControl() {
-  const el = document.activeElement;
-  return el && (
-    el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' ||
-    el.isContentEditable
-  );
-}
-
 // Navigate to next/previous model in detail view (called from keydown when details visible)
 function navigateDetailView(direction) {
   const detailsPanel = document.getElementById('model-details');
@@ -7804,119 +7795,22 @@ function navigateDetailView(direction) {
   return true;
 }
 
-// Handle keyboard shortcuts
-document.addEventListener('keydown', async (event) => {
-  const mod = event.ctrlKey || event.metaKey;
-  const inInput = isFocusInFormControl();
-  const detailsVisible = (() => {
-    const p = document.getElementById('model-details');
-    return p && !p.classList.contains('hidden');
-  })();
-
-  // Handle Escape key to exit multi-edit mode
-  if (event.key === 'Escape' || event.key === 'Esc') {
-    if (isMultiSelectMode) {
-      event.preventDefault();
-      exitMultiEditMode();
-      return;
-    }
-  }
-
-  // Search focus: Ctrl+/ or Cmd+/ (always allow so user can jump to search from anywhere)
-  if (mod && event.key === '/') {
-    event.preventDefault();
-    const searchInput = document.getElementById('search-filter-input');
-    if (searchInput) {
-      searchInput.focus();
-      searchInput.select();
-    }
-    return;
-  }
-
-  // Show keyboard shortcuts dialog: Ctrl+Shift+/ (?) or Cmd+Shift+/
-  if (mod && event.shiftKey && event.key === '?') {
-    event.preventDefault();
-    window.openKeyboardShortcuts?.();
-    return;
-  }
-
-  // Next/Previous in detail view (only when details panel is open and not typing)
-  if (!inInput && detailsVisible && (event.key === 'ArrowDown' || event.key === 'j' || event.key === 'J')) {
-    if (navigateDetailView('next')) {
-      event.preventDefault();
-      return;
-    }
-  }
-  if (!inInput && detailsVisible && (event.key === 'ArrowUp' || event.key === 'k' || event.key === 'K')) {
-    if (navigateDetailView('previous')) {
-      event.preventDefault();
-      return;
-    }
-  }
-
-  // Other shortcuts only when not typing in an input
-  if (inInput) return;
-
-  // Scan directory: Ctrl+Shift+S / Cmd+Shift+S
-  if (mod && event.shiftKey && (event.key === 'S' || event.key === 's')) {
-    if (!isScanning) {
-      event.preventDefault();
-      window.scanDirectory?.();
-    }
-    return;
-  }
-
-  // Clear filters: Ctrl+Shift+C / Cmd+Shift+C
-  if (mod && event.shiftKey && (event.key === 'C' || event.key === 'c')) {
-    event.preventDefault();
-    const clearBtn = document.querySelector('.clear-filter-button');
-    if (clearBtn) clearBtn.click();
-    else {
-      const searchInput = document.getElementById('search-filter-input');
-      const viewLibraryBtn = document.getElementById('view-library-button');
-      if (searchInput) searchInput.value = '';
-      if (viewLibraryBtn) viewLibraryBtn.click();
-    }
-    return;
-  }
-
-  // Print Roulette: Ctrl+Shift+R / Cmd+Shift+R
-  if (mod && event.shiftKey && (event.key === 'R' || event.key === 'r')) {
-    event.preventDefault();
-    window.electron.send('start-print-roulette');
-    return;
-  }
-
-  // Toggle Multi-Edit: Ctrl+E / Cmd+E
-  if (mod && (event.key === 'e' || event.key === 'E')) {
-    event.preventDefault();
-    const toggleBtn = document.getElementById('edit-mode-toggle');
+/** What the keyboard shortcuts (src/web/KeyboardShortcutsDialog.tsx) ask of this file. */
+window.shortcutHost = {
+  multiEdit: () => isMultiSelectMode,
+  exitMultiEdit: () => exitMultiEditMode(),
+  navigate: (direction) => navigateDetailView(direction),
+  toggleMultiEdit: (fromDetails) => {
     const enterMultiBtn = document.getElementById('enter-multi-edit-button');
-    if (enterMultiBtn && detailsVisible) enterMultiBtn.click();
-    else if (toggleBtn) toggleBtn.click();
-    return;
-  }
-  
-  // Check for Ctrl+A (Windows/Linux) or Cmd+A (Mac)
-  if (mod && (event.key === 'a' || event.key === 'A')) {
-    // Don't intercept if user is typing in an input field, textarea, or contenteditable
-    const activeElement = document.activeElement;
-    const isInputField = activeElement && (
-      activeElement.tagName === 'INPUT' ||
-      activeElement.tagName === 'TEXTAREA' ||
-      activeElement.isContentEditable
-    );
-    
-    if (isInputField) {
-      return; // Let default behavior work for text selection in input fields
-    }
-    
-    event.preventDefault();
+    if (enterMultiBtn && fromDetails) enterMultiBtn.click();
+    else document.getElementById('edit-mode-toggle')?.click();
+  },
+  selectAll: async () => {
     await selectAllVisibleModels();
     if (!isMultiSelectMode && window.selection.size > 0) enterMultiEditMode();
     else if (isMultiSelectMode) showMultiEditPanel();
   }
-});
+};
 
 // Update populateModelDesignerDropdown to handle multiple dropdowns
 /** Reload the designer pickers (details panel and multi-edit panel are React). */
