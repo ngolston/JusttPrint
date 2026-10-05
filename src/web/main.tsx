@@ -22,6 +22,7 @@ import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
+import { MultiEditPanel } from './details/MultiEditPanel';
 import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
@@ -68,6 +69,7 @@ function Screens() {
       <DetailsNotes />
       <DetailsPath />
       <BundleDetails />
+      <MultiEditPanel />
       <PrintHistory />
     </>
   );

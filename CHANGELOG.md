@@ -7,6 +7,9 @@ All notable changes contributed via pull request are documented in this file.
 **Changes:**
 - The details panel's path row is React (`src/web/details/DetailsPath.tsx`). Clicking a folder in it now shows that folder in the library; it used to try to open the folder on the server, which the server refuses. Folder names are no longer inserted as HTML.
 - The ZIP bundle panel is React (`src/web/details/BundleDetails.tsx`). Its ↗ button shows the archive's folder in the library (it used to ask the server to open a folder, which the server refuses), and its + button asks for the new tag in the app's own prompt.
+- The multi-edit panel is React (`src/web/details/MultiEditPanel.tsx`), and about 2,000 lines of multi-edit and dialog code are gone from `renderer.js`. The + buttons ask for the new designer, parent model, license or tag in the app's own prompt; the separate Add Designer / Parent / License / Tag dialogs and an unreachable bulk-edit dialog are removed.
+- Fixed in multi-edit: changing the designer, parent model or license saved once more each time the panel had been opened, and adding a new tag or designer could save twice. **Remove Filament** removed every filament from the selected models instead of only the chosen one.
+- Fixed: when the server refreshed the grid (after a scan finished, an MCP edit or an import), the multi-edit selection was silently dropped while the panel still showed the old count, so the next change applied to nothing. The selection now stays, and selected cards stay highlighted.
 - Fixed: removing the last tag from a ZIP bundle, or from selected models in multi-edit, did not save. A batch update with an empty tag list now removes the tags.
 
 ## [4.3.0] - 2026-10-04

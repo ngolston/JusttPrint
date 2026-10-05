@@ -1974,68 +1974,6 @@ async function showModelDetails(filePath) {
       return;
     }
 
-    // Add multi-edit mode button if it doesn't exist
-    const modelDetailsHeader = detailsPanel.querySelector('h3');
-    if (modelDetailsHeader && !document.getElementById('enter-multi-edit-button')) {
-      const enterMultiEditButton = document.createElement('button');
-      enterMultiEditButton.id = 'enter-multi-edit-button';
-      enterMultiEditButton.className = 'full-width-button';
-      enterMultiEditButton.textContent = 'Enter Multi-Edit Mode';
-      
-      // Insert after the Model Details header
-      modelDetailsHeader.insertAdjacentElement('afterend', enterMultiEditButton);
-
-      // Add click handler
-      enterMultiEditButton.addEventListener('click', async () => { // Made async
-        isMultiSelectMode = true;
-        const multiEditPanel = document.getElementById('multi-edit-panel');
-        detailsPanel.classList.add('hidden');
-        multiEditPanel.classList.remove('hidden');
-        
-        // Update the other toggle button's state and text
-        const toggleButton = document.getElementById('edit-mode-toggle');
-        if (toggleButton) {
-          toggleButton.textContent = 'Exit Multi-Edit Mode';
-          toggleButton.classList.add('active');
-        }
-        
-        // Add the current model to selection when entering multi-edit mode
-        const currentFilePath = getCurrentModelFilePath();
-        if (currentFilePath) {
-          const storedPath = addToSelectedModels(currentFilePath);
-          const normalizedCurrentPath = normalizePathForComparison(currentFilePath);
-          // Mark the corresponding DOM element as selected
-          const fileItems = document.querySelectorAll('.file-item');
-          fileItems.forEach(item => {
-            const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-            if (normalizePathForComparison(itemPath) === normalizedCurrentPath) {
-              item.classList.add('selected');
-            }
-          });
-        }
-        
-        // *** ADDED DROPDOWN POPULATION LOGIC ***
-        try {
-          await populateModelDesignerDropdown(null, 'multi-designer');
-          await populateModelLicenseDropdown(null, 'multi-license');
-          await populateParentModelDropdown(null, 'multi-parent');
-          await populateTagSelect('multi-tag-select', 'multi-tags');
-          await populateRemoveTagSelect();
-        } catch (error) {
-          console.error('Error populating multi-edit dropdowns:', error);
-        }
-        // ****************************************
-
-        await showMultiEditPanel(); // *** ADDED CALL TO ATTACH LISTENERS ***
-        
-        // Update the selected count
-        updateSelectedCount();
-
-        // Scroll the multi-edit panel into view
-        multiEditPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
-
     // Name, source, designer, parent model, license and tags are React (src/web/details/DetailsFields.tsx).
     window.detailsFields?.show(model);
     window.detailsFilaments?.show(model);
@@ -2078,54 +2016,6 @@ async function showModelDetails(filePath) {
   }
 }
 
-// Create a function to initialize dialog handlers
-function initializeDialogHandlers() {
-
-
-  
-  // Designer dialog handler (existing code for reference)
-  document.querySelectorAll('.add-designer-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const dialog = document.getElementById('new-designer-dialog');
-      const input = document.getElementById('new-designer-name');
-      
-      dialog.querySelector('form').reset();
-      input.value = '';
-      dialog.dataset.sourceDropdown = button.closest('.designer-input-container')?.querySelector('select')?.id || 'model-designer';
-      
-      dialog.showModal();
-      forceDialogRefresh(dialog, input);
-    });
-  });
-}
-
-// Helper function to force dialog refresh
-function forceDialogRefresh(dialog, input) {
-  // Force dialog refresh
-  dialog.style.display = 'none';
-  requestAnimationFrame(() => {
-    dialog.style.display = '';
-    
-    // Reset input state
-    input.disabled = false;
-    input.readOnly = false;
-    input.blur();
-    
-    // Force focus after a small delay
-    setTimeout(() => {
-      input.focus();
-      input.click();
-      
-      // Additional focus attempt after a longer delay
-      setTimeout(() => {
-        if (document.activeElement !== input) {
-          input.focus();
-          input.click();
-        }
-      }, 100);
-    }, 50);
-  });
-}
 
 // Moved resetInputState definition before the focus handler that calls it
 function resetInputState(input) {
@@ -3484,10 +3374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof bindGridBackgroundDeselect === 'function') {
     bindGridBackgroundDeselect();
   }
-  const tagDialog = document.getElementById('new-tag-dialog');
-  const newTagInput = document.getElementById('new-tag-name');
   const licenseSelect = document.getElementById('license-select');
-  const newDesignerDialog = document.getElementById('new-designer-dialog');
   const welcomeDialog = document.getElementById('welcome-message');
 
   // Initialize license filter
@@ -3564,49 +3451,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Update the edit mode toggle button listener
-  document.getElementById('edit-mode-toggle')?.addEventListener('click', async () => { // Ensure async
-    isMultiSelectMode = !isMultiSelectMode;
-    const button = document.getElementById('edit-mode-toggle');
-    const multiEditPanel = document.getElementById('multi-edit-panel');
-    const detailsPanel = document.getElementById('model-details');
-    
-    if (isMultiSelectMode) {
-      button.textContent = 'Exit Multi-Edit Mode'; // Changed from Single-Edit
-      button.classList.add('active');
-      multiEditPanel.classList.remove('hidden');
-      detailsPanel.classList.add('hidden');
-      
-      // Populate dropdowns
-      try {
-        await populateModelDesignerDropdown(null, 'multi-designer');
-        await populateModelLicenseDropdown(null, 'multi-license');
-        await populateParentModelDropdown(null, 'multi-parent');
-        await populateTagSelect('multi-tag-select', 'multi-tags');
-        await populateRemoveTagSelect();
-      } catch (error) {
-        console.error('Error populating multi-edit dropdowns:', error);
-      }
-      
-      await showMultiEditPanel(); // Call to attach listeners
-      
-      multiEditPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Clear selection when disabling multiselect
-      selectedModels.clear();
-      document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-      multiEditPanel.classList.add('hidden');
-      // Make sure details panel is shown if nothing else is selected
-      if (selectedModels.size === 0) {
-         detailsPanel.classList.remove('hidden'); // Remove hidden class if no models selected
-         closeDetailsPanel(); // Or potentially call closeDetailsPanel if preferred
-      }
-      button.textContent = 'Multi-Edit Mode';
-      button.classList.remove('active');
-      // Call exitMultiEditMode if needed for cleanup
-      exitMultiEditMode(); 
-    }
-    updateSelectedCount();
-  });
 
   // Invert Filter button click handler
   document.getElementById('invert-filter-button')?.addEventListener('click', async () => {
@@ -3660,46 +3504,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await handleFilterChange();
   });
 
-
-  document.getElementById('cancel-tag-button')?.addEventListener('click', () => {
-    // Reset form state before closing
-    tagDialog.querySelector('form').reset();
-    newTagInput.value = '';
-    tagDialog.close();
-  });
-
-  tagDialog.querySelector('form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const newTagName = newTagInput.value.trim();
-    
-    if (newTagName) {
-      try {
-        // Save tag and get the tag object back
-        const savedTag = await window.electron.saveTag(newTagName);
-        const sourceContainer = tagDialog.getAttribute('data-source-container')
-          || (isMultiSelectMode ? 'multi-tags' : 'model-tags');
-        console.log(`Adding new tag '${savedTag.name}' to ${sourceContainer}`);
-        addTagToModel(savedTag.name, sourceContainer);
-        // Reset form state before closing
-        tagDialog.querySelector('form').reset();
-        newTagInput.value = '';
-        tagDialog.close();
-        
-        // Only refresh the currently active dropdown
-        if (sourceContainer === 'multi-tags') {
-          await populateTagSelect('multi-tag-select', 'multi-tags');
-        } else {
-          await populateTagSelect('tag-select', 'model-tags');
-        }
-        
-        // Update the tag filter dropdown
-        await populateTagFilter();
-        window.reloadTagManager?.();
-      } catch (error) {
-        console.error('Error saving new tag:', error);
-      }
-    }
-  });
 
   // Load background color setting
   const backgroundColor = await window.electron.getSetting('modelBackgroundColor');
@@ -3810,68 +3614,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-  // Update the multi-save button handler
-  document.getElementById('multi-save-button')?.addEventListener('click', async () => {
-    try {
-      const designer = document.getElementById('multi-designer').value;
-      const source = document.getElementById('multi-source').value;
-      const parent = document.getElementById('multi-parent').value;
-      const license = document.getElementById('multi-license').value;
-      const printStatus = document.getElementById('multi-print-status')?.value || '';
-
-      // Get all selected tags
-      const tagElements = document.getElementById('multi-tags').querySelectorAll('.tag');
-      const tags = Array.from(tagElements).map(tag => tag.getAttribute('data-tag-name'));
-
-      // Update each selected model
-      for (const filePath of selectedModels) {
-        const existingModel = await window.electron.getModel(filePath);
-        
-        const modelData = {
-          filePath,
-          ...(designer && { designer }), // Only include designer if explicitly set
-          ...(source && { source }),
-          ...(parent && { parentModel: parent }),
-          ...(license && { license }),
-          ...(printStatus && { printStatus }),
-          tags: tags.length > 0 ? tags : (existingModel.tags || []) // Keep tag logic simple here, merging is in auto-save
-        };
-
-        await window.electron.saveModel(modelData);
-        await updateModelElement(filePath);
-      }
-
-      // Clear selection and hide multi-edit panel
-      selectedModels.clear();
-      isMultiSelectMode = false;
-      document.getElementById('multi-edit-panel').classList.add('hidden');
-      document.getElementById('model-details').classList.remove('hidden');
-      document.getElementById('edit-mode-toggle').textContent = 'Multi-Edit Mode';
-      document.getElementById('edit-mode-toggle').classList.remove('active');
-
-      // Clear the multi-edit tag container to prevent stacking
-      const multiTagsContainer = document.getElementById('multi-tags');
-      if (multiTagsContainer) {
-        multiTagsContainer.innerHTML = '';
-      }
-      
-      // Reset the multi-tag-select dropdown
-      const multiTagSelect = document.getElementById('multi-tag-select');
-      if (multiTagSelect) {
-        multiTagSelect.value = '';
-      }
-      
-      // Reset selection tracking to ensure tags are cleared on next selection
-      previousSelectionHash = '';
-
-      // Reapply filters to refresh the view
-      await refreshModelDisplay();
-
-    } catch (error) {
-      console.error('Error saving multiple models:', error);
-    }
-  });
-
   // Add open file button handler
   // open-file-button removed - folders in path tree are now directly clickable
 
@@ -3879,102 +3621,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await populateLicenseFilter();
   await populateParentModelFilter();
   await populateTagFilter();
-
-  // Add parent model dialog event listeners
-  const newParentDialog = document.getElementById('new-parent-dialog');
-  const addParentButton = document.getElementById('add-parent-button');
-  const cancelParentButton = document.getElementById('cancel-parent-button');
-  const newParentForm = newParentDialog.querySelector('form');
-
-  document.querySelectorAll('.add-parent-button, #add-new-parent-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const dialog = document.getElementById('new-parent-dialog');
-      const input = document.getElementById('new-parent-name');
-      
-      // Reset form and input state
-      dialog.querySelector('form').reset();
-      input.value = '';
-      
-      // Store which dropdown triggered the dialog
-      dialog.dataset.sourceDropdown = button.closest('.designer-input-container').querySelector('select').id;
-      
-      // Show dialog and focus input
-      dialog.showModal();
-      
-      // Force proper input state
-      requestAnimationFrame(() => {
-          input.disabled = false;
-          input.readOnly = false;
-          input.blur();
-          input.focus();
-      });
-    });
-  });
-
-  if (cancelParentButton) {
-    cancelParentButton.addEventListener('click', () => {
-      document.getElementById('new-parent-name').value = '';
-      newParentDialog.close();
-    });
-  }
-
-  if (newParentForm) {
-    newParentForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const newParentName = document.getElementById('new-parent-name').value.trim();
-      const sourceDropdownId = newParentDialog.dataset.sourceDropdown || 'model-parent';
-      
-      if (newParentName) {
-        // Trigger auto-save first
-        if (sourceDropdownId === 'multi-parent') {
-          await autoSaveMultipleModels('parentModel', newParentName);
-        } else if (sourceDropdownId === 'parent-select') {
-          // For filter dropdown, we need to save to a model first
-          // This shouldn't normally happen, but handle it gracefully
-          const filePath = getCurrentModelFilePath();
-          if (filePath) {
-            await autoSaveModel('parentModel', newParentName, filePath);
-          }
-        } else {
-          const filePath = getCurrentModelFilePath();
-          await autoSaveModel('parentModel', newParentName, filePath);
-        }
-
-        // Repopulate all parent model dropdowns to ensure consistency
-        await populateParentModelFilter(); // Filter dropdown
-        if (sourceDropdownId === 'model-parent') {
-          await populateParentModelDropdown(newParentName, 'model-parent');
-        } else if (sourceDropdownId === 'multi-parent') {
-          await populateParentModelDropdown(newParentName, 'multi-parent');
-        } else if (sourceDropdownId === 'parent-select') {
-          // Filter dropdown - already repopulated by populateParentModelFilter
-          const parentSelect = document.getElementById('parent-select');
-          if (parentSelect) {
-            parentSelect.value = newParentName;
-          }
-        } else {
-          // Fallback: manually add to the source dropdown if it's not one of the standard ones
-          const parentSelect = document.getElementById(sourceDropdownId);
-          if (parentSelect) {
-            const optionExists = Array.from(parentSelect.options).some(opt => opt.value === newParentName);
-            if (!optionExists) {
-              const option = document.createElement('option');
-              option.value = newParentName;
-              option.textContent = newParentName;
-              parentSelect.appendChild(option);
-            }
-            parentSelect.value = newParentName;
-          }
-        }
-        
-        // Clear the input and close the dialog
-        document.getElementById('new-parent-name').value = '';
-        newParentDialog.close();
-      }
-    });
-  }
-
-
 
   // Remove the nested DOMContentLoaded listener and keep only one at the root level
   document.addEventListener('DOMContentLoaded', async () => {
@@ -4044,110 +3690,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await populateTagFilter();
-
-  // Update the add button event listeners to handle both panels
-  document.querySelectorAll('.add-designer-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const dialog = document.getElementById('new-designer-dialog');
-      // Store which dropdown triggered the dialog
-      dialog.dataset.sourceDropdown = button.closest('.designer-input-container').querySelector('select').id;
-      dialog.showModal();
-    });
-  });
-
-  document.querySelectorAll('.add-parent-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const dialog = document.getElementById('new-parent-dialog');
-      // Store which dropdown triggered the dialog
-      dialog.dataset.sourceDropdown = button.closest('.designer-input-container').querySelector('select').id;
-      dialog.showModal();
-    });
-  });
-
-  document.querySelectorAll('.add-tag-button').forEach(button => {
-    button.addEventListener('click', async () => {
-      // Get the container ID for the tags container - we'll need this to know where to add the tag
-      const sourceContainer = button.closest('.tags-container').querySelector('.tags-list').id;
-      
-      // Use the HTML dialog instead of Electron's dialog
-      const tagDialog = document.getElementById('new-tag-dialog');
-      const newTagInput = document.getElementById('new-tag-name');
-      
-      // Clear any previous input
-      if (newTagInput) {
-        newTagInput.value = '';
-      }
-      
-      // Store the source container ID on the dialog for reference when submitting
-      tagDialog.setAttribute('data-source-container', sourceContainer);
-      
-      // Show the dialog
-      tagDialog.showModal();
-    });
-  });
-  
-  // Handle the tag dialog submit
-  document.getElementById('add-tag-submit')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const tagDialog = document.getElementById('new-tag-dialog');
-    const newTagInput = document.getElementById('new-tag-name');
-    const sourceContainer = tagDialog.getAttribute('data-source-container');
-    
-    if (newTagInput && newTagInput.value.trim()) {
-      const tagName = newTagInput.value.trim();
-      try {
-        // First save the tag to the database
-            const tag = await window.electron.saveTag(tagName);
-            if (tag) {
-              // Update all tag dropdowns
-              await updateAllTagDropdowns();
-              
-          // Add the tag to the model(s)
-          if (sourceContainer) {
-            // Add the tag to the model using our helper function
-                await addTagToModel(tagName, sourceContainer);
-            console.log(`Added tag "${tagName}" to ${sourceContainer}`);
-              }
-          
-          // Close the dialog
-          tagDialog.close();
-            }
-          } catch (error) {
-            console.error('Error adding tag:', error);
-            await window.electron.showMessage('Error', 'Failed to add tag: ' + error.message);
-        }
-      }
-    });
-  
-  // Handle the tag dialog cancel button
-  document.getElementById('cancel-tag-button')?.addEventListener('click', () => {
-    const tagDialog = document.getElementById('new-tag-dialog');
-    tagDialog.close();
-  });
-
-  document.getElementById('multi-open-source-button')?.addEventListener('click', async () => {
-    const sourceInput = document.getElementById('multi-source');
-    const url = sourceInput.value.trim();
-    
-    if (!url) {
-      await window.electron.showMessage('Error', 'Please enter a source URL');
-      return;
-    }
-
-    try {
-      // Validate URL format
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        await window.electron.showMessage('Error', 'Please enter a valid URL starting with http:// or https://');
-        return;
-      }
-      
-      await window.electron.openExternal(url);
-    } catch (error) {
-      console.error('Error opening URL:', error);
-      await window.electron.showMessage('Error', 'Failed to open URL: ' + error.message);
-    }
-  });
-
 
   // Add scan directory button event listener
   document.getElementById('scan-directory-button')?.addEventListener('click', async () => {
@@ -4327,139 +3869,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     delete window._electronPendingEvents['open-system-report'];
   }
 
-  // Initialize new designer dialog handlers
-  if (newDesignerDialog) {
-    newDesignerDialog.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const newDesignerName = document.getElementById('new-designer-name').value.trim();
-      const sourceDropdownId = newDesignerDialog.dataset.sourceDropdown || 'model-designer';
-      
-      if (newDesignerName) {
-        const designerSelect = document.getElementById(sourceDropdownId);
-        if (designerSelect) {
-          const option = document.createElement('option');
-          option.value = newDesignerName;
-          option.textContent = newDesignerName;
-          designerSelect.appendChild(option);
-          designerSelect.value = newDesignerName;
-          
-          // Trigger auto-save
-          if (sourceDropdownId === 'multi-designer') {
-            await autoSaveMultipleModels('designer', newDesignerName);
-          } else {
-            const filePath = getCurrentModelFilePath();
-            await autoSaveModel('designer', newDesignerName, filePath);
-          }
-        }
-        
-        // Clear the input and close the dialog immediately
-        document.getElementById('new-designer-name').value = '';
-        document.getElementById('new-designer-dialog').close();
-      }
-    });
-
-    document.getElementById('cancel-designer-button')?.addEventListener('click', () => {
-      document.getElementById('new-designer-name').value = '';
-      newDesignerDialog.close();
-    });
-  }
-
-  // Add new designer button handlers
-  document.querySelectorAll('.add-designer-button, #add-new-designer-button').forEach(button => {
-    button?.addEventListener('click', () => {
-      if (newDesignerDialog) {
-        const sourceDropdownId = button.closest('.designer-input-container')?.querySelector('select')?.id;
-        newDesignerDialog.dataset.sourceDropdown = sourceDropdownId;
-        newDesignerDialog.showModal();
-      }
-    });
-  });
-
-  // Add license dialog event listeners
-  const newLicenseDialog = document.getElementById('new-license-dialog');
-  const cancelLicenseButton = document.getElementById('cancel-license-button');
-  const newLicenseForm = newLicenseDialog.querySelector('form');
-
-  // Add click handlers for the add license buttons
-  document.querySelectorAll('.add-license-button, #add-new-license-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const dialog = document.getElementById('new-license-dialog');
-      const input = document.getElementById('new-license-name');
-      
-      // Reset form and input state
-      dialog.querySelector('form').reset();
-      input.value = '';
-      
-      // Store which dropdown triggered the dialog
-      dialog.dataset.sourceDropdown = button.closest('.designer-input-container')?.querySelector('select')?.id || 'model-license';
-      
-      // Show dialog and focus input
-      dialog.showModal();
-      
-      // Force proper input state
-      requestAnimationFrame(() => {
-          input.disabled = false;
-          input.readOnly = false;
-          input.blur();
-          input.focus();
-      });
-    });
-  });
-
-  // Add cancel button handler
-  if (cancelLicenseButton) {
-    cancelLicenseButton.addEventListener('click', () => {
-      document.getElementById('new-license-name').value = '';
-      newLicenseDialog.close();
-    });
-  }
-
-  // Add form submit handler
-  if (newLicenseForm) {
-    newLicenseForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const newLicenseName = document.getElementById('new-license-name').value.trim();
-      const sourceDropdownId = newLicenseDialog.dataset.sourceDropdown || 'model-license';
-      
-      if (newLicenseName) {
-        // Trigger auto-save first
-        if (sourceDropdownId === 'multi-license') {
-          await autoSaveMultipleModels('license', newLicenseName);
-        } else if (sourceDropdownId === 'license-select') {
-          // For filter dropdown, we need to save to a model first
-          const filePath = getCurrentModelFilePath();
-          if (filePath) {
-            await autoSaveModel('license', newLicenseName, filePath);
-          }
-        } else {
-          const filePath = getCurrentModelFilePath();
-          await autoSaveModel('license', newLicenseName, filePath);
-        }
-        
-        // Clear the input and close the dialog immediately
-        document.getElementById('new-license-name').value = '';
-        document.getElementById('new-license-dialog').close();
-        
-        // Update all license dropdowns - repopulate from database to avoid duplicates
-        await populateLicenseFilter(); // Filter dropdown
-        if (sourceDropdownId === 'model-license') {
-          await populateModelLicenseDropdown(newLicenseName, 'model-license');
-        } else if (sourceDropdownId === 'multi-license') {
-          await populateModelLicenseDropdown(newLicenseName, 'multi-license');
-        } else if (sourceDropdownId === 'license-select') {
-          // Filter dropdown - already repopulated by populateLicenseFilter
-          const licenseSelect = document.getElementById('license-select');
-          if (licenseSelect) {
-            licenseSelect.value = newLicenseName;
-          }
-        }
-      }
-    });
-  }
-
-  // Initialize dialog handlers
-  initializeDialogHandlers();
-
   // Backup/Restore is React (src/web/BackupRestoreDialog.tsx); it defines window.openBackupRestore.
   window._electronRealEventHandlers['open-backup-restore'] = function() {
     window.openBackupRestore?.();
@@ -4488,9 +3897,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Called by the Tag Manager (React) after each change.
   window.refreshTagRelatedUi = async function refreshTagRelatedUi() {
     try {
-      await populateTagSelect('tag-select', 'model-tags');
-      await populateTagSelect('multi-tag-select', 'multi-tags');
-      window.bundleDetails?.reloadOptions();
+      await populateTagSelect();
       await populateTagFilter();
       if (typeof populateRemoveTagSelect === 'function') {
         await populateRemoveTagSelect();
@@ -4535,9 +3942,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         // Refresh tag dropdowns in edit view
-        await populateTagSelect('tag-select', 'model-tags');
-        await populateTagSelect('multi-tag-select', 'multi-tags');
-        window.bundleDetails?.reloadOptions();
+        await populateTagSelect();
         
         // Refresh tag filter dropdown
         await populateTagFilter();
@@ -4545,8 +3950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           await populateRemoveTagSelect();
         }
         if (typeof window.populateFilamentSelect === 'function') {
-          await window.populateFilamentSelect('filament-select', 'model-filaments');
-          await window.populateFilamentSelect('multi-filament-select', 'multi-filaments');
+          await window.populateFilamentSelect();
         }
         if (typeof window.populateFilamentFilter === 'function') {
           await window.populateFilamentFilter();
@@ -4584,10 +3988,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error refreshing UI after tag manager close:', error);
       }
   };
-
-  document.getElementById('multi-edit-tags-button')?.addEventListener('click', () => {
-    window.openTagManager?.();
-  });
 
   // Organize Library is React (src/web/OrganizeLibraryDialog.tsx); it defines window.openOrganizeLibrary.
   window._electronRealEventHandlers['open-organize-library'] = function() {
@@ -5224,8 +4624,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.dateAddedFilter = preservedDateAddedFilter;
       window._lastDateAddedFilter = preservedDateAddedFilter;
     }
-    selectedModels.clear();
-    document.querySelectorAll('.file-item.selected').forEach(item => item.classList.remove('selected'));
+    // Keep the selection: the search below drops selected models that are gone
+    // (syncSelectionWithFilteredModels) and leaves multi-edit when none are left.
 
     if (typeof window.forceGridRefresh === 'function') {
       await window.forceGridRefresh();
@@ -5922,12 +5322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Initialize all settings first
       await initializeSettings();
       
-      // Initialize dialog handlers
-      initializeDialogHandlers();
-      
-      
-      // About dialog: handled by early listener (electron.on('open-about')) which calls
-      // _electronRealEventHandlers['open-about'] set in initializeDialogHandlers() above.
+      // About dialog: handled by early listener (electron.on('open-about')).
       // Register onOpenAbout so preload has a listener; callback is a no-op here to avoid
       // double-open (early handler already opens the dialog).
       window.electron.onOpenAbout(() => {});
@@ -8422,49 +7817,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
  
 
-  document.getElementById('select-all-button')?.addEventListener('click', async () => {
-    // Clear existing selections first
-    selectedModels.clear();
-    
-    try {
-      // Get all filtered model references (not just visible ones)
-      // Wait for getCombinedFilteredModels to be available (handles module loading race condition)
-      const getFilteredModels = await waitForGetCombinedFilteredModels();
-      const filteredModels = await getFilteredModels(); // Use the function from search.js
-      
-      // Add all filtered models to selection (ensuring no duplicates by file path)
-      const uniqueFilePaths = new Set();
-      filteredModels.forEach(model => {
-        if (!uniqueFilePaths.has(model.filePath)) {
-          uniqueFilePaths.add(model.filePath);
-          addToSelectedModels(model.filePath);
-        }
-      });
-      
-      // Update UI for all items with matching file paths that are rendered
-      // Use helper function to ensure normalized path comparison
-      filteredModels.forEach(model => {
-        if (isInSelectedModels(model.filePath)) {
-          document.querySelectorAll('.file-item').forEach(item => {
-            const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-            if (normalizePathForComparison(itemPath) === normalizePathForComparison(model.filePath)) {
-              item.classList.add('selected');
-            }
-          });
-        }
-      });
-      
-      // Update the selected count
-      updateSelectedCount();
-      
-      // Show multi-edit panel if there are selections
-      if (selectedModels.size > 0) {
-        showMultiEditPanel();
-      }
-    } catch (error) {
-      console.error('Error selecting all models:', error);
-    }
-  });
 
   // Remove the override of getCombinedFilteredModels - use the one from search.js instead
   // window.getCombinedFilteredModels = async (limit = 0) => {
@@ -8480,110 +7832,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add this IPC handler to preload.js
   // getAllModelReferences: () => ipcRenderer.invoke('get-all-model-references'),
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      // Initialize the application
-      await initializeApp();
-      
-      // Set up multi-edit button handler
-      const multiEditBtn = document.getElementById('multi-edit-btn');
-      if (multiEditBtn) {
-        multiEditBtn.addEventListener('click', async () => {
-          await showMultiEditPanel();
-        });
-      }
-      
-      // Set up multi-edit close button
-      const closeMultiEditBtn = document.getElementById('close-multi-edit');
-      if (closeMultiEditBtn) {
-        closeMultiEditBtn.addEventListener('click', () => {
-          exitMultiEditMode();
-        });
-      }
-      
-      // Initialize multi-edit tag handling
-      const addMultiEditTagBtn = document.getElementById('add-multi-edit-tag');
-      if (addMultiEditTagBtn) {
-        addMultiEditTagBtn.addEventListener('click', async () => {
-          const tagSelect = document.getElementById('multi-edit-tag-select');
-          if (tagSelect && tagSelect.value) {
-            await autoSaveMultipleModels('tags', tagSelect.value);
-            tagSelect.value = ''; // Reset selection
-          }
-        });
-      }
-      
-      // Debug log for initialization
-      debugLog('Multi-edit panel initialization complete');
-      
-    } catch (error) {
-      console.error('Error during application initialization:', error);
-    }
-  });
 
   // ... existing code ...
 });
 
+/** Select every model the current filters show (not only the rendered cards). */
+async function selectAllVisibleModels() {
+  selectedModels.clear();
+  try {
+    const getFilteredModels = await waitForGetCombinedFilteredModels();
+    const filteredModels = await getFilteredModels();
+    filteredModels.forEach((model) => { if (model?.filePath) addToSelectedModels(model.filePath); });
+  } catch (error) {
+    console.error('Error selecting all models:', error);
+  }
+  updateSelectedCount();
+}
+
+/** Clear Selection in the multi-edit panel (stays in multi-edit mode). */
+function clearMultiSelection() {
+  selectedModels.clear();
+  clearMultiEditFormFields();
+  updateSelectedCount();
+}
+
+/** The selection changed: update the multi-edit panel and the cards' highlight. */
 async function updateSelectedCount() {
-  const countElement = document.querySelector('.selected-count');
-  if (countElement) {
-    countElement.textContent = `${selectedModels.size} model${selectedModels.size !== 1 ? 's' : ''} selected`;
-  }
-  
-  // Clear tags when selection changes significantly (new group of files selected)
-  clearTagsOnSelectionChange();
-  
-  // Clear multi-edit form fields when no models are selected
-  if (selectedModels.size === 0 && isMultiSelectMode) {
-    clearMultiEditFormFields();
-  }
-
-  // Refresh the remove tag dropdown when selection changes (if in multi-edit mode)
-  if (isMultiSelectMode && selectedModels.size > 0) {
-    await populateRemoveTagSelect();
-  }
+  window.multiEdit?.selectionChanged();
+  refreshLibraryGrid();
 }
 
-// Track previous selection to detect when a completely new selection is made
-let previousSelectionHash = '';
-
-function clearTagsOnSelectionChange() {
-  // Create a hash of current selection to detect complete selection changes
-  const currentSelectionHash = selectedModels.size > 0 
-    ? Array.from(selectedModels).sort().join('|')
-    : '';
-  
-  // If selection was cleared (went from >0 to 0), mark for clearing on next selection
-  if (previousSelectionHash && selectedModels.size === 0) {
-    previousSelectionHash = ''; // Reset so next selection is treated as new
-    return;
-  }
-  
-  // If this is a completely new selection (no overlap with previous), clear tags
-  if (previousSelectionHash && currentSelectionHash && 
-      previousSelectionHash !== currentSelectionHash && 
-      selectedModels.size > 0) {
-    // Check if there's any overlap - if no overlap, it's a completely new selection
-    const previousFiles = new Set(previousSelectionHash.split('|'));
-    const currentFiles = new Set(currentSelectionHash.split('|'));
-    const hasOverlap = Array.from(currentFiles).some(file => previousFiles.has(file));
-    
-    // If no overlap, clear tags as this is a completely new selection
-    if (!hasOverlap) {
-      const multiTagsContainer = document.getElementById('multi-tags');
-      if (multiTagsContainer) {
-        multiTagsContainer.innerHTML = '';
-      }
-      const multiTagSelect = document.getElementById('multi-tag-select');
-      if (multiTagSelect) {
-        multiTagSelect.value = '';
-      }
-    }
-  }
-  
-  // Update tracking variable
-  previousSelectionHash = currentSelectionHash;
-}
 
 function isMobileUiActive() {
   return document.body.classList.contains('mobile-ui');
@@ -10057,7 +9335,6 @@ function clearModelDetailsSidebar() {
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
-  previousSelectionHash = '';
 }
 
 /**
@@ -10199,7 +9476,7 @@ async function handleFileClick(event, filePath) {
         await populateModelDesignerDropdown(null, 'multi-designer');
         await populateModelLicenseDropdown(null, 'multi-license');
         await populateParentModelDropdown(null, 'multi-parent');
-        await populateTagSelect('multi-tag-select', 'multi-tags');
+        await populateTagSelect();
       } catch (error) {
         console.error('Error populating multi-edit dropdowns:', error);
       }
@@ -10504,7 +9781,7 @@ document.addEventListener('keydown', async (event) => {
         await populateModelDesignerDropdown(null, 'multi-designer');
         await populateModelLicenseDropdown(null, 'multi-license');
         await populateParentModelDropdown(null, 'multi-parent');
-        await populateTagSelect('multi-tag-select', 'multi-tags');
+        await populateTagSelect();
         await populateRemoveTagSelect();
       } catch (error) {
         console.error('Error populating multi-edit dropdowns:', error);
@@ -10518,33 +9795,10 @@ document.addEventListener('keydown', async (event) => {
 });
 
 // Update populateModelDesignerDropdown to handle multiple dropdowns
-async function populateModelDesignerDropdown(selectedDesigner, elementId = 'model-designer') {
-  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
-  if (elementId === 'model-designer') {
-    window.detailsFields?.reloadOptions();
-    return;
-  }
-  const designerSelect = document.getElementById(elementId);
-  if (!designerSelect) return;
-
-  designerSelect.innerHTML = '<option value="">Select Designer</option>';
-
-  try {
-    const designers = await window.electron.getDesigners();
-    designers.forEach(designer => {
-      if (designer) { // Only add non-empty designers
-        const option = document.createElement('option');
-        option.value = designer;
-        option.textContent = designer;
-        if (designer === selectedDesigner) {
-          option.selected = true;
-        }
-        designerSelect.appendChild(option);
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching designers:', error);
-  }
+/** Reload the designer pickers (details panel and multi-edit panel are React). */
+async function populateModelDesignerDropdown() {
+  window.detailsFields?.reloadOptions();
+  window.multiEdit?.reloadOptions();
 }
 
 async function populateDesignerDropdown() {
@@ -10565,107 +9819,6 @@ async function populateDesignerDropdown() {
   }
 }
 
-// Add these event listeners after your existing ones
-document.getElementById('cancel-designer-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-designer-dialog');
-  dialog.close();
-});
-
-document.getElementById('new-designer-dialog').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const newDesignerName = document.getElementById('new-designer-name').value.trim();
-  const sourceDropdownId = event.target.closest('dialog').dataset.sourceDropdown;
-  
-  if (newDesignerName) {
-    // Trigger auto-save first (before repopulating dropdowns)
-    if (sourceDropdownId === 'multi-designer') {
-      await autoSaveMultipleModels('designer', newDesignerName);
-    } else if (sourceDropdownId === 'designer-select') {
-      // For filter dropdown, we need to save to a model first
-      const filePath = getCurrentModelFilePath();
-      if (filePath) {
-        await autoSaveModel('designer', newDesignerName, filePath);
-      }
-    } else {
-      const filePath = getCurrentModelFilePath();
-      await autoSaveModel('designer', newDesignerName, filePath);
-    }
-    
-    // Clear the input and close the dialog immediately
-    document.getElementById('new-designer-name').value = '';
-    document.getElementById('new-designer-dialog').close();
-    
-    // Update all designer dropdowns - both filter and model dropdowns
-    // This repopulates from the database, avoiding duplicates
-    await populateDesignerDropdown(); // Filter dropdown on left side
-    // Preserve the selection for the dropdown that was just updated
-    await populateModelDesignerDropdown(
-      sourceDropdownId === 'multi-designer' ? newDesignerName : null, 
-      'multi-designer'
-    ); // Multi-edit dropdown
-    await populateModelDesignerDropdown(
-      sourceDropdownId === 'model-designer' ? newDesignerName : null, 
-      'model-designer'
-    ); // Single-edit dropdown
-    
-    // Set the value on the source dropdown after repopulation
-    if (sourceDropdownId === 'designer-select') {
-      const designerSelect = document.getElementById('designer-select');
-      if (designerSelect) {
-        designerSelect.value = newDesignerName;
-      }
-    }
-  }
-});
-
-
-// Add event listeners for parent model dialog
-document.getElementById('add-new-parent-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-parent-dialog');
-  dialog.showModal();
-});
-
-document.getElementById('cancel-parent-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-parent-dialog');
-  dialog.close();
-});
-
-// Duplicate event listener removed - handled in DOMContentLoaded above
-
-// Update the parent model button click handler to match designer exactly
-document.querySelectorAll('.add-parent-button, #add-new-parent-button').forEach(button => {
-  button?.addEventListener('click', () => {
-    const dialog = document.getElementById('new-parent-dialog');
-    const input = document.getElementById('new-parent-name');
-    
-    // Reset form and input state exactly like designer
-    dialog.querySelector('form').reset();
-    input.value = '';
-    input.disabled = false;
-    input.readOnly = false;
-    
-    // Store which dropdown triggered the dialog
-    dialog.dataset.sourceDropdown = button.closest('.designer-input-container')?.querySelector('select')?.id || 'model-parent';
-    
-    // Show dialog and force refresh exactly like designer
-    dialog.showModal();
-    requestAnimationFrame(() => {
-      input.focus();
-      input.click();
-    });
-  });
-});
-
-// Add back the cancel button handler
-document.getElementById('cancel-parent-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-parent-dialog');
-  const input = document.getElementById('new-parent-name');
-  input.value = '';
-  dialog.close();
-});
-
-
-
 // Add these new functions
 function debounce(func, wait) {
   let timeout;
@@ -10683,335 +9836,29 @@ function debounce(func, wait) {
 
 // Replace the existing tag handling functions with these
 async function initializeTags() {
-  const multiTagSelect = document.getElementById('multi-tag-select');
+  // The tag and filament pickers are React; they load their own options.
+  await populateTagSelect();
+}
 
-  // Handle selecting a tag from the multi edit dropdown
-  multiTagSelect.addEventListener('change', () => {
-    const selectedTag = multiTagSelect.value;
-    if (selectedTag) {
-      addTagToModel(selectedTag, 'multi-tags');
-      multiTagSelect.value = ''; // Reset selection
-    }
-  });
-
-  // Initial population of tag dropdowns
-  await populateTagSelect('tag-select', 'model-tags');
-  await populateTagSelect('multi-tag-select', 'multi-tags');
+/** Reload the tag pickers (details panel, multi-edit panel and bundle panel are React). */
+async function populateTagSelect() {
+  window.detailsFields?.reloadOptions();
+  window.multiEdit?.reloadOptions();
   window.bundleDetails?.reloadOptions();
-  if (typeof window.populateFilamentSelect === 'function') {
-    await window.populateFilamentSelect('filament-select', 'model-filaments');
-    await window.populateFilamentSelect('multi-filament-select', 'multi-filaments');
-  }
 }
 
-async function populateTagSelect(selectId = 'tag-select', containerId = 'model-tags') {
-  if (selectId === 'tag-select') {
-    window.detailsFields?.reloadOptions(); // React (DetailsFields.tsx)
-    return;
-  }
-  const tagSelect = document.getElementById(selectId);
-  if (!tagSelect) return;
-  const currentTags = Array.from(document.querySelectorAll(`#${containerId} .tag`))
-    .map(tag => tag.getAttribute('data-tag-name'));
-  
-  tagSelect.innerHTML = '<option value="">Select a tag...</option>';
-
-  try {
-    const tags = await window.electron.getAllTags();
-    tags.sort((a, b) => a.name.localeCompare(b.name)); // Sort tags alphabetically
-    tags.forEach(tag => {
-      // Only add tags that aren't already selected
-      if (!currentTags.includes(tag.name)) {
-        const option = document.createElement('option');
-        option.value = tag.name;
-        option.textContent = tag.name;
-        tagSelect.appendChild(option);
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching tags:', error);
-  }
-}
-
-// Refresh the tags displayed in the multi-tags container
-async function refreshMultiEditTags() {
-  const multiTagsContainer = document.getElementById('multi-tags');
-  if (!multiTagsContainer) {
-    return;
-  }
-
-  // Clear existing tags
-  multiTagsContainer.innerHTML = '';
-
-  // Check if any models are selected
-  if (selectedModels.size === 0) {
-    return;
-  }
-
-  try {
-    // Get all selected file paths
-    const filePaths = Array.from(selectedModels);
-    
-    // Load tags for each model in parallel
-    const tagPromises = filePaths.map(async (filePath) => {
-      try {
-        const model = await window.electron.getModel(filePath);
-        return model && model.tags ? (Array.isArray(model.tags) ? model.tags : []) : [];
-      } catch (error) {
-        console.error(`Error loading tags for ${filePath}:`, error);
-        return [];
-      }
-    });
-
-    const allTagsArrays = await Promise.all(tagPromises);
-    
-    // Collect unique tags across all selected files
-    const uniqueTags = new Set();
-    allTagsArrays.forEach(tags => {
-      if (Array.isArray(tags)) {
-        tags.forEach(tag => {
-          if (tag && typeof tag === 'string') {
-            const normalizedTag = tag.trim();
-            if (normalizedTag) {
-              uniqueTags.add(normalizedTag);
-            }
-          }
-        });
-      }
-    });
-
-    // Sort tags alphabetically
-    const sortedTags = Array.from(uniqueTags).sort((a, b) => a.localeCompare(b));
-
-    // Display tags in the container with remove functionality
-    sortedTags.forEach(tagName => {
-      // Check if tag already exists visually
-      const existingTag = Array.from(multiTagsContainer.children)
-        .find(tag => tag.getAttribute('data-tag-name') === tagName);
-      
-      if (!existingTag) {
-        // Create tag element with remove functionality
-        const tag = document.createElement('div');
-        tag.className = 'tag';
-        tag.setAttribute('data-tag-name', tagName);
-        tag.setAttribute('title', tagName);
-        tag.innerHTML = `
-          <span class="tag-text">${escapeHtml(tagName)}</span>
-          <span class="tag-remove">×</span>
-        `;
-        
-        // Add remove handler with auto-save
-        tag.querySelector('.tag-remove')?.addEventListener('click', async () => {
-          tag.remove();
-          // Auto-save the updated tags after REMOVAL
-          const currentTags = Array.from(multiTagsContainer.querySelectorAll('.tag'))
-            .map(t => t.getAttribute('data-tag-name'));
-          
-          // Use replaceTags: true to replace tags instead of merging
-          await autoSaveMultipleModels('tags', currentTags, { replaceTags: true });
-          
-          // Refresh the remove tag dropdown after removal
-          await populateRemoveTagSelect();
-        });
-        
-        multiTagsContainer.appendChild(tag);
-      }
-    });
-  } catch (error) {
-    console.error('Error refreshing multi-edit tags:', error);
-  }
-}
 
 // Populate the remove tag dropdown with tags from selected files
 async function populateRemoveTagSelect() {
-  const removeTagSelect = document.getElementById('multi-tag-remove-select');
-  if (!removeTagSelect) {
-    console.error('multi-tag-remove-select element not found');
-    return;
-  }
-
-  // Clear existing options except the default
-  removeTagSelect.innerHTML = '<option value="">Select a tag to remove...</option>';
-
-  // Check if any models are selected
-  if (selectedModels.size === 0) {
-    const noTagsOption = document.createElement('option');
-    noTagsOption.value = '';
-    noTagsOption.textContent = 'No files selected';
-    noTagsOption.disabled = true;
-    removeTagSelect.appendChild(noTagsOption);
-    return;
-  }
-
-  try {
-    // Get all selected file paths
-    const filePaths = Array.from(selectedModels);
-    
-    // Load tags for each model in parallel
-    const tagPromises = filePaths.map(async (filePath) => {
-      try {
-        const model = await window.electron.getModel(filePath);
-        return model && model.tags ? (Array.isArray(model.tags) ? model.tags : []) : [];
-      } catch (error) {
-        console.error(`Error loading tags for ${filePath}:`, error);
-        return [];
-      }
-    });
-
-    const allTagsArrays = await Promise.all(tagPromises);
-    
-    // Collect unique tags across all selected files
-    // Use Set to automatically ensure uniqueness
-    const uniqueTags = new Set();
-    allTagsArrays.forEach(tags => {
-      if (Array.isArray(tags)) {
-        // First deduplicate tags within each model (in case a model has duplicate tags)
-        const modelUniqueTags = new Set();
-        tags.forEach(tag => {
-          // Normalize tag: trim whitespace and ensure it's a non-empty string
-          if (tag && typeof tag === 'string') {
-            const normalizedTag = tag.trim();
-            if (normalizedTag) {
-              modelUniqueTags.add(normalizedTag);
-            }
-          }
-        });
-        // Add all unique tags from this model to the overall set
-        modelUniqueTags.forEach(tag => uniqueTags.add(tag));
-      }
-    });
-
-    // Convert Set to array and sort alphabetically
-    // Set already ensures uniqueness, so no need for additional deduplication
-    const sortedTags = Array.from(uniqueTags).sort((a, b) => a.localeCompare(b));
-    
-    // Double-check for duplicates (defensive programming)
-    const finalUniqueTags = [];
-    const seenTags = new Set();
-    sortedTags.forEach(tag => {
-      if (!seenTags.has(tag)) {
-        seenTags.add(tag);
-        finalUniqueTags.push(tag);
-      }
-    });
-
-    // Populate dropdown
-    if (finalUniqueTags.length === 0) {
-      const noTagsOption = document.createElement('option');
-      noTagsOption.value = '';
-      noTagsOption.textContent = 'No tags to remove';
-      noTagsOption.disabled = true;
-      removeTagSelect.appendChild(noTagsOption);
-    } else {
-      finalUniqueTags.forEach(tagName => {
-        // Additional check to prevent duplicate options in the DOM
-        const existingOption = Array.from(removeTagSelect.options).find(opt => opt.value === tagName);
-        if (!existingOption) {
-          const option = document.createElement('option');
-          option.value = tagName;
-          option.textContent = tagName;
-          removeTagSelect.appendChild(option);
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error populating remove tag select:', error);
-    const errorOption = document.createElement('option');
-    errorOption.value = '';
-    errorOption.textContent = 'Error loading tags';
-    errorOption.disabled = true;
-    removeTagSelect.appendChild(errorOption);
-  }
+  window.multiEdit?.selectionChanged();
 }
 
 // Update the addTagToModel function
 // skipSave: use when populating tags from DB (showModelDetails / loadModelTags) to avoid redundant saves
+/** Add a tag to the model in the details panel (React, DetailsFields.tsx). */
 async function addTagToModel(tagName, containerId, options = {}) {
-  if (containerId === 'model-tags') {
-    // The details panel's tags are React (DetailsFields.tsx).
-    if (!options.skipSave) await window.detailsFields?.addTag(tagName);
-    return;
-  }
-  const { skipSave = false } = options;
-  const tagContainer = document.getElementById(containerId);
-  if (!tagContainer) {
-    console.error(`Tag container with ID ${containerId} not found`);
-    return;
-  }
-  
-  // Check if tag already exists visually
-  const existingTag = Array.from(tagContainer.children)
-    .find(tag => tag.getAttribute('data-tag-name') === tagName);
-  
-  if (existingTag) return; // Don't add visual duplicates
-
-  // Create new tag element
-  const tag = document.createElement('div');
-  tag.className = 'tag';
-  tag.setAttribute('data-tag-name', tagName);
-  tag.setAttribute('title', tagName); // Show full tag name on hover
-  tag.innerHTML = `
-    <span class="tag-text">${escapeHtml(tagName)}</span>
-    <span class="tag-remove">×</span>
-  `;
-
-  // Add remove handler with auto-save
-  tag.querySelector('.tag-remove')?.addEventListener('click', async () => {
-    tag.remove(); 
-    // Auto-save the updated tags after REMOVAL
-    const currentTags = Array.from(tagContainer.querySelectorAll('.tag'))
-      .map(t => t.getAttribute('data-tag-name'));
-    
-    if (containerId === 'multi-tags') {
-      // When removing, we DO want to save the resulting list for all selected models
-      // Note: This sets all selected models to have exactly the tags remaining in the UI.
-      // Use replaceTags: true to replace tags instead of merging
-      await autoSaveMultipleModels('tags', currentTags, { replaceTags: true }); 
-    } else {
-      // Single edit mode save
-      const filePath = getModelFilePath();
-      if (filePath) {
-        await autoSaveModel('tags', currentTags, filePath);
-      } else {
-        console.error('No file path found for saving tags');
-      }
-    }
-  });
-
-  tagContainer.appendChild(tag); // Add tag visually
-
-  if (skipSave) {
-    return;
-  }
-
-  // Auto-save logic after ADDING a tag
-  if (containerId === 'multi-tags') {
-    // For multi-edit ADD, only save the *newly added tag* to append it
-    console.log(`Multi-edit: Appending tag '${tagName}' to selected models.`);
-    await autoSaveMultipleModels('tags', [tagName]); // Pass only the new tag
-  } else {
-    // For single-edit ADD, save the full list for that model
-    const currentTags = Array.from(tagContainer.querySelectorAll('.tag'))
-      .map(t => t.getAttribute('data-tag-name'));
-    const filePath = getModelFilePath();
-    if (filePath) {
-      await autoSaveModel('tags', currentTags, filePath);
-    } else {
-      console.error('No file path found for saving tags');
-    }
-  }
+  if (!options.skipSave) await window.detailsFields?.addTag(tagName);
 }
-
-// Update the multi-tag-select change handler
-document.getElementById('multi-tag-select').addEventListener('change', async () => {
-  const tagSelect = document.getElementById('multi-tag-select');
-  const selectedTag = tagSelect.value;
-  if (selectedTag) {
-    // Use the same addTagToModel function as single mode
-    addTagToModel(selectedTag, 'multi-tags');
-    document.getElementById('multi-tag-select').value = ''; // Reset selection
-  }
-});
 
 async function loadModelTags(modelIdOrPath) {
   // Reload the details panel's tags (React, DetailsFields.tsx) from the database.
@@ -11081,252 +9928,6 @@ async function populateTagFilter() {
   }
 }
 
-// Add bulk edit button to the main content area
-const bulkEditButton = document.createElement('button');
-bulkEditButton.id = 'bulk-edit-button';
-bulkEditButton.className = 'bulk-edit-button';
-bulkEditButton.textContent = 'Edit Selected Models';
-document.querySelector('.main-content').appendChild(bulkEditButton);
-
-// Add bulk edit functionality
-bulkEditButton.addEventListener('click', () => {
-  const dialog = document.getElementById('bulk-edit-dialog');
-  
-  // Populate dropdowns
-  populateModelDesignerDropdown();
-  populateParentModelDropdown();
-  
-  dialog.showModal();
-});
-
-// Handle bulk edit save
-document.getElementById('bulk-edit-dialog').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  
-  const updates = {
-    designer: document.getElementById('bulk-designer').value,
-    parentModel: document.getElementById('bulk-parent').value,
-    source: document.getElementById('bulk-source').value,
-    printed: document.getElementById('bulk-printed').value
-  };
-
-  try {
-    for (const filePath of selectedModels) {
-      const model = await window.electron.getModel(filePath);
-      const updatedModel = {
-        ...model,
-        designer: updates.designer || model.designer,
-        parentModel: updates.parentModel === 'none' ? '' : (updates.parentModel || model.parentModel),
-        source: updates.source || model.source,
-        printStatus: updates.printed || undefined
-      };
-      await window.electron.saveModel(updatedModel);
-    }
-
-    // Refresh the view
-    const models = await window.electron.getAllModels();
-    await renderFiles(models);
-    
-    // Clear selection
-    selectedModels.clear();
-    document.getElementById('bulk-edit-button').classList.remove('visible');
-    
-    await window.electron.showMessage('Success', 'Changes saved successfully!');
-  } catch (error) {
-    console.error('Error saving bulk changes:', error);
-    await window.electron.showMessage('Error', 'Error saving changes');
-  }
-  
-  document.getElementById('bulk-edit-dialog').close();
-});
-
-// Handle bulk edit cancel
-document.getElementById('bulk-cancel-button')?.addEventListener('click', () => {
-  document.getElementById('bulk-edit-dialog').close();
-});
-
-// Update the add button event listeners to handle both panels
-document.querySelectorAll('.add-designer-button').forEach(button => {
-  button.addEventListener('click', () => {
-    const dialog = document.getElementById('new-designer-dialog');
-    // Store which dropdown triggered the dialog
-    dialog.dataset.sourceDropdown = button.closest('.designer-input-container').querySelector('select').id;
-    dialog.showModal();
-  });
-});
-
-document.querySelectorAll('.add-parent-button').forEach(button => {
-  button.addEventListener('click', () => {
-    const dialog = document.getElementById('new-parent-dialog');
-    // Store which dropdown triggered the dialog
-    dialog.dataset.sourceDropdown = button.closest('.designer-input-container').querySelector('select').id;
-    dialog.showModal();
-  });
-});
-
-document.querySelectorAll('.add-tag-button').forEach(button => {
-  button.addEventListener('click', async () => {
-    // Get the container ID for the tags container - we'll need this to know where to add the tag
-    const sourceContainer = button.closest('.tags-container').querySelector('.tags-list').id;
-    
-    // Use the HTML dialog instead of Electron's dialog
-    const tagDialog = document.getElementById('new-tag-dialog');
-    const newTagInput = document.getElementById('new-tag-name');
-    
-    // Clear any previous input
-    if (newTagInput) {
-      newTagInput.value = '';
-    }
-    
-    // Store the source container ID on the dialog for reference when submitting
-    tagDialog.setAttribute('data-source-container', sourceContainer);
-    
-    // Show the dialog
-    tagDialog.showModal();
-  });
-});
-
-// Update the dialog submit handlers to use the stored dropdown IDs
-// Duplicate event listener removed - handled at line 9210
-
-// Duplicate event listener removed - handled in DOMContentLoaded above
-
-// Parent Model Button Click Handler
-document.querySelectorAll('.add-parent-button, #add-new-parent-button').forEach(button => {
-  button?.addEventListener('click', () => {
-    const dialog = document.getElementById('new-parent-dialog');
-    const input = document.getElementById('new-parent-name');
-    
-    // Reset form and input state
-    dialog.querySelector('form').reset();
-    input.value = '';
-    input.disabled = false;
-    input.readOnly = false;
-    
-    // Store which dropdown triggered the dialog
-    dialog.dataset.sourceDropdown = button.closest('.designer-input-container')?.querySelector('select')?.id || 'model-parent';
-    
-    // Show dialog and force refresh exactly like designer
-    dialog.showModal();
-    requestAnimationFrame(() => {
-      input.focus();
-      input.click();
-    });
-  });
-});
-
-// Cancel Button Handler
-document.getElementById('cancel-parent-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-parent-dialog');
-  const input = document.getElementById('new-parent-name');
-  input.value = '';
-  dialog.close();
-});
-
-
-
-document.getElementById('multi-parent').addEventListener('change', async (e) => {
-  await autoSaveMultipleModels('parentModel', e.target.value);
-});
-
-// Update tag handling for multi-edit panel
-document.getElementById('multi-tag-select').addEventListener('change', async () => {
-  const selectedTag = document.getElementById('multi-tag-select').value;
-  if (selectedTag) {
-    // Use the same addTagToModel function as single mode
-    addTagToModel(selectedTag, 'multi-tags');
-    document.getElementById('multi-tag-select').value = ''; // Reset selection
-  }
-});
-
-// Handle remove tag dropdown change event
-async function handleRemoveTagSelect() {
-  const removeTagSelect = document.getElementById('multi-tag-remove-select');
-  if (!removeTagSelect) {
-    return;
-  }
-
-  const tagToRemove = removeTagSelect.value;
-  if (!tagToRemove) {
-    return;
-  }
-
-  try {
-    // Get all selected file paths
-    const filePaths = Array.from(selectedModels);
-    
-    if (filePaths.length === 0) {
-      console.warn('No models selected for tag removal');
-      return;
-    }
-
-    // Show confirmation dialog
-    const confirmResult = await window.electron.showMessageBox({
-      type: 'warning',
-      title: 'Remove Tag',
-      message: `Are you sure you want to remove the tag "${tagToRemove}" from ${filePaths.length} selected file${filePaths.length === 1 ? '' : 's'}?`,
-      buttons: ['Yes', 'No'],
-      defaultId: 1,
-      cancelId: 1
-    });
-
-    // If user clicked "No" (response === 1) or cancelled, reset dropdown and return
-    if (confirmResult.response !== 0) {
-      removeTagSelect.value = '';
-      return;
-    }
-
-    // Load all models and remove the tag from each
-    const modelUpdates = [];
-    for (const filePath of filePaths) {
-      try {
-        const model = await window.electron.getModel(filePath);
-        if (model && model.tags) {
-          const tags = Array.isArray(model.tags) ? model.tags : [];
-          // Remove the tag from the array
-          const updatedTags = tags.filter(tag => tag !== tagToRemove);
-          model.tags = updatedTags.sort();
-          modelUpdates.push({ filePath, model });
-        }
-      } catch (error) {
-        console.error(`Error loading model ${filePath} for tag removal:`, error);
-      }
-    }
-
-    // Save all updated models using autoSaveMultipleModels with replaceTags
-    if (modelUpdates.length > 0) {
-      // For each model, we need to save with its updated tags
-      // We'll use the batch update approach
-      const modelDataBatch = modelUpdates.map(({ model }) => model);
-      try {
-        await window.electron.updateModelsBatch(modelDataBatch);
-        console.log(`Successfully removed tag '${tagToRemove}' from ${modelUpdates.length} models`);
-      } catch (error) {
-        console.error('Error in batch update for tag removal:', error);
-        // Fallback to individual saves
-        for (const { model } of modelUpdates) {
-          await window.electron.saveModel(model).catch(err => {
-            console.error(`Error saving model ${model.filePath}:`, err);
-          });
-        }
-      }
-
-      // Update UI elements
-      for (const { filePath } of modelUpdates) {
-        await updateModelElement(filePath);
-      }
-    }
-
-    // Reset dropdown and refresh the remove tag list
-    removeTagSelect.value = '';
-    await populateRemoveTagSelect();
-    
-    // Refresh the add tag dropdown to reflect any changes
-    await populateTagSelect('multi-tag-select', 'multi-tags');
-  } catch (error) {
-    console.error('Error removing tag:', error);
-  }
-}
 
 async function parseSourceUrl(url) {
   try {
@@ -12466,67 +11067,17 @@ async function generateThumbnail(file) {
 }
 
 // Add helper function for populating license dropdown
-async function populateModelLicenseDropdown(selectedLicense, elementId = 'model-license') {
-  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
-  if (elementId === 'model-license') {
-    window.detailsFields?.reloadOptions();
-    return;
-  }
-  const licenseSelect = document.getElementById(elementId);
-  if (!licenseSelect) return;
-
-  licenseSelect.innerHTML = '<option value="">Select License</option>';
-
-  try {
-    const licenses = await window.electron.getLicenses();
-    licenses.forEach(license => {
-      if (license) { // Only add non-empty licenses
-        const option = document.createElement('option');
-        option.value = license;
-        option.textContent = license;
-        if (license === selectedLicense) {
-          option.selected = true;
-        }
-        licenseSelect.appendChild(option);
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching licenses:', error);
-  }
+/** Reload the license pickers (details panel and multi-edit panel are React). */
+async function populateModelLicenseDropdown() {
+  window.detailsFields?.reloadOptions();
+  window.multiEdit?.reloadOptions();
 }
 
 // Add helper function for populating parent model dropdown
-async function populateParentModelDropdown(selectedParent, elementId = 'model-parent') {
-  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
-  if (elementId === 'model-parent') {
-    window.detailsFields?.reloadOptions();
-    return;
-  }
-  const parentSelect = document.getElementById(elementId);
-  if (!parentSelect) return;
-
-  parentSelect.innerHTML = '<option value="">None</option>';
-
-  try {
-    const parents = await window.electron.getParentModels();
-    // Use a Set to track unique parent values to prevent duplicates
-    const seenParents = new Set();
-    
-    parents.forEach(parent => {
-      if (parent && !seenParents.has(parent)) { // Only add non-empty, unique parent models
-        seenParents.add(parent);
-        const option = document.createElement('option');
-        option.value = parent;
-        option.textContent = parent;
-        if (parent === selectedParent) {
-          option.selected = true;
-        }
-        parentSelect.appendChild(option);
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching parent models:', error);
-  }
+/** Reload the parent model pickers (details panel and multi-edit panel are React). */
+async function populateParentModelDropdown() {
+  window.detailsFields?.reloadOptions();
+  window.multiEdit?.reloadOptions();
 }
 
 // Add back the populateParentModelFilter function
@@ -12967,108 +11518,58 @@ function attachTileLongPress(fileElement, onLongPress) {
 }
 
 // Update the exit multi-edit mode functionality
+/** Leave multi-edit mode: clear the selection and show the (empty) details panel. */
 function exitMultiEditMode() {
-  // Clear selections
   selectedModels.clear();
-  document.querySelectorAll('.file-item').forEach(item => {
-    item.classList.remove('selected');
-  });
-  
-  // Update the selection count display
-  updateSelectedCount();
-  
-  // Switch back to single edit mode
   isMultiSelectMode = false;
-  const multiEditPanel = document.getElementById('multi-edit-panel');
-  const detailsPanel = document.getElementById('model-details');
-  multiEditPanel.classList.add('hidden');
-  detailsPanel.classList.remove('hidden');
-  document.getElementById('edit-mode-toggle').textContent = 'Multi-Edit Mode';
-  document.getElementById('edit-mode-toggle').classList.remove('active');
-
-  // Remove all event listeners from model form fields
-  const formFields = [
-    'multi-designer',
-    'multi-source',
-    'multi-print-status',
-    'multi-parent',
-    'multi-license',
-    'multi-tag-select'
-  ];
-
-  // Clone and replace each field to remove event listeners
-  formFields.forEach(fieldId => {
-    const element = document.getElementById(fieldId);
-    if (element) {
-      // Clone and replace the element to remove all event listeners
-      const newElement = element.cloneNode(true);
-      element.parentNode.replaceChild(newElement, element);
-      
-      // Reset any specific element states
-      if (fieldId === 'multi-print-status') {
-        newElement.value = '';
-      } else if (newElement.tagName === 'SELECT') {
-        newElement.value = ''; // Reset select elements
-      } else if (newElement.tagName === 'INPUT') {
-        newElement.value = ''; // Reset text inputs
-      }
-    }
-  });
-
-  // Clear the current model details path to prevent stale event handlers.
-  // Bump before the name clear so an in-flight layout timer cannot restore it.
+  document.getElementById('multi-edit-panel')?.classList.add('hidden');
+  document.getElementById('model-details')?.classList.remove('hidden');
+  const toggle = document.getElementById('edit-mode-toggle');
+  if (toggle) {
+    toggle.textContent = 'Multi-Edit Mode';
+    toggle.classList.remove('active');
+  }
+  // A details load still in flight must not fill the panel again.
   currentModelDetailsPath = null;
   currentModelDetailsAbort = true;
-  
-  // Clear the form
   setDetailsPath(null);
   window.detailsFields?.clear();
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
-  
-  // Clear the multi-edit tag container as well
-  const multiTagsContainer = document.getElementById('multi-tags');
-  if (multiTagsContainer) {
-    multiTagsContainer.innerHTML = '';
+  updateSelectedCount();
+}
+
+/** Show the multi-edit panel for the current selection. */
+function enterMultiEditMode() {
+  isMultiSelectMode = true;
+  const toggle = document.getElementById('edit-mode-toggle');
+  if (toggle) {
+    toggle.textContent = 'Exit Multi-Edit Mode';
+    toggle.classList.add('active');
   }
-  
-  // Reset the multi-tag-select dropdown
-  const multiTagSelect = document.getElementById('multi-tag-select');
-  if (multiTagSelect) {
-    // Set back to default option
-    multiTagSelect.value = '';
-    
-    // Optionally refresh the dropdown options
-    populateTagSelect('multi-tag-select', 'multi-tags');
-  }
-  
-  // Reset selection tracking to ensure tags are cleared on next selection
-  previousSelectionHash = '';
-  
-  console.log('Exited multi-edit mode and cleared tags');
+  document.getElementById('model-details')?.classList.add('hidden');
+  const panel = document.getElementById('multi-edit-panel');
+  panel?.classList.remove('hidden');
+  showMultiEditPanel();
+  updateSelectedCount();
+  requestAnimationFrame(() => panel?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 // Update the edit mode toggle handler
-document.getElementById('edit-mode-toggle')?.addEventListener('click', () => {
-  isMultiSelectMode = !isMultiSelectMode;
-  const button = document.getElementById('edit-mode-toggle');
-  const multiEditPanel = document.getElementById('multi-edit-panel');
-  const detailsPanel = document.getElementById('model-details');
-
-  if (isMultiSelectMode) {
-    button.textContent = 'Exit Multi-Edit Mode';
-    button.classList.add('active');
-    multiEditPanel.classList.remove('hidden');
-    detailsPanel.classList.add('hidden');
-    showMultiEditPanel();
-  } else {
-    exitMultiEditMode();
-  }
-});
 
 // Update the exit button handler
-document.getElementById('exit-multi-edit-button')?.addEventListener('click', exitMultiEditMode);
+document.getElementById('edit-mode-toggle')?.addEventListener('click', () => {
+  if (isMultiSelectMode) exitMultiEditMode();
+  else enterMultiEditMode();
+});
+
+// The details panel's button: start multi-edit with the shown model selected.
+document.getElementById('enter-multi-edit-button')?.addEventListener('click', () => {
+  const current = getCurrentModelFilePath();
+  if (current) addToSelectedModels(current);
+  enterMultiEditMode();
+});
 
 // Add these configurations at the top of your file
 const RENDER_CONFIG = {
@@ -13597,11 +12098,6 @@ async function initializeAppOnce() {
     }
     
     console.log('8. Initializing UI components');
-    // Call initializeDialogHandlers directly if it's accessible
-    if (typeof initializeDialogHandlers === 'function') {
-      initializeDialogHandlers();
-    }
-    
     // Initialize performance settings inline
     try {
       // Get the stored max file size value
@@ -13902,41 +12398,10 @@ async function autoSaveMultipleModels(field, value, options = {}) {
       }
     }
     
-    await new Promise(resolve => requestAnimationFrame(resolve));
+    // The React grid cards redraw from the merged models.
+    modelUpdates.forEach(({ model }) => mergeModelIntoGridCurrentModels({ ...model }));
+    refreshLibraryGrid();
 
-    // Merge into virtual grid memory, drop stale visible DOM for updated paths, then re-run visible render.
-    // renderVisibleItems reuses matching .file-item nodes and only moves them — it does not refresh metadata,
-    // so without removing those nodes bulk designer/printed/license changes would not show on screen.
-    const gridContainer = document.querySelector('.file-grid');
-    if (gridContainer && gridContainer.currentModels && modelUpdates.length > 0) {
-      const updatedNorm = new Set(
-        modelUpdates.map(({ filePath }) => normalizePathForComparison(filePath))
-      );
-      for (const { filePath, model } of modelUpdates) {
-        const normalizedTarget = normalizePathForComparison(filePath);
-        const idx = gridContainer.currentModels.findIndex(m =>
-          normalizePathForComparison(m.filePath || m.id || '') === normalizedTarget
-        );
-        if (idx !== -1) {
-          gridContainer.currentModels[idx] = { ...model };
-        }
-      }
-      const virtualContent = gridContainer.querySelector('.virtual-content');
-      if (virtualContent) {
-        virtualContent.querySelectorAll('.file-item').forEach((el) => {
-          const p = el.getAttribute('data-filepath');
-          if (p && updatedNorm.has(normalizePathForComparison(p))) {
-            el.remove();
-          }
-        });
-      }
-      if (gridContainer.renderVisibleItemsFn) {
-        requestAnimationFrame(() => {
-          gridContainer.renderVisibleItemsFn();
-        });
-      }
-    }
-    
     console.log(`Finished autoSaveMultipleModels for field ${field}. Updated ${modelsToUpdate.length} models.`);
     return true;
   } catch (error) {
@@ -13970,234 +12435,17 @@ function getModelFilePath() {
 
 // Helper function to clear all multi-edit form fields
 function clearMultiEditFormFields() {
-  const multiPrintStatus = document.getElementById('multi-print-status');
-  if (multiPrintStatus) {
-    multiPrintStatus.value = '';
-  }
-  
-  // Clear the source input
-  const multiSourceInput = document.getElementById('multi-source');
-  if (multiSourceInput) {
-    multiSourceInput.value = '';
-  }
-  
-  // Clear the designer dropdown
-  const multiDesignerSelect = document.getElementById('multi-designer');
-  if (multiDesignerSelect) {
-    multiDesignerSelect.value = '';
-  }
-  
-  // Clear the parent dropdown
-  const multiParentSelect = document.getElementById('multi-parent');
-  if (multiParentSelect) {
-    multiParentSelect.value = '';
-  }
-  
-  // Clear the license dropdown
-  const multiLicenseSelect = document.getElementById('multi-license');
-  if (multiLicenseSelect) {
-    multiLicenseSelect.value = '';
-  }
-  
-  // Clear the multi-edit tag container
-  const multiTagsContainer = document.getElementById('multi-tags');
-  if (multiTagsContainer) {
-    multiTagsContainer.innerHTML = '';
-  }
-  
-  // Reset the multi-tag-select dropdown
-  const multiTagSelect = document.getElementById('multi-tag-select');
-  if (multiTagSelect) {
-    multiTagSelect.value = '';
-  }
-
-  // Reset the multi-tag-remove-select dropdown
-  const multiTagRemoveSelect = document.getElementById('multi-tag-remove-select');
-  if (multiTagRemoveSelect) {
-    multiTagRemoveSelect.value = '';
-    multiTagRemoveSelect.innerHTML = '<option value="">Select a tag to remove...</option>';
-  }
+  window.multiEdit?.open();
 }
 
 // Add this code to set up event handlers for multi-edit mode controls
+/** The multi-edit panel was shown: reset its form (React, src/web/details/MultiEditPanel.tsx). */
 async function showMultiEditPanel() {
-  // Populate dropdowns with existing data - REMOVED redundant calls
-  // populateModelDesignerDropdown('', 'multi-designer');
-  // populateModelLicenseDropdown('', 'multi-license');
-  // populateParentModelDropdown('', 'multi-parent');
-  // populateTagSelect('multi-tag-select', 'multi-tags');
-  
-  // Always clear the multi-edit tag container to prevent tags from sticking
-  // This ensures that when a new selection is made, old tags don't persist
-  // Note: The container is hidden in multi-edit mode, but we still clear it
-  const multiTagsContainer = document.getElementById('multi-tags');
-  if (multiTagsContainer) {
-    multiTagsContainer.innerHTML = '';
-    multiTagsContainer.style.display = 'none'; // Hide the tag list in multi-edit mode
-  }
-  
-  // Reset the multi-tag-select dropdown
-  const multiTagSelect = document.getElementById('multi-tag-select');
-  if (multiTagSelect) {
-    multiTagSelect.value = '';
-  }
-  
-  // Also call the selection change handler to update tracking
-  clearTagsOnSelectionChange();
-  
-  const multiPrintStatus = document.getElementById('multi-print-status');
-  if (multiPrintStatus) {
-    multiPrintStatus.value = '';
-  }
-  
-  // Reset the source input
-  const multiSourceInput = document.getElementById('multi-source');
-  if (multiSourceInput) {
-    multiSourceInput.value = '';
-  }
-  
-  // Only clear dropdowns if no models are selected
-  if (selectedModels.size === 0) {
-    const multiDesignerSelect = document.getElementById('multi-designer');
-    if (multiDesignerSelect) {
-      multiDesignerSelect.value = '';
-    }
-    
-    const multiParentSelect = document.getElementById('multi-parent');
-    if (multiParentSelect) {
-      multiParentSelect.value = '';
-    }
-    
-    const multiLicenseSelect = document.getElementById('multi-license');
-    if (multiLicenseSelect) {
-      multiLicenseSelect.value = '';
-    }
-  }
-  
-  // Add change handlers for multi-edit controls
-  document.getElementById('multi-designer')?.addEventListener('change', async (e) => {
-    const value = e.target.value; // Only save if explicitly set
-    if (value) {
-      await autoSaveMultipleModels('designer', value);
-    }
-  });
-  
-  document.getElementById('multi-parent')?.addEventListener('change', async (e) => {
-    await autoSaveMultipleModels('parentModel', e.target.value);
-  });
-  
-  document.getElementById('multi-license')?.addEventListener('change', async (e) => {
-    await autoSaveMultipleModels('license', e.target.value);
-  });
-  
-  // Use input event with debounce for the source field so it saves as user types
-  if (multiSourceInput) {
-    // First remove any existing event listeners
-    const newInput = multiSourceInput.cloneNode(true);
-    multiSourceInput.parentNode.replaceChild(newInput, multiSourceInput);
-    
-    // Add debounced input event listener
-    newInput.addEventListener('input', debounce(async function() {
-      const sourceValue = this.value.trim();
-      console.log(`Saving source value: "${sourceValue}"`);
-      await autoSaveMultipleModels('source', sourceValue);
-    }, 500));
-    
-    console.log('Multi-source input event handler attached');
-  } else {
-    console.error('Multi-source input not found');
-  }
-  
-  // Re-attach event listener for multi-tag-select
-  // Get fresh reference since we may have cloned it earlier
-  const multiTagSelectElement = document.getElementById('multi-tag-select');
-  if (multiTagSelectElement) {
-    // Clone/replace to ensure any old listeners are gone (might be redundant but safe)
-    const newMultiTagSelect = multiTagSelectElement.cloneNode(true);
-    multiTagSelectElement.parentNode.replaceChild(newMultiTagSelect, multiTagSelectElement);
-
-    // Add the change listener
-    newMultiTagSelect.addEventListener('change', () => {
-      const selectedTag = newMultiTagSelect.value;
-      if (selectedTag) {
-        addTagToModel(selectedTag, 'multi-tags');
-        newMultiTagSelect.value = ''; // Reset selection
-      }
-    });
-    console.log('Multi-tag-select event handler re-attached in showMultiEditPanel');
-  } else {
-    console.error('Multi-tag-select element not found in showMultiEditPanel');
-  }
-
-  // Set up remove tag select event listener
-  const removeTagSelectElement = document.getElementById('multi-tag-remove-select');
-  if (removeTagSelectElement) {
-    // Clone/replace to ensure any old listeners are gone
-    const newRemoveTagSelect = removeTagSelectElement.cloneNode(true);
-    removeTagSelectElement.parentNode.replaceChild(newRemoveTagSelect, removeTagSelectElement);
-
-    // Add the change listener
-    newRemoveTagSelect.addEventListener('change', async () => {
-      await handleRemoveTagSelect();
-    });
-    console.log('Multi-tag-remove-select event handler attached in showMultiEditPanel');
-
-    // Populate the remove tag dropdown
-    await populateRemoveTagSelect();
-  } else {
-    console.error('Multi-tag-remove-select element not found in showMultiEditPanel');
-  }
-  
-  // Initialize List buttons for multi-edit panel
-  initializeListButtons();
+  window.multiEdit?.open();
 }
 
 // Update the edit mode toggle handler to call showMultiEditPanel when entering multi-edit mode
-document.getElementById('edit-mode-toggle')?.addEventListener('click', () => {
-  isMultiSelectMode = !isMultiSelectMode;
-  const button = document.getElementById('edit-mode-toggle');
-  const multiEditPanel = document.getElementById('multi-edit-panel');
-  const detailsPanel = document.getElementById('model-details');
 
-  if (isMultiSelectMode) {
-    button.textContent = 'Exit Multi-Edit Mode';
-    button.classList.add('active');
-    multiEditPanel.classList.remove('hidden');
-    detailsPanel.classList.add('hidden');
-    showMultiEditPanel();
-  } else {
-    exitMultiEditMode();
-  }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Add event listener for the Clear Selection button
-  const clearSelectionButton = document.getElementById('clear-selection-button');
-  if (clearSelectionButton) {
-    clearSelectionButton.addEventListener('click', () => {
-      console.log('Clear Selection button clicked');
-      if (isMultiSelectMode) {
-        selectedModels.clear();
-        document.querySelectorAll('.file-item.selected').forEach(item => {
-          item.classList.remove('selected');
-        });
-        
-        // Clear all multi-edit form fields
-        clearMultiEditFormFields();
-        
-        // Refresh the tag dropdown options
-        populateTagSelect('multi-tag-select', 'multi-tags');
-        
-        updateSelectedCount(); // Update the count display
-        
-        console.log('Selection cleared');
-      }
-    });
-    console.log('Clear Selection button event listener attached');
-  } else {
-    console.error('Clear Selection button not found');
-  }
-});
 
 
 function normalizeModelRatingValue(value) {
@@ -15334,6 +13582,50 @@ async function openModelSourceUrl(url) {
   }
 }
 
+/** Remove one tag or filament from every selected model, keeping their others. */
+async function removeFromSelectedModelsField(field, value) {
+  const updates = [];
+  for (const filePath of Array.from(selectedModels)) {
+    try {
+      const model = await window.electron.getModel(filePath);
+      if (!model) continue;
+      if (field === 'tags') {
+        const tags = tagNameList(model.tags);
+        if (!tags.includes(value)) continue;
+        model.tags = tags.filter((tag) => tag !== value);
+      } else {
+        const ids = (Array.isArray(model.filaments) ? model.filaments : [])
+          .map((f) => Number(f && typeof f === 'object' ? f.id : f))
+          .filter((id) => Number.isInteger(id) && id > 0);
+        if (!ids.includes(Number(value))) continue;
+        model.filaments = ids.filter((id) => id !== Number(value));
+      }
+      updates.push(model);
+    } catch (error) {
+      console.error('Error loading model for removal:', filePath, error);
+    }
+  }
+  if (!updates.length) return;
+  await window.electron.updateModelsBatch(updates);
+  updates.forEach((model) => mergeModelIntoGridCurrentModels(model));
+  refreshLibraryGrid();
+}
+
+/** What the multi-edit panel (src/web/details/MultiEditPanel.tsx) asks of this file. */
+window.multiEditHost = {
+  selectedPaths: () => Array.from(selectedModels),
+  exit: () => exitMultiEditMode(),
+  selectAllVisible: () => selectAllVisibleModels(),
+  clearSelection: () => clearMultiSelection(),
+  saveField: async (field, value) => !!(await autoSaveMultipleModels(field, value)),
+  removeFromSelected: (field, value) => removeFromSelectedModelsField(field, value),
+  pickFromList: (field, remove) => new Promise((resolve) => {
+    const target = remove ? (field === 'tag' ? 'multi-tag-remove-select' : 'multi-filament-remove-select') : null;
+    showSearchableListDialog(field, target, 'multi', null, !!remove, resolve);
+  }),
+  openSource: (url) => { openModelSourceUrl(url); }
+};
+
 /** What the bundle panel (src/web/details/BundleDetails.tsx) asks of this file. */
 window.bundleHost = {
   openModel: (filePath) => { showModelDetails(filePath); },
@@ -15345,7 +13637,7 @@ window.bundleHost = {
   tagCreated: async () => {
     try {
       await populateTagFilter();
-      await populateTagSelect('multi-tag-select', 'multi-tags');
+      await populateTagSelect();
       window.detailsFields?.reloadOptions();
       window.reloadTagManager?.();
     } catch (error) {
@@ -15374,7 +13666,7 @@ window.detailsHost = {
         await populateModelLicenseDropdown(null, 'multi-license');
       } else if (kind === 'tag') {
         await populateTagFilter();
-        await populateTagSelect('multi-tag-select', 'multi-tags');
+        await populateTagSelect();
         window.reloadTagManager?.();
       }
     } catch (error) {
@@ -15383,11 +13675,6 @@ window.detailsHost = {
   }
 };
 
-// Change the multi-source event listener from 'change' back to 'input' with debounce
-document.getElementById('multi-source')?.addEventListener('input', debounce(async (e) => {
-  console.log(`Saving source value: "${e.target.value}"`);
-  await autoSaveMultipleModels('source', e.target.value);
-}, 500));
 
 
 window.renderFiles = renderFiles;

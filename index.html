@@ -394,6 +394,7 @@
 
     <div id="model-details" class="model-details hidden">
       <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><span class="mobile-details-name" id="mobile-details-name" hidden></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-details-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-favorite" aria-pressed="false" aria-label="Favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.2s-6.8-4.3-9.2-8.2C1 9.2 2.2 5.8 5.6 5.2 7.6 4.8 9.4 5.8 12 8.2c2.6-2.4 4.4-3.4 6.4-3 3.4.6 4.6 4 2.8 6.8-2.4 3.9-9.2 8.2-9.2 8.2z"/></svg><span class="mobile-action-label">Favorite</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-log-print" aria-label="Log a print"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h9l3 3v15H6V3zm8 1.5V7h2.5L14 4.5zM8 11h8v1.8H8V11zm0 3.2h8v1.8H8v-1.8zM8 17.4h5.2V19H8v-1.6z"/></svg><span>Log print</span></button></span></h3>
+      <button type="button" id="enter-multi-edit-button" class="full-width-button">Enter Multi-Edit Mode</button>
       <!-- Print status: React (src/web/print/PrintHistory.tsx) -->
       <div id="details-print-slot" style="display: contents"></div>
       <button type="button" id="mobile-details-more" aria-expanded="false">More details</button>
@@ -421,45 +422,6 @@
       <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
       <div id="bundle-details-slot" style="display: contents"></div>
     </div>
-    <dialog id="new-designer-dialog" class="modal">
-      <form method="dialog">
-        <h3>Add New Designer</h3>
-        <div class="form-group">
-          <label for="new-designer-name">Designer Name:</label>
-          <input type="text" id="new-designer-name" required>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="add-designer-button">Add</button>
-          <button type="button" id="cancel-designer-button" data-close-dialog="new-designer-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
-    <dialog id="new-parent-dialog" class="modal">
-      <form method="dialog">
-        <h3>Add New Parent Model</h3>
-        <div class="form-group">
-          <label for="new-parent-name">Parent Model Name:</label>
-          <input type="text" id="new-parent-name" required>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="add-parent-button">Add</button>
-          <button type="button" id="cancel-parent-button" data-close-dialog="new-parent-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
-    <dialog id="new-tag-dialog" class="modal">
-      <form>
-        <h3>Add New Tag</h3>
-        <div class="form-group">
-          <label for="new-tag-name">Tag Name:</label>
-          <input type="text" id="new-tag-name">
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="add-tag-submit">Add</button>
-          <button type="button" id="cancel-tag-button" data-close-dialog="new-tag-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="searchable-list-dialog" class="modal">
       <form method="dialog">
         <h3 id="searchable-list-title">Select Item</h3>
@@ -474,169 +436,11 @@
         </div>
       </form>
     </dialog>
-    <dialog id="bulk-edit-dialog" class="modal">
-      <form method="dialog">
-        <h3>Edit Selected Models</h3>
-        <div class="form-group">
-          <label for="bulk-designer">Designer:</label>
-          <div class="designer-input-container">
-            <select id="bulk-designer">
-              <option value="">No Change</option>
-              <option value="Unknown">Unknown</option>
-            </select>
-            <button type="button" id="bulk-add-designer-button" class="icon-button">+</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="bulk-parent">Parent Model:</label>
-          <div class="designer-input-container">
-            <select id="bulk-parent">
-              <option value="">No Change</option>
-              <option value="none">None</option>
-            </select>
-            <button type="button" id="bulk-add-parent-button" class="icon-button">+</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="bulk-source">Source:</label>
-          <input type="text" id="bulk-source" placeholder="No Change">
-        </div>
-        <div class="form-group">
-          <label for="bulk-printed">Print status:</label>
-          <select id="bulk-printed">
-            <option value="">No Change</option>
-            <option value="unprinted">Not printed</option>
-            <option value="want">Want</option>
-            <option value="queued">Queued</option>
-            <option value="printing">Printing</option>
-            <option value="printed">Printed</option>
-            <option value="failed">Failed</option>
-          </select>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="bulk-save-button">Save Changes</button>
-          <button type="button" id="bulk-cancel-button" data-close-dialog="bulk-edit-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <div id="multi-edit-panel" class="model-details hidden">
       <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button></h3>
-      <button id="exit-multi-edit-button" class="full-width-button">Exit Multi-Edit Mode</button>
-      <button id="select-all-button" class="full-width-button">Select All Visible</button>
-      <button id="clear-selection-button" class="full-width-button">Clear Selection</button>
-      <p class="selected-count">0 models selected</p>
-      <div class="form-group">
-        <label for="multi-print-status">Print status</label>
-        <select id="multi-print-status">
-          <option value="">No change</option>
-          <option value="unprinted">Not printed</option>
-          <option value="want">Want</option>
-          <option value="queued">Queued</option>
-          <option value="printing">Printing</option>
-          <option value="printed">Printed</option>
-          <option value="failed">Failed</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <button type="button" id="multi-log-print-button" class="full-width-button">Log a print on selected</button>
-      </div>
-      <div class="form-group">
-        <label for="multi-source">Source:</label>
-        <div class="input-with-icon">
-          <input type="text" id="multi-source" placeholder="Enter source..." spellcheck="false">
-          <button id="multi-open-source-button" class="icon-button" title="Open in browser">↗</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="multi-designer">Designer:</label>
-        <div class="designer-input-container">
-          <select id="multi-designer">
-            <option value="">Select Designer...</option>
-            <option value="Unknown">Unknown</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="designer" data-target="multi-designer" data-mode="multi" title="Search existing designers">☰</button>
-          <button type="button" class="icon-button add-designer-button">+</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="multi-parent">Parent Model:</label>
-        <div class="designer-input-container">
-          <select id="multi-parent">
-            <option value="">Select Parent...</option>
-            <option value="none">None</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="parent" data-target="multi-parent" data-mode="multi" title="Search existing parent models">☰</button>
-          <button type="button" class="icon-button add-parent-button">+</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="multi-license">License:</label>
-        <div class="designer-input-container">
-          <select id="multi-license" class="form-control"></select>
-          <button type="button" class="list-button icon-button" data-field="license" data-target="multi-license" data-mode="multi" title="Search existing licenses">☰</button>
-          <button type="button" class="icon-button add-license-button">+</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Tags:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="multi-tag-select">
-              <option value="">Select a tag...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="tag" data-target="multi-tag-select" data-mode="multi" data-container="multi-tags" title="Search existing tags">☰</button>
-            <button type="button" class="icon-button add-tag-button">+</button>
-          </div>
-          <div id="multi-tags" class="tags-list" style="display: none;"></div>
-          <div style="margin-top: 8px;">
-            <label for="multi-tag-remove-select" style="display: block; margin-bottom: 4px;">Remove from selected:</label>
-            <div class="tags-input-container">
-              <select id="multi-tag-remove-select">
-                <option value="">Select a tag to remove...</option>
-              </select>
-              <button type="button" class="list-button icon-button" data-field="tag" data-target="multi-tag-remove-select" data-mode="multi" data-remove="true" title="Search tags to remove from selected models">☰</button>
-            </div>
-          </div>
-          <button type="button" id="multi-edit-tags-button" class="full-width-button">Edit Tags</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Filament:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="multi-filament-select">
-              <option value="">Select a filament...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="filament" data-target="multi-filament-select" data-mode="multi" data-container="multi-filaments" title="Search existing filaments">☰</button>
-            <button type="button" class="icon-button add-filament-button" title="Filament Manager">+</button>
-          </div>
-          <div id="multi-filaments" class="tags-list"></div>
-          <div style="margin-top: 8px;">
-            <label for="multi-filament-remove-select" style="display: block; margin-bottom: 4px;">Remove Filament:</label>
-            <div class="tags-input-container">
-              <select id="multi-filament-remove-select">
-                <option value="">Select a filament to remove...</option>
-              </select>
-              <button type="button" class="list-button icon-button" data-field="filament" data-target="multi-filament-remove-select" data-mode="multi" data-remove="true" title="Search filaments to remove">☰</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <button id="multi-save-button"></button>
+      <!-- Body: React (src/web/details/MultiEditPanel.tsx) -->
+      <div id="multi-edit-slot" style="display: contents"></div>
     </div>
-    <dialog id="new-license-dialog" class="modal">
-      <form method="dialog">
-        <h3>Add New License</h3>
-        <div class="form-group">
-          <label for="new-license-name">License Name:</label>
-          <input type="text" id="new-license-name" required>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="add-license-button">Add</button>
-          <button type="button" id="cancel-license-button" data-close-dialog="new-license-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="terms-of-service-dialog" class="modal tos-dialog">
       <div class="tos-dialog-content">
         <div class="tos-header">

@@ -644,6 +644,48 @@ async function browserChecks(base, wsUrl, session) {
       await page.click(`${card} .file-name`, { modifiers: [multiKey] });
       await page.click(`.file-grid .file-item-detailed[data-filepath="${other.replace(/"/g, '\\"')}"] .file-name`, { modifiers: [multiKey] });
       check('Ctrl/Cmd-click selects several cards for multi-edit', (await page.locator('.file-grid .file-item.selected').count()) === 2 && await page.isVisible('#multi-edit-panel'));
+      // Multi-edit panel (React, src/web/details/MultiEditPanel.tsx): each change applies to both selected models.
+      const pair = [cardPath, other];
+      const pairModels = async () => Promise.all(pair.map(async (p) => (await invoke(base, session, 'get-model', [p])).result || {}));
+      const pairBefore = await pairModels();
+      const petg = (await invoke(base, session, 'save-filament', [{ name: 'E2E PETG', material: 'PETG', color_hex: '00ff00' }])).result;
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, filaments: [petg.id] }]]);
+      check('the multi-edit panel counts the selection', /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+      // The server asks every page to refresh its grid (after a scan, an MCP edit, ...): the selection stays.
+      await page.evaluate(() => Promise.all(((window._electronEventListeners || {})['refresh-grid'] || []).map((listener) => listener())));
+      await page.waitForTimeout(1000);
+      check('a server grid refresh keeps the multi-edit selection', (await page.locator('.file-grid .file-item.selected').count()) === 2
+        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+      await page.click('#multi-designer-add');
+      const multiPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (multiPrompt) {
+        await multiPrompt.fill('E2E Multi Designer');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const multiDesigner = await waitFor(async () => ((await pairModels()).every((m) => m.designer === 'E2E Multi Designer') ? true : null), 10000, 'multi designer').catch(() => false);
+      check('multi-edit sets a new designer on every selected model', multiDesigner === true);
+      await page.selectOption('#multi-tag-select', 'e2e-model-tag');
+      const hasTag = (m) => (m.tags || []).some((t) => (t.name || t) === 'e2e-model-tag');
+      const tagOnBoth = await waitFor(async () => ((await pairModels()).every(hasTag) ? true : null), 10000, 'multi tag').catch(() => false);
+      check('multi-edit adds a tag to every selected model', tagOnBoth === true);
+      await page.waitForSelector('#multi-tag-remove-select option[value="e2e-model-tag"]', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#multi-tag-remove-select', 'e2e-model-tag').catch(() => {});
+      const confirmRemoveTag = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      if (confirmRemoveTag) await confirmRemoveTag.click();
+      const tagOffBoth = await waitFor(async () => ((await pairModels()).every((m) => !hasTag(m)) ? true : null), 10000, 'multi untag').catch(() => false);
+      check('multi-edit removes a tag from every selected model after asking', !!confirmRemoveTag && tagOffBoth === true);
+      await page.selectOption('#multi-filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      const filamentNames = (m) => (m.filaments || []).map((f) => f.name);
+      const plaOnBoth = await waitFor(async () => ((await pairModels()).every((m) => filamentNames(m).includes('E2E PLA')) ? true : null), 10000, 'multi filament').catch(() => false);
+      check('multi-edit adds a filament to every selected model', plaOnBoth === true && await page.isVisible('#multi-filaments .filament-chip:has-text("E2E PLA")'));
+      await page.waitForSelector('#multi-filament-remove-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#multi-filament-remove-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      const plaRemoved = await waitFor(async () => {
+        const [first, second] = await pairModels();
+        return !filamentNames(first).includes('E2E PLA') && !filamentNames(second).includes('E2E PLA') && filamentNames(first).includes('E2E PETG') ? true : null;
+      }, 10000, 'multi filament removed').catch(async () => JSON.stringify((await pairModels()).map(filamentNames)));
+      check('multi-edit removes one filament and keeps the others', plaRemoved === true, String(plaRemoved));
+      await invoke(base, session, 'update-models-batch', [pairBefore.map((m) => ({ filePath: m.filePath, designer: m.designer || null, tags: m.tags || [], filaments: [] }))]);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
       check('Escape leaves multi-edit', !(await page.isVisible('#multi-edit-panel')));
@@ -702,9 +744,9 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('.view-button[data-view="preview"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
-    await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('new-tag-dialog').open));
+    await page.evaluate(() => document.getElementById('searchable-list-dialog').showModal());
+    await page.click('#searchable-list-dialog [data-close-dialog="searchable-list-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('searchable-list-dialog').open));
     await page.evaluate(() => document.getElementById('preview-dialog').showModal());
     await page.click('#preview-fullscreen-toggle');
     check('data-action button calls its function', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
