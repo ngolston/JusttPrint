@@ -479,8 +479,27 @@ async function browserChecks(base, wsUrl, session) {
         null, { timeout: 30000 }
       ).then(() => true, () => false);
       await page.waitForTimeout(1500);
-      check(`3D preview opens: ${path.basename(filePath)}`, opened, errors.slice(errorsBefore).join(' | '));
+      const loaded = await page.waitForFunction(() => /^Dimensions: [\d.]+ × [\d.]+ × [\d.]+ mm$/.test(document.getElementById('preview-dimensions')?.textContent || '')
+        && getComputedStyle(document.getElementById('preview-loading')).display === 'none', null, { timeout: 30000 })
+        .then(() => true, async () => page.textContent('#preview-loading').catch(() => ''));
+      check(`3D preview opens: ${path.basename(filePath)}`, opened && loaded === true, [String(loaded), ...errors.slice(errorsBefore)].join(' | '));
       if (process.env.E2E_DEBUG) console.log(`     errors while open: ${errors.length - errorsBefore}`);
+      if (filePath === tiles[0] && loaded === true) {
+        // Studio (React, src/web/preview/PreviewDialog.tsx): settings apply and are saved; Save Image downloads a PNG.
+        await page.click('#preview-toggle-studio');
+        const studioOpen = await page.isVisible('#preview-studio-panel');
+        await page.click('#preview-studio-backdrop [data-backdrop="mint"]');
+        const savedBackdrop = await page.evaluate(() => JSON.parse(localStorage.getItem('justtprint.previewStudio.v5') || '{}').backdrop);
+        check('the Studio panel opens and saves its settings', studioOpen && savedBackdrop === 'mint'
+          && await page.getAttribute('#preview-studio-backdrop [data-backdrop="mint"]', 'aria-checked') === 'true', String(savedBackdrop));
+        await page.click('#preview-studio-backdrop [data-backdrop="charcoal"]');
+        await page.click('#preview-studio-close');
+        await page.click('#preview-save-image');
+        const download = page.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+        await page.click('#preview-save-with-backdrop');
+        const file = await download;
+        check('Save Image downloads a PNG of the preview', !!file && /-preview\.png$/.test(file.suggestedFilename()), file && file.suggestedFilename());
+      }
       await page.keyboard.press('Escape');
       await page.waitForTimeout(1500);
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
@@ -774,7 +793,7 @@ async function browserChecks(base, wsUrl, session) {
     check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('searchable-list-dialog').open));
     await page.evaluate(() => document.getElementById('preview-dialog').showModal());
     await page.click('#preview-fullscreen-toggle');
-    check('data-action button calls its function', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
+    check('the preview goes full screen', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
     await page.click('#preview-fullscreen-toggle');
     await page.evaluate(() => document.getElementById('preview-dialog').close());
     // STEP previews compile WebAssembly in the parse worker ('wasm-unsafe-eval').
@@ -1411,6 +1430,20 @@ async function browserChecks(base, wsUrl, session) {
       const tagRemoved = await waitFor(async () => ((await kitTagged('e2e-bundle-tag')).every((v) => !v) ? true : null), 10000, 'bundle tag removed').catch(() => false);
       check('the bundle panel removes a tag from every model', tagRemoved === true && !(await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]')),
         JSON.stringify({ saved: await kitTagged('e2e-bundle-tag'), chip: await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]') }));
+      // 3D preview of the whole bundle: parts laid out side by side, each one selectable.
+      await page.evaluate(([zip]) => window.openBundlePreview({ groupLabel: 'kit.zip', children: [
+        { filePath: `${zip}::kit/left.stl`, fileName: 'left.stl', bundleKind: 'zip' },
+        { filePath: `${zip}::kit/right.stl`, fileName: 'right.stl', bundleKind: 'zip' }
+      ] }), [kitZip]);
+      const bundlePreview = await page.waitForFunction(() => document.getElementById('preview-file-type')?.textContent === 'ZIP bundle • 2 models'
+        && getComputedStyle(document.getElementById('preview-loading')).display === 'none', null, { timeout: 30000 })
+        .then(() => true, async () => page.textContent('#preview-dialog .preview-loading').catch(() => ''));
+      const partNames = await page.$$eval('#preview-part-select option', (opts) => opts.map((o) => o.textContent));
+      check('the bundle 3D preview lays out every model with a part picker', bundlePreview === true && await page.isVisible('#preview-part-picker')
+        && JSON.stringify(partNames) === JSON.stringify(['All parts', 'left.stl', 'right.stl']), `${bundlePreview} ${JSON.stringify(partNames)}`);
+      await page.selectOption('#preview-part-select', { label: 'right.stl' });
+      check('picking a part focuses it', /^Dimensions: /.test(await page.textContent('#preview-dimensions')));
+      await page.click('#close-preview');
       await page.click('#bundle-contents-list .bundle-contents-list-item:text-is("left.stl")');
       const openedChild = await page.waitForFunction(() => document.getElementById('path-tree-container')?.getAttribute('data-file-path')?.endsWith('::kit/left.stl')
         && !document.getElementById('model-details')?.classList.contains('hidden'), null, { timeout: 10000 }).then(() => true, () => false);

@@ -1063,7 +1063,12 @@ function getSharedStepParseWorker() {
   return worker;
 }
 
-async function loadModel(filePath, options = {}) {
+/**
+ * Parse a model file in the parse worker. Resolves to { geometries, fileExtension } (plain
+ * arrays per mesh), or null when the file has nothing to draw. The 3D preview (React,
+ * src/web/preview/) and loadModel (thumbnails) each build three.js meshes from it.
+ */
+async function loadModelData(filePath, options = {}) {
   if (filePath && filePath.startsWith('url::')) {
     return null;
   }
@@ -1317,68 +1322,7 @@ async function loadModel(filePath, options = {}) {
             return;
           }
 
-          try {
-            const group = new THREE.Group();
-            const material = new THREE.MeshStandardMaterial({
-              color: getModelColor(),
-              metalness: 0.3,
-              roughness: 0.4
-            });
-
-            data.geometries.forEach(geoData => {
-              if (!geoData.position || geoData.position.length < 9) return;
-              const geometry = new THREE.BufferGeometry();
-              geometry.setAttribute('position', new THREE.BufferAttribute(geoData.position, 3));
-              if (!geometry.index && geoData.normal && typeof repairZeroFaceNormals === 'function') {
-                repairZeroFaceNormals(geoData.position, geoData.normal);
-              }
-              const normalsMissing = !geoData.normal
-                || geoData.normal.length < geoData.position.length
-                || (typeof normalsAreMissing === 'function' && normalsAreMissing(geoData.normal));
-              if (!normalsMissing) {
-                geometry.setAttribute('normal', new THREE.BufferAttribute(geoData.normal, 3));
-              } else {
-                geometry.computeVertexNormals();
-              }
-              if (geoData.uv && geoData.uv.length >= (geoData.position.length / 3) * 2) {
-                geometry.setAttribute('uv', new THREE.BufferAttribute(geoData.uv, 2));
-              }
-              if (geoData.index) geometry.setIndex(new THREE.BufferAttribute(geoData.index, 1));
-
-              const meshMaterial = (geoData.color && geoData.color.length >= 3)
-                ? new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(geoData.color[0], geoData.color[1], geoData.color[2]),
-                    metalness: 0.3,
-                    roughness: 0.4
-                  })
-                : material;
-              const mesh = new THREE.Mesh(geometry, meshMaterial);
-              if (geoData.matrix) {
-                mesh.applyMatrix4(new THREE.Matrix4().fromArray(geoData.matrix));
-              }
-              group.add(mesh);
-            });
-
-            if (group.children.length === 0) {
-              if (tempFilePath) {
-                window.electron.deleteTempFile?.(tempFilePath).catch(err => console.error(err));
-              }
-              reject(new Error('Model contains no drawable mesh geometry'));
-              return;
-            }
-
-            if (isRenderable3dExtension(fileExtension)) {
-              group.rotation.x = -Math.PI / 2;
-            }
-
-            resolve(group);
-          } catch (err) {
-            console.error('loadModel: Error processing geometries from worker:', err);
-            if (tempFilePath) {
-              window.electron.deleteTempFile?.(tempFilePath).catch(err2 => console.error(err2));
-            }
-            reject(err);
-          }
+          resolve({ geometries: data.geometries || [], fileExtension });
         });
       };
 
@@ -1424,7 +1368,52 @@ async function loadModel(filePath, options = {}) {
   }
 }
 
-// Make loadModel available globally
+/** Build a three.js group (the page's global three.js, for thumbnails) from loadModelData. */
+async function loadModel(filePath, options = {}) {
+  const data = await loadModelData(filePath, options);
+  if (!data) return null;
+  const group = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({
+    color: getModelColor(),
+    metalness: 0.3,
+    roughness: 0.4
+  });
+  data.geometries.forEach((geoData) => {
+    if (!geoData.position || geoData.position.length < 9) return;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(geoData.position, 3));
+    if (!geometry.index && geoData.normal && typeof repairZeroFaceNormals === 'function') {
+      repairZeroFaceNormals(geoData.position, geoData.normal);
+    }
+    const normalsMissing = !geoData.normal
+      || geoData.normal.length < geoData.position.length
+      || (typeof normalsAreMissing === 'function' && normalsAreMissing(geoData.normal));
+    if (!normalsMissing) {
+      geometry.setAttribute('normal', new THREE.BufferAttribute(geoData.normal, 3));
+    } else {
+      geometry.computeVertexNormals();
+    }
+    if (geoData.uv && geoData.uv.length >= (geoData.position.length / 3) * 2) {
+      geometry.setAttribute('uv', new THREE.BufferAttribute(geoData.uv, 2));
+    }
+    if (geoData.index) geometry.setIndex(new THREE.BufferAttribute(geoData.index, 1));
+    const meshMaterial = (geoData.color && geoData.color.length >= 3)
+      ? new THREE.MeshStandardMaterial({
+          color: new THREE.Color(geoData.color[0], geoData.color[1], geoData.color[2]),
+          metalness: 0.3,
+          roughness: 0.4
+        })
+      : material;
+    const mesh = new THREE.Mesh(geometry, meshMaterial);
+    if (geoData.matrix) mesh.applyMatrix4(new THREE.Matrix4().fromArray(geoData.matrix));
+    group.add(mesh);
+  });
+  if (group.children.length === 0) throw new Error('Model contains no drawable mesh geometry');
+  if (isRenderable3dExtension(data.fileExtension)) group.rotation.x = -Math.PI / 2;
+  return group;
+}
+
+window.loadModelData = loadModelData;
 window.loadModel = loadModel;
 
 // Add these variables at the top

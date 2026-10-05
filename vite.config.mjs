@@ -11,6 +11,8 @@ export default defineConfig({
     emptyOutDir: true,
     // No inline scripts or eval: the page's CSP only runs script files from the server.
     modulePreload: false,
+    // The 3D preview's engine chunk (engine.js) carries three.js, loaded only when a preview opens.
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: 'src/web/main.tsx',
       output: {
