@@ -533,6 +533,31 @@ async function browserChecks(base, wsUrl, session) {
         check('the image left showing becomes the default', saved === true);
       }
     }
+    // Group cards (React, GroupCard.tsx): two models with one parent model show as a group.
+    const grouped = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).slice(0, 2);
+    await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: 'E2E Group' }))]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
+    const groupCard = '.file-grid .parent-model-group-detailed[data-group-key="parent:e2e group"]';
+    const groupShown = await page.waitForSelector(groupCard, { timeout: 15000 }).catch(() => null);
+    check('models with one parent model show as a group card', !!groupShown && /2 models/.test(await page.textContent(`${groupCard} .parent-model-group-meta`)));
+    if (groupShown) {
+      await page.click(`${groupCard} .parent-model-group-meta`);
+      const children = await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item.parent-model-group-child').length === 2, null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('clicking a group expands it to its models', children && await page.isVisible(`${groupCard}.expanded`));
+      await page.click(`${groupCard} .model-star[data-star="4"]`);
+      const groupRated = await waitFor(async () => {
+        const ratings = await Promise.all(grouped.map(async (filePath) => ((await invoke(base, session, 'get-model', [filePath])).result || {}).rating));
+        return ratings.every((rating) => rating === 4) ? true : null;
+      }, 10000, 'group rating').catch(() => false);
+      check('rating a group rates every model in it', groupRated === true);
+      await page.click(`${groupCard} .parent-model-group-chevron`);
+      const collapsed = await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item.parent-model-group-child').length === 0, null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('the chevron collapses the group', collapsed && !(await page.isVisible(`${groupCard}.expanded`)));
+    }
+    await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: null, rating: 0 }))]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
     await page.click('.view-button[data-view="preview"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.

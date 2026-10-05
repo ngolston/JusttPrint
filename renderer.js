@@ -11803,38 +11803,6 @@ async function applyTagFilterFromModelClick(tagName) {
   }
 }
 
-/** Render tag names as clickable spans that apply the tag filter (use in model list/detailed views). */
-function fillTagsWithFilterLinks(tagsValueSpan, names) {
-  if (!tagsValueSpan) return;
-  const sorted = (Array.isArray(names) ? names : [])
-    .map((n) => {
-      if (typeof n === 'string') return n.trim();
-      return String((n && (n.name || n)) || '').trim();
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-  if (sorted.length === 0) {
-    tagsValueSpan.textContent = '';
-    return;
-  }
-  tagsValueSpan.innerHTML = '';
-  sorted.forEach((name, i) => {
-    const link = document.createElement('span');
-    link.className = 'tag-filter-link';
-    link.textContent = name;
-    link.setAttribute('title', `Filter by tag: ${name}`);
-    link.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      await applyTagFilterFromModelClick(name);
-    });
-    tagsValueSpan.appendChild(link);
-    if (i < sorted.length - 1) {
-      tagsValueSpan.appendChild(document.createTextNode(', '));
-    }
-  });
-}
-
 // Add this function to populate the tag filter dropdown
 async function populateTagFilter() {
   const tagSelect = document.getElementById('tag-filter'); // Changed from 'tag-filter-select'
@@ -12338,23 +12306,6 @@ function summarizeListViewGroupColumns(groupRecord) {
       ? (groupRecord.groupLabel || '')
       : sharedGroupChildValue(children, child => child.parentModel)
   };
-}
-
-function createListViewColumnCell(colId, className, text) {
-  const el = document.createElement('div');
-  if (className) el.className = className;
-  el.setAttribute('data-list-col', colId);
-  if (text != null) {
-    const span = document.createElement('span');
-    span.textContent = text;
-    span.style.fontSize = '12px';
-    span.style.color = text === '—' ? '#666' : '#aaa';
-    span.style.overflow = 'hidden';
-    span.style.textOverflow = 'ellipsis';
-    span.style.whiteSpace = 'nowrap';
-    el.appendChild(span);
-  }
-  return el;
 }
 
 function applyListViewColumnLayoutToSubtree(root) {
@@ -15027,36 +14978,6 @@ function normalizeModelRatingValue(value) {
   return n;
 }
 
-function computeGroupEngagementFromChildren(children) {
-  const list = Array.isArray(children) ? children : [];
-  if (!list.length) return { rating: 0, favorite: false };
-  const ratings = list.map((c) => normalizeModelRatingValue(c?.rating));
-  const sum = ratings.reduce((a, b) => a + b, 0);
-  const avg = Math.round(sum / list.length);
-  const favorite = list.some((c) => Boolean(c?.favorite));
-  return { rating: avg, favorite };
-}
-
-function updateEngagementBarDisplay(bar, rating, favorite, hoverRating = null) {
-  if (!bar) return;
-  const displayRating = hoverRating != null ? hoverRating : normalizeModelRatingValue(rating);
-  const stars = bar.querySelectorAll('.model-star');
-  stars.forEach((star, i) => {
-    const starNum = i + 1;
-    const filled = starNum <= displayRating;
-    star.classList.toggle('is-filled', filled);
-    star.textContent = filled ? '★' : '☆';
-  });
-  const favBtn = bar.querySelector('.model-favorite-btn');
-  if (favBtn) {
-    favBtn.classList.toggle('is-favorited', Boolean(favorite));
-    favBtn.setAttribute('aria-pressed', favorite ? 'true' : 'false');
-    favBtn.textContent = favorite ? '♥' : '♡';
-  }
-  bar.dataset.rating = String(normalizeModelRatingValue(rating));
-  bar.dataset.favorite = favorite ? '1' : '0';
-}
-
 async function bulkSaveModelsEngagement(filePaths, field, value) {
   if (!filePaths || !filePaths.length) return false;
   const updates = [];
@@ -15083,107 +15004,6 @@ async function bulkSaveModelsEngagement(filePaths, field, value) {
     console.error('bulkSaveModelsEngagement save error:', err);
     return false;
   }
-}
-
-function createModelEngagementBar(context, options = {}) {
-  const { groupMode = false, children = [] } = options;
-  let rating = 0;
-  let favorite = false;
-  let filePaths = [];
-
-  if (groupMode) {
-    const agg = computeGroupEngagementFromChildren(children);
-    rating = agg.rating;
-    favorite = agg.favorite;
-    filePaths = (children || []).map((c) => c?.filePath).filter(Boolean);
-  } else {
-    rating = normalizeModelRatingValue(context?.rating);
-    favorite = Boolean(context?.favorite);
-    filePaths = context?.filePath ? [context.filePath] : [];
-  }
-
-  const bar = document.createElement('div');
-  bar.className = 'model-engagement-bar' + (groupMode ? ' is-group' : '');
-
-  const ratingWrap = document.createElement('div');
-  ratingWrap.className = 'model-rating';
-  ratingWrap.setAttribute('role', 'radiogroup');
-  ratingWrap.setAttribute('aria-label', groupMode ? 'Group rating' : 'Rating');
-
-  let hoverRating = null;
-
-  for (let i = 1; i <= 5; i++) {
-    const star = document.createElement('button');
-    star.type = 'button';
-    star.className = 'model-star';
-    star.dataset.star = String(i);
-    star.setAttribute('aria-label', `${i} star${i === 1 ? '' : 's'}`);
-    star.textContent = '☆';
-
-    star.addEventListener('mouseenter', () => {
-      hoverRating = i;
-      updateEngagementBarDisplay(bar, rating, favorite, hoverRating);
-    });
-    star.addEventListener('mouseleave', () => {
-      hoverRating = null;
-      updateEngagementBarDisplay(bar, rating, favorite, null);
-    });
-    star.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const starNum = i;
-      const newRating = normalizeModelRatingValue(rating) === starNum ? 0 : starNum;
-      if (groupMode) {
-        const ok = await bulkSaveModelsEngagement(filePaths, 'rating', newRating);
-        if (ok) {
-          rating = newRating;
-          children.forEach((c) => { if (c) c.rating = newRating; });
-          updateEngagementBarDisplay(bar, rating, favorite);
-        }
-      } else {
-        const ok = await autoSaveModel('rating', newRating, context.filePath);
-        if (ok) {
-          rating = newRating;
-          updateEngagementBarDisplay(bar, rating, favorite);
-        }
-      }
-    });
-
-    ratingWrap.appendChild(star);
-  }
-
-  const favBtn = document.createElement('button');
-  favBtn.type = 'button';
-  favBtn.className = 'model-favorite-btn';
-  favBtn.setAttribute('aria-pressed', favorite ? 'true' : 'false');
-  favBtn.title = groupMode ? 'Favorite all models in group' : 'Favorite';
-  favBtn.textContent = favorite ? '♥' : '♡';
-
-  favBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newFavorite = !favorite;
-    if (groupMode) {
-      const ok = await bulkSaveModelsEngagement(filePaths, 'favorite', newFavorite);
-      if (ok) {
-        favorite = newFavorite;
-        children.forEach((c) => { if (c) c.favorite = newFavorite; });
-        updateEngagementBarDisplay(bar, rating, favorite);
-      }
-    } else {
-      const ok = await autoSaveModel('favorite', newFavorite, context.filePath);
-      if (ok) {
-        favorite = newFavorite;
-        updateEngagementBarDisplay(bar, rating, favorite);
-      }
-    }
-  });
-
-  bar.appendChild(ratingWrap);
-  bar.appendChild(favBtn);
-  updateEngagementBarDisplay(bar, rating, favorite);
-
-  return bar;
 }
 
 // Analyze models to determine which metadata fields have data
@@ -15281,9 +15101,13 @@ function getCachedGroupThumbnails(groupKey) {
   return groupThumbnailCache.get(groupKey).slice();
 }
 
+/** Goes up when group images change, so React group cards load them again. */
+let groupThumbnailVersion = 0;
+
 function invalidateGroupThumbnailCache(groupKey = null) {
   if (groupKey) groupThumbnailCache.delete(groupKey);
   else groupThumbnailCache.clear();
+  groupThumbnailVersion += 1;
 }
 
 async function filterNonEmptyThumbnails(thumbs) {
@@ -15380,92 +15204,18 @@ function getParentModelThumbnails(children, groupKey = '') {
   return thumbnails;
 }
 
-function updateParentModelGroupThumbnailCarousel(thumbnailWrap, imageElement, thumbnails) {
-  const validThumbnails = (thumbnails || []).filter(t => t && t !== '3d.png');
-  if (validThumbnails.length === 0) return;
-  const isListGroupView = Boolean(thumbnailWrap.closest('.parent-model-group-list'));
-
-  thumbnailWrap.dataset.thumbnails = JSON.stringify(validThumbnails);
-  thumbnailWrap.dataset.currentIndex = thumbnailWrap.dataset.currentIndex || '0';
-  imageElement.src = validThumbnails[0];
-
-  let leftNav = thumbnailWrap.querySelector('.thumbnail-nav-left');
-  let rightNav = thumbnailWrap.querySelector('.thumbnail-nav-right');
-  let badge = thumbnailWrap.querySelector('.thumbnail-count-badge');
-
-  if (validThumbnails.length < 2) {
-    leftNav?.remove();
-    rightNav?.remove();
-    badge?.remove();
-    return;
-  }
-
-  if (!leftNav) {
-    leftNav = document.createElement('div');
-    leftNav.className = 'thumbnail-nav-left';
-    leftNav.style.cssText = 'position:absolute;left:0;top:0;width:50%;height:100%;cursor:pointer;z-index:10;';
-    leftNav.title = 'Previous group thumbnail';
-    thumbnailWrap.appendChild(leftNav);
-  }
-
-  if (!rightNav) {
-    rightNav = document.createElement('div');
-    rightNav.className = 'thumbnail-nav-right';
-    rightNav.style.cssText = 'position:absolute;right:0;top:0;width:50%;height:100%;cursor:pointer;z-index:10;';
-    rightNav.title = 'Next group thumbnail';
-    thumbnailWrap.appendChild(rightNav);
-  }
-
-  if (isListGroupView) {
-    badge?.remove();
-    badge = null;
-  } else if (!badge) {
-    badge = document.createElement('div');
-    badge.className = 'thumbnail-count-badge';
-    badge.style.cssText =
-      'position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;z-index:11;pointer-events:none;';
-    thumbnailWrap.appendChild(badge);
-  }
-
-  const updateBadge = () => {
-    if (!badge) return;
-    const currentIdx = parseInt(thumbnailWrap.dataset.currentIndex, 10) || 0;
-    badge.textContent = `${currentIdx + 1}/${validThumbnails.length}`;
-    badge.title = `Group thumbnail ${currentIdx + 1} of ${validThumbnails.length}`;
-  };
-
-  const navigate = (direction, event) => {
-    event?.preventDefault();
-    event?.stopPropagation();
-    let currentIndex = parseInt(thumbnailWrap.dataset.currentIndex, 10) || 0;
-    currentIndex = direction === 'prev'
-      ? (currentIndex - 1 + validThumbnails.length) % validThumbnails.length
-      : (currentIndex + 1) % validThumbnails.length;
-    thumbnailWrap.dataset.currentIndex = String(currentIndex);
-    imageElement.src = validThumbnails[currentIndex];
-    updateBadge();
-  };
-
-  leftNav.onclick = (event) => navigate('prev', event);
-  rightNav.onclick = (event) => navigate('next', event);
-  updateBadge();
-}
-
-async function hydrateParentModelGroupThumbnails(thumbnailWrap, imageElement, children, groupKey = '') {
-  if (!window.electron || !thumbnailWrap) return;
-
-  const generation = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  thumbnailWrap.dataset.hydrateGen = generation;
-  const isStale = () =>
-    thumbnailWrap.dataset.hydrateGen !== generation || !thumbnailWrap.isConnected;
+/**
+ * A group card's images: one per child, the preferred one first. Calls onImages as more arrive
+ * (cache, inline data, stored thumbnails, then a render of the first child). Stops when isStale().
+ */
+async function loadGroupThumbnails(children, groupKey, onImages, isStale) {
+  if (!window.electron) return;
 
   const applyThumbs = async (thumbs, { paint = true } = {}) => {
     const valid = await filterNonEmptyThumbnails(thumbs);
     if (valid.length === 0) return false;
     rememberGroupThumbnails(groupKey, valid);
-    if (paint && !isStale()) {
-      updateParentModelGroupThumbnailCarousel(thumbnailWrap, imageElement, valid);
-    }
+    if (paint && !isStale()) onImages(valid);
     return true;
   };
 
@@ -15473,7 +15223,7 @@ async function hydrateParentModelGroupThumbnails(thumbnailWrap, imageElement, ch
   // Drop clipped/transparent leftovers from the old far-plane bug.
   let thumbnails = await filterNonEmptyThumbnails(getCachedGroupThumbnails(groupKey));
   if (thumbnails.length === 0) {
-    invalidateGroupThumbnailCache(groupKey);
+    groupThumbnailCache.delete(groupKey);
     thumbnails = await filterNonEmptyThumbnails(
       getParentModelThumbnails(children, groupKey)
     );
@@ -15799,6 +15549,7 @@ async function showManageGroupThumbnailsModal(groupRecord) {
     const setAsActive = async () => {
       groupThumbnailPreferences[groupRecord.groupKey] = thumbnail;
       rememberGroupThumbnails(groupRecord.groupKey, [thumbnail, ...getCachedGroupThumbnails(groupRecord.groupKey)]);
+      groupThumbnailVersion += 1;
       await saveGroupThumbnailPreferences();
       const container = document.querySelector('.file-grid');
       if (container?.renderVisibleItemsFn) container.renderVisibleItemsFn();
@@ -15997,356 +15748,9 @@ async function updateGroupTags(groupRecord, mode = 'merge') {
   );
 }
 
-function createParentModelGroupItem(groupRecord, viewMode = null) {
-  const view = viewMode || currentGridView;
-  const groupLabel = groupRecord?.groupLabel || groupRecord?.parentModel || 'Group';
-  const expandedSet =
-    groupRecord?.groupKind === 'bundle'
-      ? bundleExpandedGroups
-      : groupRecord?.groupKind === 'zip'
-        ? zipArchiveExpandedGroups
-        : parentModelExpandedGroups;
-  const isParentModelGroup = groupRecord?.groupKind === 'parentModel';
-  const bundleKind = groupRecord?.groupKind === 'bundle'
-    ? (groupRecord.children?.[0]?.bundleKind || 'folder')
-    : '';
-  const item = document.createElement('div');
-  item.className = `parent-model-group parent-model-group-${view}`;
-  if (view !== 'list') {
-    item.classList.add('file-item', `file-item-${view}`);
-  }
-  if (groupRecord.expanded) {
-    item.classList.add('expanded');
-  }
-  if (currentBundleDetailsGroupKey && groupRecord.groupKey === currentBundleDetailsGroupKey) {
-    item.classList.add('bundle-details-active');
-  }
-  item.dataset.groupKey = groupRecord.groupKey;
-  item.dataset.groupKind = groupRecord.groupKind || 'parentModel';
-  item.dataset.childCount = String(groupRecord.children.length);
-  item.dataset.expanded = groupRecord.expanded ? '1' : '0';
-  item.tabIndex = 0;
-  item.setAttribute('role', 'button');
-  item.setAttribute('aria-expanded', groupRecord.expanded ? 'true' : 'false');
-  item.title = `${groupRecord.expanded ? 'Collapse' : 'Expand'} ${groupLabel}`;
-
-  const thumbnailWrap = document.createElement('div');
-  thumbnailWrap.className = 'parent-model-group-thumbnail';
-  thumbnailWrap.style.position = 'relative';
-
-  const thumbnailImg = document.createElement('img');
-  thumbnailImg.src = '3d.png';
-  thumbnailImg.alt = '';
-  thumbnailWrap.appendChild(thumbnailImg);
-
-  if (view !== 'list') {
-    const groupBadge = document.createElement('div');
-    groupBadge.className = 'parent-model-group-corner-badge';
-    groupBadge.classList.add(groupRecord.expanded ? 'is-expanded' : 'is-collapsed');
-    groupBadge.title = groupRecord?.groupKind === 'bundle'
-      ? `${bundleKind === 'zip' ? 'ZIP bundle' : 'Folder bundle'} (${groupRecord.expanded ? 'expanded' : 'collapsed'})`
-      : `${groupRecord?.groupKind === 'zip' ? 'ZIP archive group' : 'Parent model group'} (${groupRecord.expanded ? 'expanded' : 'collapsed'})`;
-    for (let i = 0; i < 3; i++) {
-      groupBadge.appendChild(document.createElement('span'));
-    }
-    thumbnailWrap.appendChild(groupBadge);
-  }
-
-  // Grid queries omit thumbnail blobs on children — use cache so icons survive card recycle.
-  let groupThumbnails = getCachedGroupThumbnails(groupRecord.groupKey);
-  if (groupThumbnails.length === 0) {
-    groupThumbnails = getParentModelThumbnails(groupRecord.children, groupRecord.groupKey);
-  }
-  if (groupThumbnails.length > 0) {
-    updateParentModelGroupThumbnailCarousel(thumbnailWrap, thumbnailImg, groupThumbnails);
-  }
-  hydrateParentModelGroupThumbnails(thumbnailWrap, thumbnailImg, groupRecord.children, groupRecord.groupKey);
-
-  const details = document.createElement('div');
-  details.className = 'parent-model-group-details';
-
-  const titleRow = document.createElement('div');
-  titleRow.className = 'parent-model-group-title-row';
-
-  const chevron = document.createElement('span');
-  chevron.className = 'parent-model-group-chevron';
-  chevron.textContent = groupRecord.expanded ? '▾' : '▸';
-
-  const title = document.createElement('span');
-  title.className = 'parent-model-group-title parent-model-filter-link';
-  title.textContent = groupLabel;
-  title.title = groupLabel;
-  if (isParentModelGroup) {
-    title.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const parentSelect = document.getElementById('parent-select');
-      if (!parentSelect) return;
-      parentSelect.value = groupLabel;
-      if (typeof window.performCombinedSearch === 'function') {
-        await window.performCombinedSearch();
-      }
-    });
-  } else {
-    title.classList.remove('parent-model-filter-link');
-  }
-
-  titleRow.appendChild(chevron);
-  titleRow.appendChild(title);
-
-  const bundlePrint = window.PrintHistory?.bundleSummary(groupRecord.children);
-  const printedCount = bundlePrint ? bundlePrint.printedCount : groupRecord.children.filter(child => Boolean(child.printed)).length;
-  const childCount = groupRecord.children.length;
-  const printLabel = bundlePrint ? bundlePrint.label : `${printedCount}/${childCount} printed`;
-  const isBundleGroup = groupRecord?.groupKind === 'bundle' || groupRecord?.groupKind === 'zip';
-  const kindLabel = bundleKind === 'zip' || groupRecord?.groupKind === 'zip' ? 'zip archive' : (groupRecord?.groupKind === 'bundle' ? 'folder' : '');
-
-  if (view === 'list') {
-    const fileInfo = document.createElement('div');
-    fileInfo.className = 'file-info';
-    fileInfo.style.flex = '1';
-    fileInfo.style.display = 'flex';
-    fileInfo.style.flexDirection = 'row';
-    fileInfo.style.alignItems = 'center';
-    fileInfo.style.gap = '12px';
-    fileInfo.style.minWidth = '0';
-
-    const nameCol = document.createElement('div');
-    nameCol.className = 'file-name';
-    nameCol.setAttribute('data-list-col', 'name');
-    nameCol.style.alignItems = 'center';
-    nameCol.style.gap = '8px';
-    nameCol.appendChild(titleRow);
-    fileInfo.appendChild(nameCol);
-    const groupCols = summarizeListViewGroupColumns(groupRecord);
-    fileInfo.appendChild(createListViewColumnCell('size', 'file-size-column', groupCols.size || '—'));
-    const dateCol = createListViewColumnCell('dateadded', 'date-added-column', groupCols.dateAdded || '—');
-    if (groupCols.dateAddedTitle) dateCol.title = groupCols.dateAddedTitle;
-    fileInfo.appendChild(dateCol);
-    const directoryCol = createListViewColumnCell('directory', 'directory-info-column', groupCols.directory || '—');
-    if (groupCols.directoryFull || groupCols.directory) {
-      directoryCol.title = groupCols.directoryFull || groupCols.directory;
-    }
-    fileInfo.appendChild(directoryCol);
-    const designerCol = createListViewColumnCell('designer', 'designer-info-column', groupCols.designer || '—');
-    if (groupCols.designer) designerCol.title = groupCols.designer;
-    fileInfo.appendChild(designerCol);
-    const parentCol = createListViewColumnCell(
-      'parentmodel',
-      'parent-model-column',
-      groupCols.parentModel || '—'
-    );
-    if (groupCols.parentModel) parentCol.title = groupCols.parentModel;
-    fileInfo.appendChild(parentCol);
-
-    const printedCol = createListViewColumnCell('printed', 'print-status-column', null);
-    const printedBadge = document.createElement('span');
-    printedBadge.className = printedCount > 0 ? 'print-status printed' : 'print-status';
-    printedBadge.textContent = printLabel;
-    printedCol.appendChild(printedBadge);
-    fileInfo.appendChild(printedCol);
-
-    const tagsCol = createListViewColumnCell('tags', 'tags-info-column', null);
-    const tagsRow = document.createElement('div');
-    tagsRow.className = 'parent-model-group-tags tags-info';
-    tagsRow.style.display = 'none';
-    tagsCol.appendChild(tagsRow);
-    fileInfo.appendChild(tagsCol);
-    getGroupTagNames(groupRecord).then((names) => {
-      if (!names.length || !tagsRow.isConnected) return;
-      fillTagsWithFilterLinks(tagsRow, names);
-      tagsRow.style.display = '';
-      tagsRow.setAttribute('title', names.join(', '));
-    }).catch((error) => console.error('Error loading archive tags:', error));
-
-    const archiveText = isBundleGroup
-      ? `${childCount} part${childCount === 1 ? '' : 's'}${kindLabel ? ` • ${kindLabel}` : ''}`
-      : `${childCount} model${childCount === 1 ? '' : 's'}`;
-    const archiveCol = createListViewColumnCell('archive', 'archive-status-column', archiveText);
-    archiveCol.title = isBundleGroup ? 'Right-click for Preview and more options' : archiveText;
-    fileInfo.appendChild(archiveCol);
-
-    item.appendChild(thumbnailWrap);
-    item.appendChild(fileInfo);
-    applyListViewColumnLayoutToSubtree(fileInfo);
-  } else {
-    const meta = document.createElement('div');
-    meta.className = 'parent-model-group-meta';
-    if (groupRecord?.groupKind === 'bundle') {
-      meta.textContent = `${childCount} part${childCount === 1 ? '' : 's'} • ${kindLabel || 'folder'} • ${printLabel}`;
-      meta.title = 'Right-click for Preview and more options';
-    } else {
-      meta.textContent = `${childCount} model${childCount === 1 ? '' : 's'} • ${printLabel}`;
-    }
-
-    details.appendChild(titleRow);
-    details.appendChild(meta);
-
-    if (view === 'detailed') {
-      const tagsRow = document.createElement('div');
-      tagsRow.className = 'parent-model-group-tags tags-info';
-      tagsRow.style.display = 'none';
-      details.appendChild(tagsRow);
-      getGroupTagNames(groupRecord).then((names) => {
-        if (!names.length || !tagsRow.isConnected) return;
-        fillTagsWithFilterLinks(tagsRow, names);
-        tagsRow.style.display = '';
-        tagsRow.setAttribute('title', names.join(', '));
-      }).catch((error) => console.error('Error loading archive tags:', error));
-    }
-
-    item.appendChild(thumbnailWrap);
-    item.appendChild(details);
-  }
-
-  if (view === 'preview') {
-    const overlay = document.createElement('div');
-    overlay.className = 'preview-tile-overlay';
-    const nameRow = document.createElement('div');
-    nameRow.className = 'preview-tile-name';
-    nameRow.textContent = groupLabel;
-    const actions = document.createElement('div');
-    actions.className = 'preview-tile-actions';
-    const isBundle = groupRecord.groupKind === 'bundle' || groupRecord.groupKind === 'zip';
-    if (isBundle) {
-      const openBtn = document.createElement('button');
-      openBtn.type = 'button';
-      openBtn.className = 'preview-tile-open-btn';
-      openBtn.textContent = 'Preview';
-      openBtn.title = 'Open preview';
-      openBtn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (typeof window.openBundlePreview === 'function') {
-          window.openBundlePreview(groupRecord);
-        }
-      });
-      actions.appendChild(openBtn);
-    }
-    overlay.appendChild(nameRow);
-    if (actions.childElementCount) overlay.appendChild(actions);
-    item.appendChild(overlay);
-  }
-
-  if (view === 'detailed') {
-    const engagementBar = createModelEngagementBar(null, {
-      groupMode: true,
-      children: groupRecord.children || []
-    });
-    item.appendChild(engagementBar);
-  }
-
-  const refreshGroupGrid = () => {
-    const container = document.querySelector('.file-grid');
-    invalidateVirtualGridLayoutCache(container);
-    if (container?.renderVisibleItemsFn) {
-      container.renderVisibleItemsFn();
-    } else {
-      renderVirtualGrid(container?.currentModels || []);
-    }
-  };
-
-  const isBundleGroupKind = () =>
-    groupRecord.groupKind === 'bundle' || groupRecord.groupKind === 'zip';
-
-  const toggleGroup = () => {
-    if (expandedSet.has(groupRecord.groupKey)) {
-      expandedSet.delete(groupRecord.groupKey);
-      if (isBundleGroupKind() && currentBundleDetailsGroupKey === groupRecord.groupKey) {
-        hideBundleDetailsPanel();
-        return;
-      }
-    } else {
-      expandedSet.add(groupRecord.groupKey);
-    }
-    refreshGroupGrid();
-  };
-
-  const expandGroupAndShowDetails = () => {
-    if (!expandedSet.has(groupRecord.groupKey)) {
-      expandedSet.add(groupRecord.groupKey);
-      refreshGroupGrid();
-    }
-    if (isBundleGroupKind()) {
-      showBundleDetails(groupRecord);
-    }
-  };
-
-  const toggleGroupFromCard = () => {
-    if (expandedSet.has(groupRecord.groupKey)) {
-      toggleGroup();
-      return;
-    }
-    expandGroupAndShowDetails();
-  };
-
-  chevron.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    toggleGroup();
-  });
-
-  item.addEventListener('click', (event) => {
-    if (wasTileTapSuppressed(item, event)) return;
-    if (event.target.closest('.parent-model-group-chevron')) return;
-    if (event.target.closest('.model-engagement-bar')) return;
-    if (event.target.closest('.tag-filter-link')) return;
-    if (event.target.closest('.preview-tile-open-btn')) return;
-    if (event.target.closest('.thumbnail-nav-left, .thumbnail-nav-right, .thumbnail-menu-button')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (isMobileUiActive() && view === 'preview') {
-      expandGroupAndShowDetails();
-      return;
-    }
-    toggleGroupFromCard();
-  });
-  item.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggleGroupFromCard();
-    }
-  });
-  item.addEventListener('contextmenu', async (event) => {
-    suppressTileTap(item);
-    event.preventDefault();
-    event.stopPropagation();
-    const paths = (groupRecord.children || []).map(c => c && c.filePath).filter(Boolean);
-    if (!paths.length) return;
-    const x = event.clientX;
-    const y = event.clientY;
-    const isBundleGroup = groupRecord.groupKind === 'bundle' || groupRecord.groupKind === 'zip';
-    const fileIdentifier = isBundleGroup || paths.length > 1
-      ? {
-          filePaths: paths,
-          groupLabel: groupRecord.groupLabel || groupRecord.parentModel || 'Group',
-          previewAsBundle: isBundleGroup || paths.length > 1
-        }
-      : paths[0];
-    try {
-      const menuResult = await window.electron.showContextMenu(fileIdentifier);
-      if (menuResult && menuResult.type === 'html-menu') {
-        showHtmlContextMenu(menuResult, x, y);
-      }
-    } catch (error) {
-      console.error('Error showing context menu for group:', error);
-    }
-  });
-  attachTileLongPress(item, (x, y) => {
-    item.dispatchEvent(new MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: x,
-      clientY: y
-    }));
-  });
-
-  return item;
-}
-
-// The grid is React (src/web/grid/LibraryGrid.tsx): it lays out and virtualizes the cards.
-// renderVirtualGrid hands it the model list; window.gridHost builds and syncs the cards, which
-// are still made here (createModelItem, createParentModelGroupItem).
+// The grid is React (src/web/grid/): LibraryGrid lays out and virtualizes the cards, ModelCard and
+// GroupCard draw them. renderVirtualGrid hands it the model list; window.gridHost is what the
+// cards ask of this file (thumbnail queue, selection, menus, filters, saving).
 function renderVirtualGrid(models) {
   const container = document.querySelector('.file-grid');
   if (!container) return;
@@ -16397,6 +15801,17 @@ function renderVirtualGrid(models) {
   }
 
   const rebuild = modelsChanged || viewChanged || !previousView;
+  if (!rebuild) {
+    // Same cards as before: keep the images they already loaded (list queries leave the
+    // blobs out), as the previous grid kept its card DOM between refreshes.
+    const loaded = new Map(currentModels.map((m) => [m && (m.id || m.filePath), m]));
+    for (const model of models) {
+      const previous = loaded.get(model && (model.id || model.filePath));
+      if (!previous || previous === model || model.thumbnail || !previous.thumbnail) continue;
+      model.thumbnail = previous.thumbnail;
+      if (previous.hasMultipleThumbnails) model.hasMultipleThumbnails = true;
+    }
+  }
   if (rebuild) {
     // Keep the selection across the rebuild: a tile can show .selected before selectedModels has it.
     container.querySelectorAll('.file-item.selected').forEach((item) => {
@@ -16423,6 +15838,75 @@ function showLibraryGrid(options) {
     // The React grid mounts after this script; it picks this up.
     window._pendingGridShow = { rebuild: true, focusSelection: !!options.focusSelection };
   }
+}
+
+// ---- Group cards (src/web/grid/GroupCard.tsx) ----
+
+function groupExpandedSet(record) {
+  if (record.groupKind === 'bundle') return bundleExpandedGroups;
+  if (record.groupKind === 'zip') return zipArchiveExpandedGroups;
+  return parentModelExpandedGroups;
+}
+
+const isBundleGroupRecord = (record) => record.groupKind === 'bundle' || record.groupKind === 'zip';
+
+/** Expand or collapse a group; collapsing the bundle whose details are open closes them. */
+function toggleGridGroup(record) {
+  const expanded = groupExpandedSet(record);
+  if (expanded.has(record.groupKey)) {
+    expanded.delete(record.groupKey);
+    if (isBundleGroupRecord(record) && currentBundleDetailsGroupKey === record.groupKey) {
+      hideBundleDetailsPanel();
+      return;
+    }
+  } else {
+    expanded.add(record.groupKey);
+  }
+  refreshLibraryGrid();
+}
+
+function expandGridGroupAndShowDetails(record) {
+  const expanded = groupExpandedSet(record);
+  if (!expanded.has(record.groupKey)) {
+    expanded.add(record.groupKey);
+    refreshLibraryGrid();
+  }
+  if (isBundleGroupRecord(record)) showBundleDetails(record);
+}
+
+/** Click on a group card: collapse it, or expand it and show the bundle's details. */
+function clickGridGroup(record, view, card) {
+  if (wasTileTapSuppressed(card, null)) return;
+  if (isMobileUiActive() && view === 'preview') {
+    expandGridGroupAndShowDetails(record);
+    return;
+  }
+  if (groupExpandedSet(record).has(record.groupKey)) toggleGridGroup(record);
+  else expandGridGroupAndShowDetails(record);
+}
+
+/** Right-click and long-press menu for a group (Preview, and the actions for its models). */
+function bindGridGroupMenu(card, record) {
+  card.addEventListener('contextmenu', async (event) => {
+    suppressTileTap(card);
+    event.preventDefault();
+    event.stopPropagation();
+    const paths = (record.children || []).map((c) => c && c.filePath).filter(Boolean);
+    if (!paths.length) return;
+    const bundle = isBundleGroupRecord(record);
+    const fileIdentifier = bundle || paths.length > 1
+      ? { filePaths: paths, groupLabel: record.groupLabel || 'Group', previewAsBundle: true }
+      : paths[0];
+    try {
+      const menuResult = await window.electron.showContextMenu(fileIdentifier);
+      if (menuResult && menuResult.type === 'html-menu') showHtmlContextMenu(menuResult, event.clientX, event.clientY);
+    } catch (error) {
+      console.error('Error showing context menu for group:', error);
+    }
+  });
+  attachTileLongPress(card, (x, y) => {
+    card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  });
 }
 
 /**
@@ -16543,7 +16027,6 @@ window.gridHost = {
   previewSize: () => currentPreviewTileSize,
   mobileColumns: () => mobileLibraryColumns(),
   expanded: () => ({ bundles: bundleExpandedGroups, parentModels: parentModelExpandedGroups }),
-  createGroupCard: (record, view) => createParentModelGroupItem(record, view),
   createListHeader: () => createListViewHeader(),
   isSelected: (filePath) => isInSelectedModels(filePath),
   afterPaint: () => {
@@ -16564,6 +16047,10 @@ window.gridHost = {
   directoryFullPath: (filePath) => getParentDirectoryFullPath(filePath),
   formatSize: (bytes) => formatFileSize(bytes),
   fetchPrimaryThumbnail: (filePath) => fetchPrimaryThumbnailForGrid(filePath),
+  cachedPrimaryThumbnail: (filePath) => {
+    const cached = getCachedPrimaryThumbnail(filePath);
+    return typeof cached === 'string' && cached ? cached : null;
+  },
   ensureThumbnailQueued: (model, slot, priority) => ensureCardThumbnailQueued(model, slot, priority),
   loadAllThumbnails: async (model) => {
     try {
@@ -16653,7 +16140,34 @@ window.gridHost = {
       element.textContent = model.printed ? 'Printed' : 'Not Printed';
     }
   },
-  applyListColumns: (fileInfo) => applyListViewColumnLayoutToSubtree(fileInfo)
+  applyListColumns: (fileInfo) => applyListViewColumnLayoutToSubtree(fileInfo),
+
+  // Group cards
+  groupThumbnailVersion: () => groupThumbnailVersion,
+  loadGroupThumbnails: (record, onImages) => {
+    let cancelled = false;
+    // Paint what is cached right away, so recycled cards do not flash the placeholder.
+    const cached = getCachedGroupThumbnails(record.groupKey);
+    const initial = cached.length ? cached : getParentModelThumbnails(record.children, record.groupKey);
+    if (initial.length) onImages(initial.filter((t) => t && t !== '3d.png'));
+    loadGroupThumbnails(record.children, record.groupKey, (images) => { if (!cancelled) onImages(images); }, () => cancelled)
+      .catch(() => { /* the placeholder stays */ });
+    return () => { cancelled = true; };
+  },
+  groupListColumns: (record) => summarizeListViewGroupColumns(record),
+  groupPrintSummary: (children) => {
+    const summary = window.PrintHistory?.bundleSummary(children);
+    if (summary) return { printedCount: summary.printedCount, label: summary.label };
+    const printedCount = children.filter((child) => Boolean(child.printed)).length;
+    return { printedCount, label: `${printedCount}/${children.length} printed` };
+  },
+  groupTagNames: (record) => getGroupTagNames(record),
+  groupClick: (record, view, card) => clickGridGroup(record, view, card),
+  toggleGroup: (record) => toggleGridGroup(record),
+  bindGroupMenu: (card, record) => bindGridGroupMenu(card, record),
+  isBundleDetailsGroup: (groupKey) => !!currentBundleDetailsGroupKey && currentBundleDetailsGroupKey === groupKey,
+  openBundlePreview: (record) => { if (typeof window.openBundlePreview === 'function') window.openBundlePreview(record); },
+  saveGroupField: (filePaths, field, value) => bulkSaveModelsEngagement(filePaths, field, value)
 };
 
 // Change the multi-source event listener from 'change' back to 'input' with debounce

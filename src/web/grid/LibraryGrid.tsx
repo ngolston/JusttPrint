@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
+import { GroupCard, type GroupCardHost } from './GroupCard';
 import { ModelCard, type CardHost } from './ModelCard';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
@@ -11,7 +12,7 @@ import {
  * What the grid needs from renderer.js while the cards are still built there. Each method
  * disappears as its part moves to React.
  */
-export interface GridHost extends CardHost {
+export interface GridHost extends CardHost, GroupCardHost {
   /** The models on screen: renderer.js edits this array in place, then calls refresh(). */
   models(): GridModel[];
   view(): GridView;
@@ -19,7 +20,6 @@ export interface GridHost extends CardHost {
   /** Phone layout columns, or 0 on the desktop layout. */
   mobileColumns(): number;
   expanded(): ExpandedGroups;
-  createGroupCard(record: GroupRecord, view: GridView): HTMLElement;
   createListHeader(): HTMLElement & { updateSortIndicators?: () => void };
   isSelected(filePath: string): boolean;
   /** After cards were added or removed: drop jobs for gone cards, re-sort and run the queue. */
@@ -41,73 +41,6 @@ declare global {
     /** The library grid: show() after the model list changed, refresh() after edits in place. */
     libraryGrid?: { show: (options: GridShowOptions) => void; refresh: () => void };
   }
-}
-
-interface CellProps {
-  host: GridHost;
-  record: DisplayRecord;
-  view: GridView;
-  index: number;
-  bandClasses: string[];
-  position: { top: number; left: number; width: number; height: number };
-  priority: number;
-  content: HTMLElement;
-  tick: number;
-}
-
-/** The card element currently placed for a layout key (renderer.js sometimes replaces it). */
-function findCard(content: HTMLElement, layoutKey: string, remembered: HTMLElement | null): HTMLElement | null {
-  if (remembered && remembered.parentNode === content && remembered.dataset.layoutKey === layoutKey) return remembered;
-  for (const child of Array.from(content.children) as HTMLElement[]) {
-    if (child.dataset.layoutKey === layoutKey) return child;
-  }
-  return null;
-}
-
-/**
- * A group card (ZIP bundle or parent model), still built by renderer.js and placed in the grid's
- * content box next to the React model cards.
- */
-function LegacyCell({ host, record, view, index, bandClasses, position, priority, content, tick }: CellProps) {
-  const cardRef = useRef<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (record.type !== 'group') return undefined;
-    const card = host.createGroupCard(record, view);
-    card.dataset.layoutKey = record.key;
-    card.style.position = 'absolute';
-    card.style.pointerEvents = 'auto';
-    content.appendChild(card);
-    cardRef.current = card;
-    return () => {
-      findCard(content, record.key, cardRef.current)?.remove();
-      cardRef.current = null;
-    };
-    // A new card per mount; the parent changes the key when the card must be rebuilt.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useLayoutEffect(() => {
-    const card = findCard(content, record.key, cardRef.current);
-    if (!card) return;
-    cardRef.current = card;
-    card.dataset.index = String(index);
-    card.style.top = `${position.top}px`;
-    card.style.left = `${position.left}px`;
-    card.style.width = view === 'list' ? `calc(100% - ${position.left * 2}px)` : `${position.width}px`;
-    // Preview tiles, phone cards and list-view group rows take the row height; desktop cards size themselves.
-    const fixedHeight = view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0);
-    if (fixedHeight || (record.type === 'group' && view === 'list')) card.style.height = `${position.height}px`;
-    if (fixedHeight) {
-      card.style.minHeight = `${position.height}px`;
-      card.style.maxHeight = `${position.height}px`;
-    }
-  });
-
-  void tick;
-  void priority;
-  void bandClasses;
-  return null;
 }
 
 /**
@@ -275,8 +208,8 @@ export function LibraryGrid() {
       );
     }
     return (
-      <LegacyCell key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
-        bandClasses={[]} position={position} priority={priority} content={content} tick={tick} />
+      <GroupCard key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
+        position={position} fixedHeight={view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0)} />
     );
   })) : null;
 

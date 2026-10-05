@@ -12,6 +12,8 @@ export interface CardHost {
 
   /** Stored primary thumbnail (cached), or null. */
   fetchPrimaryThumbnail(filePath: string): Promise<string | null>;
+  /** The primary thumbnail if it is already cached (no request). */
+  cachedPrimaryThumbnail(filePath: string): string | null;
   /** Render a thumbnail in this browser (priority queue); on success the model is updated and the grid refreshed. */
   ensureThumbnailQueued(model: GridModel, container: HTMLElement, priority: number): void;
   /** Load every image of a model with several; updates model.thumbnail and refreshes. */
@@ -94,6 +96,11 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
     current = host.typedPlaceholder(model.filePath);
     flagged = true;
   }
+  // Already cached: show it at once instead of a placeholder frame while the fetch resolves.
+  if (!current && flagged) {
+    const cached = host.cachedPrimaryThumbnail(model.filePath);
+    if (cached && !host.isFailurePlaceholder(cached)) current = cached;
+  }
   // A render that failed shows its failure art here only (it is not saved); no retry until reloaded.
   const failed = !current && typeof model._failedThumbnail === 'string' ? model._failedThumbnail : null;
   if (failed) {
@@ -101,16 +108,18 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
     flagged = true;
   }
   const carouselView = view === 'detailed' || view === 'preview';
-  const requested = useRef('');
+  // What was already asked for this model object. A refresh hands the card a new object
+  // (the list query leaves the image out), which needs its own fetch (cached, so cheap).
+  const requested = useRef<{ model: GridModel; kind: string } | null>(null);
+  const alreadyAsked = (kind: string) => requested.current?.model === model && requested.current.kind === kind;
 
   useEffect(() => {
     if (!container) return;
-    const path = model.filePath;
     if (!current && flagged) {
       // The list query leaves the blob out: fetch the stored primary image.
-      if (requested.current === `primary:${path}`) return;
-      requested.current = `primary:${path}`;
-      host.fetchPrimaryThumbnail(path).then((thumbnail) => {
+      if (alreadyAsked('primary')) return;
+      requested.current = { model, kind: 'primary' };
+      host.fetchPrimaryThumbnail(model.filePath).then((thumbnail) => {
         if (thumbnail && !host.isFailurePlaceholder(thumbnail)) {
           model.thumbnail = thumbnail;
           model.hasThumbnail = true;
@@ -123,8 +132,8 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
         }
       }).catch(() => {});
     } else if (current && multiple && all.length < 2 && carouselView) {
-      if (requested.current === `all:${path}`) return;
-      requested.current = `all:${path}`;
+      if (alreadyAsked('all')) return;
+      requested.current = { model, kind: 'all' };
       host.loadAllThumbnails(model);
     }
   });
