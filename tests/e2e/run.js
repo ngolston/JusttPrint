@@ -482,6 +482,59 @@ async function browserChecks(base, wsUrl, session) {
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
     }
 
+    // Grid cards (React, src/web/grid/ModelCard.tsx) in the detailed view.
+    await page.click('.view-button[data-view="detailed"]');
+    const firstCard = await page.waitForSelector('.file-grid .file-item-detailed', { timeout: 10000 }).catch(() => null);
+    check('detailed view shows cards', !!firstCard && (await page.locator('.file-grid .file-item-detailed').count()) === 3);
+    if (firstCard) {
+      const cardPath = await firstCard.getAttribute('data-filepath');
+      const card = `.file-grid .file-item-detailed[data-filepath="${cardPath.replace(/"/g, '\\"')}"]`;
+      await page.click(`${card} .file-name`);
+      check('clicking a card selects it and shows its details', await page.isVisible(`${card}.selected`) && await page.isVisible('#model-details'));
+      await page.click(`${card} .model-star[data-star="3"]`);
+      const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
+      check('a card saves its star rating', rated === true && (await page.locator(`${card} .model-star.is-filled`).count()) === 3);
+      await page.click(`${card} .model-favorite-btn`);
+      const favorited = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).favorite ? true : null), 10000, 'favorite').catch(() => false);
+      check('a card saves its favorite', favorited === true && await page.isVisible(`${card} .model-favorite-btn.is-favorited`));
+      const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      // Ctrl-click is a right-click on macOS; the app takes Cmd there.
+      const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
+      await page.click(`${card} .file-name`, { modifiers: [multiKey] });
+      await page.click(`.file-grid .file-item-detailed[data-filepath="${other.replace(/"/g, '\\"')}"] .file-name`, { modifiers: [multiKey] });
+      check('Ctrl/Cmd-click selects several cards for multi-edit', (await page.locator('.file-grid .file-item.selected').count()) === 2 && await page.isVisible('#multi-edit-panel'));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
+      check('Escape leaves multi-edit', !(await page.isVisible('#multi-edit-panel')));
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, rating: 0, favorite: 0 }]]);
+
+      // A model with several images shows a carousel; the image left showing becomes the default.
+      const images = await page.evaluate(() => ['#d33', '#33d'].map((color) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 64, 64);
+        return canvas.toDataURL('image/png');
+      }));
+      await invoke(base, session, 'add-multiple-thumbnails', [cardPath, images]);
+      const total = ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).length;
+      await page.evaluate(() => window.performCombinedSearch({ force: true }));
+      const badge = await page.waitForSelector(`${card} .thumbnail-count-badge`, { timeout: 15000 }).catch(() => null);
+      check('a card with several images shows the carousel', !!badge && (await badge.textContent()).trim() === `1/${total}`, badge && await badge.textContent());
+      if (badge) {
+        await page.click(`${card} .thumbnail-nav-right`);
+        check('the carousel steps to the next image', (await page.textContent(`${card} .thumbnail-count-badge`)).trim() === `2/${total}`);
+        const second = await page.getAttribute(`${card} .thumbnail-container img`, 'src');
+        const saved = await waitFor(async () => {
+          const thumbnail = ((await invoke(base, session, 'get-model', [cardPath])).result || {}).thumbnail || '';
+          return thumbnail.split('::')[0] === second ? true : null;
+        }, 10000, 'default image').catch(() => false);
+        check('the image left showing becomes the default', saved === true);
+      }
+    }
+    await page.click('.view-button[data-view="preview"]');
+
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
     await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
     await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');

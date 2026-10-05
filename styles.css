@@ -6567,6 +6567,12 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* Library grid list rows (src/web/grid/ModelCard.tsx): the folder link underlines on hover */
+.file-item-list .directory-info-column:hover .directory-info {
+  text-decoration: underline;
+  color: #6bb3ff !important;
+}
+
 /* De-Dup (src/web/DedupDialog.tsx) */
 .dedup-intro {
   font-size: 0.9rem;

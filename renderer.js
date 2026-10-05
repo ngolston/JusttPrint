@@ -621,94 +621,6 @@ function findQueuedThumbnailTask(filePath) {
   return null;
 }
 
-/**
- * Re-queue thumbnail work for an on-screen cell that still shows the placeholder.
- * Virtual-grid keeps existing DOM nodes across scroll frames, so pruned/soft-capped
- * jobs would otherwise never start again until the cell is destroyed and recreated.
- */
-function ensureVisibleThumbnailQueued(itemEl, model, thumbPriority) {
-  if (window._serverBulkThumbnailJobActive) return false;
-  if (!itemEl || !model || !model.filePath) return false;
-  if (model.hasThumbnail) return false;
-  if (hasImageOnlyPreviewMiss(model.filePath)) return false;
-
-  const thumbContainer = itemEl.querySelector('.thumbnail-container');
-  if (!thumbContainer) return false;
-  const img = thumbContainer.querySelector('img');
-  if (img && typeof img.src === 'string' && img.src.startsWith('data:image')) return false;
-
-  const queued = findQueuedThumbnailTask(model.filePath);
-  if (queued) {
-    queued.container = thumbContainer;
-    if (thumbPriority != null) queued.thumbPriority = thumbPriority;
-    pendingThumbnails.add(model.filePath);
-    return true;
-  }
-  if (activeThumbnailRenders.has(model.filePath)) {
-    pendingThumbnails.add(model.filePath);
-    return false;
-  }
-  // Stale pending bit (dropped while a race left the flag set)
-  if (pendingThumbnails.has(model.filePath)) {
-    pendingThumbnails.delete(model.filePath);
-  }
-
-  pendingThumbnails.add(model.filePath);
-  enqueueRenderTask({
-    filePath: model.filePath,
-    container: thumbContainer,
-    thumbPriority: thumbPriority != null ? thumbPriority : 0,
-    resolve: async (thumbnail) => {
-      pendingThumbnails.delete(model.filePath);
-      if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholderThumbnail(thumbnail)) {
-        // Image-only extract miss: never re-hydrate (cannot mesh-render).
-        if (hasImageOnlyPreviewMiss(model.filePath)) {
-          const liveImg = thumbContainer.querySelector('img');
-          if (liveImg) {
-            liveImg.src = thumbnail && thumbnail !== '3d.png'
-              ? thumbnail
-              : generateTypedPlaceholder(extensionFromModelPath(model.filePath));
-          }
-          return;
-        }
-        scheduleVisibleThumbnailHydrate();
-        return;
-      }
-      if (await isMostlyEmptyThumbnailDataUrl(thumbnail)) {
-        scheduleVisibleThumbnailHydrate();
-        return;
-      }
-      model.thumbnail = thumbnail;
-      model.hasThumbnail = true;
-      invalidatePrimaryThumbnailCache(model.filePath);
-      setCachedPrimaryThumbnail(model.filePath, thumbnail);
-      try {
-        await window.electron.saveThumbnail(model.filePath, thumbnail);
-      } catch (_) { /* ignore */ }
-
-      const normalizedModelPath = normalizePathForComparison(model.filePath);
-      const allFileItems = document.querySelectorAll('.file-item');
-      for (const fileItem of allFileItems) {
-        const itemPath = fileItem.getAttribute('data-filepath') || fileItem.dataset.filepath;
-        if (normalizePathForComparison(itemPath) !== normalizedModelPath) continue;
-        const liveImg = fileItem.querySelector('.thumbnail-container img');
-        if (liveImg) liveImg.src = thumbnail;
-        break;
-      }
-    },
-    reject: (error) => {
-      if (isBenignThumbnailDropError(error)) {
-        scheduleVisibleThumbnailHydrate();
-        return;
-      }
-      pendingThumbnails.delete(model.filePath);
-      console.error(`Failed to generate thumbnail for ${model.filePath}`, error);
-      scheduleVisibleThumbnailHydrate();
-    }
-  });
-  return true;
-}
-
 function enqueueRenderTask(task) {
   if (!task || !task.filePath) return false;
   pruneDisconnectedRenderTasks();
@@ -1795,28 +1707,6 @@ function isModelNew(model) {
   return v === 1 || v === true || v === '1';
 }
 
-/** Keep the thumbnail "New" pill in sync with model.isNew (create, update, virtual-grid reuse). */
-function syncModelNewBadge(fileItem, model) {
-  if (!fileItem) return;
-  fileItem.querySelector(':scope > .new-status')?.remove();
-  const thumbHost =
-    fileItem.querySelector('.thumbnail-wrapper .thumbnail-container') ||
-    fileItem.querySelector('.thumbnail-container');
-  if (!thumbHost) return;
-  const existingBadge = thumbHost.querySelector(':scope > .new-status');
-  if (isModelNew(model)) {
-    if (!existingBadge) {
-      const newStatusEl = document.createElement('div');
-      newStatusEl.className = 'new-status';
-      newStatusEl.textContent = 'New';
-      newStatusEl.title = 'New model — clears once you edit it';
-      thumbHost.appendChild(newStatusEl);
-    }
-  } else if (existingBadge) {
-    existingBadge.remove();
-  }
-}
-
 function deriveBundleFieldsForModel(model) {
   const filePath = model?.filePath || '';
   if (!filePath || filePath.startsWith('url::')) {
@@ -1889,29 +1779,6 @@ function mergeModelIntoGridCurrentModels(model) {
   container.currentModels[idx] = model;
   invalidateVirtualGridLayoutCache(container);
   return true;
-}
-
-/** Insert a new detailed-view metadata row in the same order as createModelItem (dir row, designer, source, parent, license, tags). */
-function insertDetailedMetadataRowBefore(metadataContainer, el, selectorList) {
-  for (const sel of selectorList) {
-    const ref = metadataContainer.querySelector(sel);
-    if (ref) {
-      metadataContainer.insertBefore(el, ref);
-      return;
-    }
-  }
-  const dirRow = metadataContainer.querySelector('.dir-size-row');
-  if (dirRow) {
-    if (dirRow.nextSibling) {
-      metadataContainer.insertBefore(el, dirRow.nextSibling);
-    } else {
-      metadataContainer.appendChild(el);
-    }
-  } else if (metadataContainer.firstChild) {
-    metadataContainer.insertBefore(el, metadataContainer.firstChild);
-  } else {
-    metadataContainer.appendChild(el);
-  }
 }
 
 function librarySearchIncludesNotes() {
@@ -2037,584 +1904,33 @@ async function updateModelElement(filePath) {
                        tagsMatch;
     }
 
-    const normalizedTargetPath = normalizePathForComparison(filePath);
-    const existingElement = findVisibleFileItem(filePath, normalizedTargetPath);
-    
-    if (!existingElement) {
-      // Virtual grid only mounts visible rows — bulk edits often have no DOM node; still sync in-memory list.
-      mergeModelIntoGridCurrentModels(model);
-      debugLog('updateModelElement: no visible .file-item for path (expected for off-screen/filtered):', filePath);
-      return;
-    }
+    const container = document.querySelector('.file-grid');
 
-    syncModelNewBadge(existingElement, model);
-    
-    // Check if we're in detailed view
-    const isDetailedView = existingElement.classList.contains('file-item-detailed');
-    console.log('updateModelElement: isDetailedView?', isDetailedView);
-    
-    // Check if we're in preview or list view (needed early to prevent removing elements)
-    const isPreviewView = existingElement.classList.contains('file-item-preview') || currentGridView === 'preview';
-    const isListView = existingElement.classList.contains('file-item-list') || currentGridView === 'list';
-
-    // If the model no longer matches the current filters, remove it from the grid
+    // No longer matches the filters: take it out of the grid.
     if (!shouldBeVisible) {
-      // Remove from multi-select if selected
       if (isMultiSelectMode && selectedModels.has(filePath)) {
         selectedModels.delete(filePath);
-        existingElement.classList.remove('selected');
         updateSelectedCount();
       }
-      
-      // Remove the model from currentModels array so virtual grid knows it's gone
-      const container = document.querySelector('.file-grid');
-      if (container && container.currentModels) {
-        const modelIndex = container.currentModels.findIndex(m => 
+      if (container && Array.isArray(container.currentModels)) {
+        const modelIndex = container.currentModels.findIndex(m =>
           (m.id || m.filePath) === (model.id || model.filePath)
         );
         if (modelIndex !== -1) {
           container.currentModels.splice(modelIndex, 1);
-          
-          // Recalculate field analysis since a model was removed
           if (container.currentModels.length > 0) {
             window.modelFieldAnalysis = analyzeModelFields(container.currentModels);
           }
         }
-      }
-      
-      // Remove the element from DOM
-      unregisterFileItemElement(existingElement);
-      existingElement.remove();
-      
-      // Trigger virtual grid refresh to reflow remaining items
-      if (container && container.renderVisibleItemsFn) {
-        requestAnimationFrame(() => {
-          container.renderVisibleItemsFn();
-        });
-      }
-      
-      // Update model count
-      if (container && container.currentModels) {
         updateModelCounts(container.currentModels.length);
       }
-      
+      refreshLibraryGrid();
       return;
-    } else {
-      existingElement.style.display = '';
     }
 
-    // Update model details (list/detailed use .file-name; preview wall uses .preview-tile-name)
-    let displayFileName = model.fileName;
-    if (!displayFileName && model.filePath) {
-      if (model.filePath.includes('::')) {
-        const entryPath = model.filePath.split('::')[1];
-        displayFileName = entryPath.split(/[/\\]/).pop() || 'Unknown';
-      } else {
-        displayFileName = model.filePath.split(/[/\\]/).pop() || 'Unknown';
-      }
-    }
-    if (!displayFileName) {
-      displayFileName = 'Unknown';
-    }
-    const nameElement = existingElement.querySelector('.file-name');
-    if (nameElement) {
-      nameElement.textContent = displayFileName;
-    }
-    const previewTileNameEl = existingElement.querySelector('.preview-tile-name');
-    if (previewTileNameEl) {
-      previewTileNameEl.textContent = displayFileName;
-    }
-
-    // Update print status
-    const printStatusElement = existingElement.querySelector('.print-status');
-    if (printStatusElement && window.PrintHistory) {
-      window.PrintHistory.applyBadge(printStatusElement, model);
-      window.PrintHistory.bindBadge(printStatusElement, filePath);
-    } else if (printStatusElement) {
-      printStatusElement.textContent = model.printed ? 'Printed' : 'Not Printed';
-      printStatusElement.classList.toggle('printed', !!model.printed);
-    } else if (window.PrintHistory) {
-      const statusElement = document.createElement('div');
-      window.PrintHistory.applyBadge(statusElement, model);
-      window.PrintHistory.bindBadge(statusElement, filePath);
-      existingElement.appendChild(statusElement);
-    }
-
-    const engagementBar = existingElement.querySelector('.model-engagement-bar:not(.is-group)');
-    if (engagementBar) {
-      updateEngagementBarDisplay(
-        engagementBar,
-        normalizeModelRatingValue(model.rating),
-        Boolean(model.favorite)
-      );
-    }
-    
-    // Remove any existing designer info elements that might have been added (redundant with metadata)
-    // Designer is already shown in the metadata section, so we don't need it here
-    const fileInfo = existingElement.querySelector('.file-info');
-    if (fileInfo) {
-      // Only remove legacy designer-info nodes outside metadata (detailed view stores designer in .metadata-container)
-      if (!isListView) {
-        fileInfo.querySelectorAll('.designer-info').forEach(el => {
-          if (!el.closest('.metadata-container')) el.remove();
-        });
-      }
-    }
-    
-    // Update metadata in detailed view grid (only if in detailed view)
-    const metadataContainer = existingElement.querySelector('.metadata-container');
-    console.log('updateModelElement: metadataContainer found?', !!metadataContainer, 'isDetailedView?', isDetailedView, 'element classes:', existingElement.className);
-    
-    // Also check if the current view mode is detailed (in case class check fails)
-    const currentViewIsDetailed = currentGridView === 'detailed';
-    console.log('updateModelElement: currentGridView is detailed?', currentViewIsDetailed);
-    
-    // isListView and isPreviewView are already defined above
-    
-    if (metadataContainer && (isDetailedView || currentViewIsDetailed)) {
-      // Detailed grid rows for designer/source/parent/license are only created in createModelItem when the
-      // field already had a value — new models get no row, so updates must insert or remove rows here.
-
-      // Update designer
-      let designerItem = metadataContainer.querySelector('.designer-item');
-      const designerValue = (model.designer && model.designer.trim()) ? model.designer.trim() : '';
-      const hasDesigner = designerValue && designerValue !== '';
-      console.log('updateModelElement: designerItem found?', !!designerItem, 'designerValue =', designerValue);
-
-      if (designerItem && !hasDesigner) {
-        designerItem.remove();
-        designerItem = null;
-      }
-      if (!designerItem && hasDesigner) {
-        designerItem = document.createElement('div');
-        designerItem.className = 'metadata-item designer-item';
-        designerItem.innerHTML = `
-          <span class="metadata-icon">👤</span>
-          <span class="metadata-value designer-info" style="color: #ccc; display: inline-block;" title=""></span>
-        `;
-        insertDetailedMetadataRowBefore(metadataContainer, designerItem, [
-          '.source-item', '.parent-item', '.license-item', '.tags-item'
-        ]);
-      }
-
-      if (designerItem) {
-        let designerValueSpan = designerItem.querySelector(':scope > span.metadata-value.designer-info')
-          || designerItem.querySelector(':scope > span.metadata-value')
-          || designerItem.querySelector('span.designer-info');
-        if (!designerValueSpan) {
-          designerValueSpan = document.createElement('span');
-          designerValueSpan.className = 'metadata-value designer-info';
-          designerValueSpan.style.display = 'inline-block';
-          const iconSpan = designerItem.querySelector('.metadata-icon');
-          if (iconSpan) {
-            if (iconSpan.nextSibling) {
-              iconSpan.parentNode.insertBefore(designerValueSpan, iconSpan.nextSibling);
-            } else {
-              iconSpan.parentNode.appendChild(designerValueSpan);
-            }
-          } else {
-            designerItem.appendChild(designerValueSpan);
-          }
-        }
-        if (designerValueSpan) {
-          designerValueSpan.textContent = hasDesigner ? designerValue : '—';
-          designerValueSpan.style.color = hasDesigner ? '#ccc' : '#666';
-          designerValueSpan.setAttribute('title', hasDesigner ? designerValue : '');
-        }
-        if (hasDesigner) {
-          designerItem.style.cursor = 'pointer';
-          designerItem.classList.add('clickable-metadata');
-          designerItem.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const designerSelect = document.getElementById('designer-select');
-            if (designerSelect) {
-              designerSelect.value = designerValue;
-              if (typeof window.performCombinedSearch === 'function') {
-                await window.performCombinedSearch();
-              }
-            }
-          };
-        } else {
-          designerItem.style.cursor = 'default';
-          designerItem.classList.remove('clickable-metadata');
-          designerItem.onclick = null;
-        }
-      }
-
-      // Update source
-      let sourceItem = metadataContainer.querySelector('.source-item');
-      const sourceValue = (model.source && String(model.source).trim()) ? String(model.source).trim() : '';
-      if (sourceItem && !sourceValue) {
-        sourceItem.remove();
-        sourceItem = null;
-      }
-      if (!sourceItem && sourceValue) {
-        sourceItem = document.createElement('div');
-        sourceItem.className = 'metadata-item source-item';
-        sourceItem.innerHTML = `
-          <span class="metadata-icon">🔗</span>
-          <span class="metadata-value source-info" style="color: #ccc" title=""></span>
-        `;
-        insertDetailedMetadataRowBefore(metadataContainer, sourceItem, [
-          '.parent-item', '.license-item', '.tags-item'
-        ]);
-      }
-      if (sourceItem) {
-        let sourceValueSpan = sourceItem.querySelector('.metadata-value.source-info');
-        if (!sourceValueSpan) {
-          sourceValueSpan = document.createElement('span');
-          sourceValueSpan.className = 'metadata-value source-info';
-          const iconSpan = sourceItem.querySelector('.metadata-icon');
-          if (iconSpan) {
-            iconSpan.parentNode.insertBefore(sourceValueSpan, iconSpan.nextSibling);
-          } else {
-            sourceItem.appendChild(sourceValueSpan);
-          }
-        }
-        if (sourceValueSpan) {
-          sourceValueSpan.textContent = sourceValue || '—';
-          sourceValueSpan.style.color = sourceValue ? '#ccc' : '#666';
-          sourceValueSpan.setAttribute('title', sourceValue || '');
-        }
-      }
-
-      // Update parent model
-      let parentItem = metadataContainer.querySelector('.parent-item');
-      const parentValue = (model.parentModel && String(model.parentModel).trim()) ? String(model.parentModel).trim() : '';
-      if (parentItem && !parentValue) {
-        parentItem.remove();
-        parentItem = null;
-      }
-      if (!parentItem && parentValue) {
-        parentItem = document.createElement('div');
-        parentItem.className = 'metadata-item parent-item';
-        parentItem.style.cursor = 'pointer';
-        parentItem.classList.add('clickable-metadata');
-        parentItem.innerHTML = `
-          <span class="metadata-icon">📦</span>
-          <span class="metadata-value parent-info" style="color: #ccc" title=""></span>
-        `;
-        insertDetailedMetadataRowBefore(metadataContainer, parentItem, ['.license-item', '.tags-item']);
-      }
-      if (parentItem) {
-        let parentValueSpan = parentItem.querySelector('.metadata-value.parent-info');
-        if (!parentValueSpan) {
-          parentValueSpan = document.createElement('span');
-          parentValueSpan.className = 'metadata-value parent-info';
-          const iconSpan = parentItem.querySelector('.metadata-icon');
-          if (iconSpan) {
-            iconSpan.parentNode.insertBefore(parentValueSpan, iconSpan.nextSibling);
-          } else {
-            parentItem.appendChild(parentValueSpan);
-          }
-        }
-        if (parentValueSpan) {
-          parentValueSpan.textContent = parentValue || '—';
-          parentValueSpan.style.color = parentValue ? '#ccc' : '#666';
-          parentValueSpan.setAttribute('title', parentValue || '');
-        }
-        if (parentValue) {
-          parentItem.style.cursor = 'pointer';
-          parentItem.classList.add('clickable-metadata');
-          parentItem.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const parentSelect = document.getElementById('parent-select');
-            if (parentSelect) {
-              parentSelect.value = parentValue;
-              if (typeof window.performCombinedSearch === 'function') {
-                await window.performCombinedSearch();
-              }
-            }
-          };
-        } else {
-          parentItem.style.cursor = 'default';
-          parentItem.classList.remove('clickable-metadata');
-          parentItem.onclick = null;
-        }
-      }
-
-      // Update license
-      let licenseItem = metadataContainer.querySelector('.license-item');
-      const licenseValue = (model.license && String(model.license).trim()) ? String(model.license).trim() : '';
-      if (licenseItem && !licenseValue) {
-        licenseItem.remove();
-        licenseItem = null;
-      }
-      if (!licenseItem && licenseValue) {
-        licenseItem = document.createElement('div');
-        licenseItem.className = 'metadata-item license-item';
-        licenseItem.style.cursor = 'pointer';
-        licenseItem.classList.add('clickable-metadata');
-        licenseItem.innerHTML = `
-          <span class="metadata-icon">📜</span>
-          <span class="metadata-value license-info" style="color: #ccc" title=""></span>
-        `;
-        insertDetailedMetadataRowBefore(metadataContainer, licenseItem, ['.tags-item']);
-      }
-      if (licenseItem) {
-        let licenseValueSpan = licenseItem.querySelector('.metadata-value.license-info');
-        if (!licenseValueSpan) {
-          licenseValueSpan = document.createElement('span');
-          licenseValueSpan.className = 'metadata-value license-info';
-          const iconSpan = licenseItem.querySelector('.metadata-icon');
-          if (iconSpan) {
-            iconSpan.parentNode.insertBefore(licenseValueSpan, iconSpan.nextSibling);
-          } else {
-            licenseItem.appendChild(licenseValueSpan);
-          }
-        }
-        if (licenseValueSpan) {
-          licenseValueSpan.textContent = licenseValue || '—';
-          licenseValueSpan.style.color = licenseValue ? '#ccc' : '#666';
-          licenseValueSpan.setAttribute('title', licenseValue || '');
-        }
-        if (licenseValue) {
-          licenseItem.style.cursor = 'pointer';
-          licenseItem.classList.add('clickable-metadata');
-          licenseItem.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const licenseSelect = document.getElementById('license-select');
-            if (licenseSelect) {
-              licenseSelect.value = licenseValue;
-              if (typeof window.performCombinedSearch === 'function') {
-                await window.performCombinedSearch();
-              }
-            }
-          };
-        } else {
-          licenseItem.style.cursor = 'default';
-          licenseItem.classList.remove('clickable-metadata');
-          licenseItem.onclick = null;
-        }
-      }
-      
-      // Update tags — create .tags-item if missing (initial detailed render removes the row when a model had no tags)
-      let tagsItem = metadataContainer.querySelector('.tags-item');
-      const normalizeTagNames = (arr) => {
-        if (!Array.isArray(arr)) return [];
-        const names = arr
-          .map(t => (typeof t === 'string' ? t : (t && (t.name || t)) || ''))
-          .filter(Boolean);
-        names.sort((a, b) => a.localeCompare(b));
-        return names;
-      };
-      let tagNames = normalizeTagNames(model.tags);
-
-      const applyDetailedTagsRow = (names) => {
-        const text = names.join(', ');
-        if (names.length === 0) {
-          if (tagsItem) {
-            tagsItem.remove();
-            tagsItem = null;
-          }
-          return;
-        }
-        if (!tagsItem) {
-          tagsItem = document.createElement('div');
-          tagsItem.className = 'metadata-item tags-item';
-          tagsItem.style.gridColumn = '1 / -1';
-          tagsItem.innerHTML = `
-          <span class="metadata-icon">🏷️</span>
-          <span class="metadata-value tags-info" style="color: #ccc" title=""></span>
-        `;
-          metadataContainer.appendChild(tagsItem);
-        }
-        const tagsValueSpan = tagsItem.querySelector('.metadata-value.tags-info');
-        if (tagsValueSpan) {
-          fillTagsWithFilterLinks(tagsValueSpan, names);
-          tagsValueSpan.setAttribute('title', text);
-          tagsValueSpan.style.color = '#ccc';
-        }
-      };
-
-      if (tagNames.length > 0) {
-        applyDetailedTagsRow(tagNames);
-      } else if (model.id) {
-        window.electron.getModelTags(model.id).then((dbTags) => {
-          const names = normalizeTagNames(dbTags);
-          const mc = existingElement.querySelector('.metadata-container');
-          if (!mc) return;
-          tagsItem = mc.querySelector('.tags-item');
-          applyDetailedTagsRow(names);
-        }).catch(err => console.error('Error loading tags:', err));
-      } else {
-        applyDetailedTagsRow([]);
-      }
-      if (typeof window.updateModelFilamentDisplay === 'function') {
-        window.updateModelFilamentDisplay(existingElement);
-      }
-    } else if (isDetailedView || currentViewIsDetailed) {
-      // Only warn if we're in detailed view but metadata container is missing
-      // This shouldn't happen in detailed view, so it's a real issue
-      console.warn('Metadata container not found for element in detailed view:', existingElement);
-    }
-    // For preview and list views, metadata container is expected to be missing, so no warning
-    
-    // Update fields in LIST mode
-    // isListView is already declared above, reuse it
-    if (isListView && fileInfo) {
-      console.log('updateModelElement: Updating list view fields, fileInfo:', fileInfo);
-      console.log('updateModelElement: Model designer value:', model.designer);
-      
-      // Update designer in list view
-      // The designer is inside .designer-info-column > .designer-info
-      const designerColumn = fileInfo.querySelector('.designer-info-column');
-      console.log('updateModelElement: designerColumn found?', !!designerColumn);
-      if (designerColumn) {
-        const designerElement = designerColumn.querySelector('.designer-info');
-        console.log('updateModelElement: designerElement found?', !!designerElement);
-        if (designerElement) {
-          const designerValue = model.designer || '';
-          designerElement.textContent = designerValue;
-          designerElement.style.color = designerValue ? '#aaa' : '#666';
-          console.log('updateModelElement: Updated designer in list view to', designerValue);
-        } else {
-          console.warn('updateModelElement: .designer-info not found inside .designer-info-column');
-          // Try to find it directly as fallback
-          const directDesignerElement = fileInfo.querySelector('.designer-info');
-          if (directDesignerElement) {
-            console.log('updateModelElement: Found .designer-info directly, updating');
-            const designerValue = model.designer || '';
-            directDesignerElement.textContent = designerValue;
-            directDesignerElement.style.color = designerValue ? '#aaa' : '#666';
-          }
-        }
-      } else {
-        console.warn('updateModelElement: .designer-info-column not found in list view');
-        // Try to find it directly as fallback
-        const directDesignerElement = fileInfo.querySelector('.designer-info');
-        if (directDesignerElement) {
-          console.log('updateModelElement: Found .designer-info directly (fallback), updating');
-          const designerValue = model.designer || '';
-          directDesignerElement.textContent = designerValue;
-          directDesignerElement.style.color = designerValue ? '#aaa' : '#666';
-        } else {
-          console.warn('updateModelElement: .designer-info not found anywhere in fileInfo');
-          console.log('updateModelElement: fileInfo children:', Array.from(fileInfo.children).map(c => c.className));
-        }
-      }
-      
-      // Update license in list view (if it exists - license column may not be present in all list views)
-      const licenseElement = fileInfo.querySelector('.license-info');
-      if (licenseElement) {
-        const licenseValue = model.license || '';
-        licenseElement.textContent = licenseValue;
-        licenseElement.style.color = licenseValue ? '#aaa' : '#666';
-        console.log('updateModelElement: Updated license in list view to', licenseValue);
-      }
-      
-      // Update tags in list view
-      // The tags are inside .tags-info-column > .tags-info
-      const tagsColumn = fileInfo.querySelector('.tags-info-column');
-      if (tagsColumn) {
-        const tagsElement = tagsColumn.querySelector('.tags-info');
-        if (tagsElement) {
-          if (model.tags && Array.isArray(model.tags) && model.tags.length > 0) {
-            const tagNames = model.tags.map(t =>
-              typeof t === 'string' ? t : (t && (t.name || t)) || ''
-            ).filter(Boolean);
-            tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-            const tagsDisplay = tagNames.join(', ');
-            fillTagsWithFilterLinks(tagsElement, tagNames);
-            tagsElement.style.color = '#aaa';
-            tagsElement.setAttribute('title', tagsDisplay);
-          } else if (model.id) {
-            tagsElement.textContent = '—';
-            tagsElement.style.color = '#666';
-            tagsElement.removeAttribute('title');
-            window.electron.getModelTags(model.id).then(tags => {
-              if (tags && tags.length > 0) {
-                const tagNames = tags.map(t =>
-                  typeof t === 'string' ? t : (t && (t.name || t)) || ''
-                ).filter(Boolean);
-                tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-                const tagsText = tagNames.join(', ');
-                fillTagsWithFilterLinks(tagsElement, tagNames);
-                tagsElement.style.color = '#aaa';
-                tagsElement.setAttribute('title', tagsText);
-              } else {
-                tagsElement.textContent = '—';
-                tagsElement.style.color = '#666';
-                tagsElement.removeAttribute('title');
-              }
-            }).catch(err => console.error('Error loading tags:', err));
-          } else {
-            tagsElement.textContent = '—';
-            tagsElement.style.color = '#666';
-            tagsElement.removeAttribute('title');
-          }
-          console.log('updateModelElement: Updated tags in list view');
-        } else {
-          console.warn('updateModelElement: .tags-info not found inside .tags-info-column');
-        }
-      } else {
-        // Fallback: try direct query in case structure is different
-        const tagsElement = fileInfo.querySelector('.tags-info');
-        if (tagsElement) {
-          if (model.tags && Array.isArray(model.tags) && model.tags.length > 0) {
-            const tagNames = model.tags.map(t =>
-              typeof t === 'string' ? t : (t && (t.name || t)) || ''
-            ).filter(Boolean);
-            tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-            const tagsDisplay = tagNames.join(', ');
-            fillTagsWithFilterLinks(tagsElement, tagNames);
-            tagsElement.style.color = '#aaa';
-            tagsElement.setAttribute('title', tagsDisplay);
-          } else if (model.id) {
-            tagsElement.textContent = '—';
-            tagsElement.style.color = '#666';
-            tagsElement.removeAttribute('title');
-            window.electron.getModelTags(model.id).then(tags => {
-              if (tags && tags.length > 0) {
-                const tagNames = tags.map(t =>
-                  typeof t === 'string' ? t : (t && (t.name || t)) || ''
-                ).filter(Boolean);
-                tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-                const tagsText = tagNames.join(', ');
-                fillTagsWithFilterLinks(tagsElement, tagNames);
-                tagsElement.style.color = '#aaa';
-                tagsElement.setAttribute('title', tagsText);
-              } else {
-                tagsElement.textContent = '—';
-                tagsElement.style.color = '#666';
-                tagsElement.removeAttribute('title');
-              }
-            }).catch(err => console.error('Error loading tags:', err));
-          } else {
-            tagsElement.textContent = '—';
-            tagsElement.style.color = '#666';
-            tagsElement.removeAttribute('title');
-          }
-          console.log('updateModelElement: Updated tags in list view (fallback)');
-        }
-      }
-    }
-    
-    // Make sure selection state is preserved
-    if (selectedModels.has(filePath)) {
-      existingElement.classList.add('selected');
-    } else {
-      existingElement.classList.remove('selected');
-    }
-
-    debugLog('Updated model element:', { 
-      filePath, 
-      printed: model.printed,
-      designer: model.designer,
-      source: model.source,
-      license: model.license,
-      parentModel: model.parentModel
-    });
-
-    // Update the model in the currentModels array so virtual grid uses fresh data
+    // The React grid card draws from the model: update it and repaint.
     mergeModelIntoGridCurrentModels(model);
-
-    // In-place DOM updates above are enough; do not remove the grid item or force renderVisibleItemsFn here.
-    // Removing + re-rendering the virtual cell was causing multi-second freezes and duplicate updateModelElement runs.
-
+    refreshLibraryGrid();
   } catch (error) {
     console.error('Error updating model element:', error);
   }
@@ -3723,14 +3039,13 @@ function replaceVisibleGridModel(filePath, normalizedPath, updatedModel) {
   const container = document.querySelector('.file-grid');
   const fileItem = findVisibleFileItem(filePath, normalizedPath);
   if (!fileItem) return false;
-  unregisterFileItemElement(fileItem);
   if (container?.currentModels) {
     const modelIndex = container.currentModels.findIndex(
       (m) => normalizePathForComparison(m.filePath) === normalizedPath
     );
     if (modelIndex >= 0) container.currentModels[modelIndex] = { ...updatedModel };
   }
-  fileItem.remove();
+  // The React grid card redraws from the updated model.
   if (container?.renderVisibleItemsFn) container.renderVisibleItemsFn();
   return true;
 }
@@ -4585,25 +3900,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Capture current models BEFORE clearing so we can re-render without a round-trip (Docker/Server)
       const cachedModels = container?.currentModels ? [...container.currentModels] : null;
 
-      // Before switching views, save current thumbnails in background (do not block — avoids lag in Docker/Server)
-      if (currentGridView === 'detailed' && view !== 'detailed') {
-        const allWrappers = document.querySelectorAll('.thumbnail-wrapper');
-        for (const wrapper of allWrappers) {
-          if (wrapper._saveTimeout) {
-            clearTimeout(wrapper._saveTimeout);
-            wrapper._saveTimeout = null;
-          }
-          const currentIdx = parseInt(wrapper.dataset.currentIndex) || 0;
-          const filePath = wrapper.dataset.filePath;
-          const thumbs = JSON.parse(wrapper.dataset.thumbnails || '[]');
-          if (filePath && thumbs && thumbs.length > currentIdx && currentIdx >= 0) {
-            window.electron.setDefaultThumbnail(filePath, currentIdx).catch((e) => {
-              console.error('Error saving default thumbnail on view switch:', e);
-            });
-          }
-        }
-      }
-
       // Remove active class from all buttons
       viewButtons.forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
@@ -4660,32 +3956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   updateListViewColumnsToolbarButton();
   
-  // Save current thumbnails as default before page unload
-  window.addEventListener('beforeunload', () => {
-    const allWrappers = document.querySelectorAll('.thumbnail-wrapper');
-    for (const wrapper of allWrappers) {
-      // Clear any pending debounced saves and save immediately
-      if (wrapper._saveTimeout) {
-        clearTimeout(wrapper._saveTimeout);
-        wrapper._saveTimeout = null;
-      }
-      
-      const currentIdx = parseInt(wrapper.dataset.currentIndex) || 0;
-      const filePath = wrapper.dataset.filePath;
-      const thumbs = JSON.parse(wrapper.dataset.thumbnails || '[]');
-      
-      if (filePath && thumbs && thumbs.length > currentIdx && currentIdx >= 0) {
-        try {
-          // Use synchronous-like approach for beforeunload
-          window.electron.setDefaultThumbnail(filePath, currentIdx).catch(e => {
-            console.error('Error saving thumbnail on unload:', e);
-          });
-        } catch (e) {
-          console.error('Error saving thumbnail on unload:', e);
-        }
-      }
-    }
-  });
+  // The grid's image carousels save a pending default image themselves when the page closes (ModelCard.tsx).
   
   // Proceed to initialize the application
   // Update checks are handled in initializeApp() to avoid duplicates
@@ -6056,7 +5327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (model) model.isNew = 0;
         }
       }
-      document.querySelectorAll('.new-status').forEach((el) => el.remove());
+      refreshLibraryGrid();
 
       try {
         if (typeof window.performCombinedSearch === 'function') {
@@ -6331,8 +5602,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   }
                 }
                 
-                // Remove the item so it gets recreated with updated thumbnail
-                fileItem.remove();
+                // The React grid card redraws from the updated model.
                 
                 // Trigger re-render of visible items only (preserves filter)
                 if (container && container.renderVisibleItemsFn) {
@@ -6390,8 +5660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
               }
               
-              // Remove the item so it gets recreated with updated thumbnail
-              fileItem.remove();
+              // The React grid card redraws from the updated model.
               break;
             }
           }
@@ -6495,8 +5764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   }
                 }
                 
-                // Remove the item so it gets recreated with updated thumbnail
-                fileItem.remove();
+                // The React grid card redraws from the updated model.
                 
                 // Trigger re-render of visible items only (preserves filter)
                 if (container && container.renderVisibleItemsFn) {
@@ -6538,8 +5806,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
               }
               
-              // Remove the item so it gets recreated with updated thumbnail
-              fileItem.remove();
+              // The React grid card redraws from the updated model.
               
               // Trigger re-render of visible items
               if (container && container.renderVisibleItemsFn) {
@@ -10536,8 +9803,7 @@ async function scanAndRenderDirectory(directoryPath, background = false, isStlHo
                                   );
                                   if (modelIndex >= 0) {
                                     container.currentModels[modelIndex] = updatedModel;
-                                    // Remove the item so it gets recreated with navigation
-                                    fileItem.remove();
+                                    // The React grid card redraws from the updated model.
                                     // Trigger re-render
                                     if (container.renderVisibleItemsFn) {
                                       container.renderVisibleItemsFn();
@@ -10865,29 +10131,6 @@ async function renderFiles(files, skipThumbnail = false, viewEntireLibrary = fal
 
   // Update counts
   await updateModelCounts(gridFiles.length);
-
-  // Handle thumbnail generation for visible items?
-  // renderVirtualGrid handles creating items, but thumbnail generation might need to be triggered
-  // for visible items if they don't have thumbnails.
-  // Ideally, createModelItem should queue thumbnail generation if missing.
-  // Since createModelItem calls renderModelToPNG only if needed (in our updated logic? No, createModelItem uses '3d.png' default).
-  // We might want to trigger thumbnail generation for models without thumbnails in the background.
-
-  // Note: renderVirtualGrid doesn't currently trigger thumbnail generation automatically for missing thumbnails
-  // except what createModelItem does.
-  // createModelItem in the new code uses model.thumbnail || '3d.png'.
-
-  // Trigger background thumbnail generation for files without thumbnails
-  // This maintains the previous behavior but decouples it from the initial render
-  const filesWithoutThumbnails = files.filter(file => !file.thumbnail);
-  if (filesWithoutThumbnails.length > 0) {
-    // We can use the existing queue mechanism
-    filesWithoutThumbnails.forEach(file => {
-       // Only queue if we haven't already queued it?
-       // For now, let's rely on the user triggers or existing background processes.
-       // Or we can queue them here.
-    });
-  }
 }
 
 // Helper function to wait for window.getCombinedFilteredModels to be available
@@ -11141,71 +10384,19 @@ async function renderModelToPNG(filePath, container, existingThumbnail, options 
             return images[0];
           }
 
-          // After adding thumbnails, update the model in memory if we can find it
+          // Keep the loaded model in step, so its grid card shows the images (and the carousel).
           if (result && result.success) {
-            // Prefer the images we already have — avoid a second full getAllThumbnails WS round-trip.
-            const allThumbs = images;
-            
-            // Update the model object in memory if we can find it
-            // This will help when the item is re-rendered
-            const allFileItems = document.querySelectorAll('.file-item');
+            const grid = document.querySelector('.file-grid');
             const normalizedPath = normalizePathForComparison(filePath);
-            for (const item of allFileItems) {
-              const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-              const normalizedItemPath = normalizePathForComparison(itemPath);
-              if (normalizedItemPath === normalizedPath) {
-                // Store the updated thumbnail string on the element
-                item.dataset.thumbnail = result.thumbnailString || '';
-                
-                // If we added multiple thumbnails, update the existing DOM item to add navigation controls
-                if (allThumbs.length > 1 && currentGridView === 'detailed') {
-                  // Find the existing item and add navigation if in detailed view
-                  const allFileItems = document.querySelectorAll('.file-item');
-                  const normalizedPath = normalizePathForComparison(filePath);
-                  for (const fileItem of allFileItems) {
-                    const itemPath = fileItem.getAttribute('data-filepath') || fileItem.dataset.filepath;
-                    const normalizedItemPath = normalizePathForComparison(itemPath);
-                    if (normalizedItemPath === normalizedPath) {
-                      // Check if it's in detailed view
-                      if (fileItem.classList.contains('file-item-detailed')) {
-                        const existingContainer = fileItem.querySelector('.thumbnail-container');
-                        const existingWrapper = fileItem.querySelector('.thumbnail-wrapper');
-                        
-                        // If navigation wrapper doesn't exist, create it
-                        if (existingContainer && !existingWrapper) {
-                          // Get the updated model with all thumbnails
-                          const updatedModel = await window.electron.getModel(filePath);
-                          if (updatedModel && updatedModel.thumbnail) {
-                            // Re-create the item with navigation - this is the cleanest approach
-                            // But for now, let's just trigger a refresh of this specific item
-                            // by removing it and letting the virtual grid recreate it
-                            const container = document.querySelector('.file-grid');
-                            if (container && container.currentModels) {
-                              // Update the model in the array
-                              const modelIndex = container.currentModels.findIndex(m => 
-                                normalizePathForComparison(m.filePath) === normalizedPath
-                              );
-                              if (modelIndex >= 0) {
-                                container.currentModels[modelIndex] = updatedModel;
-                                // Remove the item so it gets recreated
-                                fileItem.remove();
-                                // Trigger re-render
-                                if (container.renderVisibleItemsFn) {
-                                  setTimeout(() => {
-                                    container.renderVisibleItemsFn();
-                                  }, 100);
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                      break;
-                    }
-                  }
-                }
-                break;
-              }
+            const loaded = Array.isArray(grid?.currentModels)
+              ? grid.currentModels.find((m) => m && normalizePathForComparison(m.filePath) === normalizedPath)
+              : null;
+            if (loaded) {
+              loaded.thumbnail = result.thumbnailString || images.join('::');
+              loaded.hasThumbnail = true;
+              loaded.hasMultipleThumbnails = images.length > 1;
+              syncPrimaryThumbnailCacheFromThumbnailString(filePath, loaded.thumbnail);
+              refreshLibraryGrid();
             }
           }
         } catch (error) {
@@ -14446,40 +13637,6 @@ function resolveContextMenuFilePaths(clickedFilePath) {
   return selected.length ? selected : [];
 }
 
-function addThumbnailMenuButton(thumbnailContainer, filePath) {
-  if (!thumbnailContainer || !filePath) return;
-  if (thumbnailContainer.querySelector('.thumbnail-menu-button')) return;
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'thumbnail-menu-button';
-  button.textContent = '...';
-  button.title = 'Menu';
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const rect = button.getBoundingClientRect();
-    const x = rect.left;
-    const y = rect.bottom;
-
-    try {
-      const paths = resolveContextMenuFilePaths(filePath);
-      const menuResult = paths.length > 1
-        ? await window.electron.showContextMenu(paths)
-        : await window.electron.showContextMenu(paths[0] || filePath);
-
-      if (menuResult && menuResult.type === 'html-menu') {
-        showHtmlContextMenu(menuResult, x, y, { showClose: true });
-      }
-    } catch (error) {
-      console.error('Error showing context menu:', error);
-    }
-  });
-
-  thumbnailContainer.appendChild(button);
-}
-
 // Add this function near other file rendering functions
 function suppressTileTap(fileElement, ms = 600) {
   if (!fileElement) return;
@@ -15863,159 +15020,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-/**
- * Grid queries omit the full `thumbnail` blob (only hasThumbnail / hasMultipleThumbnails).
- * Cards load the primary thumb via getThumbnail for visible rows only.
- * When hasMultipleThumbnails is set, upgrade to carousel via getAllThumbnails
- * (detailed/preview only — never for every grid cell).
- */
-async function maybeUpgradeGridItemToCarousel(thumbnailContainer, model, thumbSize, parseThumbnails) {
-  if (!thumbnailContainer || !model?.filePath || !window.electron?.getAllThumbnails) return;
-  const fileItem = thumbnailContainer.closest('.file-item');
-  const isCarouselView =
-    fileItem &&
-    (fileItem.classList.contains('file-item-detailed') || fileItem.classList.contains('file-item-preview'));
-  if (!isCarouselView) return;
-  if (fileItem.querySelector('.thumbnail-nav-left')) return;
-  if (!model.hasMultipleThumbnails) return;
-  try {
-    const all = await window.electron.getAllThumbnails(model.filePath);
-    const valid = (all || []).filter(
-      (t) => t && typeof t === 'string' && t.length > 0 && t !== '3d.png' && t.startsWith('data:image')
-    );
-    if (valid.length < 2 || !thumbnailContainer.isConnected) return;
-    model.thumbnail = valid.join('::');
-    model.hasMultipleThumbnails = true;
-    model.hasThumbnail = true;
-    syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, model.thumbnail);
-    upgradeGridItemToThumbnailCarousel(thumbnailContainer, model, valid, thumbSize, parseThumbnails);
-  } catch (_) {
-    /* not critical */
-  }
-}
-
-function upgradeGridItemToThumbnailCarousel(thumbnailContainer, model, validThumbnails, thumbSize, parseThumbnails) {
-  const fileItem = thumbnailContainer.closest('.file-item');
-  const isCarouselView =
-    fileItem &&
-    (fileItem.classList.contains('file-item-detailed') || fileItem.classList.contains('file-item-preview'));
-  if (!isCarouselView) return;
-  if (!validThumbnails || validThumbnails.length < 2) return;
-  if (fileItem.querySelector('.thumbnail-nav-left')) return;
-
-  const parent = thumbnailContainer.parentNode;
-  if (!parent) return;
-
-  const thumbnailWrapper = document.createElement('div');
-  thumbnailWrapper.className = 'thumbnail-wrapper';
-  thumbnailWrapper.style.position = 'relative';
-  thumbnailWrapper.style.width = thumbSize.width;
-  thumbnailWrapper.style.height = thumbSize.height;
-  thumbnailWrapper.dataset.thumbnails = JSON.stringify(validThumbnails);
-  thumbnailWrapper.dataset.currentIndex = '0';
-  thumbnailWrapper.dataset.filePath = model.filePath;
-
-  const leftNav = document.createElement('div');
-  leftNav.className = 'thumbnail-nav-left';
-  leftNav.style.cssText = 'position:absolute;left:0;top:0;width:50%;height:100%;cursor:pointer;z-index:10;';
-  leftNav.title = 'Previous image';
-
-  const rightNav = document.createElement('div');
-  rightNav.className = 'thumbnail-nav-right';
-  rightNav.style.cssText = 'position:absolute;right:0;top:0;width:50%;height:100%;cursor:pointer;z-index:10;';
-  rightNav.title = 'Next image';
-
-  const navigateThumbnail = async (direction) => {
-    const wrapper = thumbnailWrapper;
-    let thumbnails = JSON.parse(wrapper.dataset.thumbnails);
-    let currentIndex = parseInt(wrapper.dataset.currentIndex, 10);
-    if (isNaN(currentIndex)) {
-      currentIndex = 0;
-      wrapper.dataset.currentIndex = '0';
-    }
-
-    const validTs = thumbnails.filter(
-      (t) => t && typeof t === 'string' && t.length > 0 && t !== '3d.png'
-    );
-    if (validTs.length !== thumbnails.length) {
-      thumbnails = validTs;
-      wrapper.dataset.thumbnails = JSON.stringify(thumbnails);
-    }
-    if (validTs.length === 0) return;
-    if (currentIndex >= validTs.length) currentIndex = 0;
-
-    if (direction === 'prev') {
-      currentIndex = (currentIndex - 1 + validTs.length) % validTs.length;
-    } else {
-      currentIndex = (currentIndex + 1) % validTs.length;
-    }
-    wrapper.dataset.currentIndex = String(currentIndex);
-
-    if (wrapper._updateBadge) wrapper._updateBadge();
-    const navImg = wrapper.querySelector('.thumbnail-container img');
-    if (navImg) {
-      navImg.src = validTs[currentIndex];
-      if (wrapper._saveTimeout) clearTimeout(wrapper._saveTimeout);
-      wrapper._saveTimeout = setTimeout(async () => {
-        try {
-          const idxToSave = parseInt(wrapper.dataset.currentIndex, 10) || 0;
-          const thumbs = JSON.parse(wrapper.dataset.thumbnails);
-          if (thumbs && thumbs.length > idxToSave && idxToSave >= 0) {
-            await window.electron.setDefaultThumbnail(model.filePath, idxToSave);
-            const updatedModel = await window.electron.getModel(model.filePath);
-            if (updatedModel && updatedModel.thumbnail) {
-              model.thumbnail = updatedModel.thumbnail;
-              const reordered = parseThumbnails(updatedModel.thumbnail);
-              syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, updatedModel.thumbnail);
-              wrapper.dataset.thumbnails = JSON.stringify(reordered);
-              wrapper.dataset.currentIndex = '0';
-              if (wrapper._updateBadge) wrapper._updateBadge();
-              const imgEl = wrapper.querySelector('.thumbnail-container img');
-              if (imgEl && reordered[0]) imgEl.src = reordered[0];
-            }
-          }
-        } catch (e) {
-          console.error('Error saving default thumbnail:', e);
-        }
-      }, 2000);
-    }
-  };
-
-  leftNav.addEventListener('click', (e) => {
-    e.stopPropagation();
-    navigateThumbnail('prev');
-  });
-  rightNav.addEventListener('click', (e) => {
-    e.stopPropagation();
-    navigateThumbnail('next');
-  });
-
-  const badge = document.createElement('div');
-  badge.className = 'thumbnail-count-badge';
-  const updateBadgeText = () => {
-    const currentIdx = parseInt(thumbnailWrapper.dataset.currentIndex, 10) || 0;
-    const currentThumbs = JSON.parse(
-      thumbnailWrapper.dataset.thumbnails || JSON.stringify(validThumbnails)
-    );
-    const total = currentThumbs.length;
-    badge.textContent = `${currentIdx + 1}/${total}`;
-    badge.title = `Image ${currentIdx + 1} of ${total} - Click left/right to navigate`;
-  };
-  updateBadgeText();
-  badge.style.cssText =
-    'position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;z-index:11;pointer-events:none;';
-  thumbnailWrapper._updateBadge = updateBadgeText;
-
-  parent.insertBefore(thumbnailWrapper, thumbnailContainer);
-  thumbnailWrapper.appendChild(leftNav);
-  thumbnailWrapper.appendChild(rightNav);
-  thumbnailWrapper.appendChild(badge);
-  thumbnailWrapper.appendChild(thumbnailContainer);
-
-  const imgEl = thumbnailContainer.querySelector('img');
-  if (imgEl && validThumbnails[0]) imgEl.src = validThumbnails[0];
-}
-
 function normalizeModelRatingValue(value) {
   const n = parseInt(value, 10);
   if (Number.isNaN(n) || n < 0) return 0;
@@ -16180,1541 +15184,6 @@ function createModelEngagementBar(context, options = {}) {
   updateEngagementBarDisplay(bar, rating, favorite);
 
   return bar;
-}
-
-// Helper function to create a DOM element for a model item
-function createModelItem(model, viewMode = null, thumbPriority = THUMB_PRIORITY_BACKGROUND) {
-  const view = viewMode || currentGridView;
-  const item = document.createElement('div');
-  item.className = `file-item file-item-${view}`;
-  item.dataset.filepath = model.filePath;
-  registerFileItemElement(item, model.filePath);
-
-  if (isInSelectedModels(model.filePath)) {
-    item.classList.add('selected');
-  }
-
-  // Print status element
-  const printStatus = document.createElement('div');
-  if (window.PrintHistory) {
-    window.PrintHistory.applyBadge(printStatus, model);
-    window.PrintHistory.bindBadge(printStatus, model.filePath);
-  } else {
-    printStatus.className = 'print-status' + (model.printed ? ' printed' : '');
-    printStatus.textContent = model.printed ? 'Printed' : 'Not Printed';
-  }
-  item.appendChild(printStatus);
-
-  // Archive status element (for models inside ZIP archives)
-  const isZipEntry = model.filePath && model.filePath.includes('::');
-  let archiveStatus = null;
-  if (isZipEntry) {
-    archiveStatus = document.createElement('div');
-    archiveStatus.className = 'archive-status';
-    archiveStatus.textContent = 'Archive';
-    item.appendChild(archiveStatus);
-  }
-
-  // Define thumbnail sizes based on view mode (optimized)
-  const previewPx = view === 'preview' ? getPreviewTileSizePx() : 0;
-  const thumbnailSizes = {
-    'list': { width: '48px', height: '48px' },      // Slightly larger for better visibility
-    'preview': { width: `${previewPx}px`, height: `${previewPx}px` },
-    'detailed': { width: '276px', height: '276px' }  // Optimized large thumbnail
-  };
-  
-  const thumbSize = thumbnailSizes[view] || thumbnailSizes['detailed'];
-  
-  // Thumbnail container with size based on view mode
-  const thumbnailContainer = document.createElement('div');
-  thumbnailContainer.className = 'thumbnail-container';
-  addThumbnailMenuButton(thumbnailContainer, model.filePath);
-
-  // Parse thumbnails to check if multiple exist
-  const parseThumbnails = (thumbnailString) => {
-    if (!thumbnailString || thumbnailString === '3d.png' || !thumbnailString.includes('::')) {
-      return [thumbnailString].filter(t => t && t !== '3d.png' && t.length > 0);
-    }
-    // Split and filter out invalid entries - only keep valid data URLs
-    return thumbnailString.split('::').filter(t => {
-      return t && typeof t === 'string' && t.length > 0 && t !== '3d.png' && t.startsWith('data:image');
-    });
-  };
-
-  // Parse thumbnails from model.thumbnail if available
-  // The model.thumbnail should contain all thumbnails separated by ::
-  // List queries omit the blob but may set hasMultipleThumbnails from SQL.
-  const thumbnailString = model.thumbnail;
-  let hasThumbnailFlag = !!model.hasThumbnail;
-  const modelExt = extensionFromModelPath(model.filePath);
-  const imageOnlyMiss = hasImageOnlyPreviewMiss(model.filePath);
-  
-  const allThumbnails = thumbnailString ? parseThumbnails(thumbnailString) : [];
-  let hasMultipleThumbnails = allThumbnails.length > 1 || !!model.hasMultipleThumbnails;
-  const currentThumbnailIndex = 0; // Start with first thumbnail (default)
-  let currentThumbnail = allThumbnails.length > 0 ? allThumbnails[currentThumbnailIndex] : null;
-
-  // Stuck Docker failure art (corrupted / typed STL) must not block regeneration.
-  // Image-only extract misses intentionally show a typed label — do not clear/re-queue those.
-  if (currentThumbnail && isFailurePlaceholderThumbnail(currentThumbnail) && !imageOnlyMiss) {
-    currentThumbnail = null;
-    hasThumbnailFlag = false;
-    hasMultipleThumbnails = false;
-  }
-
-  if (imageOnlyMiss && !currentThumbnail) {
-    currentThumbnail = generateTypedPlaceholder(modelExt);
-    hasThumbnailFlag = true;
-  }
-  
-  // Add image element right away to reserve space
-  const img = document.createElement('img');
-  if (view === 'preview') {
-    img.style.width = '100%';
-    img.style.height = '100%';
-  } else {
-    img.style.width = thumbSize.width;
-    img.style.height = thumbSize.height;
-  }
-  img.src = currentThumbnail || '3d.png';
-  thumbnailContainer.appendChild(img);
-
-  if (isModelNew(model)) {
-    const newStatusEl = document.createElement('div');
-    newStatusEl.className = 'new-status';
-    newStatusEl.textContent = 'New';
-    newStatusEl.title = 'New model — clears once you edit it';
-    thumbnailContainer.appendChild(newStatusEl);
-  }
-
-  // Visible-row thumbnail hydrate: primary only (getThumbnail). Virtual scroll already
-  // limits createModelItem to on-screen (+buffer) rows — never fetch all thumbs for the grid
-  // unless hasMultipleThumbnails (then upgrade to carousel in detailed/preview).
-  if (model.filePath && !currentThumbnail && hasThumbnailFlag) {
-    fetchPrimaryThumbnailForGrid(model.filePath).then(async (thumb) => {
-      if (!img.isConnected) return;
-
-      if (thumb && !isFailurePlaceholderThumbnail(thumb)) {
-        img.src = thumb;
-        model.thumbnail = thumb;
-        model.hasThumbnail = true;
-        if ((view === 'detailed' || view === 'preview') && hasMultipleThumbnails) {
-          model.hasMultipleThumbnails = true;
-          await maybeUpgradeGridItemToCarousel(thumbnailContainer, model, thumbSize, parseThumbnails);
-        }
-        return;
-      }
-
-      // Flagged as having a thumb but empty/clipped — queue a re-render (detailed/preview).
-      if (view !== 'detailed' && view !== 'preview') return;
-      if (hasImageOnlyPreviewMiss(model.filePath)) return;
-      if (pendingThumbnails.has(model.filePath)) return;
-      pendingThumbnails.add(model.filePath);
-      enqueueRenderTask({
-        filePath: model.filePath,
-        container: thumbnailContainer,
-        thumbPriority,
-        resolve: async (thumbnail) => {
-          pendingThumbnails.delete(model.filePath);
-          if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholderThumbnail(thumbnail)) {
-            if (hasImageOnlyPreviewMiss(model.filePath) && img.isConnected) {
-              img.src = thumbnail && thumbnail !== '3d.png'
-                ? thumbnail
-                : generateTypedPlaceholder(extensionFromModelPath(model.filePath));
-            }
-            return;
-          }
-          if (await isMostlyEmptyThumbnailDataUrl(thumbnail)) return;
-          // Late queue finish must not wipe a user-added / multi-image default.
-          try {
-            const existingModel = await window.electron.getModel(model.filePath);
-            const existingRaw = existingModel?.thumbnail || '';
-            const existingParts =
-              typeof existingRaw === 'string' && existingRaw.includes('::')
-                ? existingRaw.split('::').filter(
-                    (t) =>
-                      t &&
-                      t !== '3d.png' &&
-                      t.startsWith('data:image') &&
-                      !isFailurePlaceholderThumbnail(t)
-                  )
-                : existingRaw &&
-                    existingRaw !== '3d.png' &&
-                    existingRaw.startsWith('data:image') &&
-                    !isFailurePlaceholderThumbnail(existingRaw)
-                  ? [existingRaw]
-                  : [];
-            if (existingParts.length > 0) {
-              model.thumbnail = existingRaw;
-              model.hasThumbnail = true;
-              model.hasMultipleThumbnails = existingParts.length > 1;
-              syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, existingRaw);
-              if (img.isConnected) img.src = existingParts[0];
-              if (existingParts.length > 1) {
-                await maybeUpgradeGridItemToCarousel(thumbnailContainer, model, thumbSize, parseThumbnails);
-              }
-              return;
-            }
-          } catch (_) { /* fall through to save */ }
-          model.thumbnail = thumbnail;
-          model.hasThumbnail = true;
-          invalidatePrimaryThumbnailCache(model.filePath);
-          setCachedPrimaryThumbnail(model.filePath, thumbnail);
-          try {
-            await window.electron.saveThumbnail(model.filePath, thumbnail);
-          } catch (e) { /* ignore */ }
-          if (img.isConnected) img.src = thumbnail;
-          invalidateGroupThumbnailCache();
-          if (window._groupThumbRefreshTimer) clearTimeout(window._groupThumbRefreshTimer);
-          window._groupThumbRefreshTimer = setTimeout(() => {
-            window._groupThumbRefreshTimer = null;
-            const grid = document.querySelector('.file-grid');
-            if (grid?.renderVisibleItemsFn) grid.renderVisibleItemsFn();
-          }, 250);
-        },
-        reject: (error) => {
-          // Benign prune/soft-cap: dropRenderTask already managed pending (and must not
-          // clear it while the same path is mid-render).
-          if (isBenignThumbnailDropError(error)) return;
-          pendingThumbnails.delete(model.filePath);
-          console.error(`Failed to generate thumbnail for ${model.filePath}`, error);
-        }
-      });
-      if (typeof processRenderQueue === 'function') processRenderQueue();
-    }).catch(() => { /* not critical */ });
-  } else if (
-    model.filePath &&
-    currentThumbnail &&
-    hasMultipleThumbnails &&
-    allThumbnails.length < 2 &&
-    (view === 'detailed' || view === 'preview')
-  ) {
-    // List row had only the primary blob (or a single cached thumb) but SQL says multi —
-    // upgrade to carousel without waiting for a full re-fetch of the model.
-    model.hasMultipleThumbnails = true;
-    maybeUpgradeGridItemToCarousel(thumbnailContainer, model, thumbSize, parseThumbnails);
-  }
-
-  // In detailed or preview view with multiple thumbnails, wrap in navigation container
-  let thumbnailWrapper = thumbnailContainer;
-  if ((view === 'detailed' || view === 'preview') && allThumbnails.length > 1) {
-    thumbnailWrapper = document.createElement('div');
-    thumbnailWrapper.className = 'thumbnail-wrapper';
-    thumbnailWrapper.style.position = 'relative';
-    thumbnailWrapper.style.width = thumbSize.width;
-    thumbnailWrapper.style.height = thumbSize.height;
-    
-    // Store thumbnails and current index on the wrapper
-    thumbnailWrapper.dataset.thumbnails = JSON.stringify(allThumbnails);
-    thumbnailWrapper.dataset.currentIndex = currentThumbnailIndex;
-    thumbnailWrapper.dataset.filePath = model.filePath;
-    
-    // Left navigation area
-    const leftNav = document.createElement('div');
-    leftNav.className = 'thumbnail-nav-left';
-    leftNav.style.position = 'absolute';
-    leftNav.style.left = '0';
-    leftNav.style.top = '0';
-    leftNav.style.width = '50%';
-    leftNav.style.height = '100%';
-    leftNav.style.cursor = 'pointer';
-    leftNav.style.zIndex = '10';
-    leftNav.title = 'Previous image';
-    
-    // Right navigation area
-    const rightNav = document.createElement('div');
-    rightNav.className = 'thumbnail-nav-right';
-    rightNav.style.position = 'absolute';
-    rightNav.style.right = '0';
-    rightNav.style.top = '0';
-    rightNav.style.width = '50%';
-    rightNav.style.height = '100%';
-    rightNav.style.cursor = 'pointer';
-    rightNav.style.zIndex = '10';
-    rightNav.title = 'Next image';
-    
-    // Navigation click handlers
-    const navigateThumbnail = async (direction) => {
-      const wrapper = thumbnailWrapper;
-      const thumbnails = JSON.parse(wrapper.dataset.thumbnails);
-      // Read current index from dataset - this should persist between clicks
-      let currentIndex = parseInt(wrapper.dataset.currentIndex);
-      if (isNaN(currentIndex)) {
-        currentIndex = 0;
-        wrapper.dataset.currentIndex = '0';
-      }
-      
-      // Filter out any invalid thumbnails
-      const validThumbnails = thumbnails.filter(t => t && typeof t === 'string' && t.length > 0 && t !== '3d.png');
-      if (validThumbnails.length !== thumbnails.length) {
-        wrapper.dataset.thumbnails = JSON.stringify(validThumbnails);
-        // Update badge
-        if (wrapper._updateBadge) {
-          wrapper._updateBadge();
-        } else {
-          const badge = wrapper.querySelector('.thumbnail-count-badge');
-          if (badge) {
-            const currentIdx = parseInt(wrapper.dataset.currentIndex) || 0;
-            badge.textContent = `${currentIdx + 1}/${validThumbnails.length}`;
-            badge.title = `Image ${currentIdx + 1} of ${validThumbnails.length} - Click left/right to navigate`;
-          }
-        }
-      }
-      
-      if (validThumbnails.length === 0) {
-        return;
-      }
-      
-      // Adjust currentIndex if it's out of bounds
-      if (currentIndex >= validThumbnails.length) {
-        currentIndex = 0;
-      }
-      
-      // Calculate new index
-      if (direction === 'prev') {
-        currentIndex = (currentIndex - 1 + validThumbnails.length) % validThumbnails.length;
-      } else {
-        currentIndex = (currentIndex + 1) % validThumbnails.length;
-      }
-      
-      // IMPORTANT: Update the dataset BEFORE doing anything else so it persists
-      wrapper.dataset.currentIndex = currentIndex.toString();
-      
-      // Update badge to show current position
-      if (wrapper._updateBadge) {
-        wrapper._updateBadge();
-      } else {
-        const badge = wrapper.querySelector('.thumbnail-count-badge');
-        if (badge) {
-          badge.textContent = `${currentIndex + 1}/${validThumbnails.length}`;
-          badge.title = `Image ${currentIndex + 1} of ${validThumbnails.length} - Click left/right to navigate`;
-        }
-      }
-      
-      const img = wrapper.querySelector('.thumbnail-container img');
-      if (img) {
-        const newSrc = validThumbnails[currentIndex];
-        img.src = newSrc;
-        
-        // Debounced save - save the current thumbnail as default after user stops navigating
-        // This ensures the last viewed image becomes the default for preview/list views
-        // Clear any existing timeout
-        if (wrapper._saveTimeout) {
-          clearTimeout(wrapper._saveTimeout);
-        }
-        
-        // Save after 2 seconds of no navigation
-        wrapper._saveTimeout = setTimeout(async () => {
-          try {
-            const idxToSave = parseInt(wrapper.dataset.currentIndex) || 0;
-            const thumbs = JSON.parse(wrapper.dataset.thumbnails);
-            if (thumbs && thumbs.length > idxToSave && idxToSave >= 0) {
-              await window.electron.setDefaultThumbnail(model.filePath, idxToSave);
-              // Update the model in memory with the reordered thumbnails
-              const updatedModel = await window.electron.getModel(model.filePath);
-              if (updatedModel && updatedModel.thumbnail) {
-                model.thumbnail = updatedModel.thumbnail;
-                // Update the dataset with the new order (selected one moved to front)
-                const reorderedThumbs = parseThumbnails(updatedModel.thumbnail);
-                syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, updatedModel.thumbnail);
-                wrapper.dataset.thumbnails = JSON.stringify(reorderedThumbs);
-                wrapper.dataset.currentIndex = '0'; // Reset to 0 since selected is now at front
-                // Update badge after reordering
-                if (wrapper._updateBadge) {
-                  wrapper._updateBadge();
-                } else {
-                  const badge = wrapper.querySelector('.thumbnail-count-badge');
-                  if (badge) {
-                    badge.textContent = `1/${reorderedThumbs.length}`;
-                    badge.title = `Image 1 of ${reorderedThumbs.length} - Click left/right to navigate`;
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.error('Error saving default thumbnail:', e);
-          }
-        }, 2000); // 2 second delay
-      }
-    };
-    
-    leftNav.addEventListener('click', (e) => {
-      e.stopPropagation();
-      navigateThumbnail('prev');
-    });
-    
-    rightNav.addEventListener('click', (e) => {
-      e.stopPropagation();
-      navigateThumbnail('next');
-    });
-    
-    thumbnailWrapper.appendChild(leftNav);
-    thumbnailWrapper.appendChild(rightNav);
-    
-    // Add indicator badge showing number of images
-    const badge = document.createElement('div');
-    badge.className = 'thumbnail-count-badge';
-    // Helper function to update badge text
-    const updateBadgeText = () => {
-      const currentIdx = parseInt(thumbnailWrapper.dataset.currentIndex) || 0;
-      // Get current thumbnails from dataset (may have been filtered)
-      const currentThumbs = JSON.parse(thumbnailWrapper.dataset.thumbnails || JSON.stringify(allThumbnails));
-      const total = currentThumbs.length;
-      badge.textContent = `${currentIdx + 1}/${total}`;
-      badge.title = `Image ${currentIdx + 1} of ${total} - Click left/right to navigate`;
-    };
-    updateBadgeText();
-    badge.style.position = 'absolute';
-    badge.style.bottom = '8px';
-    badge.style.right = '8px';
-    badge.style.background = 'rgba(0, 0, 0, 0.7)';
-    badge.style.color = '#fff';
-    badge.style.padding = '4px 8px';
-    badge.style.borderRadius = '12px';
-    badge.style.fontSize = '12px';
-    badge.style.fontWeight = 'bold';
-    badge.style.zIndex = '11';
-    badge.style.pointerEvents = 'none';
-    // Store update function on wrapper for later use
-    thumbnailWrapper._updateBadge = updateBadgeText;
-    thumbnailWrapper.appendChild(badge);
-    
-  }
-
-  // Only queue if it doesn't have a thumbnail string AND the flag is false
-  if (!currentThumbnail && !hasThumbnailFlag) {
-    // During Docker bulk Generate Missing / Regenerate, skip grid WebGL queues —
-    // scrolling must not compete with the hidden-window job (OOM).
-    if (window._serverBulkThumbnailJobActive) {
-      // keep placeholder; job will fill thumbs server-side
-    } else if (hasImageOnlyPreviewMiss(model.filePath)) {
-      img.src = generateTypedPlaceholder(extensionFromModelPath(model.filePath));
-    } else if (!pendingThumbnails.has(model.filePath)) {
-      pendingThumbnails.add(model.filePath);
-
-      enqueueRenderTask({
-        filePath: model.filePath,
-        container: thumbnailContainer,
-        thumbPriority,
-        resolve: async (thumbnail) => {
-          // Remove from pending set first
-          pendingThumbnails.delete(model.filePath);
-
-          // Never persist failure placeholders — leave retryable (hasThumbnail=0 via 3d.png).
-          // Image-only extract misses cannot mesh-render — stop the hydrate loop.
-          if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholderThumbnail(thumbnail)) {
-            if (hasImageOnlyPreviewMiss(model.filePath)) {
-              const imgEl = thumbnailContainer.querySelector('img');
-              if (imgEl) {
-                imgEl.src = thumbnail && thumbnail !== '3d.png'
-                  ? thumbnail
-                  : generateTypedPlaceholder(extensionFromModelPath(model.filePath));
-              }
-              return;
-            }
-            if (thumbnail && isFailurePlaceholderThumbnail(thumbnail)) {
-              // Show failure in this cell only; do not write to DB.
-              const imgEl = thumbnailContainer.querySelector('img');
-              if (imgEl) imgEl.src = thumbnail;
-            }
-            // Cell may have been recycled mid-render — re-queue any still-visible placeholder.
-            scheduleVisibleThumbnailHydrate();
-            return;
-          }
-          if (await isMostlyEmptyThumbnailDataUrl(thumbnail)) {
-            scheduleVisibleThumbnailHydrate();
-            return;
-          }
-          
-          // Check if model already has real thumbnail(s) (3MF embeds, user-added HueForge, etc.).
-          // Prefer getModel over getAllThumbnails so the grid path never loads every blob list.
-          // Never clobber a single user-added image either — only write when there is no real thumb yet.
-          const modelData = await window.electron.getModel(model.filePath);
-          const existingRaw = modelData?.thumbnail || '';
-          const existingMulti = typeof existingRaw === 'string' && existingRaw.includes('::')
-            ? existingRaw.split('::').filter((t) => t && t !== '3d.png' && t.startsWith('data:image') && !isFailurePlaceholderThumbnail(t))
-            : [];
-          const existingSingle =
-            existingMulti.length === 0 &&
-            existingRaw &&
-            existingRaw !== '3d.png' &&
-            typeof existingRaw === 'string' &&
-            existingRaw.startsWith('data:image') &&
-            !isFailurePlaceholderThumbnail(existingRaw)
-              ? existingRaw
-              : null;
-          if (existingMulti.length > 0) {
-            model.thumbnail = existingRaw;
-            model.hasThumbnail = true;
-            model.hasMultipleThumbnails = existingMulti.length > 1;
-            syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, existingRaw);
-          } else if (existingSingle) {
-            model.thumbnail = existingSingle;
-            model.hasThumbnail = true;
-            model.hasMultipleThumbnails = false;
-            syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, existingSingle);
-          } else {
-            model.thumbnail = thumbnail;
-            model.hasThumbnail = true;
-            invalidatePrimaryThumbnailCache(model.filePath);
-            setCachedPrimaryThumbnail(model.filePath, thumbnail);
-            await window.electron.saveThumbnail(model.filePath, thumbnail);
-          }
-
-          // Try to update any visible instances of this file in the DOM
-          try {
-            // Find the file item by iterating through all file items
-            // This avoids CSS escaping issues with special characters in file paths
-            const allFileItems = document.querySelectorAll('.file-item');
-            let fileItem = null;
-            const normalizedModelPath = normalizePathForComparison(model.filePath);
-            for (const item of allFileItems) {
-              const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-              const normalizedItemPath = normalizePathForComparison(itemPath);
-              if (normalizedItemPath === normalizedModelPath) {
-                fileItem = item;
-                break;
-              }
-            }
-            
-            if (fileItem) {
-              // Force a refresh of the entire item to ensure all styling and event listeners are reapplied
-              const itemIndex = parseInt(fileItem.dataset.index || '-1');
-              const itemParent = fileItem.parentNode;
-              
-              if (itemParent && itemIndex >= 0) {
-                // Get the item's current position
-                const itemPosition = {
-                  top: fileItem.style.top,
-                  left: fileItem.style.left,
-                  width: fileItem.style.width
-                };
-                
-                // Preserve virtual-grid and grouped-highlight state before replacing the node.
-                const preservedLayoutKey = fileItem.dataset.layoutKey || '';
-                const preservedParentGroupKey = fileItem.dataset.parentGroupKey || '';
-                const preserveGroupedClasses = [
-                  'parent-model-group-child',
-                  'parent-model-group-child-start',
-                  'parent-model-group-child-middle',
-                  'parent-model-group-child-end',
-                  'parent-model-group-child-single'
-                ];
-                const groupedClassesToRestore = preserveGroupedClasses.filter(cls => fileItem.classList.contains(cls));
-
-                // Remove the old item
-                fileItem.remove();
-                
-                // Create a new item with the updated thumbnail
-                const newItem = createModelItem(model, currentGridView);
-                newItem.dataset.index = itemIndex;
-                if (preservedLayoutKey) newItem.dataset.layoutKey = preservedLayoutKey;
-                if (preservedParentGroupKey) newItem.dataset.parentGroupKey = preservedParentGroupKey;
-                groupedClassesToRestore.forEach(cls => newItem.classList.add(cls));
-                newItem.style.position = 'absolute';
-                newItem.style.top = itemPosition.top;
-                newItem.style.left = itemPosition.left;
-                newItem.style.width = itemPosition.width;
-                if (fileItem.style.height) newItem.style.height = fileItem.style.height;
-                if (fileItem.style.minHeight) newItem.style.minHeight = fileItem.style.minHeight;
-                if (fileItem.style.maxHeight) newItem.style.maxHeight = fileItem.style.maxHeight;
-                newItem.style.pointerEvents = 'auto';
-                
-                // Add the new item to the DOM
-                itemParent.appendChild(newItem);
-              }
-            }
-          } catch (e) {
-            console.error('Error refreshing item after thumbnail generation:', e);
-          }
-        },
-        reject: (error) => {
-          // Benign prune/soft-cap: dropRenderTask already managed pending (and must not
-          // clear it while the same path is mid-render).
-          if (isBenignThumbnailDropError(error)) return;
-          pendingThumbnails.delete(model.filePath);
-          console.error(`Failed to generate thumbnail for ${model.filePath}`, error);
-        }
-      });
-
-      // Trigger queue processing
-      processRenderQueue();
-    } else {
-      // Already pending — point the queued job at this cell (DOM may have been recycled).
-      const queued = findQueuedThumbnailTask(model.filePath);
-      if (queued) {
-        queued.container = thumbnailContainer;
-        queued.thumbPriority = thumbPriority;
-      }
-    }
-  }
-
-  // Append wrapper if it exists (detailed view with multiple thumbnails), otherwise append container directly
-  if (thumbnailWrapper !== thumbnailContainer) {
-    thumbnailWrapper.appendChild(thumbnailContainer);
-    item.appendChild(thumbnailWrapper);
-  } else {
-    item.appendChild(thumbnailContainer);
-  }
-
-  // Parent directory label — full path including drive (not just leaf folder name)
-  const parentDir = getDirectoryDisplayLabel(model.filePath);
-  const parentDirFullPath = getParentDirectoryFullPath(model.filePath);
-
-  // File info container - layout depends on view mode
-  const fileInfo = document.createElement('div');
-  fileInfo.className = 'file-info';
-
-  // File name element
-  const fileName = document.createElement('div');
-  fileName.className = 'file-name';
-  // Extract file name from path if fileName is not available
-  // Handle zip entries (format: "zipPath::entryPath")
-  let displayFileName = model.fileName;
-  if (!displayFileName && model.filePath) {
-    if (model.filePath.includes('::')) {
-      // Zip entry: extract filename from entry path
-      const entryPath = model.filePath.split('::')[1];
-      displayFileName = entryPath.split(/[/\\]/).pop() || 'Unknown';
-    } else {
-      // Regular file: extract filename from path
-      displayFileName = model.filePath.split(/[/\\]/).pop() || 'Unknown';
-    }
-  }
-  if (!displayFileName) {
-    displayFileName = 'Unknown';
-  }
-  fileName.textContent = displayFileName;
-  
-  // Check if model is a zip file (actual .zip file, not a file inside a zip)
-  // Only check if it's NOT a zip entry (zip entries have :: in filePath)
-  // Note: isZipEntry is already declared earlier in the function (line 7805)
-  const isZipFile = !isZipEntry && (
-    (model.filePath && model.filePath.toLowerCase().endsWith('.zip')) || 
-    (displayFileName && displayFileName.toLowerCase().endsWith('.zip'))
-  );
-  
-  // In detailed view, add file name directly after thumbnail, not in fileInfo
-  // List: name in fileInfo. Preview wall: name only in hover overlay (not in fileInfo).
-  if (view === 'detailed') {
-    // File name will be added after thumbnail in detailed view section
-  } else if (view !== 'preview') {
-    fileInfo.appendChild(fileName);
-  }
-
-  // File details container (directory, size, designer) - only show in detailed and list views
-  const fileDetails = document.createElement('div');
-  fileDetails.className = 'file-details';
-  
-  // In list view, show Windows File Explorer style - thin horizontal row with details
-  if (view === 'list') {
-    // Get status indicators that were already added to item - we'll move them to columns later
-    // Note: These are added to item early in the function (lines 7099-7111), so they should be findable here
-    const printStatusElement = item.querySelector('.print-status');
-    const archiveStatusElement = item.querySelector('.archive-status');
-    
-    // List view: horizontal layout with tiny thumbnail on left, details on right
-    item.style.display = 'flex';
-    item.style.flexDirection = 'row';
-    item.style.alignItems = 'center';
-    item.style.gap = '12px';
-    item.style.padding = '6px 12px';
-    item.style.height = '52px';
-    item.style.position = 'relative';
-    thumbnailContainer.style.flexShrink = '0';
-    thumbnailContainer.style.width = '48px';
-    thumbnailContainer.style.height = '48px';
-    thumbnailContainer.style.position = 'relative';
-    fileInfo.style.flex = '1';
-    fileInfo.style.display = 'flex';
-    fileInfo.style.flexDirection = 'row';
-    fileInfo.style.alignItems = 'center';
-    fileInfo.style.gap = '12px';
-    fileInfo.style.minWidth = '0';
-    
-    // File name column (width from list view column preferences)
-    fileName.setAttribute('data-list-col', 'name');
-    fileName.style.flexShrink = '0';
-    fileName.style.overflow = 'hidden';
-    fileName.style.textOverflow = 'ellipsis';
-    fileName.style.whiteSpace = 'nowrap';
-    fileName.style.fontSize = '13px';
-    // Add tooltip for truncated file names
-    if (displayFileName) {
-      fileName.setAttribute('title', displayFileName);
-    }
-    // Apply zip file styling (isZipFile was already calculated above)
-    if (isZipFile) {
-      fileName.classList.add('zip-file');
-      fileName.style.setProperty('color', '#4ade80', 'important'); // Green for zip files
-    } else {
-      fileName.style.setProperty('color', '#fff', 'important'); // White for non-zip files
-    }
-    
-    // File size column (center-aligned; width from preferences)
-    const sizeColumn = document.createElement('div');
-    sizeColumn.className = 'file-size-column';
-    sizeColumn.setAttribute('data-list-col', 'size');
-    sizeColumn.style.display = 'flex';
-    sizeColumn.style.alignItems = 'center';
-    sizeColumn.style.flexShrink = '0';
-    sizeColumn.style.justifyContent = 'center';
-    if (model.size) {
-      const sizeText = document.createElement('span');
-      sizeText.textContent = formatFileSize(model.size);
-      sizeText.style.fontSize = '12px';
-      sizeText.style.color = '#aaa';
-      sizeText.style.fontFamily = 'monospace';
-      sizeColumn.appendChild(sizeText);
-    }
-    fileInfo.appendChild(sizeColumn);
-    
-    // Date Added column (center-aligned; width from preferences)
-    const dateAddedColumn = document.createElement('div');
-    dateAddedColumn.className = 'date-added-column';
-    dateAddedColumn.setAttribute('data-list-col', 'dateadded');
-    dateAddedColumn.style.display = 'flex';
-    dateAddedColumn.style.alignItems = 'center';
-    dateAddedColumn.style.flexShrink = '0';
-    dateAddedColumn.style.justifyContent = 'center';
-    if (model.dateAdded) {
-      const dateText = document.createElement('span');
-      const date = new Date(model.dateAdded);
-      // Format date as MM/DD/YYYY or use locale string
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      });
-      dateText.textContent = formattedDate;
-      dateText.style.fontSize = '12px';
-      dateText.style.color = '#aaa';
-      dateText.style.fontFamily = 'monospace';
-      // Add tooltip with full date/time if available
-      if (model.dateAdded) {
-        const fullDate = new Date(model.dateAdded);
-        dateText.setAttribute('title', fullDate.toLocaleString());
-      }
-      dateAddedColumn.appendChild(dateText);
-    } else {
-      const emptyText = document.createElement('span');
-      emptyText.textContent = '—';
-      emptyText.style.fontSize = '12px';
-      emptyText.style.color = '#666';
-      dateAddedColumn.appendChild(emptyText);
-    }
-    fileInfo.appendChild(dateAddedColumn);
-    
-    // Parent directory column (clickable to filter, with icon)
-    const directoryColumn = document.createElement('div');
-    directoryColumn.className = 'directory-info-column';
-    directoryColumn.setAttribute('data-list-col', 'directory');
-    directoryColumn.style.display = 'flex';
-    directoryColumn.style.alignItems = 'center';
-    directoryColumn.style.flexShrink = '0';
-    directoryColumn.style.overflow = 'hidden';
-    
-    // Add folder icon or archive icon based on whether model is in zip archive
-    const parentIcon = isZipEntry 
-      ? createSVGIcon('<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#22c55e"><path d="M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80ZM447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z"/></svg>', 16)
-      : createSVGIcon('<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#e3e3e3"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>', 16);
-    directoryColumn.appendChild(parentIcon);
-    
-    const directoryText = document.createElement('span');
-    directoryText.className = 'directory-info';
-    directoryText.textContent = parentDir || '';
-    directoryText.style.fontSize = '12px';
-    directoryText.style.color = parentDir ? '#4a9eff' : '#888';
-    directoryText.style.overflow = 'hidden';
-    directoryText.style.textOverflow = 'ellipsis';
-    directoryText.style.whiteSpace = 'nowrap';
-    directoryText.style.cursor = parentDir ? 'pointer' : 'default';
-    directoryText.style.fontWeight = parentDir ? '500' : '400';
-    directoryText.style.flex = '1';
-    directoryText.style.minWidth = '0';
-    // Add tooltip for truncated directory names (full path, including drive)
-    if (parentDir) {
-      directoryText.setAttribute('title', parentDirFullPath || parentDir);
-    }
-    
-    // Add click handler to filter by directory
-    if (parentDir) {
-      directoryColumn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Extract the full path up to the parent directory for filtering
-        let directoryFilterPath;
-        if (model.filePath && model.filePath.includes('::')) {
-          // For zip entries, use the zip path up to the parent directory
-          const [zipPath, entryPath] = model.filePath.split('::');
-          const entryParentPath = entryPath.split(/[/\\]/).slice(0, -1).join('/');
-          directoryFilterPath = entryParentPath ? `${zipPath}::${entryParentPath}` : zipPath;
-        } else {
-          // For regular files, get the full path up to the parent directory
-          // Make sure we're getting the directory, not the file itself
-          const lastSlash = Math.max(model.filePath.lastIndexOf('\\'), model.filePath.lastIndexOf('/'));
-          if (lastSlash > 0) {
-            directoryFilterPath = model.filePath.substring(0, lastSlash);
-            // Ensure we have a valid directory path (not a file path)
-            if (!directoryFilterPath || directoryFilterPath.endsWith('.zip') || directoryFilterPath.endsWith('.stl') || directoryFilterPath.endsWith('.3mf')) {
-              // If somehow we got a file path, extract the parent directory again
-              const parentSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-              directoryFilterPath = parentSlash > 0 ? directoryFilterPath.substring(0, parentSlash) : '';
-            }
-          } else {
-            directoryFilterPath = '';
-          }
-        }
-        
-        // Validate that we have a directory path, not a file path
-        // Check for common file extensions (case-insensitive)
-        const lowerPath = directoryFilterPath.toLowerCase();
-        if (directoryFilterPath && (lowerPath.endsWith('.zip') || lowerPath.endsWith('.stl') || lowerPath.endsWith('.3mf') || lowerPath.endsWith('.obj') || lowerPath.endsWith('.ply'))) {
-          console.warn('Directory filter appears to be a file path, extracting parent directory:', directoryFilterPath);
-          const lastSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-          directoryFilterPath = lastSlash > 0 ? directoryFilterPath.substring(0, lastSlash) : '';
-        }
-        
-        // Final validation: ensure we don't have a file path
-        if (directoryFilterPath && directoryFilterPath === model.filePath) {
-          console.error('Directory filter is same as file path, this should not happen. File path:', model.filePath);
-          const lastSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-          directoryFilterPath = lastSlash > 0 ? directoryFilterPath.substring(0, lastSlash) : '';
-        }
-        
-        console.log('Setting directory filter to:', directoryFilterPath, 'from file path:', model.filePath);
-        
-        // Set the global directory filter with the full path
-        window.currentDirectoryFilter = directoryFilterPath;
-        if (window.viewingEntireLibrary) {
-          window.viewingEntireLibrary = false;
-        }
-        if (typeof window.applyViewForCurrentFolder === 'function') {
-          await window.applyViewForCurrentFolder();
-        }
-        // Trigger combined search to apply filter
-        if (typeof window.performCombinedSearch === 'function') {
-          await window.performCombinedSearch();
-        }
-      });
-      directoryColumn.style.cursor = 'pointer';
-      // Add hover effect
-      directoryColumn.addEventListener('mouseenter', () => {
-        directoryText.style.textDecoration = 'underline';
-        directoryText.style.color = '#6bb3ff';
-      });
-      directoryColumn.addEventListener('mouseleave', () => {
-        directoryText.style.textDecoration = 'none';
-        directoryText.style.color = '#4a9eff';
-      });
-    }
-    directoryColumn.appendChild(directoryText);
-    fileInfo.appendChild(directoryColumn);
-    
-    // Designer column (with icon)
-    const designerColumn = document.createElement('div');
-    designerColumn.className = 'designer-info-column';
-    designerColumn.setAttribute('data-list-col', 'designer');
-    designerColumn.style.display = 'flex';
-    designerColumn.style.alignItems = 'center';
-    designerColumn.style.flexShrink = '0';
-    designerColumn.style.overflow = 'hidden';
-    
-    // Add designer icon
-    const designerIcon = createSVGIcon('<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#a855f7"><path d="m352-522 86-87-56-57-44 44-56-56 43-44-45-45-87 87 159 158Zm328 329 87-87-45-45-44 43-56-56 43-44-57-56-86 86 158 159Zm24-567 57 57-57-57ZM290-120H120v-170l175-175L80-680l200-200 216 216 151-152q12-12 27-18t31-6q16 0 31 6t27 18l53 54q12 12 18 27t6 31q0 16-6 30.5T816-647L665-495l215 215L680-80 465-295 290-120Zm-90-80h56l392-391-57-57-391 392v56Zm420-419-29-29 57 57-28-28Z"/></svg>', 16);
-    designerColumn.appendChild(designerIcon);
-    
-    const designerText = document.createElement('span');
-    designerText.className = 'designer-info';
-    designerText.textContent = model.designer || '';
-    designerText.style.fontSize = '12px';
-    designerText.style.color = model.designer ? '#aaa' : '#666';
-    designerText.style.overflow = 'hidden';
-    designerText.style.textOverflow = 'ellipsis';
-    designerText.style.whiteSpace = 'nowrap';
-    designerText.style.flex = '1';
-    designerText.style.minWidth = '0';
-    // Add tooltip for truncated designer names
-    if (model.designer) {
-      designerText.setAttribute('title', model.designer);
-    }
-    designerColumn.appendChild(designerText);
-    fileInfo.appendChild(designerColumn);
-    
-    // Parent Model column
-    const parentModelColumn = document.createElement('div');
-    parentModelColumn.className = 'parent-model-column';
-    parentModelColumn.setAttribute('data-list-col', 'parentmodel');
-    parentModelColumn.style.display = 'flex';
-    parentModelColumn.style.alignItems = 'center';
-    parentModelColumn.style.flexShrink = '0';
-    parentModelColumn.style.overflow = 'hidden';
-    
-    const parentModelText = document.createElement('span');
-    parentModelText.className = 'parent-model-info';
-    parentModelText.textContent = model.parentModel || '';
-    parentModelText.style.fontSize = '12px';
-    parentModelText.style.color = model.parentModel ? '#aaa' : '#666';
-    parentModelText.style.overflow = 'hidden';
-    parentModelText.style.textOverflow = 'ellipsis';
-    parentModelText.style.whiteSpace = 'nowrap';
-    // Add tooltip for truncated parent model names
-    if (model.parentModel) {
-      parentModelText.setAttribute('title', model.parentModel);
-    }
-    parentModelColumn.appendChild(parentModelText);
-    fileInfo.appendChild(parentModelColumn);
-    
-    // Print Status column (status badge only, no icon)
-    const printStatusColumn = document.createElement('div');
-    printStatusColumn.className = 'print-status-column';
-    printStatusColumn.setAttribute('data-list-col', 'printed');
-    printStatusColumn.style.display = 'flex';
-    printStatusColumn.style.alignItems = 'center';
-    printStatusColumn.style.justifyContent = 'center';
-    printStatusColumn.style.flexShrink = '0';
-    
-    if (printStatusElement) {
-      // Remove all positioning styles and move to column
-      printStatusElement.style.position = 'static';
-      printStatusElement.style.top = 'auto';
-      printStatusElement.style.right = 'auto';
-      printStatusElement.style.left = 'auto';
-      printStatusElement.style.fontSize = '11px';
-      printStatusElement.style.padding = '2px 6px';
-      printStatusElement.style.borderRadius = '3px';
-      printStatusElement.style.display = 'inline-block';
-      printStatusElement.style.zIndex = 'auto';
-      printStatusElement.style.margin = '0';
-      // Move the print status from item to the column (appendChild automatically removes from old parent)
-      printStatusColumn.appendChild(printStatusElement);
-    }
-    fileInfo.appendChild(printStatusColumn);
-    
-    // Tags column
-    const tagsColumn = document.createElement('div');
-    tagsColumn.className = 'tags-info-column';
-    tagsColumn.setAttribute('data-list-col', 'tags');
-    tagsColumn.style.display = 'flex';
-    tagsColumn.style.alignItems = 'center';
-    tagsColumn.style.overflow = 'hidden';
-    
-    // Get tags from model
-    let tagsDisplay = '';
-    let tagNamesList = [];
-    if (model.tags && Array.isArray(model.tags) && model.tags.length > 0) {
-      tagNamesList = model.tags.map(t => (typeof t === 'string' ? t : (t.name || t))).filter(Boolean);
-      tagNamesList.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-      tagsDisplay = tagNamesList.join(', ');
-    } else if (model.id) {
-      // Load tags asynchronously if not present
-      window.electron.getModelTags(model.id).then(tags => {
-        const tagsSpan = tagsColumn.querySelector('.tags-info');
-        if (!tagsSpan) return;
-        if (tags && tags.length > 0) {
-          const tagNames = tags.map(t => (typeof t === 'string' ? t : (t.name || t))).filter(Boolean);
-          tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-          const tagsText = tagNames.join(', ');
-          fillTagsWithFilterLinks(tagsSpan, tagNames);
-          tagsSpan.setAttribute('title', tagsText); // Show full tag list on hover
-          tagsSpan.style.color = '#aaa';
-        } else {
-          tagsSpan.textContent = '—';
-          tagsSpan.style.color = '#666';
-          tagsSpan.removeAttribute('title');
-        }
-      }).catch(err => console.error('Error loading tags:', err));
-    }
-    
-    const tagsSpan = document.createElement('span');
-    tagsSpan.className = 'tags-info';
-    if (tagsDisplay) {
-      fillTagsWithFilterLinks(tagsSpan, tagNamesList);
-      tagsSpan.setAttribute('title', tagsDisplay); // Show full tag list on hover
-    } else {
-      tagsSpan.textContent = '—';
-    }
-    tagsSpan.style.fontSize = '12px';
-    tagsSpan.style.color = tagsDisplay ? '#aaa' : '#666';
-    tagsSpan.style.overflow = 'hidden';
-    tagsSpan.style.textOverflow = 'ellipsis';
-    tagsSpan.style.whiteSpace = 'nowrap';
-    tagsColumn.appendChild(tagsSpan);
-    fileInfo.appendChild(tagsColumn);
-    if (typeof window.updateModelFilamentDisplay === 'function') {
-      window.updateModelFilamentDisplay(item);
-    }
-    
-    // Archive column (with icon, only show for files in zip/archive)
-    const archiveStatusColumn = document.createElement('div');
-    archiveStatusColumn.className = 'archive-status-column';
-    archiveStatusColumn.setAttribute('data-list-col', 'archive');
-    archiveStatusColumn.style.display = 'flex';
-    archiveStatusColumn.style.alignItems = 'center';
-    archiveStatusColumn.style.justifyContent = 'center';
-    archiveStatusColumn.style.gap = '6px';
-    archiveStatusColumn.style.flexShrink = '0';
-    
-    // Only show archive icon and status for files in zip/archive
-    if (isZipEntry) {
-      // Add archive icon
-      const archiveIcon = createSVGIcon('<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#e3e3e3"><path d="M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80ZM447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z"/></svg>', 16);
-      archiveStatusColumn.appendChild(archiveIcon);
-      
-      if (archiveStatusElement) {
-        // Remove all positioning styles and move to column
-        archiveStatusElement.style.position = 'static';
-        archiveStatusElement.style.top = 'auto';
-        archiveStatusElement.style.right = 'auto';
-        archiveStatusElement.style.left = 'auto';
-        archiveStatusElement.style.fontSize = '11px';
-        archiveStatusElement.style.padding = '2px 6px';
-        archiveStatusElement.style.borderRadius = '3px';
-        archiveStatusElement.style.display = 'inline-block';
-        archiveStatusElement.style.zIndex = 'auto';
-        archiveStatusElement.style.margin = '0';
-        // Move the archive status from item to the column (appendChild automatically removes from old parent)
-        archiveStatusColumn.appendChild(archiveStatusElement);
-      } else {
-        // Create archive status if it doesn't exist (shouldn't happen, but just in case)
-        const archiveStatusText = document.createElement('span');
-        archiveStatusText.textContent = 'Archive';
-        archiveStatusText.style.fontSize = '11px';
-        archiveStatusText.style.color = '#fff';
-        archiveStatusText.style.padding = '2px 6px';
-        archiveStatusText.style.borderRadius = '3px';
-        archiveStatusText.style.background = 'rgba(255, 152, 0, 0.9)';
-        archiveStatusColumn.appendChild(archiveStatusText);
-      }
-    }
-    fileInfo.appendChild(archiveStatusColumn);
-    
-    applyListViewColumnLayoutToSubtree(fileInfo);
-    item.appendChild(fileInfo);
-    
-    // Add click event handler for model selection
-    item.addEventListener('click', (e) => {
-      if (wasTileTapSuppressed(item, e)) return;
-      // Check if ctrl or cmd key is pressed for multi-select
-      if (e.ctrlKey || e.metaKey) {
-        handleFileClick(e, model.filePath);
-      } else {
-        toggleModelSelection(item, model.filePath);
-      }
-    });
-    
-    // Add context menu handler for list view - works on entire element
-    addContextMenuHandler(item, model.filePath);
-    
-    return item;
-  }
-  
-  // Preview view: dense square wall (see preview-wall.css)
-  if (view === 'preview') {
-    const tilePx = getPreviewTileSizePx();
-    item.classList.add('preview-tile');
-    item.style.width = `${tilePx}px`;
-    item.style.height = `${tilePx}px`;
-    item.style.minHeight = `${tilePx}px`;
-    item.style.maxHeight = `${tilePx}px`;
-    item.style.padding = '0';
-    item.style.boxSizing = 'border-box';
-    item.style.position = 'relative';
-    item.style.display = 'flex';
-    item.style.flexDirection = 'column';
-    item.style.overflow = 'hidden';
-
-    thumbnailContainer.style.width = '100%';
-    thumbnailContainer.style.height = '100%';
-    thumbnailContainer.style.flex = '1';
-    thumbnailContainer.style.minHeight = '0';
-    thumbnailContainer.style.marginBottom = '0';
-
-    if (thumbnailWrapper !== thumbnailContainer) {
-      thumbnailWrapper.style.width = '100%';
-      thumbnailWrapper.style.height = '100%';
-    }
-
-    const checkEl = document.createElement('div');
-    checkEl.className = 'preview-tile-check';
-    checkEl.setAttribute('aria-hidden', 'true');
-
-    const overlay = document.createElement('div');
-    overlay.className = 'preview-tile-overlay';
-    const nameRow = document.createElement('div');
-    nameRow.className = 'preview-tile-name';
-    nameRow.textContent = displayFileName;
-    if (isZipFile) {
-      nameRow.classList.add('zip-file');
-    }
-    const actions = document.createElement('div');
-    actions.className = 'preview-tile-actions';
-    const openBtn = document.createElement('button');
-    openBtn.type = 'button';
-    openBtn.className = 'preview-tile-open-btn';
-    openBtn.textContent = 'Preview';
-    openBtn.title = 'Open preview';
-    openBtn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      selectSingleModel(item, model.filePath);
-      openModelPreviewFromTile(model.filePath);
-    });
-    actions.appendChild(openBtn);
-    overlay.appendChild(nameRow);
-    overlay.appendChild(actions);
-
-    item.appendChild(checkEl);
-    item.appendChild(overlay);
-
-    item.appendChild(printStatus);
-    if (archiveStatus) {
-      item.appendChild(archiveStatus);
-    }
-
-    item.addEventListener('dblclick', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (typeof window.openPreview === 'function') {
-        window.openPreview(model.filePath);
-      }
-    });
-
-    item.addEventListener('click', (e) => {
-      if (wasTileTapSuppressed(item, e)) return;
-      if (e.target.closest('.preview-tile-open-btn')) return;
-      if (e.ctrlKey || e.metaKey) {
-        handleFileClick(e, model.filePath);
-        return;
-      }
-      if (isMobileUiActive() && !isMultiSelectMode) {
-        openModelDetailsFromTile(item, model.filePath);
-        return;
-      }
-      toggleModelSelection(item, model.filePath);
-    });
-
-    addContextMenuHandler(item, model.filePath);
-
-    return item;
-  }
-  
-  // Create metadata items container
-  const metadataContainer = document.createElement('div');
-  metadataContainer.className = 'metadata-container';
-  
-  // Only add metadata in detailed view
-  if (view === 'detailed') {
-    const compactMobile = isMobileUiActive();
-    item.style.boxSizing = 'border-box';
-    item.style.display = 'flex';
-    item.style.flexDirection = 'column';
-    if (compactMobile) {
-      item.style.padding = '6px 6px 8px';
-      item.style.overflow = 'hidden';
-      thumbnailContainer.style.width = '100%';
-      thumbnailContainer.style.height = 'auto';
-      thumbnailContainer.style.aspectRatio = '1';
-      thumbnailContainer.style.flexShrink = '0';
-    } else {
-      item.style.width = '300px';
-      item.style.height = '490px';
-      item.style.minHeight = '490px';
-      item.style.maxHeight = '490px';
-      item.style.padding = '16px 16px 0';
-      thumbnailContainer.style.width = '276px';
-      thumbnailContainer.style.height = '276px';
-      thumbnailContainer.style.flexShrink = '0';
-    }
-    
-    // Add file name directly after thumbnail (in the red square area)
-    if (fileName && fileName.textContent) {
-      fileName.style.display = 'block';
-      fileName.style.fontSize = '13px';
-      fileName.style.fontWeight = '500';
-      fileName.style.color = '#fff';
-      fileName.style.marginTop = '8px'; // Reduced from 10px
-      fileName.style.marginBottom = '8px'; // Reduced from 10px
-      fileName.style.padding = '5px 8px'; // Reduced from 6px
-      fileName.style.textAlign = 'center';
-      fileName.style.whiteSpace = 'nowrap';
-      fileName.style.overflow = 'hidden';
-      fileName.style.textOverflow = 'ellipsis';
-      fileName.style.width = '100%';
-      fileName.style.boxSizing = 'border-box';
-      fileName.style.minHeight = '28px';
-      fileName.style.lineHeight = '1.4';
-      fileName.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-      fileName.style.borderRadius = '4px';
-      fileName.style.flexShrink = '0';
-      // Insert file name right after thumbnail container
-      const nextSibling = thumbnailContainer.nextSibling;
-      if (nextSibling) {
-        item.insertBefore(fileName, nextSibling);
-      } else {
-        item.appendChild(fileName);
-      }
-    }
-    
-    // File info fills remaining space above the engagement bar
-    fileInfo.style.minHeight = '0';
-    fileInfo.style.flex = '1 1 auto';
-    fileInfo.style.display = 'flex';
-    fileInfo.style.flexDirection = 'column';
-    fileInfo.style.justifyContent = 'flex-start';
-    fileInfo.style.gap = '4px';
-    fileInfo.style.overflow = 'visible';
-    fileInfo.style.padding = '0';
-    fileInfo.style.margin = '0';
-    
-    // Enable two-column grid layout for metadata
-    metadataContainer.style.display = 'grid';
-    metadataContainer.style.gridTemplateColumns = '1fr 1fr';
-    metadataContainer.style.gap = '2px 8px';
-    metadataContainer.style.padding = '0';
-    
-    // Add directory and size on the same row - directory on left, size on right
-    if (parentDir || model.size) {
-      const dirSizeRow = document.createElement('div');
-      dirSizeRow.className = 'metadata-item dir-size-row';
-      dirSizeRow.style.gridColumn = '1 / -1'; // Span both columns
-      dirSizeRow.style.display = 'flex';
-      dirSizeRow.style.justifyContent = 'space-between';
-      dirSizeRow.style.alignItems = 'center';
-      dirSizeRow.style.gap = '8px';
-      
-      // Directory on the left
-      if (parentDir) {
-        const directoryPart = document.createElement('div');
-        directoryPart.className = 'directory-part';
-        directoryPart.style.display = 'flex';
-        directoryPart.style.alignItems = 'center';
-        directoryPart.style.gap = '6px';
-        directoryPart.style.cursor = 'pointer';
-        const dirIcon = document.createElement('span');
-        dirIcon.className = 'metadata-icon';
-        dirIcon.textContent = '📁';
-        const dirValue = document.createElement('span');
-        dirValue.className = 'metadata-value directory-link';
-        dirValue.textContent = parentDir;
-        dirValue.title = parentDirFullPath || parentDir;
-        directoryPart.appendChild(dirIcon);
-        directoryPart.appendChild(dirValue);
-        directoryPart.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          // Hide any welcome or view library message
-          const viewLibMsg = document.getElementById("view-library-message");
-          if (viewLibMsg) { viewLibMsg.style.display = "none"; }
-          
-          // Extract the full path up to the parent directory for filtering
-          let directoryFilterPath;
-          if (model.filePath && model.filePath.includes('::')) {
-            // For zip entries, use the zip path up to the parent directory
-            const [zipPath, entryPath] = model.filePath.split('::');
-            const entryParentPath = entryPath.split(/[/\\]/).slice(0, -1).join('/');
-            directoryFilterPath = entryParentPath ? `${zipPath}::${entryParentPath}` : zipPath;
-          } else {
-            // For regular files, get the full path up to the parent directory
-            // Make sure we're getting the directory, not the file itself
-            const lastSlash = Math.max(model.filePath.lastIndexOf('\\'), model.filePath.lastIndexOf('/'));
-            if (lastSlash > 0) {
-              directoryFilterPath = model.filePath.substring(0, lastSlash);
-              // Ensure we have a valid directory path (not a file path)
-              if (!directoryFilterPath || directoryFilterPath.endsWith('.zip') || directoryFilterPath.endsWith('.stl') || directoryFilterPath.endsWith('.3mf')) {
-                // If somehow we got a file path, extract the parent directory again
-                const parentSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-                directoryFilterPath = parentSlash > 0 ? directoryFilterPath.substring(0, parentSlash) : '';
-              }
-            } else {
-              directoryFilterPath = '';
-            }
-          }
-          
-          // Validate that we have a directory path, not a file path
-          // Check for common file extensions (case-insensitive)
-          const lowerPath = directoryFilterPath.toLowerCase();
-          if (directoryFilterPath && (lowerPath.endsWith('.zip') || lowerPath.endsWith('.stl') || lowerPath.endsWith('.3mf') || lowerPath.endsWith('.obj') || lowerPath.endsWith('.ply'))) {
-            console.warn('Directory filter appears to be a file path, extracting parent directory:', directoryFilterPath);
-            const lastSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-            directoryFilterPath = lastSlash > 0 ? directoryFilterPath.substring(0, lastSlash) : '';
-          }
-          
-          // Final validation: ensure we don't have a file path
-          if (directoryFilterPath && directoryFilterPath === model.filePath) {
-            console.error('Directory filter is same as file path, this should not happen. File path:', model.filePath);
-            const lastSlash = Math.max(directoryFilterPath.lastIndexOf('\\'), directoryFilterPath.lastIndexOf('/'));
-            directoryFilterPath = lastSlash > 0 ? directoryFilterPath.substring(0, lastSlash) : '';
-          }
-          
-          console.log('Setting directory filter to:', directoryFilterPath, 'from file path:', model.filePath);
-          
-          // Set the global directory filter with the full path
-          window.currentDirectoryFilter = directoryFilterPath;
-          if (window.viewingEntireLibrary) {
-            window.viewingEntireLibrary = false;
-          }
-          if (typeof window.applyViewForCurrentFolder === 'function') {
-            await window.applyViewForCurrentFolder();
-          }
-          // Instead of filtering just by directory here, trigger the combined search which applies all filters.
-          // The updateFilterIndicator function in search.js will handle displaying the filter correctly
-          if (typeof window.performCombinedSearch === 'function') {
-            await window.performCombinedSearch();
-          }
-        });
-        dirSizeRow.appendChild(directoryPart);
-      }
-      
-      // Size on the right
-      if (model.size) {
-        const sizePart = document.createElement('div');
-        sizePart.className = 'size-part';
-        sizePart.style.display = 'flex';
-        sizePart.style.alignItems = 'center';
-        sizePart.style.gap = '6px';
-        sizePart.style.marginLeft = 'auto'; // Push to the right
-        sizePart.innerHTML = `
-          <span class="metadata-icon">💾</span>
-          <span class="metadata-value file-size">${formatFileSize(model.size)}</span>
-        `;
-        dirSizeRow.appendChild(sizePart);
-      }
-      
-      metadataContainer.appendChild(dirSizeRow);
-    }
-
-    // Always check individual model data - don't rely on fieldAnalysis which may be stale
-    // This ensures metadata shows up immediately when added to a model
-    
-    // Add designer with icon (only show if this model has designer data)
-    const designerValue = (model.designer && model.designer.trim()) ? model.designer.trim() : '';
-    const hasDesigner = designerValue && designerValue !== '';
-    if (hasDesigner) {
-      const designerItem = document.createElement('div');
-      designerItem.className = 'metadata-item designer-item';
-      designerItem.style.cursor = 'pointer';
-      designerItem.classList.add('clickable-metadata');
-      
-      designerItem.innerHTML = `
-        <span class="metadata-icon">👤</span>
-        <span class="metadata-value designer-info" style="color: #ccc; display: inline-block;" title="${designerValue}">${designerValue}</span>
-      `;
-      
-      // Add click handler to filter by designer
-      designerItem.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Set the designer filter
-        const designerSelect = document.getElementById('designer-select');
-        if (designerSelect) {
-          designerSelect.value = designerValue;
-          // Trigger combined search to apply filter
-          if (typeof window.performCombinedSearch === 'function') {
-            await window.performCombinedSearch();
-          }
-        }
-      });
-      metadataContainer.appendChild(designerItem);
-    }
-
-    // Add source with icon (only show if this model has source data)
-    const sourceValue = (model.source && model.source.trim()) ? model.source.trim() : '';
-    if (sourceValue) {
-      const sourceItem = document.createElement('div');
-      sourceItem.className = 'metadata-item source-item';
-      sourceItem.innerHTML = `
-        <span class="metadata-icon">🔗</span>
-        <span class="metadata-value source-info" style="color: #ccc" title="${sourceValue}">${sourceValue}</span>
-      `;
-      metadataContainer.appendChild(sourceItem);
-    }
-
-    // Add parent model with icon (only show if this model has parent model data)
-    const parentValue = (model.parentModel && model.parentModel.trim()) ? model.parentModel.trim() : '';
-    if (parentValue) {
-      const parentItem = document.createElement('div');
-      parentItem.className = 'metadata-item parent-item';
-      parentItem.style.cursor = 'pointer';
-      parentItem.classList.add('clickable-metadata');
-      
-      parentItem.innerHTML = `
-        <span class="metadata-icon">📦</span>
-        <span class="metadata-value parent-info" style="color: #ccc" title="${parentValue}">${parentValue}</span>
-      `;
-      
-      // Add click handler to filter by parent model
-      parentItem.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Set the parent model filter
-        const parentSelect = document.getElementById('parent-select');
-        if (parentSelect) {
-          parentSelect.value = parentValue;
-          // Trigger combined search to apply filter
-          if (typeof window.performCombinedSearch === 'function') {
-            await window.performCombinedSearch();
-          }
-        }
-      });
-      metadataContainer.appendChild(parentItem);
-    }
-
-    // Add license with icon (only show if this model has license data)
-    const licenseValue = (model.license && model.license.trim()) ? model.license.trim() : '';
-    if (licenseValue) {
-      const licenseItem = document.createElement('div');
-      licenseItem.className = 'metadata-item license-item';
-      licenseItem.style.cursor = 'pointer';
-      licenseItem.classList.add('clickable-metadata');
-      
-      licenseItem.innerHTML = `
-        <span class="metadata-icon">📜</span>
-        <span class="metadata-value license-info" style="color: #ccc" title="${licenseValue}">${licenseValue}</span>
-      `;
-      
-      // Add click handler to filter by license
-      licenseItem.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Set the license filter
-        const licenseSelect = document.getElementById('license-select');
-        if (licenseSelect) {
-          licenseSelect.value = licenseValue;
-          // Trigger combined search to apply filter
-          if (typeof window.performCombinedSearch === 'function') {
-            await window.performCombinedSearch();
-          }
-        }
-      });
-      metadataContainer.appendChild(licenseItem);
-    }
-
-    // Add tags with icon - always try to load tags in detailed view
-    // (fieldAnalysis might not detect tags since getAllModels doesn't include them)
-    let tagsDisplay = '';
-    if (model.tags && Array.isArray(model.tags) && model.tags.length > 0) {
-      // Handle both array of strings and array of objects with name property
-      const tagNames = model.tags.map(t => (typeof t === 'string' ? t : (t.name || t)));
-      tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-      tagsDisplay = tagNames.join(', ');
-    }
-    
-    // Always create tags item and load asynchronously if needed
-    const tagsItem = document.createElement('div');
-    tagsItem.className = 'metadata-item tags-item';
-    tagsItem.style.gridColumn = '1 / -1'; // Span both columns like other metadata
-    
-    if (tagsDisplay) {
-      // Tags already available, display them immediately
-      const tagNamesForDisplay = model.tags
-        .map(t => (typeof t === 'string' ? t : (t && (t.name || t)) || ''))
-        .filter(Boolean);
-      tagNamesForDisplay.sort((a, b) => a.localeCompare(b));
-      tagsItem.innerHTML = `
-        <span class="metadata-icon">🏷️</span>
-        <span class="metadata-value tags-info" style="color: #ccc" title=""></span>
-      `;
-      metadataContainer.appendChild(tagsItem);
-      const tagsValueSpanSync = tagsItem.querySelector('.tags-info');
-      if (tagsValueSpanSync) {
-        fillTagsWithFilterLinks(tagsValueSpanSync, tagNamesForDisplay);
-        tagsValueSpanSync.setAttribute('title', tagsDisplay);
-      }
-    } else {
-      // Create item and load tags asynchronously
-      tagsItem.innerHTML = `
-        <span class="metadata-icon">🏷️</span>
-        <span class="metadata-value tags-info" style="color: #666"></span>
-      `;
-      metadataContainer.appendChild(tagsItem);
-      
-      // Load tags asynchronously - get model ID first if needed
-      const loadTags = async () => {
-        try {
-          let modelId = model.id;
-          
-          // If model.id doesn't exist, get the model from database using filePath
-          if (!modelId && model.filePath) {
-            const fullModel = await window.electron.getModel(model.filePath);
-            if (fullModel && fullModel.id) {
-              modelId = fullModel.id;
-              // Also check if tags are already in the full model
-              if (fullModel.tags && Array.isArray(fullModel.tags) && fullModel.tags.length > 0) {
-                const tagNames = fullModel.tags.map(t => (typeof t === 'string' ? t : (t.name || t))).filter(Boolean);
-                tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-                const tagsText = tagNames.join(', ');
-                const tagsValueSpan = tagsItem.querySelector('.tags-info');
-                if (tagsValueSpan) {
-                  fillTagsWithFilterLinks(tagsValueSpan, tagNames);
-                  tagsValueSpan.setAttribute('title', tagsText); // Show full tag list on hover
-                  tagsValueSpan.style.color = '#ccc';
-                }
-                return;
-              }
-            }
-          }
-          
-          // Load tags using model ID
-          if (modelId) {
-            const tags = await window.electron.getModelTags(modelId);
-            if (tags && tags.length > 0) {
-              const tagNames = tags.map(t => (typeof t === 'string' ? t : (t.name || t))).filter(Boolean);
-              tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-              const tagsText = tagNames.join(', ');
-              const tagsValueSpan = tagsItem.querySelector('.tags-info');
-              if (tagsValueSpan) {
-                fillTagsWithFilterLinks(tagsValueSpan, tagNames);
-                tagsValueSpan.setAttribute('title', tagsText); // Show full tag list on hover
-                tagsValueSpan.style.color = '#ccc';
-              }
-            } else {
-              // Remove the tags item if no tags found
-              tagsItem.remove();
-            }
-          } else {
-            // Remove the tags item if we can't get model ID
-            tagsItem.remove();
-          }
-        } catch (err) {
-          console.error('Error loading tags:', err);
-          // Remove the tags item on error
-          tagsItem.remove();
-        }
-      };
-      
-      loadTags();
-    }
-    
-    // Show file details in detailed view
-    fileDetails.appendChild(metadataContainer);
-    fileDetails.style.padding = '0'; // Remove all padding
-    fileDetails.style.margin = '0'; // Remove all margin
-    fileInfo.appendChild(fileDetails);
-  }
-  
-  item.appendChild(fileInfo);
-
-  if (view === 'detailed') {
-    const engagementBar = createModelEngagementBar(model);
-    item.appendChild(engagementBar);
-  }
-
-  // Add click event handler for model selection
-  item.addEventListener('click', (e) => {
-    if (wasTileTapSuppressed(item, e)) return;
-    // Check if ctrl or cmd key is pressed for multi-select
-    if (e.ctrlKey || e.metaKey) {
-      handleFileClick(e, model.filePath);
-    } else {
-      toggleModelSelection(item, model.filePath);
-    }
-  });
-
-  // Add context menu
-  addContextMenuHandler(item, model.filePath);
-
-  return item;
 }
 
 // Analyze models to determine which metadata fields have data
@@ -18956,31 +16425,125 @@ function showLibraryGrid(options) {
   }
 }
 
-/** What the React grid (src/web/grid/LibraryGrid.tsx) asks of this file. */
+/**
+ * Queue a browser-side thumbnail render for a React grid card. `slot` is an empty element in the
+ * card: the queue drops the job when it leaves the page and ranks it by its position.
+ * On success the model is updated (or keeps images it already had) and the grid refreshes.
+ */
+function ensureCardThumbnailQueued(model, slot, thumbPriority) {
+  if (window._serverBulkThumbnailJobActive) return;
+  if (!model || !model.filePath || !slot || model.hasThumbnail) return;
+  const filePath = model.filePath;
+  if (hasImageOnlyPreviewMiss(filePath)) return;
+
+  const queued = findQueuedThumbnailTask(filePath);
+  if (queued) {
+    queued.container = slot;
+    if (thumbPriority != null) queued.thumbPriority = thumbPriority;
+    pendingThumbnails.add(filePath);
+    return;
+  }
+  if (activeThumbnailRenders.has(filePath)) {
+    pendingThumbnails.add(filePath);
+    return;
+  }
+  // A pending bit with no job is stale (a drop raced it): queue again.
+  pendingThumbnails.add(filePath);
+  enqueueRenderTask({
+    filePath,
+    container: slot,
+    thumbPriority: thumbPriority != null ? thumbPriority : 0,
+    resolve: async (thumbnail) => {
+      pendingThumbnails.delete(filePath);
+      if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholderThumbnail(thumbnail)) {
+        if (hasImageOnlyPreviewMiss(filePath)) {
+          refreshLibraryGrid(); // the card shows the typed placeholder
+          return;
+        }
+        // Failure art shows in this card only; it is never saved, so a reload retries.
+        if (thumbnail && isFailurePlaceholderThumbnail(thumbnail)) {
+          model._failedThumbnail = thumbnail;
+          refreshLibraryGrid();
+          return;
+        }
+        scheduleVisibleThumbnailHydrate();
+        return;
+      }
+      if (await isMostlyEmptyThumbnailDataUrl(thumbnail)) {
+        scheduleVisibleThumbnailHydrate();
+        return;
+      }
+      // Never overwrite real images saved meanwhile (3MF embeds, images the user added).
+      let existingRaw = '';
+      try {
+        existingRaw = (await window.electron.getModel(filePath))?.thumbnail || '';
+      } catch (_) { /* save ours */ }
+      const existing = typeof existingRaw === 'string'
+        ? existingRaw.split('::').filter((t) => t && t !== '3d.png' && t.startsWith('data:image') && !isFailurePlaceholderThumbnail(t))
+        : [];
+      if (existing.length > 0) {
+        model.thumbnail = existingRaw;
+        model.hasMultipleThumbnails = existing.length > 1;
+        syncPrimaryThumbnailCacheFromThumbnailString(filePath, existingRaw);
+      } else {
+        model.thumbnail = thumbnail;
+        model.hasMultipleThumbnails = false;
+        invalidatePrimaryThumbnailCache(filePath);
+        setCachedPrimaryThumbnail(filePath, thumbnail);
+        try {
+          await window.electron.saveThumbnail(filePath, thumbnail);
+        } catch (_) { /* shown anyway */ }
+      }
+      model.hasThumbnail = true;
+      delete model._failedThumbnail;
+      invalidateGroupThumbnailCache();
+      refreshLibraryGrid();
+    },
+    reject: (error) => {
+      if (isBenignThumbnailDropError(error)) {
+        scheduleVisibleThumbnailHydrate();
+        return;
+      }
+      pendingThumbnails.delete(filePath);
+      console.error(`Failed to generate thumbnail for ${filePath}`, error);
+      scheduleVisibleThumbnailHydrate();
+    }
+  });
+  processRenderQueue();
+}
+
+/** Filter the grid to the folder a model is in (a ZIP entry's folder inside its archive). */
+async function filterGridByModelDirectory(filePath) {
+  const viewLibraryMessage = document.getElementById('view-library-message');
+  if (viewLibraryMessage) viewLibraryMessage.style.display = 'none';
+  let directory = '';
+  if (filePath.includes('::')) {
+    const [zipPath, entryPath] = filePath.split('::');
+    const entryParent = entryPath.split(/[/\\]/).slice(0, -1).join('/');
+    directory = entryParent ? `${zipPath}::${entryParent}` : zipPath;
+  } else {
+    const lastSlash = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'));
+    directory = lastSlash > 0 ? filePath.substring(0, lastSlash) : '';
+  }
+  window.currentDirectoryFilter = directory;
+  if (window.viewingEntireLibrary) window.viewingEntireLibrary = false;
+  if (typeof window.applyViewForCurrentFolder === 'function') await window.applyViewForCurrentFolder();
+  if (typeof window.performCombinedSearch === 'function') await window.performCombinedSearch();
+}
+
+const tagNameList = (tags) => (Array.isArray(tags) ? tags : [])
+  .map((t) => (typeof t === 'string' ? t : (t && (t.name || t)) || ''))
+  .filter(Boolean)
+  .sort((a, b) => String(a).localeCompare(String(b)));
+
+/** What the React grid (src/web/grid/LibraryGrid.tsx, ModelCard.tsx) asks of this file. */
 window.gridHost = {
   models: () => document.querySelector('.file-grid')?.currentModels || [],
   view: () => currentGridView,
   previewSize: () => currentPreviewTileSize,
   mobileColumns: () => mobileLibraryColumns(),
   expanded: () => ({ bundles: bundleExpandedGroups, parentModels: parentModelExpandedGroups }),
-  createModelCard: (model, view, priority) => createModelItem(model, view, priority),
   createGroupCard: (record, view) => createParentModelGroupItem(record, view),
-  syncModelCard: (card, model, priority) => {
-    syncModelNewBadge(card, model);
-    card.classList.toggle('selected', isInSelectedModels(model.filePath));
-    // On-screen placeholders re-enter the thumbnail queue after a prune; reused cards
-    // skip createModelItem, so nothing else would queue them.
-    if (priority < THUMB_PRIORITY_LOW_TIER_MIN) {
-      ensureVisibleThumbnailQueued(card, model, priority);
-    } else {
-      const queued = findQueuedThumbnailTask(model.filePath);
-      if (queued) {
-        const thumbnailContainer = card.querySelector('.thumbnail-container');
-        if (thumbnailContainer) queued.container = thumbnailContainer;
-        queued.thumbPriority = priority;
-      }
-    }
-  },
   createListHeader: () => createListViewHeader(),
   isSelected: (filePath) => isInSelectedModels(filePath),
   afterPaint: () => {
@@ -18992,7 +16555,105 @@ window.gridHost = {
   },
   bottomChrome: () => (document.body.classList.contains('mobile-ui')
     ? (document.getElementById('mobile-bottom-nav')?.offsetHeight || 72)
-    : 0)
+    : 0),
+
+  // Model cards
+  isMobile: () => isMobileUiActive(),
+  isNew: (model) => isModelNew(model),
+  directoryLabel: (filePath) => getDirectoryDisplayLabel(filePath),
+  directoryFullPath: (filePath) => getParentDirectoryFullPath(filePath),
+  formatSize: (bytes) => formatFileSize(bytes),
+  fetchPrimaryThumbnail: (filePath) => fetchPrimaryThumbnailForGrid(filePath),
+  ensureThumbnailQueued: (model, slot, priority) => ensureCardThumbnailQueued(model, slot, priority),
+  loadAllThumbnails: async (model) => {
+    try {
+      const all = await window.electron.getAllThumbnails(model.filePath);
+      const valid = (all || []).filter((t) => t && typeof t === 'string' && t !== '3d.png' && t.startsWith('data:image'));
+      if (valid.length < 2) return;
+      model.thumbnail = valid.join('::');
+      model.hasMultipleThumbnails = true;
+      model.hasThumbnail = true;
+      syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, model.thumbnail);
+      refreshLibraryGrid();
+    } catch (_) { /* the primary image stays */ }
+  },
+  setDefaultThumbnail: async (model, index) => {
+    await window.electron.setDefaultThumbnail(model.filePath, index);
+    const updated = await window.electron.getModel(model.filePath);
+    if (updated && updated.thumbnail) {
+      model.thumbnail = updated.thumbnail;
+      syncPrimaryThumbnailCacheFromThumbnailString(model.filePath, updated.thumbnail);
+      refreshLibraryGrid();
+    }
+  },
+  isFailurePlaceholder: (thumbnail) => isFailurePlaceholderThumbnail(thumbnail),
+  imageOnlyMiss: (filePath) => hasImageOnlyPreviewMiss(filePath),
+  typedPlaceholder: (filePath) => generateTypedPlaceholder(extensionFromModelPath(filePath)),
+  bulkThumbnailJobActive: () => !!window._serverBulkThumbnailJobActive,
+  cardClick: (event, card, filePath, view) => {
+    if (wasTileTapSuppressed(card, event)) return;
+    if (event.ctrlKey || event.metaKey) {
+      // handleFileClick reads currentTarget: React delegates, so hand it the card.
+      handleFileClick({
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        target: event.target,
+        currentTarget: card,
+        preventDefault: () => event.preventDefault()
+      }, filePath);
+      return;
+    }
+    if (view === 'preview' && isMobileUiActive() && !isMultiSelectMode) {
+      openModelDetailsFromTile(card, filePath);
+      return;
+    }
+    toggleModelSelection(card, filePath);
+  },
+  openPreview: (card, filePath, select) => {
+    if (select && card) selectSingleModel(card, filePath);
+    openModelPreviewFromTile(filePath);
+  },
+  bindCardMenu: (card, filePath) => addContextMenuHandler(card, filePath),
+  showCardMenu: async (filePath, x, y) => {
+    try {
+      const paths = resolveContextMenuFilePaths(filePath);
+      const menuResult = paths.length > 1
+        ? await window.electron.showContextMenu(paths)
+        : await window.electron.showContextMenu(paths[0] || filePath);
+      if (menuResult && menuResult.type === 'html-menu') showHtmlContextMenu(menuResult, x, y, { showClose: true });
+    } catch (error) {
+      console.error('Error showing context menu:', error);
+    }
+  },
+  filterByDirectory: (filePath) => { filterGridByModelDirectory(filePath); },
+  filterBySelect: (selectId, value) => {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.value = value;
+    if (typeof window.performCombinedSearch === 'function') window.performCombinedSearch();
+  },
+  filterByTag: (name) => { applyTagFilterFromModelClick(name); },
+  saveField: async (filePath, field, value) => !!(await autoSaveModel(field, value, filePath)),
+  tagNames: async (model) => {
+    let id = model.id;
+    if (!id && model.filePath) {
+      const full = await window.electron.getModel(model.filePath);
+      if (full?.tags?.length) return tagNameList(full.tags);
+      id = full?.id;
+    }
+    if (!id) return [];
+    return tagNameList(await window.electron.getModelTags(id));
+  },
+  printBadge: (element, model) => {
+    if (window.PrintHistory) {
+      window.PrintHistory.applyBadge(element, model);
+      window.PrintHistory.bindBadge(element, model.filePath);
+    } else {
+      element.className = 'print-status' + (model.printed ? ' printed' : '');
+      element.textContent = model.printed ? 'Printed' : 'Not Printed';
+    }
+  },
+  applyListColumns: (fileInfo) => applyListViewColumnLayoutToSubtree(fileInfo)
 };
 
 // Change the multi-source event listener from 'change' back to 'input' with debounce

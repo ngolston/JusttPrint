@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
+import { ModelCard, type CardHost } from './ModelCard';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
   viewMetrics, visibleRows, type DisplayRecord, type ExpandedGroups, type GridModel, type GridView, type GroupRecord,
@@ -10,7 +11,7 @@ import {
  * What the grid needs from renderer.js while the cards are still built there. Each method
  * disappears as its part moves to React.
  */
-export interface GridHost {
+export interface GridHost extends CardHost {
   /** The models on screen: renderer.js edits this array in place, then calls refresh(). */
   models(): GridModel[];
   view(): GridView;
@@ -18,10 +19,7 @@ export interface GridHost {
   /** Phone layout columns, or 0 on the desktop layout. */
   mobileColumns(): number;
   expanded(): ExpandedGroups;
-  createModelCard(model: GridModel, view: GridView, priority: number): HTMLElement;
   createGroupCard(record: GroupRecord, view: GridView): HTMLElement;
-  /** On a card that stays on screen: selection, the New badge, and its thumbnail job. */
-  syncModelCard(card: HTMLElement, model: GridModel, priority: number): void;
   createListHeader(): HTMLElement & { updateSortIndicators?: () => void };
   isSelected(filePath: string): boolean;
   /** After cards were added or removed: drop jobs for gone cards, re-sort and run the queue. */
@@ -67,14 +65,15 @@ function findCard(content: HTMLElement, layoutKey: string, remembered: HTMLEleme
 }
 
 /**
- * One cell. The card element is built by renderer.js and placed in the grid's content box, so
- * styles and code that look up .file-item cards keep working.
+ * A group card (ZIP bundle or parent model), still built by renderer.js and placed in the grid's
+ * content box next to the React model cards.
  */
 function LegacyCell({ host, record, view, index, bandClasses, position, priority, content, tick }: CellProps) {
   const cardRef = useRef<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    const card = record.type === 'group' ? host.createGroupCard(record, view) : host.createModelCard(record.model, view, priority);
+    if (record.type !== 'group') return undefined;
+    const card = host.createGroupCard(record, view);
     card.dataset.layoutKey = record.key;
     card.style.position = 'absolute';
     card.style.pointerEvents = 'auto';
@@ -103,20 +102,11 @@ function LegacyCell({ host, record, view, index, bandClasses, position, priority
       card.style.minHeight = `${position.height}px`;
       card.style.maxHeight = `${position.height}px`;
     }
-    if (record.type === 'model') {
-      const classes = ['parent-model-group-child', 'parent-model-group-child-start', 'parent-model-group-child-middle', 'parent-model-group-child-end', 'parent-model-group-child-single'];
-      card.classList.remove(...classes);
-      if (bandClasses.length) {
-        card.classList.add(...bandClasses);
-        card.dataset.parentGroupKey = record.parentGroupKey || '';
-      } else {
-        delete card.dataset.parentGroupKey;
-      }
-      host.syncModelCard(card, record.model, priority);
-    }
   });
 
   void tick;
+  void priority;
+  void bandClasses;
   return null;
 }
 
@@ -277,10 +267,16 @@ export function LibraryGrid() {
     const index = indexByKey.get(record.key) ?? -1;
     const position = cellPosition(row, column, metrics, view);
     const priority = thumbnailPriority(scrollTop, viewportHeight, metrics.headerOffset + row.top, rowHeight, column);
-    const key = `${generation}:${view}:${record.type === 'group' ? groupCardKey(record) : record.key}`;
+    if (record.type === 'model') {
+      return (
+        <ModelCard key={`${generation}:${view}:${record.key}`} host={host} model={record.model} view={view} layoutKey={record.key}
+          index={index} parentGroupKey={record.parentGroupKey} bandClasses={groupBandClasses(records, index)} position={position}
+          fixedHeight={view === 'preview' || (view === 'detailed' && metrics.columns > 0 && host.mobileColumns() > 0)} priority={priority} />
+      );
+    }
     return (
-      <LegacyCell key={key} host={host} record={record} view={view} index={index} bandClasses={groupBandClasses(records, index)}
-        position={position} priority={priority} content={content} tick={tick} />
+      <LegacyCell key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
+        bandClasses={[]} position={position} priority={priority} content={content} tick={tick} />
     );
   })) : null;
 
@@ -289,8 +285,9 @@ export function LibraryGrid() {
       <div ref={headerHostRef} className="list-view-header-host" style={{ display: 'contents' }} />
       <div className="virtual-spacer" style={{ width: '100%', position: 'relative', height: layout.totalHeight }} />
       <div ref={setContent} className="virtual-content"
-        style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }} />
-      {cells}
+        style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }}>
+        {cells}
+      </div>
     </>,
     container
   );

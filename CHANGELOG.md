@@ -5,8 +5,8 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Changes:**
-- The library grid's layout and scrolling are React (`src/web/grid/`): the views, columns, ZIP and parent-model groups and the rows near the viewport are computed by tested TypeScript. The cards themselves are still built by `renderer.js` for now, so they look and behave the same.
-- Removed about 1,400 lines of unused or replaced grid code from `renderer.js`.
+- The library grid is React (`src/web/grid/`): its layout (views, columns, ZIP and parent-model groups, the rows near the viewport) is tested TypeScript, and the model cards in all three views are React components that redraw from their model. Editing a model updates its card without rebuilding it. Group cards are still built by `renderer.js` for now.
+- About 4,800 lines of grid code are gone from `renderer.js`, including the 700-line routine that patched each card's DOM after an edit.
 
 ## [4.2.0] - 2026-10-04
 
