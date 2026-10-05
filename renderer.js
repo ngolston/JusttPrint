@@ -731,21 +731,6 @@ let autoStartedRendering = false;
 let thumbnailCache = new Map();
 let renderContext = null;
 
-// Inverted filter state - tracks which filters are inverted (NOT equal instead of equal)
-let invertedFilters = window.invertedFilters || {
-  tag: false,
-  filament: false,
-  designer: false,
-  license: false,
-  parentModel: false,
-  search: false
-};
-// Ensure search flag exists if window.invertedFilters was created earlier without it
-if (invertedFilters.search === undefined) {
-  invertedFilters.search = false;
-}
-// Expose inverted filters globally so search.js can read the state (keep the same object reference)
-window.invertedFilters = invertedFilters;
 
 // Define loadModel function at top level so it's available immediately (before DOMContentLoaded)
 // Helper function to parse zip path format
@@ -1706,11 +1691,6 @@ function mergeModelIntoGridCurrentModels(model) {
   return true;
 }
 
-function librarySearchIncludesNotes() {
-  if (typeof window.searchIncludeNotesChecked === 'function') return window.searchIncludeNotesChecked();
-  const el = document.getElementById('search-include-notes');
-  return !el || el.checked;
-}
 
 async function updateModelElement(filePath) {
   try {
@@ -1727,17 +1707,18 @@ async function updateModelElement(filePath) {
       tags: model.tags
     });
 
-    // Check current filter values
-    const designer = document.getElementById('designer-select')?.value || '';
-    const license = document.getElementById('license-select')?.value || ''; 
-    const parentModel = document.getElementById('parent-select')?.value || '';
-    const printStatus = document.getElementById('printed-select')?.value || 'all';
-    const newStatus = document.getElementById('new-select')?.value || 'all';
-    const favoriteStatus = document.getElementById('favorite-select')?.value || 'all';
-    const ratingStatus = document.getElementById('rating-select')?.value || 'all';
-    const ratingMinStatus = document.getElementById('rating-min-select')?.value || 'all';
-    const fileType = document.getElementById('filetype-select')?.value || '';
-    const searchTerm = document.getElementById('search-filter-input')?.value.trim() || '';
+    // The sidebar filters (src/web/filters/store.ts). A quick check here; the next search decides exactly.
+    const filters = window.libraryFilters?.state();
+    const one = (list) => (Array.isArray(list) && list.length === 1 ? list[0] : '');
+    const designer = one(filters?.designer);
+    const license = one(filters?.license);
+    const parentModel = one(filters?.parentModel);
+    const printStatus = filters?.printed || 'all';
+    const newStatus = filters?.isNew || 'all';
+    const favoriteStatus = filters?.favorite || 'all';
+    const ratingStatus = filters?.rating || 'all';
+    const ratingMinStatus = filters?.ratingMin || 'all';
+    const fileType = filters?.fileType || '';
     
     // Check if the model matches current filters
     let shouldBeVisible = true;
@@ -1806,29 +1787,6 @@ async function updateModelElement(filePath) {
       }
     }
     
-    // Check search term filter (name, directory, metadata, tags, and notes unless the Notes checkbox is off)
-    if (shouldBeVisible && searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const fileName = (model.fileName || '').toLowerCase();
-      const filePath = (model.filePath || '').toLowerCase();
-      const modelDesigner = (model.designer || '').toLowerCase();
-      const modelSource = (model.source || '').toLowerCase();
-      const modelLicense = (model.license || '').toLowerCase();
-      const modelParent = (model.parentModel || '').toLowerCase();
-      const modelNotes = librarySearchIncludesNotes() ? (model.notes || '').toLowerCase() : '';
-      const tagNames = Array.isArray(model.tags) ? model.tags.map(t => (t && t.name) ? t.name.toLowerCase() : '').filter(Boolean) : [];
-      const tagsMatch = tagNames.some(name => name.includes(searchLower));
-      
-      shouldBeVisible = fileName.includes(searchLower) ||
-                       filePath.includes(searchLower) ||
-                       modelDesigner.includes(searchLower) ||
-                       modelSource.includes(searchLower) ||
-                       modelLicense.includes(searchLower) ||
-                       modelParent.includes(searchLower) ||
-                       modelNotes.includes(searchLower) ||
-                       tagsMatch;
-    }
-
     const container = document.querySelector('.file-grid');
 
     // No longer matches the filters: take it out of the grid.
@@ -3123,51 +3081,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof bindGridBackgroundDeselect === 'function') {
     bindGridBackgroundDeselect();
   }
-  const licenseSelect = document.getElementById('license-select');
   const welcomeDialog = document.getElementById('welcome-message');
-
-  // Initialize license filter
-  if (licenseSelect) {
-    licenseSelect.addEventListener('change', async () => {
-      const license = licenseSelect.value;
-      const models = await window.electron.getAllModels();
-      
-      if (license) {
-        const filteredModels = models.filter(model => model.license === license);
-      } else {
-      }
-    });
-  }
-
-  // Initialize tag filter
-  const tagFilterSelect = document.getElementById('tag-filter-select');
-  if (tagFilterSelect) {
-    tagFilterSelect.addEventListener('change', async (event) => {
-      const selectedTag = event.target.value;
-      if (selectedTag) {
-        const tagContainer = document.getElementById('tag-filter');
-        const tag = document.createElement('div');
-        tag.className = 'tag';
-        tag.setAttribute('data-tag-name', selectedTag);
-        tag.setAttribute('title', selectedTag); // Show full tag name on hover
-        tag.innerHTML = `
-          <span class="tag-text">${escapeHtml(selectedTag)}</span>
-          <span class="tag-remove">×</span>
-        `;
-        
-        tag.querySelector('.tag-remove')?.addEventListener('click', () => {
-          tag.remove();
-          updateTagFilter();
-          populateTagFilterDropdown();
-        });
-        
-        tagContainer.appendChild(tag);
-        event.target.value = ''; // Reset selection
-        updateTagFilter();
-        await populateTagFilterDropdown();
-      }
-    });
-  }
 
   // Docker/Server: hide overlay so main window shell (sidebar, empty grid) paints immediately
   const loadingOverlay = document.getElementById('loading-overlay');
@@ -3201,57 +3115,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update the edit mode toggle button listener
 
-  // Invert Filter button click handler
-  document.getElementById('invert-filter-button')?.addEventListener('click', async () => {
-    const button = document.getElementById('invert-filter-button');
-    
-    // Detect which filter is active and invert it
-    const searchTerm = document.getElementById('search-filter-input')?.value?.trim();
-    const searchClausesActive =
-      typeof window.queryBuilderHasActiveSearchClauses === 'function' &&
-      window.queryBuilderHasActiveSearchClauses();
-    const designer = document.getElementById('designer-select')?.value;
-    const license = document.getElementById('license-select')?.value;
-    const parentModel = document.getElementById('parent-select')?.value;
-    const tagFilter = document.getElementById('tag-filter')?.value;
-    const tagChips = window.multiFilterChips?.tags?.length;
-
-    // Determine which filter to invert (prioritize in order: search, tag, designer, license, parentModel)
-    if (searchTerm || searchClausesActive) {
-      invertedFilters.search = !invertedFilters.search;
-      console.log('Inverted search filter:', invertedFilters.search);
-    } else if (tagFilter || tagChips) {
-      invertedFilters.tag = !invertedFilters.tag;
-      console.log('Inverted tag filter:', invertedFilters.tag);
-    } else if (document.getElementById('filament-filter')?.value || window.multiFilterChips?.filaments?.length) {
-      invertedFilters.filament = !invertedFilters.filament;
-      console.log('Inverted filament filter:', invertedFilters.filament);
-    } else if (designer || window.multiFilterChips?.designer?.length) {
-      invertedFilters.designer = !invertedFilters.designer;
-      console.log('Inverted designer filter:', invertedFilters.designer);
-    } else if (license || window.multiFilterChips?.license?.length) {
-      invertedFilters.license = !invertedFilters.license;
-      console.log('Inverted license filter:', invertedFilters.license);
-    } else if (parentModel || window.multiFilterChips?.parentModel?.length) {
-      invertedFilters.parentModel = !invertedFilters.parentModel;
-      console.log('Inverted parentModel filter:', invertedFilters.parentModel);
-    } else {
-      console.warn('No active filter to invert');
-      return;
-    }
-    
-    // Update button appearance to show it's active
-    if (Object.values(invertedFilters).some(val => val === true)) {
-      button.classList.add('active');
-      button.title = 'Filter is inverted (NOT equal)';
-    } else {
-      button.classList.remove('active');
-      button.title = 'Invert the current filter (NOT equal instead of equal)';
-    }
-    
-    // Trigger filter change to apply the inverted filter
-    await handleFilterChange();
-  });
 
 
   // Load background color setting
@@ -3376,26 +3239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tosAccepted = await checkTermsOfService();
     if (!tosAccepted) return;
 
-    // Initialize filters (without search)
-    // Note: sort-select is handled by search.js via initializeCombinedSearch()
-    const filterElements = [
-      'designer-select',
-      'license-select',
-      'parent-select',
-      'printed-select',
-      'new-select',
-      'tag-filter',
-      'filament-filter',
-      'filetype-select'  // Add this line
-    ];
-
-    filterElements.forEach(elementId => {
-      const element = document.getElementById(elementId);
-      if (element) {
-        element.addEventListener('change', handleFilterChange);
-      }
-    });
-
     // Rest of initialization...
     await initializeTags();
     await populateTagFilter();
@@ -3407,36 +3250,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initializeTags();
   initializeListButtons();
 
-  // Update the tag filter event listener
-  document.getElementById('tag-filter').addEventListener('change', async (event) => {
-    const selectedTag = event.target.value;
-    debugLog('Tag filter selected:', selectedTag);
-    
-    if (!selectedTag) {
-      // If no tag selected, show all models
-      const models = await window.electron.getAllModels();
-      return;
-    }
-
-    try {
-      // Get all models first
-      const allModels = await window.electron.getAllModels();
-      debugLog('Total models before filtering:', allModels.length);
-
-      // Filter models that have the selected tag
-      const filteredModels = [];
-      for (const model of allModels) {
-        const modelTags = await window.electron.getModelTags(model.id);
-        if (modelTags && modelTags.some(tag => tag.name === selectedTag)) {
-          filteredModels.push(model);
-        }
-      }
-
-      debugLog('Filtered models by tag:', filteredModels.length);
-    } catch (error) {
-      console.error('Error filtering by tag:', error);
-    }
-  });
 
   await populateTagFilter();
 
@@ -3529,13 +3342,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       await populateTagFilter();
       await populateLicenseFilter();
       
-      // Reset filters
-      document.getElementById('designer-select').value = '';
-      document.getElementById('parent-select').value = '';
-      document.getElementById('printed-select').value = 'all';
-      const newSelScan = document.getElementById('new-select');
-      if (newSelScan) newSelScan.value = 'all';
-      document.getElementById('tag-filter').value = '';
+      // Show the whole library again
+      window.clearAllLibraryFilters?.();
 
       // Force grid to refetch and re-render so models show without reload (Docker/server - same as Scan STL Home / View Entire Library)
       window.disableGridRefresh = false;
@@ -4015,10 +3823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearFileItemPathIndex();
     renderVirtualGrid([]);
     await updateModelCounts(0);
-    for (const [id, value] of [['designer-select', ''], ['parent-select', ''], ['printed-select', 'all'], ['new-select', 'all'], ['tag-filter', ''], ['filament-filter', '']]) {
-      const select = document.getElementById(id);
-      if (select) select.value = value;
-    }
+    window.clearAllLibraryFilters?.();
   };
 
   // Sort-select handler is now managed by search.js via initializeCombinedSearch()
@@ -4878,29 +4683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-  // Add this function to handle clearing the directory filter
-  async function clearDirectoryFilter() {
-    try {
-      // Get the filter indicator element and clear its content and visual state
-      if (typeof window.resetCurrentFilterPanelShell === "function") {
-        window.resetCurrentFilterPanelShell();
-      } else {
-        const filterIndicator = document.getElementById("current-filter");
-        if (filterIndicator) {
-          filterIndicator.innerHTML = "";
-          filterIndicator.classList.remove("visible");
-        }
-      }
-      // Retrieve and display all models
-      const models = await window.electron.getAllModels();
-      await displayModels(models);
-    } catch (error) {
-      console.error('Error clearing directory filter:', error);
-    }
-  }
 
-  // Expose clearDirectoryFilter to the global (window) scope so that event listeners can access it
-  window.clearDirectoryFilter = clearDirectoryFilter;
 
   // Update the parent directory click handler to show the clear button
 
@@ -5121,22 +4904,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     debugLog("View Library button not found.");
   }
 
-  // Add event listeners on filter and search elements so that the "view-library-message" is removed when a filter or search is active.
-  ["designer-select", "license-select", "parent-select", "printed-select", "new-select", "favorite-select", "rating-select", "rating-min-select", "tag-filter", "filament-filter", "filetype-select", "search-filter-input"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener("change", () => {
-        const msg = document.getElementById("view-library-message");
-        if (msg) { msg.style.display = "none"; }
-      });
-      if (id === "search-filter-input") {
-        el.addEventListener("input", () => {
-          const msg = document.getElementById("view-library-message");
-          if (msg) { msg.style.display = "none"; }
-        });
-      }
-    }
-  });
+;
 
   // Assuming this is where the menu item is defined
   document.addEventListener('DOMContentLoaded', function() {
@@ -5211,47 +4979,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Populate File Type filter dropdown with only enabled types (from Settings > File Type)
   async function populateFileTypeFilter() {
-    const select = document.getElementById('filetype-select');
-    if (!select) return;
-    const currentValue = select.value;
-    try {
-      const enableZipArchives = await window.electron.getSetting('enableZipArchives');
-      const scanTypesRaw = await window.electron.getSetting('scanAdditionalFileTypes');
-      let scanTypes = [];
-      try {
-        if (scanTypesRaw && typeof scanTypesRaw === 'string') scanTypes = JSON.parse(scanTypesRaw);
-        if (!Array.isArray(scanTypes)) scanTypes = [];
-      } catch (e) { /* ignore */ }
-      const catalog = await getFileTypesCatalogForUi();
-      const enabledIds = new Set(scanTypes);
-      const options = [
-        { value: '', label: 'All Types' },
-        { value: 'stl', label: 'STL' },
-        { value: '3mf', label: '3MF' }
-      ];
-      if (enableZipArchives === '1') options.push({ value: 'zip', label: 'Zip' });
-      catalog.forEach(entry => {
-        if (entry.id && enabledIds.has(entry.id)) options.push({ value: entry.id, label: entry.label || entry.id });
-      });
-      select.innerHTML = '';
-      options.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.label;
-        if (opt.value === currentValue) option.selected = true;
-        select.appendChild(option);
-      });
-      if (select.value !== currentValue && !options.some(o => o.value === currentValue)) select.value = '';
-    } catch (e) {
-      console.error('Error populating file type filter:', e);
-    }
+    window.libraryFilters?.reloadOptions();
   }
 
   // The File Type settings screen (React) calls this after saving.
   window.populateFileTypeFilter = populateFileTypeFilter;
 
-  // Populate file type filter once when sidebar is ready (only enabled types)
-  setTimeout(() => { if (typeof populateFileTypeFilter === 'function') populateFileTypeFilter(); }, 500);
 
   // Browser Extension settings are React (src/web/BrowserExtensionSettingsDialog.tsx).
   window._electronRealEventHandlers['open-browser-extension-settings'] = function() {
@@ -7947,12 +7680,7 @@ async function scanAndRenderDirectory(directoryPath, background = false, isStlHo
     
     // Foreground scans: reset filter UI and counts. Background scans (Docker STL Home polling, etc.) skip this.
     if (!background) {
-      document.getElementById('designer-select').value = '';
-      document.getElementById('parent-select').value = '';
-      document.getElementById('printed-select').value = 'all';
-      const newSelFg = document.getElementById('new-select');
-      if (newSelFg) newSelFg.value = 'all';
-      document.getElementById('tag-filter').value = '';
+      window.clearAllLibraryFilters?.();
 
       const totalInDb = await window.electron.getTotalModelCount();
       await updateModelCounts(totalInDb);
@@ -7977,31 +7705,8 @@ async function scanAndRenderDirectory(directoryPath, background = false, isStlHo
 
       if (result.response === 0) {
         // User clicked "Yes" - apply dateAdded filter to show only newly added models
-        window.dateAddedFilter = scanStartTime;
-        window._lastDateAddedFilter = scanStartTime;
-        console.log('Setting dateAddedFilter to:', scanStartTime);
-
-        window._suppressFilterEvents = true;
-        document.getElementById('designer-select').value = '';
-        document.getElementById('parent-select').value = '';
-        document.getElementById('printed-select').value = 'all';
-        const newSelNm = document.getElementById('new-select');
-        if (newSelNm) newSelNm.value = 'all';
-        document.getElementById('tag-filter').value = '';
-        const filamentFilterClear = document.getElementById('filament-filter');
-        if (filamentFilterClear) filamentFilterClear.value = '';
-        document.getElementById('filetype-select').value = '';
-        document.getElementById('search-filter-input').value = '';
-        window.currentDirectoryFilter = null;
-        window._suppressFilterEvents = false;
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        if (!window.dateAddedFilter) {
-          console.warn('dateAddedFilter was cleared, resetting it');
-          window.dateAddedFilter = scanStartTime;
-          window._lastDateAddedFilter = scanStartTime;
-        }
+        // Every filter off, only the models this scan added.
+        window.libraryFilters?.showAddedSince(scanStartTime);
 
         if (typeof window.performCombinedSearch === 'function') {
           await window.performCombinedSearch();
@@ -8109,27 +7814,7 @@ async function displayModels(files) {
 }
 
 
-// Add event listeners for all filter changes
-document.addEventListener('DOMContentLoaded', () => {
-  const filterElements = [
-    'designer-select',
-    'license-select',
-    'parent-select',
-    'printed-select',
-    'new-select',
-    'tag-filter',
-    'filament-filter',
-    // Note: sort-select is handled by search.js via initializeCombinedSearch()
-    'filetype-select'  // Add this line
-  ];
 
-  filterElements.forEach(elementId => {
-    const element = document.getElementById(elementId);
-    if (element) {
-      element.addEventListener('change', handleFilterChange);
-    }
-  });
-});
 
 // Add this near the top with other constants
 const GC_INTERVAL = 100; // Number of models to process before garbage collection
@@ -8145,11 +7830,9 @@ async function renderFiles(files, skipThumbnail = false, viewEntireLibrary = fal
   // filter them to preserve the "new models" view
   // This prevents something from bypassing performCombinedSearch and showing all models
   // BUT: Only apply this if the user hasn't actively cleared filters (check if search/filters are empty)
-  const searchInput = document.getElementById('search-filter-input');
-  const hasActiveUserFilters = searchInput?.value.trim() || 
-                               document.getElementById('designer-select')?.value ||
-                               document.getElementById('tag-filter')?.value ||
-                               document.getElementById('filetype-select')?.value;
+  const filterState = window.libraryFilters?.state();
+  const hasActiveUserFilters = !!filterState && (filterState.tokens.length > 0 || filterState.designer.length > 0
+    || filterState.tags.length > 0 || !!filterState.fileType);
   
   if (window.dateAddedFilter && files.length > 10 && !hasActiveUserFilters) {
     console.warn('renderFiles called with', files.length, 'models while dateAddedFilter is active! Filtering to preserve new models view...');
@@ -8195,23 +7878,6 @@ async function waitForGetCombinedFilteredModels(maxWait = 5000) {
   return window.getCombinedFilteredModels;
 }
 
-async function handleFilterChange() {
-  try {
-    resetFilterSelectionAndDetails();
-    if (typeof window.performCombinedSearch === 'function') {
-      await window.performCombinedSearch({ force: true });
-      return;
-    }
-    const getFilteredModels = await waitForGetCombinedFilteredModels();
-    const models = await getFilteredModels();
-    await displayModels(models);
-    if (window.updateFilterIndicator) {
-      window.updateFilterIndicator(models.length);
-    }
-  } catch (error) {
-    console.error("Error applying filters:", error);
-  }
-}
 
 async function processRenderQueue() {
   if (window._serverBulkThumbnailJobActive) {
@@ -8464,28 +8130,7 @@ async function renderModelToPNG(filePath, container, existingThumbnail, options 
 /** Progressive chunks are a partial result set — do not clear selection until search.js finishes the load. */
 function shouldSyncSelectionWithFilteredList() {
   if (window._progressiveLibraryLoadActive) return false;
-  if (typeof window.libraryFiltersAreActive === 'function') {
-    return window.libraryFiltersAreActive();
-  }
-  const designer = document.getElementById('designer-select')?.value || '';
-  const license = document.getElementById('license-select')?.value || '';
-  const parentModel = document.getElementById('parent-select')?.value || '';
-  const printStatus = document.getElementById('printed-select')?.value || 'all';
-  const newStatus = document.getElementById('new-select')?.value || 'all';
-  const tagFilter = document.getElementById('tag-filter')?.value || '';
-  const fileType = document.getElementById('filetype-select')?.value || '';
-  const searchTerm = (document.getElementById('search-filter-input')?.value || '').trim();
-  const qbClauses =
-    typeof window.queryBuilderHasActiveSearchClauses === 'function' &&
-    window.queryBuilderHasActiveSearchClauses();
-  const qbMulti =
-    typeof window.queryBuilderHasActiveMultiFilters === 'function' &&
-    window.queryBuilderHasActiveMultiFilters();
-  const noFiltersActive = !designer && !license && !parentModel && printStatus === 'all' &&
-    newStatus === 'all' &&
-    !tagFilter && !fileType && !searchTerm && !qbClauses && !qbMulti &&
-    !window.currentDirectoryFilter && !window.dateAddedFilter;
-  return !noFiltersActive;
+  return !!window.libraryFiltersAreActive?.();
 }
 
 function clearModelDetailsSidebar() {
@@ -8762,21 +8407,7 @@ async function populateModelDesignerDropdown() {
 }
 
 async function populateDesignerDropdown() {
-  const designerSelect = document.getElementById('designer-select');
-  designerSelect.innerHTML = '<option value="">All Designers</option>';
-  // Add an option to filter for models with no designer set
-  designerSelect.innerHTML += '<option value="__none__">None</option>';
-  try {
-    const designers = await window.electron.getDesigners();
-    designers.forEach(designer => {
-      const option = document.createElement('option');
-      option.value = designer;
-      option.textContent = designer;
-      designerSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error('Error fetching designers:', error);
-  }
+  window.libraryFilters?.reloadOptions(); // React (src/web/filters/Sidebar.tsx)
 }
 
 // Add these new functions
@@ -8836,56 +8467,14 @@ async function loadModelTags(modelIdOrPath) {
 async function applyTagFilterFromModelClick(tagName) {
   const trimmed = (tagName && String(tagName).trim()) || '';
   if (!trimmed) return;
-  if (window.dateAddedFilter) {
-    window.dateAddedFilter = null;
-    window._lastDateAddedFilter = null;
-  }
-  window.viewingEntireLibrary = false;
-  if (typeof window.resetFilterSelectionAndDetails === 'function') {
-    window.resetFilterSelectionAndDetails();
-  }
-  const tagSelect = document.getElementById('tag-filter');
-  if (!tagSelect) return;
-  const hasOption = Array.from(tagSelect.options).some((o) => o.value === trimmed);
-  if (!hasOption) {
-    const opt = document.createElement('option');
-    opt.value = trimmed;
-    opt.textContent = trimmed;
-    tagSelect.appendChild(opt);
-  }
-  tagSelect.value = '';
-  if (typeof window.setTagMultiFilter === 'function') {
-    window.setTagMultiFilter([trimmed]);
-  } else {
-    tagSelect.value = trimmed;
-  }
-  if (typeof window.performCombinedSearch === 'function') {
-    await window.performCombinedSearch();
-  }
+  resetFilterSelectionAndDetails();
+  window.setTagMultiFilter?.([trimmed]);
+  await window.performCombinedSearch?.({ force: true });
 }
 
 // Add this function to populate the tag filter dropdown
 async function populateTagFilter() {
-  const tagSelect = document.getElementById('tag-filter'); // Changed from 'tag-filter-select'
-  if (!tagSelect) {
-    console.error('Tag filter select element not found');
-    return;
-  }
-
-  tagSelect.innerHTML = '<option value="">All Tags</option>';
-
-  try {
-    const tags = await window.electron.getAllTags();
-    tags.sort((a, b) => a.name.localeCompare(b.name)); // Sort tags alphabetically
-    tags.forEach(tag => {
-      const option = document.createElement('option');
-      option.value = tag.name;
-      option.textContent = `${tag.name} (${tag.model_count})`;
-      tagSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error('Error populating tag filter:', error);
-  }
+  window.libraryFilters?.reloadOptions();
 }
 
 
@@ -9439,34 +9028,8 @@ function createSortableHeader(label, sortKey, width, options = {}) {
       newSort = `${sortKey}-asc`;
     }
     
-    // Update sort select - check if option exists first
-    if (sortSelect.querySelector(`option[value="${newSort}"]`)) {
-      sortSelect.value = newSort;
-      
-      // Trigger change event to ensure other listeners are notified
-      sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    } else {
-      console.warn(`Sort option ${newSort} not found in dropdown, adding it dynamically`);
-      // Option doesn't exist, add it dynamically
-      const option = document.createElement('option');
-      option.value = newSort;
-      option.textContent = `${label} (${newSort.includes('-asc') ? 'A-Z' : 'Z-A'})`;
-      sortSelect.appendChild(option);
-      sortSelect.value = newSort;
-      sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    
-    // Save sort preference
-    try {
-      await window.electron.saveSetting('sortOption', newSort);
-    } catch (error) {
-      console.error('Error saving sort preference:', error);
-    }
-    
-    // Trigger search to re-sort (also triggered by change event, but ensure it happens)
-    if (typeof window.performCombinedSearch === 'function') {
-      await window.performCombinedSearch();
-    }
+    window.libraryFilters?.setSort(newSort);
+    document.querySelector('.list-view-header')?.updateSortIndicators?.();
   });
   
   // Add hover effect
@@ -9657,29 +9220,8 @@ function createListViewHeader() {
       newSort = 'designer-asc';
     }
     
-    // Update sort select - check if option exists first
-    if (sortSelect.querySelector(`option[value="${newSort}"]`)) {
-      sortSelect.value = newSort;
-      sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    } else {
-      console.warn(`Sort option ${newSort} not found in dropdown, adding it dynamically`);
-      const option = document.createElement('option');
-      option.value = newSort;
-      option.textContent = `Designer (${newSort === 'designer-asc' ? 'A-Z' : 'Z-A'})`;
-      sortSelect.appendChild(option);
-      sortSelect.value = newSort;
-      sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    
-    try {
-      await window.electron.saveSetting('sortOption', newSort);
-    } catch (error) {
-      console.error('Error saving sort preference:', error);
-    }
-    
-    if (typeof window.performCombinedSearch === 'function') {
-      await window.performCombinedSearch();
-    }
+    window.libraryFilters?.setSort(newSort);
+    document.querySelector('.list-view-header')?.updateSortIndicators?.();
   });
   
   // Add hover effect
@@ -9808,8 +9350,7 @@ function createListViewHeader() {
   
   // Function to update all sort indicators
   header.updateSortIndicators = function() {
-    const sortSelect = document.getElementById('sort-select');
-    const currentSort = sortSelect ? sortSelect.value : 'date-desc';
+    const currentSort = window.libraryFilters?.state().sort || 'date-desc';
     
     // Update each sortable header's indicator
     Object.values(header.sortableHeaders).forEach(sortableHeader => {
@@ -9827,63 +9368,11 @@ function createListViewHeader() {
 }
 
 
-// Update the tag filter to support multiple tags
-function updateTagFilter() {
-  if (typeof window.performCombinedSearch === 'function') {
-    window.performCombinedSearch({ force: true });
-    return;
-  }
-  waitForGetCombinedFilteredModels().then((getFilteredModels) => getFilteredModels()).then(displayModels);
-}
 
-// Add tag filter functionality
-document.getElementById('tag-filter-select')?.addEventListener('change', async (event) => {
-  const selectedTag = event.target.value;
-  debugLog('Tag filter selected:', selectedTag);
-  
-  if (!selectedTag) {
-    // If no tag selected, show all models
-    const models = await window.electron.getAllModels();
-    return;
-  }
-
-  try {
-    // Get all models first
-    const allModels = await window.electron.getAllModels();
-    debugLog('Total models before filtering:', allModels.length);
-
-    // Filter models that have the selected tag
-    const filteredModels = [];
-    for (const model of allModels) {
-      const modelTags = await window.electron.getModelTags(model.id);
-      if (modelTags && modelTags.some(tag => tag.name === selectedTag)) {
-        filteredModels.push(model);
-      }
-    }
-
-    debugLog('Filtered models by tag:', filteredModels.length);
-  } catch (error) {
-    console.error('Error filtering by tag:', error);
-  }
-});
 
 // Add license filter population with null checks
 async function populateLicenseFilter() {
-  const licenseSelect = document.getElementById('license-select');
-  licenseSelect.innerHTML = '<option value="">All Licenses</option>';
-  // Add an option to filter for models with no license set
-  licenseSelect.innerHTML += '<option value="__none__">None</option>';
-  try {
-    const rows = await window.electron.getLicenses();
-    rows.forEach(license => {
-      const option = document.createElement('option');
-      option.value = license;
-      option.textContent = license;
-      licenseSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error('Error fetching licenses:', error);
-  }
+  window.libraryFilters?.reloadOptions();
 }
 
 // After De-Dup (src/web/DedupDialog.tsx) deleted files: clear the selection and reload the grid.
@@ -10042,27 +9531,7 @@ async function populateParentModelDropdown() {
 
 // Add back the populateParentModelFilter function
 async function populateParentModelFilter() {
-  const parentSelect = document.getElementById('parent-select');
-  parentSelect.innerHTML = '<option value="">All Parent Models</option>';
-  // Add an option to filter for models with no parent model set
-  parentSelect.innerHTML += '<option value="__none__">None</option>';
-  try {
-    const parents = await window.electron.getParentModels();
-    // Use a Set to track unique parent values to prevent duplicates
-    const seenParents = new Set();
-    
-    parents.forEach(parent => {
-      if (parent && !seenParents.has(parent)) { // Only add non-empty, unique parent models
-        seenParents.add(parent);
-        const option = document.createElement('option');
-        option.value = parent;
-        option.textContent = parent;
-        parentSelect.appendChild(option);
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching parent models for filter:', error);
-  }
+  window.libraryFilters?.reloadOptions();
 }
 
 function removeHtmlContextMenu() {
@@ -10874,18 +10343,7 @@ async function initializeAppOnce() {
       console.log('[Server thumbnails] Worker window: skipping initializeApp');
       return;
     }
-    // Load saved sort preference before initializing search
-    const savedSortOption = await window.electron.getSetting('sortOption');
-    const sortSelect = document.getElementById('sort-select');
-    if (sortSelect && savedSortOption) {
-      // Validate that the saved option is a valid sort option
-      const validOptions = ['name-asc', 'name-desc', 'size-asc', 'size-desc', 'date-asc', 'date-desc', 'dateadded-asc', 'dateadded-desc', 'directory-asc', 'directory-desc', 'designer-asc', 'designer-desc', 'parentmodel-asc', 'parentmodel-desc', 'printed-asc', 'printed-desc', 'printstatus-asc', 'printstatus-desc', 'printcount-asc', 'printcount-desc', 'lastprinted-asc', 'lastprinted-desc', 'rating-asc', 'rating-desc'];
-      if (validOptions.includes(savedSortOption)) {
-        sortSelect.value = savedSortOption;
-      }
-    }
-    
-    // Initialize the combined search functionality from search.js
+    // The saved sort order and notes setting (src/web/filters/store.ts)
     if (typeof window.initializeCombinedSearch === 'function') {
       await window.initializeCombinedSearch();
     }
@@ -12303,10 +11761,8 @@ window.gridHost = {
   },
   filterByDirectory: (filePath) => { filterGridByModelDirectory(filePath); },
   filterBySelect: (selectId, value) => {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-    select.value = value;
-    if (typeof window.performCombinedSearch === 'function') window.performCombinedSearch();
+    window.libraryFilters?.setFromSelect(selectId, value);
+    window.performCombinedSearch?.({ force: true });
   },
   filterByTag: (name) => { applyTagFilterFromModelClick(name); },
   saveField: async (filePath, field, value) => !!(await autoSaveModel(field, value, filePath)),
@@ -12405,6 +11861,15 @@ async function removeFromSelectedModelsField(field, value) {
   updates.forEach((model) => mergeModelIntoGridCurrentModels(model));
   refreshLibraryGrid();
 }
+
+/** What the sidebar filters (src/web/filters/Sidebar.tsx) ask of this file. */
+window.sidebarHost = {
+  pickFromList: (field) => new Promise((resolve) => {
+    showSearchableListDialog(field, null, 'filter', null, false, resolve);
+  }),
+  resetSelection: () => resetFilterSelectionAndDetails(),
+  sortChanged: () => { document.querySelector('.list-view-header')?.updateSortIndicators?.(); }
+};
 
 /** What the multi-edit panel (src/web/details/MultiEditPanel.tsx) asks of this file. */
 window.multiEditHost = {

@@ -36,7 +36,7 @@ declare global {
     /** renderer.js: rebuild the sidebar's file type filter from the enabled types. */
     populateFileTypeFilter?: () => Promise<void>;
     /** search.js: run the current search and filters again. */
-    performCombinedSearch?: () => Promise<void>;
+    performCombinedSearch?: (options?: { force?: boolean; preserveScroll?: boolean }) => Promise<void>;
     /** renderer.js: empty the grid, counts and filters after every model was purged. */
     afterModelsPurged?: () => Promise<void>;
     /** renderer.js: set the accent colors for a UI theme. */

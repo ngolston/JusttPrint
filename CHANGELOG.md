@@ -4,6 +4,13 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js` and `query-builder.js` are removed.
+
+**Changes:**
+- The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
+- Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.
+- Fixed: **Invert Filters** on a query, and NOT in a query, left out every model whose field in the query was empty (for example a model with no designer when the query named a designer).
+
 ## [4.4.0] - 2026-10-05
 
 **Upgrading:** no changes needed for Docker. If you build from source, run `npm run build:web` (it now also builds the parse worker, `web-build/parse-worker.js`). Removed files: `preview.js`, `parse-worker.js`, and the bundled three.js r128 copies in `vendor/` (`three.min.js`, its loaders, `OrbitControls.js`, `fflate.min.js`). Behind a strict proxy or CSP of your own, allow `'unsafe-eval'` for `/web-build/parse-worker.js` instead of `/parse-worker.js` (the STEP importer needs it).

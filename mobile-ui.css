@@ -425,7 +425,8 @@ body.mobile-ui #filter-stack {
   width: 100%;
 }
 
-body.mobile-ui #filter-stack > .form-group {
+body.mobile-ui #filter-stack > .form-group,
+body.mobile-ui #sidebar-filters-slot > .form-group {
   order: 10;
 }
 

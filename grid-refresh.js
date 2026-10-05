@@ -1,5 +1,5 @@
 // Grid updates while thumbnails arrive in the background.
-// Loaded before search.js and renderer.js.
+// Loaded before renderer.js; the search (src/web/filters/search.ts) uses it too.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) {

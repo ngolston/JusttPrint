@@ -1,5 +1,5 @@
 /**
- * Filaments: the sidebar filament filter, and the hooks that reload the filament pickers.
+ * Filaments: the hooks that reload the filament pickers and the sidebar's filament filter.
  * The pickers are React (src/web/details/DetailsFilaments.tsx and MultiEditPanel.tsx); the
  * Filament Manager is React too (src/web/FilamentManagerDialog.tsx).
  */
@@ -70,32 +70,11 @@
     window.multiEdit?.reloadOptions();
   }
 
+  /** The sidebar's filament filter is React (src/web/filters/Sidebar.tsx); it loads its own options. */
   async function populateFilamentFilter() {
-    const select = document.getElementById('filament-filter');
-    if (!select) return;
-    const previous = select.value;
-    select.innerHTML = '<option value="">All Filaments</option>';
-    window.filamentLabelById = window.filamentLabelById || {};
-    try {
-      const filaments = await window.electron.getAllFilaments();
-      (filaments || [])
-        .slice()
-        .sort((a, b) => formatFilamentLabel(a).localeCompare(formatFilamentLabel(b)))
-        .forEach((filament) => {
-          const label = formatFilamentLabel(filament);
-          window.filamentLabelById[String(filament.id)] = label;
-          const option = document.createElement('option');
-          option.value = String(filament.id);
-          option.textContent = `${label} (${filament.model_count || 0})`;
-          select.appendChild(option);
-        });
-      if (previous && Array.from(select.options).some((o) => o.value === previous)) {
-        select.value = previous;
-      }
-    } catch (error) {
-      console.error('Error populating filament filter:', error);
-    }
+    window.libraryFilters?.reloadOptions();
   }
+
 
   /** The filaments on the selected models changed. */
   async function populateRemoveFilamentSelect() {
@@ -110,16 +89,6 @@
   async function initializeFilaments() {
     wireFilamentManagerEvents();
     await populateFilamentFilter();
-    if (typeof populateTagFilter === 'function' && !populateTagFilter._filamentWrapped) {
-      const origFilter = populateTagFilter;
-      const wrappedFilter = async function () {
-        await origFilter.apply(this, arguments);
-        await populateFilamentFilter();
-      };
-      wrappedFilter._filamentWrapped = true;
-      populateTagFilter = wrappedFilter;
-      window.populateTagFilter = wrappedFilter;
-    }
   }
 
   window.formatFilamentLabel = formatFilamentLabel;

@@ -31,6 +31,8 @@ import { PrinterManagerDialog } from './PrinterManagerDialog';
 import './preview/files';
 import './thumbnails';
 import './parse';
+import './filters/search';
+import { Sidebar } from './filters/Sidebar';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -68,6 +70,7 @@ function Screens() {
       <StlHomeDialog />
       <OrganizeLibraryDialog />
       <DedupDialog />
+      <Sidebar />
       <LibraryGrid />
       <DetailsFields />
       <DetailsFilaments />

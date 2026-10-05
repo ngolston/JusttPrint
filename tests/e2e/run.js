@@ -688,6 +688,70 @@ async function browserChecks(base, wsUrl, session) {
       check('Print Roulette picks one model and shows it', !!rouletteDone && picked.length === 1
         && await page.getAttribute('#path-tree-container', 'data-file-path') === picked[0], JSON.stringify(picked));
       if (rouletteDone) await rouletteDone.click();
+
+      // Sidebar filters (React, src/web/filters/): the grid, the filter strip and the saved settings follow them.
+      const third = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath'))))
+        .find((p) => p !== cardPath && p !== other);
+      const shownPaths = () => page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')).sort());
+      const waitShown = (paths) => page.waitForFunction((want) => {
+        const have = [...document.querySelectorAll('.file-grid .file-item-detailed[data-filepath]')].map((el) => el.getAttribute('data-filepath')).sort();
+        return JSON.stringify(have) === JSON.stringify([...want].sort());
+      }, paths, { timeout: 10000 }).then(() => true, async () => JSON.stringify(await shownPaths()));
+      const stripText = () => page.textContent('#current-filter-body').then((t) => t.replace(/\s+/g, ' ').trim());
+      await invoke(base, session, 'update-models-batch', [[
+        { filePath: other, designer: 'E2E Sidebar Designer', tags: ['e2e-s1'] },
+        { filePath: third, tags: ['e2e-s1', 'e2e-s2'] }
+      ]]);
+      await page.evaluate(() => window.libraryFilters.reloadOptions());
+      await page.waitForSelector('#designer-select option[value="E2E Sidebar Designer"]', { state: 'attached', timeout: 10000 }).catch(() => {});
+      // "More filters" folds away while a details panel is open.
+      if (!(await page.isVisible('#designer-select'))) await page.click('#filter-stack-toggle');
+      await page.selectOption('#designer-select', 'E2E Sidebar Designer');
+      const byDesigner = await waitShown([other]);
+      check('the designer filter narrows the grid and shows in the filter strip', byDesigner === true
+        && /Showing 1 models.*Designer: E2E Sidebar Designer/.test(await stripText()), `${byDesigner} ${await stripText()}`);
+      await page.click('#current-filter-body .filter-pill:has-text("Designer:") .filter-remove');
+      check('removing a filter chip shows the library again', await waitShown([cardPath, other, third]) === true && !(await page.isVisible('#current-filter-body .filter-pill')));
+      const cardName = path.basename(cardPath);
+      await page.fill('#search-filter-input', cardName);
+      await page.press('#search-filter-input', 'Enter');
+      check('a search narrows the grid and becomes a chip', await waitShown([cardPath]) === true && await page.inputValue('#search-filter-input') === ''
+        && (await stripText()).includes(`Search: "${cardName}"`));
+      await page.click('#search-add-or-btn');
+      const awaitingHint = await page.isVisible('#search-boolean-hint');
+      await page.selectOption('#designer-select', 'E2E Sidebar Designer');
+      const orResult = await waitShown([cardPath, other]);
+      check('OR then a filter pick adds it to the query', awaitingHint && orResult === true
+        && /Search: ".*".*OR.*Designer: E2E Sidebar Designer/.test(await stripText()) && await page.inputValue('#designer-select') === '',
+        `${awaitingHint} ${orResult} ${await stripText()}`);
+      await page.click('#invert-filter-button');
+      const inverted = await waitShown([third]);
+      check('Invert Filters inverts the query', inverted === true && (await stripText()).includes('NOT')
+        && await page.getAttribute('#invert-filter-button', 'class') === 'active', `${inverted} ${await stripText()}`);
+      await page.click('#clear-all-filters-button');
+      check('Clear All Filters shows the whole library', await waitShown([cardPath, other, third]) === true
+        && !(await page.isVisible('#clear-all-filters-button')) && !(await page.getAttribute('#invert-filter-button', 'class')));
+      await page.selectOption('#tag-filter', 'e2e-s1');
+      const oneTag = await waitShown([other, third]);
+      await page.selectOption('#tag-filter', 'e2e-s2');
+      const bothTags = await waitShown([third]);
+      check('two tags must both match by default', oneTag === true && bothTags === true && await page.isVisible('#tags-combine-row')
+        && (await page.locator('#tags-filter-chips .filter-value-chip').count()) === 2, `${oneTag} ${bothTags}`);
+      await page.check('#tags-combine-row input[value="OR"]');
+      check('Any tag matches either tag', await waitShown([other, third]) === true && (await stripText()).includes('(any)'));
+      await page.click('#clear-all-filters-button');
+      await waitShown([cardPath, other, third]);
+      await page.selectOption('#sort-select', 'name-asc');
+      const savedSort = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['sortOption'])).result === 'name-asc' ? true : null), 10000, 'sort saved').catch(() => false);
+      const sortedNames = await page.$$eval('.file-grid .file-item-detailed .file-name', (els) => els.map((el) => el.textContent.trim().toLowerCase()));
+      check('the sort order applies and is saved', savedSort === true && JSON.stringify(sortedNames) === JSON.stringify([...sortedNames].sort()), JSON.stringify(sortedNames));
+      await page.selectOption('#sort-select', 'date-desc');
+      await page.uncheck('#search-include-notes');
+      const notesSettingSaved = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['searchIncludeNotes'])).result === '0' ? true : null), 10000, 'notes saved').catch(() => false);
+      check('the notes toggle is saved', notesSettingSaved === true);
+      await page.check('#search-include-notes');
+      await invoke(base, session, 'update-models-batch', [[{ filePath: other, designer: null, tags: [] }, { filePath: third, tags: [] }]]);
+      await page.evaluate(() => window.libraryFilters.reloadOptions());
       // Ctrl-click is a right-click on macOS; the app takes Cmd there.
       const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
       await page.click(`${card} .file-name`, { modifiers: [multiKey] });
@@ -704,7 +768,8 @@ async function browserChecks(base, wsUrl, session) {
       await page.evaluate(() => Promise.all(((window._electronEventListeners || {})['refresh-grid'] || []).map((listener) => listener())));
       await page.waitForTimeout(1000);
       check('a server grid refresh keeps the multi-edit selection', (await page.locator('.file-grid .file-item.selected').count()) === 2
-        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()),
+        JSON.stringify(await page.evaluate(() => ({ selected: window.selection.size, highlighted: document.querySelectorAll('.file-grid .file-item.selected').length }))));
       await page.click('#multi-designer-add');
       const multiPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
       if (multiPrompt) {

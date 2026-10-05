@@ -159,62 +159,15 @@
       <div class="performance-notice">Scanning may impact performance.</div>
     </div>
     </div>
+    <!-- The current filter strip: React (src/web/filters/Sidebar.tsx). mobile-ui.js mirrors #current-filter-body. -->
     <div id="current-filter">
       <div id="current-filter-body"></div>
-      <div id="search-boolean-toolbar" class="search-boolean-toolbar query-builder-control" hidden>
-        <span class="search-boolean-toolbar-label">Search logic:</span>
-        <a href="#" id="search-add-and-btn" class="search-boolean-op-link" title="Add AND to the query, then choose your next search or filter">AND</a>
-        <span class="search-boolean-op-sep" aria-hidden="true">·</span>
-        <a href="#" id="search-add-or-btn" class="search-boolean-op-link" title="Add OR to the query, then choose your next search or filter">OR</a>
-        <span class="search-boolean-op-sep" aria-hidden="true">·</span>
-        <a href="#" id="search-add-not-btn" class="search-boolean-op-link" title="Add NOT before the next search term">NOT</a>
-        <span id="search-boolean-hint" class="search-boolean-hint" hidden>Next: enter another search and press search, or pick a filter below.</span>
-      </div>
-      <button type="button" id="clear-all-filters-button" class="clear-filter-button" hidden>Clear All Filters</button>
+      <div id="current-filter-actions" style="display: contents"></div>
     </div>
     <div class="filter-section">
       <div class="filter-pinned">
-      <div class="form-group search-models-field">
-        <label for="search-filter-input">Search Models:</label>
-        <div class="input-with-icon">
-          <input type="search" id="search-filter-input" placeholder="Search models" enterkeyhint="search" autocomplete="off">
-          <button id="filter-search-button" class="icon-button" title="Add this text to the active query (all fields)">🔍</button>
-          <button id="clear-filter-search-button" class="icon-button" title="Clear search">×</button>
-        </div>
-        <label class="search-notes-toggle" title="Include notes in all-fields search. Turn off to skip long imported descriptions. A search limited to the Notes field still matches notes.">
-          <input type="checkbox" id="search-include-notes" checked>
-          <span>Include Notes</span>
-        </label>
-      </div>
-      <div class="form-group">
-        <label for="sort-select">Sort By:</label>
-        <select id="sort-select">
-          <option value="name-asc">Name (A-Z)</option>
-          <option value="name-desc">Name (Z-A)</option>
-          <option value="size-asc">Size (Smallest First)</option>
-          <option value="size-desc">Size (Largest First)</option>
-          <option value="date-asc">Modified (Oldest First)</option>
-          <option value="date-desc" selected>Modified (Newest First)</option>
-          <option value="dateadded-asc">Date Added (Oldest First)</option>
-          <option value="dateadded-desc">Date Added (Newest First)</option>
-          <option value="directory-asc">Parent Directory (A-Z)</option>
-          <option value="directory-desc">Parent Directory (Z-A)</option>
-          <option value="designer-asc">Designer (A-Z)</option>
-          <option value="designer-desc">Designer (Z-A)</option>
-          <option value="parentmodel-asc">Parent Model (A-Z)</option>
-          <option value="parentmodel-desc">Parent Model (Z-A)</option>
-          <option value="printed-asc">Printed (Not Printed First)</option>
-          <option value="printed-desc">Printed (Printed First)</option>
-          <option value="printstatus-asc">Print Status (Printing First)</option>
-          <option value="printstatus-desc">Print Status (Unprinted First)</option>
-          <option value="printcount-desc">Print Count (Most First)</option>
-          <option value="printcount-asc">Print Count (Least First)</option>
-          <option value="lastprinted-desc">Last Printed (Newest First)</option>
-          <option value="lastprinted-asc">Last Printed (Oldest First)</option>
-          <option value="rating-desc">Rating (Highest First)</option>
-          <option value="rating-asc">Rating (Lowest First)</option>
-        </select>
-      </div>
+      <!-- Search, notes and sort: React (src/web/filters/Sidebar.tsx) -->
+      <div id="sidebar-search-slot" style="display: contents"></div>
       <div class="form-group">
         <label for="folder-select">Folders:</label>
         <div class="dropdown-with-list">
@@ -230,154 +183,8 @@
         <span class="filter-stack-toggle-chevron" aria-hidden="true">▸</span>
       </button>
       <div id="filter-stack" class="filter-stack">
-      <div class="form-group">
-        <label for="designer-select">Select Designer:</label>
-        <div class="dropdown-with-list">
-          <select id="designer-select">
-            <option value="">All Designers</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="designer" data-target="designer-select" title="Search existing designers">☰</button>
-        </div>
-        <div id="designer-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="designer-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="designer-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="designer-combine" value="AND"> All</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="parent-select">Select Parent Model:</label>
-        <div class="dropdown-with-list">
-          <select id="parent-select">
-            <option value="">All Parent Models</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="parent" data-target="parent-select" title="Search existing parent models">☰</button>
-        </div>
-        <div id="parentModel-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="parentModel-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="parentModel-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="parentModel-combine" value="AND"> All</label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="license-select">Select License:</label>
-        <div class="dropdown-with-list">
-          <select id="license-select">
-            <option value="">All Licenses</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="license" data-target="license-select" title="Search existing licenses">☰</button>
-        </div>
-        <div id="license-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="license-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="license-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="license-combine" value="AND"> All</label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="printed-select">Print Status:</label>
-        <select id="printed-select">
-          <option value="all">All Models</option>
-          <option value="unprinted">Unprinted</option>
-          <option value="want">Want</option>
-          <option value="queued">Queued</option>
-          <option value="printing">Printing</option>
-          <option value="printed">Printed</option>
-          <option value="failed">Failed</option>
-          <option value="ever-printed">Ever printed</option>
-          <option value="never-printed">Never printed</option>
-          <option value="not-printed">Not printed</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="new-select">New Status:</label>
-        <select id="new-select">
-          <option value="all">All Models</option>
-          <option value="new">New Models Only</option>
-          <option value="not-new">Exclude New Models</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="favorite-select">Favorite:</label>
-        <select id="favorite-select">
-          <option value="all">All Models</option>
-          <option value="favorited">Favorites</option>
-          <option value="not-favorited">Not Favorites</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="rating-select">Rating:</label>
-        <select id="rating-select">
-          <option value="all">All Ratings</option>
-          <option value="unrated">Unrated</option>
-          <option value="1">1 Star</option>
-          <option value="2">2 Stars</option>
-          <option value="3">3 Stars</option>
-          <option value="4">4 Stars</option>
-          <option value="5">5 Stars</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="rating-min-select">Min Rating:</label>
-        <select id="rating-min-select">
-          <option value="all">All</option>
-          <option value="1">At Least 1</option>
-          <option value="2">At Least 2</option>
-          <option value="3">At Least 3</option>
-          <option value="4">At Least 4</option>
-          <option value="5">At Least 5</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="filetype-select">File Type:</label>
-        <select id="filetype-select">
-          <option value="">All Types</option>
-          <option value="stl">STL</option>
-          <option value="3mf">3MF</option>
-          <!-- Zip and additional types are added by populateFileTypeFilter() from settings -->
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="tag-filter">Filter by Tag:</label>
-        <div class="dropdown-with-list">
-          <div class="tags-input-container">
-            <select id="tag-filter">
-              <option value="">All Tags</option>
-            </select>
-          </div>
-          <button type="button" class="list-button icon-button" data-field="tag" data-target="tag-filter" title="Search existing tags">☰</button>
-        </div>
-        <div id="tags-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="tags-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="tags-combine" value="OR"> Any tag</label>
-          <label><input type="radio" name="tags-combine" value="AND" checked> All tags</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="filament-filter">Filter by Filament:</label>
-        <div class="dropdown-with-list">
-          <div class="tags-input-container">
-            <select id="filament-filter">
-              <option value="">All Filaments</option>
-            </select>
-          </div>
-          <button type="button" class="list-button icon-button" data-field="filament" data-target="filament-filter" title="Search existing filaments">☰</button>
-        </div>
-        <div id="filaments-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="filaments-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="filaments-combine" value="OR"> Any filament</label>
-          <label><input type="radio" name="filaments-combine" value="AND" checked> All filaments</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <button type="button" id="invert-filter-button" title="Invert the current filter (NOT equal instead of equal)">Invert Filters</button>
-      </div>
+      <!-- Filters: React (src/web/filters/Sidebar.tsx) -->
+      <div id="sidebar-filters-slot" style="display: contents"></div>
 
       <div class="form-group">
         <button id="edit-mode-toggle">Multi-Edit Mode</button>
@@ -755,9 +562,7 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="thumbnail-progress.js"></script>
   <script src="slicer-protocol.js"></script>
   <script src="server-bridge.js"></script>
-  <script src="query-builder.js"></script>
   <script src="grid-refresh.js"></script>
-  <script src="search.js"></script>
   <script src="sidebar-layout.js"></script>
   <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>

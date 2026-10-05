@@ -70,84 +70,7 @@ test('thumbnail reloads coalesce to one call per window', async () => {
   assert.strictEqual(calls, 2);
 });
 
-function loadSearch() {
-  const elements = new Map();
-  const grid = {
-    scrollTop: 840,
-    currentModels: new Array(2000).fill(null).map((_, i) => ({ filePath: `m${i}.stl` })),
-    classList: { add() {}, remove() {} }
-  };
-  const document = {
-    getElementById() { return null; },
-    querySelector(selector) {
-      return selector === '.file-grid' ? grid : null;
-    },
-    querySelectorAll() { return []; },
-    addEventListener() {}
-  };
-  const renders = [];
-  const window = {
-    document,
-    console,
-    gridRefresh,
-    dateAddedFilter: null,
-    renderFiles: async (models) => {
-      grid.scrollTop = 0;
-      renders.push(models.length);
-    }
-  };
-  window.window = window;
-  const pages = {
-    '500:0': 500,
-    '1200:500': 1200,
-    '1200:1700': 300
-  };
-  window.electron = {
-    getModelsFiltered: async (filters) => {
-      const limit = filters.limit;
-      const offset = filters.offset || 0;
-      const count = pages[`${limit}:${offset}`];
-      if (count == null) return [];
-      return new Array(count).fill(null).map((_, i) => ({ filePath: `p${offset + i}.stl` }));
-    }
-  };
-  const context = vm.createContext({
-    window,
-    document,
-    console,
-    setTimeout,
-    clearTimeout,
-    requestAnimationFrame: (fn) => setTimeout(fn, 0),
-    requestIdleCallback: (fn) => setTimeout(fn, 0)
-  });
-  const source = fs.readFileSync(path.join(__dirname, '..', 'search.js'), 'utf8');
-  vm.runInContext(source, context, { filename: 'search.js' });
-  return { window, grid, renders };
-}
-
-async function waitFor(predicate) {
-  const start = Date.now();
-  while (!predicate()) {
-    if (Date.now() - start > 3000) throw new Error('timed out');
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-}
-
-test('background search restores scroll and skips the short first page', async () => {
-  const { window, grid, renders } = loadSearch();
-  await window.performCombinedSearch({ preserveScroll: true });
-  await waitFor(() => window._progressiveLibraryLoadActive === false && renders.length > 0);
-  assert.deepStrictEqual(renders, [2000]);
-  assert.strictEqual(grid.scrollTop, 840);
-});
-
-test('user search still renders the first page immediately', async () => {
-  const { window, renders } = loadSearch();
-  await window.performCombinedSearch();
-  assert.strictEqual(renders[0], 500);
-  await waitFor(() => window._progressiveLibraryLoadActive === false);
-  assert.ok(renders.includes(500));
-});
+// The progressive search itself is TypeScript now: src/web/filters/search.test.ts.
 
 test('renderer wires off-screen patches to a coalesced scroll-preserving refresh', () => {
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'renderer.js'), 'utf8');
@@ -159,9 +82,7 @@ test('renderer wires off-screen patches to a coalesced scroll-preserving refresh
   const grid = fs.readFileSync(path.join(__dirname, '..', 'src', 'web', 'grid', 'LibraryGrid.tsx'), 'utf8');
   assert.ok(grid.includes('scrollTopForSelection('));
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const gridAt = html.indexOf('src="grid-refresh.js"');
-  const searchAt = html.indexOf('src="search.js"');
-  assert.ok(gridAt !== -1 && searchAt !== -1 && gridAt < searchAt);
+  assert.ok(html.indexOf('src="grid-refresh.js"') !== -1 && html.indexOf('src="grid-refresh.js"') < html.indexOf('src="renderer.js"'));
 });
 
 (async () => {
