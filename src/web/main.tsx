@@ -45,6 +45,7 @@ import { ServerAccessDialog } from './ServerAccessDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
 import { StlHomeDialog } from './StlHomeDialog';
+import { FirstRun } from './startup/FirstRun';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 import { ThemeSettingsDialog } from './ThemeSettingsDialog';
@@ -52,6 +53,7 @@ import { ThemeSettingsDialog } from './ThemeSettingsDialog';
 function Screens() {
   return (
     <>
+      <FirstRun />
       <ServerAccessDialog />
       <TagManagerDialog />
       <PartsManagerDialog />

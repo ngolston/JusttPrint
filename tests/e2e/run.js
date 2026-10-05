@@ -1276,6 +1276,24 @@ async function browserChecks(base, wsUrl, session) {
     }
     await phone.close();
 
+    // First run (React, src/web/startup/FirstRun.tsx): the terms, then the welcome, then the guide.
+    await invoke(base, session, 'save-setting', ['tosAcceptedDate', '']);
+    await invoke(base, session, 'save-setting', ['hasRunBefore', '']);
+    const fresh = await page.context().newPage();
+    fresh.on('pageerror', (error) => errors.push(`first run: ${error.message}`));
+    await fresh.goto(base + '/');
+    check('a first visit asks to accept the terms', await fresh.waitForSelector('#terms-of-service-dialog[open] #accept-terms', { timeout: 30000 }).then(() => true, () => false)
+      && !(await fresh.isVisible('#welcome-message')));
+    await fresh.press('#terms-of-service-dialog', 'Escape');
+    check('Escape does not skip the terms', await fresh.isVisible('#terms-of-service-dialog'));
+    await fresh.click('#accept-terms');
+    check('accepting saves it and shows the welcome', await fresh.waitForSelector('#welcome-message[open]', { timeout: 30000 }).then(() => true, () => false)
+      && !!(await invoke(base, session, 'get-setting', ['tosAcceptedDate'])).result);
+    await fresh.click('#dismiss-welcome');
+    check('Get Started opens the Quick Start Guide', await fresh.waitForSelector('#quickstart-guide[open]', { timeout: 10000 }).then(() => true, () => false)
+      && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true');
+    await fresh.close();
+
     // System Report (React): every section finishes, and both benchmarks complete.
     await page.evaluate(() => window.openSystemReport());
     check('System Report opens', await page.isVisible('#system-report-dialog'));

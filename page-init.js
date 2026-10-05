@@ -49,12 +49,4 @@
       loadingMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
     }, 5000);
   });
-
-  // Welcome dialog: dismiss, then open the guide.
-  document.getElementById('dismiss-welcome')?.addEventListener('click', () => {
-    document.getElementById('welcome-message')?.close();
-    setTimeout(() => {
-      if (typeof window.showGuide === 'function') window.showGuide();
-    }, 500);
-  });
 })();

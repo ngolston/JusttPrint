@@ -2307,87 +2307,11 @@ async function refreshGridModelAfterManageThumbnailsActiveChange(filePath) {
 // Manage Thumbnails is React (src/web/ManageThumbnailsDialog.tsx); it redraws the card through this.
 window.refreshModelThumbnails = refreshGridModelAfterManageThumbnailsActiveChange;
 
-function safeShowModal(dialog) {
-  if (!dialog) return false;
-  try {
-    if (dialog.open) return true;
-    dialog.showModal();
-    return true;
-  } catch (err) {
-    console.warn('showModal failed:', dialog.id || dialog, err);
-    return dialog.open === true;
-  }
-}
-
-function closeDialogSafe(dialog) {
-  if (!dialog) return;
-  try {
-    if (dialog.open) dialog.close();
-  } catch (_) { /* ignore */ }
-}
-
-let tosCheckPromise = null;
-
-// Update the checkTermsOfService function to return a promise
+/** The terms must be accepted before the app loads (src/web/startup/FirstRun.tsx asks). */
 async function checkTermsOfService() {
-  if (tosCheckPromise) return tosCheckPromise;
-  tosCheckPromise = (async () => {
-  try {
-    // Hidden server worker has no interactive UI; never block init on TOS.
-    if (await isServerThumbnailWorkerContext()) {
-      return true;
-    }
-
-    let tosAccepted = await window.electron.getSetting('tosAcceptedDate');
-    const termsDialog = document.getElementById('terms-of-service-dialog');
-    const acceptButton = document.getElementById('accept-terms');
-    const declineButton = document.getElementById('decline-terms');
-
-    if (!termsDialog || !acceptButton || !declineButton) {
-      console.error('Terms of Service dialog elements not found');
-      return false; // Return false if dialog elements are not found
-    }
-
-    if (!tosAccepted) {
-      safeShowModal(termsDialog);
-      
-      return new Promise((resolve) => {
-        const acceptHandler = async () => {
-          // Remove event listeners first to prevent double-clicks
-          acceptButton.removeEventListener('click', acceptHandler);
-          declineButton.removeEventListener('click', declineHandler);
-          
-          // Save TOS acceptance to database
-          await window.electron.saveSetting('tosAcceptedDate', new Date().toISOString());
-          
-          // Close the terms dialog so the document is no longer inert
-          closeDialogSafe(termsDialog);
-          
-          resolve(true); // Resolve promise when accepted
-        };
-
-        const declineHandler = () => {
-          acceptButton.removeEventListener('click', acceptHandler);
-          declineButton.removeEventListener('click', declineHandler);
-          closeDialogSafe(termsDialog);
-          // Declining logs this browser out; the server keeps running for everyone else.
-          if (typeof window.logOutOfServer === 'function') window.logOutOfServer();
-          resolve(false); // Resolve promise when declined
-        };
-
-        acceptButton.addEventListener('click', acceptHandler);
-        declineButton.addEventListener('click', declineHandler);
-      });
-    }
-    closeDialogSafe(termsDialog);
-    return true; // Return true if already accepted
-  } catch (error) {
-    console.error('Error checking Terms of Service:', error);
-    closeDialogSafe(document.getElementById('terms-of-service-dialog'));
-    return false; // Return false on error
-  }
-  })();
-  return tosCheckPromise;
+  // The server's thumbnail worker has no one to ask.
+  if (await isServerThumbnailWorkerContext()) return true;
+  return window.checkTerms ? window.checkTerms() : false;
 }
 
 function parseStlHomeExcludeSetting(raw) {
@@ -2589,10 +2513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Show the welcome dialog if this is the first run
   if (!hasRunBeforeVal) {
-    const welcomeDialog = document.getElementById('welcome-message');
-    if (welcomeDialog) {
-      safeShowModal(welcomeDialog);
-    }
+    window.showWelcome?.();
     await window.electron.saveSetting('hasRunBefore', 'true');
   }
 
@@ -2696,8 +2617,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof bindGridBackgroundDeselect === 'function') {
     bindGridBackgroundDeselect();
   }
-  const welcomeDialog = document.getElementById('welcome-message');
-
   // Docker/Server: hide overlay so main window shell (sidebar, empty grid) paints immediately
   const loadingOverlay = document.getElementById('loading-overlay');
   if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -2712,11 +2631,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (shouldLoadModels) {
       fileGrid.classList.remove('hidden');
-    } else {
-      console.log('[DEBUG] No directory path set and not in server mode, showing welcome');
-      if (welcomeDialog) {
-        safeShowModal(welcomeDialog);
-      }
     }
 
     // Initialize filters in parallel (Docker/Server: one batch instead of four sequential round-trips)
@@ -2834,10 +2748,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.setAttribute('data-theme', savedTheme);
   applyThemeColors(savedTheme);
 
-  // Add dismiss button handler
-  document.getElementById('dismiss-welcome')?.addEventListener('click', () => {
-    welcomeDialog.close();
-  });
 
 
 

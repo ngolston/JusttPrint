@@ -13,6 +13,7 @@ All notable changes contributed via pull request are documented in this file.
 - The menu bar (Tools, Settings, Help) and the phone layout are React (`src/web/shell/`). Both read one menu definition, so the phone's More sheet no longer copies the menu bar's markup. The phone's app bar, bottom nav, Filters and More sheets, and the details panels' phone buttons (3D, Favorite, Log print) replace `mobile-ui.js`. **Restart Server** asks and reports in the app's own dialogs instead of the browser's.
 - The model menu (right-click, long-press, and the card's ⋯ button) is React (`src/web/menus/ContextMenu.tsx`). Errors show in the app's own dialog instead of the browser's alert, and menu labels are no longer built as HTML.
 - Keyboard shortcuts are React (`src/web/shortcuts.ts`), with one table for the keys and the Keyboard Shortcuts dialog. ↑ / ↓ with Ctrl or ⌘ no longer move between models.
+- The Terms of Service and welcome dialogs are React (`src/web/startup/FirstRun.tsx`). Escape no longer closes the terms without an answer, which left the app waiting.
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).
 - Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
 - Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.
