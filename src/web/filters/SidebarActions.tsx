@@ -2,21 +2,18 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { exposeGlobal } from '../page';
 import { plural, refreshTotal, setViewCount, useModelCounts } from './counts';
+import { scanDirectory, scanStlHome, useScanProgress } from '../scan/scan';
+import { stlHomeDirectories } from '../scan/stlHome';
 import { runSearch } from './search';
 import { filterActions } from './store';
 
 declare global {
   interface Window {
-    /** renderer.js: the STL Home directories from settings. */
-    getStlHomeDirectories?: () => Promise<string[]>;
-    /** renderer.js: scan a folder the user types in, or every STL Home directory. */
-    scanDirectory?: () => Promise<void>;
-    runScanSTLHome?: () => void;
     /** renderer.js: re-read every model and redraw the grid. */
     forceGridRefresh?: () => Promise<void>;
     disableGridRefresh?: boolean;
-    /** For renderer.js: the number of models in the grid, and whether a scan is running. */
-    sidebarStatus?: { setViewCount: (count: number) => void; setScanning: (scanning: boolean) => void };
+    /** For renderer.js: the number of models in the grid. */
+    sidebarStatus?: { setViewCount: (count: number) => void };
   }
 }
 
@@ -42,20 +39,20 @@ export async function viewEntireLibrary() {
 export function SidebarActions() {
   const [container] = useState(() => document.getElementById('sidebar-actions-slot'));
   const { view: viewCount, total } = useModelCounts();
-  const [scanning, setScanning] = useState(false);
+  const scanning = !!useScanProgress();
   const [hasStlHome, setHasStlHome] = useState(false);
 
   useEffect(() => {
     const checkStlHome = async () => {
       try {
-        setHasStlHome(((await window.getStlHomeDirectories?.()) || []).length > 0);
+        setHasStlHome((await stlHomeDirectories()).length > 0);
       } catch {
         setHasStlHome(false);
       }
     };
     checkStlHome();
     refreshTotal();
-    const unexposeStatus = exposeGlobal('sidebarStatus', { setViewCount, setScanning });
+    const unexposeStatus = exposeGlobal('sidebarStatus', { setViewCount });
     const unexposeStlHome = exposeGlobal('updateScanStlHomeButtonVisibility', checkStlHome);
     return () => {
       unexposeStatus();
@@ -82,9 +79,9 @@ export function SidebarActions() {
         {tool('filament-button', 'Filament - Filament Manager', 'filament.png', 'Filament Manager', 'open-filament-manager')}
         {tool('roulette-button', 'Roulette - Print Roulette', 'roulette.png', 'Print Roulette', 'start-print-roulette')}
       </div>
-      <button id="scan-directory-button" disabled={scanning} onClick={() => window.scanDirectory?.()}>Scan Directory</button>
+      <button id="scan-directory-button" disabled={scanning} onClick={() => scanDirectory()}>Scan Directory</button>
       {hasStlHome && (
-        <button id="scan-stl-home-button" className="secondary-button" disabled={scanning} onClick={() => window.runScanSTLHome?.()}>Scan STL Home</button>
+        <button id="scan-stl-home-button" className="secondary-button" disabled={scanning} onClick={() => scanStlHome()}>Scan STL Home</button>
       )}
       <button id="view-library-button" onClick={viewEntireLibrary}>View Entire Library</button>
     </>,

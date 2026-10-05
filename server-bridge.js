@@ -700,18 +700,6 @@
   };
 
   // WebSocket events call listeners with the broadcast args only (no IPC event object).
-  window.electron.onScanProgress = function(callback) {
-    if (!window._electronEventListeners) window._electronEventListeners = {};
-    window._electronEventListeners['scan-progress'] = [];
-    window.electron.on('scan-progress', (progress) => callback(progress));
-  };
-  
-  window.electron.onDbProgress = function(callback) {
-    if (!window._electronEventListeners) window._electronEventListeners = {};
-    window._electronEventListeners['db-progress'] = [];
-    window.electron.on('db-progress', (progress) => callback(progress));
-  };
-  
   window.electron.onDbCleanup = function(callback) {
     window.electron.on('db-cleanup', callback);
   };

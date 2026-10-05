@@ -114,7 +114,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Keyboard shortcuts (`src/web/shortcuts.ts`, tested), shared with the Keyboard Shortcuts dialog.
   - [x] The Terms of Service and welcome dialogs (`src/web/startup/FirstRun.tsx`).
   - [x] Review Generated Tags (`src/web/tags/`), with its state and merge rule tested.
-  - [ ] What is left in `renderer.js` and the other page scripts: scanning and the thumbnail queue.
+  - [x] Scanning, the thumbnail queue and the model loader, and the bulk thumbnail jobs with their progress (`src/web/scan/`, `src/web/thumbnails/`).
+  - [ ] What is left in `renderer.js` (~6,300 lines): the grid glue (the model list, list view columns, bundle and parent-model cards and their images), opening the details panel and multi-edit mode, startup, and page event handlers (Clear New Flag, downloads, Add Image, Pull Metadata and the like).
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
@@ -125,7 +126,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [ ] Input dialogs (`input-dialog.html`): in-page modals.
   - [ ] Backup/restore: download and upload a backup file in the browser.
   - [ ] "Send to slicer": the existing helper/protocol handler, documented for web users.
-- [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload.
+- [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
 - [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict.
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
 - [ ] **Retire `renderer.js`** (~25k lines): it goes away screen by screen through the React rewrite above, rather than being split into modules first.

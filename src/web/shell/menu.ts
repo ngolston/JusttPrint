@@ -6,6 +6,7 @@
 import { callAction } from '../api';
 import { showMessage } from '../page';
 import { viewEntireLibrary } from '../filters/SidebarActions';
+import { scanDirectory } from '../scan/scan';
 
 export type MenuItem =
   | { kind: 'action'; label: string; run: () => void | Promise<void> }
@@ -46,7 +47,7 @@ export const MENU: MenuGroup[] = [
   {
     label: 'Tools',
     items: [
-      action('Scan Directory', open('scanDirectory')),
+      action('Scan Directory', () => scanDirectory()),
       action('View Entire Library', viewEntireLibrary),
       separator,
       action('Print Roulette', send('start-print-roulette')),

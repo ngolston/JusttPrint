@@ -4,7 +4,7 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js`, `sidebar-layout.js` and `mobile-ui.js` are removed.
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js` and `thumbnail-progress.js` are removed.
 
 **Changes:**
 - The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
@@ -15,6 +15,12 @@ All notable changes contributed via pull request are documented in this file.
 - Keyboard shortcuts are React (`src/web/shortcuts.ts`), with one table for the keys and the Keyboard Shortcuts dialog. ↑ / ↓ with Ctrl or ⌘ no longer move between models.
 - The Terms of Service and welcome dialogs are React (`src/web/startup/FirstRun.tsx`). Escape no longer closes the terms without an answer, which left the app waiting.
 - Review Generated Tags is React (`src/web/tags/`), about 1,100 lines of `renderer.js` less. Each model shows once however often the server reports it, so the old duplicate-removal workarounds are gone. Applying shows its progress on the Apply button; it used the shared progress dialog, whose bar had the same id as the scan progress bar in the sidebar and moved that one instead.
+- Scanning and thumbnails are TypeScript (`src/web/scan/`, `src/web/thumbnails/`): the render queue (tested), the model loader, the server's bulk thumbnail job and its dialog, and the sidebar progress. About 3,400 lines of `renderer.js` are gone.
+- After a scan, the server's thumbnail worker renders every model still without a thumbnail, in the background (it used to be the browser, and only for up to 80 models). Every open page follows a running thumbnail job in the sidebar, also one started by another page, by the server after an STL Home scan, or before the page was reloaded.
+- Pages refresh after the server's own STL Home scans. The browser no longer runs its own periodic STL Home scan next to the server's, and a changed STL Home update interval applies from the next scan without a restart.
+- A model that fails to render shows its failure image instead of being retried over and over while on screen, and placeholder images are drawn once instead of for every check.
+- Fixed: rendering a thumbnail for a ZIP entry left a temporary copy of the file on the server each time.
+- Fixed: the backup, restore and organize progress dialogs moved the sidebar's scan progress bar (both used the id `progress-bar`).
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).
 - Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
 - Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.

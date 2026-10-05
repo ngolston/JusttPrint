@@ -34,6 +34,7 @@ import './parse';
 import './filters/search';
 import { Sidebar } from './filters/Sidebar';
 import { SidebarActions } from './filters/SidebarActions';
+import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';
 import { FolderTree } from './folders/FolderTree';
 import { ContextMenu } from './menus/ContextMenu';
 import { MenuBar } from './shell/MenuBar';
@@ -84,6 +85,8 @@ function Screens() {
       <ContextMenu />
       <MobileShell />
       <SidebarActions />
+      <SidebarProgress />
+      <ThumbnailJobDialog />
       <Sidebar />
       <FolderTree />
       <LibraryGrid />

@@ -33,7 +33,6 @@ export function PerformanceSettingsDialog() {
     setSaving(true);
     try {
       await settings.save('maxFileSizeMB', String(mb));
-      window.applyMaxFileSizeMB?.(mb);
       dialogRef.current?.close();
       await showMessage('Success', 'Performance settings saved successfully');
     } catch (error) {

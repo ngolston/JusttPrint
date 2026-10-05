@@ -1708,6 +1708,58 @@ async function browserChecks(base, wsUrl, session) {
       check('a model in the bundle list opens its details', openedChild && await page.isHidden('#bundle-details'));
     }
 
+    // Thumbnails and scanning (TypeScript, src/web/thumbnails/ and src/web/scan/).
+    const cubePath = path.join(LIBRARY, 'Designer A', 'cube.stl');
+    const storedThumb = async (filePath) => String(((await invoke(base, session, 'get-model', [filePath])).result || {}).thumbnail || '');
+    await page.evaluate(() => window.libraryFilters.setFromSelect('favorite-select', 'all'));
+    await page.evaluate(() => window.clearAllLibraryFilters?.());
+    // A card without an image renders one in this browser and saves it.
+    await invoke(base, session, 'save-thumbnail', [cubePath, '3d.png']);
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const cardRender = await waitFor(async () => ((await storedThumb(cubePath)).startsWith('data:image') ? true : null), 60000, 'card render').catch(() => false);
+    check('a card without a thumbnail renders one in the browser and saves it', cardRender === true);
+    // Tools → Generate Missing Thumbnails runs the server job in the dialog.
+    await invoke(base, session, 'save-thumbnail', [cubePath, '3d.png']);
+    await page.evaluate(() => window.electron.send('generate-missing-thumbnails'));
+    const askMissing = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("missing thumbnails") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (askMissing) await askMissing.click();
+    const jobDialog = await page.waitForSelector('#thumbnail-progress-overlay', { timeout: 10000 }).then(() => true, () => false);
+    const jobDone = await page.waitForSelector('#thumbnail-progress-overlay', { state: 'detached', timeout: 120000 }).then(() => true, () => false);
+    check('Generate Missing Thumbnails asks, shows the server job, and renders the model', !!askMissing && jobDialog && jobDone
+      && (await storedThumb(cubePath)).startsWith('data:image'));
+    // Regenerate in the background: the sidebar follows it, and its end is reported.
+    await page.evaluate(() => window.electron.send('regenerate-thumbnails'));
+    const askAll = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("regenerate thumbnails for all") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (askAll) await askAll.click();
+    await page.click('#thumbnail-progress-background', { timeout: 10000 }).catch(() => {});
+    const inSidebar = await page.waitForSelector('#sidebar-progress-slot #render-progress-container', { timeout: 10000 }).then(() => true, () => false);
+    const finishedNote = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Thumbnail generation finished") button', { timeout: 120000 }).catch(() => null);
+    if (finishedNote) await finishedNote.click();
+    check('a background job shows in the sidebar and reports when it is done', !!askAll && inSidebar && !!finishedNote
+      && !(await page.isVisible('#render-progress-container')));
+    // Scan Directory: the server indexes, the new model is offered, and its thumbnail is rendered.
+    const scanDir = fs.mkdtempSync('/tmp/justtprint-e2e-scan-');
+    const scannedModel = path.join(fs.realpathSync(scanDir), 'scanned-cube.stl');
+    fs.copyFileSync(cubePath, scannedModel);
+    await page.click('#scan-directory-button');
+    await page.fill('dialog.browser-input-dialog[open] input', scanDir);
+    await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+    const offer = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("1 new model(s) found") button:text-is("Yes")', { timeout: 60000 }).catch(() => null);
+    if (offer) await offer.click();
+    const shownNew = await page.waitForFunction((p) => {
+      const shown = [...document.querySelectorAll('.file-grid [data-filepath]')].map((el) => el.getAttribute('data-filepath'));
+      return shown.length === 1 && shown[0].endsWith(p);
+    }, path.basename(scannedModel), { timeout: 15000 }).then(() => true, () => false);
+    const scannedThumb = await waitFor(async () => {
+      const models = (await invoke(base, session, 'get-all-models')).result || [];
+      const model = models.find((m) => m.filePath.endsWith('scanned-cube.stl'));
+      return model && (await storedThumb(model.filePath)).startsWith('data:image') ? true : null;
+    }, 120000, 'scanned thumbnail').catch(() => false);
+    check('Scan Directory adds the new model, offers to show it, and its thumbnail is rendered', !!offer && shownNew && scannedThumb === true);
+    fs.rmSync(scanDir, { recursive: true, force: true });
+    await page.evaluate(async () => { window.clearAllLibraryFilters?.(); await window.performCombinedSearch({ force: true }); });
+
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));

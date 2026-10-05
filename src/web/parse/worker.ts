@@ -1,6 +1,6 @@
 /**
  * Parse worker: turns model files (STL, 3MF, OBJ, PLY, STEP, IGES, LYS) into plain geometry
- * arrays off the main thread. renderer.js (loadModelData) posts { id, fileExtension, url,
+ * arrays off the main thread. src/web/thumbnails/loader.ts posts { id, fileExtension, url,
  * arrayBuffer, extraBuffers } and gets back { id, success, geometries | error }.
  *
  * Built by Vite as a classic worker (web-build/parse-worker.js) so it can importScripts the

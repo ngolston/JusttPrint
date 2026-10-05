@@ -12,6 +12,7 @@ import {
   type ApplyOptions, type CameraView, type StudioSettings
 } from './studio';
 import { loadLibraryFileBuffer } from './files';
+import { loadModelData } from '../thumbnails/loader';
 import { LIGHT, THREE } from '../three/setup';
 import { disposeObject3D, groupFromGeometryData } from '../three/models';
 
@@ -173,7 +174,6 @@ export async function loadPreviewObject(filePath: string, ctx: LoadContext): Pro
   }
 
   if (['step', 'stp', 'lys', 'obj', 'ply', 'igs', 'iges'].includes(ext)) {
-    if (!window.loadModelData) throw new Error('3D loader is not available');
     ctx.status(ext === 'lys'
       ? 'Parsing LYS mesh...\nLarge supported scenes can take a moment.'
       : ext === 'igs' || ext === 'iges'
@@ -181,7 +181,7 @@ export async function loadPreviewObject(filePath: string, ctx: LoadContext): Pro
         : ext === 'step' || ext === 'stp'
           ? 'Tessellating STEP file...\nThis can take time for large CAD models.'
           : `Loading ${ext.toUpperCase()} mesh...`);
-    const data = await window.loadModelData(filePath);
+    const data = await loadModelData(filePath);
     check();
     if (!data) throw new Error(`Failed to parse ${ext.toUpperCase()} geometry`);
     const object = groupFromGeometryData(data.geometries);

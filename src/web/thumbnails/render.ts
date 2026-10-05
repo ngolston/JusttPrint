@@ -6,6 +6,7 @@
  */
 import { LIGHT, THREE } from '../three/setup';
 import { disposeObject3D, groupFromGeometryData } from '../three/models';
+import { loadModelData, type ModelData } from './loader';
 
 const SIZE = 250;
 
@@ -147,14 +148,13 @@ export async function renderThumbnail(filePath: string, options: ThumbnailOption
       scene.add(simple);
     }
 
-    if (!window.loadModelData) throw new Error('The model loader is not available.');
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error(`Loading model timed out after ${options.timeoutMs}ms`)), options.timeoutMs);
     });
-    let data: Awaited<ReturnType<NonNullable<Window['loadModelData']>>>;
+    let data: ModelData | null;
     try {
-      data = await Promise.race([window.loadModelData(filePath), timeout]);
+      data = await Promise.race([loadModelData(filePath), timeout]);
     } finally {
       clearTimeout(timer);
     }

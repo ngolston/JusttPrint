@@ -33,8 +33,6 @@ declare global {
     refreshAfterFilamentManagerClose?: () => Promise<void>;
     /** renderer.js: reload the models and redraw the grid. */
     refreshModelDisplay?: () => Promise<void>;
-    /** renderer.js: use a new max file size (MB) for the browser's own size checks. */
-    applyMaxFileSizeMB?: (mb: number) => void;
     /** renderer.js: rebuild the sidebar's file type filter from the enabled types. */
     populateFileTypeFilter?: () => Promise<void>;
     /** search.js: run the current search and filters again. */
@@ -43,21 +41,14 @@ declare global {
     afterModelsPurged?: () => Promise<void>;
     /** renderer.js: set the accent colors for a UI theme. */
     applyThemeColors?: (theme: string) => void;
-    /** renderer.js: re-render every thumbnail (after the model color or lighting changed). */
-    regenerateAllThumbnails?: () => Promise<void>;
     /** renderer.js: reload the designer, parent model and license pickers and filters, and the grid. */
     refreshAfterMetadataChange?: () => Promise<void>;
-    /** renderer.js STL Home scanning: show or hide the sidebar button, scan now, run on a timer. */
+    /** The sidebar (SidebarActions.tsx): show Scan STL Home when STL Home directories are set. */
     updateScanStlHomeButtonVisibility?: () => Promise<void>;
-    performSTLHomeScan?: (dirs: string[]) => Promise<void>;
-    startPeriodicSTLHomeScan?: () => Promise<void>;
-    stopPeriodicSTLHomeScan?: () => void;
     /** search.js: the sidebar's current filters, whether any is set, and a short description of them. */
     getCurrentLibraryFilters?: () => LibraryFilters | null;
     libraryFiltersAreActive?: (filters: LibraryFilters | null) => boolean;
     describeLibraryFilters?: (filters: LibraryFilters | null) => string;
-    /** renderer.js: draw a model to a PNG data URL in this browser (for files without a stored thumbnail). */
-    renderModelToPNG?: (filePath: string, container: HTMLElement) => Promise<string | null>;
     /** renderer.js: after De-Dup deleted files, clear the grid selection and reload the grid. */
     refreshAfterDedupDelete?: () => Promise<void>;
     /** renderer.js: model color and lighting used for new thumbnails. */

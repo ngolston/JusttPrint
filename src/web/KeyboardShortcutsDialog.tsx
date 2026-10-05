@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef } from 'react';
 import { ModalDialog } from './components/ModalDialog';
 import { viewEntireLibrary } from './filters/SidebarActions';
 import { exposeGlobal } from './page';
+import { scanDirectory } from './scan/scan';
 import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';
 
 /** What the shortcuts need from renderer.js (multi-edit mode, the details panel, the selection). */
@@ -39,7 +40,7 @@ function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean
     }
     case 'showShortcuts': window.openKeyboardShortcuts?.(); return true;
     case 'next': case 'previous': return host.navigate(action);
-    case 'scan': window.scanDirectory?.(); return true;
+    case 'scan': scanDirectory(); return true;
     case 'clearFilters': viewEntireLibrary(); return true;
     case 'roulette': window.electron?.send?.('start-print-roulette'); return true;
     case 'toggleMultiEdit': host.toggleMultiEdit(detailsVisible); return true;

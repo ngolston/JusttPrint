@@ -3,6 +3,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { selection } from '../selection';
 import { GroupCard, type GroupCardHost } from './GroupCard';
 import { ModelCard, type CardHost } from './ModelCard';
+import { afterGridPaint } from '../thumbnails/cards';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
   viewMetrics, visibleRows, type DisplayRecord, type ExpandedGroups, type GridModel, type GridView, type GroupRecord,
@@ -191,6 +192,7 @@ export function LibraryGrid() {
   useLayoutEffect(() => {
     committing = false;
     host?.afterPaint();
+    afterGridPaint();
   });
 
   if (!container || !host) return null;
