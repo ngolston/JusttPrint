@@ -468,8 +468,7 @@ const DEFAULT_SORT = 'dateAdded DESC'; // Show newest models by default
 // RENDER_DELAY is already declared later in the file
 let currentBatch = 0;
 let isRendering = false;
-let selectedModels = new Set();
-window.selectedModels = selectedModels;
+// The selection is window.selection (src/web/selection.ts); cards and the multi-edit panel follow it.
 let isMultiSelectMode = false;
 let isScanning = false;
 
@@ -1834,10 +1833,7 @@ async function updateModelElement(filePath) {
 
     // No longer matches the filters: take it out of the grid.
     if (!shouldBeVisible) {
-      if (isMultiSelectMode && selectedModels.has(filePath)) {
-        selectedModels.delete(filePath);
-        updateSelectedCount();
-      }
+      if (isMultiSelectMode) window.selection.delete(filePath);
       if (container && Array.isArray(container.currentModels)) {
         const modelIndex = container.currentModels.findIndex(m =>
           (m.id || m.filePath) === (model.id || model.filePath)
@@ -1926,16 +1922,6 @@ async function showModelDetails(filePath) {
     const multiEditPanel = document.getElementById('multi-edit-panel');
     multiEditPanel.classList.add('hidden');
     clearMultiEditFormFields(); // Clear form fields when switching to single-edit mode
-
-    // Maintain selection state
-    document.querySelectorAll('.file-item').forEach(item => {
-      const itemPath = item.getAttribute('data-filepath');
-      if (selectedModels.has(itemPath)) {
-        item.classList.add('selected');
-      } else {
-        item.classList.remove('selected');
-      }
-    });
 
   } catch (error) {
     console.error('Error showing model details:', error);
@@ -4693,31 +4679,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Update the click handler for file items
-  function handleFileItemClick(element, filePath) {
-    if (isMultiSelectMode) {
-      // ... existing multi-select mode code ...
-    } else {
-      // Single select mode
-      const wasSelected = element.classList.contains('selected');
-      
-      // Clear all selections first
-      document.querySelectorAll('.file-item').forEach(item => {
-        item.classList.remove('selected');
-      });
-
-      if (wasSelected) {
-        // If it was already selected, just deselect it and close details
-        element.classList.remove('selected');
-        closeDetailsPanel();
-      } else {
-        // If it wasn't selected, select it and show details
-        element.classList.add('selected');
-        showModelDetails(filePath);
-      }
-    }
-  }
-
   // NOTE: renderFile is defined at top level (line ~5046) - duplicate removed
 
   // Add this function to filter by directory
@@ -4741,56 +4702,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     const visibleModels = Array.from(document.querySelectorAll('.file-item'));
     if (visibleModels.length === 0) return;
 
-    // Clear any existing selections
-    selectedModels.clear();
-    document.querySelectorAll('.file-item').forEach(item => {
-      item.classList.remove('selected');
-    });
-    
+    window.selection.clear();
+
     // Close details panel if open
     const detailsPanel = document.getElementById('model-details');
     if (detailsPanel) {
       detailsPanel.classList.add('hidden');
     }
 
+    const paths = visibleModels.map((item) => item.getAttribute('data-filepath')).filter(Boolean);
+    if (!paths.length) return;
     let delay = ROULETTE_INITIAL_DELAY;
-    let previousItem = null;
-
-    // Function to highlight a random item.
-    // Pass doScroll=true to scroll the item into view.
-    const highlightRandom = (doScroll = false) => {
-      if (previousItem) {
-        previousItem.classList.remove('selected');
-      }
-      const randomIndex = Math.floor(Math.random() * visibleModels.length);
-      const randomItem = visibleModels[randomIndex];
-      randomItem.classList.add('selected');
-      if (doScroll) {
-        randomItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      previousItem = randomItem;
-      return randomItem;
+    // Highlight a random model by selecting it (the cards follow the selection).
+    const highlightRandom = () => {
+      const filePath = paths[Math.floor(Math.random() * paths.length)];
+      window.selection.set([filePath]);
+      return filePath;
     };
 
-    // Spin animation without scrolling (to avoid white flashes)
+    // Spin, slowing down
     for (let i = 0; i < ROULETTE_SPINS; i++) {
       await new Promise(resolve => setTimeout(resolve, delay));
-      highlightRandom(); // no scrolling on intermediate spins
-      delay += ROULETTE_DELAY_INCREMENT; // Gradually slow down
+      highlightRandom();
+      delay += ROULETTE_DELAY_INCREMENT;
     }
 
-    // Final selection with scrolling.
-    const finalItem = highlightRandom(true);
-    const filePath = finalItem.getAttribute('data-filepath');
-    
-    // Add winning animation class
-    finalItem.classList.add('roulette-winner');
-    setTimeout(() => finalItem.classList.remove('roulette-winner'), 3000);
-    
-    // Show model details and update selection state
-    selectedModels.add(filePath);
+    const filePath = highlightRandom();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const finalItem = document.querySelector(`.file-item[data-filepath="${CSS.escape(filePath)}"]`);
+    if (finalItem) {
+      finalItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Winning animation
+      finalItem.classList.add('roulette-winner');
+      setTimeout(() => finalItem.classList.remove('roulette-winner'), 3000);
+    }
     await showModelDetails(filePath);
-    
+
     // Show celebration message
     await window.electron.showMessage(
       'Print Roulette',
@@ -7413,29 +7360,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 /** Select every model the current filters show (not only the rendered cards). */
 async function selectAllVisibleModels() {
-  selectedModels.clear();
   try {
     const getFilteredModels = await waitForGetCombinedFilteredModels();
     const filteredModels = await getFilteredModels();
-    filteredModels.forEach((model) => { if (model?.filePath) addToSelectedModels(model.filePath); });
+    window.selection.set(filteredModels.map((model) => model && model.filePath).filter(Boolean));
   } catch (error) {
     console.error('Error selecting all models:', error);
   }
-  updateSelectedCount();
 }
 
 /** Clear Selection in the multi-edit panel (stays in multi-edit mode). */
 function clearMultiSelection() {
-  selectedModels.clear();
+  window.selection.clear();
   clearMultiEditFormFields();
-  updateSelectedCount();
 }
 
-/** The selection changed: update the multi-edit panel and the cards' highlight. */
-async function updateSelectedCount() {
-  window.multiEdit?.selectionChanged();
-  refreshLibraryGrid();
-}
 
 
 function isMobileUiActive() {
@@ -7452,10 +7391,7 @@ function focusMobileTile(fileElement) {
 }
 
 function selectSingleModel(fileElement, filePath) {
-  selectedModels.clear();
-  document.querySelectorAll('.file-item').forEach((item) => item.classList.remove('selected'));
-  addToSelectedModels(filePath);
-  fileElement.classList.add('selected');
+  window.selection.set([filePath]);
 }
 
 function isGridBackgroundClickTarget(target) {
@@ -7484,8 +7420,7 @@ function isFileGridScrollbarClick(event, grid) {
 function clearGridItemSelection() {
   currentModelDetailsAbort = true;
   currentModelDetailsPath = null;
-  selectedModels.clear();
-  document.querySelectorAll('.file-item.selected').forEach((item) => item.classList.remove('selected'));
+  window.selection.clear();
   clearMobileTileFocus();
   document.getElementById('model-details')?.classList.add('hidden');
   window.detailsFields?.clear();
@@ -7493,7 +7428,6 @@ function clearGridItemSelection() {
   if (bundlePanel && !bundlePanel.classList.contains('hidden') && typeof hideBundleDetailsPanel === 'function') {
     hideBundleDetailsPanel();
   }
-  updateSelectedCount();
 }
 
 function bindGridBackgroundDeselect() {
@@ -7515,19 +7449,7 @@ if (document.readyState === 'loading') {
 }
 
 function highlightModelWithoutDetails(filePath) {
-  if (!filePath) return;
-  const normalized = normalizePathForComparison(filePath);
-  let item = null;
-  document.querySelectorAll('.file-item').forEach((el) => {
-    const p = el.getAttribute('data-filepath') || el.dataset.filepath || '';
-    if (p && normalizePathForComparison(p) === normalized) item = el;
-  });
-  if (item) {
-    selectSingleModel(item, filePath);
-    return;
-  }
-  selectedModels.clear();
-  addToSelectedModels(filePath);
+  if (filePath) window.selection.set([filePath]);
 }
 
 function openModelDetailsFromTile(fileElement, filePath) {
@@ -7546,47 +7468,21 @@ function openModelPreviewFromTile(filePath) {
   }
 }
 
-// Update the toggleModelSelection function`
+/** A plain click on a card: select it and show its details, or toggle it in multi-edit. */
 async function toggleModelSelection(fileElement, filePath) {
   if (fileElement?._suppressTap) return;
-  if (!isMultiSelectMode) {
-    const wasSelected = fileElement.classList.contains('selected');
-    
-    // Clear previous selections
-    selectedModels.clear();
-    document.querySelectorAll('.file-item').forEach(item => {
-      item.classList.remove('selected');
-    });
-    
-    if (wasSelected) {
-      // If it was already selected, just deselect and close details
-      const detailsPanel = document.getElementById('model-details');
-      if (detailsPanel) {
-        detailsPanel.classList.add('hidden');
-      }
-    } else {
-      // Add selection to the clicked item
-      addToSelectedModels(filePath);
-      
-      // Only select this specific element, not all elements with the same filePath
-      fileElement.classList.add('selected');
-      
-      // Show model details
-      showModelDetails(filePath);
-    }
-  } else {
-    // Multi-select mode
-    if (fileElement.classList.contains('selected') || isInSelectedModels(filePath)) {
-      // Deselect
-      removeFromSelectedModels(filePath);
-      fileElement.classList.remove('selected');
-    } else {
-      // Select
-      addToSelectedModels(filePath);
-      fileElement.classList.add('selected');
-    }
-    await updateSelectedCount(); // This will clear form fields if selection is now 0
+  if (isMultiSelectMode) {
+    window.selection.toggle(filePath);
+    return;
   }
+  if (window.selection.size === 1 && window.selection.has(filePath)) {
+    // Clicking the selected card again unselects it and closes its details.
+    window.selection.clear();
+    document.getElementById('model-details')?.classList.add('hidden');
+    return;
+  }
+  window.selection.set([filePath]);
+  showModelDetails(filePath);
 }
 
 // NOTE: loadModel function is defined earlier in the file (around line 2840)
@@ -8564,41 +8460,6 @@ async function renderModelToPNG(filePath, container, existingThumbnail, options 
 
 
 
-// Helper functions to manage selectedModels with normalized paths
-function addToSelectedModels(filePath) {
-  const normalized = normalizePathForComparison(filePath);
-  // Find the original path format from selectedModels or DOM to maintain consistency
-  let originalPath = filePath;
-  for (const path of selectedModels) {
-    if (normalizePathForComparison(path) === normalized) {
-      originalPath = path; // Use existing format
-      break;
-    }
-  }
-  selectedModels.add(originalPath);
-  return originalPath;
-}
-
-function removeFromSelectedModels(filePath) {
-  const normalized = normalizePathForComparison(filePath);
-  for (const path of selectedModels) {
-    if (normalizePathForComparison(path) === normalized) {
-      selectedModels.delete(path);
-      return path;
-    }
-  }
-  return null;
-}
-
-function isInSelectedModels(filePath) {
-  const normalized = normalizePathForComparison(filePath);
-  for (const path of selectedModels) {
-    if (normalizePathForComparison(path) === normalized) {
-      return true;
-    }
-  }
-  return false;
-}
 
 /** Progressive chunks are a partial result set — do not clear selection until search.js finishes the load. */
 function shouldSyncSelectionWithFilteredList() {
@@ -8639,12 +8500,11 @@ function clearModelDetailsSidebar() {
 
 /**
  * Run when filter/search inputs change the result set — synchronously, before any await.
- * search.js cannot access selectedModels; post-render sync alone loses races to showModelDetails().
+ * search.js cannot access window.selection; post-render sync alone loses races to showModelDetails().
  */
 function resetFilterSelectionAndDetails() {
   currentModelDetailsAbort = true;
-  selectedModels.clear();
-  document.querySelectorAll('.file-item').forEach((item) => item.classList.remove('selected'));
+  window.selection.clear();
 
   const multiEditPanel = document.getElementById('multi-edit-panel');
   if (multiEditPanel && !multiEditPanel.classList.contains('hidden')) {
@@ -8660,7 +8520,6 @@ function resetFilterSelectionAndDetails() {
   }
 
   clearModelDetailsSidebar();
-  updateSelectedCount();
 }
 
 /** True if sidebar + selection state is consistent with the current filtered grid rows. */
@@ -8671,13 +8530,13 @@ function isSidebarShowingModelInFilteredList(files, filteredSet) {
     document.getElementById('path-tree-container')?.getAttribute('data-file-path')
   ].filter(Boolean);
   const mn = document.getElementById('model-name')?.value?.trim();
-  const hasSidebarContent = paths.length > 0 || !!mn || selectedModels.size > 0;
+  const hasSidebarContent = paths.length > 0 || !!mn || window.selection.size > 0;
   if (!hasSidebarContent) return true;
   if (list.length === 0) return false;
 
   const pathOrSelectionOk =
     paths.some((p) => filteredSet.has(normalizePathForComparison(p))) ||
-    Array.from(selectedModels).some((p) =>
+    Array.from(window.selection).some((p) =>
       filteredSet.has(normalizePathForComparison(p))
     );
   if (pathOrSelectionOk) return true;
@@ -8699,13 +8558,9 @@ function syncSelectionWithFilteredModels(files) {
     list.filter((f) => f && f.filePath).map((f) => normalizePathForComparison(f.filePath))
   );
 
-  for (const path of Array.from(selectedModels)) {
-    if (!filteredSet.has(normalizePathForComparison(path))) {
-      selectedModels.delete(path);
-    }
-  }
+  window.selection.retain((path) => filteredSet.has(normalizePathForComparison(path)));
 
-  if (isMultiSelectMode && selectedModels.size === 0) {
+  if (isMultiSelectMode && window.selection.size === 0) {
     exitMultiEditMode();
     return;
   }
@@ -8714,155 +8569,37 @@ function syncSelectionWithFilteredModels(files) {
     clearModelDetailsSidebar();
   }
 
-  updateSelectedCount();
 }
 
-// Sync DOM selection state with selectedModels
-function syncDOMSelectionWithSelectedModels() {
-  document.querySelectorAll('.file-item').forEach(item => {
-    const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-    if (itemPath && isInSelectedModels(itemPath)) {
-      item.classList.add('selected');
-    } else {
-      item.classList.remove('selected');
-    }
-  });
-}
 
-// Ensure all visually selected items are in selectedModels
-function syncSelectedModelsWithDOM() {
-  document.querySelectorAll('.file-item.selected').forEach(item => {
-    const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-    if (itemPath && !isInSelectedModels(itemPath)) {
-      addToSelectedModels(itemPath);
-    }
-  });
-}
 
-// Update the click handler for file items to use the new showMultiEditPanel function
+/** Ctrl/Cmd-click on a card: start multi-edit with it, or toggle it in multi-edit. */
 async function handleFileClick(event, filePath) {
-  // In multi-edit mode, plain clicks toggle selection (Ctrl/Cmd also toggles).
-  // Outside multi-edit mode, only Ctrl/Cmd enters multi-select; plain click is single-select.
   const multiToggle = isMultiSelectMode || event.ctrlKey || event.metaKey;
-
-  if (multiToggle) {
-    event.preventDefault();
-    const fileItem = event.currentTarget;
-    const button = document.getElementById('edit-mode-toggle');
-    const multiEditPanel = document.getElementById('multi-edit-panel');
-    const detailsPanel = document.getElementById('model-details');
-    
-    // Normalize the filePath for consistent comparison
-    const normalizedFilePath = normalizePathForComparison(filePath);
-    
-    if (!isMultiSelectMode) {
-      isMultiSelectMode = true;
-      selectedModels.clear();
-      
-      // Update UI to reflect multi-select mode
-      if (button) {
-        button.textContent = 'Exit Multi-Edit Mode';
-        button.classList.add('active');
-      }
-      if (multiEditPanel) {
-        multiEditPanel.classList.remove('hidden');
-      }
-      if (detailsPanel) {
-        detailsPanel.classList.add('hidden');
-      }
-      
-      // Populate dropdowns for multi-edit
-      try {
-        await populateModelDesignerDropdown(null, 'multi-designer');
-        await populateModelLicenseDropdown(null, 'multi-license');
-        await populateParentModelDropdown(null, 'multi-parent');
-        await populateTagSelect();
-      } catch (error) {
-        console.error('Error populating multi-edit dropdowns:', error);
-      }
-      
-      // Add the first clicked model to selection when entering multi-select mode
-      const storedPath = addToSelectedModels(filePath);
-      // Mark all DOM elements with matching normalized path as selected
-      document.querySelectorAll('.file-item').forEach(item => {
-        const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-        if (normalizePathForComparison(itemPath) === normalizedFilePath) {
-          item.classList.add('selected');
-        }
-      });
-    } else {
-      // Toggle selection for subsequent clicks
-      if (isInSelectedModels(filePath)) {
-        removeFromSelectedModels(filePath);
-        // Remove selection from all DOM elements with this filePath
-        document.querySelectorAll('.file-item').forEach(item => {
-          const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-          if (normalizePathForComparison(itemPath) === normalizedFilePath) {
-            item.classList.remove('selected');
-          }
-        });
-      } else {
-        addToSelectedModels(filePath);
-        // Add selection to all DOM elements with this filePath
-        document.querySelectorAll('.file-item').forEach(item => {
-          const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-          if (normalizePathForComparison(itemPath) === normalizedFilePath) {
-            item.classList.add('selected');
-          }
-        });
-      }
-    }
-    
-    // Sync selectedModels with DOM to ensure consistency
-    syncSelectedModelsWithDOM();
-    
-    // Update the selected count after any selection change
-    updateSelectedCount();
-    
-    if (selectedModels.size > 0) {
-      showMultiEditPanel();
-      if (multiEditPanel) {
-        multiEditPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else {
-      // Exiting multi-select mode - update UI
-      isMultiSelectMode = false;
-      if (multiEditPanel) {
-        multiEditPanel.classList.add('hidden');
-      }
-      if (button) {
-        button.textContent = 'Multi-Edit Mode';
-        button.classList.remove('active');
-      }
-      if (detailsPanel && selectedModels.size === 0) {
-        detailsPanel.classList.remove('hidden');
-      }
-      exitMultiEditMode();
-    }
-    updateSelectedCount();
-  } else {
-    // Single selection
-    selectedModels.clear();
-    document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-    selectedModels.add(filePath);
-    isMultiSelectMode = false;
-    
-    // Update UI to reflect single-select mode
-    const button = document.getElementById('edit-mode-toggle');
-    const multiEditPanel = document.getElementById('multi-edit-panel');
-    const detailsPanel = document.getElementById('model-details');
-    
-    if (button) {
-      button.textContent = 'Multi-Edit Mode';
-      button.classList.remove('active');
-    }
-    if (multiEditPanel) {
-      multiEditPanel.classList.add('hidden');
-    }
-    
+  if (!multiToggle) {
+    window.selection.set([filePath]);
+    exitMultiEditPanelOnly();
     showModelDetails(filePath);
-    updateSelectedCount();
+    return;
+  }
+  event.preventDefault();
+  if (!isMultiSelectMode) {
+    window.selection.set([filePath]);
+    enterMultiEditMode();
+    return;
+  }
+  window.selection.toggle(filePath);
+  if (window.selection.size === 0) exitMultiEditMode();
+}
+
+/** Back to single selection: hide the multi-edit panel without touching the selection. */
+function exitMultiEditPanelOnly() {
+  isMultiSelectMode = false;
+  document.getElementById('multi-edit-panel')?.classList.add('hidden');
+  const toggle = document.getElementById('edit-mode-toggle');
+  if (toggle) {
+    toggle.textContent = 'Multi-Edit Mode';
+    toggle.classList.remove('active');
   }
 }
 
@@ -8897,8 +8634,7 @@ function navigateDetailView(direction) {
   const target = items[nextIndex];
   const filePath = target.getAttribute('data-filepath') || target.dataset.filepath;
   if (!filePath) return false;
-  document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-  target.classList.add('selected');
+  window.selection.set([filePath]);
   target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   showModelDetails(filePath);
   return true;
@@ -9012,85 +8748,9 @@ document.addEventListener('keydown', async (event) => {
     }
     
     event.preventDefault();
-    
-    // Clear existing selections first
-    selectedModels.clear();
-    document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
-    
-    try {
-      // Get all filtered model references (not just visible ones) - same as select-all-button
-      // Wait for getCombinedFilteredModels to be available (handles module loading race condition)
-      const getFilteredModels = await waitForGetCombinedFilteredModels();
-      const filteredModels = await getFilteredModels();
-      
-      // Add all filtered models to selection (ensuring no duplicates by file path)
-      const uniqueFilePaths = new Set();
-      filteredModels.forEach(model => {
-        if (!uniqueFilePaths.has(model.filePath)) {
-          uniqueFilePaths.add(model.filePath);
-          addToSelectedModels(model.filePath);
-        }
-      });
-      
-      // Update UI for all items with matching file paths that are rendered
-      // Use helper function to ensure normalized path comparison
-      filteredModels.forEach(model => {
-        if (isInSelectedModels(model.filePath)) {
-          document.querySelectorAll('.file-item').forEach(item => {
-            const itemPath = item.getAttribute('data-filepath') || item.dataset.filepath;
-            if (normalizePathForComparison(itemPath) === normalizePathForComparison(model.filePath)) {
-              item.classList.add('selected');
-            }
-          });
-        }
-      });
-      
-      // Update the selected count
-      updateSelectedCount();
-      
-      // Show multi-edit panel if there are selections
-      if (selectedModels.size > 0) {
-        showMultiEditPanel();
-      }
-    } catch (error) {
-      console.error('Error selecting all models:', error);
-    }
-    
-    // Activate multi-edit mode if not already active
-    const button = document.getElementById('edit-mode-toggle');
-    const multiEditPanel = document.getElementById('multi-edit-panel');
-    const detailsPanel = document.getElementById('model-details');
-    
-    if (!isMultiSelectMode && selectedModels.size > 0) {
-      isMultiSelectMode = true;
-      
-      // Update UI to reflect multi-select mode
-      if (button) {
-        button.textContent = 'Exit Multi-Edit Mode';
-        button.classList.add('active');
-      }
-      if (multiEditPanel) {
-        multiEditPanel.classList.remove('hidden');
-      }
-      if (detailsPanel) {
-        detailsPanel.classList.add('hidden');
-      }
-      
-      // Populate dropdowns for multi-edit
-      try {
-        await populateModelDesignerDropdown(null, 'multi-designer');
-        await populateModelLicenseDropdown(null, 'multi-license');
-        await populateParentModelDropdown(null, 'multi-parent');
-        await populateTagSelect();
-        await populateRemoveTagSelect();
-      } catch (error) {
-        console.error('Error populating multi-edit dropdowns:', error);
-      }
-      
-      if (multiEditPanel) {
-        multiEditPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
+    await selectAllVisibleModels();
+    if (!isMultiSelectMode && window.selection.size > 0) enterMultiEditMode();
+    else if (isMultiSelectMode) showMultiEditPanel();
   }
 });
 
@@ -10228,7 +9888,7 @@ async function populateLicenseFilter() {
 
 // After De-Dup (src/web/DedupDialog.tsx) deleted files: clear the selection and reload the grid.
 window.refreshAfterDedupDelete = async function refreshAfterDedupDelete() {
-  selectedModels.clear();
+  window.selection.clear();
   const sortSelect = document.getElementById('sort-select');
   await renderFiles(await window.electron.getAllModels(sortSelect ? sortSelect.value : 'date-desc'));
 };
@@ -10675,13 +10335,8 @@ function showHtmlContextMenu(menuData, x, y, options = {}) {
 // Resolve which file path(s) a context menu should operate on.
 // If the right-clicked item is part of a multi-selection, use the whole selection.
 function resolveContextMenuFilePaths(clickedFilePath) {
-  // Prefer live DOM selection so we don't miss visually selected items if the Set desynced
-  if (typeof syncSelectedModelsWithDOM === 'function') {
-    syncSelectedModelsWithDOM();
-  }
-
-  const selected = Array.from(selectedModels).filter(Boolean);
-  const clickedSelected = clickedFilePath && isInSelectedModels(clickedFilePath);
+  const selected = Array.from(window.selection).filter(Boolean);
+  const clickedSelected = clickedFilePath && window.selection.has(clickedFilePath);
 
   if (selected.length > 1 && clickedSelected) {
     return selected;
@@ -10820,7 +10475,7 @@ function attachTileLongPress(fileElement, onLongPress) {
 // Update the exit multi-edit mode functionality
 /** Leave multi-edit mode: clear the selection and show the (empty) details panel. */
 function exitMultiEditMode() {
-  selectedModels.clear();
+  window.selection.clear();
   isMultiSelectMode = false;
   document.getElementById('multi-edit-panel')?.classList.add('hidden');
   document.getElementById('model-details')?.classList.remove('hidden');
@@ -10837,7 +10492,6 @@ function exitMultiEditMode() {
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
-  updateSelectedCount();
 }
 
 /** Show the multi-edit panel for the current selection. */
@@ -10852,7 +10506,6 @@ function enterMultiEditMode() {
   const panel = document.getElementById('multi-edit-panel');
   panel?.classList.remove('hidden');
   showMultiEditPanel();
-  updateSelectedCount();
   requestAnimationFrame(() => panel?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
@@ -10867,7 +10520,7 @@ document.getElementById('edit-mode-toggle')?.addEventListener('click', () => {
 // The details panel's button: start multi-edit with the shown model selected.
 document.getElementById('enter-multi-edit-button')?.addEventListener('click', () => {
   const current = getCurrentModelFilePath();
-  if (current) addToSelectedModels(current);
+  if (current) window.selection.add(current);
   enterMultiEditMode();
 });
 
@@ -10928,10 +10581,10 @@ async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filte
       case 'tag':
         if (isRemove && targetSelectId === 'multi-tag-remove-select') {
           // For remove tags, get tags from selected files only
-          if (selectedModels.size === 0) {
+          if (window.selection.size === 0) {
             items = [];
           } else {
-            const filePaths = Array.from(selectedModels);
+            const filePaths = Array.from(window.selection);
             const tagPromises = filePaths.map(async (filePath) => {
               try {
                 const model = await window.electron.getModel(filePath);
@@ -10966,10 +10619,10 @@ async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filte
         break;
       case 'filament':
         if (isRemove && targetSelectId === 'multi-filament-remove-select') {
-          if (typeof selectedModels === 'undefined' || selectedModels.size === 0) {
+          if (typeof window.selection === 'undefined' || window.selection.size === 0) {
             items = [];
           } else {
-            const filePaths = Array.from(selectedModels);
+            const filePaths = Array.from(window.selection);
             const lists = await Promise.all(filePaths.map(async (filePath) => {
               try {
                 const model = await window.electron.getModel(filePath);
@@ -11444,68 +11097,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // (Any additional event listeners and UI initialization code below)
 });
 
-// Add event listeners for the multi-edit panel move and delete buttons
-document.getElementById('move-selected-button')?.addEventListener('click', async () => {
-    if (selectedModels.size === 0) {
-        await window.electron.showMessage('No Selection', 'Please select models to move.');
-        return;
-    }
-    const count = selectedModels.size;
-    const confirmation = await window.electron.showMessage(
-        'Confirm Move',
-        `Are you sure you want to move ${count} selected model${count !== 1 ? 's' : ''}?`,
-        ['Yes', 'No']
-    );
-    if (confirmation !== 'Yes') return;
-
-    // Open folder dialog via IPC
-    const result = await window.electron.openFolderDialog('Select Destination Folder');
-    if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-        const destinationFolder = result.filePaths[0];
-        try {
-            // Move files
-            for (const filePath of selectedModels) {
-                const newDestination = path.join(destinationFolder, path.basename(filePath));
-                await fs.promises.rename(filePath, newDestination);
-                db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, filePath);
-            }
-            // Clear selected models after moving
-            selectedModels.clear();
-            updateSelectedCount(); // Update the UI to reflect the cleared selection
-            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected')); // Clear visual selection
-        } catch (error) {
-            console.error('Error moving selected models:', error);
-        }
-    }
-});
-
-document.getElementById('delete-selected-button')?.addEventListener('click', async () => {
-  if (selectedModels.size === 0) {
-    await window.electron.showMessage('No Selection', 'Please select models to delete.');
-    return;
-  }
-  const count = selectedModels.size;
-  const confirmation = await window.electron.showMessage(
-    'Confirm Deletion',
-    `Are you sure you want to DELETE ${count} selected model${count !== 1 ? 's' : ''}? This cannot be undone!`,
-    ['Yes', 'No']
-  );
-  if (confirmation !== 'Yes') return;
-
-  // Delete selected models one-by-one.
-  for (const filePath of selectedModels) {
-    try {
-      await window.electron.deleteFile(filePath);
-    } catch (error) {
-      console.error(`Error deleting file ${filePath}:`, error);
-    }
-  }
-  // Clear selected models after deletion.
-  selectedModels.clear();
-  // Refresh the display (assuming 'refreshModelDisplay' exists).
-  await refreshModelDisplay();
-});
-
 // Add a semantic version comparison function at an appropriate place in the file
 function compareVersions(v1, v2) {
   const parts1 = v1.split('.').map(Number);
@@ -11580,7 +11171,7 @@ window.autoSaveModel = autoSaveModel;
 async function autoSaveMultipleModels(field, value, options = {}) {
   try {
     // No models selected
-    if (selectedModels.size === 0) {
+    if (window.selection.size === 0) {
       console.warn('No models selected for autoSaveMultipleModels');
       return false; // Indicate failure/no-op
     }
@@ -11590,8 +11181,8 @@ async function autoSaveMultipleModels(field, value, options = {}) {
       value = 'Unknown';
     }
     
-    // Create a copy of selectedModels to avoid issues if the set changes during iteration
-    const modelsToUpdate = Array.from(selectedModels);
+    // Create a copy of window.selection to avoid issues if the set changes during iteration
+    const modelsToUpdate = Array.from(window.selection);
     console.log(`autoSaveMultipleModels: Updating ${modelsToUpdate.length} models for field ${field}`);
     
     // Load all models in parallel for better performance
@@ -12363,7 +11954,7 @@ function renderVirtualGrid(models) {
   const viewChanged = !!(previousView && previousView !== view);
   const focusSelection = !!(
     window.gridRefresh &&
-    window.gridRefresh.shouldFocusSelectionOnViewSwitch(previousView, view, selectedModels.size > 0)
+    window.gridRefresh.shouldFocusSelectionOnViewSwitch(previousView, view, window.selection.size > 0)
   );
 
   models = dedupeModelsForVirtualGrid(models || []);
@@ -12416,11 +12007,6 @@ function renderVirtualGrid(models) {
     }
   }
   if (rebuild) {
-    // Keep the selection across the rebuild: a tile can show .selected before selectedModels has it.
-    container.querySelectorAll('.file-item.selected').forEach((item) => {
-      const filePath = item.getAttribute('data-filepath') || item.dataset.filepath;
-      if (filePath) addToSelectedModels(filePath);
-    });
     clearFileItemPathIndex();
   }
   container.currentModels = models;
@@ -12631,7 +12217,7 @@ window.gridHost = {
   mobileColumns: () => mobileLibraryColumns(),
   expanded: () => ({ bundles: bundleExpandedGroups, parentModels: parentModelExpandedGroups }),
   createListHeader: () => createListViewHeader(),
-  isSelected: (filePath) => isInSelectedModels(filePath),
+  isSelected: (filePath) => window.selection.has(filePath),
   afterPaint: () => {
     const content = document.querySelector('.file-grid .virtual-content');
     if (content) bindFileItemPathIndex(content);
@@ -12794,7 +12380,7 @@ async function openModelSourceUrl(url) {
 /** Remove one tag or filament from every selected model, keeping their others. */
 async function removeFromSelectedModelsField(field, value) {
   const updates = [];
-  for (const filePath of Array.from(selectedModels)) {
+  for (const filePath of Array.from(window.selection)) {
     try {
       const model = await window.electron.getModel(filePath);
       if (!model) continue;
@@ -12822,7 +12408,7 @@ async function removeFromSelectedModelsField(field, value) {
 
 /** What the multi-edit panel (src/web/details/MultiEditPanel.tsx) asks of this file. */
 window.multiEditHost = {
-  selectedPaths: () => Array.from(selectedModels),
+  selectedPaths: () => Array.from(window.selection),
   exit: () => exitMultiEditMode(),
   selectAllVisible: () => selectAllVisibleModels(),
   clearSelection: () => clearMultiSelection(),

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { filaments as filamentApi, libraryValues, models, tags as tagApi, type Filament } from '../api';
 import { askText, exposeGlobal, showMessage } from '../page';
+import { selection } from '../selection';
 import { STATUSES, STATUS_LABELS, colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
 
 type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
@@ -120,6 +121,7 @@ export function MultiEditPanel() {
     loadOnSelected(paths).then((next) => { if (load === selectionLoad.current) setOnSelected(next); }).catch(() => {});
   };
 
+  useEffect(() => selection.subscribe(() => selectionChanged()), []);
   useEffect(() => exposeGlobal('multiEdit', {
     open: () => {
       window.clearTimeout(sourceTimer.current);

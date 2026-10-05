@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
+import { selection } from '../selection';
 import { GroupCard, type GroupCardHost } from './GroupCard';
 import { ModelCard, type CardHost } from './ModelCard';
 import {
@@ -86,7 +87,12 @@ export function LibraryGrid() {
     window.libraryGrid = api;
     const pending = (window as unknown as { _pendingGridShow?: GridShowOptions })._pendingGridShow;
     if (pending) api.show(pending);
-    return () => { if (window.libraryGrid === api) delete window.libraryGrid; };
+    // Cards draw their highlight from the selection.
+    const unsubscribe = selection.subscribe(() => api.refresh());
+    return () => {
+      unsubscribe();
+      if (window.libraryGrid === api) delete window.libraryGrid;
+    };
   }, []);
 
   // Size and scroll position of the grid.

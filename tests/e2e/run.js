@@ -660,6 +660,34 @@ async function browserChecks(base, wsUrl, session) {
       // The favorite redraws the grid; wait for the cards before picking a second one.
       await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item-detailed').length >= 2, null, { timeout: 10000 }).catch(() => {});
       const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      // Selection (src/web/selection.ts): the cards follow it.
+      const selectedPaths = () => page.$$eval('.file-grid .file-item.selected', (els) => els.map((el) => el.getAttribute('data-filepath')));
+      await page.evaluate(() => window.selection.clear());
+      await page.click(`${card} .file-name`);
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('ArrowDown');
+      const movedTo = await page.waitForFunction((from) => {
+        const path = document.getElementById('path-tree-container')?.getAttribute('data-file-path');
+        return path && path !== from ? path : null;
+      }, cardPath, { timeout: 10000 }).then((h) => h.jsonValue(), () => null);
+      await page.evaluate(() => window.libraryGrid?.refresh());
+      const afterArrow = await selectedPaths();
+      check('arrow keys move the selection to the next model', !!movedTo && afterArrow.length === 1 && afterArrow[0] === movedTo, JSON.stringify({ movedTo, afterArrow }));
+      await page.click(`.file-grid .file-item-detailed[data-filepath="${String(movedTo).replace(/"/g, '\\"')}"] .file-name`);
+      await page.waitForTimeout(300);
+      check('clicking the selected card again unselects it', (await selectedPaths()).length === 0 && !(await page.isVisible('#model-details')));
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
+      const allSelected = await page.waitForFunction(() => document.querySelector('#multi-edit-panel .selected-count')?.textContent?.trim() === '3 models selected', null, { timeout: 10000 }).then(() => true, () => false);
+      check('Ctrl/Cmd+A selects every model shown and opens multi-edit', allSelected && (await selectedPaths()).length === 3 && await page.isVisible('#multi-edit-panel'));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      check('Escape clears the selection', (await selectedPaths()).length === 0 && !(await page.isVisible('#multi-edit-panel')));
+      await page.click('#roulette-button');
+      const rouletteDone = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Print Roulette") button', { timeout: 20000 }).catch(() => null);
+      const picked = await selectedPaths();
+      check('Print Roulette picks one model and shows it', !!rouletteDone && picked.length === 1
+        && await page.getAttribute('#path-tree-container', 'data-file-path') === picked[0], JSON.stringify(picked));
+      if (rouletteDone) await rouletteDone.click();
       // Ctrl-click is a right-click on macOS; the app takes Cmd there.
       const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
       await page.click(`${card} .file-name`, { modifiers: [multiKey] });
