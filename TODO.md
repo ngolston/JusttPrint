@@ -108,7 +108,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The model grid (virtualized), the details panel, the ZIP bundle and multi-edit panels, the 3D preview on current three.js (an imperative engine in `src/web/preview/engine.ts`; react-three-fiber was not needed), Manage Thumbnails, the Log Print dialog, the thumbnail renderer and parse worker, and the grid selection (`src/web/selection.ts`).
   - [x] The sidebar's search, sort and filters and the filter strip (`src/web/filters/`), replacing `search.js` and `query-builder.js`.
   - [x] The folder tree (select, popover, rail, Reveal in folders) and the sidebar layout (More filters, resize handles) in `src/web/folders/`, replacing `folder-tree.js` and `sidebar-layout.js`.
-  - [ ] What is left in `renderer.js` and the other page scripts: the sidebar's buttons, the details panel header and the phone layout (`mobile-ui.js`), context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
+  - [x] The sidebar's counts and buttons (`src/web/filters/SidebarActions.tsx`).
+  - [ ] What is left in `renderer.js` and the other page scripts: the details panel header and the phone layout (`mobile-ui.js`), context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
@@ -151,7 +152,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
-- [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
+- [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.
 - [ ] **Filament Manager: the hex color field is squeezed to nothing** next to the color picker, so a hex value cannot be typed (`.filament-color-row`).
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 

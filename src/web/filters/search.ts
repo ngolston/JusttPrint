@@ -97,8 +97,6 @@ export async function runSearch(options: SearchOptions = {}): Promise<void> {
     }
   };
 
-  const banner = document.getElementById('view-library-message');
-  if (banner) banner.style.display = 'none';
   const mine = ++generation;
   inProgress = true;
   window._progressiveLibraryLoadActive = true;

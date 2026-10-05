@@ -683,6 +683,18 @@ async function browserChecks(base, wsUrl, session) {
       check('dragging the sidebar edge resizes it and saves the width', !!handle && Number(savedWidth) > parseInt(widthBefore, 10) - 5
         && (await page.evaluate(() => document.documentElement.style.getPropertyValue('--sidebar-width'))) === `${savedWidth}px`, `${widthBefore} → ${savedWidth}`);
       await page.evaluate(() => document.documentElement.style.removeProperty('--sidebar-width'));
+      // Sidebar actions (React, src/web/filters/SidebarActions.tsx): counts, Scan Directory, View Entire Library.
+      const totalModels = (await invoke(base, session, 'getTotalModelCount', [])).result;
+      const counted = await page.waitForFunction((n) => document.getElementById('total-count')?.textContent === `${n} model${n === 1 ? '' : 's'} total`
+        && /^\d+ models? in view$/.test(document.getElementById('view-count')?.textContent || ''), totalModels, { timeout: 10000 }).then(() => true, () => false);
+      check('the sidebar shows the models in view and in total', counted, await page.textContent('.model-stats'));
+      await page.click('#scan-directory-button');
+      const scanPrompt = await page.waitForSelector('dialog.browser-input-dialog[open]:has-text("Scan Directory")', { timeout: 10000 }).catch(() => null);
+      if (scanPrompt) await page.click('dialog.browser-input-dialog[open] button:text-is("Cancel")');
+      check('Scan Directory asks for a container folder; Cancel scans nothing', !!scanPrompt && await page.isEnabled('#scan-directory-button')
+        && !(await page.isVisible('dialog.browser-input-dialog[open]')));
+      await page.click('#view-library-button');
+      check('View Entire Library leaves the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
       await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
       await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);

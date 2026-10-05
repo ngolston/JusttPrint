@@ -122,30 +122,8 @@
   <div class="sidebar">
     <div class="sidebar-chrome">
     <img src="logo.png" alt="JusttPrint Logo" id="logo">
-    <div class="model-stats">
-      <div id="view-count" class="model-count">0 models in view</div>
-      <div id="total-count" class="model-count">0 models total</div>
-    </div>
-    <div class="icon-buttons-container">
-      <button id="dup-button" class="icon-button" title="De-Dup">
-        <img src="dup.png" alt="De-Dup">
-      </button>
-      <button id="tag-button" class="icon-button" title="Tag - Tag Manager">
-        <img src="tag.png" alt="Tag Manager">
-      </button>
-      <button id="filament-button" class="icon-button" title="Filament - Filament Manager">
-        <img src="filament.png" alt="Filament Manager">
-      </button>
-      <button id="roulette-button" class="icon-button" title="Roulette - Print Roulette">
-        <img src="roulette.png" alt="Print Roulette">
-      </button>
-    </div>
-    <button id="scan-directory-button">Scan Directory</button>
-    <button id="scan-stl-home-button" class="secondary-button" style="display: none;">Scan STL Home</button>
-    <button id="view-library-button">View Entire Library</button>
-    <div id="view-library-message" class="library-view-banner">
-      <!-- Updated text will appear here -->
-    </div>
+    <!-- Model counts, tool buttons, Scan Directory, Scan STL Home, View Entire Library: React (src/web/filters/SidebarActions.tsx) -->
+    <div id="sidebar-actions-slot" style="display: contents"></div>
     <div class="progress-section hidden" id="progress-section">
       <div class="progress-container" id="progress-container">
         <div class="progress-bar" id="progress-bar"></div>

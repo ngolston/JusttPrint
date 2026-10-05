@@ -16,39 +16,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // listener (TOS, initializeApp, STL Home scan, WebGL thumbs) and can freeze the tab.
 console.log('[Renderer] document.readyState at load:', document.readyState);
 
-// Scan STL Home: delegated click handler (Server/Docker - main block may run late)
-function _attachEarlyButtonHandlers() {
-  if (!document.body || document.body._earlyButtonHandlersAttached) return;
-  document.body._earlyButtonHandlersAttached = true;
-  document.body.addEventListener('click', function _earlyDelegated(e) {
-    if (!e.target || !e.target.closest) return;
-    if (e.target.closest('#scan-stl-home-button')) {
-      var btn = document.getElementById('scan-stl-home-button');
-      if (btn && btn.style.display === 'none') return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.runScanSTLHome === 'function') window.runScanSTLHome();
-      else window._pendingScanStlHome = true;
-      return;
-    }
-  });
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', _attachEarlyButtonHandlers);
-} else {
-  _attachEarlyButtonHandlers();
-}
-
-// Stub so "Scan STL Home" click always has something to call; replaced by real impl when main block runs
-window.runScanSTLHome = function() {
-  if (typeof window._runScanSTLHomeImpl === 'function') {
-    window._runScanSTLHomeImpl();
-    return;
-  }
-  window._pendingScanStlHome = true;
-  console.log('[Scan STL Home] runScanSTLHome not ready yet, queued');
-};
-
 // Ensure window.electron exists before any usage to avoid early crashes in server mode
 if (typeof window !== 'undefined') {
   window.electron = window.electron || {};
@@ -472,7 +439,7 @@ let isRendering = false;
 let isMultiSelectMode = false;
 let isScanning = false;
 
-// Scan STL Home: define at top level so it's ready before DOMContentLoaded handler runs (avoids "not ready yet, queued" in Docker/server)
+// Scan STL Home (the sidebar button, src/web/filters/SidebarActions.tsx).
 function runScanSTLHomeImpl() {
   console.log('[Scan STL Home] runScanSTLHome entered');
   if (isScanning) {
@@ -495,10 +462,7 @@ function runScanSTLHomeImpl() {
       clearFilterButton.click();
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const scanButton = document.getElementById('scan-directory-button');
-    const stlHomeButton = document.getElementById('scan-stl-home-button');
-    if (scanButton) { scanButton.disabled = true; scanButton.style.opacity = '0.5'; scanButton.style.cursor = 'not-allowed'; }
-    if (stlHomeButton) { stlHomeButton.disabled = true; stlHomeButton.style.opacity = '0.5'; stlHomeButton.style.cursor = 'not-allowed'; }
+    window.sidebarStatus?.setScanning(true);
     isScanning = true;
     showProgressBars();
     let lastScanProcessed = 0;
@@ -538,8 +502,7 @@ function runScanSTLHomeImpl() {
       }
     } finally {
       isScanning = false;
-      if (scanButton) { scanButton.disabled = false; scanButton.style.opacity = ''; scanButton.style.cursor = ''; }
-      if (stlHomeButton) { stlHomeButton.disabled = false; stlHomeButton.style.opacity = ''; stlHomeButton.style.cursor = ''; }
+      window.sidebarStatus?.setScanning(false);
       const progressSection = document.getElementById('progress-section');
       if (progressSection) progressSection.classList.add('hidden');
       // Force grid to refetch and re-render so models show without reload (Docker/server)
@@ -554,7 +517,7 @@ function runScanSTLHomeImpl() {
     }
   })();
 }
-window._runScanSTLHomeImpl = runScanSTLHomeImpl;
+window.runScanSTLHome = runScanSTLHomeImpl;
 
 // Add these queue-related variables
 let renderQueue = [];
@@ -1349,35 +1312,9 @@ let generatedThumbnailsCount = 0;
 const MAX_CONTEXT_REUSE_COUNT = 100; // Desktop default; server mode lowers this at init
 let maxContextReuseCount = MAX_CONTEXT_REUSE_COUNT;
 
-// Debounce total-count IPC: progressive library load calls updateModelCounts every chunk; one fetch is enough.
-let updateTotalCountDebounce = null;
-function scheduleTotalModelCountRefresh() {
-  if (updateTotalCountDebounce) clearTimeout(updateTotalCountDebounce);
-  updateTotalCountDebounce = setTimeout(async () => {
-    updateTotalCountDebounce = null;
-    try {
-      const totalCount = await window.electron.getTotalModelCount();
-      const totalElement = document.getElementById('total-count');
-      if (totalElement) {
-        totalElement.textContent = `${totalCount} model${totalCount !== 1 ? 's' : ''} total`;
-      }
-    } catch (error) {
-      console.error('Error updating total model count:', error);
-    }
-  }, 350);
-}
-
-// Add these functions near the top of the file
+/** The sidebar's "in view" count (src/web/filters/SidebarActions.tsx, which also refreshes the total). */
 async function updateModelCounts(viewCount) {
-  try {
-    const viewElement = document.getElementById('view-count');
-    if (viewElement) {
-      viewElement.textContent = `${viewCount} model${viewCount !== 1 ? 's' : ''} in view`;
-    }
-    scheduleTotalModelCountRefresh();
-  } catch (error) {
-    console.error('Error updating model counts:', error);
-  }
+  window.sidebarStatus?.setViewCount(viewCount);
 }
 
 // Helper function to normalize paths for comparison
@@ -2588,7 +2525,7 @@ async function createServerMenuBar() {
   
   // Tools menu
   const toolsMenu = createMenuDropdown('Tools', [
-    { label: 'Scan Directory', action: () => document.getElementById('scan-directory-button')?.click() },
+    { label: 'Scan Directory', action: () => window.scanDirectory?.() },
     { label: 'View Entire Library', action: () => document.getElementById('view-library-button')?.click() },
     { label: '---', action: null },
     { label: 'Print Roulette', action: () => window.electron.send('start-print-roulette') },
@@ -2952,19 +2889,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (serverMode) {
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar && !document.getElementById('server-mode-indicator')) {
-      const serverIndicator = document.createElement('div');
-      serverIndicator.id = 'server-mode-indicator';
-      serverIndicator.style.cssText = 'background-color: #4a9eff; color: white; padding: 10px; margin: 10px 0; border-radius: 4px; text-align: center; font-weight: bold;';
-      serverIndicator.innerHTML = `
-        <div>🌐 Server Mode</div>
-        <div style="font-size: 12px; font-weight: normal; margin-top: 5px;">
-          UNC paths required for all file operations
-        </div>
-      `;
-      sidebar.insertBefore(serverIndicator, sidebar.firstChild);
-    }
     if (!document.getElementById('server-menu-bar')) {
       await createServerMenuBar();
     }
@@ -3251,8 +3175,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await populateTagFilter();
 
-  // Add scan directory button event listener
-  document.getElementById('scan-directory-button')?.addEventListener('click', async () => {
+  // Scan Directory (the sidebar button, the Tools menu and Ctrl/Cmd+Shift+S).
+  window.scanDirectory = async () => {
     if (isScanning) return; // Prevent multiple scans
     
     // First, check if there are any active filters and clear them
@@ -3264,35 +3188,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // Check if we're in server mode
-    const serverMode = await window.electron.isServerMode();
-    let directoryPath;
-    
-    if (serverMode) {
-      // In server mode, prompt for UNC path via text input
-      // Pre-fill with STL Home if it's set
-      const stlHomes = await getStlHomeDirectories();
-      const defaultPath = stlHomes[0] || '';
-      const promptMessage = defaultPath 
-        ? `Enter UNC path to scan (e.g., \\\\server\\share\\path):\n\nCurrent STL Home: ${defaultPath}`
-        : 'Enter UNC path to scan (e.g., \\\\server\\share\\path):';
-      const uncPath = prompt(promptMessage, defaultPath);
-      if (!uncPath || uncPath.trim() === '') return;
-      directoryPath = [uncPath.trim()];
-    } else {
-      // Normal mode: use file dialog
-      directoryPath = await window.electron.openFileDialog();
-      if (!directoryPath || directoryPath.length === 0) return;
-    }
+    // Ask for a folder inside the container, starting from the first STL Home directory.
+    const stlHomes = await getStlHomeDirectories();
+    const enteredPath = await window.electron.showInputDialog({
+      title: 'Scan Directory',
+      message: 'Folder to scan (a path inside the container, for example /models):',
+      defaultValue: stlHomes[0] || ''
+    });
+    if (!enteredPath || !enteredPath.trim()) return;
+    const directoryPath = [enteredPath.trim()];
 
     await window.electron.saveDirectory(directoryPath[0]);
     console.log('Scanning directory:', directoryPath[0]);
     
-    // Disable the button and update its appearance
-    const scanButton = document.getElementById('scan-directory-button');
-    scanButton.disabled = true;
-    scanButton.style.opacity = '0.5';
-    scanButton.style.cursor = 'not-allowed';
+    window.sidebarStatus?.setScanning(true);
     isScanning = true;
     
     // Show progress section
@@ -3360,13 +3269,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       await window.electron.showMessage('Error', 'Failed to scan directory');
     } finally {
       hideProgressBars();
-      // Re-enable the button
-      scanButton.disabled = false;
-      scanButton.style.opacity = '1';
-      scanButton.style.cursor = 'pointer';
       isScanning = false;
+      window.sidebarStatus?.setScanning(false);
     }
-  });
+  };
  
 
   // Keyboard Shortcuts and About are React (src/web/KeyboardShortcutsDialog.tsx, AboutDialog.tsx).
@@ -4645,14 +4551,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Remove any nested DOMContentLoaded listeners and consolidate into one
   document.addEventListener('DOMContentLoaded', async () => {
     try {
-      // Scan STL Home: ensure delegated handler is attached (fallback if main block ran before body existed)
-      if (typeof window.attachScanStlHomeHandler === 'function') window.attachScanStlHomeHandler();
-      // If user clicked "Scan STL Home" before runScanSTLHome was ready, run the queued scan now
-      if (window._pendingScanStlHome && typeof window.runScanSTLHome === 'function') {
-        window._pendingScanStlHome = false;
-        console.log('[Scan STL Home] running queued scan (DOMContentLoaded)');
-        window.runScanSTLHome();
-      }
       // Initialize all settings first
       await initializeSettings();
       
@@ -4684,14 +4582,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // Update the parent directory click handler to show the clear button
-
-  // Show or hide "Scan STL Home" sidebar button based on whether STL Home path is set
-  async function updateScanStlHomeButtonVisibility() {
-    const stlHomes = await getStlHomeDirectories();
-    const btn = document.getElementById('scan-stl-home-button');
-    if (btn) btn.style.display = stlHomes.length ? '' : 'none';
-  }
-  window.updateScanStlHomeButtonVisibility = updateScanStlHomeButtonVisibility;
 
 
   // Periodic STL Home scanning for server mode
@@ -4779,37 +4669,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.startPeriodicSTLHomeScan = startPeriodicSTLHomeScan;
   window.stopPeriodicSTLHomeScan = stopPeriodicSTLHomeScan;
 
-  // Show/hide "Scan STL Home" button based on STL Home setting
-  updateScanStlHomeButtonVisibility();
-
-  // Scan STL Home: implementation is at top level (_runScanSTLHomeImpl); run any queued click from before script ready
-  if (window._pendingScanStlHome) {
-    window._pendingScanStlHome = false;
-    console.log('[Scan STL Home] running queued scan');
-    window.runScanSTLHome();
-  }
-
-  // Attach Scan STL Home click handler (immediately if body exists, else on DOMContentLoaded - Server/Docker)
-  function attachScanStlHomeHandler() {
-    if (!document.body) return;
-    if (document.body._scanStlHomeHandlerAttached) return;
-    document.body._scanStlHomeHandlerAttached = true;
-    document.body.addEventListener('click', function scanStlHomeDelegated(e) {
-      if (!e.target || !e.target.closest) return;
-      if (!e.target.closest('#scan-stl-home-button')) return;
-      const btn = document.getElementById('scan-stl-home-button');
-      if (btn && btn.style.display === 'none') return;
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[Scan STL Home] button clicked');
-      if (typeof window.runScanSTLHome === 'function') window.runScanSTLHome();
-    });
-    console.log('[Scan STL Home] delegated handler attached to body');
-  }
-  window.attachScanStlHomeHandler = attachScanStlHomeHandler;
-  if (document.body) attachScanStlHomeHandler();
-  else document.addEventListener('DOMContentLoaded', attachScanStlHomeHandler);
-
   // On startup, if STL Home directories are specified:
   // - In docker/server mode (STL_HOME set via startup/env): run one background check when the server loads, then on the interval.
   // - When user saves STL Home via the UI in server mode: scan runs in the dialog submit handler when saved.
@@ -4869,38 +4728,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else if (typeof window.performCombinedSearch === 'function') {
     await window.performCombinedSearch();
   }
-  // Ensure "Scan STL Home" button is visible when STL Home is set (Docker/server: may be set via env before UI ready)
-  if (typeof window.updateScanStlHomeButtonVisibility === 'function') {
-    await window.updateScanStlHomeButtonVisibility();
-  }
+  // STL Home may be set by the environment before the page loaded.
+  await window.updateScanStlHomeButtonVisibility?.();
 
-  // Add event listener for "View Entire Library" button (single handler)
-  const viewLibraryButton = document.getElementById('view-library-button');
-  if (viewLibraryButton) {
-    viewLibraryButton.addEventListener('click', async () => {
-      try {
-        window.disableGridRefresh = false;
-        const gridEl = document.querySelector('.file-grid');
-        if (gridEl) gridEl.currentModels = null;
-        if (typeof window.clearAllLibraryFilters === 'function') {
-          window.clearAllLibraryFilters();
-        }
-        const viewLibMsg = document.getElementById("view-library-message");
-        if (viewLibMsg) viewLibMsg.style.display = "none";
-        if (typeof window.forceGridRefresh === 'function') {
-          await window.forceGridRefresh();
-        } else if (typeof window.performCombinedSearch === 'function') {
-          await window.performCombinedSearch({ force: true });
-        }
-        console.log("Viewing entire library");
-      } catch (error) {
-        console.error('Error loading library:', error);
-        await window.electron.showMessage('Error', 'Failed to load library.');
-      }
-    });
-  } else {
-    debugLog("View Library button not found.");
-  }
 
 ;
 
@@ -8338,7 +8168,7 @@ document.addEventListener('keydown', async (event) => {
   if (mod && event.shiftKey && (event.key === 'S' || event.key === 's')) {
     if (!isScanning) {
       event.preventDefault();
-      document.getElementById('scan-directory-button')?.click();
+      window.scanDirectory?.();
     }
     return;
   }
@@ -10519,23 +10349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check for server mode and add UI indicators
   const serverMode = await window.electron.isServerMode().catch(() => false);
   if (serverMode) {
-    // Server mode indicator and menu bar are already added in the first DOMContentLoaded listener
-    // Just ensure they exist (they should already be there)
-    if (!document.getElementById('server-mode-indicator')) {
-      const sidebar = document.querySelector('.sidebar');
-      if (sidebar) {
-        const serverIndicator = document.createElement('div');
-        serverIndicator.id = 'server-mode-indicator';
-        serverIndicator.style.cssText = 'background-color: #4a9eff; color: white; padding: 10px; margin: 10px 0; border-radius: 4px; text-align: center; font-weight: bold;';
-        serverIndicator.innerHTML = `
-          <div>🌐 Server Mode</div>
-          <div style="font-size: 12px; font-weight: normal; margin-top: 5px;">
-            UNC paths required for all file operations
-          </div>
-        `;
-        sidebar.insertBefore(serverIndicator, sidebar.firstChild);
-      }
-    }
+    // The menu bar is already added in the first DOMContentLoaded listener.
     if (!document.getElementById('server-menu-bar')) {
       await createServerMenuBar();
     }
@@ -11638,8 +11452,6 @@ function ensureCardThumbnailQueued(model, slot, thumbPriority) {
 
 /** Filter the grid to the folder a model is in (a ZIP entry's folder inside its archive). */
 async function filterGridByModelDirectory(filePath) {
-  const viewLibraryMessage = document.getElementById('view-library-message');
-  if (viewLibraryMessage) viewLibraryMessage.style.display = 'none';
   let directory = '';
   if (filePath.includes('::')) {
     const [zipPath, entryPath] = filePath.split('::');

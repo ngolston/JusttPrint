@@ -153,21 +153,6 @@ select option:not(:checked):not([selected]):not(:hover) {
   width: 100%;
 }
 
-.library-view-banner {
-  display: none;
-  width: 85%;
-  box-sizing: border-box;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary-accent, #00d4ff);
-  margin-top: 8px;
-  background: color-mix(in srgb, var(--primary-accent, #00d4ff) 14%, var(--surface, #1e1e2e));
-  border: 1px solid color-mix(in srgb, var(--primary-accent, #00d4ff) 35%, transparent);
-  padding: 8px 12px;
-  border-radius: 8px;
-}
-
 .sidebar:not(.filters-expanded) .filter-stack {
   display: none;
 }

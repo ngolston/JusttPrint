@@ -889,7 +889,7 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 - `renderer.js` - UI logic (being replaced screen by screen with React + TypeScript)
 - `src/web/` - React + TypeScript, built with Vite into `web-build/` and mounted into the page (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. The dialogs and managers; the sidebar's search, sort and filters (`filters/`) and folder tree (`folders/`); the library grid (`grid/`) and its selection (`selection.ts`); the details, ZIP bundle and multi-edit panels (`details/`); print status, history and the Log Print dialog (`print/`); notes Markdown (`notes/`); the 3D preview (`preview/`); grid thumbnails (`thumbnails/`); and the model parse worker (`parse/worker.ts`, built to `web-build/parse-worker.js`). three.js is its own chunk, loaded with the first preview or thumbnail
 - `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
-- `page-init.js` - Wires up buttons declared with `data-close-dialog` and the toolbar buttons. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
+- `page-init.js` - Wires up buttons declared with `data-close-dialog`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
 - `mobile-ui.js`, `guide.js` - Phone layout, guide
 
 ### Configuration

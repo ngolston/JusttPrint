@@ -33,6 +33,7 @@ import './thumbnails';
 import './parse';
 import './filters/search';
 import { Sidebar } from './filters/Sidebar';
+import { SidebarActions } from './filters/SidebarActions';
 import { FolderTree } from './folders/FolderTree';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
@@ -71,6 +72,7 @@ function Screens() {
       <StlHomeDialog />
       <OrganizeLibraryDialog />
       <DedupDialog />
+      <SidebarActions />
       <Sidebar />
       <FolderTree />
       <LibraryGrid />
