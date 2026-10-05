@@ -417,33 +417,9 @@
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title">Bundle Details</span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-bundle-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button></span></h3>
-      <p id="bundle-details-subtitle" class="bundle-details-subtitle"></p>
-      <div class="form-group">
-        <label>Container path</label>
-        <div class="bundle-details-path-row">
-          <input type="text" id="bundle-details-path" readonly>
-          <button type="button" id="bundle-details-show-path" class="icon-button" title="Show in folder">↗</button>
-        </div>
-      </div>
-      <div class="bundle-details-stats" id="bundle-details-stats"></div>
-      <div class="form-group">
-        <label>Tags:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="bundle-tag-select">
-              <option value="">Select a tag...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="tag" data-target="bundle-tag-select" data-mode="edit" data-container="bundle-tags" title="Search existing tags">☰</button>
-            <button type="button" class="icon-button add-tag-button" title="Add a new tag to all models in this archive">+</button>
-          </div>
-          <div id="bundle-tags" class="tags-list"></div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Models</label>
-        <ul id="bundle-contents-list" class="bundle-contents-list" aria-label="Models in archive"></ul>
-      </div>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-bundle-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button></span></h3>
+      <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
+      <div id="bundle-details-slot" style="display: contents"></div>
     </div>
     <dialog id="new-designer-dialog" class="modal">
       <form method="dialog">

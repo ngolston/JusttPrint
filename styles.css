@@ -614,7 +614,8 @@ button:disabled {
 }
 
 .bundle-details > .form-group,
-.bundle-details > .bundle-details-stats {
+.bundle-details > .bundle-details-stats,
+#bundle-details-slot > .bundle-details-stats {
   margin-bottom: 12px;
 }
 
@@ -810,6 +811,7 @@ button:disabled {
 #details-print-slot > .form-group,
 #details-filaments-slot > .form-group,
 #details-notes-slot > .form-group,
+#bundle-details-slot > .form-group,
 #details-history-slot > .form-group {
   margin-bottom: 15px;
 }

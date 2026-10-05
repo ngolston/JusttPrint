@@ -10,6 +10,7 @@ import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { DedupDialog } from './DedupDialog';
+import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
 import { DetailsNotes } from './details/DetailsNotes';
@@ -66,6 +67,7 @@ function Screens() {
       <DetailsFilaments />
       <DetailsNotes />
       <DetailsPath />
+      <BundleDetails />
       <PrintHistory />
     </>
   );

@@ -359,6 +359,10 @@ async function apiChecks(base, wsUrl) {
     const after = (await ask('get-model', [cube])).result || {};
     check('model edits saved', !saved.error && after.notes === 'e2e note' && after.designer === 'E2E Designer' && (after.tags || []).includes('e2e-model-tag'), saved.error || JSON.stringify({ notes: after.notes, designer: after.designer, tags: after.tags }));
     check('designer list includes the edit', ((await ask('get-designers')).result || []).some((d) => JSON.stringify(d).includes('E2E Designer')));
+    await ask('update-models-batch', [[{ filePath: cube, tags: [] }]]);
+    const cleared = ((await ask('get-model', [cube])).result || {}).tags;
+    check('a batch update with no tags removes them', Array.isArray(cleared) && cleared.length === 0, JSON.stringify(cleared));
+    await ask('update-models-batch', [[{ filePath: cube, tags: ['e2e-model-tag'] }]]);
   }
   const tree = await ask('get-folder-tree');
   check('folder tree builds', !tree.error && JSON.stringify(tree.result || '').includes('Designer A'), tree.error);
@@ -1297,6 +1301,54 @@ async function browserChecks(base, wsUrl, session) {
     check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
     await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
     if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
+
+    // ZIP bundle panel (React, src/web/details/BundleDetails.tsx): a two-model archive groups into one card.
+    const kitDir = path.join(LIBRARY, 'Bundle Kit');
+    const kitZip = path.join(kitDir, 'kit.zip');
+    fs.mkdirSync(kitDir, { recursive: true });
+    // Different content from cube.stl and from each other, so De-Dup and hashes leave them alone.
+    const cubeText = fs.readFileSync(path.join(LIBRARY, 'Designer A', 'cube.stl'), 'utf8');
+    const kitPart = (name) => new TextEncoder().encode(cubeText.replace(/^solid[^\n]*/, `solid ${name}`));
+    fs.writeFileSync(kitZip, require('fflate').zipSync({ 'kit/left.stl': kitPart('left'), 'kit/right.stl': kitPart('right') }));
+    // The e2e library is inside the app folder, which scans refuse; register the entries directly.
+    for (const entry of ['kit/left.stl', 'kit/right.stl']) {
+      await invoke(base, session, 'save-model', [{ filePath: `${kitZip}::${entry}`, fileName: path.basename(entry) }]);
+    }
+    await page.click('.view-button[data-view="detailed"]');
+    await page.evaluate(() => window.performCombinedSearch?.({ force: true }));
+    const kitCard = '.file-grid .parent-model-group-detailed:has-text("kit.zip")';
+    const kitShown = await page.waitForSelector(kitCard, { timeout: 30000 }).catch(() => null);
+    check('a ZIP with two models shows as one bundle card', !!kitShown);
+    if (kitShown) {
+      await page.click(`${kitCard} .parent-model-group-meta`);
+      const bundlePanel = await page.waitForSelector('#bundle-details:not(.hidden) #bundle-contents-list li', { timeout: 10000 }).catch(() => null);
+      check('clicking a bundle shows the bundle panel', !!bundlePanel && await page.textContent('#bundle-details-title') === 'kit.zip'
+        && /ZIP archive • 2 files/.test(await page.textContent('#bundle-details-subtitle'))
+        && await page.inputValue('#bundle-details-path') === kitZip
+        && (await page.locator('#bundle-contents-list .bundle-contents-list-item').count()) === 2
+        && /2\s*models/.test(await page.textContent('#bundle-details-stats')));
+      const kitModels = [`${kitZip}::kit/left.stl`, `${kitZip}::kit/right.stl`];
+      const kitTagged = async (tag) => {
+        const models = await Promise.all(kitModels.map(async (p) => (await invoke(base, session, 'get-model', [p])).result || {}));
+        return models.map((m) => (m.tags || []).some((t) => (t.name || t) === tag));
+      };
+      await page.click('#bundle-add-tag');
+      const bundleTagPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (bundleTagPrompt) {
+        await bundleTagPrompt.fill('e2e-bundle-tag');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const tagAdded = await waitFor(async () => ((await kitTagged('e2e-bundle-tag')).every(Boolean) ? true : null), 10000, 'bundle tag').catch(() => false);
+      check('the bundle panel adds a tag to every model in it', tagAdded === true && await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]'));
+      await page.click('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"] .tag-remove');
+      const tagRemoved = await waitFor(async () => ((await kitTagged('e2e-bundle-tag')).every((v) => !v) ? true : null), 10000, 'bundle tag removed').catch(() => false);
+      check('the bundle panel removes a tag from every model', tagRemoved === true && !(await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]')),
+        JSON.stringify({ saved: await kitTagged('e2e-bundle-tag'), chip: await page.isVisible('#bundle-tags .tag[data-tag-name="e2e-bundle-tag"]') }));
+      await page.click('#bundle-contents-list .bundle-contents-list-item:text-is("left.stl")');
+      const openedChild = await page.waitForFunction(() => document.getElementById('path-tree-container')?.getAttribute('data-file-path')?.endsWith('::kit/left.stl')
+        && !document.getElementById('model-details')?.classList.contains('hidden'), null, { timeout: 10000 }).then(() => true, () => false);
+      check('a model in the bundle list opens its details', openedChild && await page.isHidden('#bundle-details'));
+    }
 
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());

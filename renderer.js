@@ -3688,8 +3688,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Only refresh the currently active dropdown
         if (sourceContainer === 'multi-tags') {
           await populateTagSelect('multi-tag-select', 'multi-tags');
-        } else if (sourceContainer === 'bundle-tags') {
-          await populateTagSelect('bundle-tag-select', 'bundle-tags');
         } else {
           await populateTagSelect('tag-select', 'model-tags');
         }
@@ -4492,7 +4490,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       await populateTagSelect('tag-select', 'model-tags');
       await populateTagSelect('multi-tag-select', 'multi-tags');
-      await populateTagSelect('bundle-tag-select', 'bundle-tags');
+      window.bundleDetails?.reloadOptions();
       await populateTagFilter();
       if (typeof populateRemoveTagSelect === 'function') {
         await populateRemoveTagSelect();
@@ -4539,7 +4537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Refresh tag dropdowns in edit view
         await populateTagSelect('tag-select', 'model-tags');
         await populateTagSelect('multi-tag-select', 'multi-tags');
-        await populateTagSelect('bundle-tag-select', 'bundle-tags');
+        window.bundleDetails?.reloadOptions();
         
         // Refresh tag filter dropdown
         await populateTagFilter();
@@ -10696,22 +10694,10 @@ async function initializeTags() {
     }
   });
 
-  const bundleTagSelect = document.getElementById('bundle-tag-select');
-  if (bundleTagSelect && !bundleTagSelect.dataset.tagChangeBound) {
-    bundleTagSelect.dataset.tagChangeBound = '1';
-    bundleTagSelect.addEventListener('change', () => {
-      const selectedTag = bundleTagSelect.value;
-      if (selectedTag) {
-        addTagToModel(selectedTag, 'bundle-tags');
-        bundleTagSelect.value = '';
-      }
-    });
-  }
-
   // Initial population of tag dropdowns
   await populateTagSelect('tag-select', 'model-tags');
   await populateTagSelect('multi-tag-select', 'multi-tags');
-  await populateTagSelect('bundle-tag-select', 'bundle-tags');
+  window.bundleDetails?.reloadOptions();
   if (typeof window.populateFilamentSelect === 'function') {
     await window.populateFilamentSelect('filament-select', 'model-filaments');
     await window.populateFilamentSelect('multi-filament-select', 'multi-filaments');
@@ -10981,8 +10967,6 @@ async function addTagToModel(tagName, containerId, options = {}) {
       // Note: This sets all selected models to have exactly the tags remaining in the UI.
       // Use replaceTags: true to replace tags instead of merging
       await autoSaveMultipleModels('tags', currentTags, { replaceTags: true }); 
-    } else if (containerId === 'bundle-tags') {
-      await applyBundleTagChange({ removeTags: [tagName] });
     } else {
       // Single edit mode save
       const filePath = getModelFilePath();
@@ -11005,8 +10989,6 @@ async function addTagToModel(tagName, containerId, options = {}) {
     // For multi-edit ADD, only save the *newly added tag* to append it
     console.log(`Multi-edit: Appending tag '${tagName}' to selected models.`);
     await autoSaveMultipleModels('tags', [tagName]); // Pass only the new tag
-  } else if (containerId === 'bundle-tags') {
-    await applyBundleTagChange({ addTags: [tagName] });
   } else {
     // For single-edit ADD, save the full list for that model
     const currentTags = Array.from(tagContainer.querySelectorAll('.tag'))
@@ -14634,15 +14616,12 @@ function getBundleContainerPath(groupRecord) {
 }
 
 let currentBundleDetailsGroupKey = null;
-let currentBundleDetailsRecord = null;
 
 function hideBundleDetailsPanel() {
   const panel = document.getElementById('bundle-details');
   if (panel) panel.classList.add('hidden');
   currentBundleDetailsGroupKey = null;
-  currentBundleDetailsRecord = null;
-  const tagsContainer = document.getElementById('bundle-tags');
-  if (tagsContainer) tagsContainer.innerHTML = '';
+  window.bundleDetails?.clear();
   const container = document.querySelector('.file-grid');
   if (container?.renderVisibleItemsFn) container.renderVisibleItemsFn();
 }
@@ -14651,7 +14630,6 @@ async function showBundleDetails(groupRecord) {
   if (!groupRecord?.children?.length) return;
 
   currentBundleDetailsGroupKey = groupRecord.groupKey;
-  currentBundleDetailsRecord = groupRecord;
 
   document.getElementById('model-details')?.classList.add('hidden');
   document.getElementById('multi-edit-panel')?.classList.add('hidden');
@@ -14663,82 +14641,15 @@ async function showBundleDetails(groupRecord) {
   if (!panel) return;
   panel._bundleRecord = groupRecord;
 
-  const bundleKind = groupRecord.children[0]?.bundleKind
+  // The panel's title and body are React (src/web/details/BundleDetails.tsx).
+  const kind = groupRecord.children[0]?.bundleKind
     || deriveBundleFieldsForModel(groupRecord.children[0]).bundleKind
     || 'folder';
-  const groupLabel = groupRecord.groupLabel || 'Bundle';
-  const containerInfo = getBundleContainerPath(groupRecord);
-  const children = [...groupRecord.children].sort((a, b) =>
-    String(a.fileName || '').localeCompare(String(b.fileName || ''), undefined, { sensitivity: 'base' })
-  );
-
-  const titleEl = document.getElementById('bundle-details-title');
-  const subtitleEl = document.getElementById('bundle-details-subtitle');
-  const pathEl = document.getElementById('bundle-details-path');
-  const statsEl = document.getElementById('bundle-details-stats');
-  const listEl = document.getElementById('bundle-contents-list');
-
-  const kindLabel = bundleKind === 'zip' ? 'ZIP archive' : 'Folder bundle';
-  if (titleEl) titleEl.textContent = groupLabel;
-  if (subtitleEl) subtitleEl.textContent = `${kindLabel} • ${children.length} file${children.length === 1 ? '' : 's'}`;
-
-  const containerPath = containerInfo.path || '';
-  if (pathEl) pathEl.value = containerPath;
-
-  const totalBytes = children.reduce((sum, c) => sum + (Number(c.size) || 0), 0);
-  const bundlePrint = window.PrintHistory?.bundleSummary(children);
-  const printedCount = bundlePrint ? bundlePrint.printedCount : children.filter((c) => Boolean(c.printed)).length;
-  if (statsEl) {
-    statsEl.innerHTML = `
-      <span><strong>${children.length}</strong> models</span>
-      <span><strong>${formatFileSize(totalBytes)}</strong> combined size</span>
-      <span><strong>${printedCount}/${children.length}</strong> printed${bundlePrint?.totalCount ? ` (${bundlePrint.label})` : ''}</span>
-    `;
-  }
-
-  if (listEl) {
-    listEl.innerHTML = '';
-    for (const child of children) {
-      const entryPath = child.filePath?.includes('::')
-        ? (child.filePath.split('::')[1] || child.fileName)
-        : (child.fileName || child.filePath || '');
-      const displayName = String(entryPath).split(/[/\\]/).pop() || entryPath || '—';
-
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'bundle-contents-list-item';
-      btn.textContent = displayName;
-      btn.title = entryPath || displayName;
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        listEl.querySelectorAll('.bundle-contents-list-item.is-active').forEach((el) => {
-          el.classList.remove('is-active');
-        });
-        btn.classList.add('is-active');
-        if (child.filePath) showModelDetails(child.filePath);
-      });
-      li.appendChild(btn);
-      listEl.appendChild(li);
-    }
-  }
-
-  const showPathBtn = document.getElementById('bundle-details-show-path');
-  if (showPathBtn) {
-    showPathBtn.onclick = async (e) => {
-      e.preventDefault();
-      if (containerPath && window.electron?.showItemInFolder) {
-        await window.electron.showItemInFolder(containerPath);
-      }
-    };
-    showPathBtn.disabled = !containerPath;
-  }
-
-  await loadBundleDetailsTags(groupRecord);
+  window.bundleDetails?.show({ record: groupRecord, kind, containerPath: getBundleContainerPath(groupRecord).path || '' });
 
   panel.classList.remove('hidden');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // After React has drawn the panel's body.
+  requestAnimationFrame(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 
   const grid = document.querySelector('.file-grid');
   if (grid?.renderVisibleItemsFn) grid.renderVisibleItemsFn();
@@ -14864,19 +14775,8 @@ async function getGroupTagNames(groupRecord) {
   return Array.from(union).sort((a, b) => a.localeCompare(b));
 }
 
-async function loadBundleDetailsTags(groupRecord) {
-  const tagsContainer = document.getElementById('bundle-tags');
-  if (!tagsContainer) return;
-  tagsContainer.innerHTML = '';
-  const tagNames = await getGroupTagNames(groupRecord);
-  for (const tagName of tagNames) {
-    await addTagToModel(tagName, 'bundle-tags', { skipSave: true });
-  }
-  await populateTagSelect('bundle-tag-select', 'bundle-tags');
-}
-
-async function applyBundleTagChange({ addTags = [], removeTags = [] } = {}) {
-  const groupRecord = currentBundleDetailsRecord;
+/** Add or remove tags on every model of a bundle, and update their cards. */
+async function applyBundleTagChange(groupRecord, { addTags = [], removeTags = [] } = {}) {
   if (!groupRecord?.children?.length) {
     console.error('No archive group selected for tagging');
     return false;
@@ -14925,7 +14825,6 @@ async function applyBundleTagChange({ addTags = [], removeTags = [] } = {}) {
     invalidateVirtualGridLayoutCache(gridContainer);
   }
   if (gridContainer?.renderVisibleItemsFn) gridContainer.renderVisibleItemsFn();
-  await populateTagSelect('bundle-tag-select', 'bundle-tags');
   return true;
 }
 
@@ -15434,6 +15333,26 @@ async function openModelSourceUrl(url) {
     await window.electron.showMessage('Error', 'Failed to open URL: ' + error.message);
   }
 }
+
+/** What the bundle panel (src/web/details/BundleDetails.tsx) asks of this file. */
+window.bundleHost = {
+  openModel: (filePath) => { showModelDetails(filePath); },
+  tagNames: (record) => getGroupTagNames(record),
+  changeTags: (record, change) => applyBundleTagChange(record, change),
+  pickTag: () => new Promise((resolve) => {
+    showSearchableListDialog('tag', null, 'edit', null, false, resolve);
+  }),
+  tagCreated: async () => {
+    try {
+      await populateTagFilter();
+      await populateTagSelect('multi-tag-select', 'multi-tags');
+      window.detailsFields?.reloadOptions();
+      window.reloadTagManager?.();
+    } catch (error) {
+      console.error('Error refreshing tag pickers:', error);
+    }
+  }
+};
 
 /** What the details panel's React fields (src/web/details/DetailsFields.tsx) ask of this file. */
 window.detailsHost = {

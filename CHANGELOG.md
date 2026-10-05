@@ -6,6 +6,8 @@ All notable changes contributed via pull request are documented in this file.
 
 **Changes:**
 - The details panel's path row is React (`src/web/details/DetailsPath.tsx`). Clicking a folder in it now shows that folder in the library; it used to try to open the folder on the server, which the server refuses. Folder names are no longer inserted as HTML.
+- The ZIP bundle panel is React (`src/web/details/BundleDetails.tsx`). Its ↗ button shows the archive's folder in the library (it used to ask the server to open a folder, which the server refuses), and its + button asks for the new tag in the app's own prompt.
+- Fixed: removing the last tag from a ZIP bundle, or from selected models in multi-edit, did not save. A batch update with an empty tag list now removes the tags.
 
 ## [4.3.0] - 2026-10-04
 
