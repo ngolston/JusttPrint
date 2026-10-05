@@ -638,6 +638,8 @@ async function browserChecks(base, wsUrl, session) {
       await page.click(`${card} .model-favorite-btn`);
       const favorited = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).favorite ? true : null), 10000, 'favorite').catch(() => false);
       check('a card saves its favorite', favorited === true && await page.isVisible(`${card} .model-favorite-btn.is-favorited`));
+      // The favorite redraws the grid; wait for the cards before picking a second one.
+      await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item-detailed').length >= 2, null, { timeout: 10000 }).catch(() => {});
       const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
       // Ctrl-click is a right-click on macOS; the app takes Cmd there.
       const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -714,6 +716,29 @@ async function browserChecks(base, wsUrl, session) {
           return thumbnail.split('::')[0] === second ? true : null;
         }, 10000, 'default image').catch(() => false);
         check('the image left showing becomes the default', saved === true);
+        // Manage Thumbnails (React, src/web/ManageThumbnailsDialog.tsx).
+        const storedImages = async () => ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).filter((t) => String(t).startsWith('data:image'));
+        await page.evaluate((p) => window.openManageThumbnails(p), cardPath);
+        const manage = await page.waitForSelector('#manage-thumbnails-dialog[open] .thumbnail-item', { timeout: 10000 }).catch(() => null);
+        const beforeManage = await storedImages();
+        check('Manage Thumbnails lists the images with the active one first', !!manage
+          && (await page.locator('#manage-thumbnails-dialog .thumbnail-item').count()) === beforeManage.length
+          && (await page.textContent('#manage-thumbnails-dialog .thumbnail-item.active .thumbnail-item-label')) === 'Active');
+        await page.click('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .set-active', { force: true });
+        const activated = await waitFor(async () => ((await storedImages())[0] === beforeManage[1] ? true : null), 10000, 'set active').catch(() => false);
+        check('Manage Thumbnails sets another image as active', activated === true);
+        await page.waitForSelector('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .delete:not([disabled])', { state: 'attached', timeout: 10000 }).catch(() => {});
+        await page.click('#manage-thumbnails-dialog .thumbnail-item[data-index="1"] .delete', { force: true });
+        const confirmThumbDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+        if (confirmThumbDelete) await confirmThumbDelete.click();
+        const deletedImage = await waitFor(async () => ((await storedImages()).length === beforeManage.length - 1 ? true : null), 10000, 'delete image').catch(() => false);
+        const listShrunk = await page.waitForFunction((n) => document.querySelectorAll('#manage-thumbnails-dialog .thumbnail-item').length === n, beforeManage.length - 1, { timeout: 10000 }).then(() => true, () => false);
+        check('Manage Thumbnails deletes an image after asking', !!confirmThumbDelete && deletedImage === true && listShrunk,
+          JSON.stringify({ confirm: !!confirmThumbDelete, saved: deletedImage, listShrunk, before: beforeManage.length, after: (await storedImages()).length }));
+        await page.click('#manage-thumbnails-dialog .dialog-buttons button');
+        const cardShowsActive = await page.waitForFunction(([sel, src]) => document.querySelector(`${sel} .thumbnail-container img`)?.getAttribute('src') === src,
+          [card, beforeManage[1]], { timeout: 10000 }).then(() => true, () => false);
+        check('closing Manage Thumbnails redraws the card with the active image', !(await page.isVisible('#manage-thumbnails-dialog')) && cardShowsActive);
       }
     }
     // Group cards (React, GroupCard.tsx): two models with one parent model show as a group.

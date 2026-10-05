@@ -504,3 +504,10 @@ export const prints = {
 export const models = {
   get: <T = Record<string, unknown>>(filePath: string) => callAction<T | null>('get-model', filePath)
 };
+
+/** A model's stored images (data URLs); the first is the one the grid shows. */
+export const thumbnails = {
+  list: (filePath: string) => callAction<string[]>('get-all-thumbnails', filePath),
+  setDefault: (filePath: string, index: number) => callAction<unknown>('set-default-thumbnail', filePath, index),
+  remove: (filePath: string, index: number) => callAction<unknown>('delete-thumbnail', filePath, index)
+};

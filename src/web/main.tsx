@@ -20,6 +20,7 @@ import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
 import { MultiEditPanel } from './details/MultiEditPanel';
@@ -70,6 +71,7 @@ function Screens() {
       <DetailsPath />
       <BundleDetails />
       <MultiEditPanel />
+      <ManageThumbnailsDialog />
       <PrintHistory />
     </>
   );
