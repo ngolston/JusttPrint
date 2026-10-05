@@ -113,7 +113,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The model menu (right-click, long-press and ⋯) in `src/web/menus/ContextMenu.tsx`.
   - [x] Keyboard shortcuts (`src/web/shortcuts.ts`, tested), shared with the Keyboard Shortcuts dialog.
   - [x] The Terms of Service and welcome dialogs (`src/web/startup/FirstRun.tsx`).
-  - [ ] What is left in `renderer.js` and the other page scripts: scanning and the thumbnail queue, and the tag preview dialog.
+  - [x] Review Generated Tags (`src/web/tags/`), with its state and merge rule tested.
+  - [ ] What is left in `renderer.js` and the other page scripts: scanning and the thumbnail queue.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:

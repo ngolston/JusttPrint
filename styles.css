@@ -10011,3 +10011,188 @@ body.is-panel-resizing * {
   font-size: 22px;
   margin-bottom: 4px;
 }
+
+/* Review Generated Tags (src/web/tags/TagPreviewDialog.tsx) */
+.tag-review-model-info {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: var(--surface-raised, #2a2a2a);
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+}
+.tag-review-label {
+  color: var(--text-muted, #aaa);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.tag-review-model-info .tag-review-label {
+  color: var(--text, #fff);
+  font-weight: 600;
+  font-size: 14px;
+}
+.tag-review-model-name {
+  color: var(--primary-accent, #4a9eff);
+  font-weight: 600;
+  font-size: 15px;
+  word-break: break-all;
+}
+.tag-review-model-path {
+  color: var(--text-muted, #999);
+  font-size: 12px;
+  margin-top: 4px;
+  word-break: break-all;
+}
+.tag-review-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 15px 0;
+  padding: 10px;
+  background: var(--bg, #1e1e1e);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+.tag-review-waiting {
+  padding: 20px;
+  color: var(--text, #fff);
+}
+.tag-review-model {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: var(--surface-raised, #2a2a2a);
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+}
+.tag-review-model-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border, #444);
+}
+.tag-review-model-text {
+  flex: 1;
+  min-width: 0;
+}
+.tag-review-thumb {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--bg, #1a1a1a);
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+}
+.tag-review-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tag-review-thumb img.is-placeholder {
+  width: 40px;
+  height: 40px;
+  opacity: 0.3;
+}
+.tag-review-existing {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.tag-review-chip {
+  display: inline-block;
+  margin: 2px;
+  padding: 3px 6px;
+  background: var(--surface, #3a3a3a);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text, #ccc);
+}
+.tag-review-generated-label {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+.tag-review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.tag-review-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface, #3a3a3a);
+  border: 1px solid var(--border-strong, #555);
+  border-radius: 6px;
+  color: var(--text, #fff);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.tag-review-tag:hover {
+  border-color: var(--primary-accent, #4a9eff);
+}
+.tag-review-tag input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--primary-accent, #4a9eff);
+}
+.tag-review-bulk {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.tag-review-bulk button {
+  width: auto;
+  margin: 0;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--text, #fff);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.tag-review-bulk button:hover {
+  opacity: 0.7;
+  transform: none;
+}
+.tag-review-status {
+  padding: 8px;
+  background: var(--bg, #1a1a1a);
+  border: 1px solid var(--border, #333);
+  border-radius: 4px;
+  color: var(--text-muted, #888);
+  font-size: 13px;
+  font-style: italic;
+}
+.tag-review-status.is-error {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+  font-style: normal;
+}
+.tag-review-strategy {
+  margin-top: 15px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--primary-accent, #4a9eff) 12%, var(--surface, #2a3a4a));
+  border: 1px solid color-mix(in srgb, var(--primary-accent, #4a9eff) 35%, transparent);
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: var(--text-muted, #bbb);
+  line-height: 1.5;
+}
+.tag-review-strategy > div:first-child {
+  color: var(--text, #fff);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tag-review-strategy span {
+  color: var(--primary-accent, #4a9eff);
+}

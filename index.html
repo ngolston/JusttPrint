@@ -129,28 +129,7 @@
     <!-- Terms of Service and welcome: React (src/web/startup/FirstRun.tsx) -->
 
 
-    <!-- Tag preview dialog -->
-    <dialog id="tag-preview-dialog" class="modal">
-      <form method="dialog">
-        <h3>Review Generated Tags</h3>
-        <div id="tag-preview-model-info" style="margin-bottom: 15px; padding: 12px; background: #2a2a2a; border-radius: 6px; border: 1px solid #444;">
-          <div style="color: #fff; font-weight: 600; margin-bottom: 6px;">Model:</div>
-          <div id="tag-preview-model-name" style="color: #4a9eff; font-size: 14px; word-break: break-all;"></div>
-          <div id="tag-preview-model-path" style="color: #999; font-size: 12px; margin-top: 4px; word-break: break-all;"></div>
-        </div>
-        <p class="setting-description">
-          Review and select which tags to apply to this model. Uncheck any tags you don't want to include.
-        </p>
-        <p id="tag-preview-status" class="setting-description" hidden></p>
-        <div id="tag-preview-container" style="max-height: 400px; overflow-y: auto; margin: 15px 0; padding: 10px; background: #1e1e1e; border-radius: 6px; border: 1px solid #333;">
-          <!-- Tags will be dynamically added here -->
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="tag-preview-apply">Apply Selected Tags</button>
-          <button type="button" id="tag-preview-cancel" data-close-dialog="tag-preview-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
+    <!-- Review Generated Tags: React (src/web/tags/TagPreviewDialog.tsx) -->
 
     <!-- Add progress dialog for tag generation -->
     <dialog id="progress-dialog" class="modal">

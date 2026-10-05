@@ -48,6 +48,7 @@ import { StlHomeDialog } from './StlHomeDialog';
 import { FirstRun } from './startup/FirstRun';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
+import { TagPreviewDialog } from './tags/TagPreviewDialog';
 import { ThemeSettingsDialog } from './ThemeSettingsDialog';
 
 function Screens() {
@@ -56,6 +57,7 @@ function Screens() {
       <FirstRun />
       <ServerAccessDialog />
       <TagManagerDialog />
+      <TagPreviewDialog />
       <PartsManagerDialog />
       <FilamentManagerDialog />
       <PrinterManagerDialog />

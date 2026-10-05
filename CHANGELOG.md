@@ -14,6 +14,7 @@ All notable changes contributed via pull request are documented in this file.
 - The model menu (right-click, long-press, and the card's ⋯ button) is React (`src/web/menus/ContextMenu.tsx`). Errors show in the app's own dialog instead of the browser's alert, and menu labels are no longer built as HTML.
 - Keyboard shortcuts are React (`src/web/shortcuts.ts`), with one table for the keys and the Keyboard Shortcuts dialog. ↑ / ↓ with Ctrl or ⌘ no longer move between models.
 - The Terms of Service and welcome dialogs are React (`src/web/startup/FirstRun.tsx`). Escape no longer closes the terms without an answer, which left the app waiting.
+- Review Generated Tags is React (`src/web/tags/`), about 1,100 lines of `renderer.js` less. Each model shows once however often the server reports it, so the old duplicate-removal workarounds are gone. Applying shows its progress on the Apply button; it used the shared progress dialog, whose bar had the same id as the scan progress bar in the sidebar and moved that one instead.
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).
 - Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
 - Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.

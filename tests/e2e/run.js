@@ -1294,6 +1294,40 @@ async function browserChecks(base, wsUrl, session) {
       && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true');
     await fresh.close();
 
+    // Review Generated Tags (React, src/web/tags/TagPreviewDialog.tsx), driven by the events an AI run sends.
+    const reviewPaths = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter((p) => !p.includes('::')).slice(0, 2);
+    if (reviewPaths.length === 2) {
+      const [ra, rb] = reviewPaths;
+      const tagNames = async (filePath) => (((await invoke(base, session, 'get-model', [filePath])).result || {}).tags || []).map((t) => (typeof t === 'string' ? t : t.name));
+      const tagsBefore = await tagNames(ra);
+      const emit = (...args) => page.evaluate((a) => window.electron.send(...a), args);
+      await emit('start-batch-tag-generation', 2, [ra, rb, ra]);
+      await page.waitForFunction(() => document.querySelectorAll('#tag-preview-container .tag-review-model').length === 2, null, { timeout: 10000 }).catch(() => {});
+      check('a batch run lists each model once while it waits, with Apply off', await page.isVisible('#tag-preview-dialog')
+        && (await page.locator('#tag-preview-container .tag-review-model').count()) === 2 && await page.isDisabled('#tag-preview-apply')
+        && /\(0\/2 processed/.test(await page.textContent('#tag-preview-dialog h3')));
+      await emit('tags-generated', ra, ['e2e-ai-a', 'e2e-ai-b'], null);
+      await emit('tags-generated', rb, [], 'Rate limit exceeded: wait a minute');
+      const limitNotice = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Rate Limit Exceeded") button', { timeout: 10000 }).catch(() => null);
+      if (limitNotice) await limitNotice.click();
+      check('suggestions show as ticked boxes, and a rate limit is reported once', !!limitNotice
+        && (await page.locator('#tag-preview-container input[type=checkbox]:checked').count()) === 2
+        && /wait a minute/.test(await page.textContent('#tag-preview-container')));
+      await emit('batch-tag-generation-complete');
+      check('Apply turns on when the batch ends', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 5000 }).then(() => true, () => false));
+      await page.uncheck('#tag-preview-container input[value="e2e-ai-b"]');
+      await page.click('#tag-preview-apply');
+      const applied = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Tags applied") button', { timeout: 15000 }).catch(() => null);
+      if (applied) await applied.click();
+      const tagsAfter = await tagNames(ra);
+      check('Apply saves only the ticked tags, plus "AI Tagged"', !!applied && tagsAfter.includes('e2e-ai-a') && tagsAfter.includes('AI Tagged')
+        && !tagsAfter.includes('e2e-ai-b') && !(await page.isVisible('#tag-preview-dialog')), JSON.stringify(tagsAfter));
+      await emit('tags-generated', ra, ['late'], null);
+      await page.waitForTimeout(500);
+      check('a late result does not reopen a closed review', !(await page.isVisible('#tag-preview-dialog')));
+      await invoke(base, session, 'update-models-batch', [[{ filePath: ra, tags: tagsBefore }]]);
+    }
+
     // System Report (React): every section finishes, and both benchmarks complete.
     await page.evaluate(() => window.openSystemReport());
     check('System Report opens', await page.isVisible('#system-report-dialog'));
