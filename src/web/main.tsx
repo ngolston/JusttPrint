@@ -10,9 +10,13 @@ import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { DedupDialog } from './DedupDialog';
+import { DetailsFields } from './details/DetailsFields';
+import { DetailsFilaments } from './details/DetailsFilaments';
+import { DetailsNotes } from './details/DetailsNotes';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
+import { LibraryGrid } from './grid/LibraryGrid';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
@@ -20,6 +24,7 @@ import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
+import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
@@ -55,6 +60,11 @@ function Screens() {
       <StlHomeDialog />
       <OrganizeLibraryDialog />
       <DedupDialog />
+      <LibraryGrid />
+      <DetailsFields />
+      <DetailsFilaments />
+      <DetailsNotes />
+      <PrintHistory />
     </>
   );
 }

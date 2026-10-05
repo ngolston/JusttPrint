@@ -804,7 +804,13 @@ button:disabled {
   margin-bottom: 0;
 }
 
-.model-details > .form-group {
+.model-details > .form-group,
+#details-name-slot > .form-group,
+#details-fields-slot > .form-group,
+#details-print-slot > .form-group,
+#details-filaments-slot > .form-group,
+#details-notes-slot > .form-group,
+#details-history-slot > .form-group {
   margin-bottom: 15px;
 }
 
@@ -6567,6 +6573,12 @@ dialog:not([open]) {
   position: relative;
 }
 
+/* Library grid list rows (src/web/grid/ModelCard.tsx): the folder link underlines on hover */
+.file-item-list .directory-info-column:hover .directory-info {
+  text-decoration: underline;
+  color: #6bb3ff !important;
+}
+
 /* De-Dup (src/web/DedupDialog.tsx) */
 .dedup-intro {
   font-size: 0.9rem;
@@ -7173,6 +7185,16 @@ dialog:not([open]) {
   text-align: right;
   overflow-wrap: anywhere;
 }
+.print-history-printer-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.18);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
 .print-history-delete.icon-button {
   grid-column: 2;
   grid-row: 1;

@@ -16,6 +16,8 @@ declare global {
       /** Server events over the page's WebSocket (server-bridge.js). */
       on?: (channel: string, callback: (...args: any[]) => void) => void;
       off?: (channel: string, callback: (...args: any[]) => void) => void;
+      /** Open a link in a new tab (server-bridge.js). */
+      openExternal?: (url: string) => Promise<unknown>;
       /** Id of this page's WebSocket (server-bridge.js), so the server can send events back to this page. */
       getClientId?: () => string | null;
     };

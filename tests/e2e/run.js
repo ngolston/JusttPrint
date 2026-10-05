@@ -482,6 +482,211 @@ async function browserChecks(base, wsUrl, session) {
       if (process.env.E2E_DEBUG) console.log(`     errors after close: ${errors.length - errorsBefore}`);
     }
 
+    // Grid cards (React, src/web/grid/ModelCard.tsx) in the detailed view.
+    await page.click('.view-button[data-view="detailed"]');
+    const firstCard = await page.waitForSelector('.file-grid .file-item-detailed', { timeout: 10000 }).catch(() => null);
+    check('detailed view shows cards', !!firstCard && (await page.locator('.file-grid .file-item-detailed').count()) === 3);
+    if (firstCard) {
+      const cardPath = await firstCard.getAttribute('data-filepath');
+      const card = `.file-grid .file-item-detailed[data-filepath="${cardPath.replace(/"/g, '\\"')}"]`;
+      await page.click(`${card} .file-name`);
+      check('clicking a card selects it and shows its details', await page.isVisible(`${card}.selected`) && await page.isVisible('#model-details'));
+      // Details panel fields (React, src/web/details/DetailsFields.tsx).
+      const panelModel = async () => (await invoke(base, session, 'get-model', [cardPath])).result || {};
+      const shownName = await page.waitForFunction((name) => document.getElementById('model-name')?.value === name, path.basename(cardPath), { timeout: 10000 })
+        .then(() => true).catch(async () => page.inputValue('#model-name').catch((e) => e.message));
+      check('details show the model name', shownName === true, shownName);
+      await page.fill('#model-source', 'https://example.com/e2e-source');
+      await page.press('#model-source', 'Enter');
+      const savedSource = await waitFor(async () => ((await panelModel()).source === 'https://example.com/e2e-source' ? true : null), 10000, 'source').catch(async () => JSON.stringify({ shown: await page.inputValue('#model-source'), saved: (await panelModel()).source }));
+      check('details save the source URL', savedSource === true, savedSource);
+      await page.click('#details-add-designer');
+      const designerPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (designerPrompt) {
+        await designerPrompt.fill('E2E Panel Designer');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const designerSaved = await waitFor(async () => ((await panelModel()).designer === 'E2E Panel Designer' ? true : null), 10000, 'designer').catch(() => false);
+      check('details add a new designer', designerSaved === true && await page.inputValue('#model-designer') === 'E2E Panel Designer'
+        && /E2E Panel Designer/.test(await page.textContent(`${card} .designer-info`).catch(() => '')));
+      await page.selectOption('#model-designer', '');
+      await waitFor(async () => (!(await panelModel()).designer ? true : null), 10000, 'designer cleared').catch(() => {});
+      // The list offers designers in use: give another model one to pick.
+      const listedOn = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      await invoke(base, session, 'update-models-batch', [[{ filePath: listedOn, designer: 'E2E Listed Designer' }]]);
+      await page.click('.form-group:has(#model-designer) .list-button');
+      const listItem = await page.waitForSelector('#searchable-list-dialog[open] li:text-is("E2E Listed Designer")', { timeout: 10000 }).catch(() => null);
+      if (listItem) await listItem.click();
+      else await page.evaluate(() => document.getElementById('searchable-list-dialog')?.close());
+      const pickSaved = await waitFor(async () => ((await panelModel()).designer === 'E2E Listed Designer' ? true : null), 10000, 'designer picked').catch(() => false);
+      const pickShown = await page.waitForFunction(() => document.getElementById('model-designer')?.value === 'E2E Listed Designer', null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('details pick a designer from the list', !!listItem && pickSaved === true && pickShown,
+        JSON.stringify({ found: !!listItem, saved: pickSaved, shown: pickShown }));
+      await page.click('#details-add-tag');
+      const tagPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (tagPrompt) {
+        await tagPrompt.fill('e2e-panel-tag');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const hasPanelTag = async () => ((await panelModel()).tags || []).some((t) => (t.name || t) === 'e2e-panel-tag');
+      check('details create and add a tag', await waitFor(async () => ((await hasPanelTag()) ? true : null), 10000, 'tag added').catch(() => false) === true
+        && await page.isVisible('#model-tags .tag[data-tag-name="e2e-panel-tag"]'));
+      await page.click('#model-tags .tag[data-tag-name="e2e-panel-tag"] .tag-remove');
+      check('details remove a tag', await waitFor(async () => (!(await hasPanelTag()) ? true : null), 10000, 'tag removed').catch(() => false) === true
+        && !(await page.isVisible('#model-tags .tag[data-tag-name="e2e-panel-tag"]')));
+      // Print status and history in the details panel, and the Log Print dialog (React, src/web/print/PrintHistory.tsx).
+      await page.selectOption('#model-print-status', 'queued');
+      const queued = await waitFor(async () => ((await panelModel()).print_status === 'queued' ? true : null), 10000, 'status').catch(() => false);
+      check('details set the print status', queued === true
+        && await page.waitForFunction((sel) => document.querySelector(`${sel} .print-status`)?.textContent === 'Queued', card, { timeout: 10000 }).then(() => true, () => false));
+      const printsBefore = Number((await panelModel()).print_count) || 0;
+      await page.click('#log-print-button');
+      const logDialog = await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => null);
+      check('log print dialog opens from the details panel', !!logDialog && await page.textContent('#log-print-title') === 'Log a print'
+        && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(await page.inputValue('#log-print-when')));
+      if (logDialog) {
+        await page.fill('#log-print-quantity', '2');
+        await page.fill('#log-print-notes', 'e2e log entry');
+        await page.click('#log-print-save');
+      }
+      const loggedPrint = await waitFor(async () => (Number((await panelModel()).print_count) === printsBefore + 2 ? true : null), 10000, 'print logged')
+        .catch(async () => `print_count ${(await panelModel()).print_count}, before ${printsBefore}`);
+      const historyItem = '#print-history-list .print-history-item:has(.print-history-notes:text-is("e2e log entry"))';
+      const historyShown = await page.waitForSelector(historyItem, { timeout: 10000 }).then(() => true, () => false);
+      check('logging a print saves it and lists it in the history', loggedPrint === true && historyShown && !(await page.isVisible('#log-print-dialog'))
+        && /×2/.test(await page.textContent(`${historyItem} .print-history-outcome`).catch(() => ''))
+        && await page.inputValue('#model-print-status') === 'printed', String(loggedPrint));
+      await page.click(`${historyItem} .print-history-delete`);
+      const confirmDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmDelete) await confirmDelete.click();
+      const deletedPrint = await waitFor(async () => ((Number((await panelModel()).print_count) || 0) === printsBefore ? true : null), 10000, 'print deleted').catch(() => false);
+      check('deleting a history entry removes it', !!confirmDelete && deletedPrint === true
+        && await page.waitForSelector(historyItem, { state: 'detached', timeout: 10000 }).then(() => true, () => false));
+      await page.click(`${card} .print-status`, { modifiers: ['Shift'] });
+      const wantItem = await page.waitForSelector('.print-status-menu .print-status-menu-item:text-is("Want")', { timeout: 10000 }).catch(() => null);
+      if (wantItem) await wantItem.click();
+      const wanted = await waitFor(async () => ((await panelModel()).print_status === 'want' ? true : null), 10000, 'badge status').catch(() => false);
+      check('shift-click on a card badge sets the status', !!wantItem && wanted === true && !(await page.isVisible('.print-status-menu'))
+        && await page.waitForFunction(() => document.getElementById('model-print-status')?.value === 'want', null, { timeout: 10000 }).then(() => true, () => false));
+      await invoke(base, session, 'set-print-status', [{ filePath: cardPath, printStatus: 'unprinted' }]);
+      // Filaments in the details panel (React, src/web/details/DetailsFilaments.tsx).
+      const hasPanelFilament = async () => ((await panelModel()).filaments || []).some((f) => f.name === 'E2E PLA');
+      const filamentChip = '#model-filaments .filament-chip:has(.filament-chip-text:text-is("E2E PLA (PLA)"))';
+      await page.waitForSelector('#filament-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
+      await page.selectOption('#filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
+      check('details add a filament from the picker', await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament added').catch(() => false) === true
+        && await page.isVisible(filamentChip)
+        && !(await page.$('#filament-select option:text-is("E2E PLA (PLA)")')));
+      await page.click(`${filamentChip} .filament-chip-remove`);
+      check('details remove a filament', await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament removed').catch(() => false) === true
+        && !(await page.isVisible(filamentChip)));
+      await page.click('.form-group:has(#filament-select) .list-button');
+      const filamentItem = await page.waitForSelector('#searchable-list-dialog[open] li:text-is("E2E PLA (PLA)")', { timeout: 10000 }).catch(() => null);
+      if (filamentItem) await filamentItem.click();
+      else await page.evaluate(() => document.getElementById('searchable-list-dialog')?.close());
+      check('details pick a filament from the list', !!filamentItem
+        && await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament picked').catch(() => false) === true
+        && await page.waitForSelector(filamentChip, { timeout: 10000 }).then(() => true, () => false));
+      await page.click(`${filamentChip} .filament-chip-remove`);
+      await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament cleanup').catch(() => {});
+      // Notes in the details panel and the Edit Notes dialog (React, src/web/details/DetailsNotes.tsx).
+      const notesBefore = (await panelModel()).notes || '';
+      await page.click('#model-notes-preview');
+      const notesEditor = await page.waitForSelector('#notes-modal-dialog[open] #notes-richtext', { timeout: 10000 }).catch(() => null);
+      check('clicking the notes preview opens the editor', !!notesEditor);
+      if (notesEditor) {
+        await page.evaluate(() => { document.getElementById('notes-richtext').innerHTML = ''; });
+        await page.focus('#notes-richtext');
+        await page.keyboard.type('Hello ');
+        await page.click('#notes-modal-dialog .notes-toolbar [data-md="bold"]');
+        await page.keyboard.type('world');
+        await page.click('#save-notes-button');
+      }
+      const notesSaved = await waitFor(async () => ((await panelModel()).notes === 'Hello **world**' ? true : null), 10000, 'notes saved')
+        .catch(async () => JSON.stringify((await panelModel()).notes));
+      check('the notes editor saves Markdown and the preview renders it', notesSaved === true && !(await page.isVisible('#notes-modal-dialog'))
+        && await page.isVisible('#model-notes-preview strong:text-is("world")'), String(notesSaved));
+      await page.click('#open-notes-modal-button');
+      await page.waitForSelector('#notes-modal-dialog[open]', { timeout: 10000 }).catch(() => {});
+      const editorHtml = await page.innerHTML('#notes-richtext').catch(() => '');
+      await page.focus('#notes-richtext');
+      await page.keyboard.type(' discarded');
+      await page.click('#cancel-notes-button');
+      await page.waitForTimeout(500);
+      check('cancel leaves the notes unchanged', /<strong>world<\/strong>/.test(editorHtml) && (await panelModel()).notes === 'Hello **world**'
+        && !(await page.isVisible('#notes-modal-dialog')), editorHtml);
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, notes: notesBefore }]]);
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
+      await page.click(`${card} .model-star[data-star="3"]`);
+      const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
+      check('a card saves its star rating', rated === true && (await page.locator(`${card} .model-star.is-filled`).count()) === 3);
+      await page.click(`${card} .model-favorite-btn`);
+      const favorited = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).favorite ? true : null), 10000, 'favorite').catch(() => false);
+      check('a card saves its favorite', favorited === true && await page.isVisible(`${card} .model-favorite-btn.is-favorited`));
+      const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      // Ctrl-click is a right-click on macOS; the app takes Cmd there.
+      const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
+      await page.click(`${card} .file-name`, { modifiers: [multiKey] });
+      await page.click(`.file-grid .file-item-detailed[data-filepath="${other.replace(/"/g, '\\"')}"] .file-name`, { modifiers: [multiKey] });
+      check('Ctrl/Cmd-click selects several cards for multi-edit', (await page.locator('.file-grid .file-item.selected').count()) === 2 && await page.isVisible('#multi-edit-panel'));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
+      check('Escape leaves multi-edit', !(await page.isVisible('#multi-edit-panel')));
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, rating: 0, favorite: 0 }]]);
+
+      // A model with several images shows a carousel; the image left showing becomes the default.
+      const images = await page.evaluate(() => ['#d33', '#33d'].map((color) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 64, 64);
+        return canvas.toDataURL('image/png');
+      }));
+      await invoke(base, session, 'add-multiple-thumbnails', [cardPath, images]);
+      const total = ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).length;
+      await page.evaluate(() => window.performCombinedSearch({ force: true }));
+      const badge = await page.waitForSelector(`${card} .thumbnail-count-badge`, { timeout: 15000 }).catch(() => null);
+      check('a card with several images shows the carousel', !!badge && (await badge.textContent()).trim() === `1/${total}`, badge && await badge.textContent());
+      if (badge) {
+        await page.click(`${card} .thumbnail-nav-right`);
+        check('the carousel steps to the next image', (await page.textContent(`${card} .thumbnail-count-badge`)).trim() === `2/${total}`);
+        const second = await page.getAttribute(`${card} .thumbnail-container img`, 'src');
+        const saved = await waitFor(async () => {
+          const thumbnail = ((await invoke(base, session, 'get-model', [cardPath])).result || {}).thumbnail || '';
+          return thumbnail.split('::')[0] === second ? true : null;
+        }, 10000, 'default image').catch(() => false);
+        check('the image left showing becomes the default', saved === true);
+      }
+    }
+    // Group cards (React, GroupCard.tsx): two models with one parent model show as a group.
+    const grouped = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).slice(0, 2);
+    await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: 'E2E Group' }))]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
+    const groupCard = '.file-grid .parent-model-group-detailed[data-group-key="parent:e2e group"]';
+    const groupShown = await page.waitForSelector(groupCard, { timeout: 15000 }).catch(() => null);
+    check('models with one parent model show as a group card', !!groupShown && /2 models/.test(await page.textContent(`${groupCard} .parent-model-group-meta`)));
+    if (groupShown) {
+      await page.click(`${groupCard} .parent-model-group-meta`);
+      const children = await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item.parent-model-group-child').length === 2, null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('clicking a group expands it to its models', children && await page.isVisible(`${groupCard}.expanded`));
+      await page.click(`${groupCard} .model-star[data-star="4"]`);
+      const groupRated = await waitFor(async () => {
+        const ratings = await Promise.all(grouped.map(async (filePath) => ((await invoke(base, session, 'get-model', [filePath])).result || {}).rating));
+        return ratings.every((rating) => rating === 4) ? true : null;
+      }, 10000, 'group rating').catch(() => false);
+      check('rating a group rates every model in it', groupRated === true);
+      await page.click(`${groupCard} .parent-model-group-chevron`);
+      const collapsed = await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item.parent-model-group-child').length === 0, null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('the chevron collapses the group', collapsed && !(await page.isVisible(`${groupCard}.expanded`)));
+    }
+    await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: null, rating: 0 }))]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
+    await page.click('.view-button[data-view="preview"]');
+
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
     await page.evaluate(() => document.getElementById('new-tag-dialog').showModal());
     await page.click('#new-tag-dialog [data-close-dialog="new-tag-dialog"]');

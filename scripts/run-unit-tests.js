@@ -3,7 +3,8 @@
 
 /**
  * npm test: runs every *.test.js file with Node and reports which ones failed.
- * Skips node_modules, the end-to-end suite (npm run test:e2e) and TestDriver tests (vitest).
+ * Skips node_modules, the end-to-end suite (npm run test:e2e) and TestDriver tests (vitest.config.js),
+ * then runs the TypeScript unit tests in src/web with Vitest (vitest.web.config.mjs).
  */
 
 const { spawnSync } = require('child_process');
@@ -37,6 +38,17 @@ for (const file of findTests(root).sort()) {
   } else {
     console.log(`ok   ${name}`);
   }
+}
+
+// TypeScript unit tests for the React screens (src/web/**/*.test.ts), run by Vitest.
+const vitest = spawnSync(process.execPath, [path.join(root, 'node_modules', 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.web.config.mjs'], { cwd: root, encoding: 'utf8' });
+if (vitest.status !== 0) {
+  failed.push('src/web (vitest)');
+  console.log('FAIL src/web (vitest)');
+  for (const line of `${vitest.stdout || ''}${vitest.stderr || ''}`.trim().split('\n').slice(-20)) console.log(`     ${line}`);
+} else {
+  const summary = (vitest.stdout || '').split('\n').find((line) => /Tests\s+\d+ passed/.test(line));
+  console.log(`ok   src/web (vitest)${summary ? ` -${summary.replace(/\s+/g, ' ')}` : ''}`);
 }
 
 console.log(failed.length ? `\n${failed.length} test file(s) failed.` : '\nAll test files passed.');

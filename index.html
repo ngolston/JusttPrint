@@ -394,30 +394,11 @@
 
     <div id="model-details" class="model-details hidden">
       <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><span class="mobile-details-name" id="mobile-details-name" hidden></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-details-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-favorite" aria-pressed="false" aria-label="Favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.2s-6.8-4.3-9.2-8.2C1 9.2 2.2 5.8 5.6 5.2 7.6 4.8 9.4 5.8 12 8.2c2.6-2.4 4.4-3.4 6.4-3 3.4.6 4.6 4 2.8 6.8-2.4 3.9-9.2 8.2-9.2 8.2z"/></svg><span class="mobile-action-label">Favorite</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-log-print" aria-label="Log a print"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h9l3 3v15H6V3zm8 1.5V7h2.5L14 4.5zM8 11h8v1.8H8V11zm0 3.2h8v1.8H8v-1.8zM8 17.4h5.2V19H8v-1.6z"/></svg><span>Log print</span></button></span></h3>
-      <div class="form-group print-lifecycle-group">
-        <label for="model-print-status">Print status</label>
-        <div class="print-lifecycle-controls">
-          <select id="model-print-status">
-            <option value="unprinted">Not printed</option>
-            <option value="want">Want</option>
-            <option value="queued">Queued</option>
-            <option value="printing">Printing</option>
-            <option value="printed">Printed</option>
-            <option value="failed">Failed</option>
-          </select>
-          <button type="button" id="log-print-button" class="icon-button log-print-icon-button" title="Log a print" aria-label="Log a print">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.992 11h3.5m-3.5-4h7m-11-1h-3m3 6h-3m3 6h-3m6 3.939c-1.581-.103-2.595-.377-3.328-1.11C4.492 19.656 4.492 17.77 4.492 14v-4c0-3.771 0-5.657 1.172-6.828S8.72 2 12.492 2h.5c3.771 0 5.657 0 6.829 1.172S20.992 6.229 20.992 10v.5m-1.136 3.94l.695.692a1.496 1.496 0 0 1 0 2.12L16.91 20.95a2 2 0 0 1-1.05.551l-2.258.488a.5.5 0 0 1-.597-.593l.48-2.235c.074-.397.268-.762.554-1.047l3.688-3.674a1.51 1.51 0 0 1 2.13 0" />
-            </svg>
-          </button>
-        </div>
-        <p id="print-history-hint" class="print-history-hint"></p>
-      </div>
+      <!-- Print status: React (src/web/print/PrintHistory.tsx) -->
+      <div id="details-print-slot" style="display: contents"></div>
       <button type="button" id="mobile-details-more" aria-expanded="false">More details</button>
-      <div class="form-group mobile-detail-skip">
-        <label for="model-name">Name:</label>
-        <input type="text" id="model-name" readonly>
-      </div>
+      <!-- Name: React (src/web/details/DetailsFields.tsx) -->
+      <div id="details-name-slot" style="display: contents"></div>
       <div class="form-group mobile-detail-extra">
         <label for="model-path">Path:</label>
         <div class="path-tree-field">
@@ -425,89 +406,14 @@
           <button type="button" id="reveal-in-folders-button" class="icon-button" title="Reveal in folders">☰</button>
         </div>
       </div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-source">Source URL:</label>
-        <div class="input-with-icon">
-          <input type="text" id="model-source" placeholder="Enter source..." spellcheck="false">
-          <button id="open-source-button" class="icon-button" title="Open in browser">↗</button>
-        </div>
-      </div>
-
-      <div class="form-group mobile-detail-extra">
-        <label for="model-designer">Designer:</label>
-        <div class="designer-input-container">
-          <select id="model-designer">
-            <option value="Unknown">Unknown</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="designer" data-target="model-designer" data-mode="edit" title="Search existing designers">☰</button>
-          <button type="button" id="add-new-designer-button" class="icon-button">+</button>
-        </div>
-      </div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-parent">Parent Model:</label>
-        <div class="designer-input-container">
-          <select id="model-parent">
-            <option value="">None</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="parent" data-target="model-parent" data-mode="edit" title="Search existing parent models">☰</button>
-          <button type="button" id="add-new-parent-button" class="icon-button">+</button>
-        </div>
-      </div>
-
-      <div class="form-group mobile-detail-extra">
-        <label for="model-license">License:</label>
-        <div class="designer-input-container">
-          <select id="model-license" class="form-control"></select>
-          <button type="button" class="list-button icon-button" data-field="license" data-target="model-license" data-mode="edit" title="Search existing licenses">☰</button>
-          <button type="button" id="add-new-license-button" class="icon-button">+</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Tags:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="tag-select">
-              <option value="">Select a tag...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="tag" data-target="tag-select" data-mode="edit" data-container="model-tags" title="Search existing tags">☰</button>
-            <button type="button" id="add-tag-button" class="icon-button">+</button>
-          </div>
-          <div id="model-tags" class="tags-list"></div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Filament:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="filament-select">
-              <option value="">Select a filament...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="filament" data-target="filament-select" data-mode="edit" data-container="model-filaments" title="Search existing filaments">☰</button>
-            <button type="button" id="add-filament-button" class="icon-button" title="Filament Manager">+</button>
-          </div>
-          <div id="model-filaments" class="tags-list"></div>
-        </div>
-      </div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-notes">Notes:</label>
-        <div class="notes-input-container">
-          <textarea id="model-notes" class="notes-source" aria-hidden="true" tabindex="-1"></textarea>
-          <div id="model-notes-preview" class="notes-preview notes-sidebar-preview" aria-label="Notes"></div>
-          <button type="button" id="open-notes-modal-button" class="icon-button" title="Edit notes">✏️</button>
-        </div>
-      </div>
-      <div class="form-group print-history-group">
-        <div class="print-history-label-row">
-          <label>Print history</label>
-          <button type="button" id="log-print-history-button" class="icon-button log-print-icon-button" title="Log a print" aria-label="Log a print">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.992 11h3.5m-3.5-4h7m-11-1h-3m3 6h-3m3 6h-3m6 3.939c-1.581-.103-2.595-.377-3.328-1.11C4.492 19.656 4.492 17.77 4.492 14v-4c0-3.771 0-5.657 1.172-6.828S8.72 2 12.492 2h.5c3.771 0 5.657 0 6.829 1.172S20.992 6.229 20.992 10v.5m-1.136 3.94l.695.692a1.496 1.496 0 0 1 0 2.12L16.91 20.95a2 2 0 0 1-1.05.551l-2.258.488a.5.5 0 0 1-.597-.593l.48-2.235c.074-.397.268-.762.554-1.047l3.688-3.674a1.51 1.51 0 0 1 2.13 0" />
-            </svg>
-          </button>
-        </div>
-        <ul id="print-history-list" class="print-history-list" aria-label="Print history"></ul>
-      </div>
-      <button id="save-model-button"></button>
+      <!-- Source, designer, parent model, license and tags: React (src/web/details/DetailsFields.tsx) -->
+      <div id="details-fields-slot" style="display: contents"></div>
+      <!-- Filaments: React (src/web/details/DetailsFilaments.tsx) -->
+      <div id="details-filaments-slot" style="display: contents"></div>
+      <!-- Notes: React (src/web/details/DetailsNotes.tsx) -->
+      <div id="details-notes-slot" style="display: contents"></div>
+      <!-- Print history: React (src/web/print/PrintHistory.tsx) -->
+      <div id="details-history-slot" style="display: contents"></div>
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">
@@ -539,63 +445,6 @@
         <ul id="bundle-contents-list" class="bundle-contents-list" aria-label="Models in archive"></ul>
       </div>
     </div>
-    <dialog id="log-print-dialog" class="modal">
-      <form id="log-print-form">
-        <h3 id="log-print-title">Log a print</h3>
-        <p class="setting-description">Creates a history row. Status-only changes use the dropdown or Shift-click on the card badge.</p>
-        <div class="form-group">
-          <label for="log-print-when">When</label>
-          <input type="datetime-local" id="log-print-when" required>
-        </div>
-        <div class="form-group">
-          <label for="log-print-outcome">Outcome</label>
-          <select id="log-print-outcome">
-            <option value="printed">Printed</option>
-            <option value="failed">Failed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="log-print-quantity">Quantity</label>
-          <input type="number" id="log-print-quantity" min="1" max="9999" value="1">
-        </div>
-        <div class="form-group">
-          <label for="log-print-printer-select">Printer used</label>
-          <select id="log-print-printer-select">
-            <option value="">Select printer (optional)…</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="log-print-filament-select">Filament used</label>
-          <select id="log-print-filament-select">
-            <option value="">Add filament…</option>
-          </select>
-          <div id="log-print-filaments" class="tags-list"></div>
-        </div>
-        <div class="form-group">
-          <label for="log-print-part-select">Parts used</label>
-          <div class="log-print-parts-add">
-            <select id="log-print-part-select">
-              <option value="">Add part…</option>
-            </select>
-            <input type="number" id="log-print-part-qty" min="1" max="9999" value="1" title="Quantity of this part per copy" aria-label="Quantity per copy">
-            <button type="button" id="log-print-part-add">Add</button>
-          </div>
-          <p class="setting-description">Quantity is per copy. Saving removes that many from Parts Stock for every copy and every model in this log.</p>
-          <div id="log-print-parts" class="tags-list"></div>
-          <p id="log-print-parts-summary" class="setting-description"></p>
-        </div>
-        <div class="form-group">
-          <label for="log-print-notes">Notes</label>
-          <textarea id="log-print-notes" placeholder="Optional — layer height, what failed, who it was for"></textarea>
-        </div>
-        <p id="log-print-status" class="print-history-hint"></p>
-        <div class="dialog-buttons">
-          <button type="submit" id="log-print-save">Save</button>
-          <button type="button" id="log-print-cancel">Cancel</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="new-designer-dialog" class="modal">
       <form method="dialog">
         <h3>Add New Designer</h3>
@@ -809,30 +658,6 @@
         <div class="dialog-buttons">
           <button type="submit" id="add-license-button">Add</button>
           <button type="button" id="cancel-license-button" data-close-dialog="new-license-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
-    <dialog id="notes-modal-dialog" class="modal notes-modal">
-      <form method="dialog">
-        <h3>Edit Notes</h3>
-        <div class="form-group">
-          <div class="notes-editor" data-notes-editor="modal">
-            <div class="notes-toolbar" role="toolbar" aria-label="Notes formatting">
-              <button type="button" data-md="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" data-md="italic" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" data-md="strike" title="Strikethrough"><s>S</s></button>
-              <button type="button" data-md="h2" title="Heading">H</button>
-              <button type="button" data-md="list" title="Bullet list">•</button>
-              <button type="button" data-md="link" title="Link">Link</button>
-              <button type="button" data-md="code" title="Code">&lt;/&gt;</button>
-            </div>
-            <div id="notes-richtext" class="notes-richtext" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Notes"></div>
-            <textarea id="notes-modal-textarea" class="notes-source" aria-hidden="true" tabindex="-1"></textarea>
-          </div>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" id="save-notes-button">Save</button>
-          <button type="button" id="cancel-notes-button" data-close-dialog="notes-modal-dialog">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -1386,11 +1211,9 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="sidebar-layout.js"></script>
   <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>
-  <script src="notes-markdown.js"></script>
   <script src="stl-sanity.js"></script>
   <script src="renderer.js"></script>
   <script src="filament.js"></script>
-  <script src="print-history.js"></script>
   <script src="guide.js"></script>
   <script src="pwa.js"></script>
   <script src="mobile-ui.js"></script>

@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
@@ -34,7 +34,6 @@
     "test:library-context": "node tests/library-context.test.js",
     "test:stl-sanity": "node tests/stl-sanity.test.js",
     "test:ai-rate-limit": "node tests/ai-rate-limit.test.js",
-    "test:notes": "node tests/notes-markdown.test.js",
     "test:dedup-preferred": "node tests/dedup-preferred.test.js",
     "test:organize-library": "node tests/organize-library.test.js",
     "test:server-auth": "node tests/server-auth.test.js",

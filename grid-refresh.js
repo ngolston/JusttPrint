@@ -36,42 +36,6 @@
     );
   }
 
-  // Center the selected model after a view switch. Prefer the model tile over a group card.
-  function scrollTopForSelectedLayout(layout, viewportHeight, isSelectedPath) {
-    if (!layout || typeof isSelectedPath !== 'function') return null;
-    const rows = layout.rows || [];
-    let modelRow = null;
-    let groupRow = null;
-    for (let i = 0; i < rows.length && !modelRow; i++) {
-      const row = rows[i];
-      const records = row && row.type === 'group' ? [row.record] : (row && row.records) || [];
-      for (let r = 0; r < records.length; r++) {
-        const record = records[r];
-        if (!record) continue;
-        if (record.type === 'model' && record.model && isSelectedPath(record.model.filePath)) {
-          modelRow = row;
-          break;
-        }
-        if (!groupRow && record.type === 'group' && Array.isArray(record.children)) {
-          for (let c = 0; c < record.children.length; c++) {
-            const child = record.children[c];
-            if (child && isSelectedPath(child.filePath)) {
-              groupRow = row;
-              break;
-            }
-          }
-        }
-      }
-    }
-    const row = modelRow || groupRow;
-    if (!row || !Number.isFinite(row.top)) return null;
-    const viewport = Number(viewportHeight) || 0;
-    const rowHeight = Number(row.height) || 0;
-    const centered = row.top - Math.max(0, (viewport - rowHeight) / 2);
-    const maxScroll = Math.max(0, (Number(layout.totalHeight) || 0) - viewport);
-    return Math.max(0, Math.min(centered, maxScroll));
-  }
-
   // One trailing refresh per delay window. Extra calls while a timer is pending are ignored.
   function createCoalescedRefresh(delayMs, refreshFn) {
     let timer = null;
@@ -92,7 +56,6 @@
     THUMBNAIL_REFRESH_COALESCE_MS: THUMBNAIL_REFRESH_COALESCE_MS,
     shouldHoldProgressiveRender: shouldHoldProgressiveRender,
     shouldFocusSelectionOnViewSwitch: shouldFocusSelectionOnViewSwitch,
-    scrollTopForSelectedLayout: scrollTopForSelectedLayout,
     patchLoadedModel: patchLoadedModel,
     createCoalescedRefresh: createCoalescedRefresh
   };
