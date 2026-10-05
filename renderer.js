@@ -1942,29 +1942,6 @@ async function updateModelElement(filePath) {
 // Track the current model being displayed to prevent race conditions
 let currentModelDetailsPath = null;
 let currentModelDetailsAbort = false;
-// Monotonic token for the deferred model-name write. Abort is not enough:
-// showModelDetails() clears the flag synchronously on the next selection, so a
-// setTimeout(0) from the previous load can still commit a stale name after
-// filter clear or a new selection (layout runs in that gap).
-let modelDetailsEpoch = 0;
-
-function bumpModelDetailsEpoch() {
-  modelDetailsEpoch += 1;
-  return modelDetailsEpoch;
-}
-
-// Apply after the current layout flush. Drop the write if a newer load, filter
-// clear, or deselect has already moved the epoch.
-function scheduleModelNameCommit(value, epoch) {
-  const committed = value == null ? '' : String(value);
-  setTimeout(() => {
-    if (epoch !== modelDetailsEpoch) return;
-    const input = document.getElementById('model-name');
-    if (!input) return;
-    input.value = committed;
-  }, 0);
-}
-
 // Parse file path into hierarchical structure
 function parsePath(filePath) {
   if (!filePath) return null;
@@ -2176,40 +2153,21 @@ function renderPathTree(filePath, containerId) {
 
 async function showModelDetails(filePath) {
   try {
-    // Cancel any previous operation. Epoch retires deferred name writes from
-    // the previous load before abort is cleared below.
-    const detailsEpoch = bumpModelDetailsEpoch();
+    // A newer selection, a filter change or a deselect sets the abort flag or moves the path.
     currentModelDetailsAbort = true;
-    
-    // Set the new current path
     currentModelDetailsPath = filePath;
     currentModelDetailsAbort = false;
+    const isCurrent = () => !currentModelDetailsAbort && currentModelDetailsPath === filePath;
 
-    const modelNameAtStart = document.getElementById('model-name');
-    if (modelNameAtStart) modelNameAtStart.value = '';
-    scheduleModelNameCommit('', detailsEpoch);
-    
     debugLog('Showing model details for:', filePath);
     const model = await window.electron.getModel(filePath);
-    
-    // Check if this operation was cancelled
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-    
-    if (!model) return;
+    if (!isCurrent() || !model) return;
 
     hideBundleDetailsPanel();
 
-    // Get the details panel reference
     const detailsPanel = document.getElementById('model-details');
     if (!detailsPanel) {
       console.error('Model details panel not found');
-      return;
-    }
-    
-    // Check again if cancelled
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
       return;
     }
 
@@ -2275,261 +2233,42 @@ async function showModelDetails(filePath) {
       });
     }
 
-    // Check again if cancelled before proceeding
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-    
-    // Clear existing tags
-    document.getElementById('model-tags').innerHTML = '';
+    // Name, source, designer, parent model, license and tags are React (src/web/details/DetailsFields.tsx).
+    window.detailsFields?.show(model);
+
     const modelFilamentsEl = document.getElementById('model-filaments');
     if (modelFilamentsEl) modelFilamentsEl.innerHTML = '';
 
-    // First populate all dropdowns with available options
-    await Promise.all([
-      populateModelDesignerDropdown(model.designer),
-      populateModelLicenseDropdown(model.license),
-      populateParentModelDropdown(model.parentModel)
-    ]);
-    
-    // Check again if cancelled after async operations
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-
-    // Immediately set the designer value after population (before cloning)
-    // This ensures the value is set on the populated dropdown
-    const designerValueToSet = model.designer || '';
-    if (designerValueToSet) {
-      const designerSelect = document.getElementById('model-designer');
-      if (designerSelect) {
-        // Ensure the option exists
-        const optionExists = Array.from(designerSelect.options).some(opt => opt.value === designerValueToSet);
-        if (!optionExists) {
-          const option = document.createElement('option');
-          option.value = designerValueToSet;
-          option.textContent = designerValueToSet;
-          designerSelect.appendChild(option);
-        }
-        designerSelect.value = designerValueToSet;
-        console.log('Set designer before cloning:', designerSelect.value);
-      }
-    }
-
-    // Add auto-save event listeners for all fields
-    const fields = {
-      'model-source': { type: 'text', field: 'source' },
-      'model-notes': { type: 'text', field: 'notes', useChange: true },
-      'model-designer': { type: 'select', field: 'designer' },
-      'model-license': { type: 'select', field: 'license' },
-      'model-parent': { type: 'select', field: 'parentModel' }
-    };
-
-    // Store the values before cloning
-    const storedValues = {
-      'model-path': model.filePath || '',
-      'model-name': model.fileName || '',
-      'model-designer': model.designer || '',
-      'model-source': model.source || '',
-      'model-notes': model.notes || '',
-      'model-parent': model.parentModel || '',
-      'model-license': model.license || ''
-    };
-
-    // Remove any existing event listeners by cloning and replacing elements
-    // BUT skip cloning the designer dropdown to preserve its value
-    Object.keys(fields).forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        // Preserve storedValues that were set from the model - don't overwrite with DOM values
-        // The storedValues are already correctly set from the model data above
-        // We only need to clone the element to remove event listeners
-        
-        // For designer dropdown, preserve value more carefully
-        if (id === 'model-designer') {
-          // Store the value before cloning
-          const currentValue = element.value || storedValues[id] || model.designer || '';
-          console.log('Designer value before clone:', currentValue);
-          const newElement = element.cloneNode(true);
-          element.parentNode.replaceChild(newElement, element);
-          // Immediately restore the value and ensure option exists
-          if (currentValue) {
-            // Check if option exists
-            const optionExists = Array.from(newElement.options).some(opt => opt.value === currentValue);
-            if (!optionExists) {
-              const option = document.createElement('option');
-              option.value = currentValue;
-              option.textContent = currentValue;
-              newElement.appendChild(option);
-            }
-            newElement.value = currentValue;
-            console.log('Designer value after clone:', newElement.value);
-          }
-        } else {
-          const newElement = element.cloneNode(true);
-          element.parentNode.replaceChild(newElement, element);
-        }
-      }
-    });
-
-    // Check again if cancelled before setting form values
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-    
-    // Set form values AFTER cloning (to ensure they're set on the new elements)
-    // Use a small delay to ensure DOM is ready
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    // Final check before updating UI
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-    
-    // Clear the path tree container first to prevent stuck paths
+    // The path row and getCurrentModelFilePath() read the path from this attribute.
     const pathTreeContainer = document.getElementById('path-tree-container');
     if (pathTreeContainer) {
       pathTreeContainer.innerHTML = '';
-      pathTreeContainer.removeAttribute('data-file-path');
+      pathTreeContainer.setAttribute('data-file-path', model.filePath || '');
     }
-    
-    // Render path tree instead of setting text input value
-    renderPathTree(storedValues['model-path'], 'path-tree-container');
-    // Store the file path in a data attribute for other functions that need it
-    if (pathTreeContainer) {
-      pathTreeContainer.setAttribute('data-file-path', storedValues['model-path']);
+    renderPathTree(model.filePath || '', 'path-tree-container');
+
+    // Notes: the notes dialog writes #model-notes and fires change. Clone to drop the
+    // previous model's listener.
+    const oldNotes = document.getElementById('model-notes');
+    if (oldNotes) {
+      const notes = oldNotes.cloneNode(true);
+      oldNotes.parentNode.replaceChild(notes, oldNotes);
+      notes.value = model.notes || '';
+      window.NotesMarkdown?.sync(notes);
+      notes.addEventListener('change', async (event) => {
+        if (getCurrentModelFilePath() !== filePath) return;
+        await autoSaveModel('notes', event.target.value, filePath);
+      });
     }
-    
-    // Clear and set model name to prevent stuck values.
-    // Defer the commit so layout settles. It must not run after filter clear
-    // or a new selection — that timer was writing the previous model's name
-    // back into the field (stale TIE name).
-    const modelNameInput = document.getElementById('model-name');
-    if (modelNameInput) {
-      modelNameInput.value = '';
-      scheduleModelNameCommit(storedValues['model-name'], detailsEpoch);
-    }
-    
-    // For dropdowns, ensure the option exists before setting value
-    const designerSelect = document.getElementById('model-designer');
-    if (designerSelect) {
-      const designerValue = storedValues['model-designer'] || model.designer || '';
-      console.log('Setting designer value:', designerValue, 'Current value:', designerSelect.value);
-      
-      if (designerValue) {
-        // Check if the option exists, if not add it
-        const optionExists = Array.from(designerSelect.options).some(opt => opt.value === designerValue);
-        console.log('Designer option exists?', optionExists);
-        
-        if (!optionExists) {
-          const option = document.createElement('option');
-          option.value = designerValue;
-          option.textContent = designerValue;
-          designerSelect.appendChild(option);
-          console.log('Added designer option:', designerValue);
-        }
-        
-        // Set the value
-        designerSelect.value = designerValue;
-        console.log('Set designer value to:', designerSelect.value);
-        
-        // Force a change event to ensure it's registered
-        designerSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      } else {
-        designerSelect.value = '';
-      }
-    } else {
-      console.warn('Designer select element not found after cloning');
-    }
-    
-    const licenseSelect = document.getElementById('model-license');
-    if (licenseSelect && storedValues['model-license']) {
-      const optionExists = Array.from(licenseSelect.options).some(opt => opt.value === storedValues['model-license']);
-      if (!optionExists && storedValues['model-license']) {
-        const option = document.createElement('option');
-        option.value = storedValues['model-license'];
-        option.textContent = storedValues['model-license'];
-        licenseSelect.appendChild(option);
-      }
-      licenseSelect.value = storedValues['model-license'];
-    }
-    
-    const parentSelect = document.getElementById('model-parent');
-    if (parentSelect && storedValues['model-parent']) {
-      const optionExists = Array.from(parentSelect.options).some(opt => opt.value === storedValues['model-parent']);
-      if (!optionExists && storedValues['model-parent']) {
-        const option = document.createElement('option');
-        option.value = storedValues['model-parent'];
-        option.textContent = storedValues['model-parent'];
-        parentSelect.appendChild(option);
-      }
-      parentSelect.value = storedValues['model-parent'];
-    }
-    
-    document.getElementById('model-source').value = storedValues['model-source'];
-    document.getElementById('model-notes').value = storedValues['model-notes'];
-    window.NotesMarkdown?.sync(document.getElementById('model-notes'));
+
     if (window.PrintHistory) {
       await window.PrintHistory.populateDetails(model);
     }
-
-    // Add new event listeners
-    Object.entries(fields).forEach(([id, config]) => {
-      const element = document.getElementById(id);
-      if (!element) return;
-
-      const handler = async (e) => {
-        // Verify that we still have a valid model selected before saving
-        // Check both the path tree container and the current model details path
-        const pathTreeContainer = document.getElementById('path-tree-container');
-        const pathFromContainer = pathTreeContainer?.getAttribute('data-file-path') || '';
-        const currentPath = pathFromContainer || getCurrentModelFilePath() || currentModelDetailsPath;
-        
-        // If no path exists or it doesn't match the original filePath, don't save
-        if (!currentPath || currentPath !== filePath || !pathFromContainer) {
-          console.log('No valid model selected, ignoring checkbox change');
-          // Revert the checkbox to its previous state
-          if (config.type === 'checkbox') {
-            e.target.checked = !e.target.checked;
-          }
-          return;
-        }
-        
-        const value = config.type === 'checkbox' ? e.target.checked : e.target.value;
-        await autoSaveModel(config.field, value, filePath);
-      };
-
-      if (config.useChange) {
-        element.addEventListener('change', handler);
-      } else if (config.debounce) {
-        element.addEventListener('input', debounce(handler, 500));
-      } else {
-        element.addEventListener('change', handler);
-      }
-    });
-
-    // Final check before loading tags and showing panel
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
-    
-    // Load tags if they exist (skipSave: data is already persisted; avoids N redundant saveModel calls)
-    if (model.tags && Array.isArray(model.tags)) {
-      const tagNames = model.tags.map(t => (typeof t === 'string' ? t : (t && (t.name || t)) || '')).filter(Boolean);
-      tagNames.sort((a, b) => a.localeCompare(b));
-      for (const tagName of tagNames) {
-        if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) return;
-        await addTagToModel(tagName, 'model-tags', { skipSave: true });
-      }
-    }
+    if (!isCurrent()) return;
     if (typeof window.loadModelFilaments === 'function') {
       await window.loadModelFilaments(filePath);
     }
-    
-    // Final check before showing the panel
-    if (currentModelDetailsAbort || currentModelDetailsPath !== filePath) {
-      return;
-    }
+    if (!isCurrent()) return;
 
     // Show the details panel
     detailsPanel.classList.remove('hidden');
@@ -2556,7 +2295,7 @@ async function showModelDetails(filePath) {
     });
 
   } catch (error) {
-    console.error('Error showing model details:', error); // Keep error logging
+    console.error('Error showing model details:', error);
   }
 }
 
@@ -3968,7 +3707,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   const tagDialog = document.getElementById('new-tag-dialog');
   const newTagInput = document.getElementById('new-tag-name');
-  const addTagButton = document.getElementById('add-tag-button');
   const licenseSelect = document.getElementById('license-select');
   const newDesignerDialog = document.getElementById('new-designer-dialog');
   const welcomeDialog = document.getElementById('welcome-message');
@@ -4143,21 +3881,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await handleFilterChange();
   });
 
-  // Initialize tag dialog handlers
-  addTagButton.addEventListener('click', () => {
-    // Reset the form and dialog state
-    tagDialog.querySelector('form').reset();
-    newTagInput.value = '';
-    
-    // Store the source container ID for single-edit mode
-    tagDialog.setAttribute('data-source-container', 'model-tags');
-    
-    // Show the dialog
-    tagDialog.showModal();
-    
-    // Use forceDialogRefresh to ensure input focus works properly on Windows
-    forceDialogRefresh(tagDialog, newTagInput);
-  });
 
   document.getElementById('cancel-tag-button')?.addEventListener('click', () => {
     // Reset form state before closing
@@ -4396,37 +4119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Update the save model button handler (single edit)
-  document.getElementById('save-model-button')?.addEventListener('click', async () => {
-    try {
-      const filePath = getCurrentModelFilePath();
-      // Get all selected tags
-      const tagElements = document.getElementById('model-tags').querySelectorAll('.tag');
-      const tags = Array.from(tagElements).map(tag => tag.getAttribute('data-tag-name'));
-
-      const modelData = {
-        filePath,
-        fileName: document.getElementById('model-name').value,
-        designer: document.getElementById('model-designer').value || 'Unknown',
-        source: document.getElementById('model-source').value || '',
-        notes: document.getElementById('model-notes').value || '',
-        printStatus: document.getElementById('model-print-status')?.value || undefined,
-        parentModel: document.getElementById('model-parent').value || '',
-        license: document.getElementById('model-license').value || '',
-        tags: tags
-      };
-
-      // Save the model with tags
-      await window.electron.saveModel(modelData);
-      // Update the model element in the grid
-      await updateModelElement(filePath);
-      // Reapply filters and refresh view
-      await refreshModelDisplay();
-
-    } catch (error) {
-      console.error('Error saving model:', error);
-    }
-  });
 
   // Update the multi-save button handler
   document.getElementById('multi-save-button')?.addEventListener('click', async () => {
@@ -4741,30 +4433,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('cancel-tag-button')?.addEventListener('click', () => {
     const tagDialog = document.getElementById('new-tag-dialog');
     tagDialog.close();
-  });
-
-  // Add open in browser button event listeners
-  document.getElementById('open-source-button')?.addEventListener('click', async () => {
-    const sourceInput = document.getElementById('model-source');
-    const url = sourceInput.value.trim();
-    
-    if (!url) {
-      await window.electron.showMessage('Error', 'Please enter a source URL');
-      return;
-    }
-
-    try {
-      // Validate URL format
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        await window.electron.showMessage('Error', 'Please enter a valid URL starting with http:// or https://');
-        return;
-      }
-      
-      await window.electron.openExternal(url);
-    } catch (error) {
-      console.error('Error opening URL:', error);
-      await window.electron.showMessage('Error', 'Failed to open URL: ' + error.message);
-    }
   });
 
   document.getElementById('multi-open-source-button')?.addEventListener('click', async () => {
@@ -6069,23 +5737,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-
-  // Add these event listeners for single-edit mode dropdowns
-  document.getElementById('model-designer').addEventListener('change', async (e) => {
-    const filePath = getCurrentModelFilePath();
-    await autoSaveModel('designer', e.target.value, filePath);
-  });
-
-  document.getElementById('model-license').addEventListener('change', async (e) => {
-    const filePath = getCurrentModelFilePath();
-    await autoSaveModel('license', e.target.value, filePath);
-  });
-
-  // The parent model listener is already present but let's make sure it's consistent
-  document.getElementById('model-parent').addEventListener('change', async (e) => {
-    const filePath = getCurrentModelFilePath();
-    await autoSaveModel('parentModel', e.target.value, filePath);
-  });
 
   // Update the About dialog content in index.html
   const tosContent = `
@@ -9288,16 +8939,13 @@ function isFileGridScrollbarClick(event, grid) {
 }
 
 function clearGridItemSelection() {
-  const epoch = bumpModelDetailsEpoch();
   currentModelDetailsAbort = true;
   currentModelDetailsPath = null;
   selectedModels.clear();
   document.querySelectorAll('.file-item.selected').forEach((item) => item.classList.remove('selected'));
   clearMobileTileFocus();
   document.getElementById('model-details')?.classList.add('hidden');
-  const clearedName = document.getElementById('model-name');
-  if (clearedName) clearedName.value = '';
-  scheduleModelNameCommit('', epoch);
+  window.detailsFields?.clear();
   const bundlePanel = document.getElementById('bundle-details');
   if (bundlePanel && !bundlePanel.classList.contains('hidden') && typeof hideBundleDetailsPanel === 'function') {
     hideBundleDetailsPanel();
@@ -10712,21 +10360,14 @@ function shouldSyncSelectionWithFilteredList() {
 }
 
 function clearModelDetailsSidebar() {
-  const epoch = bumpModelDetailsEpoch();
-  currentModelDetailsPath = null;
+    currentModelDetailsPath = null;
   currentModelDetailsAbort = true;
   const pathTreeContainer = document.getElementById('path-tree-container');
   if (pathTreeContainer) {
     pathTreeContainer.innerHTML = '';
     pathTreeContainer.removeAttribute('data-file-path');
   }
-  const mn = document.getElementById('model-name');
-  if (mn) mn.value = '';
-  scheduleModelNameCommit('', epoch);
-  const md = document.getElementById('model-designer');
-  if (md) md.value = '';
-  const ms = document.getElementById('model-source');
-  if (ms) ms.value = '';
+  window.detailsFields?.clear();
   const mnotes = document.getElementById('model-notes');
   if (mnotes) {
     mnotes.value = '';
@@ -10738,12 +10379,6 @@ function clearModelDetailsSidebar() {
   if (hist) hist.innerHTML = '';
   const hint = document.getElementById('print-history-hint');
   if (hint) hint.textContent = '';
-  const mparent = document.getElementById('model-parent');
-  if (mparent) mparent.value = '';
-  const mlic = document.getElementById('model-license');
-  if (mlic) mlic.value = '';
-  const mtags = document.getElementById('model-tags');
-  if (mtags) mtags.innerHTML = '';
   const mfil = document.getElementById('model-filaments');
   if (mfil) mfil.innerHTML = '';
   previousSelectionHash = '';
@@ -11208,6 +10843,11 @@ document.addEventListener('keydown', async (event) => {
 
 // Update populateModelDesignerDropdown to handle multiple dropdowns
 async function populateModelDesignerDropdown(selectedDesigner, elementId = 'model-designer') {
+  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
+  if (elementId === 'model-designer') {
+    window.detailsFields?.reloadOptions();
+    return;
+  }
   const designerSelect = document.getElementById(elementId);
   if (!designerSelect) return;
 
@@ -11231,19 +10871,6 @@ async function populateModelDesignerDropdown(selectedDesigner, elementId = 'mode
   }
 }
 
-// Update the change event listener
-document.getElementById('model-designer').addEventListener('change', async (event) => {
-  const designerSelect = event.target;
-  const newDesigner = designerSelect.value;
-  
-  if (newDesigner && newDesigner !== 'Unknown') {
-    const designers = await window.electron.getDesigners();
-    if (!designers.includes(newDesigner)) {
-      console.log('New designer will be added:', newDesigner);
-    }
-  }
-});
-
 async function populateDesignerDropdown() {
   const designerSelect = document.getElementById('designer-select');
   designerSelect.innerHTML = '<option value="">All Designers</option>';
@@ -11263,11 +10890,6 @@ async function populateDesignerDropdown() {
 }
 
 // Add these event listeners after your existing ones
-document.getElementById('add-new-designer-button')?.addEventListener('click', () => {
-  const dialog = document.getElementById('new-designer-dialog');
-  dialog.showModal();
-});
-
 document.getElementById('cancel-designer-button')?.addEventListener('click', () => {
   const dialog = document.getElementById('new-designer-dialog');
   dialog.close();
@@ -11318,11 +10940,6 @@ document.getElementById('new-designer-dialog').addEventListener('submit', async 
       }
     }
   }
-});
-
-// Keep the clear parent button event listener
-document.getElementById('clear-parent-button')?.addEventListener('click', () => {
-  document.getElementById('model-parent').value = '';
 });
 
 
@@ -11390,17 +11007,7 @@ function debounce(func, wait) {
 
 // Replace the existing tag handling functions with these
 async function initializeTags() {
-  const tagSelect = document.getElementById('tag-select');
   const multiTagSelect = document.getElementById('multi-tag-select');
-
-  // Handle selecting a tag from the single edit dropdown
-  tagSelect.addEventListener('change', () => {
-    const selectedTag = tagSelect.value;
-    if (selectedTag) {
-      addTagToModel(selectedTag, 'model-tags');
-      tagSelect.value = ''; // Reset selection
-    }
-  });
 
   // Handle selecting a tag from the multi edit dropdown
   multiTagSelect.addEventListener('change', () => {
@@ -11434,6 +11041,10 @@ async function initializeTags() {
 }
 
 async function populateTagSelect(selectId = 'tag-select', containerId = 'model-tags') {
+  if (selectId === 'tag-select') {
+    window.detailsFields?.reloadOptions(); // React (DetailsFields.tsx)
+    return;
+  }
   const tagSelect = document.getElementById(selectId);
   if (!tagSelect) return;
   const currentTags = Array.from(document.querySelectorAll(`#${containerId} .tag`))
@@ -11652,6 +11263,11 @@ async function populateRemoveTagSelect() {
 // Update the addTagToModel function
 // skipSave: use when populating tags from DB (showModelDetails / loadModelTags) to avoid redundant saves
 async function addTagToModel(tagName, containerId, options = {}) {
+  if (containerId === 'model-tags') {
+    // The details panel's tags are React (DetailsFields.tsx).
+    if (!options.skipSave) await window.detailsFields?.addTag(tagName);
+    return;
+  }
   const { skipSave = false } = options;
   const tagContainer = document.getElementById(containerId);
   if (!tagContainer) {
@@ -11738,34 +11354,12 @@ document.getElementById('multi-tag-select').addEventListener('change', async () 
 });
 
 async function loadModelTags(modelIdOrPath) {
-  const tagsContainer = document.getElementById('model-tags');
-  if (!tagsContainer) {
-    console.error('Model tags container not found');
-    return;
-  }
-  
-  tagsContainer.innerHTML = '';
-  
+  // Reload the details panel's tags (React, DetailsFields.tsx) from the database.
   try {
-    // Get the model to retrieve its ID (modelIdOrPath can be filePath or model ID)
     const model = await window.electron.getModel(modelIdOrPath);
-    if (!model || !model.id) {
-      console.warn('Model not found or missing ID:', modelIdOrPath);
-      return;
-    }
-    
-    // Fetch fresh tags directly from the database using getModelTags
-    // This ensures we get the latest tags even if the model object is cached
+    if (!model || !model.id) return;
     const tags = await window.electron.getModelTags(model.id);
-    
-    if (tags && Array.isArray(tags) && tags.length > 0) {
-      // Extract tag names (tags might be objects with .name property or just strings)
-      const tagNames = tags.map(tag => typeof tag === 'string' ? tag : (tag.name || tag));
-      tagNames.sort((a, b) => a.localeCompare(b)); // Sort tags alphabetically
-      for (const tagName of tagNames) {
-        await addTagToModel(tagName, 'model-tags', { skipSave: true });
-      }
-    }
+    window.detailsFields?.setTags((tags || []).map((t) => (typeof t === 'string' ? t : t && t.name)).filter(Boolean));
   } catch (error) {
     console.error('Error loading model tags:', error);
   }
@@ -11970,12 +11564,6 @@ document.getElementById('cancel-parent-button')?.addEventListener('click', () =>
 });
 
 
-
-// Add change event listeners for auto-save
-document.getElementById('model-parent').addEventListener('change', async (e) => {
-  const filePath = getCurrentModelFilePath();
-  await autoSaveModel('parentModel', e.target.value, filePath);
-});
 
 document.getElementById('multi-parent').addEventListener('change', async (e) => {
   await autoSaveMultipleModels('parentModel', e.target.value);
@@ -13219,6 +12807,11 @@ async function generateThumbnail(file) {
 
 // Add helper function for populating license dropdown
 async function populateModelLicenseDropdown(selectedLicense, elementId = 'model-license') {
+  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
+  if (elementId === 'model-license') {
+    window.detailsFields?.reloadOptions();
+    return;
+  }
   const licenseSelect = document.getElementById(elementId);
   if (!licenseSelect) return;
 
@@ -13244,6 +12837,11 @@ async function populateModelLicenseDropdown(selectedLicense, elementId = 'model-
 
 // Add helper function for populating parent model dropdown
 async function populateParentModelDropdown(selectedParent, elementId = 'model-parent') {
+  // The details panel's picker is React (DetailsFields.tsx); it loads its own options.
+  if (elementId === 'model-parent') {
+    window.detailsFields?.reloadOptions();
+    return;
+  }
   const parentSelect = document.getElementById(elementId);
   if (!parentSelect) return;
 
@@ -13759,18 +13357,13 @@ function exitMultiEditMode() {
 
   // Clear the current model details path to prevent stale event handlers.
   // Bump before the name clear so an in-flight layout timer cannot restore it.
-  const exitEpoch = bumpModelDetailsEpoch();
   currentModelDetailsPath = null;
   currentModelDetailsAbort = true;
   
   // Remove event listeners from model details form fields by cloning them
   const modelDetailsFields = [
     'model-print-status',
-    'model-source',
-    'model-notes',
-    'model-designer',
-    'model-license',
-    'model-parent'
+    'model-notes'
   ];
   
   modelDetailsFields.forEach(fieldId => {
@@ -13797,18 +13390,11 @@ function exitMultiEditMode() {
     pathTreeContainer.innerHTML = '';
     pathTreeContainer.removeAttribute('data-file-path');
   }
-  const exitModelName = document.getElementById('model-name');
-  if (exitModelName) exitModelName.value = '';
-  scheduleModelNameCommit('', exitEpoch);
-  document.getElementById('model-designer').value = '';
-  document.getElementById('model-source').value = '';
+  window.detailsFields?.clear();
   document.getElementById('model-notes').value = '';
   window.NotesMarkdown?.sync(document.getElementById('model-notes'));
   const printStatusSelect = document.getElementById('model-print-status');
   if (printStatusSelect) printStatusSelect.value = 'unprinted';
-  document.getElementById('model-parent').value = '';
-  document.getElementById('model-license').value = '';
-  document.getElementById('model-tags').innerHTML = '';
   const modelFilamentsClear = document.getElementById('model-filaments');
   if (modelFilamentsClear) modelFilamentsClear.innerHTML = '';
   
@@ -13879,7 +13465,8 @@ window.addEventListener('webglcontextlost', (event) => {
 }, false);
 
 // Searchable list dialog functionality
-async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filter', containerId = null, isRemove = false) {
+/** onPick: hand the picked value (or null when cancelled) to the caller instead of a select. */
+async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filter', containerId = null, isRemove = false, onPick = null) {
   const dialog = document.getElementById('searchable-list-dialog');
   const titleElement = document.getElementById('searchable-list-title');
   const searchInput = document.getElementById('searchable-list-search');
@@ -14028,8 +13615,19 @@ async function showSearchableListDialog(fieldType, targetSelectId, mode = 'filte
     return;
   }
   
+  let picked = false;
+  if (onPick) {
+    dialog.addEventListener('close', () => { if (!picked) onPick(null); }, { once: true });
+  }
+
   // Handle item selection
   const handleItemClick = async (itemValue) => {
+    if (onPick) {
+      picked = true;
+      dialog.close();
+      onPick(filamentValueByLabel ? (filamentValueByLabel.get(itemValue) || itemValue) : itemValue);
+      return;
+    }
     dialog.close();
     
     const targetSelect = document.getElementById(targetSelectId);
@@ -14170,6 +13768,8 @@ function getCurrentModelFilePath() {
 function initializeListButtons() {
   document.querySelectorAll('.list-button').forEach(button => {
     if (button.id === 'folder-tree-button') return;
+    // React screens (the details panel) handle their own list buttons and own those nodes.
+    if (!button.dataset.field) return;
     // Remove existing listeners to avoid duplicates
     const newButton = button.cloneNode(true);
     button.parentNode.replaceChild(newButton, button);
@@ -16168,6 +15768,53 @@ window.gridHost = {
   isBundleDetailsGroup: (groupKey) => !!currentBundleDetailsGroupKey && currentBundleDetailsGroupKey === groupKey,
   openBundlePreview: (record) => { if (typeof window.openBundlePreview === 'function') window.openBundlePreview(record); },
   saveGroupField: (filePaths, field, value) => bulkSaveModelsEngagement(filePaths, field, value)
+};
+
+/** Open a model's source URL (http or https only). */
+async function openModelSourceUrl(url) {
+  if (!url) {
+    await window.electron.showMessage('Error', 'Please enter a source URL');
+    return;
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    await window.electron.showMessage('Error', 'Please enter a valid URL starting with http:// or https://');
+    return;
+  }
+  try {
+    await window.electron.openExternal(url);
+  } catch (error) {
+    console.error('Error opening URL:', error);
+    await window.electron.showMessage('Error', 'Failed to open URL: ' + error.message);
+  }
+}
+
+/** What the details panel's React fields (src/web/details/DetailsFields.tsx) ask of this file. */
+window.detailsHost = {
+  saveField: async (filePath, field, value) => !!(await autoSaveModel(field, value, filePath)),
+  pickFromList: (field) => new Promise((resolve) => {
+    showSearchableListDialog(field, null, 'edit', null, false, resolve);
+  }),
+  openSource: (url) => { openModelSourceUrl(url); },
+  valuesChanged: async (kind) => {
+    try {
+      if (kind === 'designer') {
+        await populateDesignerDropdown();
+        await populateModelDesignerDropdown(null, 'multi-designer');
+      } else if (kind === 'parentModel') {
+        await populateParentModelFilter();
+        await populateParentModelDropdown(null, 'multi-parent');
+      } else if (kind === 'license') {
+        await populateLicenseFilter();
+        await populateModelLicenseDropdown(null, 'multi-license');
+      } else if (kind === 'tag') {
+        await populateTagFilter();
+        await populateTagSelect('multi-tag-select', 'multi-tags');
+        window.reloadTagManager?.();
+      }
+    } catch (error) {
+      console.error('Error refreshing pickers:', error);
+    }
+  }
 };
 
 // Change the multi-source event listener from 'change' back to 'input' with debounce

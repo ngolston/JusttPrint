@@ -491,6 +491,51 @@ async function browserChecks(base, wsUrl, session) {
       const card = `.file-grid .file-item-detailed[data-filepath="${cardPath.replace(/"/g, '\\"')}"]`;
       await page.click(`${card} .file-name`);
       check('clicking a card selects it and shows its details', await page.isVisible(`${card}.selected`) && await page.isVisible('#model-details'));
+      // Details panel fields (React, src/web/details/DetailsFields.tsx).
+      const panelModel = async () => (await invoke(base, session, 'get-model', [cardPath])).result || {};
+      const shownName = await page.waitForFunction((name) => document.getElementById('model-name')?.value === name, path.basename(cardPath), { timeout: 10000 })
+        .then(() => true).catch(async () => page.inputValue('#model-name').catch((e) => e.message));
+      check('details show the model name', shownName === true, shownName);
+      await page.fill('#model-source', 'https://example.com/e2e-source');
+      await page.press('#model-source', 'Enter');
+      const savedSource = await waitFor(async () => ((await panelModel()).source === 'https://example.com/e2e-source' ? true : null), 10000, 'source').catch(async () => JSON.stringify({ shown: await page.inputValue('#model-source'), saved: (await panelModel()).source }));
+      check('details save the source URL', savedSource === true, savedSource);
+      await page.click('#details-add-designer');
+      const designerPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (designerPrompt) {
+        await designerPrompt.fill('E2E Panel Designer');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const designerSaved = await waitFor(async () => ((await panelModel()).designer === 'E2E Panel Designer' ? true : null), 10000, 'designer').catch(() => false);
+      check('details add a new designer', designerSaved === true && await page.inputValue('#model-designer') === 'E2E Panel Designer'
+        && /E2E Panel Designer/.test(await page.textContent(`${card} .designer-info`).catch(() => '')));
+      await page.selectOption('#model-designer', '');
+      await waitFor(async () => (!(await panelModel()).designer ? true : null), 10000, 'designer cleared').catch(() => {});
+      // The list offers designers in use: give another model one to pick.
+      const listedOn = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
+      await invoke(base, session, 'update-models-batch', [[{ filePath: listedOn, designer: 'E2E Listed Designer' }]]);
+      await page.click('.form-group:has(#model-designer) .list-button');
+      const listItem = await page.waitForSelector('#searchable-list-dialog[open] li:text-is("E2E Listed Designer")', { timeout: 10000 }).catch(() => null);
+      if (listItem) await listItem.click();
+      else await page.evaluate(() => document.getElementById('searchable-list-dialog')?.close());
+      const pickSaved = await waitFor(async () => ((await panelModel()).designer === 'E2E Listed Designer' ? true : null), 10000, 'designer picked').catch(() => false);
+      const pickShown = await page.waitForFunction(() => document.getElementById('model-designer')?.value === 'E2E Listed Designer', null, { timeout: 10000 })
+        .then(() => true).catch(() => false);
+      check('details pick a designer from the list', !!listItem && pickSaved === true && pickShown,
+        JSON.stringify({ found: !!listItem, saved: pickSaved, shown: pickShown }));
+      await page.click('#details-add-tag');
+      const tagPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (tagPrompt) {
+        await tagPrompt.fill('e2e-panel-tag');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const hasPanelTag = async () => ((await panelModel()).tags || []).some((t) => (t.name || t) === 'e2e-panel-tag');
+      check('details create and add a tag', await waitFor(async () => ((await hasPanelTag()) ? true : null), 10000, 'tag added').catch(() => false) === true
+        && await page.isVisible('#model-tags .tag[data-tag-name="e2e-panel-tag"]'));
+      await page.click('#model-tags .tag[data-tag-name="e2e-panel-tag"] .tag-remove');
+      check('details remove a tag', await waitFor(async () => (!(await hasPanelTag()) ? true : null), 10000, 'tag removed').catch(() => false) === true
+        && !(await page.isVisible('#model-tags .tag[data-tag-name="e2e-panel-tag"]')));
+      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
       check('a card saves its star rating', rated === true && (await page.locator(`${card} .model-star.is-filled`).count()) === 3);

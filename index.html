@@ -414,10 +414,8 @@
         <p id="print-history-hint" class="print-history-hint"></p>
       </div>
       <button type="button" id="mobile-details-more" aria-expanded="false">More details</button>
-      <div class="form-group mobile-detail-skip">
-        <label for="model-name">Name:</label>
-        <input type="text" id="model-name" readonly>
-      </div>
+      <!-- Name: React (src/web/details/DetailsFields.tsx) -->
+      <div id="details-name-slot" style="display: contents"></div>
       <div class="form-group mobile-detail-extra">
         <label for="model-path">Path:</label>
         <div class="path-tree-field">
@@ -425,56 +423,8 @@
           <button type="button" id="reveal-in-folders-button" class="icon-button" title="Reveal in folders">☰</button>
         </div>
       </div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-source">Source URL:</label>
-        <div class="input-with-icon">
-          <input type="text" id="model-source" placeholder="Enter source..." spellcheck="false">
-          <button id="open-source-button" class="icon-button" title="Open in browser">↗</button>
-        </div>
-      </div>
-
-      <div class="form-group mobile-detail-extra">
-        <label for="model-designer">Designer:</label>
-        <div class="designer-input-container">
-          <select id="model-designer">
-            <option value="Unknown">Unknown</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="designer" data-target="model-designer" data-mode="edit" title="Search existing designers">☰</button>
-          <button type="button" id="add-new-designer-button" class="icon-button">+</button>
-        </div>
-      </div>
-      <div class="form-group mobile-detail-extra">
-        <label for="model-parent">Parent Model:</label>
-        <div class="designer-input-container">
-          <select id="model-parent">
-            <option value="">None</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="parent" data-target="model-parent" data-mode="edit" title="Search existing parent models">☰</button>
-          <button type="button" id="add-new-parent-button" class="icon-button">+</button>
-        </div>
-      </div>
-
-      <div class="form-group mobile-detail-extra">
-        <label for="model-license">License:</label>
-        <div class="designer-input-container">
-          <select id="model-license" class="form-control"></select>
-          <button type="button" class="list-button icon-button" data-field="license" data-target="model-license" data-mode="edit" title="Search existing licenses">☰</button>
-          <button type="button" id="add-new-license-button" class="icon-button">+</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Tags:</label>
-        <div class="tags-container">
-          <div class="tags-input-container">
-            <select id="tag-select">
-              <option value="">Select a tag...</option>
-            </select>
-            <button type="button" class="list-button icon-button" data-field="tag" data-target="tag-select" data-mode="edit" data-container="model-tags" title="Search existing tags">☰</button>
-            <button type="button" id="add-tag-button" class="icon-button">+</button>
-          </div>
-          <div id="model-tags" class="tags-list"></div>
-        </div>
-      </div>
+      <!-- Source, designer, parent model, license and tags: React (src/web/details/DetailsFields.tsx) -->
+      <div id="details-fields-slot" style="display: contents"></div>
       <div class="form-group">
         <label>Filament:</label>
         <div class="tags-container">
@@ -507,7 +457,6 @@
         </div>
         <ul id="print-history-list" class="print-history-list" aria-label="Print history"></ul>
       </div>
-      <button id="save-model-button"></button>
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">

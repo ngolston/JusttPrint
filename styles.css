@@ -804,7 +804,9 @@ button:disabled {
   margin-bottom: 0;
 }
 
-.model-details > .form-group {
+.model-details > .form-group,
+#details-name-slot > .form-group,
+#details-fields-slot > .form-group {
   margin-bottom: 15px;
 }
 

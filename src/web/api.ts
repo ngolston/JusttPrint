@@ -457,3 +457,10 @@ export const dedup = {
   /** Deletes the file from disk (permanently) and removes it from the library. */
   deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath)
 };
+
+/** Values in use across the library, for the details panel's pickers. */
+export const libraryValues = {
+  designers: () => callAction<string[]>('get-designers'),
+  parentModels: () => callAction<string[]>('get-parent-models'),
+  licenses: () => callAction<string[]>('get-licenses')
+};
