@@ -1942,213 +1942,16 @@ async function updateModelElement(filePath) {
 // Track the current model being displayed to prevent race conditions
 let currentModelDetailsPath = null;
 let currentModelDetailsAbort = false;
-// Parse file path into hierarchical structure
-function parsePath(filePath) {
-  if (!filePath) return null;
-  if (filePath.startsWith('url::')) {
-    return {
-      isZipEntry: false,
-      zipPath: null,
-      entryPath: null,
-      pathSegments: ['Online model'],
-      fullPath: filePath
-    };
-  }
-  
-  const isZipEntry = filePath.includes('::');
-  let zipPath = null;
-  let entryPath = null;
-  let fullPath = filePath;
-  
-  if (isZipEntry) {
-    const parts = filePath.split('::');
-    zipPath = parts[0];
-    entryPath = parts[1];
-  }
-  
-  // Normalize path separators (handle both \ and /)
-  // But preserve Windows drive letters (C:, D:, etc.)
-  const normalizePath = (path) => {
-    // Replace backslashes with forward slashes, but keep drive letters intact
-    return path.replace(/\\/g, '/');
-  };
-  
-  // Split path into segments
-  let pathSegments = [];
-  if (isZipEntry) {
-    // For zip entries, split the zip path and entry path separately
-    const normalizedZipPath = normalizePath(zipPath);
-    const zipSegments = normalizedZipPath.split('/').filter(s => s);
-    const entrySegments = entryPath ? entryPath.split('/').filter(s => s) : [];
-    pathSegments = {
-      zipPath: zipPath,
-      zipSegments: zipSegments,
-      entrySegments: entrySegments,
-      fileName: entrySegments.length > 0 ? entrySegments[entrySegments.length - 1] : null
-    };
+/** Show a model's path in the details panel; getCurrentModelFilePath() reads it back. */
+function setDetailsPath(filePath) {
+  const container = document.getElementById('path-tree-container');
+  if (filePath) {
+    container?.setAttribute('data-file-path', filePath);
+    window.detailsPath?.show(filePath);
   } else {
-    const normalizedPath = normalizePath(fullPath);
-    pathSegments = normalizedPath.split('/').filter(s => s);
+    container?.removeAttribute('data-file-path');
+    window.detailsPath?.clear();
   }
-  
-  return {
-    isZipEntry,
-    zipPath,
-    entryPath,
-    pathSegments,
-    fullPath
-  };
-}
-
-// Helper function to get the current model file path
-function getCurrentModelFilePath() {
-  const pathTreeContainer = document.getElementById('path-tree-container');
-  if (pathTreeContainer) {
-    return pathTreeContainer.getAttribute('data-file-path') || '';
-  }
-  return '';
-}
-
-// Render path tree visualization
-function renderPathTree(filePath, containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) {
-    console.error('Path tree container not found:', containerId);
-    return;
-  }
-  
-  if (!filePath) {
-    container.innerHTML = '<div class="path-tree-item">No path available</div>';
-    return;
-  }
-  
-  const pathInfo = parsePath(filePath);
-  if (!pathInfo) {
-    container.innerHTML = '<div class="path-tree-item">Invalid path</div>';
-    return;
-  }
-  
-  let html = '';
-  
-  if (pathInfo.isZipEntry) {
-    // Handle zip entry paths
-    const { zipPath, zipSegments, entrySegments, fileName } = pathInfo.pathSegments;
-    
-    // Build zip file path tree
-    let currentPath = '';
-    zipSegments.forEach((segment, index) => {
-      if (index === 0) {
-        currentPath = segment;
-      } else {
-        const separator = currentPath.includes(':') ? '\\' : '/';
-        currentPath += separator + segment;
-      }
-      const isLastZipSegment = index === zipSegments.length - 1;
-      const indent = '---'.repeat(index);
-      const indentClass = `path-tree-indent`;
-      
-      if (isLastZipSegment) {
-        // This is the zip file itself
-        html += `<div class="path-tree-item" style="margin-left: ${index * 14}px;">
-          <span class="path-tree-icon path-tree-zip-icon"></span>
-          <span class="path-tree-folder" data-path="${zipPath}">${segment}</span>
-        </div>`;
-      } else {
-        // Regular folder in zip path - ensure it ends with separator
-        let folderPath = currentPath;
-        if (!folderPath.endsWith('\\') && !folderPath.endsWith('/')) {
-          folderPath += currentPath.includes(':') ? '\\' : '/';
-        }
-        html += `<div class="path-tree-item" style="margin-left: ${index * 14}px;">
-          <span class="path-tree-icon path-tree-folder-icon"></span>
-          <span class="path-tree-folder" data-path="${folderPath}">${segment}</span>
-        </div>`;
-      }
-    });
-    
-    // Build entry path tree (nested inside zip)
-    let entryCurrentPath = zipPath;
-    entrySegments.forEach((segment, index) => {
-      const isLastEntrySegment = index === entrySegments.length - 1;
-      const indentLevel = zipSegments.length + index;
-      const indent = '---'.repeat(indentLevel);
-      
-      if (isLastEntrySegment) {
-        // This is the file
-        html += `<div class="path-tree-item" style="margin-left: ${indentLevel * 14}px;">
-          <span class="path-tree-icon path-tree-file-icon"></span>
-          <span class="path-tree-file">${segment}</span>
-        </div>`;
-      } else {
-        // Folder within zip entry
-        html += `<div class="path-tree-item" style="margin-left: ${indentLevel * 14}px;">
-          <span class="path-tree-icon path-tree-folder-icon"></span>
-          <span class="path-tree-folder" data-path="${zipPath}">${segment}</span>
-        </div>`;
-      }
-    });
-  } else {
-    // Handle regular file paths
-    const segments = pathInfo.pathSegments;
-    
-    segments.forEach((segment, index) => {
-      const isLast = index === segments.length - 1;
-      const indent = '---'.repeat(index);
-      
-      // Build the path up to this segment (for folders, we need the full path to the folder)
-      let currentPath = '';
-      for (let i = 0; i <= index; i++) {
-        if (i === 0) {
-          // Handle Windows drive letters (C:, D:, etc.)
-          currentPath = segments[i];
-        } else {
-          // Add separator - use backslash for Windows paths, forward slash for others
-          const separator = currentPath.includes(':') ? '\\' : '/';
-          currentPath += separator + segments[i];
-        }
-      }
-      
-      if (isLast) {
-        // This is the file
-        html += `<div class="path-tree-item" style="margin-left: ${index * 14}px;">
-          <span class="path-tree-icon path-tree-file-icon"></span>
-          <span class="path-tree-file">${segment}</span>
-        </div>`;
-      } else {
-        // This is a folder - need to ensure the path ends with a separator for folders
-        // But for Windows drive roots (C:\), we need to handle it specially
-        let folderPath = currentPath;
-        if (!folderPath.endsWith('\\') && !folderPath.endsWith('/')) {
-          folderPath += currentPath.includes(':') ? '\\' : '/';
-        }
-        
-        html += `<div class="path-tree-item" style="margin-left: ${index * 14}px;">
-          <span class="path-tree-icon path-tree-folder-icon"></span>
-          <span class="path-tree-folder" data-path="${folderPath}">${segment}</span>
-        </div>`;
-      }
-    });
-  }
-  
-  container.innerHTML = html;
-  
-  // Add click handlers for all folder elements
-  container.querySelectorAll('.path-tree-folder').forEach(folderElement => {
-    folderElement.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const folderPath = folderElement.getAttribute('data-path');
-      if (folderPath) {
-        try {
-          // Open the folder in the file explorer
-          await window.electron.openPath(folderPath);
-        } catch (error) {
-          console.error('Error opening folder:', error);
-        }
-      }
-    });
-  });
 }
 
 async function showModelDetails(filePath) {
@@ -2237,13 +2040,7 @@ async function showModelDetails(filePath) {
     window.detailsFields?.show(model);
     window.detailsFilaments?.show(model);
 
-    // The path row and getCurrentModelFilePath() read the path from this attribute.
-    const pathTreeContainer = document.getElementById('path-tree-container');
-    if (pathTreeContainer) {
-      pathTreeContainer.innerHTML = '';
-      pathTreeContainer.setAttribute('data-file-path', model.filePath || '');
-    }
-    renderPathTree(model.filePath || '', 'path-tree-container');
+    setDetailsPath(model.filePath || '');
 
     window.detailsNotes?.show(model);
 
@@ -10257,11 +10054,7 @@ function shouldSyncSelectionWithFilteredList() {
 function clearModelDetailsSidebar() {
     currentModelDetailsPath = null;
   currentModelDetailsAbort = true;
-  const pathTreeContainer = document.getElementById('path-tree-container');
-  if (pathTreeContainer) {
-    pathTreeContainer.innerHTML = '';
-    pathTreeContainer.removeAttribute('data-file-path');
-  }
+  setDetailsPath(null);
   window.detailsFields?.clear();
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
@@ -13246,11 +13039,7 @@ function exitMultiEditMode() {
   currentModelDetailsAbort = true;
   
   // Clear the form
-  const pathTreeContainer = document.getElementById('path-tree-container');
-  if (pathTreeContainer) {
-    pathTreeContainer.innerHTML = '';
-    pathTreeContainer.removeAttribute('data-file-path');
-  }
+  setDetailsPath(null);
   window.detailsFields?.clear();
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();

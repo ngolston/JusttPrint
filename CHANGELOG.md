@@ -4,6 +4,9 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Changes:**
+- The details panel's path row is React (`src/web/details/DetailsPath.tsx`). Clicking a folder in it now shows that folder in the library; it used to try to open the folder on the server, which the server refuses. Folder names are no longer inserted as HTML.
+
 ## [4.3.0] - 2026-10-04
 
 **Upgrading:** no changes needed. `notes-markdown.js` and `print-history.js` are removed; if you serve the files yourself, rebuild with `npm run build:web`.

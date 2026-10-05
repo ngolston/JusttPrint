@@ -13,6 +13,7 @@ import { DedupDialog } from './DedupDialog';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
 import { DetailsNotes } from './details/DetailsNotes';
+import { DetailsPath } from './details/DetailsPath';
 import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
@@ -64,6 +65,7 @@ function Screens() {
       <DetailsFields />
       <DetailsFilaments />
       <DetailsNotes />
+      <DetailsPath />
       <PrintHistory />
     </>
   );

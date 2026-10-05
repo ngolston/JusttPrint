@@ -617,6 +617,16 @@ async function browserChecks(base, wsUrl, session) {
       check('cancel leaves the notes unchanged', /<strong>world<\/strong>/.test(editorHtml) && (await panelModel()).notes === 'Hello **world**'
         && !(await page.isVisible('#notes-modal-dialog')), editorHtml);
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, notes: notesBefore }]]);
+      // Path row (React, src/web/details/DetailsPath.tsx): folders, then the file; a folder click filters the grid.
+      const cardDir = path.dirname(cardPath);
+      const pathFolder = `#path-tree-container .path-tree-folder[data-path="${cardDir.replace(/"/g, '\\"')}"]`;
+      check('details show the path', await page.isVisible(`#path-tree-container .path-tree-file:text-is("${path.basename(cardPath)}")`)
+        && await page.isVisible(pathFolder) && await page.getAttribute('#path-tree-container', 'data-file-path') === cardPath);
+      await page.click(pathFolder);
+      const folderFiltered = await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false);
+      check('clicking a folder in the path shows that folder', folderFiltered);
+      await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
+      await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
