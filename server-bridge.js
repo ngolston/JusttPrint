@@ -574,8 +574,6 @@
     'deleteSlicer': 'delete-slicer',
     'getFileStats': 'get-file-stats',
     'getAllModelReferences': 'get-all-model-references',
-    'showContextMenu': 'show-context-menu',
-    'executeContextMenuAction': 'execute-context-menu-action',
     'pull3MFMetadata': 'pull-3mf-metadata',
     'readModelFile': 'read-model-file',
     'parse3MFPreview': 'parse-3mf-preview',

@@ -35,6 +35,7 @@ import './filters/search';
 import { Sidebar } from './filters/Sidebar';
 import { SidebarActions } from './filters/SidebarActions';
 import { FolderTree } from './folders/FolderTree';
+import { ContextMenu } from './menus/ContextMenu';
 import { MenuBar } from './shell/MenuBar';
 import { MobileShell } from './shell/MobileShell';
 import { PreviewDialog } from './preview/PreviewDialog';
@@ -75,6 +76,7 @@ function Screens() {
       <OrganizeLibraryDialog />
       <DedupDialog />
       <MenuBar />
+      <ContextMenu />
       <MobileShell />
       <SidebarActions />
       <Sidebar />

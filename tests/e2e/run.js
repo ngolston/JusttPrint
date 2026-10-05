@@ -697,6 +697,19 @@ async function browserChecks(base, wsUrl, session) {
       check('View Entire Library leaves the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
       await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
       await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+      // Model menu (React, src/web/menus/ContextMenu.tsx): right-click, a destructive item asks first, Escape closes.
+      await page.click(`${card} .file-name`, { button: 'right' });
+      check('right-clicking a card shows the model menu', await page.waitForSelector('#html-context-menu .html-context-menu-item:text-is("Preview")', { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#html-context-menu .html-context-menu-item:text-is("Remove from Library")');
+      const removeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Confirm Remove") button:text-is("No")', { timeout: 10000 }).catch(() => null);
+      if (removeAsk) await removeAsk.click();
+      await page.waitForSelector('#html-context-menu', { state: 'detached', timeout: 5000 }).catch(() => {});
+      check('Remove from Library asks first, and No keeps the model', !!removeAsk && !(await page.isVisible('#html-context-menu'))
+        && !!(await invoke(base, session, 'get-model', [cardPath])).result);
+      await page.click(`${card} .file-name`, { button: 'right' });
+      await page.waitForSelector('#html-context-menu', { timeout: 10000 }).catch(() => {});
+      await page.keyboard.press('Escape');
+      check('Escape closes the model menu', await page.waitForSelector('#html-context-menu', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);

@@ -110,14 +110,15 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The folder tree (select, popover, rail, Reveal in folders) and the sidebar layout (More filters, resize handles) in `src/web/folders/`, replacing `folder-tree.js` and `sidebar-layout.js`.
   - [x] The sidebar's counts and buttons (`src/web/filters/SidebarActions.tsx`).
   - [x] The menu bar and the phone layout (`src/web/shell/`): one menu for both, the app bar, bottom nav, sheets, More sheet and the details panels' phone header, replacing `mobile-ui.js`.
-  - [ ] What is left in `renderer.js` and the other page scripts: context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
+  - [x] The model menu (right-click, long-press and ⋯) in `src/web/menus/ContextMenu.tsx`.
+  - [ ] What is left in `renderer.js` and the other page scripts: keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
   - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
   - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
   - [ ] File pickers for restore/import: browser uploads.
   - [ ] "Show in folder" and "open file": download, or copy the path.
-  - [ ] Native right-click menus (the `menuItems` handler, [src/server/ipc/context-menu.js:74](src/server/ipc/context-menu.js#L74)): in-page context menus.
+  - [x] Native right-click menus: in-page model menu (`src/web/menus/ContextMenu.tsx`), built by [src/server/ipc/context-menu.js](src/server/ipc/context-menu.js).
   - [ ] Input dialogs (`input-dialog.html`): in-page modals.
   - [ ] Backup/restore: download and upload a backup file in the browser.
   - [ ] "Send to slicer": the existing helper/protocol handler, documented for web users.

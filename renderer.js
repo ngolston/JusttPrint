@@ -9053,273 +9053,6 @@ async function populateParentModelFilter() {
   window.libraryFilters?.reloadOptions();
 }
 
-function removeHtmlContextMenu() {
-  document.getElementById('html-context-menu')?.remove();
-  document.getElementById('html-context-menu-backdrop')?.remove();
-}
-
-function contextMenuFileBasename(filePath) {
-  const parts = String(filePath || '').split(/[/\\]/);
-  return parts[parts.length - 1] || String(filePath || '');
-}
-
-async function confirmHtmlContextDestructiveAction(item, menuData) {
-  const label = item && item.label;
-  if (label !== 'Delete from Disk' && label !== 'Remove from Library') {
-    return true;
-  }
-  const paths = Array.isArray(menuData?.filePaths) ? menuData.filePaths.filter(Boolean) : [];
-  const count = paths.length || 1;
-  const maxFilesToShow = 20;
-  const fileList = paths.slice(0, maxFilesToShow).map(contextMenuFileBasename).join('\n');
-  const extra = paths.length > maxFilesToShow
-    ? `\n... and ${paths.length - maxFilesToShow} more file${paths.length - maxFilesToShow === 1 ? '' : 's'}`
-    : '';
-  const isDelete = label === 'Delete from Disk';
-  const title = isDelete ? 'Confirm Delete' : 'Confirm Remove';
-  const message = isDelete
-    ? `Are you sure you want to DELETE ${count} file${count !== 1 ? 's' : ''} from disk?\nThis will permanently delete the files and cannot be undone!\n\nFiles:\n${fileList}${extra}`
-    : `Are you sure you want to remove ${count} file${count !== 1 ? 's' : ''} from the library?\nFiles will remain on disk but will be removed from JusttPrint.\n\nFiles:\n${fileList}${extra}`;
-  const result = await window.electron.showMessage(title, message, ['Yes', 'No']);
-  return result === 'Yes';
-}
-
-// Function to show HTML context menu (for server mode browser access)
-function showHtmlContextMenu(menuData, x, y, options = {}) {
-  const showClose = options.showClose === true;
-  removeHtmlContextMenu();
-  
-  // Create menu container
-  const menu = document.createElement('div');
-  menu.id = 'html-context-menu';
-  menu.className = 'html-context-menu';
-  if (showClose) menu.classList.add('html-context-menu-with-close');
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-
-  if (showClose) {
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'html-context-menu-close';
-    closeButton.textContent = 'x';
-    closeButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      removeHtmlContextMenu();
-    });
-    menu.appendChild(closeButton);
-  }
-  
-  // Create menu items
-  menuData.items.forEach((item, index) => {
-    if (item.type === 'separator') {
-      const separator = document.createElement('div');
-      separator.className = 'html-context-menu-separator';
-      menu.appendChild(separator);
-      return;
-    }
-    
-    const menuItem = document.createElement('div');
-    menuItem.className = 'html-context-menu-item';
-    if (!item.enabled) menuItem.classList.add('is-disabled');
-    menuItem.textContent = item.label;
-    
-    if (item.enabled) {
-      // Handle submenus
-      if (item.submenu) {
-        menuItem.style.paddingRight = '30px';
-        const arrow = document.createElement('span');
-        arrow.textContent = '▶';
-        arrow.className = 'html-context-menu-arrow';
-        menuItem.appendChild(arrow);
-        
-        let submenuElement = null;
-        let submenuTimeout = null;
-        let isSubmenuHovered = false;
-        
-        menuItem.addEventListener('mouseenter', () => {
-          // Clear any pending hide timeout
-          if (submenuTimeout) {
-            clearTimeout(submenuTimeout);
-            submenuTimeout = null;
-          }
-          
-          // Create submenu
-          if (!submenuElement) {
-            submenuElement = document.createElement('div');
-            submenuElement.className = 'html-context-menu-submenu';
-            submenuElement.style.display = 'none';
-            
-            // Add hover handlers to submenu to keep it visible
-            submenuElement.addEventListener('mouseenter', () => {
-              isSubmenuHovered = true;
-              if (submenuTimeout) {
-                clearTimeout(submenuTimeout);
-                submenuTimeout = null;
-              }
-            });
-            
-            submenuElement.addEventListener('mouseleave', () => {
-              isSubmenuHovered = false;
-              if (submenuElement) {
-                submenuTimeout = setTimeout(() => {
-                  if (!isSubmenuHovered && !menuItem.matches(':hover')) {
-                    submenuElement.style.display = 'none';
-                  }
-                }, 150);
-              }
-            });
-            
-            item.submenu.forEach((subItem, subIndex) => {
-              const subMenuItem = document.createElement('div');
-              subMenuItem.className = 'html-context-menu-subitem';
-              if (!subItem.enabled) subMenuItem.classList.add('is-disabled');
-              subMenuItem.textContent = subItem.label;
-              
-              if (subItem.enabled) {
-                subMenuItem.addEventListener('click', async (e) => {
-                  e.stopPropagation();
-                  try {
-                    if (subItem.clientAction && window.JusttPrintSlicerProtocol) {
-                      try {
-                        window.JusttPrintSlicerProtocol.launchFromCommand(subItem.clientAction);
-                      } finally {
-                        removeHtmlContextMenu();
-                      }
-                      return;
-                    }
-                    if (!(await confirmHtmlContextDestructiveAction(subItem, menuData))) {
-                      removeHtmlContextMenu();
-                      return;
-                    }
-                    await window.electron.executeContextMenuAction(menuData.requestId, index, subIndex);
-                    removeHtmlContextMenu();
-                  } catch (error) {
-                    console.error('Error executing menu action:', error);
-                    alert('Error: ' + error.message);
-                  }
-                });
-              }
-              
-              submenuElement.appendChild(subMenuItem);
-            });
-            
-            menu.appendChild(submenuElement);
-          }
-          
-          // Position submenu to align with the current menu item
-          const menuItemRect = menuItem.getBoundingClientRect();
-          submenuElement.style.top = `${menuItem.offsetTop}px`;
-          submenuElement.style.display = 'block';
-          
-          // Check if submenu goes off screen and adjust position
-          setTimeout(() => {
-            if (submenuElement) {
-              const submenuRect = submenuElement.getBoundingClientRect();
-              const menuRect = menu.getBoundingClientRect();
-              
-              // If submenu goes off right edge, show it on the left side instead
-              if (submenuRect.right > window.innerWidth) {
-                submenuElement.style.left = 'auto';
-                submenuElement.style.right = '100%';
-                submenuElement.style.marginLeft = '0';
-                submenuElement.style.marginRight = '2px';
-              }
-              
-              // If submenu goes off bottom, adjust top position
-              if (submenuRect.bottom > window.innerHeight) {
-                const overflow = submenuRect.bottom - window.innerHeight;
-                submenuElement.style.top = `${Math.max(0, menuItem.offsetTop - overflow)}px`;
-              }
-            }
-          }, 0);
-        });
-        
-        menuItem.addEventListener('mouseleave', () => {
-          if (isMobileUiActive() && submenuElement?.dataset.mobileOpen === '1') return;
-          if (submenuElement) {
-            // Delay hiding to allow moving to submenu
-            submenuTimeout = setTimeout(() => {
-              if (!isSubmenuHovered && submenuElement && !submenuElement.matches(':hover')) {
-                submenuElement.style.display = 'none';
-              }
-            }, 150);
-          }
-        });
-        menuItem.addEventListener('click', (e) => {
-          if (!isMobileUiActive()) return;
-          e.stopPropagation();
-          if (!submenuElement) menuItem.dispatchEvent(new MouseEvent('mouseenter'));
-          if (!submenuElement) return;
-          const willOpen = submenuElement.dataset.mobileOpen !== '1';
-          submenuElement.dataset.mobileOpen = willOpen ? '1' : '0';
-          submenuElement.style.display = willOpen ? 'block' : 'none';
-          submenuElement.style.position = 'static';
-          submenuElement.style.width = '100%';
-        });
-      } else {
-        // Regular menu item click
-        menuItem.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          try {
-            if (!(await confirmHtmlContextDestructiveAction(item, menuData))) {
-              removeHtmlContextMenu();
-              return;
-            }
-            await window.electron.executeContextMenuAction(menuData.requestId, index, null);
-            removeHtmlContextMenu();
-          } catch (error) {
-            console.error('Error executing menu action:', error);
-            alert('Error: ' + error.message);
-          }
-        });
-      }
-    }
-    
-    menu.appendChild(menuItem);
-  });
-  
-  const backdrop = document.createElement('div');
-  backdrop.id = 'html-context-menu-backdrop';
-  backdrop.style.cssText = `
-    position: fixed;
-    inset: 0;
-    z-index: 12999;
-    background: transparent;
-  `;
-  const dismissFromOutside = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    removeHtmlContextMenu();
-    document.removeEventListener('keydown', handleEscape);
-  };
-  backdrop.addEventListener('pointerdown', dismissFromOutside);
-  backdrop.addEventListener('touchstart', dismissFromOutside, { passive: false });
-  backdrop.addEventListener('click', dismissFromOutside);
-  document.body.appendChild(backdrop);
-  document.body.appendChild(menu);
-  
-  if (!isMobileUiActive()) {
-    const rect = menu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) {
-      menu.style.left = `${Math.max(8, x - rect.width)}px`;
-    }
-    if (rect.bottom > window.innerHeight) {
-      menu.style.top = `${Math.max(8, y - rect.height)}px`;
-    }
-    const adjusted = menu.getBoundingClientRect();
-    if (adjusted.left < 8) menu.style.left = '8px';
-    if (adjusted.top < 8) menu.style.top = '8px';
-  }
-  
-  const handleEscape = (e) => {
-    if (e.key === 'Escape') {
-      removeHtmlContextMenu();
-      document.removeEventListener('keydown', handleEscape);
-    }
-  };
-  document.addEventListener('keydown', handleEscape);
-}
-
 // Resolve which file path(s) a context menu should operate on.
 // If the right-clicked item is part of a multi-selection, use the whole selection.
 function resolveContextMenuFilePaths(clickedFilePath) {
@@ -9365,7 +9098,8 @@ function addContextMenuHandler(fileElement, filePath) {
   
   // Create the handler function
   const handler = async (e) => {
-    suppressTileTap(fileElement);
+    // A touch long-press is followed by a tap; a mouse right-click is not.
+    if (e.pointerType !== 'mouse') suppressTileTap(fileElement);
     e.preventDefault(); // Prevent default context menu
     
     // For list view, ensure the entire element is clickable
@@ -9384,15 +9118,7 @@ function addContextMenuHandler(fileElement, filePath) {
     // If the right-clicked item is part of a multi-selection, operate on all selected.
     // Otherwise use the single right-clicked file.
     const paths = resolveContextMenuFilePaths(filePath);
-    const menuResult = paths.length > 1
-      ? await window.electron.showContextMenu(paths)
-      : await window.electron.showContextMenu(paths[0] || filePath);
-    
-    // Check if server returned HTML menu data (server mode via browser)
-    if (menuResult && menuResult.type === 'html-menu') {
-      showHtmlContextMenu(menuResult, x, y);
-    }
-    // Otherwise, native menu was shown (normal mode)
+    await window.contextMenu?.show(paths.length > 1 ? paths : (paths[0] || filePath), x, y);
   };
   
   // Store handler reference for potential removal
@@ -11026,7 +10752,7 @@ function clickGridGroup(record, view, card) {
 /** Right-click and long-press menu for a group (Preview, and the actions for its models). */
 function bindGridGroupMenu(card, record) {
   card.addEventListener('contextmenu', async (event) => {
-    suppressTileTap(card);
+    if (event.pointerType !== 'mouse') suppressTileTap(card);
     event.preventDefault();
     event.stopPropagation();
     const paths = (record.children || []).map((c) => c && c.filePath).filter(Boolean);
@@ -11036,8 +10762,7 @@ function bindGridGroupMenu(card, record) {
       ? { filePaths: paths, groupLabel: record.groupLabel || 'Group', previewAsBundle: true }
       : paths[0];
     try {
-      const menuResult = await window.electron.showContextMenu(fileIdentifier);
-      if (menuResult && menuResult.type === 'html-menu') showHtmlContextMenu(menuResult, event.clientX, event.clientY);
+      await window.contextMenu?.show(fileIdentifier, event.clientX, event.clientY);
     } catch (error) {
       console.error('Error showing context menu for group:', error);
     }
@@ -11237,10 +10962,7 @@ window.gridHost = {
   showCardMenu: async (filePath, x, y) => {
     try {
       const paths = resolveContextMenuFilePaths(filePath);
-      const menuResult = paths.length > 1
-        ? await window.electron.showContextMenu(paths)
-        : await window.electron.showContextMenu(paths[0] || filePath);
-      if (menuResult && menuResult.type === 'html-menu') showHtmlContextMenu(menuResult, x, y, { showClose: true });
+      await window.contextMenu?.show(paths.length > 1 ? paths : (paths[0] || filePath), x, y, { showClose: true });
     } catch (error) {
       console.error('Error showing context menu:', error);
     }
