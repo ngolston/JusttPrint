@@ -1661,8 +1661,16 @@ async function browserChecks(base, wsUrl, session) {
     const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
     if (tabletCard) {
       await tabletCard.click();
-      check('below 1200 px the details open as a drawer over the grid', await tablet.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false)
-        && await tablet.isVisible('#jp-details-close') && await tablet.isVisible('.jp-details-backdrop'));
+      // Waits for the close button and backdrop too: they render after the drawer class is set.
+      const drawerState = await tablet.waitForFunction(() => {
+        const visible = (el) => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+        return document.body.classList.contains('jp-details-open') && visible(document.getElementById('jp-details-close'))
+          && visible(document.querySelector('.jp-details-backdrop'));
+      }, null, { timeout: 10000 }).then(() => true, () => false);
+      check('below 1200 px the details open as a drawer over the grid', drawerState, JSON.stringify(await tablet.evaluate(() => ({
+        open: document.body.classList.contains('jp-details-open'), close: !!document.getElementById('jp-details-close')?.getClientRects().length,
+        backdrop: !!document.querySelector('.jp-details-backdrop')?.getClientRects().length
+      }))));
       await tablet.click('.jp-details-backdrop', { position: { x: 300, y: 300 } });
       check('a click beside the drawer closes it', await tablet.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
     }

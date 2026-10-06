@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.0.1] - 2026-10-06
+
+**Upgrading:** no changes needed. The app is unchanged from 5.0.0 (only a test changed).
+
+**Changes:**
+- The end-to-end check "below 1200 px the details open as a drawer over the grid" waits for the drawer's close button and backdrop to appear instead of looking straight after the drawer opens. It failed on GitHub's slower machines (the drawer worked: the next check closed it), and it now reports what it saw if it fails.
+
 ## [5.0.0] - 2026-10-06
 
 JusttPrint 5 is a new interface: a sidebar of pages, a redesigned library and details panel, a Home dashboard, pages for the queue, printers, filament, tags, duplicates, organizing and settings, and layouts for laptops, tablets and phones. The library, database and server are unchanged.
