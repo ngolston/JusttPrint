@@ -1,0 +1,204 @@
+/*
+ * The shell at other sizes (spec §36; shell/AppShell.tsx):
+ *   ≥ 1200 px   sidebar, main and the details column;
+ *   < 1200 px   the details are a drawer over the grid when a model is selected;
+ *   ≤ 1023 px   the sidebar is an icon rail (tablet);
+ *   ≤ 700 px    the sidebar is a drawer, a bottom bar holds the main pages, details fill the screen (phone).
+ */
+
+/* Shown only at the sizes below. */
+.jp-topbar__menu,
+.jp-sidebar__close,
+.jp-bottom-nav,
+.jp-nav-backdrop,
+.jp-details-backdrop,
+.jp-details-bar { display: none; }
+
+/* ---- Details as a drawer ---- */
+@media (max-width: 1199px) {
+  body.jp-shell-on { --jp-legacy-right: 0px; }
+  body.server-mode.jp-shell-on .sidebar {
+    z-index: 1001;
+    width: min(var(--jp-details-width), 100vw);
+    box-shadow: var(--jp-shadow-pop);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform var(--jp-transition), visibility var(--jp-transition);
+    /* Scrolling the details into view stops below the close bar. */
+    scroll-padding-top: 48px;
+  }
+  body.server-mode.jp-shell-on.jp-details-open .sidebar { transform: none; visibility: visible; }
+  body.jp-shell-on.jp-overlay-page .sidebar { visibility: hidden !important; }
+  body.jp-shell-on .jp-details-empty { display: none; }
+  body.jp-shell-on .jp-details-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    padding: var(--jp-space-2) var(--jp-space-2) 0;
+    background: var(--jp-bg-2);
+    box-sizing: border-box;
+  }
+  body.jp-shell-on .jp-details-backdrop:not([hidden]) {
+    position: fixed;
+    inset: var(--jp-topbar-height) 0 0 0;
+    z-index: 1000;
+    display: block;
+    background: rgba(4, 8, 12, 0.5);
+  }
+  body.jp-shell-on.jp-overlay-page .jp-details-backdrop { display: none; }
+}
+
+/* ---- Tablet: icon rail ---- */
+@media (max-width: 1023px) {
+  body.jp-shell-on { --jp-sidebar-width: 72px; --folder-rail-width: 0px !important; }
+  .jp-sidebar .jp-brand { justify-content: center; padding: 0; }
+  .jp-sidebar .jp-brand__text,
+  .jp-sidebar .jp-nav__heading,
+  .jp-sidebar .jp-storage,
+  .jp-sidebar .jp-jobs { display: none; }
+  .jp-sidebar .jp-nav ul { padding: 0 var(--jp-space-3); }
+  .jp-sidebar .jp-nav__section + .jp-nav__section { margin-top: var(--jp-space-2); padding-top: var(--jp-space-2); border-top: 1px solid var(--jp-border); }
+  .jp-sidebar .jp-nav__row { position: relative; justify-content: center; padding: 0; }
+  .jp-sidebar .jp-nav__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .jp-sidebar .jp-nav__badge { position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; font-size: 10px; }
+  /* The folder tree floats over the grid instead of pushing it. */
+  body.jp-shell-on .folder-rail { z-index: 1002; box-shadow: var(--jp-shadow-pop); }
+  .jp-library-header .jp-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .jp-library-header .jp-tab { flex: none; }
+}
+
+/* ---- Phone ---- */
+@media (max-width: 700px) {
+  body.jp-shell-on { --jp-sidebar-width: 0px; --jp-topbar-height: 56px; --jp-bottom-nav-height: 60px; }
+
+  /* The full sidebar, as a drawer from the left. */
+  body.jp-shell-on .jp-sidebar {
+    z-index: 1003;
+    width: min(290px, 86vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform var(--jp-transition), visibility var(--jp-transition);
+  }
+  body.jp-shell-on.jp-nav-open .jp-sidebar { transform: none; visibility: visible; box-shadow: var(--jp-shadow-pop); }
+  .jp-sidebar .jp-brand { justify-content: flex-start; padding: 0 var(--jp-space-4); }
+  .jp-sidebar .jp-brand__text,
+  .jp-sidebar .jp-nav__heading { display: block; }
+  .jp-sidebar .jp-brand__text { display: flex; }
+  .jp-sidebar .jp-storage { display: block; }
+  .jp-sidebar .jp-jobs:not(:empty) { display: block; }
+  .jp-sidebar .jp-nav ul { padding: 0 10px; }
+  .jp-sidebar .jp-nav__section + .jp-nav__section { border-top: 0; padding-top: 0; margin-top: var(--jp-space-3); }
+  .jp-sidebar .jp-nav__row { justify-content: flex-start; padding: 0 var(--jp-space-3) 0 14px; }
+  .jp-sidebar .jp-nav__label { position: static; width: auto; height: auto; overflow: hidden; clip-path: none; }
+  .jp-sidebar .jp-nav__badge { position: static; min-width: 22px; height: 22px; font-size: var(--jp-text-small); }
+  .jp-sidebar__close { display: inline-flex; position: absolute; top: 12px; right: 8px; z-index: 1; }
+  body.jp-shell-on .jp-nav-backdrop:not([hidden]) { position: fixed; inset: 0; z-index: 1002; display: block; background: rgba(4, 8, 12, 0.55); }
+
+  /* Top bar: menu, search, account. */
+  .jp-topbar { left: 0; gap: var(--jp-space-2); padding: 0 var(--jp-space-2); justify-content: flex-start; }
+  .jp-topbar__menu { display: inline-flex; flex: none; }
+  .jp-topbar__search { flex: 1; width: auto; min-width: 0; }
+  .jp-topbar .jp-search__kbd { display: none; }
+  .jp-topbar__actions { position: static; flex: none; }
+
+  /* Bottom bar. */
+  .jp-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    display: flex;
+    height: var(--jp-bottom-nav-height);
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--jp-border);
+    background: var(--jp-sidebar);
+  }
+  .jp-bottom-nav__item {
+    all: unset;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--jp-text-2);
+    font: 500 var(--jp-text-badge) var(--jp-font);
+    cursor: pointer;
+  }
+  .jp-bottom-nav__item.is-active { color: var(--jp-accent); }
+  .jp-bottom-nav__item:focus-visible { box-shadow: inset var(--jp-focus-ring); }
+  .jp-bottom-nav__icon { position: relative; display: inline-flex; }
+  .jp-bottom-nav__badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--jp-radius-pill);
+    background: var(--jp-accent);
+    color: var(--jp-on-accent);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Pages above the bottom bar, with less padding. */
+  .jp-page { bottom: var(--jp-bottom-nav-height); }
+  .jp-page__inner { padding: var(--jp-space-4); }
+  .jp-page-title { font-size: 24px; }
+  .jp-queue__header { flex-wrap: wrap; }
+
+  /* Details fill the screen between the bars. */
+  body.server-mode.jp-shell-on .sidebar {
+    width: 100vw;
+    height: calc(100dvh - var(--jp-topbar-height)) !important;
+    z-index: 1001;
+  }
+
+  /* Library header. */
+  .jp-library-header { padding: var(--jp-space-3) var(--jp-space-3) var(--jp-space-2); }
+  .jp-library-header__title { margin-bottom: var(--jp-space-3); font-size: 20px; }
+  .jp-library-header__tools { width: 100%; margin-left: 0; }
+  .jp-library-header__count { margin-right: auto; }
+  .jp-filter-popover {
+    position: fixed;
+    inset: var(--jp-topbar-height) 0 var(--jp-bottom-nav-height) 0;
+    z-index: 1004;
+    width: auto;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+  }
+
+  /* Home: the hero stacks. */
+  .jp-hero { grid-template-columns: minmax(0, 1fr); padding: var(--jp-space-5); }
+  .jp-hero__figure { margin: var(--jp-space-3) 0 0; min-height: 0; }
+  .jp-hero__render { max-height: 160px; }
+  .jp-hero__title { font-size: 24px; }
+  .jp-home__panels { grid-template-columns: minmax(0, 1fr); }
+
+  /* Lists and rows wrap. */
+  .jp-queue__row { flex-wrap: wrap; }
+  .jp-queue__actions { width: 100%; justify-content: flex-end; }
+  .jp-tag-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .jp-tag-row__bar { display: none; }
+  .jp-dup-options { grid-template-columns: minmax(0, 1fr); }
+  .jp-dup-group .jp-dup-copy { flex-basis: 220px; }
+
+  /* Dialogs fill the screen. */
+  dialog.modal:not(.is-embedded) {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    padding: var(--jp-space-4);
+    border-radius: 0;
+  }
+}

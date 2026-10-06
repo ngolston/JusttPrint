@@ -5,11 +5,13 @@ import {
 } from 'lucide-react';
 import { callAction, library, printers as printerApi, type ActivityItem, type LibraryCounts, type Printer } from '../api';
 import { Button } from '../components/Button';
-import { StatusBadge } from '../components/Badge';
+import { StatusBadge, printStatusInfo } from '../components/Badge';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { cardTitle } from '../grid/ModelCard';
+import { cardTitle, formatOf, materialOf } from '../grid/ModelCard';
+import { effectiveStatus, type PrintModel } from '../print/printStatus';
+import { fetchPrimaryThumbnail } from '../thumbnails/cache';
 import type { GridModel } from '../grid/layout';
 import { greeting, timeAgo } from '../home/format';
 import { showModelDetails } from '../library/details';
@@ -22,8 +24,9 @@ import { navigate } from '../shell/routes';
 const loadActivity = () => library.activity(8);
 const loadPrinters = () => printerApi.list();
 
-/** Show one model: select it and open its details (the grid stays as it is). */
+/** Show one model in the library with its details. */
 function openModel(filePath: string) {
+  navigate('library');
   selection.set([filePath]);
   void showModelDetails(filePath);
 }
@@ -283,6 +286,75 @@ export function HomeDashboard() {
         <RecentActivity activity={activity} />
         <YourPrinters list={list} />
       </div>
+    </div>
+  );
+}
+
+// ---- Your Library: the latest additions (spec §15, §41 "What did I recently add?") ----------
+
+const loadRecent = () => callAction<GridModel[]>('get-models-filtered', { sortOption: 'dateadded-desc', limit: 8 });
+
+function RecentCard({ model }: { model: GridModel }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchPrimaryThumbnail(model.filePath).then((thumb) => { if (live) setSrc(thumb); }, () => {});
+    return () => { live = false; };
+  }, [model.filePath]);
+  const designer = typeof model.designer === 'string' ? model.designer : '';
+  const format = formatOf(model);
+  const material = materialOf(model);
+  const status = printStatusInfo(effectiveStatus(model as PrintModel));
+  return (
+    <li>
+      <button type="button" className="jp-recent-card" data-filepath={model.filePath} onClick={() => openModel(model.filePath)}>
+        <span className="jp-recent-card__image"><img src={src || '3d.png'} alt="" loading="lazy" /></span>
+        <span className="jp-recent-card__body">
+          <span className="jp-recent-card__title">{cardTitle(model)}</span>
+          <span className="jp-recent-card__byline">{designer || '\u00a0'}</span>
+          <span className="jp-model-card__badges">
+            {format && <span className="jp-badge">{format}</span>}
+            {material && <span className="jp-badge">{material}</span>}
+            <StatusBadge tone={status.tone} icon={status.icon}>{status.label}</StatusBadge>
+          </span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function RecentModels() {
+  const recent = useLibraryData<GridModel[]>(loadRecent);
+  return (
+    <section className="jp-home__library" aria-labelledby="jp-home-library-title">
+      <header className="jp-home__library-head">
+        <div>
+          <h2 className="jp-section-title" id="jp-home-library-title">Your Library</h2>
+          <p className="jp-meta">Recently added</p>
+        </div>
+        <Button icon={Library} onClick={() => showTab('all')}>View all</Button>
+      </header>
+      {!recent ? <div className="jp-home__skeleton"><Skeleton height={200} /></div> : !recent.length ? (
+        <Panel>
+          <EmptyState icon={Library} title="Your library is empty" action={<Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button>}>
+            Scan your model folders (STL Home) to fill the library.
+          </EmptyState>
+        </Panel>
+      ) : (
+        <ul className="jp-recent-grid" aria-label="Recently added models">
+          {recent.map((model) => <RecentCard key={model.filePath} model={model} />)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Home (spec §10-§15): the dashboard, then the latest additions to the library. Scrolls as one page. */
+export function HomePage() {
+  return (
+    <div className="jp-page__inner jp-home-page">
+      <HomeDashboard />
+      <RecentModels />
     </div>
   );
 }

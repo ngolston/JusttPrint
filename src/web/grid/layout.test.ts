@@ -86,6 +86,10 @@ describe('layout', () => {
     expect(cellPosition(row, 3, metrics, 'detailed')).toEqual({ top: CARD.paddingTop, left: 24 + 3 * (metrics.cellWidth + 16), width: metrics.cellWidth, height: metrics.cellHeight });
     expect(viewMetrics({ view: 'detailed', width: 1536 - 220, previewSize: 'm', mobileColumns: 0 }).columns).toBe(5);
     expect(viewMetrics({ view: 'detailed', width: 150, previewSize: 'm', mobileColumns: 0 }).columns).toBe(1);
+    // A phone (390 px): two compact cards (spec §36).
+    const phone = viewMetrics({ view: 'detailed', width: 390, previewSize: 'm', mobileColumns: 0 });
+    expect([phone.columns, phone.cellWidth, phone.paddingHorizontal]).toEqual([2, Math.floor((390 - 24 - 12) / 2), 12]);
+    expect(viewMetrics({ view: 'preview', width: 390, previewSize: 'm', mobileColumns: 0 }).columns).toBe(3);
   });
 
   it('scales preview tiles to fill the width with a fixed column count', () => {

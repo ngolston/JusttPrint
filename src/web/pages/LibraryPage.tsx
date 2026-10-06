@@ -10,8 +10,6 @@ import { filterActions, getFilterState, subscribeFilters } from '../filters/stor
 import { LIBRARY_TABS, extraFilterCount, tabInfo, tabOf, type LibraryTab } from '../library/tabs';
 import { useAdopt } from '../shell/adopt';
 import { NAV } from '../shell/nav';
-import { useRoute } from '../shell/routes';
-import { HomeDashboard } from './HomeDashboard';
 
 const scanLibrary = () => NAV.flatMap((section) => section.items).find((item) => item.id === 'scan')?.run?.();
 
@@ -108,14 +106,12 @@ export function LibraryHeader() {
   useAdopt('#folder-rail-toggle-slot', rail);
   useAdopt('#current-filter', chips);
 
-  const { page } = useRoute();
   const tab = tabOf(state);
   const extra = extraFilterCount(state);
 
   if (!slot) return null;
   return createPortal(
     <div className="jp jp-library-header">
-      {page === 'home' && <HomeDashboard />}
       <div className="jp-library-header__top">
         <h1 className="jp-library-header__title">Your Library</h1>
         <div className="jp-library-header__bar">

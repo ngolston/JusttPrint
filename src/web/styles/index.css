@@ -17,3 +17,5 @@
 @import './manage.css';
 @import './settings.css';
 @import './legacy-bridge.css';
+/* Last: the narrower sizes override the layout above. */
+@import './responsive.css';

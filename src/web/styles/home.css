@@ -128,3 +128,36 @@
 }
 .jp-printer__link:hover { background: var(--jp-surface-hover); color: var(--jp-accent); }
 .jp-printer__link:focus-visible { outline: none; box-shadow: var(--jp-focus-ring); }
+
+/* ---- Home page and its "Your Library" (recently added) ---- */
+.jp-home-page { max-width: 1400px; }
+.jp-home__library { margin-bottom: var(--jp-space-6); }
+.jp-home__library-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--jp-space-4); margin-bottom: var(--jp-space-4); }
+.jp-home__library-head .jp-section-title { margin: 0; }
+.jp-home__library-head .jp-meta { margin: 2px 0 0; padding: 0; }
+.jp-recent-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--jp-space-4); }
+.jp-recent-card {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--jp-transition), background-color var(--jp-transition);
+}
+.jp-recent-card:hover { border-color: var(--jp-border-strong); background: var(--jp-surface-2); }
+.jp-recent-card:focus-visible { box-shadow: var(--jp-focus-ring); }
+.jp-recent-card__image { display: block; aspect-ratio: 4 / 3; background: var(--jp-preview-bg); }
+.jp-recent-card__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.jp-recent-card__body { display: flex; flex-direction: column; gap: 2px; padding: 10px var(--jp-space-3) var(--jp-space-3); min-width: 0; }
+.jp-recent-card__title { color: var(--jp-text); font-size: var(--jp-text-title); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-recent-card__byline { color: var(--jp-text-2); font-size: var(--jp-text-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-recent-card .jp-model-card__badges { margin-top: var(--jp-space-2); }
+.jp-recent-card .jp-model-card__badges .jp-status { margin-left: auto; }
+@media (max-width: 700px) {
+  .jp-recent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--jp-space-3); }
+}

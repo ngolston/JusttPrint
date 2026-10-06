@@ -46,7 +46,6 @@ import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';
 import { FolderTree } from './folders/FolderTree';
 import { ContextMenu } from './menus/ContextMenu';
 import { MenuBar } from './shell/MenuBar';
-import { MobileShell } from './shell/MobileShell';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -92,7 +91,6 @@ function Screens() {
       <DedupDialog />
       <MenuBar />
       <ContextMenu />
-      <MobileShell />
       <SidebarActions />
       <SidebarProgress />
       <ThumbnailJobDialog />

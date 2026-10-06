@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, ChevronDown, CircleUserRound, MousePointerClick } from 'lucide-react';
+import { Box, ChevronDown, CircleUserRound, Home, Library, ListChecks, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
 import { LIBRARY_CHANGED, library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
 import { EmptyState, ProgressBar } from '../components/Panel';
 import { SearchBox, shortcutLabel } from '../components/SearchBox';
 import { ModelDetailsPanel } from '../details/ModelDetailsPanel';
-import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
+import { detailsAreOpen, hideDetailsPanels, useDetailsVisibility } from '../details/visibility';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
+import { HomePage } from '../pages/HomeDashboard';
 import { LibraryHeader } from '../pages/LibraryPage';
 import { DuplicatesPage } from '../pages/DuplicatesPage';
 import { FilamentPage } from '../pages/FilamentPage';
@@ -22,7 +23,6 @@ import { TagsPage } from '../pages/TagsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAdopt } from './adopt';
 import { useLibraryData } from './libraryData';
-import { useLayout } from './layout';
 import { ACCOUNT, NAV, type NavItem } from './nav';
 import { navigate, useRoute, type PageId } from './routes';
 
@@ -63,7 +63,7 @@ function NavRow({ item, active, badge }: { item: NavItem; active: boolean; badge
   return (
     <li>
       <button type="button" className={cx('jp-nav__row', active && 'is-active')} aria-current={active ? 'page' : undefined}
-        onClick={() => (item.page ? navigate(item.page) : item.run?.())}>
+        title={item.label} onClick={() => (item.page ? navigate(item.page) : item.run?.())}>
         <Icon size={18} aria-hidden="true" />
         <span className="jp-nav__label">{item.label}</span>
         {badge ? <span className="jp-nav__badge" aria-label={`${badge} in the queue`}>{badge}</span> : null}
@@ -72,14 +72,21 @@ function NavRow({ item, active, badge }: { item: NavItem; active: boolean; badge
   );
 }
 
-function Sidebar({ page }: { page: PageId }) {
+function useQueueCount(): number {
   const counts = useLibraryData<LibraryCounts>(library.counts);
-  const queue = counts ? counts.queued + counts.printing : 0;
+  return counts ? counts.queued + counts.printing : 0;
+}
+
+function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
+  const queue = useQueueCount();
   // Scan and thumbnail job progress (src/web/scan/Progress.tsx), above Library Storage.
   const [jobs, setJobs] = useState<HTMLDivElement | null>(null);
   useAdopt('#sidebar-progress-slot', jobs);
   return (
-    <nav className="jp-sidebar" aria-label="Main">
+    <nav className="jp-sidebar" id="jp-sidebar" aria-label="Main">
+      <button type="button" className="jp-sidebar__close jp-icon-btn jp-icon-btn--md" aria-label="Close menu" title="Close menu" onClick={onClose}>
+        <X size={18} aria-hidden="true" />
+      </button>
       <button type="button" className="jp-brand" onClick={() => navigate('home')} aria-label="JusttPrint home">
         <span className="jp-brand__logo"><Box size={22} aria-hidden="true" /></span>
         <span className="jp-brand__text">
@@ -105,7 +112,7 @@ function Sidebar({ page }: { page: PageId }) {
   );
 }
 
-function TopBar() {
+function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
 
@@ -138,6 +145,10 @@ function TopBar() {
 
   return (
     <header className="jp-topbar">
+      <button type="button" className="jp-topbar__menu jp-icon-btn jp-icon-btn--md" aria-label="Menu" title="Menu"
+        aria-controls="jp-sidebar" aria-expanded={menuOpen} onClick={onMenu}>
+        <MenuIcon size={20} aria-hidden="true" />
+      </button>
       <SearchBox ref={input} className="jp-topbar__search" label="Search the library" value={text}
         placeholder="Search models, designers, tags, or anything..." shortcut={shortcutLabel(navigator.platform)}
         onChange={(event) => setText(event.target.value)} onKeyDown={onKeyDown} />
@@ -151,6 +162,50 @@ function TopBar() {
           )} />
       </div>
     </header>
+  );
+}
+
+/** Phones (spec §36): the main destinations at the bottom, and Menu for the rest. */
+function BottomNav({ page, onMenu }: { page: PageId; onMenu: () => void }) {
+  const queue = useQueueCount();
+  const items: [PageId, string, typeof Home][] = [['home', 'Home', Home], ['library', 'Library', Library], ['queue', 'Queue', ListChecks], ['printers', 'Printers', Printer]];
+  return (
+    <nav className="jp-bottom-nav" id="jp-bottom-nav" aria-label="Main (phone)">
+      {items.map(([id, label, Icon]) => (
+        <button key={id} type="button" className={cx('jp-bottom-nav__item', page === id && 'is-active')} aria-current={page === id ? 'page' : undefined}
+          onClick={() => navigate(id)}>
+          <span className="jp-bottom-nav__icon">
+            <Icon size={20} aria-hidden="true" />
+            {id === 'queue' && queue > 0 && <span className="jp-bottom-nav__badge" aria-label={`${queue} in the queue`}>{queue}</span>}
+          </span>
+          <span>{label}</span>
+        </button>
+      ))}
+      <button type="button" className="jp-bottom-nav__item" aria-controls="jp-sidebar" onClick={onMenu}>
+        <span className="jp-bottom-nav__icon"><MenuIcon size={20} aria-hidden="true" /></span>
+        <span>Menu</span>
+      </button>
+    </nav>
+  );
+}
+
+/** Below 1200 px the details panels are a drawer (phones: full screen) with a close button. */
+function DetailsDrawerBar() {
+  const [bar] = useState(() => {
+    const sidebar = document.querySelector<HTMLElement>('.sidebar');
+    if (!sidebar) return null;
+    const element = document.createElement('div');
+    element.className = 'jp jp-details-bar';
+    sidebar.prepend(element);
+    return element;
+  });
+  useEffect(() => () => bar?.remove(), [bar]);
+  if (!bar) return null;
+  return createPortal(
+    <button type="button" className="jp-icon-btn jp-icon-btn--md" id="jp-details-close" aria-label="Close details" title="Close details" onClick={hideDetailsPanels}>
+      <X size={18} aria-hidden="true" />
+    </button>,
+    bar
   );
 }
 
@@ -172,40 +227,65 @@ function DetailsPlaceholder() {
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
 const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
-/** Pages drawn over the library; Home and Library are the library screen (Home adds the dashboard on top). */
-const isOverlayPage = (page: PageId) => page !== 'home' && page !== 'library';
+/** Pages drawn over the library screen (every page but Library). */
+const isOverlayPage = (page: PageId) => page !== 'library';
 
 /**
  * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the
  * grid (src/web/grid/) under its header (pages/LibraryPage.tsx), with the old sidebar's details
  * panels as the right column, placed by src/web/styles/legacy-bridge.css; other pages cover it.
- * Phones keep the old phone layout until Phase 12.
+ * Responsive (spec §36, styles/responsive.css): below 1200 px the details are a drawer; tablets
+ * get an icon rail; phones a sidebar drawer, a bottom bar and full-screen details.
  */
 export function AppShell() {
-  const { mobile } = useLayout();
   const { page, section } = useRoute();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const details = useDetailsVisibility();
+  const detailsOpen = detailsAreOpen(details);
 
   useEffect(() => {
     if (isThumbnailWorker) return undefined;
-    document.body.classList.toggle('jp-shell-on', !mobile);
+    document.body.classList.add('jp-shell-on');
     return () => document.body.classList.remove('jp-shell-on');
-  }, [mobile]);
+  }, []);
+
+  // Body classes for the drawers (responsive.css).
+  useEffect(() => {
+    document.body.classList.toggle('jp-details-open', detailsOpen);
+    document.body.classList.toggle('jp-nav-open', menuOpen);
+    document.body.classList.toggle('jp-overlay-page', isOverlayPage(page));
+  }, [detailsOpen, menuOpen, page]);
+
+  // A page change closes the menu drawer.
+  useEffect(() => { setMenuOpen(false); }, [page, section]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   useEffect(() => {
     document.title = page === 'home' ? 'JusttPrint' : `${PAGE_TITLES[page]} · JusttPrint`;
   }, [page]);
 
-  // Phones keep the old phone layout (Phase 12); the server's hidden thumbnail page has no UI.
-  if (mobile || isThumbnailWorker) return null;
+  // The server's hidden thumbnail page has no UI.
+  if (isThumbnailWorker) return null;
   return createPortal(
     <div className="jp jp-shell">
-      <Sidebar page={page} />
-      <TopBar />
+      <Sidebar page={page} onClose={() => setMenuOpen(false)} />
+      <div className="jp-nav-backdrop" hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
+      <TopBar onMenu={() => setMenuOpen(!menuOpen)} menuOpen={menuOpen} />
+      <BottomNav page={page} onMenu={() => setMenuOpen(true)} />
+      <div className="jp-details-backdrop" hidden={!detailsOpen} onClick={hideDetailsPanels} />
+      <DetailsDrawerBar />
       <LibraryHeader />
       <ModelDetailsPanel />
       <DetailsPlaceholder />
       {isOverlayPage(page) && (
         <main className="jp-page" aria-label={PAGE_TITLES[page]}>
+          {page === 'home' && <HomePage />}
           {page === 'queue' && <QueuePage />}
           {page === 'printers' && <PrintersPage section={section} />}
           {page === 'filament' && <FilamentPage />}

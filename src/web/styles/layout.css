@@ -204,3 +204,5 @@
 .jp-settings-row__label { font-weight: 500; }
 .jp-settings-row__description { font-size: var(--jp-text-meta); color: var(--jp-text-2); }
 .jp-settings-row__chevron { flex: none; color: var(--jp-text-3); }
+/* A legacy rule pads paragraphs; page subtitles line up with their titles. */
+.jp-page .jp-meta { padding-left: 0; padding-right: 0; }

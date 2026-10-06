@@ -61,7 +61,8 @@ window.gridHost = {
   mobileColumns,
   expanded: () => expandedGroups,
   isSelected: (filePath) => selection.has(filePath),
-  bottomChrome: () => (document.body.classList.contains('mobile-ui') ? (document.getElementById('mobile-bottom-nav')?.offsetHeight || 72) : 0),
+  // The phone's bottom bar (0 when it is hidden: offsetHeight of a display:none element).
+  bottomChrome: () => document.getElementById('jp-bottom-nav')?.offsetHeight || 0,
 
   // Model cards
   isMobile: () => document.body.classList.contains('mobile-ui'),

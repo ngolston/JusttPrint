@@ -485,7 +485,8 @@ async function browserChecks(base, wsUrl, session) {
     check('Recent Activity lists the models added', await page.waitForSelector('.jp-activity-list .jp-activity__title:has-text("new models added")', { timeout: 10000 }).then(() => true, () => false));
     check('Your Printers offers to add a printer', await page.isVisible('.jp-home__panel :text("No printers yet")') || await page.isVisible('.jp-printer-list'));
     check('the dashboard draws a library model', await page.waitForSelector('.jp-hero__render, .jp-hero__fallback', { timeout: 60000 }).then(() => true, () => false));
-    check('Home also shows the library', await page.isVisible('.jp-library-header__title') && (await page.locator('.file-grid [data-filepath]').count()) > 0);
+    check('Home lists the most recently added models', await page.waitForSelector('.jp-recent-grid .jp-recent-card', { timeout: 10000 }).then(() => true, () => false)
+      && await page.isVisible('#jp-home-library-title'));
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
     check('Library shows the library without the dashboard', await page.waitForSelector('.jp-hero', { state: 'detached', timeout: 5000 }).then(() => true, () => false)
       && /#\/library$/.test(page.url()));
@@ -1523,43 +1524,68 @@ async function browserChecks(base, wsUrl, session) {
     const storageText = await page.textContent('.jp-storage').catch(() => '');
     check('the sidebar shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
 
-    // Phone layout (React, src/web/shell/MobileShell.tsx), same session at phone size.
+    // Phone layout (spec §36; src/web/shell/AppShell.tsx, styles/responsive.css), same session at phone size.
     const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       storageState: await page.context().storageState() })).newPage();
     phone.on('pageerror', (error) => errors.push(`phone: ${error.message}`));
     await phone.goto(base + '/');
     await phone.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const phoneTile = await phone.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => null);
-    check('the phone layout shows the app bar and bottom nav instead of the menu bar', await phone.isVisible('#mobile-app-bar') && await phone.isVisible('#mobile-bottom-nav')
-      && !(await phone.isVisible('#server-menu-bar')) && (await phone.textContent('#mobile-bar-title')) === 'Library'
-      && /^\d+ models?$/.test(await phone.textContent('#mobile-bar-count')));
-    check('the phone shows the wall, not the detailed cards', await phone.waitForSelector('.view-button.active[data-view="preview"]', { state: 'attached', timeout: 10000 }).then(() => true, () => false)
-      && await phone.isVisible('#mobile-app-bar [data-mobile-view="preview"].is-active'));
-    await phone.tap('#mobile-nav-filters');
-    check('Filters opens the sidebar as a sheet', await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))
-      && await phone.isVisible('#mobile-drawer-head') && await phone.isVisible('#mobile-nav-filters.is-active'));
-    await phone.tap('#mobile-drawer-done');
-    check('Done closes the Filters sheet', !(await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))) && !(await phone.isVisible('#mobile-ui-overlay')));
-    await phone.tap('#mobile-nav-more');
-    check('More lists the tools and the rest of the menu', await phone.isVisible('#mobile-more-sheet .mobile-tool[data-menu-label="Tag Manager"]')
-      && await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Theme")')
-      && !(await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Tag Manager")')));
-    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("MCP Server")');
-    check('a submenu opens as its own page', (await phone.textContent('#mobile-more-title')) === 'MCP Server' && await phone.isVisible('#mobile-more-drill .mobile-more-row:text-is("HTTPS / SSL")'));
-    await phone.tap('#mobile-more-back');
-    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("Library Stats")');
-    check('a More action closes the sheet and opens its screen', await phone.waitForSelector('#stats-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
-      && !(await phone.isVisible('#mobile-more-sheet')));
-    await phone.click('#stats-dialog .dialog-buttons button');
+    const phoneHome = {
+      nav: await phone.waitForSelector('#jp-bottom-nav', { timeout: 10000 }).then(() => true, () => false),
+      hero: await phone.waitForSelector('.jp-hero__title', { timeout: 10000 }).then(() => true, () => false),
+      sidebarHidden: await phone.waitForSelector('#jp-sidebar', { state: 'hidden', timeout: 5000 }).then(() => true, () => false),
+      menuBarHidden: !(await phone.isVisible('#server-menu-bar'))
+    };
+    check('the phone opens Home with the bottom bar instead of the sidebar', Object.values(phoneHome).every(Boolean), JSON.stringify(phoneHome));
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    // Earlier checks leave the wall or the list as the saved view.
+    await phone.tap('.view-button[data-view="detailed"]');
+    const phoneTile = await phone.waitForSelector('.file-grid .jp-model-card[data-filepath]', { timeout: 30000 }).catch(() => null);
+    // Cards are redrawn while the library loads: wait for two side by side.
+    const phoneColumns = await phone.waitForFunction(() => {
+      const lefts = new Set([...document.querySelectorAll('.file-grid .jp-model-card[data-filepath]')].map((el) => Math.round(el.getBoundingClientRect().left)));
+      return lefts.size >= 2 ? lefts.size : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue(), () => 0);
+    check('the phone library shows two columns of cards', !!phoneTile && phoneColumns === 2, String(phoneColumns));
+    await phone.tap('.jp-topbar__menu');
+    check('Menu opens the sidebar as a drawer', await phone.waitForFunction(() => document.body.classList.contains('jp-nav-open'), null, { timeout: 10000 }).then(() => true, () => false)
+      && await phone.waitForSelector('#jp-sidebar .jp-nav__row:has-text("Duplicates")', { timeout: 5000 }).then(() => true, () => false),
+      JSON.stringify(await phone.evaluate(() => ({ body: document.body.className, dialogs: [...document.querySelectorAll('dialog[open]')].map((d) => d.id) }))));
+    await phone.tap('#jp-sidebar .jp-nav__row:has-text("Tags")');
+    check('a page from the drawer opens and closes the drawer', await phone.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).then(() => true, () => false)
+      && !(await phone.evaluate(() => document.body.classList.contains('jp-nav-open'))));
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    await phone.tap('#jp-filter-button');
+    const sheet = await phone.locator('#jp-filter-popover').boundingBox();
+    check('Filter opens the filters as a full-width sheet', !!sheet && Math.round(sheet.width) === 390 && await phone.isVisible('#jp-filter-popover #sort-select'));
+    await phone.tap('#jp-filter-popover button[aria-label="Close filters"]');
     if (phoneTile) {
-      await phoneTile.tap();
-      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('mobile-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
-      check('tapping a model opens its details as a sheet with its name', phoneDetails
-        && (await phone.textContent('#mobile-details-name')).trim().length > 0 && await phone.isVisible('#mobile-details-open-preview'));
-      await phone.tap('#model-details .mobile-panel-close');
-      check('× closes the details sheet', await phone.waitForFunction(() => !document.body.classList.contains('mobile-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+      await phone.tap('.file-grid .jp-model-card[data-filepath] .file-name');
+      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
+      const drawer = await phone.locator('.sidebar').boundingBox();
+      check('tapping a model opens its details full screen with its name', phoneDetails && !!drawer && Math.round(drawer.width) === 390
+        && (await phone.textContent('#model-details .jp-details__title')).trim().length > 0);
+      await phone.tap('#jp-details-close');
+      check('× closes the details', await phone.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
     }
     await phone.close();
+
+    // Tablet: the sidebar is an icon rail; laptop: the details are a drawer.
+    const tablet = await (await browser.newContext({ viewport: { width: 900, height: 1000 }, storageState: await page.context().storageState() })).newPage();
+    tablet.on('pageerror', (error) => errors.push(`tablet: ${error.message}`));
+    await tablet.goto(base + '/#/library');
+    await tablet.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const rail = await tablet.waitForSelector('#jp-sidebar', { timeout: 10000 }).then(() => tablet.locator('#jp-sidebar').boundingBox(), () => null);
+    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 72 && !(await tablet.isVisible('#jp-sidebar .jp-storage')));
+    const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
+    if (tabletCard) {
+      await tabletCard.click();
+      check('below 1200 px the details open as a drawer over the grid', await tablet.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false)
+        && await tablet.isVisible('#jp-details-close') && await tablet.isVisible('.jp-details-backdrop'));
+      await tablet.click('.jp-details-backdrop', { position: { x: 300, y: 300 } });
+      check('a click beside the drawer closes it', await tablet.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+    }
+    await tablet.close();
 
     // First run (React, src/web/startup/FirstRun.tsx): the terms, then the welcome, then the guide.
     await invoke(base, session, 'save-setting', ['tosAcceptedDate', '']);

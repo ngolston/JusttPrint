@@ -268,6 +268,7 @@ export function buildLayoutRows(
 
 export const PREVIEW_TILE_PX: Record<PreviewTileSize, number> = { s: 140, m: 180, l: 240 };
 export const PREVIEW_COLUMNS: Record<PreviewTileSize, number> = { s: 10, m: 6, l: 4 };
+export const PREVIEW_COLUMNS_NARROW: Record<PreviewTileSize, number> = { s: 4, m: 3, l: 2 };
 
 export interface ViewOptions {
   view: GridView;
@@ -302,6 +303,8 @@ const DETAILED = { width: 300, height: 490, groupHeight: 450 };
  * previewRatio of the card's width; the footer holds the title, designer and badges.
  */
 export const CARD = { minWidth: 200, gap: 16, padding: 24, paddingTop: 4, footer: 96, previewRatio: 0.75 };
+/** Narrow grids (phones): smaller cards and spacing, so two fit side by side (spec §36). */
+export const CARD_COMPACT = { width: 640, minWidth: 150, gap: 12, padding: 12 };
 
 /** Preview height of a card of the given width. */
 export const cardPreviewHeight = (cellWidth: number) => Math.round(cellWidth * CARD.previewRatio);
@@ -319,7 +322,9 @@ export function viewMetrics({ view, width, previewSize, mobileColumns }: ViewOpt
     };
   }
   if (view === 'preview') {
-    const columns = mobile ? mobileColumns : PREVIEW_COLUMNS[previewSize] || PREVIEW_COLUMNS.m;
+    // Narrow screens get fewer, larger tiles.
+    const narrow = width > 0 && width < CARD_COMPACT.width ? PREVIEW_COLUMNS_NARROW : PREVIEW_COLUMNS;
+    const columns = mobile ? mobileColumns : narrow[previewSize] || narrow.m;
     const gap = 2;
     const tile = Math.max(1, Math.floor((Math.max(0, width) - (columns - 1) * gap) / columns));
     return {
@@ -338,13 +343,15 @@ export function viewMetrics({ view, width, previewSize, mobileColumns }: ViewOpt
       paddingVertical: 8, paddingHorizontal: pad, verticalGap: gap, horizontalGap: gap, centeredOffset: 0, headerOffset: 0
     };
   }
-  const available = Math.max(0, width - CARD.padding * 2);
-  const columns = Math.max(1, Math.floor((available + CARD.gap) / (CARD.minWidth + CARD.gap)));
-  const cellWidth = Math.max(1, Math.floor((available - CARD.gap * (columns - 1)) / columns));
+  const compact = width > 0 && width < CARD_COMPACT.width;
+  const { minWidth, gap, padding } = compact ? CARD_COMPACT : CARD;
+  const available = Math.max(0, width - padding * 2);
+  const columns = Math.max(1, Math.floor((available + gap) / (minWidth + gap)));
+  const cellWidth = Math.max(1, Math.floor((available - gap * (columns - 1)) / columns));
   const cellHeight = cardPreviewHeight(cellWidth) + CARD.footer;
   return {
     columns, cellWidth, cellHeight, groupHeight: cellHeight,
-    paddingVertical: CARD.paddingTop, paddingHorizontal: CARD.padding, verticalGap: CARD.gap, horizontalGap: CARD.gap, centeredOffset: 0, headerOffset: 0
+    paddingVertical: CARD.paddingTop, paddingHorizontal: padding, verticalGap: gap, horizontalGap: gap, centeredOffset: 0, headerOffset: 0
   };
 }
 
