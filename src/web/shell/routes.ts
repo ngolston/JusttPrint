@@ -5,7 +5,7 @@
  */
 import { useSyncExternalStore } from 'react';
 
-export const PAGES = ['home', 'library', 'settings', 'help'] as const;
+export const PAGES = ['home', 'library', 'queue', 'settings', 'help'] as const;
 export type PageId = (typeof PAGES)[number];
 
 export interface Route {

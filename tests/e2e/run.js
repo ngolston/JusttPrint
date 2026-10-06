@@ -1379,8 +1379,24 @@ async function browserChecks(base, wsUrl, session) {
     }, null, { timeout: 5000 }).then(() => true, () => false);
     check('the top bar search filters the library', searched && await page.inputValue('.jp-topbar input') === '');
     await page.evaluate(() => window.clearAllLibraryFilters());
+    // Print Queue (React, src/web/pages/QueuePage.tsx): a queued model moves through the page with its status.
+    const queuedModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'set-print-status', [{ filePath: queuedModel, printStatus: 'queued' }]);
     await page.click('.jp-sidebar .jp-nav__row:has-text("Queue")');
-    check('Queue shows the library\'s Queue tab (queued and printing)', await page.evaluate(() => window.libraryFilters.state().printed) === 'in-queue'
+    const queuedRow = `ol[aria-label="Up next"] .jp-queue__row:has(.jp-queue__title:text-is("${path.basename(queuedModel).replace(/\.[^.]+$/, '')}"))`;
+    check('Queue opens the Print Queue with the queued model up next', /#\/queue$/.test(page.url())
+      && await page.waitForSelector(queuedRow, { timeout: 10000 }).then(() => true, () => false));
+    await page.click(`${queuedRow} button:has-text("Start")`);
+    const startedRow = 'ul[aria-label="Printing now"] .jp-queue__row';
+    const started = await page.waitForSelector(startedRow, { timeout: 10000 }).then(() => true, () => false);
+    check('Start moves it to Printing now', started && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing');
+    await page.click(`${startedRow} button[aria-label="Back to the queue"]`);
+    await page.waitForSelector(queuedRow, { timeout: 10000 }).catch(() => {});
+    await page.click(`${queuedRow} button[aria-label="Remove from the queue"]`);
+    check('Remove takes it off the queue', await page.waitForSelector('#jp-queue-next ~ * :text("The queue is empty"), .jp-queue__section:has(#jp-queue-next) :text("The queue is empty")', { timeout: 10000 }).then(() => true, () => false)
+      && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'unprinted');
+    await page.click('.jp-queue__header button:has-text("Show in Library")');
+    check('Show in Library opens the library\'s Queue tab', await page.waitForFunction(() => window.libraryFilters.state().printed === 'in-queue', null, { timeout: 5000 }).then(() => true, () => false)
       && await page.isVisible('.jp-library-header .jp-tab[aria-selected="true"]:has-text("Queue")'));
     await page.evaluate(() => window.clearAllLibraryFilters());
     const storageText = await page.textContent('.jp-storage').catch(() => '');

@@ -1,0 +1,62 @@
+/* Print Queue page (pages/QueuePage.tsx; spec §43). */
+
+.jp-queue { max-width: 960px; }
+.jp-queue__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--jp-space-4); }
+.jp-queue__section { margin-bottom: var(--jp-space-4); }
+.jp-queue__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: var(--jp-space-2);
+  padding: 0 6px;
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-small);
+  font-weight: 600;
+  vertical-align: 2px;
+  box-sizing: border-box;
+}
+.jp-queue__section .jp-empty { padding: var(--jp-space-5) var(--jp-space-4); }
+
+.jp-queue__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.jp-queue__row {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-2) 0;
+}
+.jp-queue__row + .jp-queue__row { border-top: 1px solid var(--jp-border); }
+.jp-queue__index {
+  flex: none;
+  width: 22px;
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-meta);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.jp-queue__thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-preview-bg);
+  overflow: hidden;
+}
+.jp-queue__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.jp-queue__name {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.jp-queue__name:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: var(--jp-radius-sm); }
+.jp-queue__title { color: var(--jp-text); font-size: var(--jp-text-ui); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-queue__name:hover .jp-queue__title { text-decoration: underline; }
+.jp-queue__meta { min-height: 18px; color: var(--jp-text-2); font-size: var(--jp-text-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-queue__actions { display: flex; flex: none; align-items: center; gap: var(--jp-space-2); }

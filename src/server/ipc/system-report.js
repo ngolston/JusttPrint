@@ -17,6 +17,8 @@ ipcMain.handle('get-library-storage', async () => {
 ipcMain.handle('get-library-counts', async () => require('../../core/library-counts').libraryCounts(database.db));
 // Dashboard Recent Activity (src/core/recent-activity.js).
 ipcMain.handle('get-recent-activity', async (event, limit) => require('../../core/recent-activity').recentActivity(database.db, limit));
+// Print Queue's Completed list (src/core/recent-activity.js).
+ipcMain.handle('get-recent-prints', async (event, limit, outcome) => require('../../core/recent-activity').recentPrints(database.db, limit, outcome || null));
 
 ipcMain.handle('get-stats', async () => {
   try {

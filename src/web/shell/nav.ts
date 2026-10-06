@@ -10,7 +10,6 @@ import {
   ExternalLink, HelpCircle, Home, Image, Info, Keyboard, KeyRound, Library, ListChecks, LogOut, type LucideIcon, Package, Printer,
   RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, Wrench
 } from 'lucide-react';
-import { filterActions } from '../filters/store';
 import { scanDirectory, scanStlHome } from '../scan/scan';
 import { stlHomeDirectories } from '../scan/stlHome';
 import { findMenuAction } from './menu';
@@ -54,12 +53,6 @@ async function scanLibrary() {
   else await scanDirectory();
 }
 
-/** The queue until it has its own page (Phase 6): the library's Queue tab (Queued and Printing). */
-function showQueue() {
-  navigate('library');
-  filterActions.setTab('in-queue', 'all');
-}
-
 export const NAV: NavSection[] = [
   {
     items: [
@@ -70,7 +63,7 @@ export const NAV: NavSection[] = [
   {
     label: 'Printing',
     items: [
-      { id: 'queue', label: 'Queue', icon: ListChecks, run: showQueue },
+      { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
       { id: 'printers', label: 'Printers', icon: Printer, run: open('openPrinterManagement'), replaces: ['Printer Manager'] },
       { id: 'filament', label: 'Filament', icon: Cable, run: open('openFilamentManager'), replaces: ['Filament Manager'] }
     ]

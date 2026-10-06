@@ -59,3 +59,11 @@ test('the limit applies, and a database without print tables still lists added m
   assert.strictEqual(recentActivity(createDb(), 2).length, 2);
   assert.deepStrictEqual(recentActivity(createDb({ prints: false })).map((i) => i.kind), ['added', 'added']);
 });
+
+test('recent prints can be limited to one outcome', () => {
+  const { recentPrints } = require('../src/core/recent-activity');
+  const db = createDb();
+  assert.deepStrictEqual(recentPrints(db, 10).map((p) => p.id), [2, 1]);
+  assert.deepStrictEqual(recentPrints(db, 10, 'printed').map((p) => p.id), [1]);
+  assert.deepStrictEqual(recentPrints(createDb({ prints: false }), 10), []);
+});
