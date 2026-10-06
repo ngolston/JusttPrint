@@ -972,7 +972,8 @@ async function browserChecks(base, wsUrl, session) {
     }, 5000, 'column layout').catch(() => false);
     check('Show/Hide columns hides a column in the header and rows, and saves it', sizeHidden && layoutSaved === true);
     await page.check('.list-view-columns-popover input[data-col-id="size"]');
-    await page.mouse.click(5, 5);
+    // An empty spot of the top bar (the corner is the JusttPrint logo, which opens Home).
+    await page.mouse.click(240, 20);
     check('a click outside closes the columns popover', !(await page.isVisible('.list-view-columns-popover')));
     const nameCell = await page.locator('.list-view-header [data-list-col="name"]').boundingBox();
     const handle = await page.locator('.list-view-header [data-list-col="name"] .list-view-col-resize-handle').boundingBox();
@@ -1301,10 +1302,14 @@ async function browserChecks(base, wsUrl, session) {
 
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
-    // Opened from the menu bar (React, src/web/shell/MenuBar.tsx).
-    await page.click('#server-menu-bar .server-menu-button:text-is("Help")');
-    await page.click('#server-menu-bar .server-menu-item:text-is("Library Stats")');
-    check('Library Stats opens from the Help menu', await page.isVisible('#stats-dialog') && !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+    // Opened from Settings in the JusttPrint 5 shell (src/web/shell/AppShell.tsx, src/web/pages/SettingsPage.tsx).
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
+    await page.waitForSelector('.jp-page h1:text-is("Settings")', { timeout: 5000 }).catch(() => {});
+    check('the sidebar opens Settings and marks it as the current page', /#\/settings$/.test(page.url())
+      && await page.isVisible('.jp-page h1:text-is("Settings")')
+      && await page.getAttribute('.jp-sidebar .jp-nav__row:has-text("Settings")', 'aria-current') === 'page');
+    await page.click('.jp-settings-row:has-text("Library Stats")');
+    check('Library Stats opens from Settings', await page.isVisible('#stats-dialog'));
     const shownTotal = await page.waitForFunction((total) => {
       const text = document.getElementById('stats-total-models')?.textContent;
       return text === total ? text : null;
@@ -1313,11 +1318,31 @@ async function browserChecks(base, wsUrl, session) {
     check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
     await page.click('#stats-dialog .dialog-buttons button');
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
-    await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
-    await page.hover('#server-menu-bar .server-menu-item-has-submenu:has-text("MCP Server")');
-    check('a menu submenu opens on hover', await page.isVisible('#server-menu-bar .server-menu-subitem:text-is("HTTPS / SSL")'));
-    await page.click('main');
-    check('a click outside closes the menu', !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+    await page.goBack();
+    check('Back returns to the library', !(await page.isVisible('.jp-page')) && !/#\/settings/.test(page.url()));
+
+    // The rest of the shell: the old menu bar is gone, the account menu, search and the queue link.
+    check('the shell replaces the old menu bar', !(await page.isVisible('#server-menu-bar')) && await page.isVisible('.jp-sidebar .jp-brand'));
+    await page.click('.jp-account');
+    check('the account menu offers Server Access and Log Out', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Server Access")')
+      && await page.isVisible('.jp-menu [role="menuitem"]:has-text("Log Out")'));
+    await page.keyboard.press('Escape');
+    check('Escape closes the account menu', !(await page.isVisible('.jp-menu')));
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    check('Ctrl/Cmd+K focuses the search', await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === 'Search the library');
+    await page.keyboard.type('cube');
+    await page.keyboard.press('Enter');
+    const searched = await page.waitForFunction(() => {
+      const tokens = window.libraryFilters.state().tokens || [];
+      return tokens.some((t) => JSON.stringify(t).includes('cube')) ? true : null;
+    }, null, { timeout: 5000 }).then(() => true, () => false);
+    check('the top bar search filters the library', searched && await page.inputValue('.jp-topbar input') === '');
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Queue")');
+    check('Queue shows the library filtered to queued models', await page.evaluate(() => window.libraryFilters.state().printed) === 'queued');
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    const storageText = await page.textContent('.jp-storage').catch(() => '');
+    check('the sidebar shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
 
     // Phone layout (React, src/web/shell/MobileShell.tsx), same session at phone size.
     const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
@@ -1668,13 +1693,14 @@ async function browserChecks(base, wsUrl, session) {
     if (flagged) {
       const flaggedModel = (await invoke(base, session, 'get-model', [flagged])).result;
       await invoke(base, session, 'save-model', [{ ...flaggedModel, markAsNew: true }]);
-      await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
-      await page.click('#server-menu-bar .server-menu-item:text-is("Clear New Flag")');
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
+      await page.click('.jp-settings-row:has-text("Clear New Flag")');
       const askClear = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("clear the New flag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
       if (askClear) await askClear.click();
       const doneDialog = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Clear New Flag") button', { timeout: 10000 }).catch(() => null);
       const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
       if (doneDialog) await doneDialog.click();
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
       check('Clear New Flag asks, clears the flag and says how many', !!askClear && !!done
         && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew);
 

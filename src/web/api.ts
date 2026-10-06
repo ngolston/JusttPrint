@@ -42,7 +42,20 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   if (!response.ok || data.error !== undefined) {
     throw new ApiError(data.error || `HTTP ${response.status}`, response.status);
   }
+  if (typeof window !== 'undefined' && changesData(name)) window.dispatchEvent(new Event(LIBRARY_CHANGED));
   return data.result as T;
+}
+
+/** Fired on window after an action that may have changed library data (the shell refreshes its counts). */
+export const LIBRARY_CHANGED = 'jp:library-changed';
+
+/**
+ * True for actions that may change library data: everything except reads and checks, and the
+ * frequent ones that only touch previews, thumbnails, menus or progress.
+ */
+export function changesData(name: string): boolean {
+  if (/^(get|read|list|is|has|check|fetch|test|benchmark|open|download|preview|search|find|count|load|export|compute|resolve)[-A-Z]/.test(name)) return false;
+  return !/thumbnail|^(parse|cancel|show|calculate|report|extract)-|^delete-temp-file$/.test(name);
 }
 
 export interface ServerAccessInfo {
@@ -211,8 +224,26 @@ export interface LibraryStats {
   tags: { total: number; mostUsed: { name: string; count: number } | null };
 }
 
+/** Sidebar Library Storage (src/core/library-storage.js). `volume` is null without a readable STL Home. */
+export interface LibraryStorage {
+  libraryBytes: number;
+  modelCount: number;
+  volume: { path: string; totalBytes: number; usedBytes: number; freeBytes: number } | null;
+}
+
+/** Queue badge and dashboard figures (src/core/library-counts.js). */
+export interface LibraryCounts {
+  models: number;
+  printed: number;
+  queued: number;
+  printing: number;
+  printers: number;
+}
+
 export const library = {
-  stats: () => callAction<LibraryStats>('get-stats')
+  stats: () => callAction<LibraryStats>('get-stats'),
+  storage: () => callAction<LibraryStorage>('get-library-storage'),
+  counts: () => callAction<LibraryCounts>('get-library-counts')
 };
 
 export interface ServerGpuInfo {

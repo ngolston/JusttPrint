@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest';
+import { MENU, type MenuItem } from './menu';
+import { ACCOUNT, HELP, NAV, SETTINGS, replacedMenuLabels } from './nav';
+import { formatRoute, parseRoute } from './routes';
+
+const actionLabels = (items: MenuItem[]): string[] => items.flatMap((item) =>
+  item.kind === 'action' ? [item.label] : item.kind === 'submenu' ? actionLabels(item.items) : []);
+
+describe('shell navigation', () => {
+  it('gives every old menu action a place (spec §53)', () => {
+    const replaced = replacedMenuLabels();
+    const missing = actionLabels(MENU.flatMap((group) => group.items)).filter((label) => !replaced.has(label));
+    expect(missing).toEqual([]);
+  });
+
+  it('follows the spec navigation order', () => {
+    expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'System']);
+    expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
+      'Home', 'Library', 'Queue', 'Printers', 'Filament', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
+    ]);
+    expect(SETTINGS.map((g) => g.label)).toEqual([
+      'General', 'Appearance', 'Library', 'Scanning', 'Slicer', 'Printers', 'Filament', 'Integrations', 'AI', 'Server', 'Authentication', 'Backup', 'Advanced', 'About'
+    ]);
+  });
+
+  it('gives every entry an action or a page, and unique ids', () => {
+    for (const section of NAV) for (const item of section.items) expect(!!item.page || typeof item.run === 'function').toBe(true);
+    const ids = SETTINGS.map((g) => g.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const list of [HELP, ACCOUNT, ...SETTINGS.map((g) => g.items)]) {
+      expect(new Set(list.map((i) => i.id)).size).toBe(list.length);
+    }
+  });
+});
+
+describe('routes', () => {
+  it('reads pages and sections from the hash, and falls back to the library', () => {
+    expect(parseRoute('#/settings/ai')).toEqual({ page: 'settings', section: 'ai' });
+    expect(parseRoute('#/home')).toEqual({ page: 'home', section: '' });
+    expect(parseRoute('')).toEqual({ page: 'library', section: '' });
+    expect(parseRoute('#/design-system')).toEqual({ page: 'library', section: '' });
+    expect(parseRoute('#/nope')).toEqual({ page: 'library', section: '' });
+    expect(formatRoute('settings', 'a b')).toBe('#/settings/a%20b');
+    expect(parseRoute(formatRoute('settings', 'a b')).section).toBe('a b');
+  });
+});
+
+import { changesData } from '../api';
+
+describe('library change signal', () => {
+  it('fires after saves, not after reads or thumbnail and preview work', () => {
+    for (const name of ['save-model', 'set-print-status', 'log-print-event', 'scan-directory', 'delete-file', 'save-printer', 'restore-database']) {
+      expect(changesData(name)).toBe(true);
+    }
+    for (const name of ['get-library-counts', 'getThumbnail', 'getTotalModelCount', 'read-model-file', 'save-thumbnail', 'add-thumbnail',
+      'parse-3mf-preview', 'show-context-menu', 'calculate-file-hash', 'report-server-thumbnail-progress', 'delete-temp-file', 'start-server-thumbnail-job']) {
+      expect(changesData(name)).toBe(false);
+    }
+  });
+});

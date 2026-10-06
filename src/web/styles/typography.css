@@ -4,11 +4,13 @@
   font-size: var(--jp-text-ui);
   line-height: 1.45;
   color: var(--jp-text);
+  text-align: left;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'cv11', 'ss01';
 }
 
 .jp-page-title {
+  text-align: left;
   font-size: var(--jp-text-page);
   font-weight: 700;
   line-height: 1.2;
@@ -17,6 +19,7 @@
 }
 
 .jp-section-title {
+  text-align: left;
   font-size: var(--jp-text-section);
   font-weight: 650;
   line-height: 1.25;

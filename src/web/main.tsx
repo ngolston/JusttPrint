@@ -10,6 +10,7 @@ import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { DedupDialog } from './DedupDialog';
 import { DesignGallery } from './design/Gallery';
+import { AppShell } from './shell/AppShell';
 import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
@@ -110,6 +111,7 @@ function Screens() {
       <ManageThumbnailsDialog />
       <PreviewDialog />
       <PrintHistory />
+      <AppShell />
       <DesignGallery />
     </>
   );

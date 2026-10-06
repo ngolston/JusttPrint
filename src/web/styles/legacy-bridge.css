@@ -1,0 +1,46 @@
+/*
+ * The old library screens inside the JusttPrint 5 shell (body.jp-shell-on, set by AppShell on
+ * desktop). The old layout positions itself against the window: a 30px menu bar, the sidebar at
+ * the left, the grid after it. These rules move it right of the new sidebar and below the new
+ * top bar. Removed with the old screens in Phase 14.
+ */
+/* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
+html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 8px); }
+
+body.jp-shell-on {
+  --jp-legacy-left: var(--jp-sidebar-width);
+  --jp-legacy-top: var(--jp-topbar-height);
+  padding-top: var(--jp-legacy-top) !important;
+}
+
+/* The new sidebar and top bar replace the menu bar and the old logo. */
+body.jp-shell-on #server-menu-bar,
+body.jp-shell-on #logo { display: none !important; }
+
+body.server-mode.jp-shell-on .sidebar {
+  top: var(--jp-legacy-top) !important;
+  left: var(--jp-legacy-left) !important;
+  height: calc(100vh - var(--jp-legacy-top)) !important;
+}
+
+body.jp-shell-on .sidebar-resize-handle,
+body.server-mode.jp-shell-on .sidebar-resize-handle {
+  top: var(--jp-legacy-top);
+  left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px) - 8px);
+  height: calc(100vh - var(--jp-legacy-top));
+}
+
+body.jp-shell-on .folder-rail,
+body.server-mode.jp-shell-on .folder-rail {
+  top: var(--jp-legacy-top);
+  left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px));
+  height: calc(100vh - var(--jp-legacy-top));
+}
+
+body.jp-shell-on .grid-view-selector,
+body.jp-shell-on .file-grid,
+body.jp-shell-on .file-grid.preview-wall {
+  margin-left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px) + 20px + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--jp-legacy-left) + var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  max-width: calc(100vw - (var(--jp-legacy-left) + var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+}
