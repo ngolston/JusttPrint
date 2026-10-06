@@ -2245,11 +2245,25 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(async () => { window.clearAllLibraryFilters?.(); await window.performCombinedSearch({ force: true }); });
 
     // Purge Models (React). Empties the library, so it runs last among the library checks.
+    // A late message from the scan or thumbnail jobs above (slow machines) would cover the
+    // dialog: wait a moment, then note and answer any that is open.
+    const dismissStrayMessages = async () => {
+      await page.waitForTimeout(1000);
+      const strays = await page.evaluate(() => [...document.querySelectorAll('dialog.jp-message-dialog[open]')].map((dialog) => {
+        const text = dialog.textContent.replace(/\s+/g, ' ').trim().slice(0, 160);
+        [...dialog.querySelectorAll('button')].pop()?.click();
+        return text;
+      }));
+      if (strays.length) console.log(`note: answered a late message before Purge Models: ${strays.join(' | ')}`);
+    };
+    await dismissStrayMessages();
     await page.evaluate(() => window.openPurgeModels());
     check('Purge Models opens', await page.isVisible('#purge-models-dialog'));
+    await dismissStrayMessages();
     await page.click('#cancel-purge-button');
     check('Cancel keeps the models', ((await invoke(base, session, 'get-stats')).result || {}).totalModels > 0);
     await page.evaluate(() => window.openPurgeModels());
+    await dismissStrayMessages();
     await page.click('#confirm-purge-button');
     const purged = await page.waitForSelector('dialog[open]:has-text("All models have been purged") button:text-is("OK")', { timeout: 15000 }).catch(() => null);
     if (purged) await purged.click();
