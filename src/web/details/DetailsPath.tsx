@@ -6,7 +6,7 @@ import { pathTreeRows } from './pathTree';
 
 declare global {
   interface Window {
-    /** The details panel's path rows (renderer.js setDetailsPath drives it). */
+    /** The details panel's path rows (library/details.ts drives it). */
     detailsPath?: { show: (filePath: string) => void; clear: () => void };
   }
 }
@@ -15,7 +15,7 @@ const ICONS = { folder: 'path-tree-folder-icon', zip: 'path-tree-zip-icon', file
 
 /**
  * The folders, ZIP and file of the shown model, rendered inside #path-tree-container (whose
- * data-file-path attribute renderer.js keeps). Clicking a folder shows that folder in the grid;
+ * data-file-path attribute library/details.ts keeps). Clicking a folder shows that folder in the grid;
  * the ☰ beside it reveals the model's folder in the folder tree.
  */
 export function DetailsPath() {

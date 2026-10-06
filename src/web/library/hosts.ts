@@ -1,6 +1,6 @@
 /**
  * The objects the React screens ask the library through (window.gridHost, detailsHost, …), and
- * the page globals other scripts call (PrintHistory, filament.js, renderer.js's event handlers).
+ * the page globals other modules and scripts call (PrintHistory, search.ts, ManageThumbnailsDialog).
  */
 import { callAction } from '../api';
 import { runSearch } from '../filters/search';
@@ -8,7 +8,7 @@ import type { GridModel } from '../grid/layout';
 import { selection } from '../selection';
 import { syncThumbnailFromField } from '../thumbnails/cache';
 import {
-  bindCardMenu, bindGroupMenu, cardClick, clearDetails, currentModelPath, exitMultiEdit, groupClick, highlightModel, isBundleShown,
+  bindCardMenu, bindGroupMenu, cardClick, currentModelPath, exitMultiEdit, groupClick, isBundleShown,
   isMultiEdit, navigateDetails, openCardPreview, resetSelectionAndDetails, selectAllShown, showCardMenu, showModelDetails,
   syncSelectionWithModels, toggleGroup, toggleMultiEdit, enterMultiEdit
 } from './details';
@@ -161,18 +161,6 @@ async function refreshModelThumbnails(filePath: string) {
 
 declare global {
   interface Window {
-    /** The grid, the details panel and multi-edit, for renderer.js's event handlers. */
-    library?: {
-      showModels: typeof showModels;
-      refreshGrid: typeof refreshGrid;
-      updateModel: typeof updateModel;
-      /** Put a fresher copy of a shown model in place and redraw; false when it is not shown. */
-      replaceModel: (model: GridModel) => boolean;
-      showModelDetails: typeof showModelDetails;
-      currentModelPath: typeof currentModelPath;
-      highlightModel: typeof highlightModel;
-      invalidateGroupImages: typeof invalidateGroupImages;
-    };
     updateModelElement?: (filePath: string) => Promise<void>;
     getCurrentModelFilePath?: () => string | null;
     refreshModelThumbnails?: (filePath: string) => Promise<void>;
@@ -181,20 +169,6 @@ declare global {
   }
 }
 
-window.library = {
-  showModels,
-  refreshGrid,
-  updateModel,
-  replaceModel: (model) => {
-    const shown = mergeModel(model);
-    if (shown) refreshGrid();
-    return shown;
-  },
-  showModelDetails,
-  currentModelPath,
-  highlightModel,
-  invalidateGroupImages
-};
 // search.ts hands results to the grid through these.
 window.renderFiles = async (models) => showModels(models as GridModel[]);
 window.syncSelectionWithFilteredModels = (models) => syncSelectionWithModels(models as GridModel[]);
@@ -203,4 +177,3 @@ window.getCurrentModelFilePath = currentModelPath;
 window.invalidateGroupThumbnailCache = () => invalidateGroupImages();
 window.refreshModelThumbnails = refreshModelThumbnails;
 window.refreshModelDisplay = () => runSearch({ force: true });
-export { clearDetails };

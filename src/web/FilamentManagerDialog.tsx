@@ -39,7 +39,7 @@ function errorText(error: unknown, fallback: string): string {
 
 /**
  * Tools → Filament Manager: the filament catalog (manual entries and Spoolman spools) and
- * Spoolman setup. Assigning filaments to models stays in filament.js for now.
+ * Spoolman setup.
  * Registers window.openFilamentManager.
  */
 export function FilamentManagerDialog() {

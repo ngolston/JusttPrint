@@ -1,6 +1,6 @@
 /**
- * The model counts the sidebar and the phone app bar show: models in the grid (renderer.js
- * reports it as the grid loads) and in the library (fetched once the grid settles).
+ * The model counts the sidebar and the phone app bar show: models in the grid (set as the grid
+ * loads, library/models.ts) and in the library (fetched once the grid settles).
  */
 import { useSyncExternalStore } from 'react';
 import { callAction } from '../api';

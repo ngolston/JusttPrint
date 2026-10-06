@@ -185,7 +185,7 @@ async function apiChecks(base, wsUrl) {
   }, 60000, 'STL Home scan').catch((error) => error.message);
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
   check('home after login', (await http.request('/')).status === 200);
-  check('web asset served', (await http.request('/renderer.js')).status === 200);
+  check('web asset served', (await http.request('/page-init.js')).status === 200);
   for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
@@ -196,7 +196,7 @@ async function apiChecks(base, wsUrl) {
   check('frame-ancestors', /frame-ancestors 'self'/.test(health.headers.get('content-security-policy') || ''));
   check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
-  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/renderer.js')));
+  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
   check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
@@ -1057,7 +1057,7 @@ async function browserChecks(base, wsUrl, session) {
     // Rename a designer through the in-page input dialog (Metadata Manager).
     const cube = path.join(LIBRARY, 'Designer A', 'cube.stl');
     await invoke(base, session, 'update-models-batch', [[{ filePath: cube, designer: 'Old Designer' }]]);
-    await page.evaluate(() => window.electron.send('open-metadata-editor'));
+    await page.evaluate(() => window.openMetadataEditor());
     await page.waitForSelector('#metadata-editor-dialog[open]', { timeout: 15000 }).catch(() => {});
     const renameButton = await page.waitForSelector(
       '#metadata-editor-dialog .metadata-item:has-text("Old Designer") .metadata-rename', { timeout: 15000 }
@@ -1111,7 +1111,7 @@ async function browserChecks(base, wsUrl, session) {
     const otherTab = await page.context().newPage();
     await otherTab.goto(base + '/');
     await otherTab.waitForFunction(() => window._electronBridgeReady === true && typeof window.openTagManager === 'function', null, { timeout: 60000 });
-    await page.evaluate(() => window.electron.send('open-tag-manager'));
+    await page.evaluate(() => window.openTagManager());
     await page.waitForSelector('#tag-manager-dialog[open]', { timeout: 10000 }).catch(() => {});
     await otherTab.waitForTimeout(1000);
     check('a dialog opened in one tab stays in that tab', await page.isVisible('#tag-manager-dialog') && !(await otherTab.isVisible('#tag-manager-dialog')));
@@ -1599,7 +1599,39 @@ async function browserChecks(base, wsUrl, session) {
     const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
     check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
       && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const themed = await page.waitForFunction(() => document.body.getAttribute('data-theme') === 'modern-purple'
+      && document.documentElement.style.getPropertyValue('--primary-accent').trim() === '#a855f7', null, { timeout: 15000 }).then(() => true, () => false);
+    check('the saved theme is applied when the page loads', themed);
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+    await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+
+    // Tools → Clear New Flag (src/web/library/actions.ts).
+    const flagged = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter((p) => !p.includes('::'))[0];
+    if (flagged) {
+      const flaggedModel = (await invoke(base, session, 'get-model', [flagged])).result;
+      await invoke(base, session, 'save-model', [{ ...flaggedModel, markAsNew: true }]);
+      await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
+      await page.click('#server-menu-bar .server-menu-item:text-is("Clear New Flag")');
+      const askClear = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("clear the New flag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      if (askClear) await askClear.click();
+      const doneDialog = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Clear New Flag") button', { timeout: 10000 }).catch(() => null);
+      const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
+      if (doneDialog) await doneDialog.click();
+      check('Clear New Flag asks, clears the flag and says how many', !!askClear && !!done
+        && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew);
+
+      // Add Image (model menu → server → this page): pick a file, and it becomes another image of the model.
+      const imagesBefore = ((await invoke(base, session, 'get-all-thumbnails', [flagged])).result || []).length;
+      const chooser = page.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null);
+      await page.evaluate((p) => window.electron.send('add-image-request', p), flagged);
+      const fileChooser = await chooser;
+      if (fileChooser) await fileChooser.setFiles(path.join(ROOT, 'logo.png'));
+      const added = await waitFor(async () => (((await invoke(base, session, 'get-all-thumbnails', [flagged])).result || []).length > imagesBefore ? true : null), 15000, 'image added').catch(() => false);
+      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true);
+    }
 
     // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.
     await invoke(base, session, 'save-slicer', [{ name: 'Seed Slicer', path: '/usr/bin/seed-slicer' }]);

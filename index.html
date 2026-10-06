@@ -21,8 +21,6 @@
   <link rel="stylesheet" href="thumbnail-progress.css">
   <link rel="stylesheet" href="mobile-ui.css">
   <link rel="stylesheet" href="organize-library.css">
-  <!-- Local vendor copies — CDN scripts blocked first paint / ready-to-show on cold install -->
-  <script src="vendor/fuse.min.js"></script>
   <!-- Puter.js is loaded dynamically only when needed to avoid unnecessary socket.io connections -->
 
 
@@ -108,17 +106,7 @@
 
     <!-- Review Generated Tags: React (src/web/tags/TagPreviewDialog.tsx) -->
 
-    <!-- Add progress dialog for tag generation -->
-    <dialog id="progress-dialog" class="modal">
-      <div class="progress-container">
-        <h3 id="progress-title">Processing...</h3>
-        <p id="progress-message">Please wait...</p>
-        <div class="progress-bar-container">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-        <p id="progress-status">0 / 0</p>
-      </div>
-    </dialog>
+    <!-- Server task progress: React (src/web/components/ServerProgressDialog.tsx) -->
     
     <!-- Preview Model Dialog -->
   </div>
@@ -307,11 +295,8 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
 
   <script src="slicer-protocol.js"></script>
   <script src="server-bridge.js"></script>
-  <script src="grid-refresh.js"></script>
   <script src="step-assembly.js"></script>
   <script src="stl-sanity.js"></script>
-  <script src="renderer.js"></script>
-  <script src="filament.js"></script>
   <script src="guide.js"></script>
   <script src="pwa.js"></script>
 

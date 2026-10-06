@@ -5,7 +5,7 @@ import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnai
 import type { GridModel, GridView } from './layout';
 import { applyColumns } from './columns';
 
-/** What a model card asks of renderer.js (selection, menus, filters, saving). */
+/** What a model card asks of the library (library/hosts.ts: selection, menus, filters, saving). */
 export interface CardHost {
   isSelected(filePath: string): boolean;
   isMobile(): boolean;
@@ -14,7 +14,7 @@ export interface CardHost {
   directoryFullPath(filePath: string): string;
   formatSize(bytes: number): string;
 
-  /** Click on a card: selection, details, multi-edit (renderer.js handleFileClick / toggleModelSelection). */
+  /** Click on a card: selection, details, multi-edit (library/details.ts cardClick). */
   cardClick(event: MouseEvent, card: HTMLElement, filePath: string, view: GridView): void;
   /** Preview wall: open the 3D preview. */
   openPreview(card: HTMLElement | null, filePath: string, select: boolean): void;

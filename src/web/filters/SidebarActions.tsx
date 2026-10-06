@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { exposeGlobal } from '../page';
-import { plural, refreshTotal, setViewCount, useModelCounts } from './counts';
+import { plural, refreshTotal, useModelCounts } from './counts';
 import { scanDirectory, scanStlHome, useScanProgress } from '../scan/scan';
 import { stlHomeDirectories } from '../scan/stlHome';
 import { runSearch } from './search';
 import { filterActions } from './store';
+import { printRoulette } from '../library/actions';
 
 declare global {
   interface Window {
-    /** renderer.js: re-read every model and redraw the grid. */
+    /** library/actions.ts: re-read every model and redraw the grid. */
     forceGridRefresh?: () => Promise<void>;
-    /** For renderer.js: the number of models in the grid. */
-    sidebarStatus?: { setViewCount: (count: number) => void };
   }
 }
 
@@ -50,18 +49,12 @@ export function SidebarActions() {
     };
     checkStlHome();
     refreshTotal();
-    const unexposeStatus = exposeGlobal('sidebarStatus', { setViewCount });
-    const unexposeStlHome = exposeGlobal('updateScanStlHomeButtonVisibility', checkStlHome);
-    return () => {
-      unexposeStatus();
-      unexposeStlHome();
-    };
+    return exposeGlobal('updateScanStlHomeButtonVisibility', checkStlHome);
   }, []);
 
   if (!container) return null;
-  const send = (channel: string) => () => window.electron?.send?.(channel);
-  const tool = (id: string, title: string, img: string, alt: string, channel: string) => (
-    <button id={id} className="icon-button" title={title} onClick={send(channel)}>
+  const tool = (id: string, title: string, img: string, alt: string, run: () => void) => (
+    <button id={id} className="icon-button" title={title} onClick={run}>
       <img src={img} alt={alt} />
     </button>
   );
@@ -72,10 +65,10 @@ export function SidebarActions() {
         <div id="total-count" className="model-count">{plural(total)} total</div>
       </div>
       <div className="icon-buttons-container">
-        {tool('dup-button', 'De-Dup', 'dup.png', 'De-Dup', 'open-dedup')}
-        {tool('tag-button', 'Tag - Tag Manager', 'tag.png', 'Tag Manager', 'open-tag-manager')}
-        {tool('filament-button', 'Filament - Filament Manager', 'filament.png', 'Filament Manager', 'open-filament-manager')}
-        {tool('roulette-button', 'Roulette - Print Roulette', 'roulette.png', 'Print Roulette', 'start-print-roulette')}
+        {tool('dup-button', 'De-Dup', 'dup.png', 'De-Dup', () => window.openDedup?.())}
+        {tool('tag-button', 'Tag - Tag Manager', 'tag.png', 'Tag Manager', () => window.openTagManager?.())}
+        {tool('filament-button', 'Filament - Filament Manager', 'filament.png', 'Filament Manager', () => window.openFilamentManager?.())}
+        {tool('roulette-button', 'Roulette - Print Roulette', 'roulette.png', 'Print Roulette', () => { printRoulette(); })}
       </div>
       <button id="scan-directory-button" disabled={scanning} onClick={() => scanDirectory()}>Scan Directory</button>
       {hasStlHome && (

@@ -1,9 +1,9 @@
 /**
- * What the React screens use from the rest of the page (renderer.js and server-bridge.js),
- * typed in one place. Each hook disappears once the code behind it moves to React.
+ * What the React screens use from the rest of the page (the page globals and server-bridge.js),
+ * typed in one place.
  */
 
-/** The sidebar filters as search.js builds them; passed to the server as-is. */
+/** The sidebar filters as the search builds them (src/web/filters/search.ts); passed to the server as-is. */
 export type LibraryFilters = Record<string, unknown>;
 
 declare global {
@@ -23,35 +23,35 @@ declare global {
       /** Id of this page's WebSocket (server-bridge.js), so the server can send events back to this page. */
       getClientId?: () => string | null;
     };
-    /** renderer.js: refresh tag pickers, the tag filter, the open model's tags and the grid. */
+    /** library/actions.ts: refresh tag pickers, the tag filter, the open model's tags and the grid. */
     refreshTagRelatedUi?: () => Promise<void>;
-    /** renderer.js: the full refresh after the Tag Manager closed with changes (also redraws model cards). */
+    /** library/actions.ts: the full refresh after the Tag Manager closed with changes (also redraws model cards). */
     refreshAfterTagManagerClose?: () => Promise<void>;
-    /** filament.js: refresh the filament pickers and the sidebar filament filter. */
+    /** library/actions.ts: refresh the filament pickers and the sidebar filament filter. */
     refreshFilamentPickers?: () => Promise<void>;
-    /** filament.js: also reload the open model's filaments and the grid. */
+    /** library/actions.ts: also reload the open model's filaments and the grid. */
     refreshAfterFilamentManagerClose?: () => Promise<void>;
-    /** renderer.js: reload the models and redraw the grid. */
+    /** library/hosts.ts: reload the models and redraw the grid. */
     refreshModelDisplay?: () => Promise<void>;
-    /** renderer.js: rebuild the sidebar's file type filter from the enabled types. */
+    /** library/actions.ts: rebuild the sidebar's file type filter from the enabled types. */
     populateFileTypeFilter?: () => Promise<void>;
-    /** search.js: run the current search and filters again. */
+    /** filters/search.ts: run the current search and filters again. */
     performCombinedSearch?: (options?: { force?: boolean; preserveScroll?: boolean }) => Promise<void>;
-    /** renderer.js: empty the grid, counts and filters after every model was purged. */
+    /** library/actions.ts: empty the grid, counts and filters after every model was purged. */
     afterModelsPurged?: () => Promise<void>;
-    /** renderer.js: set the accent colors for a UI theme. */
+    /** startup/theme.ts: set the accent colors for a UI theme. */
     applyThemeColors?: (theme: string) => void;
-    /** renderer.js: reload the designer, parent model and license pickers and filters, and the grid. */
+    /** library/actions.ts: reload the designer, parent model and license pickers and filters, and the grid. */
     refreshAfterMetadataChange?: () => Promise<void>;
     /** The sidebar (SidebarActions.tsx): show Scan STL Home when STL Home directories are set. */
     updateScanStlHomeButtonVisibility?: () => Promise<void>;
-    /** search.js: the sidebar's current filters, whether any is set, and a short description of them. */
+    /** filters/search.ts: the sidebar's current filters, whether any is set, and a short description of them. */
     getCurrentLibraryFilters?: () => LibraryFilters | null;
     libraryFiltersAreActive?: (filters: LibraryFilters | null) => boolean;
     describeLibraryFilters?: (filters: LibraryFilters | null) => string;
-    /** renderer.js: after De-Dup deleted files, clear the grid selection and reload the grid. */
+    /** library/actions.ts: after De-Dup deleted files, clear the grid selection and reload the grid. */
     refreshAfterDedupDelete?: () => Promise<void>;
-    /** renderer.js: model color and lighting used for new thumbnails. */
+    /** startup/start.ts loads them: model color and lighting used for new thumbnails. */
     currentRenderColor?: string;
     currentRenderLighting?: boolean;
   }

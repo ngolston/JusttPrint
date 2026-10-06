@@ -3,15 +3,13 @@ import { settings } from '../api';
 
 /**
  * The first-run dialogs: the terms (MIT license), which must be accepted before the app loads,
- * and the welcome that follows on the very first run. renderer.js asks for the answer through
- * window.checkTerms as the page starts, possibly before React has drawn anything, so the state
+ * and the welcome that follows on the very first run. startup/start.ts asks for the answer
+ * (checkTerms) as the page starts, possibly before React has drawn anything, so the state
  * lives here at module level and the dialogs show it once mounted.
  */
 
 declare global {
   interface Window {
-    /** Resolves true once the terms are accepted (asking first if needed); false when declined. */
-    checkTerms?: () => Promise<boolean>;
     /** Show the welcome dialog (first run). */
     showWelcome?: () => void;
     logOutOfServer?: () => Promise<void>;
@@ -33,6 +31,7 @@ const subscribe = (listener: () => void) => {
 let termsAnswer: Promise<boolean> | null = null;
 let answerTerms: ((accepted: boolean) => void) | null = null;
 
+/** Resolves true once the terms are accepted (asking first if needed); false when declined. */
 export function checkTerms(): Promise<boolean> {
   termsAnswer ??= (async () => {
     try {
@@ -50,7 +49,6 @@ export function checkTerms(): Promise<boolean> {
 }
 
 if (typeof window !== 'undefined') {
-  window.checkTerms = checkTerms;
   window.showWelcome = () => set({ welcome: true });
 }
 

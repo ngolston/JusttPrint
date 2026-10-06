@@ -46,6 +46,10 @@
   }
   
   // Define on() method IMMEDIATELY so it's always available
+  // Events that arrive before anything listens for them (the page's modules load after this
+  // script) wait here, and go to the first listener for their channel.
+  const pendingEvents = {};
+
   window.electron.on = function(channel, callback) {
     if (!window._electronEventListeners) {
       window._electronEventListeners = {};
@@ -54,7 +58,11 @@
       window._electronEventListeners[channel] = [];
     }
     window._electronEventListeners[channel].push(callback);
-    console.log('[Bridge] Registered listener for channel:', channel, 'Total listeners:', window._electronEventListeners[channel].length);
+    const waiting = pendingEvents[channel];
+    if (waiting) {
+      delete pendingEvents[channel];
+      setTimeout(() => waiting.forEach((args) => dispatchToListeners(channel, args)), 0);
+    }
   };
   console.log('[Bridge] window.electron.on method defined');
 
@@ -132,6 +140,11 @@
   /** Call this page's listeners for an event (from the server, or sent by the page itself). */
   function dispatchToListeners(channel, args) {
     const listeners = (window._electronEventListeners || {})[channel] || [];
+    if (!listeners.length) {
+      const waiting = (pendingEvents[channel] = pendingEvents[channel] || []);
+      if (waiting.length < 50) waiting.push(args);
+      return;
+    }
     if (BRIDGE_DEBUG) console.log('[Bridge] Event', channel, 'listeners:', listeners.length, 'args:', args);
     listeners.forEach((listener) => {
       try {

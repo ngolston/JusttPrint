@@ -1,7 +1,7 @@
 /**
  * Thumbnails for the page: window.thumbnailRenderer (the 3D render; three.js loads on the first
  * render, in a chunk shared with the 3D preview), and window.thumbnails, the queue and helpers
- * for the code still in renderer.js.
+ * for the rest of the page.
  */
 import type { ThumbnailOptions } from './render';
 import { cachedThumbnail, fetchPrimaryThumbnail, invalidateThumbnail, isImageOnlyMiss, saveThumbnailIfReal, setCachedThumbnail, syncThumbnailFromField } from './cache';

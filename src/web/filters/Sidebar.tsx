@@ -8,7 +8,7 @@ import { getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchSta
 import { filterActions, getFilterState, subscribeFilters } from './store';
 import { pickFromList } from '../components/ListPicker';
 
-/** What the sidebar asks of renderer.js. */
+/** What the sidebar asks of the library (src/web/library/hosts.ts). */
 export interface SidebarHost {
   /** Clear the selection and the details panel (the result set is about to change). */
   resetSelection(): void;
@@ -17,7 +17,7 @@ export interface SidebarHost {
 declare global {
   interface Window {
     sidebarHost?: SidebarHost;
-    /** renderer.js: fold "More filters" away when a details panel opens. */
+    /** Fold "More filters" away when a details panel opens. */
     collapseSidebarFilters?: () => void;
   }
 }

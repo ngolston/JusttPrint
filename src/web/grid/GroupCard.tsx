@@ -3,7 +3,7 @@ import { normalizeRating } from './ModelCard';
 import type { GridModel, GridView, GroupRecord } from './layout';
 import { applyColumns } from './columns';
 
-/** What a group card asks of renderer.js. */
+/** What a group card asks of the library (library/hosts.ts). */
 export interface GroupCardHost {
   /** Goes up when group images change (cache cleared, preferred image picked). */
   groupThumbnailVersion(): number;

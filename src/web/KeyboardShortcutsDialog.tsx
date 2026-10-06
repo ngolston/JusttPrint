@@ -4,8 +4,9 @@ import { viewEntireLibrary } from './filters/SidebarActions';
 import { exposeGlobal } from './page';
 import { scanDirectory } from './scan/scan';
 import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';
+import { printRoulette } from './library/actions';
 
-/** What the shortcuts need from renderer.js (multi-edit mode, the details panel, the selection). */
+/** What the shortcuts need from the library (multi-edit mode, the details panel, the selection). */
 export interface ShortcutHost {
   multiEdit(): boolean;
   exitMultiEdit(): void;
@@ -42,7 +43,7 @@ function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean
     case 'next': case 'previous': return host.navigate(action);
     case 'scan': scanDirectory(); return true;
     case 'clearFilters': viewEntireLibrary(); return true;
-    case 'roulette': window.electron?.send?.('start-print-roulette'); return true;
+    case 'roulette': printRoulette(); return true;
     case 'toggleMultiEdit': host.toggleMultiEdit(detailsVisible); return true;
     case 'selectAll': host.selectAll(); return true;
   }

@@ -135,19 +135,7 @@ export async function scanStlHome() {
   await scanFolders(homes, { stlHome: true });
 }
 
-declare global {
-  interface Window {
-    scanDirectory?: () => Promise<void>;
-    runScanSTLHome?: () => void;
-    /** The STL Home dialog: scan the saved directories now. */
-    performSTLHomeScan?: (dirs: string[]) => Promise<void>;
-  }
-}
-
 if (typeof window !== 'undefined') {
-  window.scanDirectory = scanDirectory;
-  window.runScanSTLHome = () => { scanStlHome(); };
-  window.performSTLHomeScan = (dirs) => scanFolders(dirs, { stlHome: true });
   // The server scanned STL Home or finished a thumbnail job.
   onServerEvent('refresh-grid', () => {
     if (progress) return;

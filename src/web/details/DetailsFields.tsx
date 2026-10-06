@@ -17,7 +17,7 @@ export interface DetailsModel {
 
 type PickerField = 'designer' | 'parentModel' | 'license';
 
-/** What this section asks of renderer.js. */
+/** What this section asks of the library (library/hosts.ts). */
 export interface DetailsHost {
   /** Save one field of the model (autoSaveModel: also updates its grid card). */
   saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'filaments' | 'notes', value: string | string[] | number[]): Promise<boolean>;
@@ -30,7 +30,7 @@ export interface DetailsHost {
 declare global {
   interface Window {
     detailsHost?: DetailsHost;
-    /** The details panel's metadata fields (renderer.js showModelDetails drives it). */
+    /** The details panel's metadata fields (library/details.ts drives it). */
     detailsFields?: {
       show: (model: DetailsModel) => void;
       clear: () => void;

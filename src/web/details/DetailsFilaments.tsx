@@ -13,7 +13,7 @@ interface FilamentsModel {
 
 declare global {
   interface Window {
-    /** The details panel's filaments (renderer.js showModelDetails and filament.js drive it). */
+    /** The details panel's filaments (library/details.ts and library/actions.ts drive it). */
     detailsFilaments?: {
       show: (model: FilamentsModel) => void;
       /** Reload the shown model's filaments from the server. */

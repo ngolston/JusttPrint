@@ -87,9 +87,6 @@ declare global {
   interface Window {
     currentDirectoryFilter?: string;
     viewingEntireLibrary?: boolean;
-    /** For renderer.js: the current view and tile size. */
-    getGridView?: typeof getGridView;
   }
 }
 
-if (typeof window !== 'undefined') window.getGridView = getGridView;

@@ -9,16 +9,15 @@ import { ListHeader } from './ListHeader';
 import { useGridView } from './view';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
-  viewMetrics, visibleRows, type DisplayRecord, type ExpandedGroups, type GridModel, type GridView, type GroupRecord,
+  viewMetrics, visibleRows, type ExpandedGroups, type GridModel, type GroupRecord,
   type ViewMetrics
 } from './layout';
 
 /**
- * What the grid needs from renderer.js while the cards are still built there. Each method
- * disappears as its part moves to React.
+ * What the grid needs from the library (src/web/library/hosts.ts).
  */
 export interface GridHost extends CardHost, GroupCardHost {
-  /** The models on screen: renderer.js edits this array in place, then calls refresh(). */
+  /** The models on screen: the library edits this array in place, then calls refresh(). */
   models(): GridModel[];
   /** Phone layout columns, or 0 on the desktop layout. */
   mobileColumns(): number;
@@ -56,7 +55,7 @@ const groupCardKey = (record: GroupRecord) => `${record.key}#${record.children.l
 /**
  * The library grid in .file-grid: lays the models out for the current view (tested in
  * layout.ts), renders only the rows near the viewport, and keeps them in place while scrolling.
- * renderer.js drives it through window.libraryGrid.
+ * The library (library/models.ts) drives it through window.libraryGrid.
  */
 export function LibraryGrid() {
   const [container] = useState(() => document.querySelector<HTMLElement>('.file-grid'));
@@ -124,12 +123,12 @@ export function LibraryGrid() {
   const width = size.width || container?.clientWidth || 0;
   const metrics: ViewMetrics = useMemo(
     () => viewMetrics({ view, width, previewSize, mobileColumns: host?.mobileColumns() ?? 0 }),
-    // tick/generation: the preview size, phone layout and view are read from renderer.js.
+    // tick/generation: the phone layout is read from the host.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [view, width, host, tick, generation]
   );
 
-  // Recomputed on every show/refresh: renderer.js edits the model array in place.
+  // Recomputed on every show/refresh: the library edits the model array in place.
   const { records, layout } = useMemo(() => {
     const models = host?.models() ?? [];
     const built = buildDisplayRecords(models, host?.expanded() ?? { bundles: new Set(), parentModels: new Set() });

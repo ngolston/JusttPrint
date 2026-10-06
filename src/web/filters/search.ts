@@ -1,11 +1,11 @@
 /**
  * Running a library search: the first page from the server, then the rest in chunks while the
- * grid shows what has arrived (renderer.js renderFiles). A newer search makes older ones stop.
+ * grid shows what has arrived (window.renderFiles, library/models.ts). A newer search makes older ones stop.
  * Also the window functions the rest of the page calls (performCombinedSearch and friends).
  */
 import { callAction } from '../api';
 import { describePayload, payloadIsFiltered, serverFilters, type FilterState, type Labels, type ServerFilters } from './query';
-import { filterActions, getFilterState, loadSavedFilterSettings } from './store';
+import { filterActions, getFilterState } from './store';
 
 const FIRST_PAGE = 500;
 const CHUNK = 1200;
@@ -16,7 +16,6 @@ declare global {
   interface Window {
     renderFiles?: (models: Model[]) => Promise<void>;
     syncSelectionWithFilteredModels?: (models: Model[]) => void;
-    gridRefresh?: { shouldHoldProgressiveRender?: (keep: boolean, modelsLength: number, shown: number, pageComplete: boolean) => boolean };
     _progressiveLibraryLoadActive?: boolean;
   }
 }
@@ -85,10 +84,10 @@ export async function runSearch(options: SearchOptions = {}): Promise<void> {
   const shownCount = grid && Array.isArray(grid.currentModels) ? grid.currentModels.length : 0;
   let scrollRestored = !grid;
   let renderedCount = 0;
-  const hold = window.gridRefresh?.shouldHoldProgressiveRender
-    || ((keep: boolean, length: number, shown: number, complete: boolean) => keep && !complete && length < shown);
   const renderPage = async (models: Model[], complete: boolean) => {
-    if (hold(!!options.preserveScroll, models.length, shownCount, complete)) return;
+    // Keeping the scroll position: a first page shorter than what is shown would collapse the
+    // grid and reset the scroll, so wait until the reload catches up.
+    if (options.preserveScroll && !complete && models.length < shownCount) return;
     await window.renderFiles?.(models);
     renderedCount = models.length;
     if (!scrollRestored && grid) {
@@ -150,26 +149,22 @@ export async function runSearch(options: SearchOptions = {}): Promise<void> {
 
 declare global {
   interface Window {
-    initializeCombinedSearch?: () => Promise<void>;
     clearAllLibraryFilters?: () => void;
     getCombinedFilteredModels?: (page?: { limit?: number; offset?: number }) => Promise<Model[]>;
-    searchIncludeNotesChecked?: () => boolean;
     setTagMultiFilter?: (names: string[]) => void;
     filamentLabelById?: Record<string, string>;
   }
 }
 
-// The page's search API (renderer.js, filament.js and the React dialogs call these).
+// The page's search API (the React dialogs and the library call these).
 if (typeof window !== 'undefined') installSearchGlobals();
 function installSearchGlobals() {
   window.performCombinedSearch = runSearch;
-  window.initializeCombinedSearch = loadSavedFilterSettings;
   window.clearAllLibraryFilters = () => filterActions.clearAll();
   window.getCombinedFilteredModels = fetchFilteredModels;
   window.getCurrentLibraryFilters = currentServerFilters;
   window.libraryFiltersAreActive = (filters) => payloadIsFiltered(filters ?? currentServerFilters());
   window.describeLibraryFilters = (filters) => describePayload(filters ?? currentServerFilters(), labels);
-  window.searchIncludeNotesChecked = () => getFilterState().includeNotes;
   window.setTagMultiFilter = (names) => filterActions.setTags(names);
 }
 
@@ -194,7 +189,7 @@ const SELECT_IDS: Record<string, (value: string) => void> = {
 
 declare global {
   interface Window {
-    /** The sidebar filters for renderer.js and the other page scripts. */
+    /** The sidebar filters for the rest of the page. */
     libraryFilters?: {
       state: () => FilterState;
       /** Reload the pickers' options (values were added, renamed or removed). */

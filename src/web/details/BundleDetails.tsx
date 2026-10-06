@@ -27,7 +27,7 @@ export interface BundleShow {
   containerPath: string;
 }
 
-/** What the bundle panel asks of renderer.js. */
+/** What the bundle panel asks of the library (library/hosts.ts). */
 export interface BundleHost {
   /** Show one model of the bundle in the details panel. */
   openModel(filePath: string): void;
@@ -42,7 +42,7 @@ export interface BundleHost {
 declare global {
   interface Window {
     bundleHost?: BundleHost;
-    /** The ZIP / folder bundle panel (renderer.js showBundleDetails drives it). */
+    /** The ZIP / folder bundle panel (library/details.ts drives it). */
     bundleDetails?: { show: (bundle: BundleShow) => void; clear: () => void; reloadOptions: () => void };
   }
 }

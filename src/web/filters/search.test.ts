@@ -11,9 +11,6 @@ function setupPage() {
   });
   vi.stubGlobal('window', {
     location: { href: 'http://test/', pathname: '/', search: '' },
-    gridRefresh: {
-      shouldHoldProgressiveRender: (keep: boolean, length: number, shown: number, complete: boolean) => keep && !complete && length < shown
-    },
     renderFiles: async (models: unknown[]) => {
       grid.scrollTop = 0;
       renders.push(models.length);

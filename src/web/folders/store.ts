@@ -129,7 +129,7 @@ export async function initFolderTree() {
 
 declare global {
   interface Window {
-    /** The folder tree for renderer.js: reload it after a scan, or show one folder in the grid. */
+    /** The folder tree for the rest of the page: reload it after a scan, or show one folder in the grid. */
     folderTree?: { refresh: () => Promise<void>; show: (directory: string) => Promise<void> };
   }
 }

@@ -4,7 +4,7 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js` and `thumbnail-progress.js` are removed.
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `renderer.js`, `filament.js`, `grid-refresh.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js`, `thumbnail-progress.js` and `vendor/fuse.min.js` are removed.
 
 **Changes:**
 - The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
@@ -22,6 +22,9 @@ All notable changes contributed via pull request are documented in this file.
 - The grid's toolbar (Detailed / Preview / List, the tile size, Show/Hide columns) and the list view's column header are React (`src/web/grid/`), with the column layout in a tested module (`columns.ts`). About 900 lines of `renderer.js` are gone. Columns are ordered with CSS instead of moving the rows' elements, which React owns.
 - The searchable list behind the ☰ buttons (designers, parent models, licenses, tags, filaments) is React (`src/web/components/ListPicker.tsx`), about 330 lines of `renderer.js` less.
 - The grid's model list, the bundle and parent-model groups, selection, the details and bundle panels, multi-edit mode and saving are TypeScript (`src/web/library/`), with the filter check after an edit and the path labels tested. About 2,300 lines of `renderer.js` are gone, along with code nothing called (group tag prompts, a per-card element index, field statistics nobody read).
+- `renderer.js` is gone. Its last part (startup, the theme, the update check, Print Roulette, Clear New Flag, Add Image, downloads, the server's thumbnail events, Puter.com AI and the progress dialog for backups and organizing) is TypeScript in `src/web/startup/`, `src/web/ai/` and `src/web/library/actions.ts`. Event forwarders for the old desktop menus, and handlers registered too late to ever run, are removed. Server events that arrive before the page has a listener for them now wait in `server-bridge.js` instead of being dropped.
+- Fixed: answering Yes to "Update Available" did nothing; it now opens the release page.
+- Fixed: the "Database Cleanup" message after a cleanup never showed (its handler read the message from the wrong argument).
 - Fixed: rendering a thumbnail for a ZIP entry left a temporary copy of the file on the server each time.
 - Fixed: the backup, restore and organize progress dialogs moved the sidebar's scan progress bar (both used the id `progress-bar`).
 - Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).

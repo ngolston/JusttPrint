@@ -10,7 +10,7 @@ interface NotesModel {
 
 declare global {
   interface Window {
-    /** The details panel's notes (renderer.js showModelDetails drives it). */
+    /** The details panel's notes (library/details.ts drives it). */
     detailsNotes?: { show: (model: NotesModel) => void; clear: () => void };
   }
 }

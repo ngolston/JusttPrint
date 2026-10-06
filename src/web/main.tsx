@@ -1,7 +1,6 @@
 /**
- * React screens, mounted into the existing page one at a time. Each screen replaces markup in
- * index.html and the matching code in renderer.js, and keeps the global function the rest of
- * the page calls to open it (window.openServerAccess, window.openTagManager, ...).
+ * The page's React screens and modules. Screens draw into slots in index.html (or into
+ * document.body) and register the global functions that open them (window.openTagManager, ...).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -21,6 +20,7 @@ import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { GridToolbar } from './grid/GridToolbar';
 import { LibraryGrid } from './grid/LibraryGrid';
 import { ListPicker } from './components/ListPicker';
+import { ServerProgressDialog } from './components/ServerProgressDialog';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
@@ -35,6 +35,9 @@ import './thumbnails';
 import './parse';
 import './filters/search';
 import './library/hosts';
+import './library/actions';
+import './ai/puter';
+import './startup/start';
 import { Sidebar } from './filters/Sidebar';
 import { SidebarActions } from './filters/SidebarActions';
 import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';
@@ -93,6 +96,7 @@ function Screens() {
       <Sidebar />
       <FolderTree />
       <ListPicker />
+      <ServerProgressDialog />
       <GridToolbar />
       <LibraryGrid />
       <DetailsFields />

@@ -7,6 +7,7 @@ import { callAction } from '../api';
 import { showMessage } from '../page';
 import { viewEntireLibrary } from '../filters/SidebarActions';
 import { scanDirectory } from '../scan/scan';
+import { clearNewFlags, printRoulette } from '../library/actions';
 
 export type MenuItem =
   | { kind: 'action'; label: string; run: () => void | Promise<void> }
@@ -23,7 +24,7 @@ const open = (name: string) => () => {
   const fn = (window as unknown as Record<string, unknown>)[name];
   if (typeof fn === 'function') return fn();
 };
-/** A page event for renderer.js ('regenerate-thumbnails', ...). */
+/** A page event ('regenerate-thumbnails', ...; thumbnails/jobs.ts listens). */
 const send = (channel: string) => () => window.electron?.send?.(channel);
 
 const action = (label: string, run: () => void | Promise<void>): MenuItem => ({ kind: 'action', label, run });
@@ -50,7 +51,7 @@ export const MENU: MenuGroup[] = [
       action('Scan Directory', () => scanDirectory()),
       action('View Entire Library', viewEntireLibrary),
       separator,
-      action('Print Roulette', send('start-print-roulette')),
+      action('Print Roulette', printRoulette),
       action('De-Dup', open('openDedup')),
       action('Organize Library', open('openOrganizeLibrary')),
       separator,
@@ -63,7 +64,7 @@ export const MENU: MenuGroup[] = [
       action('Tag Manager', open('openTagManager')),
       action('Metadata Manager', open('openMetadataEditor')),
       separator,
-      action('Clear New Flag', send('clear-new-flags')),
+      action('Clear New Flag', clearNewFlags),
       action('Regenerate Thumbnails', send('regenerate-thumbnails')),
       action('Generate Missing Thumbnails', send('generate-missing-thumbnails')),
       action('Purge Models', open('openPurgeModels')),

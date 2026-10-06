@@ -283,8 +283,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Serve static files from the application directory
   const appDir = path.join(__dirname, '..', '..');
-  // Ensure renderer.js, styles.css, images, and server-bridge.js are served
-  // Without this, the browser won't load app scripts and buttons won't work
 
   /** The page. index.html loads server-bridge.js itself; nothing is inlined (CSP script-src 'self'). */
   function sendIndexHtml(res) {

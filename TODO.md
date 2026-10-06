@@ -118,8 +118,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The grid toolbar (views, tile size, Show/Hide columns) and the list view's columns and header (`src/web/grid/`).
   - [x] The searchable list dialog (`src/web/components/ListPicker.tsx`).
   - [x] The grid's model list and groups, selection, the details and bundle panels, multi-edit mode and saving (`src/web/library/`).
-  - [ ] What is left in `renderer.js` (~2,600 lines): startup, and page event handlers (Clear New Flag, downloads, Add Image, Pull Metadata, thumbnail events, Puter AI and the like).
-  - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
+  - [x] Startup, the theme and the update check (`src/web/startup/`), Puter AI (`src/web/ai/`), and the page and server events (`src/web/library/actions.ts`, `components/ServerProgressDialog.tsx`). `renderer.js`, `filament.js` and `grid-refresh.js` are gone.
+  - [ ] The page scripts left: `server-bridge.js` (the WebSocket and in-page message dialogs; React screens could call the HTTP API and an in-page dialog component directly), `guide.js` (Quick Start Guide), `page-init.js`, `pwa.js`, `slicer-protocol.js`, `step-assembly.js` and `stl-sanity.js` (the last two are also used by the parse worker).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
   - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
@@ -132,11 +132,11 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
 - [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict.
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
-- [ ] **Retire `renderer.js`** (~25k lines): it goes away screen by screen through the React rewrite above, rather than being split into modules first.
+- [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
 
 ## 🟡 6. Medium: bugs, tests and CI
 
-- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuterJS` in [renderer.js](renderer.js)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
+- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuter` in [src/web/ai/puter.ts](src/web/ai/puter.ts)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.

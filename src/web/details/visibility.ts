@@ -1,6 +1,6 @@
 /**
  * Which details panel is showing (#model-details, #bundle-details or #multi-edit-panel) and
- * the model in #model-details. renderer.js shows and hides the panels with the `hidden`
+ * the model in #model-details. library/details.ts shows and hides the panels with the `hidden`
  * class and keeps the model's path on #path-tree-container; this watches both.
  */
 import { useSyncExternalStore } from 'react';

@@ -8,7 +8,7 @@ import { pickFromList, type ListField } from '../components/ListPicker';
 
 type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
 
-/** What the multi-edit panel asks of renderer.js, which owns the selection and the panel's visibility. */
+/** What the multi-edit panel asks of the library (library/hosts.ts), which owns the selection and the panel's visibility. */
 export interface MultiEditHost {
   /** The selected models' paths. */
   selectedPaths(): string[];
@@ -26,7 +26,7 @@ export interface MultiEditHost {
 declare global {
   interface Window {
     multiEditHost?: MultiEditHost;
-    /** The multi-edit panel's body (renderer.js drives it). */
+    /** The multi-edit panel's body (library/details.ts drives it). */
     multiEdit?: {
       /** The panel was shown: clear the form and load the pickers. */
       open: () => void;

@@ -11,7 +11,7 @@ import { BACKGROUND_PRIORITY, DroppedError, LOW_PRIORITY, RenderQueue } from './
 
 declare global {
   interface Window {
-    /** renderer.js: forget the cached images of bundle and parent-model cards. */
+    /** library/groups.ts: forget the cached images of bundle and parent-model cards. */
     invalidateGroupThumbnailCache?: () => void;
   }
 }

@@ -113,25 +113,14 @@ function onError(payload: { error?: string } | null) {
 
 declare global {
   interface Window {
-    _electronRealEventHandlers?: Record<string, (...args: any[]) => void>;
-    _electronPendingEvents?: Record<string, unknown[][]>;
     /** Theme settings: re-render every thumbnail after the model color or lighting changed. */
     regenerateAllThumbnails?: () => Promise<void>;
   }
 }
 
-/**
- * Handle a page event that renderer.js may have queued before this module loaded
- * (its early channel list); events that arrived meanwhile run now.
- */
+/** Handle a page or server event (the bridge holds events that came before this listener). */
 export function handlePageEvent(channel: string, handler: (...args: any[]) => void) {
-  const handlers = (window._electronRealEventHandlers ??= {});
-  handlers[channel] = handler;
-  const pending = window._electronPendingEvents?.[channel];
-  if (pending) {
-    delete window._electronPendingEvents![channel];
-    pending.forEach((args) => handler(...args));
-  }
+  window.electron?.on?.(channel, handler);
 }
 
 async function regenerate() {
