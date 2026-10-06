@@ -1932,8 +1932,10 @@ async function browserChecks(base, wsUrl, session) {
 
     // Organize Library (React): source picker, folder structure, preview, and a stale preview after a change. Not run.
     const savedLayers = (await invoke(base, session, 'get-setting', ['organizeLibraryLayers'])).result;
-    await page.evaluate(() => window.openOrganizeLibrary());
-    await page.waitForSelector('#organize-library-dialog[open]', { timeout: 10000 }).catch(() => {});
+    // A page on the desktop (#/organize); the Organize row in the sidebar opens it.
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Organize")');
+    await page.waitForSelector('#organize-library-page', { timeout: 10000 }).catch(() => {});
+    check('Organize opens the Organize Library page', /#\/organize$/.test(page.url()) && await page.isVisible('#organize-library-page h1:text-is("Organize Library")'));
     check('Organize Library lists the scanned folders', await page.isEnabled('#organize-source-button'));
     await page.click('#organize-source-button');
     await page.fill('#organize-source-search', 'zzz-no-match');
@@ -1951,8 +1953,8 @@ async function browserChecks(base, wsUrl, session) {
     await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-other');
     check('changing the job asks for a new preview', (await page.textContent('#organize-preview-summary')).includes('Preview again')
       && !(await page.isEnabled('#organize-confirm-button')));
-    await page.click('#organize-close-button');
-    check('Organize Library closes', !(await page.isVisible('#organize-library-dialog')));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('leaving the page closes Organize Library', await page.waitForSelector('#organize-library-page', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
     await invoke(base, session, 'save-setting', ['organizeLibraryLayers', savedLayers == null ? '' : savedLayers]);
 
     // De-Dup (React): a copy of cube.stl shows as a duplicate; Easy with a preferred directory keeps the original; Delete removes the copy.
@@ -1963,26 +1965,31 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'calculate-file-hash', [dedupOriginal]);
     await invoke(base, session, 'calculate-file-hash', [dedupCopy]);
     await page.click('.jp-sidebar .jp-nav__row:has-text("Duplicates")');
-    const copyRow = `#dedup-dialog input[data-filepath="${dedupCopy}"]`;
-    const originalRow = `#dedup-dialog input[data-filepath="${dedupOriginal}"]`;
+    const copyRow = `#dedup-page input[data-filepath="${dedupCopy}"]`;
+    const originalRow = `#dedup-page input[data-filepath="${dedupOriginal}"]`;
     const dedupGroup = await page.waitForSelector(copyRow, { timeout: 30000 }).catch(() => null);
-    check('De-Dup lists the duplicate pair', !!dedupGroup && await page.isVisible(originalRow));
+    check('Duplicates lists the pair side by side', !!dedupGroup && await page.isVisible(originalRow) && /#\/duplicates$/.test(page.url())
+      && (await page.locator(`#dedup-page .jp-dup-group:has(input[data-filepath="${dedupCopy}"]) .jp-dup-copy`).count()) === 2);
     check('De-Dup scope: entire library without filters', await page.isChecked('#dedup-scope-entire') && await page.isDisabled('#dedup-scope-current'));
     await page.fill('#dedup-preferred-directory-input', path.join(LIBRARY, 'Designer A'));
     await page.press('#dedup-preferred-directory-input', 'Enter');
     check('Easy with a preferred directory keeps the original', await page.isChecked(copyRow) && !(await page.isChecked(originalRow))
-      && (await page.locator('#dedup-dialog .preferred-directory-badge').count()) >= 2);
+      && (await page.locator('#dedup-page .preferred-directory-badge').count()) >= 2);
     check('De-Dup saves the preferred directory', (await invoke(base, session, 'get-setting', ['dedupPreferredDirectory'])).result === path.join(LIBRARY, 'Designer A'));
     await page.click('#dedup-clear-button');
     check('Clear unselects everything', !(await page.isChecked(copyRow)));
+    await page.click(`#dedup-page .jp-dup-copy:has(input[data-filepath="${dedupOriginal}"]) button:has-text("Keep this")`);
+    check('Keep this selects the other copy for deletion', await page.isChecked(copyRow) && !(await page.isChecked(originalRow)));
+    await page.click(`#dedup-page .jp-dup-group:has(input[data-filepath="${dedupCopy}"]) button:has-text("Keep all")`);
+    check('Keep all keeps every copy', !(await page.isChecked(copyRow)) && !(await page.isChecked(originalRow)));
     await page.check(copyRow);
     await page.click('#delete-selected');
     const confirmDedupDelete = await page.waitForSelector('dialog[open]:has-text("Confirm Delete") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
     if (confirmDedupDelete) await confirmDedupDelete.click();
     const copyGone = await page.waitForSelector(copyRow, { state: 'detached', timeout: 15000 }).then(() => true).catch(() => false);
     check('Delete Selected removes the copy from disk and the list', !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal));
-    await page.click('#close-dedup');
-    check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('leaving the page closes Duplicates', await page.waitForSelector('#dedup-page', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
     await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
     if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
 

@@ -13,7 +13,9 @@ import { filterActions } from '../filters/store';
 import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
 import { LibraryHeader } from '../pages/LibraryPage';
+import { DuplicatesPage } from '../pages/DuplicatesPage';
 import { FilamentPage } from '../pages/FilamentPage';
+import { OrganizePage } from '../OrganizeLibraryDialog';
 import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
 import { TagsPage } from '../pages/TagsPage';
@@ -169,7 +171,7 @@ function DetailsPlaceholder() {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
 /** Pages drawn over the library; Home and Library are the library screen (Home adds the dashboard on top). */
 const isOverlayPage = (page: PageId) => page !== 'home' && page !== 'library';
 
@@ -208,6 +210,8 @@ export function AppShell() {
           {page === 'printers' && <PrintersPage section={section} />}
           {page === 'filament' && <FilamentPage />}
           {page === 'tags' && <TagsPage />}
+          {page === 'duplicates' && <DuplicatesPage />}
+          {page === 'organize' && <OrganizePage />}
           {page === 'settings' && <SettingsPage section={section} />}
           {page === 'help' && <HelpPage />}
         </main>

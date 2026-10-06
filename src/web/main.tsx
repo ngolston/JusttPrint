@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
-import { DedupDialog } from './DedupDialog';
+import { DedupDialog } from './pages/DuplicatesPage';
 import { DesignGallery } from './design/Gallery';
 import { AppShell } from './shell/AppShell';
 import { BundleDetails } from './details/BundleDetails';

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { organize, settings, type OrganizeJob, type OrganizePreview, type OrganizeResult } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
+import { navigate } from './shell/routes';
 
 declare global {
   interface Window {
@@ -180,8 +181,12 @@ type PreviewState =
  * (Designer / Parent Model / ...), removing each original once its copy is checked. Preview
  * first; any change asks for a new preview. Registers window.openOrganizeLibrary.
  */
-export function OrganizeLibraryDialog() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+/**
+ * Organize Library: copy models from a scanned folder into a folder structure, removing each
+ * original after its copy is checked. Mounted while shown: as the #/organize page, or in the
+ * dialog on phones. `actions` places the Preview and Copy buttons.
+ */
+function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNode }) {
   const [sources, setSources] = useState<string[]>([]);
   const [root, setRoot] = useState('');
   const [sub, setSub] = useState('');
@@ -193,13 +198,16 @@ export function OrganizeLibraryDialog() {
   const [busy, setBusy] = useState(false);
   const runToken = useRef(0);
 
-  useEffect(() => exposeGlobal('openOrganizeLibrary', () => {
+  // Shown: read the saved layers and the scanned folders.
+  useEffect(() => {
+    let live = true;
     (async () => {
       const [stored, zip, list] = await Promise.all([
         settings.get<string | null>(LAYERS_SETTING).catch(() => null),
         settings.get<string | null>('enableZipArchives').catch(() => null),
         organize.sources().catch(() => [])
       ]);
+      if (!live) return;
       const saved = parseLayers(stored);
       if (saved) setLayers(saved);
       setZipEnabled(zip === '1');
@@ -208,9 +216,9 @@ export function OrganizeLibraryDialog() {
       setSources(dirs);
       setRoot((previous) => dirs.find((dir) => folderKey(dir) === folderKey(previous)) ?? dirs[0] ?? '');
       setState((previous) => (previous.kind === 'none' ? previous : { kind: 'stale' }));
-      if (!dialogRef.current?.open) dialogRef.current?.showModal();
     })();
-  }), []);
+    return () => { live = false; };
+  }, []);
 
   /** Any change to the job: the shown preview no longer applies. */
   function changed() {
@@ -283,15 +291,7 @@ export function OrganizeLibraryDialog() {
   })() : '';
 
   return (
-    <ModalDialog id="organize-library-dialog" title="Organize Library" dialogRef={dialogRef}
-      description={<p className="setting-description">Copy models from a scanned folder into the folders you choose. Each original is removed only after its copy is checked. Files that are not in the library stay where they are.</p>}
-      footer={(
-        <>
-          <button type="button" id="organize-preview-button" disabled={busy} onClick={runPreview}>Preview</button>
-          <button type="button" id="organize-confirm-button" disabled={!canConfirm} onClick={runOrganize}>Copy and remove originals</button>
-          <button type="button" id="organize-close-button" onClick={() => dialogRef.current?.close()}>Close</button>
-        </>
-      )}>
+    <>
       <div className="form-group">
         <label htmlFor="organize-source-button">Scanned directory</label>
         <SourcePicker sources={sources} value={root} onChange={chooseRoot} />
@@ -368,6 +368,55 @@ export function OrganizeLibraryDialog() {
           )}
         </div>
       )}
+      {actions(
+        <>
+          <button type="button" id="organize-preview-button" className="jp-btn jp-btn--secondary jp-btn--md" disabled={busy} onClick={runPreview}>Preview</button>
+          <button type="button" id="organize-confirm-button" className="jp-btn jp-btn--primary jp-btn--md" disabled={!canConfirm} onClick={runOrganize}>Copy and remove originals</button>
+        </>
+      )}
+    </>
+  );
+}
+
+const INTRO = 'Copy models from a scanned folder into the folders you choose. Each original is removed only after its copy is checked. Files that are not in the library stay where they are.';
+
+/** Organize Library as a page of the JusttPrint 5 shell (#/organize). */
+export function OrganizePage() {
+  return (
+    <div className="jp-page__inner jp-organize" id="organize-library-page">
+      <header className="jp-page__header">
+        <h1 className="jp-page-title">Organize Library</h1>
+        <p className="jp-meta">{INTRO}</p>
+      </header>
+      <div className="jp-card jp-organize__card">
+        <OrganizeLibrary actions={(buttons) => <div className="jp-organize__actions">{buttons}</div>} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The phone layout's Organize Library dialog (the shell, and so the page, comes to phones in
+ * Phase 12). window.openOrganizeLibrary opens the page on the desktop and this dialog on phones.
+ */
+export function OrganizeLibraryDialog() {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => exposeGlobal('openOrganizeLibrary', () => {
+    if (document.body.classList.contains('jp-shell-on')) {
+      navigate('organize');
+      return;
+    }
+    setOpen(true);
+    if (!dialogRef.current?.open) dialogRef.current?.showModal();
+  }), []);
+
+  return (
+    <ModalDialog id="organize-library-dialog" title="Organize Library" dialogRef={dialogRef} onClose={() => setOpen(false)}
+      description={<p className="setting-description">{INTRO}</p>}
+      footer={<button type="button" id="organize-close-button" onClick={() => dialogRef.current?.close()}>Close</button>}>
+      {open && <OrganizeLibrary actions={(buttons) => <div className="dialog-buttons">{buttons}</div>} />}
     </ModalDialog>
   );
 }

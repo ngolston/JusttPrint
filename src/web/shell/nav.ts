@@ -72,8 +72,8 @@ export const NAV: NavSection[] = [
     label: 'Manage',
     items: [
       { id: 'tags', label: 'Tags', icon: Tags, page: 'tags', replaces: ['Tag Manager'] },
-      { id: 'duplicates', label: 'Duplicates', icon: Copy, run: open('openDedup'), replaces: ['De-Dup'] },
-      { id: 'organize', label: 'Organize', icon: FolderTree, run: open('openOrganizeLibrary'), replaces: ['Organize Library'] },
+      { id: 'duplicates', label: 'Duplicates', icon: Copy, page: 'duplicates', replaces: ['De-Dup'] },
+      { id: 'organize', label: 'Organize', icon: FolderTree, page: 'organize', replaces: ['Organize Library'] },
       { id: 'scan', label: 'Scan Library', icon: ScanSearch, run: () => { void scanLibrary(); } },
       { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiConfig'), replaces: ['AI Config'] }
     ]
