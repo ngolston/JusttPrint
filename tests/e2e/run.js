@@ -1285,6 +1285,34 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#filament-manager-close');
     check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
 
+    // Filament page (React, src/web/pages/FilamentPage.tsx): spools, search, material, Show models, Remove.
+    const pageFilament = (await invoke(base, session, 'save-filament', [{ name: 'E2E Page Teal', vendor: 'E2E Vendor', material: 'PETG', color_hex: '00aaaa' }])).result;
+    const tealModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'update-models-batch', [[{ filePath: tealModel, filaments: [pageFilament.id] }]]);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    const tealCard = `.jp-spool-card[data-filament-id="${pageFilament.id}"]`;
+    check('the Filament page shows each filament as a spool with its use', /#\/filament$/.test(page.url())
+      && await page.waitForSelector(`${tealCard} :text("Used in 1 model")`, { timeout: 10000 }).then(() => true, () => false)
+      && await page.getAttribute(`${tealCard} .jp-spool circle:nth-of-type(2)`, 'fill') === '#00AAAA');
+    await page.fill('.jp-filament__search input', 'e2e vendor');
+    check('search narrows the spools', (await page.locator('.jp-spool-card').count()) === 1);
+    await page.fill('.jp-filament__search input', '');
+    await page.click('.jp-filament__materials .jp-chip:has-text("PETG")');
+    check('a material chip shows only that material', await page.isVisible(tealCard)
+      && !(await page.isVisible('.jp-spool-card:has(.jp-badge:text-is("PLA"))')));
+    await page.click(`${tealCard} button:has-text("Show models")`);
+    check('Show models opens the library filtered to that filament', await page.waitForFunction((id) => (window.libraryFilters.state().filaments || []).includes(String(id)), pageFilament.id, { timeout: 10000 }).then(() => true, () => false)
+      && /#\/library$/.test(page.url()));
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    await page.click(`${tealCard} button[aria-label^="Remove"]`);
+    const removeTeal = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+    if (removeTeal) await removeTeal.click();
+    check('Remove deletes the filament after asking', !!removeTeal
+      && await page.waitForSelector(tealCard, { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && !((await invoke(base, session, 'get-all-filaments')).result || []).some((f) => f.id === pageFilament.id));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+
     // Printer Manager (React): add, edit, maintenance reminders and log, delete.
     const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
     await page.evaluate(() => window.openPrinterManagement());

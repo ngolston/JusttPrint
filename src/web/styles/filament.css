@@ -1,0 +1,53 @@
+/* Filament page (pages/FilamentPage.tsx; spec §45). */
+
+.jp-filament { max-width: 1400px; }
+.jp-filament__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--jp-space-3) var(--jp-space-4); margin-bottom: var(--jp-space-4); }
+.jp-filament__search { width: min(100%, 360px); }
+.jp-filament__materials { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); }
+
+/* Filter chips (material) */
+.jp-chip {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-1);
+  color: var(--jp-text-2);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+  transition: background-color var(--jp-transition), border-color var(--jp-transition), color var(--jp-transition);
+}
+.jp-chip:hover { border-color: var(--jp-border-strong); color: var(--jp-text); }
+.jp-chip.is-selected { border-color: var(--jp-accent-border); background: var(--jp-accent-soft); color: var(--jp-text); }
+.jp-chip:focus-visible { box-shadow: var(--jp-focus-ring); }
+.jp-chip__count { color: var(--jp-text-3); font-size: var(--jp-text-small); }
+.jp-badge--accent { border-color: var(--jp-accent-border); color: var(--jp-accent); }
+
+/* Spool cards */
+.jp-spool-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--jp-space-4); }
+.jp-spool-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-1);
+  overflow: hidden;
+  transition: border-color var(--jp-transition);
+}
+.jp-spool-card:hover { border-color: var(--jp-border-strong); }
+.jp-spool-card__visual { display: flex; align-items: center; justify-content: center; height: 132px; background: var(--jp-preview-bg); }
+.jp-spool { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4)); }
+.jp-spool__flange { fill: #1d2a35; stroke: #2c3c49; stroke-width: 1.5; }
+.jp-spool__hub { fill: #22313d; stroke: #32444f; stroke-width: 1; }
+.jp-spool__hole { fill: var(--jp-preview-bg); }
+.jp-spool__unknown { fill: var(--jp-text-3); font: 600 14px var(--jp-font); }
+.jp-spool-card__body { display: flex; flex-direction: column; gap: var(--jp-space-1); flex: 1; padding: var(--jp-space-3) var(--jp-space-4) var(--jp-space-2); }
+.jp-spool-card__name { margin: 0; color: var(--jp-text); font-size: var(--jp-text-title); font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-spool-card__badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: var(--jp-space-1); }
+.jp-spool-card__usage { margin: 0; color: var(--jp-text-2); font-size: var(--jp-text-small); }
+.jp-spool-card__actions { display: flex; align-items: center; justify-content: space-between; gap: var(--jp-space-2); padding: 0 var(--jp-space-2) var(--jp-space-2) var(--jp-space-2); }

@@ -18,10 +18,19 @@ function getFilamentsForModel(modelId) {
 
 async function getAllFilamentsHandler() {
   try {
+    // Prints logged with each filament, and the last one (the Filament page's "last used").
+    const hasPrints = database.db.prepare(
+      "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('print_events', 'print_event_filaments')"
+    ).get().n === 2;
+    const printColumns = hasPrints
+      ? `(SELECT COUNT(*) FROM print_event_filaments pef WHERE pef.filament_id = f.id) AS print_count,
+        (SELECT MAX(pe.printed_at) FROM print_event_filaments pef JOIN print_events pe ON pe.id = pef.event_id WHERE pef.filament_id = f.id) AS last_used_at`
+      : '0 AS print_count, NULL AS last_used_at';
     return database.db.prepare(`
       SELECT
         f.id, f.name, f.vendor, f.material, f.color_hex, f.diameter, f.spoolman_id, f.source,
-        COUNT(DISTINCT mf.model_id) as model_count
+        COUNT(DISTINCT mf.model_id) as model_count,
+        ${printColumns}
       FROM filaments f
       LEFT JOIN model_filaments mf ON f.id = mf.filament_id
       GROUP BY f.id

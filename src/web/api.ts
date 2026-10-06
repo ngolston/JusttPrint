@@ -133,6 +133,9 @@ export interface Filament {
   spoolman_id: number | null;
   source: 'manual' | 'spoolman' | string;
   model_count: number;
+  /** Logged prints with this filament, and when the last one was (null when never). */
+  print_count?: number;
+  last_used_at?: string | null;
 }
 
 export interface FilamentInput {
