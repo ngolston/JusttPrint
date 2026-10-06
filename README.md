@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.6.1**
+**Version 4.6.2**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 

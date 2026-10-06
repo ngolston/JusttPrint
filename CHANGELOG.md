@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [4.6.2] - 2026-10-06
+
+**Upgrading:** no changes needed.
+
+**Changes:**
+- No part of JusttPrint may run code built from strings any more. The STEP/IGES importer (occt-import-js 0.0.23) is rebuilt with Emscripten's `-sDYNAMIC_EXECUTION=0`, so its JavaScript calls into WebAssembly through plain closures instead of `new Function`, and the model parse worker loses the `'unsafe-eval'` it was the only exception for. Meshes are identical to the npm build on upstream's 56 STEP and IGES test files. `scripts/build-occt-import-js.sh` repeats the build and `vendor/occt-import-js/BUILD.md` records the versions. A test parses STEP and IGES in Node with code generation from strings turned off.
+- The `occt-import-js` npm package is no longer installed (only a test used it; the browser always loaded the copy in `vendor/`).
+
 ## [4.6.1] - 2026-10-05
 
 **Upgrading:** no changes needed. The Docker image is unchanged from 4.6.0 (only a test changed).

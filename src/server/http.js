@@ -254,17 +254,14 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   // Behind a reverse proxy, req.ip (login rate limit) comes from X-Forwarded-For only when trusted.
   expressApp.set('trust proxy', parseTrustProxy(process.env.JUSTTPRINT_TRUST_PROXY));
   expressApp.use((req, res, next) => {
-    // Scripts only from this server's files: no inline <script>, onclick="" or eval. STEP previews
-    // compile a WebAssembly module, which needs 'wasm-unsafe-eval' (WebAssembly only, not JS eval).
-    // The model parse worker also gets 'unsafe-eval': the STEP library (occt-import-js, Emscripten
-    // embind) builds functions from strings. A worker runs under its own response's policy and
-    // has no access to the page, so the page itself stays strict. Puter.js runs only on its own
-    // sign-in popup (puter-signin.html), which hands the login token back to the page.
-    const scriptSrc = req.path === '/web-build/parse-worker.js'
-      ? "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'"
-      : req.path === '/puter-signin.html'
-        ? "script-src 'self' https://js.puter.com"
-        : "script-src 'self' 'wasm-unsafe-eval'";
+    // Scripts only from this server's files: no inline <script>, onclick="" or eval anywhere. STEP
+    // previews compile a WebAssembly module, which needs 'wasm-unsafe-eval' (WebAssembly only, not
+    // JS eval); the STEP library is built without dynamic JS (vendor/occt-import-js/BUILD.md).
+    // Puter.js runs only on its own sign-in popup (puter-signin.html), which hands the login token
+    // back to the page.
+    const scriptSrc = req.path === '/puter-signin.html'
+      ? "script-src 'self' https://js.puter.com"
+      : "script-src 'self' 'wasm-unsafe-eval'";
     res.setHeader('Content-Security-Policy', `${scriptSrc}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');

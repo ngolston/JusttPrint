@@ -197,7 +197,8 @@ async function apiChecks(base, wsUrl) {
   check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
   check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
-  check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
+  check('the parse worker may not eval either (STEP library built without it)', !/'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js'))
+    && /'wasm-unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
   check('library page does not allow Puter.js', !/js\.puter\.com/.test(await cspOf('/')));
   check('Puter sign-in page allows Puter.js only', /script-src 'self' https:\/\/js\.puter\.com;/.test(await cspOf('/puter-signin.html')));
   check('Puter sign-in page needs login', (await anon.request('/puter-signin.html')).status !== 200);
