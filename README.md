@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.4.0**
+**Version 4.5.0**
 
 JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -9,7 +9,7 @@ JusttPrint is a self-hosted web app for managing your 3D printing model collecti
 ## Features
 
 ### Core Functionality
-- **Directory Scanning**: Automatically scan and catalog STL and 3MF files (up to 50MB per file)
+- **Directory Scanning**: Automatically scan and catalog STL and 3MF files (up to 50MB per file); models without a thumbnail are then rendered on the server in the background
 - **3D Model Preview**: View thumbnails of your 3D models with customizable background colors
 - **File Management**: Quick access to file locations, delete files with database cleanup
 - **Database Backup & Restore**: Back up the library database and restore it from the browser; a restore checks the file first and keeps the previous database
@@ -583,7 +583,7 @@ A single path still works (`STL_HOME=/mnt/network-share/models`). For several di
 #### How It Works in Docker
 
 - **On Container Startup**: When the JusttPrint container starts, it automatically scans every STL Home directory that is configured
-- **Periodic Scanning**: The container scans each STL Home directory at the configured interval
+- **Periodic Scanning**: The container scans each STL Home directory at the configured interval (a changed interval applies from the next scan), and open pages refresh when it finds new models
 - **Path Requirements**: 
   - Must use Linux-style absolute paths starting with `/`
   - Path must correspond to a mounted volume in your Docker configuration

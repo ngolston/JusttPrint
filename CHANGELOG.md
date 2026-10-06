@@ -2,7 +2,7 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [4.5.0] - 2026-10-05
 
 **Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `renderer.js`, `filament.js`, `grid-refresh.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js`, `thumbnail-progress.js` and `vendor/fuse.min.js` are removed.
 
