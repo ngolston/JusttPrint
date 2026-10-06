@@ -34,7 +34,7 @@ const TOOL_DEFINITIONS = [
         },
         directory: { type: 'string', description: 'Filter to models under this directory path' },
         fileType: { type: 'string', description: 'File type filter such as stl, 3mf, zip, obj, step' },
-        printed: { type: 'string', description: 'Print status filter (unprinted, printed, want, queued, printing, failed, ever-printed, never-printed, or all)' },
+        printed: { type: 'string', description: 'Print status filter (unprinted, printed, want, queued, printing, failed, ever-printed, never-printed, in-queue (queued or printing), or all)' },
         limit: { type: 'integer', description: 'Max results (default 50, max 500)' },
         offset: { type: 'integer', description: 'Result offset for pagination' }
       }

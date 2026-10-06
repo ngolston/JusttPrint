@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, dedupeModels, normalizePath, scrollTopForSelection,
-  viewMetrics, visibleRows, type DisplayRecord, type GridModel, type Layout
+  viewMetrics, visibleRows, CARD, cardPreviewHeight, type DisplayRecord, type GridModel, type Layout
 } from './layout';
 
 const none = { bundles: new Set<string>(), parentModels: new Set<string>() };
@@ -76,11 +76,16 @@ describe('layout', () => {
     expect(layout.rows.map((row) => row.type)).toEqual(['group', 'models']);
   });
 
-  it('works out detailed columns and centers them', () => {
-    const metrics = viewMetrics({ view: 'detailed', width: 1000, previewSize: 'm', mobileColumns: 0 });
-    expect([metrics.columns, metrics.centeredOffset]).toEqual([3, (960 - 940) / 2]);
-    const row = buildLayoutRows(five, 3, 'detailed', 490, 450, 10, 20).rows[0];
-    expect(cellPosition(row, 2, metrics, 'detailed')).toEqual({ top: 10, left: 2 * 320 + 20 + 10, width: 300, height: 490 });
+  it('fits as many card columns as the width allows and stretches them to fill it', () => {
+    // 1536 px window beside the 220 px sidebar and the 360 px details panel: four cards (spec §16).
+    const metrics = viewMetrics({ view: 'detailed', width: 1536 - 220 - 360, previewSize: 'm', mobileColumns: 0 });
+    expect(metrics.columns).toBe(4);
+    expect(metrics.cellWidth).toBe(Math.floor((956 - 48 - 3 * 16) / 4));
+    expect(metrics.cellHeight).toBe(cardPreviewHeight(metrics.cellWidth) + CARD.footer);
+    const row = buildLayoutRows(five, 4, 'detailed', metrics.cellHeight, metrics.groupHeight, metrics.paddingVertical, metrics.verticalGap).rows[0];
+    expect(cellPosition(row, 3, metrics, 'detailed')).toEqual({ top: CARD.paddingTop, left: 24 + 3 * (metrics.cellWidth + 16), width: metrics.cellWidth, height: metrics.cellHeight });
+    expect(viewMetrics({ view: 'detailed', width: 1536 - 220, previewSize: 'm', mobileColumns: 0 }).columns).toBe(5);
+    expect(viewMetrics({ view: 'detailed', width: 150, previewSize: 'm', mobileColumns: 0 }).columns).toBe(1);
   });
 
   it('scales preview tiles to fill the width with a fixed column count', () => {

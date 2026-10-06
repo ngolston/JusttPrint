@@ -13,6 +13,7 @@ import { askText, onServerEvent, showMessage } from '../page';
 import { invalidateThumbnail } from '../thumbnails/cache';
 import { startThumbnailJob } from '../thumbnails/jobs';
 import { stlHomeDirectories } from './stlHome';
+import { navigate } from '../shell/routes';
 
 export interface ScanProgress {
   /** "Checking files: 120", then "Saving models: 40 / 120". */
@@ -107,6 +108,7 @@ export async function scanFolders(dirs: string[], options: { stlHome?: boolean }
   if (failures.length) await showMessage('Scan Error', `Some folders could not be scanned:\n\n${failures.join('\n')}`);
   if (found > 0 && await showMessage('New Models Found', `${found} new model(s) found, would you like to see them?`, ['Yes', 'No']) === 'Yes') {
     filterActions.showAddedSince(started);
+    navigate('library');
   }
   invalidateThumbnail();
   await refreshLibraryViews();

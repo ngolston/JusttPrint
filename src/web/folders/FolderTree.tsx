@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { FolderTree as FolderTreeIcon } from 'lucide-react';
 import { getFilterState, subscribeFilters } from '../filters/store';
 import { FOLDERS, SIDEBAR, getWidth, loadSavedWidths, startResize } from './layout';
 import { folderTreeActions, getFolderTreeState, initFolderTree, showFolder, subscribeFolderTree } from './store';
@@ -183,7 +184,8 @@ function FolderRail({ rail, toggleSlot }: { rail: HTMLElement; toggleSlot: HTMLE
       )}
       {toggleSlot && createPortal(
         <button type="button" id="folder-rail-toggle" className={`folder-rail-toggle${railOpen ? ' active' : ''}`} title="Show folder tree beside the grid"
-          onClick={() => folderTreeActions.setRailOpen(!railOpen)}>
+          aria-pressed={railOpen} onClick={() => folderTreeActions.setRailOpen(!railOpen)}>
+          <FolderTreeIcon className="folder-rail-toggle__icon" size={16} aria-hidden="true" />
           <span>Folders</span>
         </button>,
         toggleSlot

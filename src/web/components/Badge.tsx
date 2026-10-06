@@ -9,7 +9,7 @@ export function Badge({ children, className, title }: { children: ReactNode; cla
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
 
-const TONE_ICONS: Record<StatusTone, LucideIcon> = {
+export const TONE_ICONS: Record<StatusTone, LucideIcon> = {
   success: CheckCircle2,
   warning: Clock,
   danger: XCircle,

@@ -148,7 +148,7 @@ function sanitizeSearchTokensForCompile(raw) {
       if (!kind || !['designer', 'license', 'parentModel', 'tag', 'filament', 'fileType', 'printed', 'isNew', 'favorite', 'rating', 'ratingMin'].includes(kind)) continue;
       const valRaw = String(x.value != null ? x.value : '').trim();
       if (kind === 'printed') {
-        const allowed = ['printed', 'not-printed', 'unprinted', 'want', 'queued', 'printing', 'failed', 'ever-printed', 'never-printed'];
+        const allowed = ['printed', 'not-printed', 'unprinted', 'want', 'queued', 'printing', 'failed', 'ever-printed', 'never-printed', 'in-queue'];
         if (!allowed.includes(valRaw)) continue;
         out.push({ t: 'filter', kind, value: valRaw });
       } else if (kind === 'isNew') {

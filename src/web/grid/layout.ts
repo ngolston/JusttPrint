@@ -295,6 +295,16 @@ export interface ViewMetrics {
 }
 
 const DETAILED = { width: 300, height: 490, groupHeight: 450 };
+
+/**
+ * JusttPrint 5 model cards on the desktop (spec §16): as many columns of at least minWidth as
+ * fit (four at 1536 px beside the details panel), stretched to fill the row. The preview is
+ * previewRatio of the card's width; the footer holds the title, designer and badges.
+ */
+export const CARD = { minWidth: 200, gap: 16, padding: 24, paddingTop: 4, footer: 96, previewRatio: 0.75 };
+
+/** Preview height of a card of the given width. */
+export const cardPreviewHeight = (cellWidth: number) => Math.round(cellWidth * CARD.previewRatio);
 const LIST_ROW = { height: 52, gap: 4, headerOffset: 40 };
 const MOBILE_LIST_ROW = { height: 64, gap: 12, headerOffset: 52 };
 
@@ -328,14 +338,13 @@ export function viewMetrics({ view, width, previewSize, mobileColumns }: ViewOpt
       paddingVertical: 8, paddingHorizontal: pad, verticalGap: gap, horizontalGap: gap, centeredOffset: 0, headerOffset: 0
     };
   }
-  const paddingHorizontal = 20;
-  const gap = 20;
-  const available = width - paddingHorizontal * 2;
-  const columns = Math.max(Math.floor(available / DETAILED.width), 1);
-  const used = columns * DETAILED.width + (columns - 1) * gap;
+  const available = Math.max(0, width - CARD.padding * 2);
+  const columns = Math.max(1, Math.floor((available + CARD.gap) / (CARD.minWidth + CARD.gap)));
+  const cellWidth = Math.max(1, Math.floor((available - CARD.gap * (columns - 1)) / columns));
+  const cellHeight = cardPreviewHeight(cellWidth) + CARD.footer;
   return {
-    columns, cellWidth: DETAILED.width, cellHeight: DETAILED.height, groupHeight: DETAILED.groupHeight,
-    paddingVertical: 10, paddingHorizontal, verticalGap: gap, horizontalGap: gap, centeredOffset: (available - used) / 2, headerOffset: 0
+    columns, cellWidth, cellHeight, groupHeight: cellHeight,
+    paddingVertical: CARD.paddingTop, paddingHorizontal: CARD.padding, verticalGap: CARD.gap, horizontalGap: CARD.gap, centeredOffset: 0, headerOffset: 0
   };
 }
 

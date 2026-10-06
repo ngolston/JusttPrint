@@ -16,10 +16,19 @@ const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
   "CASE WHEN models.thumbnail IS NOT NULL AND models.thumbnail != '' AND models.thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
   "CASE WHEN models.thumbnail IS NOT NULL AND INSTR(models.thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
 
-const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
+/**
+ * The material of the model's first filament (in the details panel's order) that has one, for
+ * the card's material badge.
+ */
+const MODEL_LIST_MATERIAL =
+  "(SELECT f.material FROM model_filaments mf JOIN filaments f ON f.id = mf.filament_id " +
+  "WHERE mf.model_id = models.id AND f.material IS NOT NULL AND TRIM(f.material) != '' " +
+  'ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE LIMIT 1) AS filamentMaterial';
+
+const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}, ${MODEL_LIST_MATERIAL}`;
 
 const MODEL_LIST_COLUMNS_QUALIFIED =
-  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
+  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}, ${MODEL_LIST_MATERIAL}`;
 
 function getModelByFilePath(filePath, { includeThumbnail = false } = {}) {
   if (!database.db || !filePath) return null;

@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, ChevronDown, CircleUserRound } from 'lucide-react';
+import { Box, ChevronDown, CircleUserRound, MousePointerClick } from 'lucide-react';
 import { LIBRARY_CHANGED, library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
-import { ProgressBar } from '../components/Panel';
+import { EmptyState, ProgressBar } from '../components/Panel';
 import { SearchBox, shortcutLabel } from '../components/SearchBox';
+import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
+import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
 import { HomePage } from '../pages/HomePage';
+import { LibraryHeader } from '../pages/LibraryPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { useAdopt } from './adopt';
 import { useLayout } from './layout';
 import { ACCOUNT, NAV, type NavItem } from './nav';
 import { navigate, useRoute, type PageId } from './routes';
@@ -91,6 +95,9 @@ function NavRow({ item, active, badge }: { item: NavItem; active: boolean; badge
 function Sidebar({ page }: { page: PageId }) {
   const counts = useLibraryData<LibraryCounts>(library.counts);
   const queue = counts ? counts.queued + counts.printing : 0;
+  // Scan and thumbnail job progress (src/web/scan/Progress.tsx), above Library Storage.
+  const [jobs, setJobs] = useState<HTMLDivElement | null>(null);
+  useAdopt('#sidebar-progress-slot', jobs);
   return (
     <nav className="jp-sidebar" aria-label="Main">
       <button type="button" className="jp-brand" onClick={() => navigate('home')} aria-label="JusttPrint home">
@@ -112,6 +119,7 @@ function Sidebar({ page }: { page: PageId }) {
           </div>
         ))}
       </div>
+      <div className="jp-jobs" ref={setJobs} />
       <StorageIndicator />
     </nav>
   );
@@ -144,7 +152,7 @@ function TopBar() {
     const query = text.trim();
     if (!query) return;
     navigate('library');
-    filterActions.search('all', query);
+    applyFilterChange(() => filterActions.search('all', query));
     setText('');
   }
 
@@ -166,14 +174,30 @@ function TopBar() {
   );
 }
 
+/** The details column with nothing selected (spec §49: never a blank panel). */
+function DetailsPlaceholder() {
+  const [slot] = useState(() => document.querySelector<HTMLElement>('.sidebar'));
+  const visibility = useDetailsVisibility();
+  if (!slot || detailsAreOpen(visibility)) return null;
+  return createPortal(
+    <div className="jp jp-details-empty">
+      <EmptyState icon={MousePointerClick} title="No model selected">
+        Click a model to see its details here. Ctrl/⌘-click or Shift-click several to edit them together.
+      </EmptyState>
+    </div>,
+    slot
+  );
+}
+
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
 const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', settings: 'Settings', help: 'Help' };
 
 /**
- * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library is still the
- * old grid and sidebar, shifted right of the shell by src/web/styles/legacy-bridge.css; other
- * pages cover it. Phones keep the old phone layout until Phase 12.
+ * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the
+ * grid (src/web/grid/) under its header (pages/LibraryPage.tsx), with the old sidebar's details
+ * panels as the right column, placed by src/web/styles/legacy-bridge.css; other pages cover it.
+ * Phones keep the old phone layout until Phase 12.
  */
 export function AppShell() {
   const { mobile } = useLayout();
@@ -195,6 +219,8 @@ export function AppShell() {
     <div className="jp jp-shell">
       <Sidebar page={page} />
       <TopBar />
+      <LibraryHeader />
+      <DetailsPlaceholder />
       {page !== 'library' && (
         <main className="jp-page" aria-label={PAGE_TITLES[page]}>
           {page === 'home' && <HomePage />}

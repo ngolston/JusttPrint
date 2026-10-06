@@ -57,6 +57,12 @@ export const filterActions = {
     userChange({ ...state, [key]: value || (key === 'fileType' ? '' : 'all') });
   },
 
+  /** A library tab (library/tabs.ts): print status and favorite together, in one search. */
+  setTab(printed: string, favorite: string) {
+    if (state.printed === printed && state.favorite === favorite) return;
+    userChange({ ...state, printed, favorite });
+  },
+
   /** Designer, license or parent model select (one value, or '' for all). */
   setValue(kind: 'designer' | 'license' | 'parentModel', value: string) {
     if (value) {

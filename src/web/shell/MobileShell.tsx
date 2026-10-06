@@ -5,7 +5,7 @@ import { hideDetailsPanels, useDetailsVisibility } from '../details/visibility';
 import { useModelCounts, plural } from '../filters/counts';
 import { filterStrip, type StripItem } from '../filters/query';
 import { labels, runSearch } from '../filters/search';
-import { applyFilterChange } from '../filters/Sidebar';
+import { applyFilterChange } from '../filters/search';
 import { filterActions, getFilterState, subscribeFilters } from '../filters/store';
 import { folderTreeActions, getFolderTreeState, subscribeFolderTree } from '../folders/store';
 import { findNode, folderName } from '../folders/tree';

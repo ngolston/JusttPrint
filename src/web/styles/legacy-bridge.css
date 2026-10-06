@@ -1,8 +1,10 @@
 /*
  * The old library screens inside the JusttPrint 5 shell (body.jp-shell-on, set by AppShell on
  * desktop). The old layout positions itself against the window: a 30px menu bar, the sidebar at
- * the left, the grid after it. These rules move it right of the new sidebar and below the new
- * top bar. Removed with the old screens in Phase 14.
+ * the left, the grid after it. In the shell the grid sits right of the new sidebar under the
+ * library header, and the old sidebar, now holding only the details panels (its filters moved
+ * to the Filter popover, its job progress to the new sidebar), is the details column on the
+ * right (spec §20). Removed with the old screens in Phase 14.
  */
 /* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
 html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 8px); }
@@ -10,37 +12,58 @@ html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 
 body.jp-shell-on {
   --jp-legacy-left: var(--jp-sidebar-width);
   --jp-legacy-top: var(--jp-topbar-height);
+  --jp-legacy-right: var(--jp-details-width);
   padding-top: var(--jp-legacy-top) !important;
+  background: var(--jp-bg);
 }
 
-/* The new sidebar and top bar replace the menu bar and the old logo. */
+/* The new sidebar and top bar replace the menu bar, the old logo and the sidebar's tool buttons;
+   the details column has a fixed width (no resize handle). */
 body.jp-shell-on #server-menu-bar,
-body.jp-shell-on #logo { display: none !important; }
+body.jp-shell-on #logo,
+body.jp-shell-on .sidebar-chrome,
+body.jp-shell-on .grid-view-selector-background,
+body.jp-shell-on .sidebar-resize-handle { display: none !important; }
 
 body.server-mode.jp-shell-on .sidebar {
   top: var(--jp-legacy-top) !important;
-  left: var(--jp-legacy-left) !important;
+  left: auto !important;
+  right: 0;
+  width: var(--jp-legacy-right);
   height: calc(100vh - var(--jp-legacy-top)) !important;
+  padding-top: 0;
+  border-right: 0;
+  border-left: 1px solid var(--jp-border);
+  background: var(--jp-bg-2);
 }
-
-body.jp-shell-on .sidebar-resize-handle,
-body.server-mode.jp-shell-on .sidebar-resize-handle {
-  top: var(--jp-legacy-top);
-  left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px) - 8px);
-  height: calc(100vh - var(--jp-legacy-top));
-}
+body.jp-shell-on .sidebar::after { flex-basis: var(--jp-space-4); }
 
 body.jp-shell-on .folder-rail,
 body.server-mode.jp-shell-on .folder-rail {
   top: var(--jp-legacy-top);
-  left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px));
+  left: var(--jp-legacy-left);
   height: calc(100vh - var(--jp-legacy-top));
+  background: var(--jp-bg-2);
+  border-right-color: var(--jp-border);
 }
 
 body.jp-shell-on .grid-view-selector,
 body.jp-shell-on .file-grid,
 body.jp-shell-on .file-grid.preview-wall {
-  margin-left: calc(var(--jp-legacy-left) + var(--sidebar-width, 350px) + 20px + var(--folder-rail-width, 0px));
-  width: calc(100% - (var(--jp-legacy-left) + var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
-  max-width: calc(100vw - (var(--jp-legacy-left) + var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  margin-left: calc(var(--jp-legacy-left) + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
+  max-width: calc(100vw - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
+}
+
+body.jp-shell-on .grid-view-selector {
+  display: block;
+  padding: 0;
+  background: var(--jp-bg);
+}
+
+body.jp-shell-on .file-grid {
+  padding: 0;
+  background: var(--jp-bg);
+  background-image: none;
+  animation: none;
 }

@@ -196,6 +196,8 @@ export function LibraryGrid() {
   const shown = visibleRows(layout, scrollTop, viewportHeight, buffer);
   const indexByKey = new Map(records.map((record, index) => [record.key, index]));
 
+  // Desktop grid view: the JusttPrint 5 cards, all the row's height.
+  const tile = view === 'detailed' && host.mobileColumns() === 0;
   const cells = content ? shown.flatMap((row) => row.records.map((record, column) => {
     const index = indexByKey.get(record.key) ?? -1;
     const position = cellPosition(row, column, metrics, view);
@@ -204,12 +206,12 @@ export function LibraryGrid() {
       return (
         <ModelCard key={`${generation}:${view}:${record.key}`} host={host} model={record.model} view={view} layoutKey={record.key}
           index={index} parentGroupKey={record.parentGroupKey} bandClasses={groupBandClasses(records, index)} position={position}
-          fixedHeight={view === 'preview' || (view === 'detailed' && metrics.columns > 0 && host.mobileColumns() > 0)} priority={priority} />
+          fixedHeight={view === 'preview' || view === 'detailed'} priority={priority} tile={tile} />
       );
     }
     return (
       <GroupCard key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
-        position={position} fixedHeight={view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0)} />
+        position={position} fixedHeight={view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0) || tile} tile={tile} />
     );
   })) : null;
 

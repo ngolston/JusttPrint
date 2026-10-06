@@ -24,7 +24,8 @@ const FILTER_LABELS: Record<string, string> = {
   printing: 'Printing',
   failed: 'Failed',
   'ever-printed': 'Ever printed',
-  'never-printed': 'Never printed'
+  'never-printed': 'Never printed',
+  'in-queue': 'In queue'
 };
 
 export const OUTCOME_LABELS: Record<string, string> = {
@@ -106,6 +107,7 @@ export function modelMatchesPrintFilter(model: PrintModel, value: string | null 
   if (v === 'not-printed') return !printed;
   if (v === 'ever-printed') return count > 0;
   if (v === 'never-printed') return count === 0;
+  if (v === 'in-queue') return status === 'queued' || status === 'printing';
   if ((STATUSES as readonly string[]).includes(v)) return status === v;
   return true;
 }

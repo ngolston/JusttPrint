@@ -18,6 +18,11 @@ import { navigate, type PageId } from './routes';
 
 /** Run an old menu action by its label, looked up when clicked. */
 const menu = (label: string) => () => { void findMenuAction(label)?.(); };
+/** An old menu action that changes what the library shows: show the library, then run it. */
+const inLibrary = (label: string) => () => {
+  navigate('library');
+  menu(label)();
+};
 /** Call a screen's global (window.openX), if that screen is loaded. */
 const open = (name: string) => () => {
   const fn = (window as unknown as Record<string, unknown>)[name];
@@ -49,10 +54,10 @@ async function scanLibrary() {
   else await scanDirectory();
 }
 
-/** The queue until it has its own page (Phase 6): the library filtered to Queued. */
+/** The queue until it has its own page (Phase 6): the library's Queue tab (Queued and Printing). */
 function showQueue() {
   navigate('library');
-  filterActions.setSingle('printed', 'queued');
+  filterActions.setTab('in-queue', 'all');
 }
 
 export const NAV: NavSection[] = [
@@ -115,8 +120,8 @@ export const SETTINGS: SettingsGroup[] = [
   { id: 'library', label: 'Library', items: [
     { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'] },
     { id: 'stats', label: 'Library Stats', description: 'Model counts, sizes and how complete the metadata is.', icon: Database, run: menu('Library Stats'), replaces: ['Library Stats'] },
-    { id: 'entire', label: 'View Entire Library', description: 'Clear every filter and show all models.', icon: Library, run: menu('View Entire Library'), replaces: ['View Entire Library'] },
-    { id: 'roulette', label: 'Print Roulette', description: 'Pick random models to print.', icon: Shuffle, run: menu('Print Roulette'), replaces: ['Print Roulette'] },
+    { id: 'entire', label: 'View Entire Library', description: 'Clear every filter and show all models.', icon: Library, run: inLibrary('View Entire Library'), replaces: ['View Entire Library'] },
+    { id: 'roulette', label: 'Print Roulette', description: 'Pick random models to print.', icon: Shuffle, run: inLibrary('Print Roulette'), replaces: ['Print Roulette'] },
     { id: 'clear-new', label: 'Clear New Flag', description: 'Mark every model as seen.', icon: RotateCcw, run: menu('Clear New Flag'), replaces: ['Clear New Flag'] },
     { id: 'purge', label: 'Purge Models', description: 'Remove models of chosen file types from the library.', icon: Trash2, run: menu('Purge Models'), replaces: ['Purge Models'], danger: true }
   ] },

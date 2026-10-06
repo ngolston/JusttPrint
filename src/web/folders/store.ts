@@ -100,7 +100,10 @@ export const folderTreeActions = {
     set({ popoverOpen: open });
   },
 
-  /** Expand the tree down to a model's folder and scroll to it (in the rail, or else the popover). */
+  /**
+   * Expand the tree down to a model's folder and scroll to it: in the rail when it is open or the
+   * JusttPrint 5 shell is shown (its folder panel), else in the popover (phone layout).
+   */
   async reveal(filePath: string) {
     const dir = directoryOfFile(filePath).replace(/::$/, '');
     if (!dir) return;
@@ -109,7 +112,9 @@ export const folderTreeActions = {
     const expanded = new Set(state.expanded);
     found?.ancestors.forEach((node) => expanded.add(node.path));
     if (found) expanded.add(found.node.path);
-    set({ expanded, reveal: found?.node.path ?? dir, revealSeq: state.revealSeq + 1, popoverOpen: !state.railOpen });
+    const inRail = state.railOpen || document.body.classList.contains('jp-shell-on');
+    if (inRail && !state.railOpen) settings.save(RAIL_SETTING, 'true').catch(() => {});
+    set({ expanded, reveal: found?.node.path ?? dir, revealSeq: state.revealSeq + 1, railOpen: inRail || state.railOpen, popoverOpen: !inRail });
   }
 };
 

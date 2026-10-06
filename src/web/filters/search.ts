@@ -77,6 +77,13 @@ export interface SearchOptions {
   preserveScroll?: boolean;
 }
 
+/** A filter change from the page: apply it, clear the selection and search again. */
+export function applyFilterChange(change: () => void) {
+  change();
+  window.sidebarHost?.resetSelection();
+  void runSearch({ force: true });
+}
+
 export async function runSearch(options: SearchOptions = {}): Promise<void> {
   if (inProgress && !options.force) return;
   const grid = options.preserveScroll ? document.querySelector<HTMLElement & { currentModels?: Model[] }>('.file-grid') : null;
