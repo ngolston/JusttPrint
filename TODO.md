@@ -136,7 +136,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟡 6. Medium: bugs, tests and CI
 
-- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuter` in [src/web/ai/puter.ts](src/web/ai/puter.ts)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
+- [x] **Puter.com AI could not load Puter.js** (the CSP blocked `js.puter.com`). Puter.js now runs only on its own sign-in popup ([puter-signin.html](puter-signin.html)), which hands the login to the page ([src/web/ai/puterAuth.ts](src/web/ai/puterAuth.ts)); the library page's CSP is unchanged.
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.

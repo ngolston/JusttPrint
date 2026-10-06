@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to Puter - JusttPrint</title>
+  <!--
+    The only page allowed to run Puter.js (its Content Security Policy adds https://js.puter.com;
+    src/server/http.js). The library page opens it in a popup and receives the Puter login token.
+  -->
+  <style>
+    body { font-family: system-ui, sans-serif; background: #12122a; color: #e8e8f0; margin: 0; padding: 32px 24px; text-align: center; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    p { font-size: 14px; line-height: 1.5; color: #b8b8cc; max-width: 360px; margin: 0 auto 20px; }
+    button { font-size: 15px; padding: 10px 22px; border: 0; border-radius: 6px; background: #00bcd4; color: #0a0a1a; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #status { margin-top: 18px; min-height: 20px; }
+    #status.error { color: #ff8a80; }
+  </style>
+  <script src="https://js.puter.com/v2/"></script>
+  <script src="puter-signin.js" defer></script>
+</head>
+<body>
+  <h1>Sign in to Puter</h1>
+  <p>JusttPrint uses your Puter.com account for AI tagging. Usage counts against your Puter account.</p>
+  <button type="button" id="puter-signin-button">Sign in with Puter</button>
+  <p id="status" role="status"></p>
+</body>
+</html>

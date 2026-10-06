@@ -106,6 +106,30 @@ function defaultModelForService(service) {
   return 'gpt-4o-mini';
 }
 
+/** OpenAI reasoning models (gpt-5 family, o1/o3/o4): no custom temperature, and hidden reasoning uses up the reply limit. */
+function isReasoningModel(model) {
+  return /^(openai\/)?(gpt-5|o\d)/i.test(String(model || '').trim());
+}
+
+/**
+ * The reply limit and temperature a request may send, by service and model. OpenAI only takes
+ * max_completion_tokens from its newer models (older ones accept it too); Claude and local servers
+ * take max_tokens; Gemini's OpenAI layer gets neither (it can answer 400 with no body).
+ */
+function completionOptions(service, model, { maxTokens, temperature } = {}) {
+  const options = {};
+  if (service === 'gemini') {
+    if (temperature !== undefined) options.temperature = temperature;
+    return options;
+  }
+  const reasoning = isReasoningModel(model);
+  // Reasoning tokens count against the limit; too small a limit leaves an empty answer.
+  const limit = reasoning ? Math.max(maxTokens || 0, 4000) : maxTokens;
+  if (limit) options[service === 'openai' || reasoning ? 'max_completion_tokens' : 'max_tokens'] = limit;
+  if (temperature !== undefined && !reasoning) options.temperature = temperature;
+  return options;
+}
+
 // Helper function to introduce a delay
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -471,8 +495,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       // Gemini's OpenAI-compatible endpoint can return 400 with no body when given
       // max_tokens or response_format (e.g. in Docker or behind proxies). Use minimal payload for Gemini.
       // Claude's OpenAI-compatible layer ignores response_format; omit it to avoid 400s.
-      const isGemini = currentService === 'gemini';
-      const isClaude = currentService === 'claude';
+      const requestModel = model || defaultModelForService(currentService);
       const createPayload = {
         messages: [{
           role: "user",
@@ -481,14 +504,12 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
             { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } }
           ]
         }],
-        model: model || defaultModelForService(currentService),
-        temperature: 0.3 // Lower temperature for more consistent JSON output
+        model: requestModel,
+        // Lower temperature for more consistent JSON output (where the model allows it).
+        ...completionOptions(currentService, requestModel, { maxTokens: useJsonResponse ? 1000 : 300, temperature: 0.3 })
       };
-      if (!isGemini) {
-        createPayload.max_tokens = useJsonResponse ? 1000 : 300;
-        if (!isClaude) {
-          createPayload.response_format = useJsonResponse ? { type: "json_object" } : undefined;
-        }
+      if (currentService !== 'gemini' && currentService !== 'claude' && useJsonResponse) {
+        createPayload.response_format = { type: "json_object" };
       }
 
       const completion = await openaiClient.chat.completions.create(createPayload);
@@ -705,10 +726,8 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     const payload = {
       messages: [{ role: 'user', content: 'test' }],
       model: testModel,
+      ...completionOptions(isGemini ? 'gemini' : normalizedService, testModel, { maxTokens: 50 })
     };
-    if (!isGemini) {
-      payload.max_tokens = 50;
-    }
     console.log('[AITagging] Testing AI configuration with text-only request for service:', normalizedService, 'model:', testModel);
     const completion = await openaiClient.chat.completions.create(payload);
 
@@ -738,5 +757,6 @@ module.exports = {
   normalizeTag,
   deduplicateTags,
   getDefaultPrompt,
-  requiresApiKey
+  requiresApiKey,
+  completionOptions
 };
