@@ -64,7 +64,7 @@ export const NAV: NavSection[] = [
     label: 'Printing',
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
-      { id: 'printers', label: 'Printers', icon: Printer, run: open('openPrinterManagement'), replaces: ['Printer Manager'] },
+      { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
       { id: 'filament', label: 'Filament', icon: Cable, run: open('openFilamentManager'), replaces: ['Filament Manager'] }
     ]
   },
@@ -127,7 +127,7 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'slicers', label: 'Slicers', description: 'Slicers for Send to Slicer, and the helper for this computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'] }
   ] },
   { id: 'printers', label: 'Printers', items: [
-    { id: 'printers', label: 'Printer Manager', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: menu('Printer Manager') },
+    { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers') },
     { id: 'parts', label: 'Parts Manager', description: 'Spare parts stock for your printers.', icon: Package, run: menu('Parts Manager'), replaces: ['Parts Manager'] }
   ] },
   { id: 'filament', label: 'Filament', items: [

@@ -159,7 +159,7 @@ function Hero({ counts, activity }: { counts: LibraryCounts | null; activity: Ac
           <StatCard icon={Box} tone="accent" value={figure(counts?.models)} label="Models" onClick={() => showTab('all')} />
           <StatCard icon={CheckCircle2} tone="success" value={figure(counts?.printed)} label="Printed" onClick={() => showTab('printed')} />
           <StatCard icon={Clock} tone="warning" value={figure(counts ? counts.queued + counts.printing : undefined)} label="In Queue" onClick={() => showTab('queue')} />
-          <StatCard icon={PrinterIcon} tone="violet" value={figure(counts?.printers)} label="Printers" onClick={() => window.openPrinterManagement?.()} />
+          <StatCard icon={PrinterIcon} tone="violet" value={figure(counts?.printers)} label="Printers" onClick={() => navigate('printers')} />
         </div>
       </div>
       <HeroPicture />
@@ -234,10 +234,10 @@ function PrinterRow({ printer }: { printer: Printer }) {
   return (
     <li className="jp-printer">
       <span className="jp-printer__icon"><PrinterIcon size={20} aria-hidden="true" /></span>
-      <span className="jp-printer__text">
+      <button type="button" className="jp-printer__text" onClick={() => navigate('printers', String(printer.id))} title={`Show ${printer.nickname}`}>
         <span className="jp-printer__name">{printer.nickname}</span>
         {kind && <span className="jp-printer__meta">{kind}</span>}
-      </span>
+      </button>
       {due > 0
         ? <StatusBadge tone="warning" icon={Wrench}>Maintenance due</StatusBadge>
         : <span className="jp-printer__prints">{prints.toLocaleString()} {prints === 1 ? 'print' : 'prints'}</span>}
@@ -252,13 +252,13 @@ function PrinterRow({ printer }: { printer: Printer }) {
 }
 
 function YourPrinters({ list }: { list: Printer[] | null }) {
-  const manage = () => window.openPrinterManagement?.();
+  const manage = () => navigate('printers');
   return (
     <Panel title="Your Printers" labelledBy="jp-printers-title" className="jp-home__panel" action={{ label: 'Manage', onClick: manage }}>
       {!list ? (
         <div className="jp-home__skeleton"><Skeleton height={36} /><Skeleton height={36} /><Skeleton height={36} /></div>
       ) : !list.length ? (
-        <EmptyState icon={PrinterIcon} title="No printers yet" action={<Button icon={PrinterIcon} onClick={manage}>Add a Printer</Button>}>
+        <EmptyState icon={PrinterIcon} title="No printers yet" action={<Button icon={PrinterIcon} onClick={() => window.openPrinterManagement?.({ action: 'add' })}>Add a Printer</Button>}>
           Add your printers to keep their web pages and maintenance in one place.
         </EmptyState>
       ) : (

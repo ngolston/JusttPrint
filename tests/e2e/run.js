@@ -1341,9 +1341,37 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#printer-management-close');
     check('Printer Manager closes', !(await page.isVisible('#printer-management-dialog')));
 
+    // Printers page (React, src/web/pages/PrintersPage.tsx): cards, the selected printer, Edit, a reminder, Delete.
+    const pagePrinter = (await invoke(base, session, 'save-printer', [{ nickname: 'E2E Page Printer', manufacturer: 'Prusa', model: 'MK4', webUrl: 'mk4.local' }])).result;
+    await invoke(base, session, 'save-printer-reminder', [{ printerId: pagePrinter.id, title: 'E2E clean nozzle', maintenanceType: 'Cleaning', dueDate: new Date(Date.now() - 86400000).toISOString(), intervalDays: 0, notes: null }]);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Printers")');
+    const pageCard = '.jp-printer-card:has-text("E2E Page Printer")';
+    check('the Printers page lists the printer with its maintenance due', /#\/printers/.test(page.url())
+      && await page.waitForSelector(`${pageCard} :text("Maintenance due")`, { timeout: 10000 }).then(() => true, () => false));
+    await page.click(pageCard);
+    check('selecting a printer shows its details and web page', await page.waitForSelector('.jp-printer-detail__name:text-is("E2E Page Printer")', { timeout: 10000 }).then(() => true, () => false)
+      && await page.getAttribute('#jp-printer-open-web', 'href') === 'http://mk4.local' && new RegExp(`#/printers/${pagePrinter.id}$`).test(page.url()));
+    await page.click('.jp-printer-detail__actions button:has-text("Edit")');
+    check('Edit opens the Printer Manager form for that printer', await page.waitForFunction(() => document.getElementById('printer-form-title')?.textContent === 'Edit Printer: E2E Page Printer', null, { timeout: 10000 }).then(() => true, () => false));
+    await page.click('#printer-management-close');
+    await page.click('.jp-printer-detail__item:has-text("E2E clean nozzle") button:has-text("Done")');
+    const doneAsk = await page.waitForSelector('dialog.browser-input-dialog[open] button[type=submit]', { timeout: 10000 }).catch(() => null);
+    if (doneAsk) await doneAsk.click();
+    const completedLog = await waitFor(async () => (((await invoke(base, session, 'get-printer-maintenance-logs', [pagePrinter.id])).result || []).length ? true : null), 10000, 'reminder done').catch(() => false);
+    check('Done completes a reminder and logs it', !!doneAsk && completedLog === true
+      && await page.waitForSelector('.jp-printer-detail__list--log :text("E2E clean nozzle")', { timeout: 10000 }).then(() => true, () => false));
+    await page.click('.jp-printer-detail__actions button:has-text("Delete")');
+    const deleteAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Delete Printer") button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+    if (deleteAsk) await deleteAsk.click();
+    check('Delete removes the printer after asking', !!deleteAsk
+      && await waitFor(async () => (!((await invoke(base, session, 'get-all-printers')).result || []).some((p) => p.id === pagePrinter.id) ? true : null), 10000, 'printer deleted').then(() => true, () => false)
+      && await page.waitForSelector(pageCard, { state: 'detached', timeout: 10000 }).then(() => true, () => false));
+
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
     // Opened from Settings in the JusttPrint 5 shell (src/web/shell/AppShell.tsx, src/web/pages/SettingsPage.tsx).
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.waitForSelector('.jp-page', { state: 'detached', timeout: 5000 }).catch(() => {});
     await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
     await page.waitForSelector('.jp-page h1:text-is("Settings")', { timeout: 5000 }).catch(() => {});
     check('the sidebar opens Settings and marks it as the current page', /#\/settings$/.test(page.url())

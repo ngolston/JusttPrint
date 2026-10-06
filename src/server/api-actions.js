@@ -163,7 +163,7 @@ const ACTIONS = {
   'get-library-storage': [],
   'get-library-counts': [],
   'get-recent-activity': ['number?'],
-  'get-recent-prints': ['number?', 'string?'],
+  'get-recent-prints': ['number?', 'string?', 'number?'],
   'get-gpu-info': [],
   'benchmark-filesystem': [],
   'benchmark-database': []

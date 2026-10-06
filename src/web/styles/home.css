@@ -109,7 +109,9 @@
 }
 .jp-printer + .jp-printer { border-top: 1px solid var(--jp-border); border-radius: 0; }
 .jp-printer__icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--jp-radius-md); background: var(--jp-surface-2); color: var(--jp-text-2); }
-.jp-printer__text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.jp-printer__text { all: unset; display: flex; flex-direction: column; flex: 1; min-width: 0; cursor: pointer; }
+.jp-printer__text:hover .jp-printer__name { text-decoration: underline; }
+.jp-printer__text:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: var(--jp-radius-sm); }
 .jp-printer__name { font-size: var(--jp-text-ui); font-weight: 500; color: var(--jp-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jp-printer__meta { font-size: var(--jp-text-small); color: var(--jp-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jp-printer__prints { flex: none; font-size: var(--jp-text-small); color: var(--jp-text-3); }

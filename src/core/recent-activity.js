@@ -14,8 +14,11 @@ function time(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
-/** The latest logged prints, newest first; only one outcome when given ('printed', 'failed', 'cancelled'). */
-function recentPrints(db, limit = 8, outcome = null) {
+/**
+ * The latest logged prints, newest first; only one outcome when given ('printed', 'failed',
+ * 'cancelled'), only one printer's when printerId is given.
+ */
+function recentPrints(db, limit = 8, outcome = null, printerId = null) {
   if (!tableExists(db, 'print_events')) return [];
   const max = Math.max(1, Math.min(200, Number(limit) || 8));
   const hasPrinters = tableExists(db, 'printers');
@@ -25,15 +28,25 @@ function recentPrints(db, limit = 8, outcome = null) {
         JOIN filaments f ON f.id = pef.filament_id WHERE pef.event_id = ?
         ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE`)
     : null;
+  const where = [];
+  const params = [];
+  if (outcome) {
+    where.push('pe.outcome = ?');
+    params.push(String(outcome));
+  }
+  if (printerId != null) {
+    where.push('pe.printer_id = ?');
+    params.push(Number(printerId));
+  }
   const rows = db.prepare(`
     SELECT pe.id, pe.printed_at, pe.outcome, pe.quantity, m.filePath, m.fileName
       ${hasPrinters ? ', p.nickname AS printer' : ', NULL AS printer'}
     FROM print_events pe
     JOIN models m ON m.id = pe.model_id
     ${hasPrinters ? 'LEFT JOIN printers p ON p.id = pe.printer_id' : ''}
-    ${outcome ? 'WHERE pe.outcome = ?' : ''}
+    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY datetime(pe.printed_at) DESC, pe.id DESC
-    LIMIT ?`).all(...(outcome ? [String(outcome), max] : [max]));
+    LIMIT ?`).all(...params, max);
   return rows.map((row) => ({
     kind: 'print',
     id: row.id,

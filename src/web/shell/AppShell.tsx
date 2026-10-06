@@ -13,6 +13,7 @@ import { filterActions } from '../filters/store';
 import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
 import { LibraryHeader } from '../pages/LibraryPage';
+import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAdopt } from './adopt';
@@ -166,9 +167,9 @@ function DetailsPlaceholder() {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', settings: 'Settings', help: 'Help' };
 /** Pages drawn over the library; Home and Library are the library screen (Home adds the dashboard on top). */
-const isOverlayPage = (page: PageId) => page === 'queue' || page === 'settings' || page === 'help';
+const isOverlayPage = (page: PageId) => page !== 'home' && page !== 'library';
 
 /**
  * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the
@@ -202,6 +203,7 @@ export function AppShell() {
       {isOverlayPage(page) && (
         <main className="jp-page" aria-label={PAGE_TITLES[page]}>
           {page === 'queue' && <QueuePage />}
+          {page === 'printers' && <PrintersPage section={section} />}
           {page === 'settings' && <SettingsPage section={section} />}
           {page === 'help' && <HelpPage />}
         </main>

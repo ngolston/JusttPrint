@@ -67,3 +67,10 @@ test('recent prints can be limited to one outcome', () => {
   assert.deepStrictEqual(recentPrints(db, 10, 'printed').map((p) => p.id), [1]);
   assert.deepStrictEqual(recentPrints(createDb({ prints: false }), 10), []);
 });
+
+test('recent prints can be limited to one printer', () => {
+  const { recentPrints } = require('../src/core/recent-activity');
+  const db = createDb();
+  assert.deepStrictEqual(recentPrints(db, 10, null, 1).map((p) => p.id), [1]);
+  assert.deepStrictEqual(recentPrints(db, 10, 'failed', 1), []);
+});

@@ -164,7 +164,9 @@ export interface Printer {
   web_url: string | null;
   notes: string | null;
   total_prints?: number;
+  last_printed_at?: string | null;
   due_reminders_count?: number;
+  created_at?: string;
 }
 
 export interface PrinterInput {
@@ -246,7 +248,8 @@ export const library = {
   counts: () => callAction<LibraryCounts>('get-library-counts'),
   activity: (limit?: number) => callAction<ActivityItem[]>('get-recent-activity', ...(limit == null ? [] : [limit])),
   /** Logged prints, newest first; only one outcome when given. */
-  recentPrints: (limit: number, outcome?: string) => callAction<PrintActivity[]>('get-recent-prints', limit, ...(outcome ? [outcome] : []))
+  recentPrints: (limit: number, outcome?: string | null, printerId?: number) =>
+    callAction<PrintActivity[]>('get-recent-prints', limit, ...(printerId != null ? [outcome || '', printerId] : outcome ? [outcome] : []))
 };
 
 /** Dashboard Recent Activity (src/core/recent-activity.js), newest first. */
