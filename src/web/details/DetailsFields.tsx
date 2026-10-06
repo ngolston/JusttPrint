@@ -222,7 +222,7 @@ export function DetailsFields() {
         <label>Tags:</label>
         <div className="tags-container">
           <div className="tags-input-container">
-            <select id="tag-select" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
+            <select id="tag-select" aria-label="Add a tag" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
               <option value="">Select a tag...</option>
               {options.tags.filter((tag) => !tags.includes(tag)).map((tag) => <option key={tag} value={tag}>{tag}</option>)}
             </select>

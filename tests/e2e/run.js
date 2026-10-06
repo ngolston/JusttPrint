@@ -1524,6 +1524,67 @@ async function browserChecks(base, wsUrl, session) {
     const storageText = await page.textContent('.jp-storage').catch(() => '');
     check('the sidebar shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
 
+    // Keyboard (spec §37): the skip link, a card as one Tab stop, Enter selects, focus follows the arrows.
+    await page.evaluate(() => { window.location.hash = '#/library'; });
+    await page.click('.view-button[data-view="detailed"]');
+    await page.waitForSelector('.file-grid .jp-model-card', { timeout: 10000 }).catch(() => {});
+    await page.evaluate(() => { window.selection.clear(); document.activeElement?.blur(); });
+    // The first element in Tab order (DOM order, tabbable, not inert or hidden).
+    const firstStop = await page.evaluate(() => {
+      const candidates = [...document.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')];
+      const tabbable = candidates.find((el) => el.tabIndex >= 0 && !el.disabled && !el.closest('[inert], [hidden], dialog:not([open])')
+        && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none');
+      return tabbable?.textContent?.trim() || tabbable?.outerHTML.slice(0, 80);
+    });
+    await page.focus('.jp-skip');
+    await page.keyboard.press('Enter');
+    const skipped = await page.evaluate(() => !!document.activeElement?.matches('.file-grid .jp-model-card'));
+    check('the first Tab stop is Skip to content, and it jumps to the first model', firstStop === 'Skip to content' && skipped, String(firstStop));
+    await page.keyboard.press('Enter');
+    const keyboardSelected = await page.waitForFunction(() => document.activeElement?.matches('.jp-model-card.selected')
+      && document.activeElement.getAttribute('aria-label')?.endsWith('selected'), null, { timeout: 10000 }).then(() => true, () => false);
+    check('Enter on a focused card selects it and opens its details', keyboardSelected
+      && await page.waitForFunction(() => !!document.querySelector('#model-details .jp-details__title')?.textContent?.trim(), null, { timeout: 10000 }).then(() => true, () => false),
+      JSON.stringify(await page.evaluate(() => ({ active: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label'),
+        selected: document.querySelectorAll('.file-item.selected').length, panels: ['model-details', 'multi-edit-panel', 'bundle-details'].filter((id) => !document.getElementById(id)?.classList.contains('hidden')) }))));
+    const focusedBefore = await page.evaluate(() => document.activeElement?.getAttribute('data-filepath'));
+    await page.keyboard.press('ArrowDown');
+    check('the arrow keys move the selection and the focus with it', await page.waitForFunction((before) => {
+      const el = document.activeElement;
+      return !!el && el.matches('.jp-model-card.selected') && el.getAttribute('data-filepath') !== before;
+    }, focusedBefore, { timeout: 10000 }).then(() => true, () => false));
+    await page.keyboard.press('Escape');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).catch(() => {});
+    const inertState = await page.evaluate(() => {
+      const card = document.querySelector('.file-grid .file-item');
+      card?.focus();
+      return { card: !!card, focusedCard: document.activeElement === card, inert: !!document.querySelector('.file-grid')?.closest('[inert]'), hash: location.hash, dialogs: [...document.querySelectorAll('dialog[open]')].map((d) => d.id) };
+    });
+    check('a page covers the grid for the keyboard too (inert)', inertState.card && !inertState.focusedCard && inertState.inert, JSON.stringify(inertState));
+
+    // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
+    const auditContext = await browser.newContext({ viewport: { width: 1400, height: 900 }, bypassCSP: true, storageState: await page.context().storageState() });
+    const audit = await auditContext.newPage();
+    const axeProblems = [];
+    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/filament', '#/tags', '#/settings', '#/help']) {
+      await audit.goto(`${base}/${hash}`);
+      await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
+      await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
+      if (hash === '#/library') {
+        await audit.click('.file-grid .file-item .file-name').catch(() => {});
+        await audit.waitForSelector('#model-details .jp-details__title', { timeout: 10000 }).catch(() => {});
+      }
+      await audit.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
+      const found = await audit.evaluate(async () => {
+        const result = await window.axe.run({ include: [['.jp-shell'], ['.grid-view-selector'], ['.file-grid'], ['#model-details']] }, { resultTypes: ['violations'] });
+        return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`);
+      });
+      axeProblems.push(...found.map((problem) => `${hash} ${problem}`));
+    }
+    check('no serious or critical accessibility problems (axe) on the main pages', axeProblems.length === 0, axeProblems.slice(0, 6).join(' | '));
+    await auditContext.close();
+
     // Phone layout (spec §36; src/web/shell/AppShell.tsx, styles/responsive.css), same session at phone size.
     const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       storageState: await page.context().storageState() })).newPage();

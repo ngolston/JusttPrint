@@ -26,6 +26,7 @@
 .jp-chip.is-selected { border-color: var(--jp-accent-border); background: var(--jp-accent-soft); color: var(--jp-text); }
 .jp-chip:focus-visible { box-shadow: var(--jp-focus-ring); }
 .jp-chip__count { color: var(--jp-text-3); font-size: var(--jp-text-small); }
+.jp-chip.is-selected .jp-chip__count { color: var(--jp-text-2); }
 .jp-badge--accent { border-color: var(--jp-accent-border); color: var(--jp-accent); }
 
 /* Spool cards */

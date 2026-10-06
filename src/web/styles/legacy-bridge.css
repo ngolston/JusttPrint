@@ -55,6 +55,9 @@ body.jp-shell-on .file-grid.preview-wall {
   max-width: calc(100vw - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
 }
 
+/* The old stylesheet positions the `main` element this replaced. */
+.library-main { position: relative; }
+
 body.jp-shell-on .grid-view-selector {
   display: block;
   padding: 0;

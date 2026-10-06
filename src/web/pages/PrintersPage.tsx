@@ -147,7 +147,7 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
         <Button variant="ghost" icon={Trash2} onClick={remove} aria-label={`Delete ${printer.nickname}`}>Delete</Button>
       </div>
 
-      <section className="jp-printer-detail__section" aria-label="Details">
+      <section className="jp-printer-detail__section">
         <h3 className="jp-details__heading">Details</h3>
         <div className="jp-props">
           <Prop label="Type">{printer.printer_type || '—'}</Prop>
@@ -159,7 +159,7 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
         </div>
       </section>
 
-      <section className="jp-printer-detail__section" aria-label="Maintenance">
+      <section className="jp-printer-detail__section">
         <div className="jp-printer-detail__section-head">
           <h3 className="jp-details__heading">Maintenance</h3>
           <button type="button" className="jp-link" onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>Schedule or log</button>
@@ -203,7 +203,7 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
         )}
       </section>
 
-      <section className="jp-printer-detail__section" aria-label="Recent prints">
+      <section className="jp-printer-detail__section">
         <h3 className="jp-details__heading">Recent prints</h3>
         {!detail ? <Skeleton height={36} /> : !detail.prints.length ? (
           <p className="jp-printer-detail__empty">No prints logged on this printer yet. Pick it when you log a print.</p>

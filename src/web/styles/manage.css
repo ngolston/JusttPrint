@@ -164,3 +164,6 @@
 }
 .jp-organize .organize-source-button:hover { border-color: var(--jp-border-strong); }
 .jp-organize .organize-source-menu { border: 1px solid var(--jp-border-strong); border-radius: var(--jp-radius-md); background: var(--jp-surface-1); box-shadow: var(--jp-shadow-pop); }
+
+.jp-dup-more { display: flex; flex-direction: column; justify-content: center; gap: 4px; flex: 0 0 200px; padding: var(--jp-space-4); border: 1px dashed var(--jp-border-strong); border-radius: var(--jp-radius-md); color: var(--jp-text-2); font-size: var(--jp-text-meta); }
+.jp-dup-more strong { color: var(--jp-text); }

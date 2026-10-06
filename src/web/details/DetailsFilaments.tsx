@@ -96,7 +96,7 @@ export function DetailsFilaments() {
       <label>Filament:</label>
       <div className="tags-container">
         <div className="tags-input-container">
-          <select id="filament-select" value="" onChange={(e) => add(Number(e.target.value))}>
+          <select id="filament-select" aria-label="Add a filament" value="" onChange={(e) => add(Number(e.target.value))}>
             <option value="">Select a filament...</option>
             {available.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
           </select>

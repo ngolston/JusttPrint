@@ -204,8 +204,8 @@ button.jp-tag__label:hover { color: var(--jp-text); }
   transition: background-color var(--jp-transition), color var(--jp-transition), border-color var(--jp-transition);
 }
 .jp-tab:hover { color: var(--jp-text); border-color: var(--jp-border-strong); background: var(--jp-surface-2); }
-.jp-tab.is-selected:hover { background: var(--jp-accent-hover); color: var(--jp-text); }
-.jp-tab.is-selected { background: var(--jp-accent); border-color: var(--jp-accent); color: var(--jp-text); font-weight: 600; }
+.jp-tab.is-selected:hover { background: var(--jp-accent-hover); color: var(--jp-on-accent); }
+.jp-tab.is-selected { background: var(--jp-accent); border-color: var(--jp-accent); color: var(--jp-on-accent); font-weight: 600; }
 
 /* Menu (spec §38 Dropdown) */
 .jp-menu-anchor { position: relative; display: inline-flex; }
@@ -281,3 +281,23 @@ button.jp-tag__label:hover { color: var(--jp-text); }
 .jp-gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--jp-space-4); }
 .jp-gallery__stack { display: flex; flex-direction: column; gap: var(--jp-space-2); }
 .jp-gallery__search { max-width: 640px; }
+
+/* Skip link (spec §37): hidden until focused. */
+.jp-skip {
+  position: fixed;
+  top: var(--jp-space-2);
+  left: var(--jp-space-2);
+  z-index: 2000;
+  padding: var(--jp-space-2) var(--jp-space-4);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+  font: 600 var(--jp-text-ui) var(--jp-font);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.jp-skip:focus { transform: none; outline: none; box-shadow: var(--jp-focus-ring); }
+.jp-page:focus { outline: none; }
+
+/* Show more under a long list (components/ShowMore.tsx). */
+.jp-show-more { display: flex; justify-content: center; padding: var(--jp-space-4) 0; }

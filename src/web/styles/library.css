@@ -624,3 +624,8 @@ body.jp-shell-on .file-grid .file-item-list {
 body.jp-shell-on .file-grid .file-item-list:hover { transform: none; border-color: var(--jp-border-strong); background: var(--jp-surface-2); box-shadow: none; }
 body.jp-shell-on .file-grid .file-item-list.selected { outline: none; border-color: var(--jp-accent); background: var(--jp-surface-2); }
 body.jp-shell-on .file-grid .file-item-list .thumbnail-container { border-radius: var(--jp-radius-sm); }
+
+/* Keyboard focus on a card, a row or a tile (spec §37: visible focus). */
+.file-grid .file-item:focus { outline: none; }
+.file-grid .file-item:focus-visible,
+.file-grid .file-item.jp-model-card:focus-visible { outline: 2px solid var(--jp-accent); outline-offset: 2px; }

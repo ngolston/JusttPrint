@@ -29,9 +29,11 @@
 
 
 <body class="server-mode">
+  <!-- The React screens and the JusttPrint 5 shell (src/web/main.tsx). First, so the skip link and navigation come first in the Tab order. -->
+  <div id="react-root"></div>
   <!-- Phone layout: overlay, app bar, bottom nav and More sheet: React (src/web/shell/MobileShell.tsx) -->
   <div id="mobile-shell-slot" style="display: contents"></div>
-  <div class="sidebar">
+  <div class="sidebar" role="complementary" aria-label="Model details">
     <!-- Phone layout: the Filters sheet header: React (src/web/shell/MobileShell.tsx) -->
     <div id="mobile-drawer-slot" style="display: contents"></div>
     <div class="sidebar-chrome">
@@ -119,7 +121,8 @@
   <div id="sidebar-resize-slot" style="display: contents"></div>
   <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden></aside>
   <div class="main-content">
-    <main>
+    <!-- The library's main landmark; it is a plain region while a page covers it (src/web/shell/AppShell.tsx). -->
+    <div class="library-main" id="library-content" role="main" aria-label="Model library">
       <div class="grid-view-selector-background"></div>
       <div class="grid-view-selector">
         <div id="folder-rail-toggle-slot" style="display: contents"></div>
@@ -286,7 +289,7 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
 
 
 
-    </main>
+    </div>
   </div>
   <div id="loading-overlay">
     <div class="spinner">
@@ -306,7 +309,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
   <script src="pwa.js"></script>
 
   <!-- React screens (src/web/, mounted by main.tsx) -->
-  <div id="react-root"></div>
   <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>
 </body>

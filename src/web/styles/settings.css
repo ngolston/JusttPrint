@@ -86,3 +86,35 @@
 .jp-settings-embed dialog.is-embedded .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) { width: 100%; }
 .jp-settings-embed dialog.is-embedded input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
 .jp-settings-embed dialog.is-embedded textarea { background-image: none !important; }
+/* The older forms' hint texts in readable contrast (spec §37). */
+.jp-settings-embed dialog.is-embedded p,
+.jp-settings-embed dialog.is-embedded small,
+.jp-settings-embed dialog.is-embedded .setting-description,
+.jp-settings-embed dialog.is-embedded .stl-home-path-intro { color: var(--jp-text-2); }
+/* STL Home dims its folder-path options while they are off: dim the controls, keep the explanations readable. */
+.jp-settings-embed .stl-home-path-metadata-options.grayed { opacity: 1; }
+.jp-settings-embed .stl-home-path-metadata-options.grayed :is(select, input, label) { opacity: 0.5; }
+.jp-settings-embed .stl-home-path-metadata-options.grayed .path-example { opacity: 1; color: var(--jp-text-2); }
+
+/* The older forms' buttons in the new look: secondary, the first footer button primary (readable on cyan). */
+.jp-settings-embed dialog.is-embedded button:not(.icon-button):not(.jp-btn):not(.jp-icon-btn):not(.modal-fullscreen-icon-btn) {
+  width: auto;
+  height: var(--jp-control-height);
+  margin: 0;
+  padding: 0 var(--jp-space-4);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font: 500 var(--jp-text-ui) var(--jp-font);
+  box-shadow: none;
+}
+.jp-settings-embed dialog.is-embedded button:not(.icon-button):not(.jp-btn):not(.jp-icon-btn):hover:not(:disabled) { background: var(--jp-surface-hover); border-color: var(--jp-border-strong); transform: none; }
+.jp-settings-embed dialog.is-embedded .dialog-buttons > button:first-child:not(.icon-button) { background: var(--jp-accent); border-color: var(--jp-accent); color: var(--jp-on-accent); }
+.jp-settings-embed dialog.is-embedded .dialog-buttons > button:first-child:not(.icon-button):hover:not(:disabled) { background: var(--jp-accent-hover); }
+.jp-settings-embed dialog.is-embedded button:disabled { opacity: 0.5; }
+/* Buttons the older stylesheet styles by id (they outrank the class rules above). */
+.jp-settings-embed #stl-home-dialog.is-embedded #save-stl-home-button { border-color: var(--jp-accent); background: var(--jp-accent); color: var(--jp-on-accent); }
+.jp-settings-embed #slicer-dialog.is-embedded .slicer-list-actions .full-width-button,
+.jp-settings-embed #mcp-server-settings-dialog.is-embedded .mcp-inline-actions button,
+.jp-settings-embed #https-settings-dialog.is-embedded .mcp-inline-actions button { border: 1px solid var(--jp-border); background: var(--jp-surface-2); color: var(--jp-text); }

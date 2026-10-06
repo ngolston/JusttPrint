@@ -4,6 +4,7 @@ import { tags as tagApi, type Tag } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { SearchBox } from '../components/SearchBox';
+import { ShowMoreButton, useShown } from '../components/ShowMore';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { useLibraryData } from '../shell/libraryData';
@@ -99,6 +100,7 @@ export function TagsPage() {
   const [unusedOnly, setUnusedOnly] = useState(false);
   const [newName, setNewName] = useState('');
   const shown = useMemo(() => arrangeTags(list || [], search, sort, unusedOnly), [list, search, sort, unusedOnly]);
+  const page = useShown(shown, 200, `${search}|${sort}|${unusedOnly}`);
   const unused = (list || []).filter((tag) => !tag.model_count).length;
   const max = Math.max(0, ...(list || []).map((tag) => tag.model_count));
 
@@ -148,9 +150,12 @@ export function TagsPage() {
           </EmptyState>
         </Panel>
       ) : (
-        <ul className="jp-card jp-tags__list" aria-label="Tags">
-          {shown.map((tag) => <TagRow key={tag.id} tag={tag} all={list} max={max} />)}
-        </ul>
+        <>
+          <ul className="jp-card jp-tags__list" aria-label="Tags">
+            {page.shown.map((tag) => <TagRow key={tag.id} tag={tag} all={list} max={max} />)}
+          </ul>
+          <ShowMoreButton remaining={page.remaining} onClick={page.more} />
+        </>
       )}
     </div>
   );

@@ -87,7 +87,7 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
       <button type="button" className="jp-sidebar__close jp-icon-btn jp-icon-btn--md" aria-label="Close menu" title="Close menu" onClick={onClose}>
         <X size={18} aria-hidden="true" />
       </button>
-      <button type="button" className="jp-brand" onClick={() => navigate('home')} aria-label="JusttPrint home">
+      <button type="button" className="jp-brand" onClick={() => navigate('home')} title="Home">
         <span className="jp-brand__logo"><Box size={22} aria-hidden="true" /></span>
         <span className="jp-brand__text">
           <span className="jp-brand__name">JusttPrint</span>
@@ -224,6 +224,26 @@ function DetailsPlaceholder() {
   );
 }
 
+/** The window is at most this wide (a media query). */
+const narrow = (query: string) => typeof window !== 'undefined' && window.matchMedia(query).matches;
+
+/** Skip link (spec §37): past the sidebar and top bar to the page's content. */
+function SkipLink({ page }: { page: PageId }) {
+  return (
+    <nav className="jp-skip-nav" aria-label="Skip links">
+      <a href={isOverlayPage(page) ? '#jp-content' : '#library-content'} className="jp-skip" onClick={(event) => {
+        event.preventDefault();
+        const target = isOverlayPage(page)
+          ? document.querySelector<HTMLElement>('.jp-page')
+          : document.querySelector<HTMLElement>('.file-grid .file-item') ?? document.querySelector<HTMLElement>('.jp-library-header');
+        if (!target) return;
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        target.focus();
+      }}>Skip to content</a>
+    </nav>
+  );
+}
+
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
 const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
@@ -259,6 +279,36 @@ export function AppShell() {
   // A page change closes the menu drawer.
   useEffect(() => { setMenuOpen(false); }, [page, section]);
 
+  // What a page or a drawer covers is out of reach for the keyboard and screen readers (spec §37).
+  useEffect(() => {
+    const covered = isOverlayPage(page);
+    const set = (selector: string, value: boolean) => document.querySelectorAll<HTMLElement>(selector).forEach((el) => { el.inert = value; });
+    // Not all of .main-content: some older dialogs (Quick Start Guide) live inside it.
+    set('.grid-view-selector, .file-grid, #folder-rail', covered || menuOpen);
+    set('.sidebar', covered || (menuOpen && narrow('(max-width: 700px)')));
+    set('.jp-page, .jp-topbar, .jp-bottom-nav', menuOpen && narrow('(max-width: 700px)'));
+    // One main landmark: the page's while one covers the library (which is then a plain region).
+    document.querySelector('.main-content > .library-main')?.setAttribute('role', covered ? 'region' : 'main');
+  }, [page, menuOpen]);
+
+  // The menu drawer takes the focus while open and gives it back to the Menu button.
+  useEffect(() => {
+    if (!narrow('(max-width: 700px)')) return;
+    if (menuOpen) document.querySelector<HTMLElement>('#jp-sidebar .jp-nav__row[aria-current="page"], #jp-sidebar .jp-nav__row')?.focus();
+    else if (document.activeElement === document.body) document.querySelector<HTMLElement>('.jp-topbar__menu')?.focus();
+  }, [menuOpen]);
+
+  // The details drawer (below 1200 px) takes the focus when it opens; closing it returns to the model.
+  useEffect(() => {
+    if (!narrow('(max-width: 1199px)') || isOverlayPage(page)) return;
+    if (detailsOpen) {
+      const focused = document.activeElement;
+      if (!focused || !focused.closest('.sidebar')) document.getElementById('jp-details-close')?.focus({ preventScroll: true });
+    } else if (!document.activeElement || document.activeElement === document.body || document.activeElement.closest('.sidebar')) {
+      document.querySelector<HTMLElement>('.file-grid .file-item.selected')?.focus();
+    }
+  }, [detailsOpen, page]);
+
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKey = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
@@ -274,6 +324,7 @@ export function AppShell() {
   if (isThumbnailWorker) return null;
   return createPortal(
     <div className="jp jp-shell">
+      <SkipLink page={page} />
       <Sidebar page={page} onClose={() => setMenuOpen(false)} />
       <div className="jp-nav-backdrop" hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
       <TopBar onMenu={() => setMenuOpen(!menuOpen)} menuOpen={menuOpen} />
@@ -284,7 +335,7 @@ export function AppShell() {
       <ModelDetailsPanel />
       <DetailsPlaceholder />
       {isOverlayPage(page) && (
-        <main className="jp-page" aria-label={PAGE_TITLES[page]}>
+        <main className="jp-page" id="jp-content" aria-label={PAGE_TITLES[page]} tabIndex={-1}>
           {page === 'home' && <HomePage />}
           {page === 'queue' && <QueuePage />}
           {page === 'printers' && <PrintersPage section={section} />}

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { cachedThumbnail, fetchPrimaryThumbnail, isImageOnlyMiss } from '../thumbnails/cache';
 import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQueue } from '../thumbnails/cards';
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
@@ -216,7 +216,7 @@ function RatingStars({ engagement, label = 'Rating' }: { engagement: ReturnType<
   return (
     <div className="model-rating" role="radiogroup" aria-label={label}>
       {[1, 2, 3, 4, 5].map((star) => (
-        <button key={star} type="button" className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
+        <button key={star} type="button" tabIndex={-1} className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
           role="radio" aria-checked={star === rating} aria-label={`${star} star${star === 1 ? '' : 's'}`}
           onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
           onClick={(event) => save('rating', rating === star ? 0 : star, event)}>
@@ -239,6 +239,13 @@ function EngagementBar({ host, model }: { host: CardHost; model: GridModel }) {
       </button>
     </div>
   );
+}
+
+/** What a screen reader says for a card: name, designer, print status, and whether it is selected. */
+export function cardLabel(model: GridModel, selected: boolean): string {
+  const designer = typeof model.designer === 'string' && model.designer.trim() ? `by ${model.designer.trim()}` : '';
+  const status = printStatusInfo(effectiveStatus(model as PrintModel)).label;
+  return [cardTitle(model), designer, status, selected ? 'selected' : ''].filter(Boolean).join(', ');
 }
 
 /** The model's file type for the format badge ("STL", "3MF"). */
@@ -269,7 +276,7 @@ function CardPrintStatus({ model }: { model: GridModel }) {
   const info = printStatusInfo(effectiveStatus(model as PrintModel));
   const Icon = info.icon ?? TONE_ICONS[info.tone];
   return (
-    <button type="button" className={`print-status jp-status jp-status--${info.tone}`} title={`${badgeTitle(model as PrintModel)}\nClick to log a print; Shift-click to set the status.`}
+    <button type="button" tabIndex={-1} className={`print-status jp-status jp-status--${info.tone}`} title={`${badgeTitle(model as PrintModel)}\nClick to log a print; Shift-click to set the status.`}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -424,11 +431,37 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     host.cardClick(event.nativeEvent, event.currentTarget, model.filePath, view);
   };
 
+  const selected = host.isSelected(model.filePath);
+  /**
+   * Keyboard (spec §37): a card is one Tab stop. Enter or Space selects it (with Ctrl/Cmd or
+   * Shift as with a click), the Menu key or Shift+F10 opens its menu.
+   */
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const click = new MouseEvent('click', { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, altKey: event.altKey });
+      host.cardClick(click, event.currentTarget, model.filePath, view);
+    } else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      host.showCardMenu(model.filePath, rect.left + 16, rect.top + 16);
+    }
+  };
   const common = {
-    ref: cardRef, className: classes, style: cardStyle, onClick,
+    ref: cardRef, className: classes, style: cardStyle, onClick, onKeyDown,
+    tabIndex: 0, role: 'group', 'aria-label': cardLabel(model, selected),
     'data-filepath': model.filePath, 'data-index': index, 'data-layout-key': layoutKey,
     'data-parent-group-key': bandClasses.length ? parentGroupKey : undefined
   };
+
+  // Arrow keys move the selection; the keyboard focus follows it to this card.
+  useEffect(() => {
+    const focused = document.activeElement as HTMLElement | null;
+    if (selected && focused && focused !== cardRef.current && focused.closest('.file-grid') && focused.matches('.file-item')) {
+      cardRef.current?.focus();
+    }
+  }, [selected]);
 
   if (tile) return <ModelTile host={host} model={model} common={common} images={images} current={current} setRenderSlot={setRenderSlot} />;
 
@@ -640,12 +673,12 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
           {zipEntry && <span className="archive-status jp-model-card__flag">Archive</span>}
         </div>
         <div className="jp-model-card__actions">
-          <button type="button" className={cx('model-favorite-btn jp-model-card__action', favorite && 'is-favorited')} aria-pressed={favorite}
+          <button type="button" tabIndex={-1} className={cx('model-favorite-btn jp-model-card__action', favorite && 'is-favorited')} aria-pressed={favorite}
             aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
             onClick={(event) => save('favorite', !favorite, event)}>
             <Heart size={16} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
           </button>
-          <button type="button" className="thumbnail-menu-button jp-model-card__action" aria-label="More actions" title="More actions"
+          <button type="button" tabIndex={-1} className="thumbnail-menu-button jp-model-card__action" aria-label="More actions" title="More actions"
             aria-haspopup="menu" onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -662,10 +695,10 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
       <div className="jp-model-card__body">
         <div className="file-name jp-model-card__title" title={displayFileName(model)}>{title}</div>
         {designer
-          ? <button type="button" className="jp-model-card__byline designer-info" title={`Show models by ${designer}`}
+          ? <button type="button" tabIndex={-1} className="jp-model-card__byline designer-info" title={`Show models by ${designer}`}
               onClick={stop(() => host.filterBySelect('designer-select', designer))}>{designer}</button>
           : directory
-            ? <button type="button" className="jp-model-card__byline directory-link" title={`Show the folder ${host.directoryFullPath(model.filePath) || directory}`}
+            ? <button type="button" tabIndex={-1} className="jp-model-card__byline directory-link" title={`Show the folder ${host.directoryFullPath(model.filePath) || directory}`}
                 onClick={stop(() => host.filterByDirectory(model.filePath))}>{directory}</button>
             : <span className="jp-model-card__byline" />}
         <div className="jp-model-card__badges">

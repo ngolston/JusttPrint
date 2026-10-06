@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/web/**/*.test.ts', 'src/web/**/*.test.tsx'],
-    environment: 'node'
+    environment: 'node',
+    // Stylesheets imported with ?raw (the token contrast test) keep their text.
+    css: { include: [/tokens\.css/] }
   }
 });

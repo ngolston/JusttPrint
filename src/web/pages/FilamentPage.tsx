@@ -4,6 +4,7 @@ import { filaments as filamentApi, type Filament } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { SearchBox } from '../components/SearchBox';
+import { ShowMoreButton, useShown } from '../components/ShowMore';
 import { normalizeColorHex } from '../FilamentManagerDialog';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
@@ -94,7 +95,7 @@ function FilamentCard({ filament }: { filament: Filament }) {
         <Spool color={filament.color_hex || ''} />
       </div>
       <div className="jp-spool-card__body">
-        <h3 className="jp-spool-card__name" title={name}>{name}</h3>
+        <h2 className="jp-spool-card__name" title={name}>{name}</h2>
         <div className="jp-spool-card__badges">
           {filament.material && <span className="jp-badge">{filament.material}</span>}
           {filament.diameter ? <span className="jp-badge">{filament.diameter} mm</span> : null}
@@ -128,6 +129,7 @@ export function FilamentPage() {
   const materials = useMemo(() => materialCounts(list || []), [list]);
   const shown = useMemo(() => filterFilaments(list || [], search, material), [list, search, material]);
   const fromSpoolman = (list || []).filter((filament) => filament.source === 'spoolman').length;
+  const page = useShown(shown, 200, `${search}|${material}`);
 
   return (
     <div className="jp-page__inner jp-filament">
@@ -171,9 +173,12 @@ export function FilamentPage() {
             </div>
           </div>
           {shown.length ? (
-            <ul className="jp-spool-grid" aria-label="Filament">
-              {shown.map((filament) => <FilamentCard key={filament.id} filament={filament} />)}
-            </ul>
+            <>
+              <ul className="jp-spool-grid" aria-label="Filament">
+                {page.shown.map((filament) => <FilamentCard key={filament.id} filament={filament} />)}
+              </ul>
+              <ShowMoreButton remaining={page.remaining} onClick={page.more} />
+            </>
           ) : (
             <Panel>
               <EmptyState icon={Cable} title="No filament matches"

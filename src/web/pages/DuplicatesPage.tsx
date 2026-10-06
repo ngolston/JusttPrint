@@ -19,6 +19,8 @@ declare global {
 const ROW_HEIGHT = 352;
 const OVERSCAN = 4;
 const PREVIEW_CONCURRENCY = 4;
+/** Copies drawn side by side per group; Easy, Keep this and Keep all still act on all of them. */
+const SHOWN_COPIES = 24;
 
 const isZipEntry = (filePath: string) => filePath.includes('::');
 
@@ -125,8 +127,8 @@ function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
   const size = group.files[0]?.size || 0;
   const removing = group.files.filter((file) => selected.has(file.filePath)).length;
   return (
-    <section className="jp-dup-group" data-hash={group.hash} style={{ height: ROW_HEIGHT - 12, boxSizing: 'border-box' }}
-      aria-label={`${group.files.length} identical copies`}>
+    <div className="jp-dup-group" role="group" data-hash={group.hash} style={{ height: ROW_HEIGHT - 12, boxSizing: 'border-box' }}
+      aria-label={`${group.files.length} identical copies of ${splitPath(group.files[0]?.filePath || '').name}`}>
       <header className="jp-dup-group__header">
         <span className="jp-dup-group__title">{group.files.length} identical copies</span>
         <span className="jp-dup-group__meta">{formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code></span>
@@ -134,14 +136,20 @@ function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
         <button type="button" className="jp-link jp-dup-group__keep-all" onClick={() => onSelect(keepOnly(selected, group, null))} disabled={!removing}>Keep all</button>
       </header>
       <div className="jp-dup-group__copies">
-        {group.files.map((file) => (
+        {group.files.slice(0, SHOWN_COPIES).map((file) => (
           <CopyCard key={file.filePath} file={file} selected={selected.has(file.filePath)}
             preferred={!!preferredDir && fileIsUnderPreferredDirectory(file.filePath, preferredDir)}
             onToggle={(checked) => onToggle(file.filePath, checked)}
             onKeep={() => onSelect(keepOnly(selected, group, file.filePath))} />
         ))}
+        {group.files.length > SHOWN_COPIES && (
+          <div className="jp-dup-more">
+            <strong>{(group.files.length - SHOWN_COPIES).toLocaleString()} more copies</strong>
+            <span>Keep this and Easy also select these.</span>
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 }
 

@@ -236,7 +236,7 @@ export function ModelDetailsPanel() {
         </button>
       </div>
 
-      <section className="jp-details__section" aria-label="Details">
+      <section className="jp-details__section">
         <h3 className="jp-details__heading">Details</h3>
         <div className="jp-props">
           <Prop label="File" title={model ? displayFileName(model) : undefined}>{model ? displayFileName(model) : ''}</Prop>
@@ -253,17 +253,17 @@ export function ModelDetailsPanel() {
         </div>
       </section>
 
-      <section className="jp-details__section" aria-label="Filament">
+      <section className="jp-details__section">
         <h3 className="jp-details__heading">Filament</h3>
         <div className="jp-details__editor" ref={setFilamentsHost} />
       </section>
 
-      <section className="jp-details__section" aria-label="Notes">
+      <section className="jp-details__section">
         <h3 className="jp-details__heading">Notes</h3>
         <div className="jp-details__editor" ref={setNotesHost} />
       </section>
 
-      <section className="jp-details__section" aria-label="Print History">
+      <section className="jp-details__section">
         <h3 className="jp-details__heading">Print History</h3>
         <div className="jp-details__editor" ref={setHistoryHost} />
       </section>
