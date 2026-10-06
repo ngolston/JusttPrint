@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [4.6.1] - 2026-10-05
+
+**Upgrading:** no changes needed. The Docker image is unchanged from 4.6.0 (only a test changed).
+
+**Changes:**
+- The end-to-end check "details add a new designer" waits for the details panel and the card to redraw after the save instead of reading them straight away. It failed now and then on GitHub's slower machines (the app was fine), and it now reports what the panel and card showed if it fails.
+
 ## [4.6.0] - 2026-10-05
 
 **Upgrading:** the browser extension no longer works with JusttPrint; uninstall it from your browser. Inbox folders (`JusttPrintInbox`) are no longer read and can be deleted.
