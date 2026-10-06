@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.5.2**
+**Version 4.6.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -143,9 +143,15 @@ You can also set this up with the `JUSTTPRINT_AI_*` [environment variables](#env
 
 ## MCP Server
 
-AI agents (Claude Desktop, Cursor, VS Code Copilot and others) can connect to `http://<server-ip>:5000/mcp` to search the library, edit tags and metadata, log prints and more. Open **Tools → MCP Server** for a ready-made client config that includes your API token.
+AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search the library, edit tags and metadata, log prints and more. For example, ask "tag everything in the Kitchen folder as kitchen".
 
-This feature is experimental. Anyone with the API token can read and change your library.
+1. Open **Tools → MCP Server → Settings**.
+2. Pick your app under **Set up in**: Claude Code, Claude Desktop, Cursor, VS Code, or another MCP client.
+3. Copy the command or config it shows (the address and your API token are filled in) and follow the line above it.
+
+The address is `http://<server-ip>:5000/mcp`. Claude Desktop connects through `mcp-remote`, which needs [Node.js](https://nodejs.org/) on that computer.
+
+This feature is experimental. Anyone with the API token can read and change your library; you can replace the token under **Tools → Server Access**.
 
 ## Network Shares
 

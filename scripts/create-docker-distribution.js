@@ -25,7 +25,7 @@ fs.mkdirSync(dockerDistDir, { recursive: true });
 
 // Everything the Docker build needs: all files tracked by git except the ones the image
 // does not use (same intent as .dockerignore). No hand-maintained list to fall out of date.
-const EXCLUDED_PREFIXES = ['tests/', 'chrome-extension/', '.github/', '.claude/', 'scripts/', 'demos/'];
+const EXCLUDED_PREFIXES = ['tests/', '.github/', '.claude/', 'scripts/', 'demos/'];
 const EXCLUDED_FILES = new Set(['CLAUDE.md', 'TODO.md', 'docker-compose.local.yml', '.gitignore', '.gitattributes']);
 const filesToCopy = execSync('git ls-files -z', { encoding: 'utf8' })
   .split('\0')

@@ -3,7 +3,7 @@
 
 /**
  * npm test: runs every *.test.js file with Node and reports which ones failed.
- * Skips node_modules, the end-to-end suite (npm run test:e2e) and TestDriver tests (vitest.config.js),
+ * Skips node_modules and the end-to-end suite (npm run test:e2e),
  * then runs the TypeScript unit tests in src/web with Vitest (vitest.web.config.mjs).
  */
 
@@ -13,14 +13,13 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const SKIP_DIRS = new Set(['node_modules', '.git', 'e2e', 'test-results', 'playwright-report']);
-const SKIP_FILES = new Set(['tests/example.test.js']);
 
 function findTests(dir, found = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) findTests(full, found);
-    else if (entry.name.endsWith('.test.js') && !SKIP_FILES.has(path.relative(root, full))) found.push(full);
+    else if (entry.name.endsWith('.test.js')) found.push(full);
   }
   return found;
 }

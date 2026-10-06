@@ -35,6 +35,7 @@ describe('menu', () => {
     expect(findMenuAction('Library Stats')).toBeTypeOf('function');
     expect(findMenuAction('HTTPS / SSL')).toBeTypeOf('function');
     expect(findMenuAction('Nope')).toBeNull();
+    expect(findMenuAction('Browser Extension')).toBeNull();
   });
 
   it('drops leading, trailing and doubled separators', () => {

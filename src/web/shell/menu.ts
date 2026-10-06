@@ -55,7 +55,6 @@ export const MENU: MenuGroup[] = [
       action('De-Dup', open('openDedup')),
       action('Organize Library', open('openOrganizeLibrary')),
       separator,
-      action('Browser Extension', open('openBrowserExtensionSettings')),
       { kind: 'submenu', label: 'MCP Server', items: [action('Settings', open('openMcpServerSettings')), action('HTTPS / SSL', open('openHttpsSettings'))] },
       separator,
       action('Filament Manager', open('openFilamentManager')),

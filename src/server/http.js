@@ -334,7 +334,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         return;
       }
       
-      // Library paths are absolute container paths. A client path (e.g. C:\ from the extension) is not on the server.
+      // Library paths are absolute container paths. A client path (e.g. C:\ from another computer) is not on the server.
       if (!filePath.startsWith('/')) {
         res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not on server (the path is on another computer).');
         return;
@@ -567,7 +567,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       if (localhostOnly) {
         console.log(`[Local HTTP] Server listening at ${scheme}://${HOST}:${PORT}`);
         if (useTls) {
-          console.log(`[Local HTTP] TLS enabled (source: ${tlsResolved.source}) for Browser Extension / MCP`);
+          console.log(`[Local HTTP] TLS enabled (source: ${tlsResolved.source}) for the web UI and MCP`);
         }
         syncPort80Server().catch((err) => {
           console.warn('[TLS] Port 80 listener:', err.message);

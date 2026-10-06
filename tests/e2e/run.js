@@ -221,7 +221,7 @@ async function apiChecks(base, wsUrl) {
   check('API from another origin refused', (await invoke(base, { cookie, origin: 'https://evil.example' }, 'get-setting', ['currentVersion'])).status === 403);
   check('API with login', (await invoke(base, { cookie, origin }, 'get-setting', ['currentVersion'])).result === version);
   check('secret settings hidden', (await invoke(base, { cookie, origin }, 'get-setting', ['serverPasswordHash'])).result === null);
-  for (const channel of ['getSetting', 'saveSetting', 'quitApp', 'open-path', 'fetch-makerworld-page', 'puter-ai-chat', 'is-server-mode']) {
+  for (const channel of ['getSetting', 'saveSetting', 'quitApp', 'open-path', 'fetch-makerworld-page', 'puter-ai-chat', 'is-server-mode', 'import-extension-inbox', 'get-default-extension-inbox-directory']) {
     check(`${channel} is not an action`, (await invoke(base, { cookie, origin }, channel, [])).status === 404);
   }
   const wrongType = await invoke(base, { cookie, origin }, 'get-setting', [42]);
@@ -1501,34 +1501,37 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => window.openMcpServerSettings());
     check('MCP Server settings opens', await page.isVisible('#mcp-server-settings-dialog'));
     check('MCP URL is this server', await page.inputValue('#mcp-server-url') === `${base}/mcp`, await page.inputValue('#mcp-server-url'));
-    const mcpConfig = await page.waitForFunction(() => {
-      const text = document.getElementById('mcp-server-config')?.textContent || '';
-      return text.includes('Bearer') ? text : null;
-    }, null, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => '');
-    let parsedConfig = null;
-    try { parsedConfig = JSON.parse(mcpConfig).mcpServers.justtprint; } catch (_) { /* checked below */ }
+    // The setup shown for each app, with this page's URL and the API token filled in.
+    const mcpSetupFor = async (client) => {
+      await page.selectOption('#mcp-client-select', client);
+      return page.waitForFunction(() => {
+        const text = document.getElementById('mcp-server-config')?.textContent || '';
+        return text.includes('Bearer pv_') ? text : null;
+      }, null, { timeout: 10000 }).then((h) => h.jsonValue()).catch(() => '');
+    };
+    const parse = (text) => { try { return JSON.parse(text); } catch (_) { return null; } };
+    const mcpConfig = await mcpSetupFor('other');
+    const parsedConfig = parse(mcpConfig)?.mcpServers?.justtprint;
     check('MCP client config has the URL and API token', !!parsedConfig && parsedConfig.url === `${base}/mcp`
       && parsedConfig.headers && parsedConfig.headers.Authorization === `Bearer ${apiToken}`, mcpConfig.slice(0, 200));
+    const claudeCode = await mcpSetupFor('claude-code');
+    check('MCP setup for Claude Code is one command', claudeCode === `claude mcp add --transport http justtprint ${base}/mcp --header "Authorization: Bearer ${apiToken}"`
+      && /Copy command/.test(await page.textContent('#copy-mcp-server-config')), claudeCode);
+    const vscode = parse(await mcpSetupFor('vscode'))?.servers?.justtprint;
+    check('MCP setup for VS Code uses servers and type http', !!vscode && vscode.type === 'http' && vscode.url === `${base}/mcp`
+      && vscode.headers.Authorization === `Bearer ${apiToken}`, JSON.stringify(vscode));
+    const desktop = parse(await mcpSetupFor('claude-desktop'))?.mcpServers?.justtprint;
+    check('MCP setup for Claude Desktop runs mcp-remote with the token', !!desktop && desktop.command === 'npx'
+      && desktop.args.includes('mcp-remote') && desktop.args.includes(`${base}/mcp`) && desktop.env.AUTH_HEADER === `Bearer ${apiToken}`, JSON.stringify(desktop));
+    const cursor = parse(await mcpSetupFor('cursor'))?.mcpServers?.justtprint;
+    check('MCP setup for Cursor has the URL and token', !!cursor && cursor.url === `${base}/mcp` && cursor.headers.Authorization === `Bearer ${apiToken}`);
     check('MCP settings list the tools', /search_models/.test(await page.textContent('#mcp-server-tools').catch(() => '')));
     await page.click('#cancel-mcp-server-settings');
     check('MCP Server settings closes', !(await page.isVisible('#mcp-server-settings-dialog')));
 
-    // Browser Extension settings (React): Import now reports, Save stores the path mapping.
-    await page.evaluate(() => window.openBrowserExtensionSettings());
-    await page.waitForSelector('#browser-extension-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
-    check('Browser Extension settings opens', await page.isVisible('#browser-extension-settings-dialog'));
-    await page.click('#import-extension-inbox-now');
-    const inboxStatus = await page.waitForFunction(() => {
-      const text = document.getElementById('extension-inbox-last-status')?.textContent || '';
-      return /just now|already running/.test(text) ? text : null;
-    }, null, { timeout: 30000 }).then((h) => h.jsonValue()).catch(() => null);
-    check('Import now reports the result', !!inboxStatus, inboxStatus);
-    await page.fill('#extension-client-path-prefix', '  C:\\Downloads  ');
-    await page.click('#save-browser-extension-settings');
-    await page.waitForSelector('#browser-extension-settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    check('Browser Extension settings saves (trimmed)', (await invoke(base, session, 'get-setting', ['extensionClientPathPrefix'])).result === 'C:\\Downloads'
-      && !(await page.isVisible('#browser-extension-settings-dialog')));
-    await invoke(base, session, 'save-setting', ['extensionClientPathPrefix', '']);
+    // The browser extension is removed: no menu item and no dialog.
+    check('no Browser Extension dialog', await page.evaluate(() => typeof window.openBrowserExtensionSettings === 'undefined'
+      && !document.getElementById('browser-extension-settings-dialog')));
 
     // File Type settings (React): lists the catalog, saves a type, and the sidebar filter offers it.
     const savedTypes = (await invoke(base, session, 'get-setting', ['scanAdditionalFileTypes'])).result;

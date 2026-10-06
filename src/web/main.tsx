@@ -7,7 +7,6 @@ import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
-import { BrowserExtensionSettingsDialog } from './BrowserExtensionSettingsDialog';
 import { DedupDialog } from './DedupDialog';
 import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
@@ -78,7 +77,6 @@ function Screens() {
       <AboutDialog />
       <PerformanceSettingsDialog />
       <McpServerSettingsDialog />
-      <BrowserExtensionSettingsDialog />
       <FileTypeSettingsDialog />
       <HttpsSettingsDialog />
       <AiConfigDialog />

@@ -197,7 +197,7 @@ ipcMain.handle('move-files', async (event, filePaths, destinationFolder) => {
 
 const getFileStatsHandler = async (event, filePath) => {
   try {
-    // URL-only models (Chrome extension) have no local file
+    // URL-only models (old browser extension) have no local file
     if (isUrlModel(filePath)) {
       return { size: 0, mtimeMs: 0 };
     }
