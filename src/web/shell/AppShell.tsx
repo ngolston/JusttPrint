@@ -16,6 +16,7 @@ import { LibraryHeader } from '../pages/LibraryPage';
 import { FilamentPage } from '../pages/FilamentPage';
 import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
+import { TagsPage } from '../pages/TagsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAdopt } from './adopt';
 import { useLibraryData } from './libraryData';
@@ -168,7 +169,7 @@ function DetailsPlaceholder() {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', settings: 'Settings', help: 'Help' };
 /** Pages drawn over the library; Home and Library are the library screen (Home adds the dashboard on top). */
 const isOverlayPage = (page: PageId) => page !== 'home' && page !== 'library';
 
@@ -206,6 +207,7 @@ export function AppShell() {
           {page === 'queue' && <QueuePage />}
           {page === 'printers' && <PrintersPage section={section} />}
           {page === 'filament' && <FilamentPage />}
+          {page === 'tags' && <TagsPage />}
           {page === 'settings' && <SettingsPage section={section} />}
           {page === 'help' && <HelpPage />}
         </main>

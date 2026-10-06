@@ -1217,6 +1217,50 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#tag-manager-dialog .dialog-buttons button');
     check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
 
+    // Tags page (React, src/web/pages/TagsPage.tsx): create, rename, merge, show models, delete.
+    const tagNamesNow = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.fill('#jp-new-tag', 'e2e-page-tag');
+    await page.click('.jp-tags__create button[type=submit]');
+    const pageTagRow = (name) => `.jp-tag-row[data-tag-name="${name}"]`;
+    check('the Tags page creates a tag', /#\/tags$/.test(page.url())
+      && await page.waitForSelector(pageTagRow('e2e-page-tag'), { timeout: 10000 }).then(() => true, () => false)
+      && (await tagNamesNow()).includes('e2e-page-tag'));
+    await page.click(`${pageTagRow('e2e-page-tag')} button[aria-label^="Rename"]`);
+    await page.fill(`${pageTagRow('e2e-page-tag')} .jp-tag-row__input`, 'e2e-page-renamed');
+    await page.press(`${pageTagRow('e2e-page-tag')} .jp-tag-row__input`, 'Enter');
+    check('renaming a tag on the page saves it', await page.waitForSelector(pageTagRow('e2e-page-renamed'), { timeout: 10000 }).then(() => true, () => false)
+      && !(await tagNamesNow()).includes('e2e-page-tag'));
+    const taggedModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'save-tag', ['e2e-page-other']);
+    await invoke(base, session, 'update-models-batch', [[{ filePath: taggedModel, tags: ['e2e-page-other'] }]]);
+    // Made through the API, not this page: open the page again to read them.
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.waitForSelector(`${pageTagRow('e2e-page-other')} :text("1 model")`, { timeout: 10000 }).catch(() => {});
+    await page.click(`${pageTagRow('e2e-page-renamed')} button[aria-label^="Rename"]`);
+    await page.fill(`${pageTagRow('e2e-page-renamed')} .jp-tag-row__input`, 'E2E-PAGE-OTHER');
+    await page.press(`${pageTagRow('e2e-page-renamed')} .jp-tag-row__input`, 'Enter');
+    const mergeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Merge Tags") button:text-is("Merge")', { timeout: 10000 }).catch(() => null);
+    if (mergeAsk) await mergeAsk.click();
+    check('renaming onto an existing tag merges after asking', !!mergeAsk
+      && await page.waitForSelector(pageTagRow('e2e-page-renamed'), { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && (await tagNamesNow()).filter((n) => n.toLowerCase() === 'e2e-page-other').length === 1);
+    // The merged tag keeps the name as typed.
+    const mergedName = (await tagNamesNow()).find((n) => n.toLowerCase() === 'e2e-page-other') || 'e2e-page-other';
+    await page.click(`${pageTagRow(mergedName)} button[aria-label^="Show models"]`);
+    check('a tag shows its models in the library', await page.waitForFunction((name) => JSON.stringify(window.libraryFilters.state().tags) === JSON.stringify([name]), mergedName, { timeout: 10000 }).then(() => true, () => false)
+      && await page.waitForFunction((p) => [...document.querySelectorAll('.file-grid [data-filepath]')].map((el) => el.getAttribute('data-filepath')).join() === p, taggedModel, { timeout: 10000 }).then(() => true, () => false));
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.click(`${pageTagRow(mergedName)} button[aria-label^="Delete"]`);
+    const deleteTagAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Delete Tag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (deleteTagAsk) await deleteTagAsk.click();
+    check('deleting a used tag asks first and removes it', !!deleteTagAsk
+      && await page.waitForSelector(pageTagRow(mergedName), { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && !(await tagNamesNow()).includes(mergedName));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+
     // Parts Manager (React): add, step the quantity, edit, remove.
     const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
     await page.evaluate(() => window.openPartsStock());
