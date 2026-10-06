@@ -1,6 +1,6 @@
 /**
  * Which copy De-Dup's Easy button keeps in each duplicate group. An ES module shared by the
- * React screen (src/web/DedupDialog.tsx) and the Node unit test (tests/dedup-preferred.test.js).
+ * React screen (src/web/pages/DuplicatesPage.tsx) and the Node unit test (tests/dedup-preferred.test.js).
  */
 
 /** Path of the file on disk. ZIP entries use archivePath::innerPath. */

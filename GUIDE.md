@@ -1,248 +1,162 @@
-# JusttPrint - 3D Model Manager
+# JusttPrint Guide
 
-JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker and you use it from any browser on your network.
+JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker, and you use it from any browser on your network: computer, tablet or phone. This guide shows how to use it; [README.md](README.md) covers installing and setup.
 
-## Features
+![The library with a model selected](docs/images/library.png)
 
-### File Management
-- Scan directories for STL and 3MF files (configurable size limit, default: 50MB)
-- Scan ZIP archives for models (when enabled in settings)
-- View thumbnails of your 3D models
-- Sort models by name, size, or date
-- Quick access to file location
-- Delete files with database cleanup
-- Backup and restore database
+## Finding your way around
 
-### Model Organization
-- Tag models for easy categorization
-- Assign designers to models
-- Track print status (Want, Queued, Printing, Printed, Failed)
-- Assign filaments (manual catalog or Spoolman sync)
-- Add source URLs and notes
-- Link related models (parent/child relationships)
-- **Folder and ZIP bundles**: Models in the same subfolder or ZIP archive (2+ files) appear as one grouped row; click to expand, right-click **Preview** for all parts in 3D, double-click for bundle details
-- Assign licenses to models
+The sidebar on the left holds every page:
 
-### Multi-Edit Features
-- Select multiple models for batch editing
-- Bulk update designer, source, print status, and parent model
-- Select all visible models with one click
-- Filter models by various attributes
+| Section | Pages |
+|---------|-------|
+| (top) | **Home**, **Library** |
+| Printing | **Queue**, **Printers**, **Filament** |
+| Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
+| System | **Settings**, **Help** |
 
-### Duplicate Management
-- Find duplicate files based on content hash
-- Compare duplicates with thumbnails
-- Easily remove duplicate files
+The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu (**Server Access**, **Log Out**). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
 
-### Interface Features
-- Multiple view modes: List, Preview, and Detailed views
-- Customizable model background color
-- UI theme selection (modern themes available)
-- Context menu for quick actions
-- Responsive grid layout
-- Real-time search and filtering
-- Tag management system
-- Auto-save changes
+On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Library, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
-### Data Management
-- Database backup and restore
-- Purge all model data option
-- Automatic thumbnail generation
-- Generate missing thumbnails (separate from full regenerate)
-- Regenerate all thumbnails
-- Preserve metadata during rescans
+## Getting started
 
-### File Support
-- STL files
-- 3MF files (including embedded image support)
-- ZIP archives (when enabled in File Type settings)
-- Configurable file size limit (default: 50MB, adjustable in File Type settings)
+1. Start the container, open `http://<server-ip>:5000` and log in.
+2. Add your models folder under **Settings → Scanning → STL Home** (a container path such as `/mnt/models`). JusttPrint scans it right away and then on a schedule (every 60 minutes unless you change it). **Scan Library** in the sidebar scans again at any time.
+3. Thumbnails are rendered in the background; you can use the library while they appear.
+4. Optional: pick an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer**, your printers on **Printers** and your filament on **Filament**.
 
-### Search & Filter
-- Search by filename
-- Filter by:
-  - Designer
-  - Folders (directory tree of scanned libraries; drag the panel edge to resize)
-  - Print status
-  - Tags
-  - Filament
-  - Parent model
-  - License
+**Help → Quick Start Guide** shows a short tour in the app.
 
-### Metadata Features
-- Track file size
-- Track modification dates
-- Store model thumbnails
-- Track print status (Want, Queued, Printing, Printed, Failed)
-- Log each print attempt with date, quantity, filaments, and notes
-- Add custom notes
-- Link to source URLs
+## Home
 
-### AI Features
-- AI-powered tag suggestions using OpenAI or compatible APIs
-- Configurable AI model selection
-- Batch tagging with customizable options
-- Tag merging strategies (replace, merge, append)
-- Category-based tagging support
-- Configurable tag limits and detail levels
+![Home](docs/images/home.png)
 
-### Advanced Tools
-- **Print Roulette**: Randomly select models from your collection
-- **Tag Manager**: Comprehensive interface for managing all tags across your collection
-- **Metadata Editor**: Bulk edit metadata for multiple models at once
-- **De-Dup Tool**: Find and manage duplicate files with visual comparison. Scope the scan to the current library filters (designer, tags, search, and other query-builder filters) so large collections do not have to be processed all at once.
-- **MCP Server**: Experimental Streamable HTTP endpoint at `/mcp` so a local AI agent can search the library, update metadata, and write thumbnails (Tools → MCP Server)
+Home greets you with your library's figures (models, printed, in queue, printers; click one to open it), a render of the model you printed last, **Recent Activity** (logged prints and newly added models), **Your Printers** with maintenance reminders that are due, and the models added most recently.
 
-## Data Persistence
-- The database and thumbnails live in the container's data folder (`/root/.config/justtprint`); mount it as a volume so it survives updates
-- A backup copy (`backup_justtprint.db`) is written every time the server stops
-- Manual backups can be downloaded through the Backup/Restore menu
-- **Important**: Keep a manual backup before removing the container or its data volume
+## Library
 
-## Getting Started
+The library shows your models as cards: preview, name, designer (or folder), file type and filament material, and print status. Hover a card for **Favorite**, **More** (the model menu) and the star rating.
 
-1. Start the container and open `http://<server-ip>:5000` in a browser, then log in
-2. Click "Scan Directory" to choose your models folder (a folder mounted into the container), or set STL Home
-3. Wait for the initial scan to complete
-4. (Optional) Configure settings:
-   - **File Type**: Adjust max file size or enable ZIP archive support if needed
-   - **Theme**: Choose your preferred UI theme and model background color
-   - **Performance**: Adjust thumbnail settings for your system
-   - **AI Config**: Set up AI tagging if you want automated tag suggestions
-   - **MCP Server**: Let a local AI agent search the library and write thumbnails (Tools → MCP Server)
-5. Start organizing your models!
+- **Tabs**: **All Models**, **Printed**, **Unprinted**, **Queue** (queued or printing) and **Favorites**. The count next to them is the number of models shown.
+- **Views**: **Grid** (cards), **Wall** (large previews only; the tile size is next to the view buttons) and **List** (one row per model with columns you can show, hide and resize).
+- **Folders**: the folder button opens a folder panel beside the grid; click a folder to show only its models.
+- **Selecting**: click a card to show it in the details panel. Ctrl/⌘-click or Shift-click selects several, which opens multi-edit. The arrow keys move the selection, Ctrl/⌘ A selects everything shown.
+- **The model menu**: right-click a card (or press the Menu key, or Shift+F10) for Open in Slicer, 3D preview, move, rename, delete, Generate Tags and more.
+- **Print status**: click a card's status badge to log a print; Shift-click it to change the status without logging.
 
-## View Modes
+### Search and filters
 
-JusttPrint offers three different view modes to suit your workflow:
+![The Filter popover](docs/images/filters.png)
 
-- **List View**: Compact list showing essential information, ideal for quick browsing
-- **Preview View**: Medium-sized thumbnails with basic metadata
-- **Detailed View**: Large thumbnails with full metadata display, perfect for detailed review
+Type in the top bar to search names, designers, tags and (optionally) notes. **Filter** opens every filter: folder, designer, parent model, license, tags, print status, new models, favorites, rating, filament, file type and sort order. Active filters show as chips under the tabs; click a chip's × to remove one, or **Clear all**.
 
-Switch between view modes using the view controls in the interface.
+### Folder and ZIP bundles
 
-## Print status and history
-
-Each model has a **status** (Unprinted, Want, Queued, Printing, Printed, Failed) and an optional **print log**.
-
-- Click the card badge to **log a print** (date, outcome, quantity, filaments, notes). Logging a successful print sets status to Printed and shows a reprint count.
-- Shift-click the badge to change status without creating a history row.
-- The details panel has a status dropdown, a **Log a print** button, and a history list you can delete from.
-- Filters include each status plus **Ever printed** / **Never printed** (based on successful log entries, not the sticky status).
-- Existing models that were only checked as Printed keep that status with “No logged prints yet” until you backfill.
-
-## AI Tagging
-
-AI Tagging uses artificial intelligence to automatically suggest tags for your 3D models based on their appearance and characteristics.
-
-### Setting Up AI Tagging
-
-1. Go to **Settings > AI Config**
-2. Enter your API key if the provider requires one (OpenAI, Claude, Gemini). Local OpenAI-compatible servers such as Ollama or LM Studio can leave this blank.
-3. Select your preferred AI model
-4. Configure tagging options:
-   - Maximum number of tags
-   - Tag merging strategy (replace, merge, or append)
-   - Category-based tagging
-   - Detail level
-   - Concurrency settings
-
-### Using AI Tagging
-
-- Select one or more models
-- Use the AI tagging feature from the context menu or tools
-- Review and accept suggested tags
-- Tags are automatically applied based on your merge strategy settings
-
-## Settings Overview
-
-JusttPrint offers comprehensive settings to customize your experience:
-
-### AI Config
-- API key (optional for local OpenAI-compatible servers) and endpoint configuration
-- AI model selection (GPT-4o-mini, GPT-4, etc.)
-- Tag generation options (max tags, categories, detail level)
-- Tag merging strategies
-- Concurrency controls
-
-### File Type
-- Maximum file size limit (default: 50MB)
-- Enable/disable ZIP archive scanning
-- File type preferences
-
-### Performance
-- Thumbnail size settings
-- Maximum concurrent renders
-- Batch size for operations
-- Rendering performance optimization
-
-### Slicer Path
-- Configure one or more slicer applications (name + path). The path is where the slicer is installed **on your computer**, not in the container
-- Send to Slicer uses the JusttPrint helper on your computer: download it from **Settings → Slicer** and run the installer once. The helper downloads the models from the server and starts the slicer locally; the server never runs a slicer itself
-- **Open in Slicer** from the right-click context menu
-- **Send to Slicer** from the 3D preview dialog (single model or full bundle)
-- On a Mac, the helper opens a **new slicer instance** for each send so models load even when the slicer is already open
-
-### Bundle groups (folders and ZIP archives)
-
-When a scan finds **two or more** STL/3MF files in the same folder or inside the same ZIP file, JusttPrint shows them as one **bundle** row instead of many separate entries.
+When a scan finds two or more model files in the same folder or ZIP file, they show as one **bundle** card.
 
 | Action | Result |
 |--------|--------|
-| Click bundle row | Expand or collapse the files in the grid |
-| Right-click → **Preview** | Opens **3D preview** with every part laid out on a grid |
-| Double-click bundle row | Opens **Bundle details** (path, sizes, print status, file list) |
-| Chevron (▸ / ▾) | Expand or collapse individual files in the grid |
-| **Send to Slicer** (in preview) | Sends all bundle STL/3MF files to your chosen slicer |
+| Click the bundle | Expand or collapse its files in the grid, and show the bundle's details |
+| Right-click → **Preview** | 3D preview with every part laid out side by side (up to 32 parts) |
+| **Send to Slicer** (in the preview) | Sends every part to your slicer |
 
-**Notes:**
-- Single-file folders are not grouped (they stay normal model rows).
-- Bundle preview supports up to 32 STL/3MF parts per open; larger bundles show the first 32 with a notice.
-- ZIP entries: the helper downloads just that file from the archive, same as the context menu.
+Single files in a folder are not grouped.
 
-### STL Home
-- Set default directory for file operations
-- Quick access to frequently used folders
+## Model details
 
-### Theme
-- UI theme selection (multiple modern themes available)
-- Model background color customization
-- Visual appearance preferences
+![The details panel](docs/images/details.png)
 
-### MCP Server
-- Experimental: by using MCP Server you assume the risk; it may change, break, or expose library data to clients that can reach the endpoint
-- MCP is always available at `http://<host>:5000/mcp`; Tools → MCP Server shows the URL and a client config that includes the API token
-- Agents can search the library, read model details (including on-disk `filePath`), update metadata, and set thumbnails with a PNG or JPEG
+Click a model to see it in the details panel:
+
+- **Preview**: click it (or **3D**) for the 3D preview. Thumbnails of the model's images run underneath.
+- **Name and designer**, then the **tags** (× removes one; the picker adds one, + creates a new tag).
+- **Open in Slicer** sends the model to your first slicer; the arrow lists the others. **Log Print** records a print.
+- **Details**: file, format, size, print status, source link, designer, parent model, license, location (click a folder to show it), date added and rating. Fields save as you change them.
+- **Filament**, **Notes** (Markdown) and **Print History** (each logged print with date, printer, filament and outcome).
+
+### Editing several models
+
+Select several cards (Ctrl/⌘-click or Shift-click) to open the multi-edit panel. Changes there apply to every selected model: designer, parent model, license, source, print status, tags and filament.
+
+### Print status and history
+
+Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and a print log. Logging a print (date, outcome, quantity, printer, filaments, parts used, notes) sets the status and adds a dated entry to the history; a successful print counts as a reprint after the first. The **Printed** and **Unprinted** tabs go by the logged prints, not the status alone.
+
+## Printing
+
+![Print Queue](docs/images/queue.png)
+
+- **Queue** lists **Printing now**, **Up next** (queued models; **Start** sets one to Printing, × takes it out of the queue) and **Completed** (recent successful prints; ↻ queues one again).
+- **Printers** keeps your printers: make and model, type, firmware, print count and last print. Select one for its web page (**Open Web UI**), maintenance reminders and log, and recent prints. **Add Printer**, **Edit** and **Maintenance** open the printer forms; **Parts** opens the Parts Manager (screws, bearings and other stock that logged prints use up).
+- **Filament** shows each filament in your catalog as a spool in its color, with material, diameter, how many models use it, and its prints. Search and the material chips narrow the list; **Show models** opens the library filtered to that filament. **Add Filament** adds one by hand; **Spoolman** syncs your catalog from a Spoolman server.
+
+![Printers](docs/images/printers.png)
+
+## Managing the library
+
+- **Tags** lists every tag with how many models use it. Create, rename (renaming onto an existing tag merges the two), delete, or show a tag's models.
+- **Duplicates** finds identical files by their contents and shows each group side by side. **Keep this** marks the other copies for deletion; **Easy** keeps one copy of each group for you (preferring a folder you choose). Nothing is deleted until you confirm **Delete Selected**. You can limit the search to the models currently shown.
+- **Organize** moves the models in a scanned folder into a folder structure you choose (up to four levels, such as designer / parent model / license). **Preview** shows what will happen first; each original is removed only after its copy is checked, and files that are not in the library stay where they are. The models folder must be mounted without `:ro`.
+- **AI Tagging** sets up the AI service; then select models, right-click and choose **Generate Tags**, and tick the tags to keep. See [AI tagging](#ai-tagging).
+- **Settings → Library** has the Metadata Manager (rename or remove designers, licenses and parent models everywhere), Library Stats, Print Roulette (random models to print), Clear New Flag and Purge Models.
+
+## AI tagging
+
+AI tagging looks at a model's thumbnail, name and folder names and suggests tags. You review them before they are saved.
+
+1. Click **AI Tagging** in the sidebar.
+2. Pick a service: OpenAI, Claude or Gemini need an API key; **Puter** signs in to your Puter account instead; **custom** works with a local OpenAI-compatible server such as Ollama or LM Studio (no key).
+3. Pick a model and the tagging options (number of tags, replace / merge / append, categories, detail level), then save.
+4. Select models, right-click and choose **Generate Tags**. **Tag from Folder** copies folder names onto the models as tags without asking the AI.
+
+Tips: start with a few models, use **merge** to keep the tags you already have, and review the suggestions before applying them.
+
+## Settings
+
+![Settings](docs/images/settings.png)
+
+**Settings** is one page with an index on the left:
+
+| Group | What is there |
+|-------|---------------|
+| General | Performance: the largest file a scan processes |
+| Appearance | Theme: accent color, and the background, model color and lighting of thumbnails |
+| Library | Metadata Manager, Library Stats, View Entire Library, Print Roulette, Clear New Flag, Purge Models |
+| Scanning | STL Home, File Types (ZIP files, extra types, skipped folders), Scan a Folder |
+| Slicer | Your slicers, and the helper for Send to Slicer |
+| Printers, Filament | Links to those pages, and the Parts Manager |
+| Integrations | MCP Server: connect an AI app to your library |
+| AI | AI tagging settings |
+| Server | HTTPS / SSL and the listen port, Restart Server |
+| Authentication | Server Access (password and API token), Log Out |
+| Backup | Download a backup, export the library, restore |
+| Advanced | Regenerate Thumbnails, Generate Missing Thumbnails, System Report |
+| About | Version, update check, license |
+
+Most forms are shown right on the page: change the values and click **Save**.
+
+### Send to Slicer
+
+Slicers run on your computer, not on the server. Add each slicer under **Settings → Slicer** with its path on your computer, then download and run the JusttPrint helper there once. **Open in Slicer** (details panel, model menu) and **Send to Slicer** (3D preview) then download the model and open it in that slicer. On a Mac the helper opens a new slicer window for each send.
+
+### MCP server
+
+AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<server-ip>:5000/mcp` to search the library, edit tags and metadata, log prints and set thumbnails. **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
+
+## Keyboard
+
+**Help → Keyboard Shortcuts** lists them all. The main ones: **Ctrl/⌘ K** search, **Tab** moves between cards (each card is one stop), **Enter** or **Space** selects, the arrow keys move the selection, **Ctrl/⌘ A** selects all, **Ctrl/⌘ E** multi-edit, **Escape** closes a dialog, drawer or popover. A **Skip to content** link is the first Tab stop on every page.
+
+## Your data
+
+- The database, thumbnails and settings live in the container's data folder (`/root/.config/justtprint`); mount it as a volume so it survives updates.
+- A backup copy (`backup_justtprint.db`) is written every time the server stops.
+- **Settings → Backup** downloads a backup or restores one. Keep a backup before removing the container or its data volume.
 
 ## Tips
 
-### Organization
-- Use tags for easy categorization
-- Enable multi-edit mode for batch operations
-- Use the Tag Manager to organize and clean up tags across your collection
-- Link related models using parent/child relationships
-- Look for **folder** and **ZIP** bundle rows when a multi-part project was scanned together; right-click **Preview** to view all parts at once
-
-### AI Tagging
-- Start with a small batch to test your AI configuration
-- Use "merge" strategy to combine AI tags with existing tags
-- Adjust detail level based on your needs (higher detail = more specific tags)
-- Review AI-suggested tags before accepting to ensure accuracy
-
-### View Modes
-- Use List view for quick scanning of large collections; bundle groups appear as one row with a part count
-- Use Detailed view when reviewing models for printing
-- Preview view offers a good balance between information and space
-
-### Performance
-- Adjust thumbnail size in Performance settings if rendering is slow
-- Reduce concurrent renders if experiencing performance issues
-- Use "Generate Missing Thumbnails" instead of full regenerate when possible
-
-### Maintenance
-- Regular backups recommended
-- Use the context menu for quick actions
-- Check for duplicates periodically using the De-Dup tool (optionally limited to the models currently in view)
-- Use Print Roulette to discover forgotten models in your collection
-- Purge models that no longer exist to keep your database clean 
+- Use tags, designers and parent models consistently; the Metadata Manager and the Tags page clean them up later.
+- Generate Missing Thumbnails is much faster than regenerating all of them.
+- Check **Duplicates** now and then, limited to the models in view for a large library.
+- Print Roulette (**Settings → Library**) finds forgotten models worth printing.

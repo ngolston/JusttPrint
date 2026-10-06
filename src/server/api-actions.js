@@ -160,6 +160,10 @@ const ACTIONS = {
   'get-default-ai-prompt': [],
   'fetch-thangs-page': ['string'],
   'get-stats': [],
+  'get-library-storage': [],
+  'get-library-counts': [],
+  'get-recent-activity': ['number?'],
+  'get-recent-prints': ['number?', 'string?', 'number?'],
   'get-gpu-info': [],
   'benchmark-filesystem': [],
   'benchmark-database': []

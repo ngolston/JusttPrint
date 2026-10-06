@@ -1,0 +1,30 @@
+/*
+ * JusttPrint styles. Built by Vite into web-build/app.css (index.html links it).
+ * legacy/: the older dialogs' and panels' styles, drawn with the tokens (theme-vars.css maps
+ * their variables). New UI uses only the files after them.
+ */
+@import '@fontsource-variable/inter/wght.css';
+@import './legacy/theme-vars.css';
+@import './legacy/base.css';
+@import './legacy/parts-stock.css';
+@import './legacy/printer-manager.css';
+@import './legacy/notes-markdown.css';
+@import './legacy/preview-wall.css';
+@import './legacy/thumbnail-progress.css';
+@import './legacy/organize-library.css';
+@import './tokens.css';
+@import './typography.css';
+@import './components.css';
+@import './layout.css';
+@import './library.css';
+@import './details.css';
+@import './home.css';
+@import './queue.css';
+@import './printers.css';
+@import './filament.css';
+@import './tags.css';
+@import './manage.css';
+@import './settings.css';
+@import './library-frame.css';
+/* Last: the narrower sizes override the layout above. */
+@import './responsive.css';

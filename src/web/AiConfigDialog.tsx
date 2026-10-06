@@ -188,7 +188,7 @@ export function AiConfigDialog() {
         footer={(
           <>
             <button type="button" id="test-ai-config" disabled={testing} onClick={test}>Test</button>
-            <button type="button" id="save-ai-config" disabled={saving} onClick={save}>Save</button>
+            <button type="button" id="save-ai-config" className="is-primary" disabled={saving} onClick={save}>Save</button>
             <button type="button" id="cancel-ai-config" onClick={() => dialogRef.current?.close()}>Cancel</button>
           </>
         )}>
@@ -296,7 +296,7 @@ export function AiConfigDialog() {
         description={<p className="setting-description">This prompt is sent to the AI when generating tags. Leave empty to use the built-in default. Filename, folder, and description context is appended automatically when available.</p>}
         footer={(
           <>
-            <button type="button" id="save-ai-prompt-edit" onClick={savePrompt}>Save</button>
+            <button type="button" id="save-ai-prompt-edit" className="is-primary" onClick={savePrompt}>Save</button>
             <button type="button" id="cancel-ai-prompt-edit" onClick={() => promptDialogRef.current?.close()}>Cancel</button>
           </>
         )}>

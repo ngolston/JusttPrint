@@ -268,6 +268,18 @@ test('filters distinguish status, ever-printed, and legacy not-printed', () => {
   assert.strictEqual(printEvents.modelMatchesPrintFilter(reprint, 'printed'), false);
 });
 
+test('in-queue matches queued and printing models (the library Queue tab)', () => {
+  assert.strictEqual(printEvents.modelMatchesPrintFilter({ print_status: 'queued' }, 'in-queue'), true);
+  assert.strictEqual(printEvents.modelMatchesPrintFilter({ print_status: 'printing' }, 'in-queue'), true);
+  assert.strictEqual(printEvents.modelMatchesPrintFilter({ print_status: 'want' }, 'in-queue'), false);
+  assert.strictEqual(printEvents.modelMatchesPrintFilter({ printed: 1, print_status: 'printed' }, 'in-queue'), false);
+  const db = new Database(':memory:');
+  db.exec("CREATE TABLE models (id INTEGER PRIMARY KEY, print_status TEXT); INSERT INTO models (print_status) VALUES ('queued'), ('printing'), ('want'), (NULL)");
+  const bound = printEvents.printFilterSqlBound('in-queue');
+  assert.deepStrictEqual(db.prepare(`SELECT id FROM models WHERE ${bound.sql} ORDER BY id`).all(...bound.params).map((r) => r.id), [1, 2]);
+  db.close();
+});
+
 test('badge text uses reprint count and bundle summary mixed/printed', () => {
   assert.strictEqual(printEvents.badgeText({ print_status: 'printed', print_count: 3 }), 'Printed ×3');
   assert.strictEqual(printEvents.badgeText({ print_status: 'want', print_count: 0 }), 'Want');

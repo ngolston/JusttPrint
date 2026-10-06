@@ -2,6 +2,40 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.0.0] - 2026-10-06
+
+JusttPrint 5 is a new interface: a sidebar of pages, a redesigned library and details panel, a Home dashboard, pages for the queue, printers, filament, tags, duplicates, organizing and settings, and layouts for laptops, tablets and phones. The library, database and server are unchanged.
+
+**Upgrading:**
+- Docker: pull the new image (`docker compose pull && docker compose up -d`). Your data folder, settings and environment variables carry over; nothing to migrate. Reload open browser tabs after the update.
+- The menu bar is gone. Everything it had is on a page in the sidebar, under **Settings** (one page, grouped: General, Appearance, Library, Scanning, Slicer, Printers, Filament, Integrations, AI, Server, Authentication, Backup, Advanced, About) or under **Help**. For example: **Tools → Server Access** is **Settings → Authentication → Server Access**, **Tools → MCP Server** is **Settings → Integrations** and **Settings → Server → HTTPS / SSL**, **Tools → Backup/Restore** is **Settings → Backup**, **De-Dup** is **Duplicates**, **Tag/Filament/Printer Manager** are the **Tags**, **Filament** and **Printers** pages.
+- The app opens on **Home**; **Library** is the model grid.
+- The **Theme** accent color now colors the whole interface. The purple theme is a little lighter (`#b47cfa`) so text on it stays readable.
+- If you serve the files yourself instead of using the Docker image, run `npm run build:web`: every style is now in `web-build/app.css`, and `styles.css`, `theme.css`, `mobile-ui.css`, `parts-stock.css`, `printer-management.css`, `notes-markdown.css`, `preview-wall.css`, `thumbnail-progress.css` and `organize-library.css` are removed, as are `bg.png`, `dup.png`, `filament.png`, `file-icon.png`, `roulette.png` and `tag.png`.
+
+**New:**
+- **Shell**: a sidebar with every page (Home, Library; Printing: Queue, Printers, Filament; Manage: Tags, Duplicates, Organize, Scan Library, AI Tagging; System: Settings, Help), a Queue badge, **Library Storage** (how full the models disk is) and scan and thumbnail progress. The top bar has the search box (Ctrl/⌘ K) and the account menu. Pages have addresses (`#/home`, `#/library`, `#/queue`, `#/printers/<id>`, `#/settings/<group>`, …), so back, forward and reload work.
+- **Home**: a greeting with a summary, four figures (models, printed, in queue, printers) that open the matching view, a render of the model printed last (else the newest) in the accent color, Recent Activity (logged prints with outcome, printer and filament, and models added), Your Printers (with maintenance due) and the models added most recently.
+- **Library**: "Your Library" with tabs (All Models, Printed, Unprinted, Queue, Favorites), the model count, Grid / Wall / List, the folder panel and a **Filter** popover with every filter; active filters show as removable chips. New model cards: preview with Favorite, More and the rating; title, designer (or folder), file type and filament material badges and the print status.
+- **Details panel**: large preview with a thumbnail strip, name and designer, tags as pills, **Open in Slicer** (with a list of your slicers) and **Log Print**, then Details (file, format, size, print status, source, designer, parent model, license, a clickable location, date added, rating), Filament, Notes and Print History. It is a column on wide screens and a drawer below 1200 px.
+- **Queue** page: Printing now, Up next (Start, remove) and Completed (queue again).
+- **Printers** page: a card per printer with type, firmware, print count, last print and maintenance due; the selected printer shows its web page link, reminders (mark done), maintenance log and recent prints. Add, Edit and Maintenance open the printer forms; Parts opens the Parts Manager.
+- **Filament** page: each filament as a spool in its color, with material, diameter, source (manual or Spoolman), how many models use it, its logged prints and when it was last used; search, material chips, Show models and Remove.
+- **Tags** page: every tag with its usage, sorted by use or name, search and an Unused filter; create, rename (onto an existing tag merges), delete and show models.
+- **Duplicates** page: each group of identical files side by side with preview, folder and size, **Keep this** and **Keep all**, plus Easy, the preferred folder and the scope as before. **Organize** is a page too.
+- **Settings** is one page with an index; most settings forms are shown right on it.
+- **Responsive**: laptops get the details drawer; tablets an icon rail; phones a bottom bar (Home, Library, Queue, Printers, Menu), the sidebar as a drawer, two cards per row and full-screen details and filters.
+- **Accessibility**: every card is one Tab stop with a spoken summary; Enter or Space selects, the arrow keys move, the Menu key or Shift+F10 opens the model menu. A Skip to content link, landmarks, focus handling in drawers, reduced motion, and colors checked for contrast (WCAG AA). The browser tests run an accessibility audit (axe-core) on the main pages and every dialog.
+- New read-only server actions for these pages: `get-library-storage`, `get-library-counts`, `get-recent-activity`, `get-recent-prints`; `get-all-filaments` returns each filament's print count and last use, model lists include the first filament's material, and the print filter `in-queue` matches queued and printing models.
+
+**Changes:**
+- The design uses the Inter font and Lucide icons, bundled with the app (nothing is loaded from the internet).
+- The older dialogs (Printer Manager, Filament Manager, Parts Manager, Metadata Manager, Tag Manager, Stats, System Report and the rest) and the message and prompt boxes use the new colors, type, buttons and inputs.
+- Only dropdowns show a dropdown arrow; text fields no longer do.
+- The Quick Start Guide, README and GUIDE describe the new interface, with new screenshots (`docs/images/`).
+- Fixed: the top bar search and the Queue link did not run a search; card ratings and favorites showed through the Filter popover; the folder tree popover could cover its own button on short screens; on a phone the Menu button took the keyboard focus when the page loaded.
+- Removed with the old interface: the menu bar, the old phone layout, the old sidebar's logo, counts and tool buttons, the sidebar resize handle, and two dialogs nothing opened (the old guide and the server mode information; **Help → Installing and Setup** opens the README).
+
 ## [4.6.2] - 2026-10-06
 
 **Upgrading:** no changes needed.

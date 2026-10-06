@@ -44,7 +44,7 @@ function toInput(part: Part, quantity = part.quantity): PartInput {
 }
 
 /**
- * Tools → Parts Manager: hardware stock (screws, bearings, inserts) that logged prints use up.
+ * Settings → Parts Manager: hardware stock (screws, bearings, inserts) that logged prints use up.
  * Registers window.openPartsStock.
  */
 export function PartsManagerDialog() {

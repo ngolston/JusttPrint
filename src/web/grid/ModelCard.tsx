@@ -1,14 +1,22 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { cachedThumbnail, fetchPrimaryThumbnail, isImageOnlyMiss } from '../thumbnails/cache';
 import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQueue } from '../thumbnails/cards';
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
-import type { GridModel, GridView } from './layout';
+import { cardPreviewHeight, type GridModel, type GridView } from './layout';
 import { applyColumns } from './columns';
+import { Heart, MoreHorizontal } from 'lucide-react';
+import { TONE_ICONS, printStatusInfo } from '../components/Badge';
+import { cx } from '../components/Button';
+import { badgeTitle, effectiveStatus, type PrintModel } from '../print/printStatus';
+
+/** Card and preview height of a JusttPrint 5 card, as CSS variables (library.css). */
+export function tileStyle(position: { width: number; height: number }): CSSProperties {
+  return { '--jp-card-height': `${position.height}px`, '--jp-card-preview': `${cardPreviewHeight(position.width)}px` } as CSSProperties;
+}
 
 /** What a model card asks of the library (library/hosts.ts: selection, menus, filters, saving). */
 export interface CardHost {
   isSelected(filePath: string): boolean;
-  isMobile(): boolean;
   isNew(model: GridModel): boolean;
   directoryLabel(filePath: string): string;
   directoryFullPath(filePath: string): string;
@@ -184,11 +192,11 @@ function Carousel({ host, model, images, style, children }: {
   );
 }
 
-function EngagementBar({ host, model }: { host: CardHost; model: GridModel }) {
+/** Rating and favorite of one model, saved on click. */
+function useEngagement(host: CardHost, model: GridModel) {
   const [hover, setHover] = useState<number | null>(null);
   const rating = normalizeRating(model.rating);
   const favorite = !!model.favorite;
-  const shown = hover ?? rating;
 
   async function save(field: 'rating' | 'favorite', value: number | boolean, event: ReactMouseEvent) {
     event.preventDefault();
@@ -199,23 +207,70 @@ function EngagementBar({ host, model }: { host: CardHost; model: GridModel }) {
     }
   }
 
+  return { rating, favorite, shown: hover ?? rating, setHover, save };
+}
+
+function RatingStars({ engagement, label = 'Rating' }: { engagement: ReturnType<typeof useEngagement>; label?: string }) {
+  const { rating, shown, setHover, save } = engagement;
   return (
-    <div className="model-engagement-bar" data-rating={rating} data-favorite={favorite ? '1' : '0'}>
-      <div className="model-rating" role="radiogroup" aria-label="Rating">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button key={star} type="button" className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
-            aria-label={`${star} star${star === 1 ? '' : 's'}`}
-            onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
-            onClick={(event) => save('rating', rating === star ? 0 : star, event)}>
-            {star <= shown ? '★' : '☆'}
-          </button>
-        ))}
-      </div>
-      <button type="button" className={`model-favorite-btn${favorite ? ' is-favorited' : ''}`} aria-pressed={favorite} title="Favorite"
-        onClick={(event) => save('favorite', !favorite, event)}>
-        {favorite ? '♥' : '♡'}
-      </button>
+    <div className="model-rating" role="radiogroup" aria-label={label}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button key={star} type="button" tabIndex={-1} className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
+          role="radio" aria-checked={star === rating} aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
+          onClick={(event) => save('rating', rating === star ? 0 : star, event)}>
+          {star <= shown ? '★' : '☆'}
+        </button>
+      ))}
     </div>
+  );
+}
+
+/** What a screen reader says for a card: name, designer, print status, and whether it is selected. */
+export function cardLabel(model: GridModel, selected: boolean): string {
+  const designer = typeof model.designer === 'string' && model.designer.trim() ? `by ${model.designer.trim()}` : '';
+  const status = printStatusInfo(effectiveStatus(model as PrintModel)).label;
+  return [cardTitle(model), designer, status, selected ? 'selected' : ''].filter(Boolean).join(', ');
+}
+
+/** The model's file type for the format badge ("STL", "3MF"). */
+export function formatOf(model: GridModel): string {
+  const name = displayFileName(model);
+  const dot = name.lastIndexOf('.');
+  return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toUpperCase() : '';
+}
+
+/** The card title: the file name without its type, which the format badge shows. */
+export function cardTitle(model: GridModel): string {
+  const name = displayFileName(model);
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
+/** The material of the model's first filament (details panel order) that has one. */
+export function materialOf(model: GridModel): string {
+  if (Array.isArray(model.filaments)) {
+    const withMaterial = (model.filaments as { material?: unknown }[]).find((filament) => typeof filament?.material === 'string' && filament.material.trim());
+    return withMaterial ? String(withMaterial.material).trim() : '';
+  }
+  return typeof model.filamentMaterial === 'string' ? model.filamentMaterial.trim() : '';
+}
+
+/** The card's print status: click logs a print, Shift-click picks a status (window.PrintHistory). */
+function CardPrintStatus({ model }: { model: GridModel }) {
+  const info = printStatusInfo(effectiveStatus(model as PrintModel));
+  const Icon = info.icon ?? TONE_ICONS[info.tone];
+  return (
+    <button type="button" tabIndex={-1} className={`print-status jp-status jp-status--${info.tone}`} title={`${badgeTitle(model as PrintModel)}\nClick to log a print; Shift-click to set the status.`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.shiftKey) window.PrintHistory?.openStatusMenu(event.currentTarget, model.filePath);
+        else void window.PrintHistory?.openLogDialog({ filePaths: [model.filePath] });
+      }}>
+      <Icon size={12} aria-hidden="true" />
+      <span>{info.label}</span>
+    </button>
   );
 }
 
@@ -283,10 +338,12 @@ export interface ModelCardProps {
   /** Preview tiles and phone cards take the row height. */
   fixedHeight: boolean;
   priority: number;
+  /** The JusttPrint 5 card (desktop grid view, spec §16) instead of the older detailed card. */
 }
 
 /** A model in the library grid, in the detailed, preview or list view. */
 export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey, bandClasses, position, fixedHeight, priority }: ModelCardProps) {
+  const tile = view === 'detailed';
   const cardRef = useRef<HTMLDivElement>(null);
   // The thumbnail queue renders into this empty, hidden slot (renderModelToPNG writes into its
   // container); React never puts children in it, so the two cannot collide.
@@ -295,7 +352,6 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
   const { current, images } = useThumbnail(host, model, view, priority, renderSlot);
   const tags = useTagNames(host, model);
   const name = displayFileName(model);
-  const mobile = host.isMobile();
   const zipEntry = isZipEntry(model);
   const zipFile = isZipFile(model);
 
@@ -309,7 +365,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
-  const classes = ['file-item', `file-item-${view}`, view === 'preview' && 'preview-tile', host.isSelected(model.filePath) && 'selected', ...bandClasses]
+  const classes = ['file-item', `file-item-${view}`, view === 'preview' && 'preview-tile', tile && 'jp-model-card', host.isSelected(model.filePath) && 'selected', ...bandClasses]
     .filter(Boolean).join(' ');
 
   const cardStyle: CSSProperties = {
@@ -321,18 +377,16 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     Object.assign(cardStyle, { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, padding: '6px 12px', height: 52 });
   } else if (view === 'preview') {
     Object.assign(cardStyle, { padding: 0, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' });
-  } else {
-    Object.assign(cardStyle, { boxSizing: 'border-box', display: 'flex', flexDirection: 'column' });
-    if (mobile) Object.assign(cardStyle, { padding: '6px 6px 8px', overflow: 'hidden' });
-    else Object.assign(cardStyle, { width: 300, height: 490, minHeight: 490, maxHeight: 490, padding: '16px 16px 0' });
+  } else if (tile) {
+    Object.assign(cardStyle, tileStyle(position));
   }
 
   const thumbSize: CSSProperties = view === 'list'
     ? { width: 48, height: 48, flexShrink: 0, position: 'relative' }
     : view === 'preview'
       ? { width: '100%', height: '100%', flex: 1, minHeight: 0, marginBottom: 0 }
-      : mobile ? { width: '100%', height: 'auto', aspectRatio: '1', flexShrink: 0 } : { width: 276, height: 276, flexShrink: 0 };
-  const imageSize: CSSProperties = view === 'list' ? { width: 48, height: 48 } : view === 'preview' || mobile ? { width: '100%', height: '100%' } : { width: 276, height: 276 };
+      : {};
+  const imageSize: CSSProperties = view === 'list' ? { width: 48, height: 48 } : { width: '100%', height: '100%' };
 
   const thumbnail = (src: string | null) => (
     <div className="thumbnail-container" style={{ position: 'relative', ...thumbSize }}>
@@ -357,11 +411,37 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     host.cardClick(event.nativeEvent, event.currentTarget, model.filePath, view);
   };
 
+  const selected = host.isSelected(model.filePath);
+  /**
+   * Keyboard (spec §37): a card is one Tab stop. Enter or Space selects it (with Ctrl/Cmd or
+   * Shift as with a click), the Menu key or Shift+F10 opens its menu.
+   */
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const click = new MouseEvent('click', { ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, altKey: event.altKey });
+      host.cardClick(click, event.currentTarget, model.filePath, view);
+    } else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      host.showCardMenu(model.filePath, rect.left + 16, rect.top + 16);
+    }
+  };
   const common = {
-    ref: cardRef, className: classes, style: cardStyle, onClick,
+    ref: cardRef, className: classes, style: cardStyle, onClick, onKeyDown,
+    tabIndex: 0, role: 'group', 'aria-label': cardLabel(model, selected),
     'data-filepath': model.filePath, 'data-index': index, 'data-layout-key': layoutKey,
     'data-parent-group-key': bandClasses.length ? parentGroupKey : undefined
   };
+
+  // Arrow keys move the selection; the keyboard focus follows it to this card.
+  useEffect(() => {
+    const focused = document.activeElement as HTMLElement | null;
+    if (selected && focused && focused !== cardRef.current && focused.closest('.file-grid') && focused.matches('.file-item')) {
+      cardRef.current?.focus();
+    }
+  }, [selected]);
 
   if (view === 'preview') {
     return (
@@ -440,83 +520,93 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     );
   }
 
-  // Detailed
-  const directory = host.directoryLabel(model.filePath);
+  return <ModelTile host={host} model={model} common={common} images={images} current={current} setRenderSlot={setRenderSlot} />;
+}
+
+interface TileProps {
+  host: CardHost;
+  model: GridModel;
+  common: Record<string, unknown>;
+  images: string[] | null;
+  current: string | null;
+  setRenderSlot: (element: HTMLDivElement | null) => void;
+}
+
+/**
+ * The JusttPrint 5 model card (spec §16-19): the preview fills the top with Favorite and More
+ * at its top-right (and the rating, shown on hover or once set); the footer has the title, the
+ * designer (else the folder), the format and material badges and the print status.
+ */
+function ModelTile({ host, model, common, images, current, setRenderSlot }: TileProps) {
+  const engagement = useEngagement(host, model);
+  const { rating, favorite, save } = engagement;
   const designer = text(model.designer);
-  const source = text(model.source);
-  const parentModel = text(model.parentModel);
-  const license = text(model.license);
-  const filterLink = (selectId: string, value: string) => (event: ReactMouseEvent) => {
+  const directory = host.directoryLabel(model.filePath).split(/[/\\]/).filter(Boolean).pop() || '';
+  const format = formatOf(model);
+  const material = materialOf(model);
+  const title = cardTitle(model);
+  const zipEntry = isZipEntry(model);
+
+  const preview = (src: string | null) => (
+    <div className="thumbnail-container jp-model-card__image">
+      <div className="thumbnail-render-slot" ref={setRenderSlot} aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }} />
+      <img src={src || '3d.png'} alt="" loading="lazy" draggable={false} />
+    </div>
+  );
+
+  const stop = (run: () => void) => (event: ReactMouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    host.filterBySelect(selectId, value);
+    run();
   };
+
   return (
-    <div {...common}>
-      <PrintBadge host={host} model={model} />
-      {zipEntry && <div className="archive-status">Archive</div>}
-      {thumbnailBlock}
-      <div className={`file-name${zipFile ? ' zip-file' : ''}`} style={{
-        display: 'block', fontSize: 13, fontWeight: 500, color: '#fff', marginTop: 8, marginBottom: 8, padding: '5px 8px', textAlign: 'center',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', boxSizing: 'border-box', minHeight: 28, lineHeight: 1.4,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 4, flexShrink: 0
-      }}>{name}</div>
-      <div className="file-info" style={{ minHeight: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4, overflow: 'visible', padding: 0, margin: 0 }}>
-        <div className="file-details" style={{ padding: 0, margin: 0 }}>
-          <div className="metadata-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', padding: 0 }}>
-            {(directory || !!model.size) && (
-              <div className="metadata-item dir-size-row" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                {directory && (
-                  <div className="directory-part" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                    onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.filterByDirectory(model.filePath); }}>
-                    <span className="metadata-icon">📁</span>
-                    <span className="metadata-value directory-link" title={host.directoryFullPath(model.filePath) || directory}>{directory}</span>
-                  </div>
-                )}
-                {!!model.size && (
-                  <div className="size-part" style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                    <span className="metadata-icon">💾</span>
-                    <span className="metadata-value file-size">{host.formatSize(Number(model.size))}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {designer && (
-              <div className="metadata-item designer-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('designer-select', designer)}>
-                <span className="metadata-icon">👤</span>
-                <span className="metadata-value designer-info" style={{ color: '#ccc', display: 'inline-block' }} title={designer}>{designer}</span>
-              </div>
-            )}
-            {source && (
-              <div className="metadata-item source-item">
-                <span className="metadata-icon">🔗</span>
-                <span className="metadata-value source-info" style={{ color: '#ccc' }} title={source}>{source}</span>
-              </div>
-            )}
-            {parentModel && (
-              <div className="metadata-item parent-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('parent-select', parentModel)}>
-                <span className="metadata-icon">📦</span>
-                <span className="metadata-value parent-info" style={{ color: '#ccc' }} title={parentModel}>{parentModel}</span>
-              </div>
-            )}
-            {license && (
-              <div className="metadata-item license-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('license-select', license)}>
-                <span className="metadata-icon">📜</span>
-                <span className="metadata-value license-info" style={{ color: '#ccc' }} title={license}>{license}</span>
-              </div>
-            )}
-            {tags !== null && (tags === undefined || tags.length > 0) && (
-              <div className="metadata-item tags-item" style={{ gridColumn: '1 / -1' }}>
-                <span className="metadata-icon">🏷️</span>
-                <span className="metadata-value tags-info" style={{ color: tags ? '#ccc' : '#666' }} title={tags ? tags.join(', ') : ''}>
-                  {tags && <TagLinks host={host} names={tags} />}
-                </span>
-              </div>
-            )}
-          </div>
+    <div {...common} data-rating={rating} data-favorite={favorite ? '1' : '0'}
+      onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); host.openPreview(null, model.filePath, false); }}>
+      <div className="jp-model-card__preview">
+        {images
+          ? <Carousel host={host} model={model} images={images} style={{ width: '100%', height: '100%' }}>{(src) => preview(src)}</Carousel>
+          : preview(current)}
+        <div className="jp-model-card__flags">
+          {host.isNew(model) && <span className="new-status jp-model-card__flag" title="New model — clears once you edit it">New</span>}
+          {zipEntry && <span className="archive-status jp-model-card__flag">Archive</span>}
+        </div>
+        <div className="jp-model-card__actions">
+          <button type="button" tabIndex={-1} className={cx('model-favorite-btn jp-model-card__action', favorite && 'is-favorited')} aria-pressed={favorite}
+            aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            onClick={(event) => save('favorite', !favorite, event)}>
+            <Heart size={16} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
+          </button>
+          <button type="button" tabIndex={-1} className="thumbnail-menu-button jp-model-card__action" aria-label="More actions" title="More actions"
+            aria-haspopup="menu" onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              host.showCardMenu(model.filePath, rect.left, rect.bottom);
+            }}>
+            <MoreHorizontal size={16} aria-hidden="true" />
+          </button>
+        </div>
+        <div className={cx('model-engagement-bar jp-model-card__rating', rating > 0 && 'is-rated')} data-rating={rating}>
+          <RatingStars engagement={engagement} />
         </div>
       </div>
-      <EngagementBar host={host} model={model} />
+      <div className="jp-model-card__body">
+        <div className="file-name jp-model-card__title" title={displayFileName(model)}>{title}</div>
+        {designer
+          ? <button type="button" tabIndex={-1} className="jp-model-card__byline designer-info" title={`Show models by ${designer}`}
+              onClick={stop(() => host.filterBySelect('designer-select', designer))}>{designer}</button>
+          : directory
+            ? <button type="button" tabIndex={-1} className="jp-model-card__byline directory-link" title={`Show the folder ${host.directoryFullPath(model.filePath) || directory}`}
+                onClick={stop(() => host.filterByDirectory(model.filePath))}>{directory}</button>
+            : <span className="jp-model-card__byline" />}
+        <div className="jp-model-card__badges">
+          {format && <span className="jp-badge" title="File type">{format}</span>}
+          {material && <span className="jp-badge" title="Material of the first filament">{material}</span>}
+          <CardPrintStatus model={model} />
+        </div>
+      </div>
     </div>
   );
 }

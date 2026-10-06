@@ -1,0 +1,64 @@
+/*
+ * Where the library's page parts sit inside the shell (body.jp-shell-on, set by AppShell): the
+ * grid right of the sidebar and the folder rail, under the top bar, and the details column
+ * (.sidebar in index.html) on the right (spec §20). responsive.css changes this for narrower
+ * screens.
+ */
+/* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
+html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 8px); }
+
+body.jp-shell-on {
+  --jp-legacy-left: var(--jp-sidebar-width);
+  --jp-legacy-top: var(--jp-topbar-height);
+  --jp-legacy-right: var(--jp-details-width);
+  padding-top: var(--jp-legacy-top) !important;
+  background: var(--jp-bg);
+}
+
+body.server-mode.jp-shell-on .sidebar {
+  top: var(--jp-legacy-top) !important;
+  left: auto !important;
+  right: 0;
+  width: var(--jp-legacy-right);
+  height: calc(100vh - var(--jp-legacy-top)) !important;
+  padding-top: 0;
+  border-right: 0;
+  border-left: 1px solid var(--jp-border);
+  background: var(--jp-bg-2);
+}
+body.jp-shell-on .sidebar::after { flex-basis: var(--jp-space-4); }
+
+body.jp-shell-on .folder-rail,
+body.server-mode.jp-shell-on .folder-rail {
+  top: var(--jp-legacy-top);
+  left: var(--jp-legacy-left);
+  height: calc(100vh - var(--jp-legacy-top));
+  background: var(--jp-bg-2);
+  border-right-color: var(--jp-border);
+}
+
+body.jp-shell-on .grid-view-selector,
+body.jp-shell-on .file-grid,
+body.jp-shell-on .file-grid.preview-wall {
+  margin-left: calc(var(--jp-legacy-left) + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
+  max-width: calc(100vw - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
+}
+
+/* legacy/base.css positions the `main` element this replaced. */
+.library-main { position: relative; }
+
+body.jp-shell-on .grid-view-selector {
+  display: block;
+  padding: 0;
+  background: var(--jp-bg);
+  /* Above the cards' badges and ratings, so the Filter popover inside it covers them. */
+  z-index: 20;
+}
+
+body.jp-shell-on .file-grid {
+  padding: 0;
+  background: var(--jp-bg);
+  background-image: none;
+  animation: none;
+}

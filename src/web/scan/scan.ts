@@ -13,6 +13,7 @@ import { askText, onServerEvent, showMessage } from '../page';
 import { invalidateThumbnail } from '../thumbnails/cache';
 import { startThumbnailJob } from '../thumbnails/jobs';
 import { stlHomeDirectories } from './stlHome';
+import { navigate } from '../shell/routes';
 
 export interface ScanProgress {
   /** "Checking files: 120", then "Saving models: 40 / 120". */
@@ -107,6 +108,7 @@ export async function scanFolders(dirs: string[], options: { stlHome?: boolean }
   if (failures.length) await showMessage('Scan Error', `Some folders could not be scanned:\n\n${failures.join('\n')}`);
   if (found > 0 && await showMessage('New Models Found', `${found} new model(s) found, would you like to see them?`, ['Yes', 'No']) === 'Yes') {
     filterActions.showAddedSince(started);
+    navigate('library');
   }
   invalidateThumbnail();
   await refreshLibraryViews();
@@ -129,7 +131,7 @@ export async function scanDirectory() {
 export async function scanStlHome() {
   if (progress) return;
   const homes = await stlHomeDirectories();
-  if (!homes.length) return void showMessage('STL Home', 'Set STL Home directories in Settings first (Settings → STL Home).');
+  if (!homes.length) return void showMessage('STL Home', 'Set STL Home directories in Settings first (Settings → Scanning → STL Home).');
   await callAction('save-directory', homes[0]).catch(() => {});
   filterActions.clearAll();
   await scanFolders(homes, { stlHome: true });

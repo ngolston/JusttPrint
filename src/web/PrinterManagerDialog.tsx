@@ -5,7 +5,8 @@ import { askText, exposeGlobal, showMessage } from './page';
 
 declare global {
   interface Window {
-    openPrinterManagement?: (options?: { printerId?: number; tab?: Tab }) => void;
+    /** Open the Printer Manager: a tab, a printer's maintenance, or the Add / Edit form (the Printers page uses these). */
+    openPrinterManagement?: (options?: { printerId?: number; tab?: Tab; action?: 'add' | 'edit' }) => void;
   }
 }
 
@@ -87,7 +88,7 @@ function StatusLine({ id, status, hideWhenEmpty }: { id: string; status: { text:
 }
 
 /**
- * Tools → Printer Manager: onboard printers, open their web interfaces, and track maintenance
+ * Settings → Printer Manager: onboard printers, open their web interfaces, and track maintenance
  * (scheduled reminders and a history log). Registers window.openPrinterManagement.
  */
 export function PrinterManagerDialog() {
@@ -120,13 +121,17 @@ export function PrinterManagerDialog() {
     setFormOpen(false);
   }
 
-  useEffect(() => exposeGlobal('openPrinterManagement', ({ printerId, tab: requested } = {}) => {
+  useEffect(() => exposeGlobal('openPrinterManagement', ({ printerId, tab: requested, action } = {}) => {
     resetForm();
     setSearch('');
     setTypeFilter('');
     if (printerId) setSelectedId(Number(printerId));
-    setTab(requested === 'maintenance' || (printerId && !requested) ? 'maintenance' : 'printers');
-    void load();
+    setTab(!action && (requested === 'maintenance' || (printerId && !requested)) ? 'maintenance' : 'printers');
+    if (action === 'add') setFormOpen(true);
+    void load().then((list) => {
+      const printer = action === 'edit' && list.find((p) => p.id === Number(printerId));
+      if (printer) editPrinter(printer);
+    });
     if (!dialogRef.current?.open) dialogRef.current?.showModal();
   }), []);
 
@@ -313,7 +318,7 @@ export function PrinterManagerDialog() {
                   onChange={(event) => setSearch(event.target.value)} />
                 <button type="button" id="printer-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>×</button>
               </div>
-              <select id="printer-type-filter" className="printer-type-filter-select" title="Filter by printer type" value={typeFilter}
+              <select id="printer-type-filter" className="printer-type-filter-select" title="Filter by printer type" aria-label="Filter by printer type" value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="">All Types</option>
                 {PRINTER_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}

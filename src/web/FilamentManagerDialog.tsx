@@ -5,7 +5,8 @@ import { exposeGlobal, refreshAfterFilamentManagerClose, refreshFilamentPickers,
 
 declare global {
   interface Window {
-    openFilamentManager?: () => void;
+    /** Open the Filament Manager; 'add' opens the Add form, 'spoolman' the Spoolman setup (the Filament page uses these). */
+    openFilamentManager?: (options?: { action?: 'add' | 'spoolman' }) => void;
   }
 }
 
@@ -38,7 +39,7 @@ function errorText(error: unknown, fallback: string): string {
 }
 
 /**
- * Tools → Filament Manager: the filament catalog (manual entries and Spoolman spools) and
+ * Settings → Filament Manager: the filament catalog (manual entries and Spoolman spools) and
  * Spoolman setup.
  * Registers window.openFilamentManager.
  */
@@ -68,12 +69,12 @@ export function FilamentManagerDialog() {
     }
   }
 
-  useEffect(() => exposeGlobal('openFilamentManager', () => {
+  useEffect(() => exposeGlobal('openFilamentManager', ({ action }: { action?: 'add' | 'spoolman' } = {}) => {
     setSearch('');
     setForm(EMPTY_FORM);
-    setFormOpen(false);
+    setFormOpen(action === 'add');
     setStatus(NO_STATUS);
-    setSpoolmanOpen(false);
+    setSpoolmanOpen(action === 'spoolman');
     setSpoolmanStatus(NO_STATUS);
     void Promise.all([settings.get('spoolmanUrl'), settings.get('spoolmanApiToken')])
       .then(([url, token]) => setSpoolman({ url: url ?? '', token: token ?? '' }))

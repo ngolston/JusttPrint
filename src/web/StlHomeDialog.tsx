@@ -145,7 +145,6 @@ export function StlHomeDialog() {
       ];
       for (const [key, value] of values) await settings.save(key, value);
       dialogRef.current?.close();
-      await window.updateScanStlHomeButtonVisibility?.();
       // Scan the directories now; the server then rescans them on its interval.
       if (form.homes.length) scanFolders(form.homes, { stlHome: true }).catch((error) => console.error('STL Home scan on save:', error));
     } catch (error) {
@@ -176,7 +175,7 @@ export function StlHomeDialog() {
       )}
       footer={(
         <>
-          <button type="button" id="save-stl-home-button" disabled={saving} onClick={save}>Save</button>
+          <button type="button" id="save-stl-home-button" className="is-primary" disabled={saving} onClick={save}>Save</button>
           <button type="button" id="cancel-stl-home-button" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

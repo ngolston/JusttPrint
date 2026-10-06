@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { tags as tagApi, type Tag } from './api';
 import { ModalDialog } from './components/ModalDialog';
-import { exposeGlobal, refreshAfterTagManagerClose, refreshTagRelatedUi, showMessage } from './page';
+import { exposeGlobal, refreshAfterTagManagerClose } from './page';
+import { createTag, deleteTag, renameTag } from './tags/manage';
 
 declare global {
   interface Window {
@@ -11,15 +12,8 @@ declare global {
   }
 }
 
-/** Asks before deleting a tag that models use. Resolves to true when it may go. */
-async function confirmDelete(tag: Tag, message?: string): Promise<boolean> {
-  if (tag.model_count === 0 && !message) return true;
-  const text = message ?? `This tag is used by ${tag.model_count} model(s). Are you sure you want to delete it?`;
-  return (await showMessage('Delete Tag', text, ['Yes', 'No'])) === 'Yes';
-}
-
 /**
- * Tools → Tag Manager: create tags, rename them inline (renaming onto an existing name merges),
+ * Settings → Tag Manager: create tags, rename them inline (renaming onto an existing name merges),
  * and delete them. Registers window.openTagManager.
  */
 export function TagManagerDialog() {
@@ -37,11 +31,10 @@ export function TagManagerDialog() {
     }
   }
 
-  /** After a change: reload the list and the tag pickers and filters elsewhere on the page. */
+  /** After a change (tags/manage.ts already refreshed the pickers and filters): reload the list. */
   async function afterChange() {
     changed.current = true;
     await load();
-    await refreshTagRelatedUi();
   }
 
   useEffect(() => {
@@ -61,58 +54,23 @@ export function TagManagerDialog() {
     return () => cleanups.forEach((cleanup) => cleanup());
   }, []);
 
-  async function createTag() {
-    const name = newName.trim();
-    if (!name) return;
-    try {
-      await tagApi.create(name);
+  async function addTag() {
+    if (await createTag(newName)) {
       setNewName('');
       await afterChange();
-    } catch (error) {
-      console.error('Error saving tag:', error);
-      await showMessage('Error', 'Failed to create tag');
     }
   }
 
-  async function deleteTag(tag: Tag, message?: string): Promise<boolean> {
-    if (!(await confirmDelete(tag, message))) return false;
-    try {
-      await tagApi.remove(tag.id);
-      await afterChange();
-      return true;
-    } catch (error) {
-      console.error('Error deleting tag:', error);
-      await showMessage('Error', 'Failed to delete tag');
-      return false;
-    }
+  async function removeTag(tag: Tag): Promise<boolean> {
+    const done = await deleteTag(tag);
+    if (done) await afterChange();
+    return done;
   }
 
-  /** Rename, merge into an existing tag of that name, or delete when the name is cleared. */
-  async function renameTag(tag: Tag, name: string): Promise<boolean> {
-    if (!name) {
-      const message = tag.model_count > 0
-        ? `This tag is used by ${tag.model_count} model(s). Delete "${tag.name}"?`
-        : `Delete the tag "${tag.name}"?`;
-      return deleteTag(tag, message);
-    }
-    const existing = allTags.find((item) => item.id !== tag.id && item.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-      const answer = await showMessage(
-        'Merge Tags',
-        `A tag named "${existing.name}" already exists. Merge "${tag.name}" into "${existing.name}"? Models that had either tag will keep "${existing.name}".`,
-        ['Merge', 'Cancel']
-      );
-      if (answer !== 'Merge') return false;
-    }
-    try {
-      await tagApi.rename(tag.id, name);
-      await afterChange();
-      return true;
-    } catch (error) {
-      console.error('Error updating tag:', error);
-      await showMessage('Error', 'Failed to update tag');
-      return false;
-    }
+  async function rename(tag: Tag, name: string): Promise<boolean> {
+    const done = await renameTag(allTags, tag, name);
+    if (done) await afterChange();
+    return done;
   }
 
   const term = search.trim().toLowerCase();
@@ -128,8 +86,8 @@ export function TagManagerDialog() {
         <div className="input-with-icon">
           <input type="text" id="new-tag-manager-name" placeholder="Enter tag name..." value={newName}
             onChange={(event) => setNewName(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void createTag(); } }} />
-          <button type="button" id="add-tag-manager-button" className="icon-button" title="Create tag" onClick={createTag}>+</button>
+            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void addTag(); } }} />
+          <button type="button" id="add-tag-manager-button" className="icon-button" title="Create tag" onClick={addTag}>+</button>
         </div>
       </div>
       <div className="form-group tag-manager-existing-group">
@@ -142,7 +100,7 @@ export function TagManagerDialog() {
         </div>
         <div id="tag-manager-list" className="tags-list">
           {shown.map((tag) => (
-            <TagChip key={tag.id} tag={tag} onRename={(name) => renameTag(tag, name)} onDelete={() => deleteTag(tag)} />
+            <TagChip key={tag.id} tag={tag} onRename={(name) => rename(tag, name)} onDelete={() => removeTag(tag)} />
           ))}
         </div>
       </div>

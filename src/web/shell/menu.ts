@@ -1,13 +1,12 @@
 /**
- * The app menu: Tools, Settings and Help. The menu bar (MenuBar.tsx) shows it on a computer,
- * the More sheet (MobileShell.tsx) on a phone. Each action opens a screen through the global
- * the screen registers (window.openStats, window.openTagManager, ...).
+ * The actions of the old app menu (Tools, Settings and Help), which the Settings and Help pages
+ * and the account menu run by label (nav.ts). Each action opens a screen through the global the
+ * screen registers (window.openStats, window.openTagManager, ...).
  */
 import { callAction } from '../api';
 import { showMessage } from '../page';
-import { viewEntireLibrary } from '../filters/SidebarActions';
 import { scanDirectory } from '../scan/scan';
-import { clearNewFlags, printRoulette } from '../library/actions';
+import { clearNewFlags, printRoulette, viewEntireLibrary } from '../library/actions';
 
 export type MenuItem =
   | { kind: 'action'; label: string; run: () => void | Promise<void> }

@@ -53,14 +53,12 @@ async function confirmDestructive(label: string | undefined, menu: ContextMenuDa
   return (await showMessage(isDelete ? 'Confirm Delete' : 'Confirm Remove', message, ['Yes', 'No'])) === 'Yes';
 }
 
-const isPhone = () => document.body.classList.contains('mobile-ui');
-
 function Submenu({ items, run }: { items: ContextMenuItem[]; run: (item: ContextMenuItem, subIndex: number) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({});
   // Keep it on screen: open to the left at the right edge, and move up at the bottom.
   useLayoutEffect(() => {
-    if (isPhone() || !ref.current) return;
+    if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const next: CSSProperties = {};
     if (rect.right > window.innerWidth) Object.assign(next, { left: 'auto', right: '100%', marginLeft: 0, marginRight: 2 });
@@ -69,7 +67,7 @@ function Submenu({ items, run }: { items: ContextMenuItem[]; run: (item: Context
   }, []);
   return (
     <div className="html-context-menu-submenu" ref={ref}
-      style={isPhone() ? { position: 'static', width: '100%' } : style}>
+      style={style}>
       {items.map((sub, i) => (
         <div key={i} className={`html-context-menu-subitem${sub.enabled ? '' : ' is-disabled'}`}
           onClick={(e) => { e.stopPropagation(); if (sub.enabled) run(sub, i); }}>{sub.label}</div>
@@ -78,7 +76,7 @@ function Submenu({ items, run }: { items: ContextMenuItem[]; run: (item: Context
   );
 }
 
-/** The model menu (#html-context-menu) at the pointer, or as a sheet on the phone layout. */
+/** The model menu (#html-context-menu) at the pointer. */
 export function ContextMenu() {
   const [open, setOpen] = useState<Open | null>(null);
   const [submenu, setSubmenu] = useState<number | null>(null);
@@ -107,7 +105,6 @@ export function ContextMenu() {
   // At the pointer, moved back on screen when it would overflow.
   useLayoutEffect(() => {
     if (!open || !ref.current) return;
-    if (isPhone()) return setPosition({ left: open.x, top: open.y });
     const rect = ref.current.getBoundingClientRect();
     let left = open.x;
     let top = open.y;
@@ -140,7 +137,6 @@ export function ContextMenu() {
     event.stopPropagation();
     close();
   };
-  const phone = isPhone();
   return createPortal(
     <>
       <div id="html-context-menu-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 12999, background: 'transparent' }}
@@ -156,8 +152,8 @@ export function ContextMenu() {
           return (
             <div key={index} className={`html-context-menu-item${item.enabled ? '' : ' is-disabled'}`}
               style={hasSubmenu ? { paddingRight: 30 } : undefined}
-              onMouseEnter={() => { if (hasSubmenu && !phone) setSubmenu(index); }}
-              onMouseLeave={() => { if (hasSubmenu && !phone) setSubmenu(null); }}
+              onMouseEnter={() => { if (hasSubmenu) setSubmenu(index); }}
+              onMouseLeave={() => { if (hasSubmenu) setSubmenu(null); }}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!item.enabled) return;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { exposeGlobal, onServerEvent, showMessage } from '../page';
+import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import type { ImageOnlyPreview, PreviewEngine, PreviewPart } from './engine';
 import {
   BACKDROP_LABELS, applyOptionsFor, exportBasename, friendlyPreviewError, isPreviewableExtension,
@@ -13,18 +14,8 @@ interface BundleRecord {
   children?: { filePath?: string; fileName?: string | null; bundleKind?: string | null }[];
 }
 
-interface Slicer {
-  id: number | null;
-  name: string;
-  path: string;
-}
-
 interface PreviewBridge {
   cancel3MFPreview?: (requestId: string) => void;
-  getSlicers?: () => Promise<unknown>;
-  getSetting?: (key: string) => Promise<string | null>;
-  openFileInSlicer?: (options: { filePaths: string[]; slicerId: number | null; slicerName: string }) => Promise<{ command?: unknown } | null>;
-  launchSlicerCommand?: (command: unknown) => void;
 }
 
 declare global {
@@ -281,48 +272,16 @@ export function PreviewDialog() {
     return () => document.removeEventListener('click', onClick);
   }, [slicerMenu, saveMenu]);
 
-  async function loadSlicers(): Promise<Slicer[]> {
-    let list: unknown = [];
-    try {
-      list = (await bridge()?.getSlicers?.()) || [];
-    } catch (error) {
-      console.error('[Preview] Error loading slicers:', error);
-    }
-    if (Array.isArray(list) && list.length === 1 && Array.isArray(list[0])) list = list[0];
-    const slicers = (Array.isArray(list) ? list : []).filter((s): s is Slicer => !!s && !!s.name && !!s.path);
-    if (slicers.length) return slicers;
-    try {
-      const legacyPath = await bridge()?.getSetting?.('slicerPath');
-      if (legacyPath) return [{ id: null, name: 'Slicer', path: legacyPath }];
-    } catch { /* none */ }
-    return [];
-  }
-
-  async function sendToSlicer(slicer: Slicer) {
-    const b = bridge();
-    if (!b?.openFileInSlicer || !b.launchSlicerCommand) {
-      await showMessage('Send to Slicer', 'Send to slicer is not available in this mode.');
-      return;
-    }
-    try {
-      const result = await b.openFileInSlicer({ filePaths: slicerPaths, slicerId: slicer.id, slicerName: slicer.name });
-      if (result?.command) b.launchSlicerCommand(result.command);
-    } catch (error) {
-      await showMessage('Send to Slicer', `Could not send to slicer:\n${(error as Error)?.message || error}`);
-    }
-  }
-
   async function onSendToSlicer() {
     setSaveMenu(false);
     if (!slicerPaths.length) return;
     setSlicerMenu(null);
     const slicers = await loadSlicers();
     if (!slicers.length) {
-      const answer = await showMessage('Send to Slicer', 'No slicer configured. Open Slicer Settings now?', ['Open Slicer Settings', 'Cancel']);
-      if (answer === 'Open Slicer Settings') window.openSlicerSettings?.();
+      await offerSlicerSettings();
       return;
     }
-    if (slicers.length === 1) await sendToSlicer(slicers[0]);
+    if (slicers.length === 1) await sendToSlicer(slicerPaths, slicers[0]);
     else setSlicerMenu(slicers);
   }
 
@@ -505,7 +464,7 @@ export function PreviewDialog() {
             <div id="preview-slicer-menu" className={`preview-slicer-menu${slicerMenu ? '' : ' hidden'}`} role="menu" aria-label="Choose slicer">
               {slicerMenu?.map((slicer) => (
                 <button key={`${slicer.id}:${slicer.name}`} type="button" className="preview-slicer-menu-item" title={slicer.path || slicer.name}
-                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); setSlicerMenu(null); sendToSlicer(slicer); }}>{slicer.name}</button>
+                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); setSlicerMenu(null); sendToSlicer(slicerPaths, slicer); }}>{slicer.name}</button>
               ))}
             </div>
             <div id="preview-save-menu" className={`preview-slicer-menu${saveMenu ? '' : ' hidden'}`} role="menu" aria-label="Save preview image">

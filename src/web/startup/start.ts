@@ -52,7 +52,6 @@ async function start() {
   }
   document.querySelector('.file-grid')?.classList.remove('hidden');
   await Promise.all([loadRenderSettings(), loadSavedFilterSettings()]);
-  window.updateScanStlHomeButtonVisibility?.().catch(() => {});
   await runSearch();
   // After the library is up, so the page paints first.
   setTimeout(() => { checkForUpdatesOnStartup(); }, 2000);

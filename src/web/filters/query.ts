@@ -72,7 +72,7 @@ export function emptyFilterState(): FilterState {
   };
 }
 
-const PRINTED_VALUES = new Set(['printed', 'not-printed', 'unprinted', 'want', 'queued', 'printing', 'failed', 'ever-printed', 'never-printed']);
+const PRINTED_VALUES = new Set(['printed', 'not-printed', 'unprinted', 'want', 'queued', 'printing', 'failed', 'ever-printed', 'never-printed', 'in-queue']);
 const SINGLE_KINDS: AtomKind[] = ['designer', 'license', 'parentModel', 'tag', 'fileType', 'printed', 'isNew', 'favorite', 'rating', 'ratingMin'];
 const MULTI_TOKEN_KINDS: AtomKind[] = ['designer', 'license', 'parentModel', 'tag'];
 

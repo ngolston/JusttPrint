@@ -6,6 +6,21 @@ const fs = require('fs');
 const path = require('path');
 const { getDatabasePath } = require('../../core/db-path');
 
+// Sidebar Library Storage: library size and the STL Home volume's usage (src/core/library-storage.js).
+ipcMain.handle('get-library-storage', async () => {
+  const { libraryStorage } = require('../../core/library-storage');
+  const { readStlHomeDirectories } = require('../../core/library-paths');
+  return libraryStorage({ db: database.db, roots: readStlHomeDirectories() });
+});
+
+// Queue badge and dashboard figures (src/core/library-counts.js).
+ipcMain.handle('get-library-counts', async () => require('../../core/library-counts').libraryCounts(database.db));
+// Dashboard Recent Activity (src/core/recent-activity.js).
+ipcMain.handle('get-recent-activity', async (event, limit) => require('../../core/recent-activity').recentActivity(database.db, limit));
+// Print Queue's Completed list (src/core/recent-activity.js).
+ipcMain.handle('get-recent-prints', async (event, limit, outcome, printerId) =>
+  require('../../core/recent-activity').recentPrints(database.db, limit, outcome || null, printerId ?? null));
+
 ipcMain.handle('get-stats', async () => {
   try {
     // Total model count

@@ -16,7 +16,7 @@ function errorText(error: unknown): string {
 }
 
 /**
- * Tools → Server Access: change the login password and show or regenerate the API token.
+ * Settings → Server Access: change the login password and show or regenerate the API token.
  * Registers window.openServerAccess, which the menu and the rest of the page call.
  */
 export function ServerAccessDialog() {

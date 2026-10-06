@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
-import { normalizeRating } from './ModelCard';
+import { normalizeRating, tileStyle } from './ModelCard';
 import type { GridModel, GridView, GroupRecord } from './layout';
 import { applyColumns } from './columns';
 
@@ -27,7 +27,7 @@ export interface GroupCardHost {
   filterByTag(name: string): void;
 }
 
-function GroupEngagement({ host, record }: { host: GroupCardHost; record: GroupRecord }) {
+function GroupEngagement({ host, record, className }: { host: GroupCardHost; record: GroupRecord; className?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const children = record.children;
   const rating = children.length ? Math.round(children.reduce((sum, child) => sum + normalizeRating(child.rating), 0) / children.length) : 0;
@@ -45,7 +45,7 @@ function GroupEngagement({ host, record }: { host: GroupCardHost; record: GroupR
   }
 
   return (
-    <div className="model-engagement-bar is-group" data-rating={rating} data-favorite={favorite ? '1' : '0'}>
+    <div className={['model-engagement-bar is-group', className, rating > 0 && 'is-rated'].filter(Boolean).join(' ')} data-rating={rating} data-favorite={favorite ? '1' : '0'}>
       <div className="model-rating" role="radiogroup" aria-label="Group rating">
         {[1, 2, 3, 4, 5].map((star) => (
           <button key={star} type="button" className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
@@ -93,10 +93,12 @@ export interface GroupCardProps {
   index: number;
   position: { top: number; left: number; width: number; height: number };
   fixedHeight: boolean;
+  /** The JusttPrint 5 card (desktop grid view), sized like the model cards. */
 }
 
 /** A ZIP bundle or parent-model group in the library grid. */
 export function GroupCard({ host, record, view, index, position, fixedHeight }: GroupCardProps) {
+  const tile = view === 'detailed';
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInfoRef = useRef<HTMLDivElement>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -126,7 +128,7 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   });
 
   const classes = ['parent-model-group', `parent-model-group-${view}`, view !== 'list' && 'file-item', view !== 'list' && `file-item-${view}`,
-    record.expanded && 'expanded', host.isBundleDetailsGroup(record.groupKey) && 'bundle-details-active'].filter(Boolean).join(' ');
+    tile && 'jp-model-card jp-group-card', record.expanded && 'expanded', host.isBundleDetailsGroup(record.groupKey) && 'bundle-details-active'].filter(Boolean).join(' ');
 
   const style: CSSProperties = {
     position: 'absolute', top: position.top, left: position.left, pointerEvents: 'auto',
@@ -134,6 +136,7 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   };
   if (fixedHeight || view === 'list') style.height = position.height;
   if (fixedHeight) Object.assign(style, { minHeight: position.height, maxHeight: position.height });
+  if (tile) Object.assign(style, tileStyle(position));
 
   const shownIndex = imageIndex < images.length ? imageIndex : 0;
   const step = (by: number) => (event: ReactMouseEvent) => {
@@ -201,7 +204,27 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   );
 
   let body;
-  if (view === 'list') {
+  if (tile) {
+    const kindBadge = isBundle ? (bundleKind === 'zip' ? 'ZIP' : 'Folder') : 'Group';
+    body = (
+      <>
+        <div className="jp-model-card__preview">
+          {thumbnail}
+          <GroupEngagement host={host} record={record} className="jp-model-card__rating" />
+        </div>
+        <div className="jp-model-card__body parent-model-group-details">
+          {titleRow}
+          <div className="parent-model-group-meta jp-model-card__byline" title={isBundle ? 'Right-click for Preview and more options' : undefined}>
+            {isBundle ? `${count} part${count === 1 ? '' : 's'}` : `${count} model${count === 1 ? '' : 's'}`}
+          </div>
+          <div className="jp-model-card__badges">
+            <span className="jp-badge" title={isBundle ? `${kindLabel || 'folder'} bundle` : 'Models with the same parent model'}>{kindBadge}</span>
+            <span className={`jp-status jp-status--${print.printedCount > 0 ? 'success' : 'neutral'}`}>{print.label}</span>
+          </div>
+        </div>
+      </>
+    );
+  } else if (view === 'list') {
     const cols = host.groupListColumns(record);
     const archiveText = isBundle ? `${count} part${count === 1 ? '' : 's'}${kindLabel ? ` • ${kindLabel}` : ''}` : `${count} model${count === 1 ? '' : 's'}`;
     body = (
@@ -233,7 +256,6 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
               ? `${count} part${count === 1 ? '' : 's'} • ${kindLabel || 'folder'} • ${print.label}`
               : `${count} model${count === 1 ? '' : 's'} • ${print.label}`}
           </div>
-          {view === 'detailed' && <GroupTags host={host} record={record} />}
         </div>
         {view === 'preview' && (
           <div className="preview-tile-overlay">
@@ -246,7 +268,6 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
             )}
           </div>
         )}
-        {view === 'detailed' && <GroupEngagement host={host} record={record} />}
       </>
     );
   }

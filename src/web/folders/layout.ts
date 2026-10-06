@@ -1,15 +1,14 @@
 /**
- * Panel widths for the sidebar and the folder tree (the --sidebar-width and --folder-tree-width
- * CSS variables, saved as settings), and the drag that resizes them.
+ * The folder tree's width (the --folder-tree-width CSS variable, saved as a setting), and the
+ * drag that resizes it.
  */
 import { settings } from '../api';
 
-export const SIDEBAR = { setting: 'sidebarWidth', min: 280, max: 640, initial: 350, cssVar: '--sidebar-width' };
 export const FOLDERS = { setting: 'folderTreeWidth', min: 180, max: 560, initial: 280, cssVar: '--folder-tree-width' };
 
-type Panel = typeof SIDEBAR;
+type Panel = typeof FOLDERS;
 
-const widths = new Map<Panel, number>([[SIDEBAR, SIDEBAR.initial], [FOLDERS, FOLDERS.initial]]);
+const widths = new Map<Panel, number>([[FOLDERS, FOLDERS.initial]]);
 
 export function clampWidth(panel: Panel, px: number, max = panel.max): number {
   return Math.min(Math.max(panel.min, max), Math.max(panel.min, Math.round(px)));
@@ -26,7 +25,7 @@ function applyWidth(panel: Panel, px: number, max?: number) {
 }
 
 export async function loadSavedWidths() {
-  for (const panel of [SIDEBAR, FOLDERS]) {
+  for (const panel of [FOLDERS]) {
     try {
       const saved = parseInt(String(await settings.get<string | null>(panel.setting)), 10);
       if (Number.isFinite(saved) && saved > 0) applyWidth(panel, saved);
@@ -36,11 +35,11 @@ export async function loadSavedWidths() {
 
 /**
  * Mouse-down handler for a resize handle: drag to change the panel's width, saved on release.
- * `maxWidth` limits it further (the popover must stay on screen). Not on the phone layout.
+ * `maxWidth` limits it further (the popover must stay on screen).
  */
 export function startResize(panel: Panel, maxWidth?: () => number) {
   return (event: { button: number; clientX: number; preventDefault(): void; stopPropagation(): void; currentTarget: EventTarget }) => {
-    if (event.button !== 0 || document.body.classList.contains('mobile-ui')) return;
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     const handle = event.currentTarget as HTMLElement;

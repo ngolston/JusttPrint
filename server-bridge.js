@@ -160,49 +160,30 @@
       const dialog = document.createElement('dialog');
       const dialogId = `browser-message-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       dialog.id = dialogId;
-      dialog.style.cssText = `
-        background: #2d2d2d;
-        color: #fff;
-        border: 1px solid #555;
-        border-radius: 6px;
-        min-width: 320px;
-        max-width: 520px;
-        padding: 16px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      `;
+      dialog.className = 'jp-message-dialog';
       dialog.setAttribute('aria-modal', 'true');
 
       const titleEl = document.createElement('div');
       titleEl.textContent = title || 'Message';
-      titleEl.style.cssText = 'font-weight: 600; margin-bottom: 8px; font-size: 14px;';
+      titleEl.className = 'jp-message-dialog__title';
 
       const messageEl = document.createElement('div');
       messageEl.textContent = message || '';
-      messageEl.style.cssText = 'font-size: 13px; line-height: 1.4; margin-bottom: 16px; white-space: pre-wrap;';
+      messageEl.className = 'jp-message-dialog__text';
 
       const buttonRow = document.createElement('div');
-      buttonRow.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
+      buttonRow.className = 'jp-message-dialog__buttons';
 
       const cleanup = () => {
         dialog.close();
         dialog.remove();
-        if (styleTag) styleTag.remove();
       };
 
       buttons.forEach((label, index) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = label;
-        btn.style.cssText = `
-          padding: 6px 12px;
-          border: 1px solid #555;
-          border-radius: 4px;
-          background: ${index === 0 ? '#007bff' : '#444'};
-          color: #fff;
-          cursor: pointer;
-          font-size: 13px;
-        `;
+        btn.className = `jp-btn ${index === 0 ? 'jp-btn--primary' : 'jp-btn--secondary'}`;
         btn.addEventListener('click', () => {
           cleanup();
           resolve({ label, index });
@@ -221,14 +202,6 @@
       dialog.appendChild(messageEl);
       dialog.appendChild(buttonRow);
 
-      const styleTag = document.createElement('style');
-      styleTag.textContent = `
-        #${dialogId}::backdrop {
-          background: rgba(0, 0, 0, 0.5);
-        }
-      `;
-
-      document.body.appendChild(styleTag);
       document.body.appendChild(dialog);
       dialog.showModal();
     });
@@ -238,44 +211,33 @@
   function showBrowserInput(options = {}) {
     return new Promise((resolve) => {
       const dialog = document.createElement('dialog');
-      dialog.className = 'browser-input-dialog';
+      dialog.className = 'jp-message-dialog browser-input-dialog';
       dialog.setAttribute('aria-modal', 'true');
-      dialog.style.cssText = `
-        background: #2d2d2d;
-        color: #fff;
-        border: 1px solid #555;
-        border-radius: 6px;
-        min-width: 320px;
-        max-width: 520px;
-        padding: 16px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      `;
 
       const form = document.createElement('form');
       form.method = 'dialog';
 
       const titleEl = document.createElement('div');
       titleEl.textContent = options.title || 'Input';
-      titleEl.style.cssText = 'font-weight: 600; margin-bottom: 8px; font-size: 14px;';
+      titleEl.className = 'jp-message-dialog__title';
 
       const label = document.createElement('label');
       label.textContent = options.message || '';
-      label.style.cssText = 'display: block; font-size: 13px; line-height: 1.4; margin-bottom: 8px; white-space: pre-wrap;';
+      label.className = 'jp-message-dialog__text';
 
       const input = document.createElement('input');
       input.type = 'text';
       input.value = options.defaultValue || '';
       input.placeholder = options.placeholder || '';
-      input.style.cssText = 'width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 16px; border: 1px solid #555; border-radius: 4px; background: #1e1e1e; color: #fff; font-size: 13px;';
+      input.className = 'jp-message-dialog__input';
       label.appendChild(input);
 
       const buttonRow = document.createElement('div');
-      buttonRow.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
+      buttonRow.className = 'jp-message-dialog__buttons';
       const makeButton = (text, primary) => {
         const btn = document.createElement('button');
         btn.textContent = text;
-        btn.style.cssText = `padding: 6px 12px; border: 1px solid #555; border-radius: 4px; background: ${primary ? '#007bff' : '#444'}; color: #fff; cursor: pointer; font-size: 13px;`;
+        btn.className = `jp-btn ${primary ? 'jp-btn--primary' : 'jp-btn--secondary'}`;
         return btn;
       };
       const ok = makeButton('OK', true);

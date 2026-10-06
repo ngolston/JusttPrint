@@ -19,8 +19,6 @@ import {
 export interface GridHost extends CardHost, GroupCardHost {
   /** The models on screen: the library edits this array in place, then calls refresh(). */
   models(): GridModel[];
-  /** Phone layout columns, or 0 on the desktop layout. */
-  mobileColumns(): number;
   expanded(): ExpandedGroups;
   /** Lay the shown models out again (the view or tile size changed). */
   rebuild?(): void;
@@ -49,6 +47,16 @@ declare global {
  * and a refresh asked for then (flushSync inside a commit) is deferred instead.
  */
 let committing = false;
+
+/** The grid fills the window from its top edge down to the bottom chrome (the phone tab bar). */
+function fitHeight(container: HTMLElement, host: GridHost | undefined) {
+  const top = container.getBoundingClientRect().top;
+  const bottom = host?.bottomChrome() ?? 0;
+  const height = `calc(100vh - ${top}px - ${bottom}px)`;
+  if (container.style.height === height) return;
+  container.style.height = height;
+  container.style.maxHeight = height;
+}
 
 const groupCardKey = (record: GroupRecord) => `${record.key}#${record.children.length}#${record.expanded ? 1 : 0}`;
 
@@ -122,10 +130,8 @@ export function LibraryGrid() {
   const { view, previewSize } = useGridView();
   const width = size.width || container?.clientWidth || 0;
   const metrics: ViewMetrics = useMemo(
-    () => viewMetrics({ view, width, previewSize, mobileColumns: host?.mobileColumns() ?? 0 }),
-    // tick/generation: the phone layout is read from the host.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [view, width, host, tick, generation]
+    () => viewMetrics({ view, width, previewSize }),
+    [view, width, previewSize]
   );
 
   // Recomputed on every show/refresh: the library edits the model array in place.
@@ -145,10 +151,7 @@ export function LibraryGrid() {
     container.style.overflowY = 'auto';
     container.style.overflowX = 'hidden';
     container.style.display = 'block';
-    const top = container.getBoundingClientRect().top;
-    const bottom = host?.bottomChrome() ?? 0;
-    container.style.height = `calc(100vh - ${top}px - ${bottom}px)`;
-    container.style.maxHeight = container.style.height;
+    fitHeight(container, host);
     container.classList.toggle('preview-wall', view === 'preview');
     const grid = container as HTMLElement & { _previewTilePx?: number };
     if (view === 'preview') {
@@ -159,6 +162,15 @@ export function LibraryGrid() {
       delete grid._previewTilePx;
     }
   }, [container, host, view, metrics, generation]);
+
+  // The header above the grid changes height (filter chips, the Home dashboard): fit again.
+  useEffect(() => {
+    const header = container?.previousElementSibling;
+    if (!container || !header) return undefined;
+    const observer = new ResizeObserver(() => fitHeight(container, window.gridHost));
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [container]);
 
   // The list view's columns follow their saved layout (also on rows drawn before it loaded).
   useEffect(() => {
@@ -204,12 +216,12 @@ export function LibraryGrid() {
       return (
         <ModelCard key={`${generation}:${view}:${record.key}`} host={host} model={record.model} view={view} layoutKey={record.key}
           index={index} parentGroupKey={record.parentGroupKey} bandClasses={groupBandClasses(records, index)} position={position}
-          fixedHeight={view === 'preview' || (view === 'detailed' && metrics.columns > 0 && host.mobileColumns() > 0)} priority={priority} />
+          fixedHeight={view === 'preview' || view === 'detailed'} priority={priority} />
       );
     }
     return (
       <GroupCard key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
-        position={position} fixedHeight={view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0)} />
+        position={position} fixedHeight={view === 'preview' || view === 'detailed'} />
     );
   })) : null;
 

@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { FolderTree as FolderTreeIcon } from 'lucide-react';
 import { getFilterState, subscribeFilters } from '../filters/store';
-import { FOLDERS, SIDEBAR, getWidth, loadSavedWidths, startResize } from './layout';
+import { FOLDERS, getWidth, loadSavedWidths, startResize } from './layout';
 import { folderTreeActions, getFolderTreeState, initFolderTree, showFolder, subscribeFolderTree } from './store';
 import { findNode, folderName, matchesQuery, nodeIs, pathsEqual, toDirectoryFilter, type FolderNode } from './tree';
 
@@ -109,9 +110,10 @@ function FolderSelect({ container, buttonRef }: { container: HTMLElement; button
 function FolderPopover({ anchor }: { anchor: RefObject<HTMLButtonElement | null> }) {
   const { popoverOpen } = useFolderTree();
   const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number; maxHeight?: number } | null>(null);
 
-  // Below the button, or above it when there is no room; kept on screen.
+  // Below the button, or above it when there is no room; else on the roomier side, shortened to
+  // fit, so it never covers the button. Kept on screen.
   useLayoutEffect(() => {
     if (!popoverOpen || !anchor.current || !ref.current) {
       setPosition(null);
@@ -121,9 +123,12 @@ function FolderPopover({ anchor }: { anchor: RefObject<HTMLButtonElement | null>
     const width = getWidth(FOLDERS);
     const height = ref.current.offsetHeight || 360;
     const left = rect.left + width > window.innerWidth - 8 ? Math.max(8, window.innerWidth - width - 8) : rect.left;
-    let top = rect.bottom + 6;
-    if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 6);
-    setPosition({ left, top });
+    const below = window.innerHeight - rect.bottom - 14;
+    const above = rect.top - 14;
+    if (height <= below) setPosition({ left, top: rect.bottom + 6 });
+    else if (height <= above) setPosition({ left, top: rect.top - height - 6 });
+    else if (below >= above) setPosition({ left, top: rect.bottom + 6, maxHeight: below });
+    else setPosition({ left, top: 8, maxHeight: above });
   }, [popoverOpen]);
 
   useEffect(() => {
@@ -149,7 +154,7 @@ function FolderPopover({ anchor }: { anchor: RefObject<HTMLButtonElement | null>
   };
   return createPortal(
     <div id="folder-tree-popover" className="folder-tree-popover" role="dialog" aria-label="Folder tree" ref={ref}
-      style={position ? { left: position.left, top: position.top } : { visibility: 'hidden' }}>
+      style={position ? { left: position.left, top: position.top, maxHeight: position.maxHeight } : { visibility: 'hidden' }}>
       <TreeView id="folder-tree-popover-tree" searchId="folder-tree-search" wrapSearch={false} autoFocus />
       <div id="folder-tree-resize-handle" className="panel-resize-handle" role="separator" aria-orientation="vertical"
         aria-label="Resize folders panel" title="Drag to resize folders panel" onMouseDown={startResize(FOLDERS, maxWidth)} />
@@ -183,7 +188,8 @@ function FolderRail({ rail, toggleSlot }: { rail: HTMLElement; toggleSlot: HTMLE
       )}
       {toggleSlot && createPortal(
         <button type="button" id="folder-rail-toggle" className={`folder-rail-toggle${railOpen ? ' active' : ''}`} title="Show folder tree beside the grid"
-          onClick={() => folderTreeActions.setRailOpen(!railOpen)}>
+          aria-pressed={railOpen} onClick={() => folderTreeActions.setRailOpen(!railOpen)}>
+          <FolderTreeIcon className="folder-rail-toggle__icon" size={16} aria-hidden="true" />
           <span>Folders</span>
         </button>,
         toggleSlot
@@ -192,13 +198,12 @@ function FolderRail({ rail, toggleSlot }: { rail: HTMLElement; toggleSlot: HTMLE
   );
 }
 
-/** The sidebar's Folders control, the folder tree popover and rail, and the sidebar's resize handle. */
+/** The Folders control in the Filter popover, the folder tree popover and the folder rail. */
 export function FolderTree() {
   const [slots] = useState(() => ({
     select: document.getElementById('sidebar-folders-slot'),
     rail: document.getElementById('folder-rail'),
-    toggle: document.getElementById('folder-rail-toggle-slot'),
-    sidebarHandle: document.getElementById('sidebar-resize-slot')
+    toggle: document.getElementById('folder-rail-toggle-slot')
   }));
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -212,11 +217,6 @@ export function FolderTree() {
       {slots.select && <FolderSelect container={slots.select} buttonRef={buttonRef} />}
       <FolderPopover anchor={buttonRef} />
       {slots.rail && <FolderRail rail={slots.rail} toggleSlot={slots.toggle} />}
-      {slots.sidebarHandle && createPortal(
-        <div id="sidebar-resize-handle" className="panel-resize-handle sidebar-resize-handle" role="separator" aria-orientation="vertical"
-          aria-label="Resize sidebar" title="Drag to resize sidebar" onMouseDown={startResize(SIDEBAR)} />,
-        slots.sidebarHandle
-      )}
     </>
   );
 }

@@ -454,6 +454,17 @@ async function browserChecks(base, wsUrl, session) {
       errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber})`);
     });
     page.on('response', (response) => { if (response.status() >= 400) badResponses.push(`${response.status()} ${response.url()}`); });
+    // The library's Filter popover (src/web/pages/LibraryPage.tsx) holds the old sidebar's filters.
+    const openFilters = async () => {
+      if (!(await page.isVisible('#jp-filter-popover'))) await page.click('#jp-filter-button');
+      await page.waitForSelector('#jp-filter-popover', { state: 'visible', timeout: 5000 }).catch(() => {});
+    };
+    // A row of the Settings page (src/web/pages/SettingsPage.tsx); the old sidebar buttons live there now.
+    const runSetting = async (label) => {
+      await page.evaluate(() => { window.location.hash = '#/settings'; });
+      await page.click(`.jp-settings-row:has-text("${label}")`);
+    };
+    const showLibrary = () => page.evaluate(() => { window.location.hash = '#/library'; });
 
     await page.goto(base + '/');
     check('browser lands on login page', page.url().includes('/login'));
@@ -464,6 +475,21 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('button[type=submit]');
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     await page.waitForTimeout(3000);
+
+    // Home dashboard (React, src/web/pages/HomeDashboard.tsx): the app opens on it, above the library.
+    const libraryTotal = (await invoke(base, session, 'get-library-counts')).result || {};
+    check('the app opens on Home with a greeting', await page.isVisible('.jp-sidebar .jp-nav__row[aria-current="page"]:has-text("Home")')
+      && /^Good (morning|afternoon|evening)$/.test((await page.textContent('.jp-hero__title').catch(() => '')).trim()));
+    check('the dashboard figures are the library counts', await page.waitForFunction((n) => document.querySelector('.jp-hero .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 }).then(() => true, () => false),
+      `${await page.textContent('.jp-hero .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`);
+    check('Recent Activity lists the models added', await page.waitForSelector('.jp-activity-list .jp-activity__title:has-text("new models added")', { timeout: 10000 }).then(() => true, () => false));
+    check('Your Printers offers to add a printer', await page.isVisible('.jp-home__panel :text("No printers yet")') || await page.isVisible('.jp-printer-list'));
+    check('the dashboard draws a library model', await page.waitForSelector('.jp-hero__render, .jp-hero__fallback', { timeout: 60000 }).then(() => true, () => false));
+    check('Home lists the most recently added models', await page.waitForSelector('.jp-recent-grid .jp-recent-card', { timeout: 10000 }).then(() => true, () => false)
+      && await page.isVisible('#jp-home-library-title'));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('Library shows the library without the dashboard', await page.waitForSelector('.jp-hero', { state: 'detached', timeout: 5000 }).then(() => true, () => false)
+      && /#\/library$/.test(page.url()));
 
     const previewView = await page.$('.view-button[data-view="preview"]');
     if (previewView) {
@@ -523,6 +549,15 @@ async function browserChecks(base, wsUrl, session) {
       const shownName = await page.waitForFunction((name) => document.getElementById('model-name')?.value === name, path.basename(cardPath), { timeout: 10000 })
         .then(() => true).catch(async () => page.inputValue('#model-name').catch((e) => e.message));
       check('details show the model name', shownName === true, shownName);
+      // The JusttPrint 5 panel (React, src/web/details/ModelDetailsPanel.tsx): title, Details list, slicer dropdown.
+      const cardFile = path.basename(cardPath);
+      check('the panel shows the name as its title and the file in the Details list',
+        await page.waitForFunction((name) => document.querySelector('#model-details .jp-details__title')?.textContent === name.replace(/\.[^.]+$/, ''), cardFile, { timeout: 10000 }).then(() => true, () => false)
+        && (await page.textContent('#model-details .jp-prop:has(.jp-prop__label:text-is("File")) .jp-prop__value')) === cardFile
+        && await page.isVisible('#model-details .jp-props #model-designer') && await page.isVisible('#model-details .jp-details__tags #details-add-tag'));
+      await page.click('#model-details .jp-split__more');
+      check('Open in Slicer offers to set up a slicer when none is configured', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Set up a slicer")'));
+      await page.keyboard.press('Escape');
       await page.fill('#model-source', 'https://example.com/e2e-source');
       await page.press('#model-source', 'Enter');
       const savedSource = await waitFor(async () => ((await panelModel()).source === 'https://example.com/e2e-source' ? true : null), 10000, 'source').catch(async () => JSON.stringify({ shown: await page.inputValue('#model-source'), saved: (await panelModel()).source }));
@@ -572,9 +607,9 @@ async function browserChecks(base, wsUrl, session) {
       await page.selectOption('#model-print-status', 'queued');
       const queued = await waitFor(async () => ((await panelModel()).print_status === 'queued' ? true : null), 10000, 'status').catch(() => false);
       check('details set the print status', queued === true
-        && await page.waitForFunction((sel) => document.querySelector(`${sel} .print-status`)?.textContent === 'Queued', card, { timeout: 10000 }).then(() => true, () => false));
+        && await page.waitForFunction((sel) => document.querySelector(`${sel} .print-status`)?.textContent === 'In Queue', card, { timeout: 10000 }).then(() => true, () => false));
       const printsBefore = Number((await panelModel()).print_count) || 0;
-      await page.click('#log-print-button');
+      await page.click('#jp-details-log-print');
       const logDialog = await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => null);
       check('log print dialog opens from the details panel', !!logDialog && await page.textContent('#log-print-title') === 'Log a print'
         && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(await page.inputValue('#log-print-when')));
@@ -662,49 +697,49 @@ async function browserChecks(base, wsUrl, session) {
       const treeRow = (scope) => `${scope} .folder-tree-row[data-path="${cardDir.replace(/"/g, '\\"')}"]`;
       check('the Folders select follows the folder shown', (await page.inputValue('#folder-select')) === cardDir);
       await page.click('#reveal-in-folders-button');
-      check('Reveal in folders opens the tree at the model\'s folder',
-        await page.waitForSelector(`${treeRow('#folder-tree-popover')}.is-selected`, { timeout: 10000 }).then(() => true, () => false));
-      await page.click('#folder-tree-button');
-      check('the ☰ button closes the folder popover', await page.waitForSelector('#folder-tree-popover', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
+      check('Reveal in folders opens the folder panel at the model\'s folder',
+        await page.waitForSelector(`${treeRow('#folder-rail')}.is-selected`, { timeout: 10000 }).then(() => true, () => false)
+        && await page.evaluate(() => document.body.classList.contains('folder-rail-open')));
+      await page.click('#folder-rail-close');
+      const railSetting = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['folderRailOpen'])).result === 'false' ? true : null), 5000, 'rail setting').catch(() => false);
+      check('closing the folder panel hides it and saves that', railSetting === true && !(await page.isVisible('#folder-rail')));
+      await openFilters();
+      check('the Filter button opens the filters', await page.isVisible('#jp-filter-popover #folder-select') && await page.isVisible('#jp-filter-popover #sort-select'));
       await page.selectOption('#folder-select', '');
       check('"All folders" clears the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#folder-tree-button');
+      await page.waitForSelector('#folder-tree-popover', { timeout: 5000 }).catch(() => {});
+      await page.click('#folder-tree-button');
+      check('the ☰ button opens and closes the folder popover', await page.waitForSelector('#folder-tree-popover', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
       await page.click('#folder-tree-button');
       await page.fill('#folder-tree-search', path.basename(cardDir));
       await page.click(treeRow('#folder-tree-popover'));
       check('picking a folder in the popover shows it and closes the popover',
         await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false)
         && !(await page.isVisible('#folder-tree-popover')));
+      await page.keyboard.press('Escape');
+      check('Escape closes the Filter popover', !(await page.isVisible('#jp-filter-popover')));
       await page.click('#folder-rail-toggle');
-      check('the Folders toggle opens the rail beside the grid',
+      check('the Folders button opens the folder panel beside the grid',
         await page.waitForSelector(`${treeRow('#folder-rail')}.is-selected`, { timeout: 10000 }).then(() => true, () => false)
         && await page.evaluate(() => document.body.classList.contains('folder-rail-open')));
-      await page.click('#folder-rail-close');
-      const railSetting = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['folderRailOpen'])).result === 'false' ? true : null), 5000, 'rail setting').catch(() => false);
-      check('closing the rail hides it and saves that', railSetting === true && !(await page.isVisible('#folder-rail')));
-      const handle = await page.locator('#sidebar-resize-handle').boundingBox();
-      const widthBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sidebar')).width);
-      if (handle) {
-        await page.mouse.move(handle.x + handle.width / 2, handle.y + 200);
-        await page.mouse.down();
-        await page.mouse.move(handle.x + handle.width / 2 + 40, handle.y + 200, { steps: 4 });
-        await page.mouse.up();
-      }
-      const savedWidth = await waitFor(async () => (await invoke(base, session, 'get-setting', ['sidebarWidth'])).result || null, 5000, 'sidebar width').catch(() => null);
-      check('dragging the sidebar edge resizes it and saves the width', !!handle && Number(savedWidth) > parseInt(widthBefore, 10) - 5
-        && (await page.evaluate(() => document.documentElement.style.getPropertyValue('--sidebar-width'))) === `${savedWidth}px`, `${widthBefore} → ${savedWidth}`);
-      await page.evaluate(() => document.documentElement.style.removeProperty('--sidebar-width'));
-      // Sidebar actions (React, src/web/filters/SidebarActions.tsx): counts, Scan Directory, View Entire Library.
+      await page.click('#folder-rail-toggle');
+      await page.waitForSelector('#folder-rail', { state: 'hidden', timeout: 5000 }).catch(() => {});
+      // The details panels are the right column (src/web/styles/library-frame.css), at the spec's 360 px.
+      const column = await page.locator('.sidebar').boundingBox();
+      check('the details column sits at the right edge, 360 px wide', !!column && Math.round(column.width) === 360 && Math.round(column.x + column.width) === 1400, JSON.stringify(column));
+      // Library header (src/web/pages/LibraryPage.tsx): the model count.
       const totalModels = (await invoke(base, session, 'getTotalModelCount', [])).result;
-      const counted = await page.waitForFunction((n) => document.getElementById('total-count')?.textContent === `${n} model${n === 1 ? '' : 's'} total`
-        && /^\d+ models? in view$/.test(document.getElementById('view-count')?.textContent || ''), totalModels, { timeout: 10000 }).then(() => true, () => false);
-      check('the sidebar shows the models in view and in total', counted, await page.textContent('.model-stats'));
-      await page.click('#scan-directory-button');
+      const counted = await page.waitForFunction((n) => /^\d+ models?$/.test(document.getElementById('jp-library-count')?.textContent || '')
+        && document.getElementById('jp-library-count')?.title === `${n} models in the library`, totalModels, { timeout: 10000 }).then(() => true, () => false);
+      check('the header shows the models in view and in total', counted, await page.textContent('#jp-library-count'));
+      await runSetting('Scan a Folder');
       const scanPrompt = await page.waitForSelector('dialog.browser-input-dialog[open]:has-text("Scan Directory")', { timeout: 10000 }).catch(() => null);
       if (scanPrompt) await page.click('dialog.browser-input-dialog[open] button:text-is("Cancel")');
-      check('Scan Directory asks for a container folder; Cancel scans nothing', !!scanPrompt && await page.isEnabled('#scan-directory-button')
-        && !(await page.isVisible('dialog.browser-input-dialog[open]')));
-      await page.click('#view-library-button');
+      check('Scan a Folder asks for a container folder; Cancel scans nothing', !!scanPrompt && !(await page.isVisible('dialog.browser-input-dialog[open]')));
+      await runSetting('View Entire Library');
       check('View Entire Library leaves the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
+      await showLibrary();
       await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
       await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       // Model menu (React, src/web/menus/ContextMenu.tsx): right-click, a destructive item asks first, Escape closes.
@@ -753,12 +788,13 @@ async function browserChecks(base, wsUrl, session) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       check('Escape clears the selection', (await selectedPaths()).length === 0 && !(await page.isVisible('#multi-edit-panel')));
-      await page.click('#roulette-button');
+      await runSetting('Print Roulette');
       const rouletteDone = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Print Roulette") button', { timeout: 20000 }).catch(() => null);
       const picked = await selectedPaths();
       check('Print Roulette picks one model and shows it', !!rouletteDone && picked.length === 1
         && await page.getAttribute('#path-tree-container', 'data-file-path') === picked[0], JSON.stringify(picked));
       if (rouletteDone) await rouletteDone.click();
+      await showLibrary();
 
       // Sidebar filters (React, src/web/filters/): the grid, the filter strip and the saved settings follow them.
       const third = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath'))))
@@ -775,8 +811,7 @@ async function browserChecks(base, wsUrl, session) {
       ]]);
       await page.evaluate(() => window.libraryFilters.reloadOptions());
       await page.waitForSelector('#designer-select option[value="E2E Sidebar Designer"]', { state: 'attached', timeout: 10000 }).catch(() => {});
-      // "More filters" folds away while a details panel is open.
-      if (!(await page.isVisible('#designer-select'))) await page.click('#filter-stack-toggle');
+      await openFilters();
       await page.selectOption('#designer-select', 'E2E Sidebar Designer');
       const byDesigner = await waitShown([other]);
       check('the designer filter narrows the grid and shows in the filter strip', byDesigner === true
@@ -784,12 +819,14 @@ async function browserChecks(base, wsUrl, session) {
       await page.click('#current-filter-body .filter-pill:has-text("Designer:") .filter-remove');
       check('removing a filter chip shows the library again', await waitShown([cardPath, other, third]) === true && !(await page.isVisible('#current-filter-body .filter-pill')));
       const cardName = path.basename(cardPath);
+      await openFilters();
       await page.fill('#search-filter-input', cardName);
       await page.press('#search-filter-input', 'Enter');
       check('a search narrows the grid and becomes a chip', await waitShown([cardPath]) === true && await page.inputValue('#search-filter-input') === ''
         && (await stripText()).includes(`Search: "${cardName}"`));
       await page.click('#search-add-or-btn');
       const awaitingHint = await page.isVisible('#search-boolean-hint');
+      await openFilters();
       await page.selectOption('#designer-select', 'E2E Sidebar Designer');
       const orResult = await waitShown([cardPath, other]);
       check('OR then a filter pick adds it to the query', awaitingHint && orResult === true
@@ -802,6 +839,7 @@ async function browserChecks(base, wsUrl, session) {
       await page.click('#clear-all-filters-button');
       check('Clear All Filters shows the whole library', await waitShown([cardPath, other, third]) === true
         && !(await page.isVisible('#clear-all-filters-button')) && !(await page.getAttribute('#invert-filter-button', 'class')));
+      await openFilters();
       await page.selectOption('#tag-filter', 'e2e-s1');
       const oneTag = await waitShown([other, third]);
       await page.selectOption('#tag-filter', 'e2e-s2');
@@ -812,9 +850,13 @@ async function browserChecks(base, wsUrl, session) {
       check('Any tag matches either tag', await waitShown([other, third]) === true && (await stripText()).includes('(any)'));
       await page.click('#clear-all-filters-button');
       await waitShown([cardPath, other, third]);
+      await openFilters();
       await page.selectOption('#sort-select', 'name-asc');
       const savedSort = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['sortOption'])).result === 'name-asc' ? true : null), 10000, 'sort saved').catch(() => false);
-      const sortedNames = await page.$$eval('.file-grid .file-item-detailed .file-name', (els) => els.map((el) => el.textContent.trim().toLowerCase()));
+      const sortedNames = await page.waitForFunction(() => {
+        const names = [...document.querySelectorAll('.file-grid .file-item-detailed .file-name')].map((el) => el.textContent.trim().toLowerCase());
+        return JSON.stringify(names) === JSON.stringify([...names].sort()) ? names : null;
+      }, null, { timeout: 10000 }).then((h) => h.jsonValue(), async () => page.$$eval('.file-grid .file-item-detailed .file-name', (els) => els.map((el) => el.textContent.trim())));
       check('the sort order applies and is saved', savedSort === true && JSON.stringify(sortedNames) === JSON.stringify([...sortedNames].sort()), JSON.stringify(sortedNames));
       await page.selectOption('#sort-select', 'date-desc');
       await page.uncheck('#search-include-notes');
@@ -972,7 +1014,8 @@ async function browserChecks(base, wsUrl, session) {
     }, 5000, 'column layout').catch(() => false);
     check('Show/Hide columns hides a column in the header and rows, and saves it', sizeHidden && layoutSaved === true);
     await page.check('.list-view-columns-popover input[data-col-id="size"]');
-    await page.mouse.click(5, 5);
+    // An empty spot of the top bar (the corner is the JusttPrint logo, which opens Home).
+    await page.mouse.click(240, 20);
     check('a click outside closes the columns popover', !(await page.isVisible('.list-view-columns-popover')));
     const nameCell = await page.locator('.list-view-header [data-list-col="name"]').boundingBox();
     const handle = await page.locator('.list-view-header [data-list-col="name"] .list-view-col-resize-handle').boundingBox();
@@ -1011,12 +1054,8 @@ async function browserChecks(base, wsUrl, session) {
       && await page.isVisible('#preview-size-switcher [data-preview-size="s"].active') && !(await page.isVisible('.list-view-header')));
     await page.click('#preview-size-switcher [data-preview-size="m"]');
 
-    // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('server-mode-info-dialog').showModal());
-    await page.click('#server-mode-info-dialog [data-close-dialog="server-mode-info-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('server-mode-info-dialog').open));
     // Searchable list (React, src/web/components/ListPicker.tsx): search narrows it, Cancel picks nothing.
-    if (!(await page.isVisible('#tag-filter'))) await page.click('#filter-stack-toggle');
+    await openFilters();
     await page.click('#tag-filter + .list-button, .form-group:has(#tag-filter) .list-button');
     await page.waitForSelector('#searchable-list-dialog[open] li', { timeout: 10000 }).catch(() => {});
     const allTags = await page.locator('#searchable-list-dialog li').count();
@@ -1175,6 +1214,50 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#tag-manager-dialog .dialog-buttons button');
     check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
 
+    // Tags page (React, src/web/pages/TagsPage.tsx): create, rename, merge, show models, delete.
+    const tagNamesNow = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.fill('#jp-new-tag', 'e2e-page-tag');
+    await page.click('.jp-tags__create button[type=submit]');
+    const pageTagRow = (name) => `.jp-tag-row[data-tag-name="${name}"]`;
+    check('the Tags page creates a tag', /#\/tags$/.test(page.url())
+      && await page.waitForSelector(pageTagRow('e2e-page-tag'), { timeout: 10000 }).then(() => true, () => false)
+      && (await tagNamesNow()).includes('e2e-page-tag'));
+    await page.click(`${pageTagRow('e2e-page-tag')} button[aria-label^="Rename"]`);
+    await page.fill(`${pageTagRow('e2e-page-tag')} .jp-tag-row__input`, 'e2e-page-renamed');
+    await page.press(`${pageTagRow('e2e-page-tag')} .jp-tag-row__input`, 'Enter');
+    check('renaming a tag on the page saves it', await page.waitForSelector(pageTagRow('e2e-page-renamed'), { timeout: 10000 }).then(() => true, () => false)
+      && !(await tagNamesNow()).includes('e2e-page-tag'));
+    const taggedModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'save-tag', ['e2e-page-other']);
+    await invoke(base, session, 'update-models-batch', [[{ filePath: taggedModel, tags: ['e2e-page-other'] }]]);
+    // Made through the API, not this page: open the page again to read them.
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.waitForSelector(`${pageTagRow('e2e-page-other')} :text("1 model")`, { timeout: 10000 }).catch(() => {});
+    await page.click(`${pageTagRow('e2e-page-renamed')} button[aria-label^="Rename"]`);
+    await page.fill(`${pageTagRow('e2e-page-renamed')} .jp-tag-row__input`, 'E2E-PAGE-OTHER');
+    await page.press(`${pageTagRow('e2e-page-renamed')} .jp-tag-row__input`, 'Enter');
+    const mergeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Merge Tags") button:text-is("Merge")', { timeout: 10000 }).catch(() => null);
+    if (mergeAsk) await mergeAsk.click();
+    check('renaming onto an existing tag merges after asking', !!mergeAsk
+      && await page.waitForSelector(pageTagRow('e2e-page-renamed'), { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && (await tagNamesNow()).filter((n) => n.toLowerCase() === 'e2e-page-other').length === 1);
+    // The merged tag keeps the name as typed.
+    const mergedName = (await tagNamesNow()).find((n) => n.toLowerCase() === 'e2e-page-other') || 'e2e-page-other';
+    await page.click(`${pageTagRow(mergedName)} button[aria-label^="Show models"]`);
+    check('a tag shows its models in the library', await page.waitForFunction((name) => JSON.stringify(window.libraryFilters.state().tags) === JSON.stringify([name]), mergedName, { timeout: 10000 }).then(() => true, () => false)
+      && await page.waitForFunction((p) => [...document.querySelectorAll('.file-grid [data-filepath]')].map((el) => el.getAttribute('data-filepath')).join() === p, taggedModel, { timeout: 10000 }).then(() => true, () => false));
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.click(`${pageTagRow(mergedName)} button[aria-label^="Delete"]`);
+    const deleteTagAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Delete Tag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (deleteTagAsk) await deleteTagAsk.click();
+    check('deleting a used tag asks first and removes it', !!deleteTagAsk
+      && await page.waitForSelector(pageTagRow(mergedName), { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && !(await tagNamesNow()).includes(mergedName));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+
     // Parts Manager (React): add, step the quantity, edit, remove.
     const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
     await page.evaluate(() => window.openPartsStock());
@@ -1243,6 +1326,34 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#filament-manager-close');
     check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
 
+    // Filament page (React, src/web/pages/FilamentPage.tsx): spools, search, material, Show models, Remove.
+    const pageFilament = (await invoke(base, session, 'save-filament', [{ name: 'E2E Page Teal', vendor: 'E2E Vendor', material: 'PETG', color_hex: '00aaaa' }])).result;
+    const tealModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'update-models-batch', [[{ filePath: tealModel, filaments: [pageFilament.id] }]]);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    const tealCard = `.jp-spool-card[data-filament-id="${pageFilament.id}"]`;
+    check('the Filament page shows each filament as a spool with its use', /#\/filament$/.test(page.url())
+      && await page.waitForSelector(`${tealCard} :text("Used in 1 model")`, { timeout: 10000 }).then(() => true, () => false)
+      && await page.getAttribute(`${tealCard} .jp-spool circle:nth-of-type(2)`, 'fill') === '#00AAAA');
+    await page.fill('.jp-filament__search input', 'e2e vendor');
+    check('search narrows the spools', (await page.locator('.jp-spool-card').count()) === 1);
+    await page.fill('.jp-filament__search input', '');
+    await page.click('.jp-filament__materials .jp-chip:has-text("PETG")');
+    check('a material chip shows only that material', await page.isVisible(tealCard)
+      && !(await page.isVisible('.jp-spool-card:has(.jp-badge:text-is("PLA"))')));
+    await page.click(`${tealCard} button:has-text("Show models")`);
+    check('Show models opens the library filtered to that filament', await page.waitForFunction((id) => (window.libraryFilters.state().filaments || []).includes(String(id)), pageFilament.id, { timeout: 10000 }).then(() => true, () => false)
+      && /#\/library$/.test(page.url()));
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    await page.click(`${tealCard} button[aria-label^="Remove"]`);
+    const removeTeal = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
+    if (removeTeal) await removeTeal.click();
+    check('Remove deletes the filament after asking', !!removeTeal
+      && await page.waitForSelector(tealCard, { state: 'detached', timeout: 10000 }).then(() => true, () => false)
+      && !((await invoke(base, session, 'get-all-filaments')).result || []).some((f) => f.id === pageFilament.id));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+
     // Printer Manager (React): add, edit, maintenance reminders and log, delete.
     const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
     await page.evaluate(() => window.openPrinterManagement());
@@ -1299,12 +1410,61 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#printer-management-close');
     check('Printer Manager closes', !(await page.isVisible('#printer-management-dialog')));
 
+    // Printers page (React, src/web/pages/PrintersPage.tsx): cards, the selected printer, Edit, a reminder, Delete.
+    const pagePrinter = (await invoke(base, session, 'save-printer', [{ nickname: 'E2E Page Printer', manufacturer: 'Prusa', model: 'MK4', webUrl: 'mk4.local' }])).result;
+    await invoke(base, session, 'save-printer-reminder', [{ printerId: pagePrinter.id, title: 'E2E clean nozzle', maintenanceType: 'Cleaning', dueDate: new Date(Date.now() - 86400000).toISOString(), intervalDays: 0, notes: null }]);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Printers")');
+    const pageCard = '.jp-printer-card:has-text("E2E Page Printer")';
+    check('the Printers page lists the printer with its maintenance due', /#\/printers/.test(page.url())
+      && await page.waitForSelector(`${pageCard} :text("Maintenance due")`, { timeout: 10000 }).then(() => true, () => false));
+    await page.click(pageCard);
+    check('selecting a printer shows its details and web page', await page.waitForSelector('.jp-printer-detail__name:text-is("E2E Page Printer")', { timeout: 10000 }).then(() => true, () => false)
+      && await page.getAttribute('#jp-printer-open-web', 'href') === 'http://mk4.local' && new RegExp(`#/printers/${pagePrinter.id}$`).test(page.url()));
+    await page.click('.jp-printer-detail__actions button:has-text("Edit")');
+    check('Edit opens the Printer Manager form for that printer', await page.waitForFunction(() => document.getElementById('printer-form-title')?.textContent === 'Edit Printer: E2E Page Printer', null, { timeout: 10000 }).then(() => true, () => false));
+    await page.click('#printer-management-close');
+    await page.click('.jp-printer-detail__item:has-text("E2E clean nozzle") button:has-text("Done")');
+    const doneAsk = await page.waitForSelector('dialog.browser-input-dialog[open] button[type=submit]', { timeout: 10000 }).catch(() => null);
+    if (doneAsk) await doneAsk.click();
+    const completedLog = await waitFor(async () => (((await invoke(base, session, 'get-printer-maintenance-logs', [pagePrinter.id])).result || []).length ? true : null), 10000, 'reminder done').catch(() => false);
+    check('Done completes a reminder and logs it', !!doneAsk && completedLog === true
+      && await page.waitForSelector('.jp-printer-detail__list--log :text("E2E clean nozzle")', { timeout: 10000 }).then(() => true, () => false));
+    await page.click('.jp-printer-detail__actions button:has-text("Delete")');
+    const deleteAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Delete Printer") button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+    if (deleteAsk) await deleteAsk.click();
+    check('Delete removes the printer after asking', !!deleteAsk
+      && await waitFor(async () => (!((await invoke(base, session, 'get-all-printers')).result || []).some((p) => p.id === pagePrinter.id) ? true : null), 10000, 'printer deleted').then(() => true, () => false)
+      && await page.waitForSelector(pageCard, { state: 'detached', timeout: 10000 }).then(() => true, () => false));
+
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
-    // Opened from the menu bar (React, src/web/shell/MenuBar.tsx).
-    await page.click('#server-menu-bar .server-menu-button:text-is("Help")');
-    await page.click('#server-menu-bar .server-menu-item:text-is("Library Stats")');
-    check('Library Stats opens from the Help menu', await page.isVisible('#stats-dialog') && !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+    // Opened from Settings in the JusttPrint 5 shell (src/web/shell/AppShell.tsx, src/web/pages/SettingsPage.tsx).
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.waitForSelector('.jp-page', { state: 'detached', timeout: 5000 }).catch(() => {});
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
+    await page.waitForSelector('.jp-page h1:text-is("Settings")', { timeout: 5000 }).catch(() => {});
+    check('the sidebar opens Settings and marks it as the current page', /#\/settings$/.test(page.url())
+      && await page.isVisible('.jp-page h1:text-is("Settings")')
+      && await page.getAttribute('.jp-sidebar .jp-nav__row:has-text("Settings")', 'aria-current') === 'page');
+    // Settings forms sit on the page (src/web/settings/EmbeddedDialog.tsx): the dialogs, opened in place.
+    check('Settings shows the settings forms on the page', await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
+      && await page.isVisible('#setting-stl-home #stl-home-dialog[open]') && await page.isVisible('#setting-mcp #mcp-server-settings-dialog[open]')
+      && await page.evaluate(() => !document.querySelector('#performance-settings-dialog:modal')));
+    const sizeBefore = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
+    await page.fill('#max-file-size', '61');
+    await page.click('#save-performance-settings');
+    const inlineSaved = await page.waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (inlineSaved) await inlineSaved.click();
+    check('a settings form saves on the page and stays open', !!inlineSaved && (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result === '61'
+      && await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 5000 }).then(() => true, () => false));
+    await invoke(base, session, 'save-setting', ['maxFileSizeMB', sizeBefore == null ? '50' : sizeBefore]);
+    await page.click('.jp-settings-index__link:text-is("Backup")');
+    check('the index jumps to a group', await page.waitForFunction(() => {
+      const group = document.getElementById('settings-backup')?.getBoundingClientRect();
+      return !!group && group.top < window.innerHeight / 2 && group.top > 0;
+    }, null, { timeout: 5000 }).then(() => true, () => false));
+    await page.click('.jp-settings-row:has-text("Library Stats")');
+    check('Library Stats opens from Settings', await page.isVisible('#stats-dialog'));
     const shownTotal = await page.waitForFunction((total) => {
       const text = document.getElementById('stats-total-models')?.textContent;
       return text === total ? text : null;
@@ -1313,49 +1473,200 @@ async function browserChecks(base, wsUrl, session) {
     check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
     await page.click('#stats-dialog .dialog-buttons button');
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
-    await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
-    await page.hover('#server-menu-bar .server-menu-item-has-submenu:has-text("MCP Server")');
-    check('a menu submenu opens on hover', await page.isVisible('#server-menu-bar .server-menu-subitem:text-is("HTTPS / SSL")'));
-    await page.click('main');
-    check('a click outside closes the menu', !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+    await page.goBack();
+    check('Back returns to the library', !(await page.isVisible('.jp-page')) && !/#\/settings/.test(page.url()));
+    check('leaving Settings returns its forms to dialogs', await page.evaluate(() => {
+      const dialog = document.getElementById('performance-settings-dialog');
+      return !!dialog && !dialog.open && !dialog.closest('.jp-settings-embed') && !dialog.classList.contains('is-embedded');
+    }));
 
-    // Phone layout (React, src/web/shell/MobileShell.tsx), same session at phone size.
+    // The rest of the shell: the old menu bar is gone, the account menu, search and the queue link.
+    check('the shell replaces the old menu bar, logo and phone layout', await page.evaluate(() => !document.querySelector('#server-menu-bar, #logo, #mobile-app-bar, .sidebar-chrome'))
+      && await page.isVisible('.jp-sidebar .jp-brand'));
+    await page.click('.jp-account');
+    check('the account menu offers Server Access and Log Out', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Server Access")')
+      && await page.isVisible('.jp-menu [role="menuitem"]:has-text("Log Out")'));
+    await page.keyboard.press('Escape');
+    check('Escape closes the account menu', !(await page.isVisible('.jp-menu')));
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    check('Ctrl/Cmd+K focuses the search', await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === 'Search the library');
+    await page.keyboard.type('cube');
+    await page.keyboard.press('Enter');
+    const searched = await page.waitForFunction(() => {
+      const tokens = window.libraryFilters.state().tokens || [];
+      return tokens.some((t) => JSON.stringify(t).includes('cube')) ? true : null;
+    }, null, { timeout: 5000 }).then(() => true, () => false);
+    check('the top bar search filters the library', searched && await page.inputValue('.jp-topbar input') === '');
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    // Print Queue (React, src/web/pages/QueuePage.tsx): a queued model moves through the page with its status.
+    const queuedModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
+    await invoke(base, session, 'set-print-status', [{ filePath: queuedModel, printStatus: 'queued' }]);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Queue")');
+    const queuedRow = `ol[aria-label="Up next"] .jp-queue__row:has(.jp-queue__title:text-is("${path.basename(queuedModel).replace(/\.[^.]+$/, '')}"))`;
+    check('Queue opens the Print Queue with the queued model up next', /#\/queue$/.test(page.url())
+      && await page.waitForSelector(queuedRow, { timeout: 10000 }).then(() => true, () => false));
+    await page.click(`${queuedRow} button:has-text("Start")`);
+    const startedRow = 'ul[aria-label="Printing now"] .jp-queue__row';
+    const started = await page.waitForSelector(startedRow, { timeout: 10000 }).then(() => true, () => false);
+    check('Start moves it to Printing now', started && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing');
+    await page.click(`${startedRow} button[aria-label="Back to the queue"]`);
+    await page.waitForSelector(queuedRow, { timeout: 10000 }).catch(() => {});
+    await page.click(`${queuedRow} button[aria-label="Remove from the queue"]`);
+    check('Remove takes it off the queue', await page.waitForSelector('#jp-queue-next ~ * :text("The queue is empty"), .jp-queue__section:has(#jp-queue-next) :text("The queue is empty")', { timeout: 10000 }).then(() => true, () => false)
+      && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'unprinted');
+    await page.click('.jp-queue__header button:has-text("Show in Library")');
+    check('Show in Library opens the library\'s Queue tab', await page.waitForFunction(() => window.libraryFilters.state().printed === 'in-queue', null, { timeout: 5000 }).then(() => true, () => false)
+      && await page.isVisible('.jp-library-header .jp-tab[aria-selected="true"]:has-text("Queue")'));
+    await page.evaluate(() => window.clearAllLibraryFilters());
+    const storageText = await page.textContent('.jp-storage').catch(() => '');
+    check('the sidebar shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
+
+    // Keyboard (spec §37): the skip link, a card as one Tab stop, Enter selects, focus follows the arrows.
+    await page.evaluate(() => { window.location.hash = '#/library'; });
+    await page.click('.view-button[data-view="detailed"]');
+    await page.waitForSelector('.file-grid .jp-model-card', { timeout: 10000 }).catch(() => {});
+    await page.evaluate(() => { window.selection.clear(); document.activeElement?.blur(); });
+    // The first element in Tab order (DOM order, tabbable, not inert or hidden).
+    const firstStop = await page.evaluate(() => {
+      const candidates = [...document.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')];
+      const tabbable = candidates.find((el) => el.tabIndex >= 0 && !el.disabled && !el.closest('[inert], [hidden], dialog:not([open])')
+        && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none');
+      return tabbable?.textContent?.trim() || tabbable?.outerHTML.slice(0, 80);
+    });
+    await page.focus('.jp-skip');
+    await page.keyboard.press('Enter');
+    const skipped = await page.evaluate(() => !!document.activeElement?.matches('.file-grid .jp-model-card'));
+    check('the first Tab stop is Skip to content, and it jumps to the first model', firstStop === 'Skip to content' && skipped, String(firstStop));
+    await page.keyboard.press('Enter');
+    const keyboardSelected = await page.waitForFunction(() => document.activeElement?.matches('.jp-model-card.selected')
+      && document.activeElement.getAttribute('aria-label')?.endsWith('selected'), null, { timeout: 10000 }).then(() => true, () => false);
+    check('Enter on a focused card selects it and opens its details', keyboardSelected
+      && await page.waitForFunction(() => !!document.querySelector('#model-details .jp-details__title')?.textContent?.trim(), null, { timeout: 10000 }).then(() => true, () => false),
+      JSON.stringify(await page.evaluate(() => ({ active: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label'),
+        selected: document.querySelectorAll('.file-item.selected').length, panels: ['model-details', 'multi-edit-panel', 'bundle-details'].filter((id) => !document.getElementById(id)?.classList.contains('hidden')) }))));
+    const focusedBefore = await page.evaluate(() => document.activeElement?.getAttribute('data-filepath'));
+    await page.keyboard.press('ArrowDown');
+    check('the arrow keys move the selection and the focus with it', await page.waitForFunction((before) => {
+      const el = document.activeElement;
+      return !!el && el.matches('.jp-model-card.selected') && el.getAttribute('data-filepath') !== before;
+    }, focusedBefore, { timeout: 10000 }).then(() => true, () => false));
+    await page.keyboard.press('Escape');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).catch(() => {});
+    const inertState = await page.evaluate(() => {
+      const card = document.querySelector('.file-grid .file-item');
+      card?.focus();
+      return { card: !!card, focusedCard: document.activeElement === card, inert: !!document.querySelector('.file-grid')?.closest('[inert]'), hash: location.hash, dialogs: [...document.querySelectorAll('dialog[open]')].map((d) => d.id) };
+    });
+    check('a page covers the grid for the keyboard too (inert)', inertState.card && !inertState.focusedCard && inertState.inert, JSON.stringify(inertState));
+
+    // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
+    const auditContext = await browser.newContext({ viewport: { width: 1400, height: 900 }, bypassCSP: true, storageState: await page.context().storageState() });
+    const audit = await auditContext.newPage();
+    const axeProblems = [];
+    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/filament', '#/tags', '#/settings', '#/help']) {
+      await audit.goto(`${base}/${hash}`);
+      await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
+      await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
+      if (hash === '#/library') {
+        await audit.click('.file-grid .file-item .file-name').catch(() => {});
+        await audit.waitForSelector('#model-details .jp-details__title', { timeout: 10000 }).catch(() => {});
+      }
+      await audit.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
+      const found = await audit.evaluate(async () => {
+        const result = await window.axe.run({ include: [['.jp-shell'], ['.grid-view-selector'], ['.file-grid'], ['#model-details']] }, { resultTypes: ['violations'] });
+        return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`);
+      });
+      axeProblems.push(...found.map((problem) => `${hash} ${problem}`));
+    }
+    check('no serious or critical accessibility problems (axe) on the main pages', axeProblems.length === 0, axeProblems.slice(0, 6).join(' | '));
+    // The older dialogs, drawn with the tokens since Phase 14, and the message box.
+    const dialogProblems = [];
+    const DIALOG_OPENERS = ['openAbout', 'openAiConfig', 'openBackupRestore', 'openFilamentManager', 'openFileTypeSettings', 'openHttpsSettings',
+      'openKeyboardShortcuts', 'openMcpServerSettings', 'openMetadataEditor', 'openPartsStock', 'openPerformanceSettings', 'openPrinterManagement',
+      'openPurgeModels', 'openServerAccess', 'openSlicerSettings', 'openStats', 'openStlHome', 'openSystemReport', 'openTagManager', 'openThemeSettings', 'showMessage'];
+    for (const opener of DIALOG_OPENERS) {
+      await audit.evaluate((name) => {
+        if (name === 'showMessage') window.electron.showMessage('Check', 'A message.', ['OK', 'Cancel']);
+        else window[name]?.();
+      }, opener);
+      const id = await audit.waitForFunction(() => [...document.querySelectorAll('dialog[open]')].pop()?.id || (document.querySelector('dialog.jp-message-dialog[open]') ? 'message' : null),
+        null, { timeout: 10000 }).then((h) => h.jsonValue(), () => '');
+      if (!id) { dialogProblems.push(`${opener}: did not open`); continue; }
+      await audit.waitForTimeout(400);
+      const found = await audit.evaluate(async () => {
+        const dialog = [...document.querySelectorAll('dialog[open]')].pop();
+        const result = await window.axe.run(dialog, { resultTypes: ['violations'] });
+        return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`);
+      });
+      dialogProblems.push(...found.map((problem) => `${opener} ${problem}`));
+      await audit.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => (d.classList.contains('jp-message-dialog') ? d.querySelector('button')?.click() : d.close())));
+    }
+    check('no serious or critical accessibility problems (axe) in the dialogs', dialogProblems.length === 0, dialogProblems.slice(0, 6).join(' | '));
+    await auditContext.close();
+
+    // Phone layout (spec §36; src/web/shell/AppShell.tsx, styles/responsive.css), same session at phone size.
     const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
       storageState: await page.context().storageState() })).newPage();
     phone.on('pageerror', (error) => errors.push(`phone: ${error.message}`));
     await phone.goto(base + '/');
     await phone.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const phoneTile = await phone.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => null);
-    check('the phone layout shows the app bar and bottom nav instead of the menu bar', await phone.isVisible('#mobile-app-bar') && await phone.isVisible('#mobile-bottom-nav')
-      && !(await phone.isVisible('#server-menu-bar')) && (await phone.textContent('#mobile-bar-title')) === 'Library'
-      && /^\d+ models?$/.test(await phone.textContent('#mobile-bar-count')));
-    check('the phone shows the wall, not the detailed cards', await phone.waitForSelector('.view-button.active[data-view="preview"]', { state: 'attached', timeout: 10000 }).then(() => true, () => false)
-      && await phone.isVisible('#mobile-app-bar [data-mobile-view="preview"].is-active'));
-    await phone.tap('#mobile-nav-filters');
-    check('Filters opens the sidebar as a sheet', await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))
-      && await phone.isVisible('#mobile-drawer-head') && await phone.isVisible('#mobile-nav-filters.is-active'));
-    await phone.tap('#mobile-drawer-done');
-    check('Done closes the Filters sheet', !(await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))) && !(await phone.isVisible('#mobile-ui-overlay')));
-    await phone.tap('#mobile-nav-more');
-    check('More lists the tools and the rest of the menu', await phone.isVisible('#mobile-more-sheet .mobile-tool[data-menu-label="Tag Manager"]')
-      && await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Theme")')
-      && !(await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Tag Manager")')));
-    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("MCP Server")');
-    check('a submenu opens as its own page', (await phone.textContent('#mobile-more-title')) === 'MCP Server' && await phone.isVisible('#mobile-more-drill .mobile-more-row:text-is("HTTPS / SSL")'));
-    await phone.tap('#mobile-more-back');
-    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("Library Stats")');
-    check('a More action closes the sheet and opens its screen', await phone.waitForSelector('#stats-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
-      && !(await phone.isVisible('#mobile-more-sheet')));
-    await phone.click('#stats-dialog .dialog-buttons button');
+    const phoneHome = {
+      nav: await phone.waitForSelector('#jp-bottom-nav', { timeout: 10000 }).then(() => true, () => false),
+      hero: await phone.waitForSelector('.jp-hero__title', { timeout: 10000 }).then(() => true, () => false),
+      sidebarHidden: await phone.waitForSelector('#jp-sidebar', { state: 'hidden', timeout: 5000 }).then(() => true, () => false),
+      noOldBar: !(await phone.isVisible('#mobile-app-bar'))
+    };
+    check('the phone opens Home with the bottom bar instead of the sidebar', Object.values(phoneHome).every(Boolean), JSON.stringify(phoneHome));
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    // Earlier checks leave the wall or the list as the saved view.
+    await phone.tap('.view-button[data-view="detailed"]');
+    const phoneTile = await phone.waitForSelector('.file-grid .jp-model-card[data-filepath]', { timeout: 30000 }).catch(() => null);
+    // Cards are redrawn while the library loads: wait for two side by side.
+    const phoneColumns = await phone.waitForFunction(() => {
+      const lefts = new Set([...document.querySelectorAll('.file-grid .jp-model-card[data-filepath]')].map((el) => Math.round(el.getBoundingClientRect().left)));
+      return lefts.size >= 2 ? lefts.size : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue(), () => 0);
+    check('the phone library shows two columns of cards', !!phoneTile && phoneColumns === 2, String(phoneColumns));
+    await phone.tap('.jp-topbar__menu');
+    check('Menu opens the sidebar as a drawer', await phone.waitForFunction(() => document.body.classList.contains('jp-nav-open'), null, { timeout: 10000 }).then(() => true, () => false)
+      && await phone.waitForSelector('#jp-sidebar .jp-nav__row:has-text("Duplicates")', { timeout: 5000 }).then(() => true, () => false),
+      JSON.stringify(await phone.evaluate(() => ({ body: document.body.className, dialogs: [...document.querySelectorAll('dialog[open]')].map((d) => d.id) }))));
+    await phone.tap('#jp-sidebar .jp-nav__row:has-text("Tags")');
+    check('a page from the drawer opens and closes the drawer', await phone.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).then(() => true, () => false)
+      && !(await phone.evaluate(() => document.body.classList.contains('jp-nav-open'))));
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    await phone.tap('#jp-filter-button');
+    const sheet = await phone.locator('#jp-filter-popover').boundingBox();
+    check('Filter opens the filters as a full-width sheet', !!sheet && Math.round(sheet.width) === 390 && await phone.isVisible('#jp-filter-popover #sort-select'));
+    await phone.tap('#jp-filter-popover button[aria-label="Close filters"]');
     if (phoneTile) {
-      await phoneTile.tap();
-      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('mobile-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
-      check('tapping a model opens its details as a sheet with its name', phoneDetails
-        && (await phone.textContent('#mobile-details-name')).trim().length > 0 && await phone.isVisible('#mobile-details-open-preview'));
-      await phone.tap('#model-details .mobile-panel-close');
-      check('× closes the details sheet', await phone.waitForFunction(() => !document.body.classList.contains('mobile-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+      await phone.tap('.file-grid .jp-model-card[data-filepath] .file-name');
+      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
+      const drawer = await phone.locator('.sidebar').boundingBox();
+      check('tapping a model opens its details full screen with its name', phoneDetails && !!drawer && Math.round(drawer.width) === 390
+        && (await phone.textContent('#model-details .jp-details__title')).trim().length > 0);
+      await phone.tap('#jp-details-close');
+      check('× closes the details', await phone.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
     }
     await phone.close();
+
+    // Tablet: the sidebar is an icon rail; laptop: the details are a drawer.
+    const tablet = await (await browser.newContext({ viewport: { width: 900, height: 1000 }, storageState: await page.context().storageState() })).newPage();
+    tablet.on('pageerror', (error) => errors.push(`tablet: ${error.message}`));
+    await tablet.goto(base + '/#/library');
+    await tablet.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const rail = await tablet.waitForSelector('#jp-sidebar', { timeout: 10000 }).then(() => tablet.locator('#jp-sidebar').boundingBox(), () => null);
+    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 72 && !(await tablet.isVisible('#jp-sidebar .jp-storage')));
+    const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
+    if (tabletCard) {
+      await tabletCard.click();
+      check('below 1200 px the details open as a drawer over the grid', await tablet.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false)
+        && await tablet.isVisible('#jp-details-close') && await tablet.isVisible('.jp-details-backdrop'));
+      await tablet.click('.jp-details-backdrop', { position: { x: 300, y: 300 } });
+      check('a click beside the drawer closes it', await tablet.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+    }
+    await tablet.close();
 
     // First run (React, src/web/startup/FirstRun.tsx): the terms, then the welcome, then the guide.
     await invoke(base, session, 'save-setting', ['tosAcceptedDate', '']);
@@ -1464,7 +1775,7 @@ async function browserChecks(base, wsUrl, session) {
     // Shortcuts (React, src/web/shortcuts.ts).
     const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
     await page.keyboard.press(`${modKey}+/`);
-    check('Ctrl+/ focuses the search box', await page.evaluate(() => document.activeElement?.id === 'search-filter-input'));
+    check('Ctrl+/ focuses the search box', await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === 'Search the library');
     await page.evaluate(() => document.activeElement?.blur());
     await page.evaluate(() => window.libraryFilters.setFromSelect('favorite-select', 'favorited'));
     await page.keyboard.press(`${modKey}+Shift+C`);
@@ -1651,14 +1962,15 @@ async function browserChecks(base, wsUrl, session) {
     await page.selectOption('#ui-theme', 'modern-purple');
     await page.click('#save-settings');
     await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
-    check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
-      && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    const accent = await page.evaluate(() => ({ token: document.documentElement.style.getPropertyValue('--jp-accent').trim(),
+      button: getComputedStyle(document.querySelector('.jp-tab.is-active, .jp-btn--primary') || document.body).backgroundColor }));
+    check('Theme settings saves and applies the theme to the whole interface', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
+      && accent.token === '#b47cfa' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), JSON.stringify(accent));
     // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
     await page.reload();
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     const themed = await page.waitForFunction(() => document.body.getAttribute('data-theme') === 'modern-purple'
-      && document.documentElement.style.getPropertyValue('--primary-accent').trim() === '#a855f7', null, { timeout: 15000 }).then(() => true, () => false);
+      && document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#b47cfa', null, { timeout: 15000 }).then(() => true, () => false);
     check('the saved theme is applied when the page loads', themed);
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
@@ -1668,13 +1980,14 @@ async function browserChecks(base, wsUrl, session) {
     if (flagged) {
       const flaggedModel = (await invoke(base, session, 'get-model', [flagged])).result;
       await invoke(base, session, 'save-model', [{ ...flaggedModel, markAsNew: true }]);
-      await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
-      await page.click('#server-menu-bar .server-menu-item:text-is("Clear New Flag")');
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
+      await page.click('.jp-settings-row:has-text("Clear New Flag")');
       const askClear = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("clear the New flag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
       if (askClear) await askClear.click();
       const doneDialog = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Clear New Flag") button', { timeout: 10000 }).catch(() => null);
       const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
       if (doneDialog) await doneDialog.click();
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
       check('Clear New Flag asks, clears the flag and says how many', !!askClear && !!done
         && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew);
 
@@ -1743,14 +2056,15 @@ async function browserChecks(base, wsUrl, session) {
     check('STL Home saves directories, exclusions and path options', stlHomeAfter.stlHomeDirectories === '[]' && !stlHomeAfter.stlHome
       && stlHomeAfter.stlHomeExcludeDirectories === '["Designer C"]' && stlHomeAfter.pathMetadataStlHomeEnabled === '1'
       && stlHomeAfter.pathMetadataStlHomeDirection === 'fromRoot', JSON.stringify(stlHomeAfter));
-    check('Scan STL Home button hides with no directories', await page.waitForSelector('#scan-stl-home-button', { state: 'hidden', timeout: 10000 }).then(() => true).catch(() => false));
     for (const key of stlHomeKeys) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
     await page.evaluate(() => window.updateScanStlHomeButtonVisibility?.());
 
     // Organize Library (React): source picker, folder structure, preview, and a stale preview after a change. Not run.
     const savedLayers = (await invoke(base, session, 'get-setting', ['organizeLibraryLayers'])).result;
-    await page.evaluate(() => window.openOrganizeLibrary());
-    await page.waitForSelector('#organize-library-dialog[open]', { timeout: 10000 }).catch(() => {});
+    // A page on the desktop (#/organize); the Organize row in the sidebar opens it.
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Organize")');
+    await page.waitForSelector('#organize-library-page', { timeout: 10000 }).catch(() => {});
+    check('Organize opens the Organize Library page', /#\/organize$/.test(page.url()) && await page.isVisible('#organize-library-page h1:text-is("Organize Library")'));
     check('Organize Library lists the scanned folders', await page.isEnabled('#organize-source-button'));
     await page.click('#organize-source-button');
     await page.fill('#organize-source-search', 'zzz-no-match');
@@ -1768,8 +2082,8 @@ async function browserChecks(base, wsUrl, session) {
     await page.fill('#organize-dest-input', '/tmp/pv-e2e-organize-other');
     check('changing the job asks for a new preview', (await page.textContent('#organize-preview-summary')).includes('Preview again')
       && !(await page.isEnabled('#organize-confirm-button')));
-    await page.click('#organize-close-button');
-    check('Organize Library closes', !(await page.isVisible('#organize-library-dialog')));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('leaving the page closes Organize Library', await page.waitForSelector('#organize-library-page', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
     await invoke(base, session, 'save-setting', ['organizeLibraryLayers', savedLayers == null ? '' : savedLayers]);
 
     // De-Dup (React): a copy of cube.stl shows as a duplicate; Easy with a preferred directory keeps the original; Delete removes the copy.
@@ -1779,27 +2093,32 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-model', [{ filePath: dedupCopy, fileName: 'cube copy.stl' }]);
     await invoke(base, session, 'calculate-file-hash', [dedupOriginal]);
     await invoke(base, session, 'calculate-file-hash', [dedupCopy]);
-    await page.click('#dup-button');
-    const copyRow = `#dedup-dialog input[data-filepath="${dedupCopy}"]`;
-    const originalRow = `#dedup-dialog input[data-filepath="${dedupOriginal}"]`;
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Duplicates")');
+    const copyRow = `#dedup-page input[data-filepath="${dedupCopy}"]`;
+    const originalRow = `#dedup-page input[data-filepath="${dedupOriginal}"]`;
     const dedupGroup = await page.waitForSelector(copyRow, { timeout: 30000 }).catch(() => null);
-    check('De-Dup lists the duplicate pair', !!dedupGroup && await page.isVisible(originalRow));
+    check('Duplicates lists the pair side by side', !!dedupGroup && await page.isVisible(originalRow) && /#\/duplicates$/.test(page.url())
+      && (await page.locator(`#dedup-page .jp-dup-group:has(input[data-filepath="${dedupCopy}"]) .jp-dup-copy`).count()) === 2);
     check('De-Dup scope: entire library without filters', await page.isChecked('#dedup-scope-entire') && await page.isDisabled('#dedup-scope-current'));
     await page.fill('#dedup-preferred-directory-input', path.join(LIBRARY, 'Designer A'));
     await page.press('#dedup-preferred-directory-input', 'Enter');
     check('Easy with a preferred directory keeps the original', await page.isChecked(copyRow) && !(await page.isChecked(originalRow))
-      && (await page.locator('#dedup-dialog .preferred-directory-badge').count()) >= 2);
+      && (await page.locator('#dedup-page .preferred-directory-badge').count()) >= 2);
     check('De-Dup saves the preferred directory', (await invoke(base, session, 'get-setting', ['dedupPreferredDirectory'])).result === path.join(LIBRARY, 'Designer A'));
     await page.click('#dedup-clear-button');
     check('Clear unselects everything', !(await page.isChecked(copyRow)));
+    await page.click(`#dedup-page .jp-dup-copy:has(input[data-filepath="${dedupOriginal}"]) button:has-text("Keep this")`);
+    check('Keep this selects the other copy for deletion', await page.isChecked(copyRow) && !(await page.isChecked(originalRow)));
+    await page.click(`#dedup-page .jp-dup-group:has(input[data-filepath="${dedupCopy}"]) button:has-text("Keep all")`);
+    check('Keep all keeps every copy', !(await page.isChecked(copyRow)) && !(await page.isChecked(originalRow)));
     await page.check(copyRow);
     await page.click('#delete-selected');
     const confirmDedupDelete = await page.waitForSelector('dialog[open]:has-text("Confirm Delete") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
     if (confirmDedupDelete) await confirmDedupDelete.click();
     const copyGone = await page.waitForSelector(copyRow, { state: 'detached', timeout: 15000 }).then(() => true).catch(() => false);
     check('Delete Selected removes the copy from disk and the list', !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal));
-    await page.click('#close-dedup');
-    check('De-Dup closes', !(await page.isVisible('#dedup-dialog')));
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('leaving the page closes Duplicates', await page.waitForSelector('#dedup-page', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
     await invoke(base, session, 'save-setting', ['dedupPreferredDirectory', '']);
     if (fs.existsSync(dedupCopy)) fs.rmSync(dedupCopy);
 
@@ -1890,7 +2209,7 @@ async function browserChecks(base, wsUrl, session) {
     const askAll = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("regenerate thumbnails for all") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
     if (askAll) await askAll.click();
     await page.click('#thumbnail-progress-background', { timeout: 10000 }).catch(() => {});
-    const inSidebar = await page.waitForSelector('#sidebar-progress-slot #render-progress-container', { timeout: 10000 }).then(() => true, () => false);
+    const inSidebar = await page.waitForSelector('.jp-sidebar .jp-jobs #render-progress-container', { timeout: 10000 }).then(() => true, () => false);
     const finishedNote = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Thumbnail generation finished") button', { timeout: 120000 }).catch(() => null);
     if (finishedNote) await finishedNote.click();
     check('a background job shows in the sidebar and reports when it is done', !!askAll && inSidebar && !!finishedNote
@@ -1899,7 +2218,7 @@ async function browserChecks(base, wsUrl, session) {
     const scanDir = fs.mkdtempSync('/tmp/justtprint-e2e-scan-');
     const scannedModel = path.join(fs.realpathSync(scanDir), 'scanned-cube.stl');
     fs.copyFileSync(cubePath, scannedModel);
-    await page.click('#scan-directory-button');
+    await runSetting('Scan a Folder');
     await page.fill('dialog.browser-input-dialog[open] input', scanDir);
     await page.click('dialog.browser-input-dialog[open] button[type=submit]');
     const offer = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("1 new model(s) found") button:text-is("Yes")', { timeout: 60000 }).catch(() => null);

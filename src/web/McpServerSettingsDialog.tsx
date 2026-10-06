@@ -40,7 +40,7 @@ function CopyButton({ id, text, label }: { id: string; text: string; label: stri
 }
 
 /**
- * Tools → MCP Server → Settings: the endpoint URL, and the setup for the AI app the user picks
+ * Settings → MCP Server → Settings: the endpoint URL, and the setup for the AI app the user picks
  * (Claude Code, Claude Desktop, Cursor, VS Code, or any other client), with this page's address
  * and the API token filled in. The endpoint is always on in the container. Registers
  * window.openMcpServerSettings.
@@ -76,7 +76,7 @@ export function McpServerSettingsDialog() {
       description={(
         <>
           <p className="warning-text">Experimental feature. MCP Server is unfinished and may change or break. Any client with the API token can read and change your library.</p>
-          <p className="setting-description">Connect an AI app (Claude Code, Claude Desktop, Cursor, VS Code, and similar) to search and update your library. Pick your app below and copy its setup. The URL uses <code>https://</code> when TLS is enabled under Tools → MCP Server → HTTPS / SSL.</p>
+          <p className="setting-description">Connect an AI app (Claude Code, Claude Desktop, Cursor, VS Code, and similar) to search and update your library. Pick your app below and copy its setup. The URL uses <code>https://</code> when TLS is enabled under Settings → Server → HTTPS / SSL.</p>
         </>
       )}
       footer={<button type="button" id="cancel-mcp-server-settings" onClick={() => dialogRef.current?.close()}>Close</button>}>
@@ -104,7 +104,7 @@ export function McpServerSettingsDialog() {
           </div>
           {setup.note && <p id="mcp-client-note" className="setting-description">{setup.note}</p>}
           <p className="setting-description">
-            This includes the API token (Tools → Server Access), so keep it private. The agent can search the library, manage tags,
+            This includes the API token (Settings → Server Access), so keep it private. The agent can search the library, manage tags,
             find duplicates, scan folders, update metadata, log prints, and set thumbnails.
           </p>
           {info && info.tools.length > 0 && <p id="mcp-server-tools" className="setting-description">Tools: {info.tools.join(', ')}</p>}

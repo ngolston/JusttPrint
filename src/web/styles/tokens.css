@@ -1,0 +1,92 @@
+/*
+ * JusttPrint 5 design tokens (docs/redesign-5.md, spec §2, §4, §32, §33). Components use only
+ * these. Colors are semantic, so a light theme can redefine them without touching components.
+ */
+:root {
+  /* Surfaces: layered graphite, never pure black. */
+  --jp-bg: #081017;
+  --jp-bg-2: #0b141d;
+  --jp-sidebar: #0b141c;
+  --jp-surface-1: #0e1821;
+  --jp-surface-2: #111d27;
+  --jp-surface-hover: #182936;
+  --jp-preview-bg: #17232e;
+  --jp-border: #21303b;
+  --jp-border-strong: #2f4351;
+
+  /* Text */
+  --jp-text: #f2f6f8;
+  --jp-text-2: #aab9c5;
+  --jp-text-3: #768999;
+
+  /* Accent: active navigation, selection, primary buttons, links, progress, focus. */
+  --jp-accent: #08b9f1;
+  --jp-accent-hover: #34c8f6;
+  --jp-accent-soft: rgba(8, 185, 241, 0.12);
+  --jp-accent-border: rgba(8, 185, 241, 0.45);
+  --jp-on-accent: #04121a;
+
+  /* Status (always paired with an icon or text, never color alone). */
+  --jp-success: #21c96b;
+  --jp-success-soft: rgba(33, 201, 107, 0.14);
+  --jp-warning: #f5b82e;
+  --jp-warning-soft: rgba(245, 184, 46, 0.14);
+  --jp-danger: #f46468;
+  --jp-danger-soft: rgba(244, 100, 104, 0.14);
+  --jp-neutral: #8796a3;
+  --jp-neutral-soft: rgba(135, 150, 163, 0.14);
+
+  /* Radii */
+  --jp-radius-sm: 6px;
+  --jp-radius-md: 9px;
+  --jp-radius-lg: 12px;
+  --jp-radius-xl: 16px;
+  --jp-radius-pill: 999px;
+
+  /* Spacing (8px rhythm) */
+  --jp-space-1: 4px;
+  --jp-space-2: 8px;
+  --jp-space-3: 12px;
+  --jp-space-4: 16px;
+  --jp-space-5: 20px;
+  --jp-space-6: 24px;
+  --jp-space-8: 32px;
+  --jp-space-10: 40px;
+
+  /* Layout */
+  --jp-sidebar-width: 220px;
+  --jp-details-width: 360px;
+  --jp-topbar-height: 64px;
+  --jp-control-height: 36px;
+  --jp-control-height-lg: 44px;
+
+  /* Typography */
+  --jp-font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --jp-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --jp-text-page: 28px;
+  --jp-text-section: 22px;
+  --jp-text-title: 15px;
+  --jp-text-ui: 14px;
+  --jp-text-meta: 13px;
+  --jp-text-small: 12px;
+  --jp-text-badge: 11px;
+
+  /* Motion */
+  --jp-transition: 150ms ease;
+  --jp-focus-ring: 0 0 0 2px var(--jp-bg), 0 0 0 4px var(--jp-accent);
+
+  --jp-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --jp-transition: 0ms linear;
+  }
+  /* Also the older screens' animations and smooth scrolling (spec §37). */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

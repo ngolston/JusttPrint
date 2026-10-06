@@ -1,0 +1,438 @@
+/*
+ * The details panel on the desktop (src/web/details/ModelDetailsPanel.tsx; spec §20-§28). The
+ * editors inside are the older details components, moved in; rules start at #model-details so
+ * they beat the general form rules in legacy/base.css.
+ */
+
+body.jp-shell-on #model-details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+/* The phone header and the Name field (the title shows the name). */
+body.jp-shell-on #model-details > h3,
+body.jp-shell-on #model-details > #details-name-slot,
+body.jp-shell-on #model-details .details-name-field { display: none; }
+
+#model-details .jp-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-4);
+  padding: var(--jp-space-3) var(--jp-space-4) var(--jp-space-6);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: left;
+}
+#model-details .jp-details div { margin-bottom: 0; }
+
+/* ---- Large preview (spec §21) ---- */
+#model-details .jp-details__preview {
+  position: relative;
+  height: 250px;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-preview-bg);
+  overflow: hidden;
+}
+#model-details .jp-details__image {
+  all: unset;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: zoom-in;
+}
+#model-details .jp-details__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#model-details .jp-details__image:focus-visible { box-shadow: inset var(--jp-focus-ring); border-radius: var(--jp-radius-lg); }
+#model-details .jp-details__preview-actions { position: absolute; top: var(--jp-space-2); right: var(--jp-space-2); display: flex; gap: var(--jp-space-1); }
+#model-details .jp-details__overlay-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--jp-space-1);
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--jp-space-2);
+  border-radius: var(--jp-radius-md);
+  background: rgba(8, 16, 23, 0.65);
+  color: var(--jp-text);
+  font: 600 var(--jp-text-small) var(--jp-font);
+  cursor: pointer;
+  transition: background-color var(--jp-transition), color var(--jp-transition);
+}
+#model-details .jp-details__overlay-btn:hover { background: rgba(8, 16, 23, 0.9); }
+#model-details .jp-details__overlay-btn:focus-visible { box-shadow: var(--jp-focus-ring); }
+#model-details .jp-details__overlay-btn.is-favorited { color: var(--jp-danger); }
+#model-details .jp-details__view-3d { position: absolute; left: var(--jp-space-2); bottom: var(--jp-space-2); }
+
+/* ---- Thumbnail strip (spec §22) ---- */
+#model-details .jp-details__strip {
+  display: flex;
+  gap: var(--jp-space-2);
+  margin-top: calc(var(--jp-space-2) * -1);
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+#model-details .jp-details__thumb {
+  all: unset;
+  box-sizing: border-box;
+  flex: none;
+  width: 60px;
+  height: 52px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-preview-bg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--jp-transition);
+}
+#model-details .jp-details__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#model-details .jp-details__thumb:hover { border-color: var(--jp-border-strong); }
+#model-details .jp-details__thumb.is-selected { border-color: var(--jp-accent); box-shadow: inset 0 0 0 1px var(--jp-accent); }
+#model-details .jp-details__thumb:focus-visible { box-shadow: var(--jp-focus-ring); }
+
+/* ---- Identity (spec §23) ---- */
+#model-details .jp-details__title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--jp-text);
+  overflow-wrap: anywhere;
+}
+#model-details .jp-details__byline { margin: 2px 0 0; min-height: 18px; font-size: var(--jp-text-meta); color: var(--jp-text-2); }
+#model-details .jp-details__identity { margin-bottom: calc(var(--jp-space-2) * -1); }
+
+/* ---- Tags (spec §24): pills, then the pickers (select, ☰ existing, + new) ---- */
+#model-details .jp-details__tags .form-group { margin: 0; padding: 0; }
+#model-details .jp-details__tags .form-group > label { display: none; }
+#model-details .jp-details__tags .tags-container { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#model-details .jp-details__tags #model-tags {
+  display: contents;
+}
+#model-details .jp-details__tags .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--jp-border-strong);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font-size: var(--jp-text-small);
+  font-weight: 500;
+}
+#model-details .jp-details__tags .tag-remove {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--jp-text-3);
+  font-weight: 400;
+}
+#model-details .jp-details__tags .tag-remove:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+#model-details .jp-details__tags .tags-input-container { order: 1; display: inline-flex; width: auto; gap: 4px; }
+#model-details .jp-details__tags .tags-input-container select { width: 116px; height: 26px; padding: 0 22px 0 10px; border-radius: var(--jp-radius-pill); border-style: dashed; font-size: var(--jp-text-small); background-position: right 8px center; }
+
+/* Small buttons beside the old pickers (☰ choose, + new). */
+#model-details .jp-details .icon-button,
+#model-details .jp-details .list-button {
+  flex: none;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-surface-2);
+  color: var(--jp-text-2);
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: none;
+  transition: background-color var(--jp-transition), color var(--jp-transition), opacity var(--jp-transition);
+}
+#model-details .jp-details .icon-button:hover:not(:disabled) { background: var(--jp-surface-hover); color: var(--jp-text); transform: none; }
+#model-details .jp-details__tags .icon-button { width: 26px; min-width: 26px; height: 26px; border-radius: var(--jp-radius-pill); }
+
+/* ---- Actions (spec §25) ---- */
+#model-details .jp-details__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--jp-space-2); }
+#model-details .jp-details__actions .jp-btn { width: 100%; }
+.jp-split { display: flex; min-width: 0; }
+#model-details .jp-split__main { flex: 1; min-width: 0; border-radius: var(--jp-radius-md) 0 0 var(--jp-radius-md); }
+#model-details .jp-split .jp-menu-anchor,
+.jp-split > :last-child { flex: none; }
+#model-details .jp-split__more {
+  width: 40px;
+  padding: 0;
+  border-left: 1px solid rgba(4, 18, 26, 0.35);
+  border-radius: 0 var(--jp-radius-md) var(--jp-radius-md) 0;
+}
+
+/* ---- Sections ---- */
+#model-details .jp-details__section { padding-top: var(--jp-space-4); border-top: 1px solid var(--jp-border); }
+#model-details .jp-details__heading { padding: 0; letter-spacing: 0; margin: 0 0 var(--jp-space-3); font-size: var(--jp-text-title); font-weight: 600; color: var(--jp-text); }
+
+/* ---- Details list (spec §26): muted labels, brighter values; editors look like values until used ---- */
+#model-details .jp-props { display: flex; flex-direction: column; gap: 6px; }
+#model-details .jp-prop,
+#model-details .jp-props__group .form-group {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--jp-space-3);
+  min-height: 30px;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  font-size: var(--jp-text-meta);
+}
+#model-details .jp-props__group { display: flex; flex-direction: column; gap: 6px; }
+#model-details .jp-prop__label,
+#model-details .jp-props__group .form-group > label {
+  grid-column: 1;
+  margin: 0;
+  color: var(--jp-text-2);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  letter-spacing: 0;
+}
+#model-details .jp-prop__value { min-width: 0; color: var(--jp-text); overflow-wrap: anywhere; }
+#model-details .jp-props__group .form-group > :not(label) { grid-column: 2; min-width: 0; }
+#model-details .jp-props__group .print-history-hint { margin: 2px 0 0; color: var(--jp-text-3); font-size: var(--jp-text-small); }
+
+#model-details .jp-props select,
+#model-details .jp-props input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  margin: 0;
+  padding: 0 26px 0 var(--jp-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--jp-radius-sm);
+  background-color: transparent;
+  backdrop-filter: none;
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  background-position: right 8px center;
+  background-size: 10px;
+  box-shadow: none;
+  transition: background-color var(--jp-transition), border-color var(--jp-transition);
+}
+#model-details .jp-props input[type="text"] { padding-right: var(--jp-space-2); background-image: none; }
+#model-details .jp-props select:hover,
+#model-details .jp-props input[type="text"]:hover { background-color: var(--jp-surface-2); border-color: var(--jp-border); }
+#model-details .jp-props select:focus,
+#model-details .jp-props input[type="text"]:focus { outline: none; background-color: var(--jp-surface-2); border-color: var(--jp-accent); box-shadow: none; }
+#model-details .jp-props input::placeholder { color: var(--jp-text-3); }
+/* The ☰ / + / ↗ buttons appear on hover or focus of their row. */
+#model-details .jp-props__group .form-group .icon-button { opacity: 0; }
+#model-details .jp-props__group .form-group:hover .icon-button,
+#model-details .jp-props__group .form-group:focus-within .icon-button,
+#model-details .jp-props__group .form-group .icon-button:focus-visible { opacity: 1; }
+#model-details .jp-props .designer-input-container,
+#model-details .jp-props .input-with-icon,
+#model-details .jp-props .print-lifecycle-controls { gap: 4px; width: 100%; }
+#model-details .jp-props .input-with-icon input { padding-right: var(--jp-space-2); }
+#model-details .jp-props .input-with-icon .icon-button { position: static; }
+#model-details .jp-props #log-print-button { opacity: 1; }
+
+/* Location: a breadcrumb of the last folders and the file; a folder shows that folder. */
+#model-details .jp-prop--path { align-items: start; }
+#model-details .jp-prop--path .jp-prop__label { padding-top: 6px; }
+#model-details #details-path-group { display: flex; align-items: flex-start; gap: 4px; width: 100%; margin: 0; padding: 0; }
+#model-details #details-path-group > label { display: none; }
+#model-details #details-path-group .path-tree-field { flex: 1; align-items: flex-start; gap: 4px; }
+#model-details #path-tree-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 0;
+  max-height: none;
+  padding: 5px var(--jp-space-2);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) / 1.4 var(--jp-font);
+}
+#model-details #path-tree-container .path-tree-item { display: inline-flex; align-items: center; margin: 0 !important; padding: 0; }
+#model-details #path-tree-container .path-tree-item:nth-last-child(n+4) { display: none; }
+#model-details #path-tree-container .path-tree-item:nth-last-child(3)::before { content: '…'; margin-right: 6px; color: var(--jp-text-3); }
+#model-details #path-tree-container .path-tree-item:not(:last-child)::after { content: '/'; margin: 0 6px; color: var(--jp-text-3); }
+#model-details #path-tree-container .path-tree-icon { display: none; }
+#model-details #path-tree-container .path-tree-folder { color: var(--jp-accent); cursor: pointer; }
+#model-details #path-tree-container .path-tree-folder:hover { text-decoration: underline; }
+#model-details #path-tree-container .path-tree-file { color: var(--jp-text-2); }
+#model-details #details-path-group .icon-button { opacity: 0; }
+#model-details .jp-prop--path:hover #details-path-group .icon-button,
+#model-details #details-path-group .icon-button:focus-visible { opacity: 1; }
+
+/* Rating */
+#model-details .jp-rating { display: inline-flex; gap: 1px; }
+#model-details .jp-rating__star {
+  all: unset;
+  padding: 0 1px;
+  color: var(--jp-text-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+#model-details .jp-rating__star.is-filled { color: var(--jp-warning); }
+#model-details .jp-rating__star:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: 2px; }
+
+/* ---- Filament (spec §27): spool, name, chevron to the Filament Manager; pickers below ---- */
+.filament-chip-open { display: none; }
+#model-details .jp-details__editor .form-group { width: auto; margin: 0; padding: 0; }
+#model-details .jp-details__editor .form-group > label { display: none; }
+#model-details .jp-details__editor .tags-container { display: flex; flex-direction: column; gap: var(--jp-space-2); }
+#model-details #model-filaments {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#model-details #model-filaments .filament-chip {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--jp-space-3);
+  max-width: none;
+  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-1);
+  color: var(--jp-text);
+  font-size: var(--jp-text-meta);
+}
+#model-details #model-filaments .filament-swatch {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 7px rgba(0, 0, 0, 0.35), inset 0 0 0 8px rgba(255, 255, 255, 0.15);
+}
+#model-details #model-filaments .filament-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#model-details #model-filaments .filament-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--jp-radius-sm);
+  color: var(--jp-text-3);
+  cursor: pointer;
+}
+#model-details #model-filaments .filament-chip-remove:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+#model-details #model-filaments .filament-chip-open {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--jp-radius-sm);
+  color: var(--jp-text-2);
+  font-size: 18px;
+  cursor: pointer;
+}
+#model-details #model-filaments .filament-chip-open:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+#model-details #model-filaments .filament-chip-open:focus-visible { box-shadow: var(--jp-focus-ring); }
+#model-details .jp-details__editor .tags-input-container { display: flex; gap: 4px; width: 100%; }
+#model-details .jp-details__editor .tags-input-container select {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 26px 0 var(--jp-space-3);
+  border: 1px dashed var(--jp-border-strong);
+  border-radius: var(--jp-radius-md);
+  background-color: transparent;
+  color: var(--jp-text-2);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  background-position: right 10px center;
+  background-size: 10px;
+}
+
+/* ---- Notes ---- */
+#model-details .jp-details__editor .notes-input-container { display: flex; align-items: flex-start; gap: 4px; }
+#model-details .jp-details__editor #model-notes-preview {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-1);
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) / 1.5 var(--jp-font);
+  cursor: text;
+}
+#model-details .jp-details__editor #model-notes-preview .notes-preview-empty { margin: 0; color: var(--jp-text-3); font-style: normal; }
+
+/* ---- Print history (spec §28): date and details, outcome badge ---- */
+#model-details .print-history-label-row { display: none; }
+#model-details .print-history-list { max-height: none; }
+#model-details .print-history-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0 0 6px;
+  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-left-width: 1px;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-1);
+}
+#model-details .print-history-item-main { display: flex; align-items: center; gap: var(--jp-space-2); font-size: var(--jp-text-meta); }
+#model-details .print-history-when { order: -1; color: var(--jp-text); font-size: var(--jp-text-meta); }
+#model-details .print-history-outcome {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 var(--jp-space-2);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-success-soft);
+  color: var(--jp-success);
+  font-size: var(--jp-text-badge);
+  font-weight: 500;
+}
+#model-details .outcome-failed .print-history-outcome { background: var(--jp-danger-soft); color: var(--jp-danger); }
+#model-details .outcome-cancelled .print-history-outcome { background: var(--jp-neutral-soft); color: var(--jp-text-2); }
+#model-details .print-history-filaments,
+#model-details .print-history-printer,
+#model-details .print-history-parts,
+#model-details .print-history-notes { color: var(--jp-text-2); font-size: var(--jp-text-small); }
+#model-details .print-history-empty { padding: 0; color: var(--jp-text-3); font-size: var(--jp-text-meta); }
+#model-details .print-history-item .print-history-delete.icon-button { width: 22px; min-width: 22px; height: 22px; margin-left: var(--jp-space-1); border: 0; background: transparent; opacity: 0; }
+#model-details .print-history-item:hover .print-history-delete.icon-button,
+#model-details .print-history-item .print-history-delete.icon-button:focus-visible { opacity: 1; }
+
+/* ---- Footer: Multi-Edit Mode ---- */
+#model-details .jp-details__footer #enter-multi-edit-button {
+  width: 100%;
+  height: var(--jp-control-height);
+  margin: 0;
+  padding: 0 var(--jp-space-4);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: transparent;
+  color: var(--jp-text-2);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  box-shadow: none;
+}
+#model-details .jp-details__footer #enter-multi-edit-button:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+
+/* theme.css forces a dark fill on every select (!important); in the panel they read as values. */
+#model-details .jp-details select { background-color: transparent !important; }
+#model-details .jp-details select:hover,
+#model-details .jp-details select:focus { background-color: var(--jp-surface-2) !important; }
+#model-details .jp-details select option { background-color: var(--jp-surface-2) !important; color: var(--jp-text); }

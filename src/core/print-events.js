@@ -21,7 +21,8 @@ const FILTER_LABELS = Object.freeze({
   printing: 'Printing',
   failed: 'Failed',
   'ever-printed': 'Ever printed',
-  'never-printed': 'Never printed'
+  'never-printed': 'Never printed',
+  'in-queue': 'In queue'
 });
 
 const STATUS_SORT_RANK = Object.freeze({
@@ -114,6 +115,7 @@ function printFilterSql(value) {
   if (v === 'not-printed') return '(printed = 0 OR printed IS NULL)';
   if (v === 'ever-printed') return 'COALESCE(print_count, 0) > 0';
   if (v === 'never-printed') return 'COALESCE(print_count, 0) = 0';
+  if (v === 'in-queue') return "COALESCE(print_status, 'unprinted') IN ('queued', 'printing')";
   if (PRINT_STATUSES.includes(v)) return "COALESCE(print_status, 'unprinted') = ?";
   return null;
 }
@@ -136,6 +138,7 @@ function modelMatchesPrintFilter(model, value) {
   if (v === 'not-printed') return !printed;
   if (v === 'ever-printed') return count > 0;
   if (v === 'never-printed') return count === 0;
+  if (v === 'in-queue') return status === 'queued' || status === 'printing';
   if (PRINT_STATUSES.includes(v)) return status === v;
   return true;
 }

@@ -2,12 +2,15 @@
  * The page's React screens and modules. Screens draw into slots in index.html (or into
  * document.body) and register the global functions that open them (window.openTagManager, ...).
  */
+import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
-import { DedupDialog } from './DedupDialog';
+import { DuplicatesOpener } from './pages/DuplicatesPage';
+import { DesignGallery } from './design/Gallery';
+import { AppShell } from './shell/AppShell';
 import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
@@ -25,7 +28,7 @@ import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
 import { MultiEditPanel } from './details/MultiEditPanel';
-import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
+import { OrganizeLibraryOpener } from './pages/OrganizePage';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
@@ -38,12 +41,9 @@ import './library/actions';
 import './ai/puter';
 import './startup/start';
 import { Sidebar } from './filters/Sidebar';
-import { SidebarActions } from './filters/SidebarActions';
 import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';
 import { FolderTree } from './folders/FolderTree';
 import { ContextMenu } from './menus/ContextMenu';
-import { MenuBar } from './shell/MenuBar';
-import { MobileShell } from './shell/MobileShell';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -85,12 +85,9 @@ function Screens() {
       <SlicerSettingsDialog />
       <MetadataEditorDialog />
       <StlHomeDialog />
-      <OrganizeLibraryDialog />
-      <DedupDialog />
-      <MenuBar />
+      <OrganizeLibraryOpener />
+      <DuplicatesOpener />
       <ContextMenu />
-      <MobileShell />
-      <SidebarActions />
       <SidebarProgress />
       <ThumbnailJobDialog />
       <Sidebar />
@@ -108,6 +105,8 @@ function Screens() {
       <ManageThumbnailsDialog />
       <PreviewDialog />
       <PrintHistory />
+      <AppShell />
+      <DesignGallery />
     </>
   );
 }

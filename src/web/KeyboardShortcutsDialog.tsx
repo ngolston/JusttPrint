@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { ModalDialog } from './components/ModalDialog';
-import { viewEntireLibrary } from './filters/SidebarActions';
+import { viewEntireLibrary } from './library/actions';
 import { exposeGlobal } from './page';
 import { scanDirectory } from './scan/scan';
 import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';
@@ -34,7 +34,8 @@ function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean
   switch (action) {
     case 'exitMultiEdit': host.exitMultiEdit(); return true;
     case 'focusSearch': {
-      const input = document.getElementById('search-filter-input') as HTMLInputElement | null;
+      // The top bar's search on the desktop (the sidebar search sits in the closed Filter popover there).
+      const input = (document.querySelector('.jp-topbar input') ?? document.getElementById('search-filter-input')) as HTMLInputElement | null;
       input?.focus();
       input?.select();
       return true;

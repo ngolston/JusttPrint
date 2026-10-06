@@ -42,7 +42,20 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   if (!response.ok || data.error !== undefined) {
     throw new ApiError(data.error || `HTTP ${response.status}`, response.status);
   }
+  if (typeof window !== 'undefined' && changesData(name)) window.dispatchEvent(new Event(LIBRARY_CHANGED));
   return data.result as T;
+}
+
+/** Fired on window after an action that may have changed library data (the shell refreshes its counts). */
+export const LIBRARY_CHANGED = 'jp:library-changed';
+
+/**
+ * True for actions that may change library data: everything except reads and checks, and the
+ * frequent ones that only touch previews, thumbnails, menus or progress.
+ */
+export function changesData(name: string): boolean {
+  if (/^(get|read|list|is|has|check|fetch|test|benchmark|open|download|preview|search|find|count|load|export|compute|resolve)[-A-Z]/.test(name)) return false;
+  return !/thumbnail|^(parse|cancel|show|calculate|report|extract)-|^delete-temp-file$/.test(name);
 }
 
 export interface ServerAccessInfo {
@@ -120,6 +133,9 @@ export interface Filament {
   spoolman_id: number | null;
   source: 'manual' | 'spoolman' | string;
   model_count: number;
+  /** Logged prints with this filament, and when the last one was (null when never). */
+  print_count?: number;
+  last_used_at?: string | null;
 }
 
 export interface FilamentInput {
@@ -151,7 +167,9 @@ export interface Printer {
   web_url: string | null;
   notes: string | null;
   total_prints?: number;
+  last_printed_at?: string | null;
   due_reminders_count?: number;
+  created_at?: string;
 }
 
 export interface PrinterInput {
@@ -211,9 +229,35 @@ export interface LibraryStats {
   tags: { total: number; mostUsed: { name: string; count: number } | null };
 }
 
+/** Sidebar Library Storage (src/core/library-storage.js). `volume` is null without a readable STL Home. */
+export interface LibraryStorage {
+  libraryBytes: number;
+  modelCount: number;
+  volume: { path: string; totalBytes: number; usedBytes: number; freeBytes: number } | null;
+}
+
+/** Queue badge and dashboard figures (src/core/library-counts.js). */
+export interface LibraryCounts {
+  models: number;
+  printed: number;
+  queued: number;
+  printing: number;
+  printers: number;
+}
+
 export const library = {
-  stats: () => callAction<LibraryStats>('get-stats')
+  stats: () => callAction<LibraryStats>('get-stats'),
+  storage: () => callAction<LibraryStorage>('get-library-storage'),
+  counts: () => callAction<LibraryCounts>('get-library-counts'),
+  activity: (limit?: number) => callAction<ActivityItem[]>('get-recent-activity', ...(limit == null ? [] : [limit])),
+  /** Logged prints, newest first; only one outcome when given. */
+  recentPrints: (limit: number, outcome?: string | null, printerId?: number) =>
+    callAction<PrintActivity[]>('get-recent-prints', limit, ...(printerId != null ? [outcome || '', printerId] : outcome ? [outcome] : []))
 };
+
+/** Dashboard Recent Activity (src/core/recent-activity.js), newest first. */
+export interface PrintActivity { kind: 'print'; id: number; at: string; outcome: string; quantity: number; filePath: string; fileName: string | null; printer: string | null; filaments: string[] }
+export type ActivityItem = PrintActivity | { kind: 'added'; at: string; day: string; count: number };
 
 export interface ServerGpuInfo {
   available: boolean;

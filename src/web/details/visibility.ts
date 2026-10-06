@@ -67,7 +67,7 @@ export function detailsAreOpen(v: DetailsVisibility): boolean {
   return v.panel === 'multi' || v.panel === 'bundle' || (v.panel === 'model' && !!v.filePath);
 }
 
-/** Hide every details panel (the phone layout's close and swipe-down; the selection stays). */
+/** Hide every details panel (the drawer's close; the selection stays). */
 export function hideDetailsPanels() {
   for (const [, id] of PANEL_IDS) document.getElementById(id)?.classList.add('hidden');
 }

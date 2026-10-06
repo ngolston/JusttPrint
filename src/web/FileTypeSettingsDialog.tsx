@@ -141,7 +141,7 @@ export function FileTypeSettingsDialog() {
       description={<p className="warning-text">Warning: Enabling ZIP archive support may significantly impact scanning performance, especially with large archives or directories containing many ZIP files. ZIP files will be opened and scanned during directory scans, which can be slow and memory-intensive.</p>}
       footer={(
         <>
-          <button type="button" id="save-file-type-settings" disabled={saving} onClick={save}>Save</button>
+          <button type="button" id="save-file-type-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
           <button type="button" id="cancel-file-type-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

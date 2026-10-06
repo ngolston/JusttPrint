@@ -36,7 +36,7 @@ function download(filePath: string) {
 }
 
 /**
- * Tools → Backup/Restore: download a database backup or a library export, restore a backup,
+ * Settings → Backup/Restore: download a database backup or a library export, restore a backup,
  * or merge an export into the library. Registers window.openBackupRestore.
  */
 export function BackupRestoreDialog() {

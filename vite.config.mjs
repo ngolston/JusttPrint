@@ -27,7 +27,8 @@ export default defineConfig({
         // A fixed name, so index.html can load it; the server sends JS with Cache-Control: no-cache.
         entryFileNames: 'app.js',
         chunkFileNames: '[name].js',
-        assetFileNames: '[name][extname]',
+        // The stylesheet is app.css (index.html links it); fonts keep their names.
+        assetFileNames: (asset) => (asset.names?.some((n) => n.endsWith('.css')) ? 'app.css' : '[name][extname]'),
         // three.js in its own chunk (three.js), shared by the 3D preview and the thumbnail renderer.
         manualChunks: (id) => (id.includes('/node_modules/three/') ? 'three' : undefined)
       }

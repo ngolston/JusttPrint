@@ -4,7 +4,7 @@ import { fileTypes as fileTypeApi, filaments as filamentApi, libraryValues, sett
 import { SORT_OPTIONS, filterStrip, type ChipRemove, type Combine, type FilterState, type MultiKind, type StripItem } from './query';
 import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
 import { exposeGlobal } from '../page';
-import { getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
+import { applyFilterChange, getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
 import { filterActions, getFilterState, subscribeFilters } from './store';
 import { pickFromList } from '../components/ListPicker';
 
@@ -82,11 +82,6 @@ async function loadOptions(): Promise<Options> {
 }
 
 /** Run the search for a user change (the result set changes: drop the selection first). */
-export function applyFilterChange(change: () => void) {
-  change();
-  window.sidebarHost?.resetSelection();
-  runSearch({ force: true });
-}
 
 function useFilters(): FilterState {
   return useSyncExternalStore(subscribeFilters, getFilterState);
@@ -298,7 +293,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
       {valueSelect('parentModel', 'parent-select', 'Select Parent Model:', 'All Parent Models', options.parents, 'parent', 'Search existing parent models')}
       {valueSelect('license', 'license-select', 'Select License:', 'All Licenses', options.licenses, 'license', 'Search existing licenses')}
       {single('printed', 'printed-select', 'Print Status:', [
-        ['all', 'All Models'], ['unprinted', 'Unprinted'], ['want', 'Want'], ['queued', 'Queued'], ['printing', 'Printing'], ['printed', 'Printed'],
+        ['all', 'All Models'], ['unprinted', 'Unprinted'], ['want', 'Want'], ['queued', 'Queued'], ['printing', 'Printing'], ['in-queue', 'In queue'], ['printed', 'Printed'],
         ['failed', 'Failed'], ['ever-printed', 'Ever printed'], ['never-printed', 'Never printed'], ['not-printed', 'Not printed']
       ])}
       {single('isNew', 'new-select', 'New Status:', [['all', 'All Models'], ['new', 'New Models Only'], ['not-new', 'Exclude New Models']])}

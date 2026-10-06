@@ -1,0 +1,75 @@
+/* Type scale (spec §4), applied by class. */
+.jp {
+  font-family: var(--jp-font);
+  font-size: var(--jp-text-ui);
+  line-height: 1.45;
+  color: var(--jp-text);
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+.jp-page-title {
+  text-align: left;
+  font-size: var(--jp-text-page);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.jp-section-title {
+  text-align: left;
+  font-size: var(--jp-text-section);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.jp-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.jp-model-title {
+  font-size: var(--jp-text-title);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.jp-meta {
+  font-size: var(--jp-text-meta);
+  color: var(--jp-text-2);
+}
+
+.jp-label {
+  font-size: var(--jp-text-badge);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jp-text-3);
+}
+
+.jp-link {
+  color: var(--jp-accent);
+  text-decoration: none;
+  font-weight: 500;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  transition: color var(--jp-transition);
+}
+
+.jp-link:hover {
+  color: var(--jp-accent-hover);
+}
+
+.jp-link:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: var(--jp-radius-sm);
+}

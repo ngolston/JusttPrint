@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { Columns3, Grid3x3, LayoutGrid, List, type LucideIcon } from 'lucide-react';
+import { cx } from '../components/Button';
 import { columnActions, COLUMNS, getColumnLayout, subscribeColumns } from './columns';
 import type { GridView, PreviewTileSize } from './layout';
 import { gridViewActions, loadGridView, useGridView } from './view';
 
-const VIEWS: [GridView, string, string][] = [
-  ['detailed', 'Detailed', 'Detailed - Large thumbnails with full details'],
-  ['preview', 'Preview', 'Preview - Wall of thumbnails'],
-  ['list', 'List', 'List - Horizontal list view']
-];
 const SIZES: [PreviewTileSize, string][] = [['s', 'Small tiles'], ['m', 'Medium tiles'], ['l', 'Large tiles']];
+/** The JusttPrint 5 header's view buttons (spec §15): grid cards, the preview wall, the list. */
+const ICON_VIEWS: [GridView, string, LucideIcon][] = [['detailed', 'Grid', LayoutGrid], ['preview', 'Wall', Grid3x3], ['list', 'List', List]];
 
 /** Show/Hide columns: a checkbox per column, in the current order. */
 function ColumnsPopover({ anchor, close }: { anchor: HTMLElement; close: () => void }) {
@@ -56,26 +55,34 @@ export function GridToolbar() {
   }, [view]);
 
   if (!slot) return null;
+  const columnsPopover = columnsOpen && columnsButton.current && <ColumnsPopover anchor={columnsButton.current} close={() => setColumnsOpen(false)} />;
   return createPortal(
     <>
-      {VIEWS.map(([id, label, title]) => (
-        <button key={id} className={`view-button${view === id ? ' active' : ''}`} data-view={id} title={title}
-          onClick={() => gridViewActions.setView(id)}>
-          <span>{label}</span>
-        </button>
-      ))}
-      <div className="preview-size-switcher" id="preview-size-switcher" hidden={view !== 'preview'} aria-hidden={view !== 'preview'} title="Tile size">
-        {SIZES.map(([size, title]) => (
-          <button key={size} type="button" data-preview-size={size} className={previewSize === size ? 'active' : undefined} title={title}
-            onClick={(e) => { e.preventDefault(); gridViewActions.setPreviewSize(size); }}>{size.toUpperCase()}</button>
+      <div className="jp-segmented" role="group" aria-label="View">
+        {ICON_VIEWS.map(([id, label, Icon]) => (
+          <button key={id} type="button" className={cx('view-button jp-segmented__btn', view === id && 'active')} data-view={id}
+            aria-label={label} aria-pressed={view === id} title={label} onClick={() => gridViewActions.setView(id)}>
+            <Icon size={18} aria-hidden="true" />
+          </button>
         ))}
       </div>
-      <button type="button" id="list-view-columns-toolbar-btn" className="list-view-columns-toolbar-btn" ref={columnsButton} hidden={view !== 'list'}
-        title="Show or hide columns. Drag column headers to reorder; drag a column edge to resize."
-        onClick={(e) => { e.preventDefault(); setColumnsOpen(!columnsOpen); }}>
-        Show/Hide columns
-      </button>
-      {columnsOpen && columnsButton.current && <ColumnsPopover anchor={columnsButton.current} close={() => setColumnsOpen(false)} />}
+      {view === 'preview' && (
+        <div className="jp-segmented jp-segmented--text" id="preview-size-switcher" role="group" aria-label="Tile size">
+          {SIZES.map(([size, title]) => (
+            <button key={size} type="button" data-preview-size={size} className={cx('jp-segmented__btn', previewSize === size && 'active')}
+              title={title} aria-label={title} aria-pressed={previewSize === size} onClick={() => gridViewActions.setPreviewSize(size)}>{size.toUpperCase()}</button>
+          ))}
+        </div>
+      )}
+      {view === 'list' && (
+        <button type="button" id="list-view-columns-toolbar-btn" className="list-view-columns-toolbar-btn jp-btn jp-btn--secondary jp-btn--md" ref={columnsButton}
+          aria-expanded={columnsOpen} title="Show or hide columns. Drag column headers to reorder; drag a column edge to resize."
+          onClick={() => setColumnsOpen(!columnsOpen)}>
+          <Columns3 size={16} aria-hidden="true" />
+          <span>Columns</span>
+        </button>
+      )}
+      {columnsPopover}
     </>,
     slot
   );

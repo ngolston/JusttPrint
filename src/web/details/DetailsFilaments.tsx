@@ -96,7 +96,7 @@ export function DetailsFilaments() {
       <label>Filament:</label>
       <div className="tags-container">
         <div className="tags-input-container">
-          <select id="filament-select" value="" onChange={(e) => add(Number(e.target.value))}>
+          <select id="filament-select" aria-label="Add a filament" value="" onChange={(e) => add(Number(e.target.value))}>
             <option value="">Select a filament...</option>
             {available.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
           </select>
@@ -109,7 +109,9 @@ export function DetailsFilaments() {
             <div key={String(f.id)} className="filament-chip" data-filament-id={String(f.id)} title={label(f)}>
               <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
               <span className="filament-chip-text">{label(f)}</span>
-              <span className="filament-chip-remove" onClick={() => save(assigned.filter((a) => a !== f))}>×</span>
+              <span className="filament-chip-remove" role="button" aria-label={`Remove ${label(f)}`} onClick={() => save(assigned.filter((a) => a !== f))}>×</span>
+              <button type="button" className="filament-chip-open" aria-label="Open the Filament Manager" title="Open the Filament Manager"
+                onClick={() => window.openFilamentManager?.()}>›</button>
             </div>
           ))}
         </div>

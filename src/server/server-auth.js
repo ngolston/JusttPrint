@@ -256,7 +256,7 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
       '================================================================',
       ' JusttPrint server password (shown once):',
       `   ${generated}`,
-      ' Change it under Tools > Server Access, or set JUSTTPRINT_PASSWORD.',
+      ' Change it under Settings > Server Access, or set JUSTTPRINT_PASSWORD.',
       '================================================================',
       ''
     ].join('\n'));

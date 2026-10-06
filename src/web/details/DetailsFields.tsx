@@ -75,20 +75,21 @@ async function loadOptions(): Promise<Options> {
 }
 
 const LABELS: Record<PickerField, { label: string; empty: string; list: ListField; prompt: string }> = {
-  designer: { label: 'Designer:', empty: 'Select Designer', list: 'designer', prompt: 'New designer' },
-  parentModel: { label: 'Parent Model:', empty: 'None', list: 'parent', prompt: 'New parent model' },
-  license: { label: 'License:', empty: 'Select License', list: 'license', prompt: 'New license' }
+  designer: { label: 'Designer', empty: 'Select Designer', list: 'designer', prompt: 'New designer' },
+  parentModel: { label: 'Parent Model', empty: 'None', list: 'parent', prompt: 'New parent model' },
+  license: { label: 'License', empty: 'Select License', list: 'license', prompt: 'New license' }
 };
 const IDS: Record<PickerField, string> = { designer: 'model-designer', parentModel: 'model-parent', license: 'model-license' };
 
 /**
  * The details panel's name, source, designer, parent model, license and tags. Each change is
- * saved at once. Rendered into two places in #model-details (the path row between them is
+ * saved at once. Rendered into three places in #model-details (the path row between them is
  * still static markup). Registers window.detailsFields.
  */
 export function DetailsFields() {
   const [nameSlot] = useState(() => document.getElementById('details-name-slot'));
   const [fieldsSlot] = useState(() => document.getElementById('details-fields-slot'));
+  const [tagsSlot] = useState(() => document.getElementById('details-tags-slot'));
   const [model, setModel] = useState<DetailsModel | null>(null);
   const [source, setSource] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -172,7 +173,7 @@ export function DetailsFields() {
     const list = field === 'designer' ? options.designers : field === 'parentModel' ? options.parents : options.licenses;
     const values = value && !list.includes(value) ? [...list, value] : list;
     return (
-      <div className="form-group mobile-detail-extra" key={field}>
+      <div className="form-group" key={field}>
         <label htmlFor={IDS[field]}>{LABELS[field].label}</label>
         <div className="designer-input-container">
           <select id={IDS[field]} className={field === 'license' ? 'form-control' : undefined} value={value} disabled={!model}
@@ -190,7 +191,7 @@ export function DetailsFields() {
   }
 
   const name: ReactNode = (
-    <div className="form-group mobile-detail-skip">
+    <div className="form-group details-name-field">
       <label htmlFor="model-name">Name:</label>
       <input type="text" id="model-name" readOnly value={model?.fileName || ''} />
     </div>
@@ -198,8 +199,8 @@ export function DetailsFields() {
 
   const fields: ReactNode = (
     <>
-      <div className="form-group mobile-detail-extra">
-        <label htmlFor="model-source">Source URL:</label>
+      <div className="form-group">
+        <label htmlFor="model-source">Source</label>
         <div className="input-with-icon">
           <input type="text" id="model-source" placeholder="Enter source..." spellCheck={false} value={source} disabled={!model}
             onChange={(event) => setSource(event.target.value)}
@@ -212,11 +213,16 @@ export function DetailsFields() {
       {picker('designer')}
       {picker('parentModel')}
       {picker('license')}
-      <div className="form-group">
+    </>
+  );
+
+  const tagField: ReactNode = (
+    <>
+      <div className="form-group details-tags-group">
         <label>Tags:</label>
         <div className="tags-container">
           <div className="tags-input-container">
-            <select id="tag-select" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
+            <select id="tag-select" aria-label="Add a tag" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
               <option value="">Select a tag...</option>
               {options.tags.filter((tag) => !tags.includes(tag)).map((tag) => <option key={tag} value={tag}>{tag}</option>)}
             </select>
@@ -241,6 +247,7 @@ export function DetailsFields() {
     <>
       {nameSlot && createPortal(name, nameSlot)}
       {fieldsSlot && createPortal(fields, fieldsSlot)}
+      {tagsSlot && createPortal(tagField, tagsSlot)}
     </>
   );
 }
