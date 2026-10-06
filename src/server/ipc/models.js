@@ -660,40 +660,7 @@ async function saveModel(modelData) {
       markAsNew
     } = modelData;
 
-    // Extension path mapping (Docker: client path -> container path) and optional copy to NAS
-    let resolvedFilePath = filePathIn;
-    const clientPrefixRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('extensionClientPathPrefix');
-    const containerPrefixRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('extensionContainerPathPrefix');
-    const copyToNasRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('extensionCopyToNasPath');
-    const clientPrefix = (clientPrefixRow && clientPrefixRow.value) ? String(clientPrefixRow.value).replace(/\\/g, '/').trim().replace(/\/+$/, '') : '';
-    const containerPrefix = (containerPrefixRow && containerPrefixRow.value) ? String(containerPrefixRow.value).replace(/\\/g, '/').trim().replace(/\/+$/, '') : '';
-    const copyToNasPath = (copyToNasRow && copyToNasRow.value) ? String(copyToNasRow.value).replace(/\\/g, '/').trim().replace(/\/+$/, '') : '';
-    if (clientPrefix && containerPrefix && filePathIn && typeof filePathIn === 'string') {
-      const normalizedInput = filePathIn.replace(/\\/g, '/').trim();
-      const prefixNorm = clientPrefix.toLowerCase();
-      const inputNorm = normalizedInput.toLowerCase();
-      if (inputNorm.startsWith(prefixNorm)) {
-        const rest = normalizedInput.slice(clientPrefix.length).replace(/^\//, '');
-        resolvedFilePath = containerPrefix + (rest ? '/' + rest : '');
-      }
-    }
-    const zipSepForCopy = resolvedFilePath ? resolvedFilePath.indexOf('::') : -1;
-    const srcFileForCopy = (resolvedFilePath && zipSepForCopy >= 0) ? resolvedFilePath.slice(0, zipSepForCopy) : resolvedFilePath;
-    if (copyToNasPath && srcFileForCopy && fs.existsSync(srcFileForCopy)) {
-      const base = path.basename(srcFileForCopy);
-      const destFile = path.join(copyToNasPath, base);
-      if (!fs.existsSync(path.dirname(destFile))) fs.mkdirSync(path.dirname(destFile), { recursive: true });
-      if (path.resolve(srcFileForCopy) !== path.resolve(destFile)) {
-        fs.copyFileSync(srcFileForCopy, destFile);
-        resolvedFilePath = (zipSepForCopy >= 0) ? destFile + resolvedFilePath.slice(zipSepForCopy) : destFile;
-      }
-    } else if (copyToNasPath && resolvedFilePath) {
-      const srcFile = (zipSepForCopy >= 0) ? resolvedFilePath.slice(0, zipSepForCopy) : resolvedFilePath;
-      if (srcFile && !fs.existsSync(srcFile)) {
-        console.warn('saveModel: extension path mapping resolved path not found on server:', srcFile);
-      }
-    }
-    const filePath = resolvedFilePath;
+    const filePath = filePathIn;
 
     // Standalone .zip: only add if "Include zipped models" is enabled; add each STL/3MF inside (like scan)
     if (filePath && filePath.toLowerCase().endsWith('.zip') && !filePath.includes('::')) {

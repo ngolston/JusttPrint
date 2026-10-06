@@ -274,19 +274,6 @@ export const mcp = {
   connectionInfo: () => callAction<McpConnectionInfo>('get-mcp-connection-info')
 };
 
-export interface InboxImportResult {
-  imported: number;
-  failed: number;
-  skipped: number;
-  errors: string[];
-  busy?: boolean;
-}
-
-export const extensionInbox = {
-  defaultDirectory: () => callAction<string>('get-default-extension-inbox-directory'),
-  importNow: () => callAction<InboxImportResult>('import-extension-inbox')
-};
-
 export interface FileTypeEntry {
   id: string;
   label: string;

@@ -72,7 +72,6 @@ tests/test-user-data/
 
 # Not needed in the server image (the Dockerfile copies the rest with COPY . .)
 tests/
-chrome-extension/
 .github/
 .claude/
 demos/

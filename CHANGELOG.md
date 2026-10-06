@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [4.6.0] - 2026-10-05
+
+**Upgrading:** the browser extension no longer works with JusttPrint; uninstall it from your browser. Inbox folders (`JusttPrintInbox`) are no longer read and can be deleted.
+
+**Changes:**
+- **Tools → MCP Server → Settings** shows the setup for the AI app you pick: a `claude mcp add` command for Claude Code, a `mcp-remote` config for Claude Desktop, and the config formats Cursor and VS Code expect, each with this server's address and the API token filled in and a line saying where it goes. The single config it showed before only worked as-is in Cursor. The README's MCP section walks through it.
+- Removed TestDriver.ai, left over from the original project: its only test logged in to the vendor's demo shop, not JusttPrint, and its GitHub workflow failed on every push without an API key. Gone with it: the `testdriverai` package, `vitest.config.js`, `tests/example.test.js`, `tests/login.js`, and the TestDriver Copilot agent and skill files under `.github/`. The unit tests and the browser suite (`npm run test:e2e`) are unchanged.
+- Removed the browser (Chrome) extension: the `chrome-extension/` folder, **Tools → Browser Extension**, the inbox folder JusttPrint checked every few minutes for `*.pvimport.json` files, and the path mapping and copy-to-folder settings that `save-model` applied for it. Models the extension already added, including link-only models, stay in the library and work as before. The listen port setting keeps its old internal name (`browserExtensionPort`) so saved ports still apply.
+- Four database tests no longer say to run them through Electron with `ELECTRON_RUN_AS_NODE`; they run with plain Node like the rest (`npm test`).
+
 ## [4.5.2] - 2026-10-05
 
 **Upgrading:** no changes needed. Browsers that block popups need to allow them for JusttPrint to sign in to Puter.

@@ -1,84 +1,14 @@
 'use strict';
 
-const events = require('../events');
 const { flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
 const { closeAllClients, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, syncPort80Server } = require('../http');
 const fs = require('fs');
 const { buildMcpClientConfig, listToolDefinitions, SERVER_NAME: MCP_SERVER_NAME } = require('../mcp-server');
 const serverTls = require('../server-tls');
-const extensionInbox = require('../extension-inbox');
 const { MIN_PASSWORD_LENGTH } = require('../server-auth');
 const { getServerAuth } = require('../auth');
-const { getDatabasePath } = require('../../core/db-path');
-const { saveModel } = require('./models');
 const os = require('os');
-
-let extensionInboxTimer = null;
-
-let extensionInboxImporting = false;
-
-function getExtensionInboxDirectories() {
-  const custom = (getSettingValueOr('extensionInboxDirectory', '') || '').trim();
-  return extensionInbox.uniqueInboxDirectories([
-    custom || null,
-    extensionInbox.defaultInboxDirectory(),
-    extensionInbox.inboxDirectoryBesideDatabase(getDatabasePath())
-  ]);
-}
-
-function recordExtensionInboxStatus(result, reason) {
-  const payload = {
-    at: new Date().toISOString(),
-    reason: reason || null,
-    imported: result.imported || 0,
-    failed: result.failed || 0,
-    skipped: result.skipped || 0,
-    errors: (result.errors || []).slice(0, 5)
-  };
-  persistSetting('extensionInboxLastStatus', JSON.stringify(payload));
-}
-
-async function runExtensionInboxImport(reason) {
-  if (extensionInboxImporting) {
-    return { imported: 0, failed: 0, skipped: 0, errors: [], busy: true };
-  }
-  extensionInboxImporting = true;
-  try {
-    const result = await extensionInbox.importInboxMany({
-      inboxDirs: getExtensionInboxDirectories(),
-      saveModel
-    });
-    if (result.imported || result.failed || reason === 'manual' || reason === 'startup') {
-      recordExtensionInboxStatus(result, reason);
-    }
-    if (result.imported > 0) {
-      try {
-        events.broadcast('refresh-grid');
-      } catch (e) {
-        console.warn('[Extension inbox] refresh-grid failed:', e.message);
-      }
-    }
-    if (result.imported || result.failed) {
-      console.log('[Extension inbox]', reason, 'imported', result.imported, 'failed', result.failed);
-    }
-    return result;
-  } catch (err) {
-    console.error('[Extension inbox] import failed:', err);
-    return { imported: 0, failed: 0, skipped: 0, errors: [err.message || String(err)] };
-  } finally {
-    extensionInboxImporting = false;
-  }
-}
-
-function startExtensionInboxWatcher() {
-  if (extensionInboxTimer) return;
-  runExtensionInboxImport('startup').catch((e) => console.error('[Extension inbox] startup:', e));
-  extensionInboxTimer = setInterval(() => {
-    runExtensionInboxImport('interval').catch((e) => console.error('[Extension inbox] interval:', e));
-  }, extensionInbox.POLL_INTERVAL_MS);
-  if (typeof extensionInboxTimer.unref === 'function') extensionInboxTimer.unref();
-}
 
 function collectLanAddresses() {
   const nets = os.networkInterfaces();
@@ -266,16 +196,8 @@ ipcMain.handle('generate-self-signed-cert', async (_event, payload = {}) => {
   }
 });
 
-ipcMain.handle('import-extension-inbox', async () => {
-  return runExtensionInboxImport('manual');
-});
-
-ipcMain.handle('get-default-extension-inbox-directory', async () => {
-  return extensionInbox.defaultInboxDirectory();
-});
-
 ipcMain.handle('get-mcp-connection-info', async () => {
   return getMcpConnectionInfo();
 });
 
-module.exports = { startExtensionInboxWatcher };
+module.exports = {};

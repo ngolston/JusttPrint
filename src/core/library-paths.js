@@ -88,7 +88,7 @@ function readStlHomeDirectories() {
 }
 
 // Add these IPC handlers
-// Helper: URL-only models (added by Chrome extension) have filePath "url::https://..."
+// Helper: URL-only models (added by the old browser extension) have filePath "url::https://..."
 function isUrlModel(filePath) {
   return typeof filePath === 'string' && filePath.startsWith('url::');
 }

@@ -21,7 +21,7 @@ src/
   web/       index.html, web UI scripts, styles, PWA files
 assets/      images and icons (logo, png/jpg, icons)
 docker/      Dockerfile, entrypoint, compose files
-extensions/  chrome-extension, helper
+extensions/  helper
 vendor/      third-party browser bundles
 scripts/     build and release scripts
 tests/       unit/, e2e/, fixtures/
@@ -90,7 +90,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Slim the Docker image**: no Electron, Xvfb, D-Bus, GTK or X11; production dependencies only. 2.46 GB → 1.11 GB.
 - [x] **Keep a migration path**: same data path (`/root/.config/justtprint`) and database, so existing volumes keep working.
 - [x] **Remove Electron completely.** `electron` and `electron-builder` are gone from `package.json`, along with the desktop window, menus, hidden worker window, preload, native input dialog and model viewer. `npm start` runs `src/server/index.js` on plain Node, and the DB tests run on plain Node. Text prompts use an in-page dialog. Since then the rewrite removed the remaining desktop branches, windows and native dialogs from `main.js`, and the Electron stand-in became `src/server/runtime.js` (paths, lifecycle, IPC registry, trash), required directly.
-- [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper and the Chrome extension.
+- [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper. The Chrome extension was removed later (4.5.x).
 - [x] **Rewrite `main.js` to be cleaner and lighter.** `main.js` (12.6k lines) is gone. Its code now lives in modules under `src/core/` (database, models, search/filter SQL, thumbnails, library paths, file formats) and `src/server/` (HTTP/WebSocket server, MCP, thumbnail worker, and one IPC module per area in `src/server/ipc/`); `src/server/app.js` only starts and stops the server. Removed on the way: duplicate handler registrations, the always-off `DEBUG` logging, the Electron-era event fallbacks, dead functions and ~120 unused imports, `node-fetch`. Server-only libraries moved from the root into `src/`, so they are no longer served as static files. The e2e suite grew from 58 to 108 checks to cover each moved area.
 - [ ] **Split the largest modules further**: `src/server/http.js` (~1.2k lines: routes, WebSocket dispatcher, TLS), `ipc/context-menu.js` and `ipc/models.js` (~1.1k each), `ipc/previews.js`. Also drop `threemf-svg-extrude.js` if it stays unused (only a test loads it).
 - [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers ask for a container path until the folder browser exists.
@@ -146,12 +146,12 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Rebuild the performance checks on the e2e harness**: large-grid scrolling and 3MF preview stress. The old scripts predated the login and were removed.
 - [x] **Make the database tests (`print-events`, `printer-manager`) run in the same runtime as the server.** They run on plain Node since Electron was removed.
 - [x] **Move CI from Node 20 to Node 22+.**
-- [ ] **Standardize on one test runner.** Vitest/TestDriver and Playwright overlap.
+- [x] **Standardize on one test runner.** TestDriver.ai is removed (its only test was the vendor's demo shop, and its workflow failed on every push without an API key). Unit tests run with Node and Vitest, the browser tests with Playwright (`npm run test:e2e`).
 
 ## 🔵 7. Cleanup
 
 - [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
-- [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` and the browser extension icons still show the old artwork (the owner is providing new images).
+- [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` still show the old artwork (the owner is providing new images).
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
 - [x] **Remove unneeded dependencies**: the empty `fs` package, `node-fetch`, and `jszip` (zips are read and written with `fflate`; `openZip()` in `src/core/zip-entries.js`).
 - [ ] **Replace the ~500 `console.log` calls with a leveled logger.** Settings reads currently log on every call. Container logs should be readable with `docker logs`.
@@ -176,7 +176,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Collections/projects** that group models across folders.
 - [ ] **Read-only share links and QR codes** for a model or collection.
 - [ ] **Geometry-based duplicate detection**: find the same model across different files.
-- [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs**, building on the Chrome extension.
+- [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs** in the web UI (the Chrome extension that added links is removed).
 - [ ] **Undo for metadata and tag edits.**
 - [ ] **Statistics dashboard**: prints per month, success rate, filament used, top designers (Chart.js is already a dependency).
 

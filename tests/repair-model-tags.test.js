@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// SQLite cases need Electron's better-sqlite3 binary:
-//   $env:ELECTRON_RUN_AS_NODE='1'; npx electron tests/repair-model-tags.test.js
+// Run with npm test, or on its own: node tests/repair-model-tags.test.js
 
 const assert = require('assert');
 const Database = require('better-sqlite3');

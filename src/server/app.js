@@ -35,7 +35,7 @@ const { scheduleBackgroundThumbnailCompression } = require('./thumbnail-compress
 const { startServerStlHomeScans } = require('./stl-home');
 const { scheduleBackgroundHashGeneration } = require('./ipc/hashes');
 const { requestThumbnailJobCancel } = require('./ipc/thumbnails');
-const { startExtensionInboxWatcher } = require('./ipc/server-access');
+require('./ipc/server-access');
 
 let databaseClosedOnQuit = false;
 
@@ -148,7 +148,6 @@ async function start() {
       console.error('Deferred database integrity check failed:', error);
     }
   }, 3000);
-  startExtensionInboxWatcher();
 }
 
 app.on('will-quit', closeDatabaseOnQuit);

@@ -6696,17 +6696,6 @@ dialog:not([open]) {
   padding: 8px;
 }
 
-/* Browser Extension (src/web/BrowserExtensionSettingsDialog.tsx) */
-.extension-inbox-actions {
-  margin-top: 8px;
-  justify-content: flex-start;
-}
-
-.extension-mapping-heading {
-  margin-top: 12px;
-  font-weight: 500;
-}
-
 /* Backup/Restore (src/web/BackupRestoreDialog.tsx) */
 .backup-restore-columns {
   display: flex;
@@ -7222,14 +7211,6 @@ dialog:not([open]) {
   color: #888;
   font-size: 0.9em;
   margin: 5px 0 10px 0;
-}
-
-#browser-extension-settings-dialog .setting-description a {
-  color: #7eb8f7;
-  text-decoration: underline;
-}
-#browser-extension-settings-dialog .setting-description a:hover {
-  color: #a8d4ff;
 }
 
 #mcp-server-settings-dialog [hidden] {

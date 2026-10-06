@@ -17,14 +17,14 @@ const STATIC_EXTENSIONS = new Set([
 
 /** Top-level folders and files that are never served, even with an allowed extension. */
 const STATIC_BLOCKED_TOP = new Set([
-  'node_modules', 'scripts', 'tests', 'build', 'dist', 'helper', 'chrome-extension', 'src',
+  'node_modules', 'scripts', 'tests', 'build', 'dist', 'helper', 'src',
   'data', 'certs', 'test-results', 'playwright-report'
 ]);
 
 const STATIC_BLOCKED_FILES = new Set([
   'main.js', 'db-repair.js', 'server-auth.js',
   'server-paths.js', 'server-tls.js', 'mcp-server.js', 'scan-worker.js',
-  'extension-inbox.js', 'playwright.config.js', 'vitest.config.js'
+  'playwright.config.js'
 ]);
 
 const SERVER_GENERATED_FILE = /^justtprint-(backup|library)-[\w.-]+\.(db|json|zip)$/i;

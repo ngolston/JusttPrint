@@ -479,10 +479,7 @@ function initializeDefaultSettings() {
       { key: 'aiTagMergeStrategy', value: 'merge' }, // How to merge AI tags: 'replace', 'merge', 'append'
       { key: 'aiTagAllowRetagging', value: '0' }, // Allow re-tagging even if "AI Tagged" exists
       { key: 'aiTagConcurrency', value: '3' }, // Number of concurrent tag generation requests
-      { key: 'enableBrowserExtension', value: '0' }, // Legacy: extension no longer starts the local HTTP server
-      { key: 'browserExtensionPort', value: '5000' }, // Port for MCP local server (default 5000)
-      { key: 'extensionInboxDirectory', value: '' }, // Empty = Downloads/JusttPrintInbox
-      { key: 'extensionInboxLastStatus', value: '' },
+      { key: 'browserExtensionPort', value: '5000' }, // HTTP port setting (old name, kept so saved ports still apply)
       { key: 'enableMcpServer', value: '0' }, // MCP listener disabled by default in desktop mode
       { key: 'spoolmanUrl', value: '' },
       { key: 'spoolmanApiToken', value: '' },
@@ -554,9 +551,6 @@ function ensureFilamentsTablesExist() {
     return false;
   }
 }
-
-// Register save-model for Chrome extension (WebSocket works in normal and server mode)
-
 
 // Add this function before saveModel
 function verifyDatabaseIntegrity() {
