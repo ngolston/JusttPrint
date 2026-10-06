@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [4.5.1] - 2026-10-05
+
+**Upgrading:** no changes needed.
+
+**Changes:**
+- The README is now a short Docker install guide: a four-step Quick Start with the published `ace2123/justtprint` image, Docker Run, the Compose options and environment variables explained, the web app, AI tagging, network shares, GPU, updating and troubleshooting. Development, build and code structure notes are removed.
+- The README's menu names match the app (HTTPS is under **Tools → MCP Server → HTTPS / SSL**, backups under **Tools → Backup/Restore**), and **Help → Server Mode Info** lands on the install steps.
+
 ## [4.5.0] - 2026-10-05
 
 **Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `renderer.js`, `filament.js`, `grid-refresh.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js`, `thumbnail-progress.js` and `vendor/fuse.min.js` are removed.
