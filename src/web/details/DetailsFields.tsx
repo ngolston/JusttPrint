@@ -75,20 +75,21 @@ async function loadOptions(): Promise<Options> {
 }
 
 const LABELS: Record<PickerField, { label: string; empty: string; list: ListField; prompt: string }> = {
-  designer: { label: 'Designer:', empty: 'Select Designer', list: 'designer', prompt: 'New designer' },
-  parentModel: { label: 'Parent Model:', empty: 'None', list: 'parent', prompt: 'New parent model' },
-  license: { label: 'License:', empty: 'Select License', list: 'license', prompt: 'New license' }
+  designer: { label: 'Designer', empty: 'Select Designer', list: 'designer', prompt: 'New designer' },
+  parentModel: { label: 'Parent Model', empty: 'None', list: 'parent', prompt: 'New parent model' },
+  license: { label: 'License', empty: 'Select License', list: 'license', prompt: 'New license' }
 };
 const IDS: Record<PickerField, string> = { designer: 'model-designer', parentModel: 'model-parent', license: 'model-license' };
 
 /**
  * The details panel's name, source, designer, parent model, license and tags. Each change is
- * saved at once. Rendered into two places in #model-details (the path row between them is
+ * saved at once. Rendered into three places in #model-details (the path row between them is
  * still static markup). Registers window.detailsFields.
  */
 export function DetailsFields() {
   const [nameSlot] = useState(() => document.getElementById('details-name-slot'));
   const [fieldsSlot] = useState(() => document.getElementById('details-fields-slot'));
+  const [tagsSlot] = useState(() => document.getElementById('details-tags-slot'));
   const [model, setModel] = useState<DetailsModel | null>(null);
   const [source, setSource] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -199,7 +200,7 @@ export function DetailsFields() {
   const fields: ReactNode = (
     <>
       <div className="form-group mobile-detail-extra">
-        <label htmlFor="model-source">Source URL:</label>
+        <label htmlFor="model-source">Source</label>
         <div className="input-with-icon">
           <input type="text" id="model-source" placeholder="Enter source..." spellCheck={false} value={source} disabled={!model}
             onChange={(event) => setSource(event.target.value)}
@@ -212,7 +213,12 @@ export function DetailsFields() {
       {picker('designer')}
       {picker('parentModel')}
       {picker('license')}
-      <div className="form-group">
+    </>
+  );
+
+  const tagField: ReactNode = (
+    <>
+      <div className="form-group details-tags-group">
         <label>Tags:</label>
         <div className="tags-container">
           <div className="tags-input-container">
@@ -241,6 +247,7 @@ export function DetailsFields() {
     <>
       {nameSlot && createPortal(name, nameSlot)}
       {fieldsSlot && createPortal(fields, fieldsSlot)}
+      {tagsSlot && createPortal(tagField, tagsSlot)}
     </>
   );
 }

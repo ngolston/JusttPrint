@@ -6,6 +6,7 @@ import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
 import { EmptyState, ProgressBar } from '../components/Panel';
 import { SearchBox, shortcutLabel } from '../components/SearchBox';
+import { ModelDetailsPanel } from '../details/ModelDetailsPanel';
 import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
@@ -220,6 +221,7 @@ export function AppShell() {
       <Sidebar page={page} />
       <TopBar />
       <LibraryHeader />
+      <ModelDetailsPanel />
       <DetailsPlaceholder />
       {page !== 'library' && (
         <main className="jp-page" aria-label={PAGE_TITLES[page]}>

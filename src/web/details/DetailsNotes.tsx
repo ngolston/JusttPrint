@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type 
 import { createPortal } from 'react-dom';
 import { htmlToMarkdown, render, sanitizeUrl } from '../notes/markdown';
 import { askText, exposeGlobal } from '../page';
+import { Pencil } from 'lucide-react';
 
 interface NotesModel {
   filePath: string;
@@ -159,7 +160,7 @@ export function DetailsNotes() {
               dangerouslySetInnerHTML={{ __html: html }}
               onClick={(event) => { if (!openLink(event)) openEditor(); }} />
             <button type="button" id="open-notes-modal-button" className="icon-button" title="Edit notes"
-              onClick={(event) => { event.preventDefault(); openEditor(); }}>✏️</button>
+              aria-label="Edit notes" onClick={(event) => { event.preventDefault(); openEditor(); }}><Pencil size={14} aria-hidden="true" /></button>
           </div>
         </div>,
         slot

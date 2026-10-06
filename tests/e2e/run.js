@@ -534,6 +534,15 @@ async function browserChecks(base, wsUrl, session) {
       const shownName = await page.waitForFunction((name) => document.getElementById('model-name')?.value === name, path.basename(cardPath), { timeout: 10000 })
         .then(() => true).catch(async () => page.inputValue('#model-name').catch((e) => e.message));
       check('details show the model name', shownName === true, shownName);
+      // The JusttPrint 5 panel (React, src/web/details/ModelDetailsPanel.tsx): title, Details list, slicer dropdown.
+      const cardFile = path.basename(cardPath);
+      check('the panel shows the name as its title and the file in the Details list',
+        await page.waitForFunction((name) => document.querySelector('#model-details .jp-details__title')?.textContent === name.replace(/\.[^.]+$/, ''), cardFile, { timeout: 10000 }).then(() => true, () => false)
+        && (await page.textContent('#model-details .jp-prop:has(.jp-prop__label:text-is("File")) .jp-prop__value')) === cardFile
+        && await page.isVisible('#model-details .jp-props #model-designer') && await page.isVisible('#model-details .jp-details__tags #details-add-tag'));
+      await page.click('#model-details .jp-split__more');
+      check('Open in Slicer offers to set up a slicer when none is configured', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Set up a slicer")'));
+      await page.keyboard.press('Escape');
       await page.fill('#model-source', 'https://example.com/e2e-source');
       await page.press('#model-source', 'Enter');
       const savedSource = await waitFor(async () => ((await panelModel()).source === 'https://example.com/e2e-source' ? true : null), 10000, 'source').catch(async () => JSON.stringify({ shown: await page.inputValue('#model-source'), saved: (await panelModel()).source }));
@@ -585,7 +594,7 @@ async function browserChecks(base, wsUrl, session) {
       check('details set the print status', queued === true
         && await page.waitForFunction((sel) => document.querySelector(`${sel} .print-status`)?.textContent === 'In Queue', card, { timeout: 10000 }).then(() => true, () => false));
       const printsBefore = Number((await panelModel()).print_count) || 0;
-      await page.click('#log-print-button');
+      await page.click('#jp-details-log-print');
       const logDialog = await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => null);
       check('log print dialog opens from the details panel', !!logDialog && await page.textContent('#log-print-title') === 'Log a print'
         && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(await page.inputValue('#log-print-when')));

@@ -45,6 +45,7 @@ export function clearDetails() {
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
   window.detailsFilaments?.clear();
+  window.detailsHero?.clear();
 }
 
 /** Show a model in the details panel. */
@@ -62,6 +63,7 @@ export async function showModelDetails(filePath: string) {
     setDetailsPath(model.filePath || '');
     window.detailsNotes?.show(model as never);
     window.detailsPrint?.show(model as never);
+    window.detailsHero?.show(model as never);
     details.classList.remove('hidden');
     window.collapseSidebarFilters?.();
     requestAnimationFrame(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }));
