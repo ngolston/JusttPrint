@@ -1,0 +1,8 @@
+/*
+ * JusttPrint 5 styles. Built by Vite into web-build/app.css (index.html links it).
+ * Legacy stylesheets stay until Phase 14 (docs/redesign-5.md); new UI uses only these.
+ */
+@import '@fontsource-variable/inter/wght.css';
+@import './tokens.css';
+@import './typography.css';
+@import './components.css';

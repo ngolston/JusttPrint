@@ -2,12 +2,14 @@
  * The page's React screens and modules. Screens draw into slots in index.html (or into
  * document.body) and register the global functions that open them (window.openTagManager, ...).
  */
+import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
 import { DedupDialog } from './DedupDialog';
+import { DesignGallery } from './design/Gallery';
 import { BundleDetails } from './details/BundleDetails';
 import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
@@ -108,6 +110,7 @@ function Screens() {
       <ManageThumbnailsDialog />
       <PreviewDialog />
       <PrintHistory />
+      <DesignGallery />
     </>
   );
 }
