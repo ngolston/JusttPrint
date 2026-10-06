@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.0.2] - 2026-10-06
+
+**Upgrading:** no changes needed. The app is unchanged from 5.0.0 (only a test changed).
+
+**Changes:**
+- The end-to-end checks of Purge Models first answer a "Thumbnail generation finished" message that the scan check before them can leave behind. On GitHub's slower machines it opened over the Purge Models dialog and blocked its buttons; the test now notes such a message in its output.
+
 ## [5.0.1] - 2026-10-06
 
 **Upgrading:** no changes needed. The app is unchanged from 5.0.0 (only a test changed).
