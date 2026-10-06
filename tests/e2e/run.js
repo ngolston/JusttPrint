@@ -533,8 +533,14 @@ async function browserChecks(base, wsUrl, session) {
         await page.click('dialog.browser-input-dialog[open] button[type=submit]');
       }
       const designerSaved = await waitFor(async () => ((await panelModel()).designer === 'E2E Panel Designer' ? true : null), 10000, 'designer').catch(() => false);
-      check('details add a new designer', designerSaved === true && await page.inputValue('#model-designer') === 'E2E Panel Designer'
-        && /E2E Panel Designer/.test(await page.textContent(`${card} .designer-info`).catch(() => '')));
+      // The panel and the card redraw after the save (the designer list reloads first), so wait for them.
+      const designerShown = await page.waitForFunction((cardSelector) => document.getElementById('model-designer')?.value === 'E2E Panel Designer'
+        && /E2E Panel Designer/.test(document.querySelector(`${cardSelector} .designer-info`)?.textContent || ''), card, { timeout: 10000 })
+        .then(() => true).catch(async () => JSON.stringify({
+          select: await page.inputValue('#model-designer').catch(() => null),
+          card: await page.textContent(`${card} .designer-info`).catch(() => null)
+        }));
+      check('details add a new designer', designerSaved === true && designerShown === true, `saved: ${designerSaved}, shown: ${designerShown}`);
       await page.selectOption('#model-designer', '');
       await waitFor(async () => (!(await panelModel()).designer ? true : null), 10000, 'designer cleared').catch(() => {});
       // The list offers designers in use: give another model one to pick.
