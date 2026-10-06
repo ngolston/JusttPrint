@@ -198,6 +198,9 @@ async function apiChecks(base, wsUrl) {
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
   check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
   check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
+  check('library page does not allow Puter.js', !/js\.puter\.com/.test(await cspOf('/')));
+  check('Puter sign-in page allows Puter.js only', /script-src 'self' https:\/\/js\.puter\.com;/.test(await cspOf('/puter-signin.html')));
+  check('Puter sign-in page needs login', (await anon.request('/puter-signin.html')).status !== 200);
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
   console.log('\n# Library files');
@@ -716,7 +719,8 @@ async function browserChecks(base, wsUrl, session) {
       check('a card saves its star rating', rated === true && (await page.locator(`${card} .model-star.is-filled`).count()) === 3);
       await page.click(`${card} .model-favorite-btn`);
       const favorited = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).favorite ? true : null), 10000, 'favorite').catch(() => false);
-      check('a card saves its favorite', favorited === true && await page.isVisible(`${card} .model-favorite-btn.is-favorited`));
+      // The card redraws after the save, so wait for it rather than reading it once.
+      check('a card saves its favorite', favorited === true && await page.waitForSelector(`${card} .model-favorite-btn.is-favorited`, { timeout: 5000 }).then(() => true, () => false));
       // The favorite redraws the grid; wait for the cards before picking a second one.
       await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item-detailed').length >= 2, null, { timeout: 10000 }).catch(() => {});
       const other = (await page.$$eval('.file-grid .file-item-detailed', (els) => els.map((el) => el.getAttribute('data-filepath')))).find((p) => p !== cardPath);
@@ -1587,6 +1591,47 @@ async function browserChecks(base, wsUrl, session) {
     check('Save stores the AI settings', aiAfter.aiService === 'custom' && aiAfter.apiEndpoint === 'http://ollama.local:11434/v1'
       && aiAfter.aiModel === 'llava' && aiAfter.aiTagMaxTags === '7', JSON.stringify(aiAfter));
     for (const key of aiKeys) await invoke(base, session, 'save-setting', [key, savedAi[key] == null ? '' : savedAi[key]]);
+
+    // Puter.com: Puter.js runs only in the sign-in popup, which hands its login to the page. A stand-in
+    // Puter.js (served as js.puter.com, so the popup's CSP is what allows it) and Puter proxy keep this offline.
+    const puterContext = page.context();
+    await puterContext.route('https://js.puter.com/**', (route) => route.fulfill({
+      contentType: 'application/javascript',
+      body: "window.puter = { authToken: 'e2e-puter-token', auth: { isSignedIn: () => true, signIn: async () => {}, signOut: () => { window.puter.authToken = null; } } };"
+    }));
+    // The popup can close before its URL is read, so record the page request instead.
+    const signInPages = [];
+    const recordSignInPage = (request) => { if (/\/puter-signin\.html/.test(request.url())) signInPages.push(request.url()); };
+    puterContext.on('request', recordSignInPage);
+    const puterRequests = [];
+    await page.route('**/api/puter-ai/chat', (route) => {
+      puterRequests.push(JSON.parse(route.request().postData() || '{}'));
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify({ response: 'dragon, toy' }) });
+    });
+    await page.evaluate(() => window.openAiConfig());
+    await page.waitForSelector('#ai-config-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await page.selectOption('#ai-service-select', 'puter');
+    check('Puter shows its account, not an API key', (await page.textContent('#puter-account-status')) === 'Not signed in' && !(await page.isVisible('#ai-api-key')));
+    const signInPopup = page.waitForEvent('popup', { timeout: 10000 }).catch(() => null);
+    await page.click('#puter-sign-in');
+    const popup = await signInPopup;
+    check('Sign In opens the Puter sign-in page', !!popup && signInPages.length === 1, signInPages.join(', '));
+    await page.waitForFunction(() => document.querySelector('#puter-account-status')?.textContent === 'Signed in', null, { timeout: 10000 }).catch(() => {});
+    check('the popup hands the Puter login to the page', await page.evaluate(() => localStorage.getItem('justtprint.puterAuthToken')) === 'e2e-puter-token');
+    check('the popup closes after signing in', !popup || await popup.waitForEvent('close', { timeout: 10000 }).then(() => true).catch(() => popup.isClosed()));
+    await page.click('#test-ai-config');
+    await page.waitForFunction(() => /Test (successful|failed)/.test(document.querySelector('#ai-config-result')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});
+    check('Puter test goes through the server proxy with the login', /Test successful/.test(await page.textContent('#ai-config-result'))
+      && puterRequests.length > 0 && puterRequests[0].authToken === 'e2e-puter-token', `${await page.textContent('#ai-config-result')} ${JSON.stringify(puterRequests)}`);
+    const signOutPopup = page.waitForEvent('popup', { timeout: 10000 }).catch(() => null);
+    await page.click('#puter-sign-out');
+    await signOutPopup;
+    check('Sign Out forgets the Puter login', (await page.textContent('#puter-account-status')) === 'Not signed in'
+      && await page.evaluate(() => localStorage.getItem('justtprint.puterAuthToken')) === null);
+    await page.click('#cancel-ai-config');
+    await page.unroute('**/api/puter-ai/chat');
+    await puterContext.unroute('https://js.puter.com/**');
+    puterContext.off('request', recordSignInPage);
 
     // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
     const savedTheme = (await invoke(base, session, 'get-setting', ['uiTheme'])).result;

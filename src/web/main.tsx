@@ -48,6 +48,7 @@ import { MobileShell } from './shell/MobileShell';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
+import { PuterSignInDialog } from './ai/PuterSignInDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
@@ -65,6 +66,7 @@ function Screens() {
       <ServerAccessDialog />
       <TagManagerDialog />
       <TagPreviewDialog />
+      <PuterSignInDialog />
       <PartsManagerDialog />
       <FilamentManagerDialog />
       <PrinterManagerDialog />

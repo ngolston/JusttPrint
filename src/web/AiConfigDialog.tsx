@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ai, settings } from './api';
 import { ModalDialog } from './components/ModalDialog';
+import { currentToken, ensureToken, signOut, subscribe as onPuterLoginChange } from './ai/puterAuth';
 import { exposeGlobal, showMessage } from './page';
 
 declare global {
@@ -90,6 +91,9 @@ export function AiConfigDialog() {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [puterSignedIn, setPuterSignedIn] = useState(() => !!currentToken());
+
+  useEffect(() => onPuterLoginChange(() => setPuterSignedIn(!!currentToken())), []);
 
   useEffect(() => exposeGlobal('openAiConfig', () => {
     setResult('');
@@ -105,6 +109,8 @@ export function AiConfigDialog() {
   }
 
   async function test() {
+    // Open the Puter sign-in popup now, while the click still allows popups.
+    if (form.service === 'puter') ensureToken().catch(() => {});
     setTesting(true);
     setResult('Testing...');
     try {
@@ -196,6 +202,18 @@ export function AiConfigDialog() {
             <option value="custom">Custom (local / OpenAI-compatible)</option>
           </select>
         </div>
+        {form.service === 'puter' && (
+          <div className="form-group">
+            <label>Puter account:</label>
+            <div className="dialog-buttons ai-prompt-actions">
+              <span id="puter-account-status">{puterSignedIn ? 'Signed in' : 'Not signed in'}</span>
+              {puterSignedIn
+                ? <button type="button" id="puter-sign-out" onClick={() => signOut()}>Sign Out</button>
+                : <button type="button" id="puter-sign-in" onClick={() => { ensureToken().catch(() => {}); }}>Sign In</button>}
+            </div>
+            <small>Puter.com needs no API key: sign in with your Puter account in a popup window. Usage counts against your Puter account, and the login is kept in this browser.</small>
+          </div>
+        )}
         {form.service !== 'puter' && (
           <div className="form-group">
             <label htmlFor="ai-api-key">{keyRequired ? 'API Key:' : 'API Key (optional):'}</label>

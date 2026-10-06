@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [4.5.2] - 2026-10-05
+
+**Upgrading:** no changes needed. Browsers that block popups need to allow them for JusttPrint to sign in to Puter.
+
+**Changes:**
+- Puter.com AI tagging works again. Puter.js no longer runs on the library page, where the Content Security Policy blocked it; it runs only on a small sign-in page (`puter-signin.html`) opened in a popup, which hands the Puter login back to the page. **Settings → AI Config** shows the Puter account with Sign In and Sign Out. When tagging needs a login and the browser blocks the popup, a dialog asks for the click. The login is kept in the browser, and a login Puter refuses is replaced by a new sign-in. Puter requests from the server now wait up to 3 minutes, so the first one can wait for the sign-in.
+- OpenAI's newer models (gpt-5 family, o1/o3/o4) work for AI tagging and Test. They refused `max_tokens` and a custom `temperature`; OpenAI requests now send `max_completion_tokens`, leave the temperature out for those models, and give them a larger reply limit, since their hidden reasoning counts against it. Claude, Gemini and local servers send what they did before.
+
 ## [4.5.1] - 2026-10-05
 
 **Upgrading:** no changes needed.

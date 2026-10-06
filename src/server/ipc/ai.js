@@ -122,13 +122,13 @@ function createPuterIPCHandler(event = null) {
         return;
       }
       
-      // Timeout after 60 seconds
+      // Timeout after 3 minutes: the first request may wait for the user to sign in to Puter.
       setTimeout(() => {
         if (puterPendingRequests.has(requestId)) {
           puterPendingRequests.delete(requestId);
           reject(new Error('Puter AI request timeout'));
         }
-      }, 60000);
+      }, 180000);
     });
   };
 }
