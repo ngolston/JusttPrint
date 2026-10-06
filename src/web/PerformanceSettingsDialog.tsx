@@ -47,7 +47,7 @@ export function PerformanceSettingsDialog() {
       description={<p className="warning-text">Warning: These settings can impact application performance and stability. Change with caution.</p>}
       footer={(
         <>
-          <button type="button" id="save-performance-settings" disabled={saving} onClick={save}>Save</button>
+          <button type="button" id="save-performance-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
           <button type="button" id="cancel-performance-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

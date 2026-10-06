@@ -1,6 +1,6 @@
 /**
- * Moves parts of the old page (index.html) into the JusttPrint 5 shell while the shell is shown,
- * and puts them back where they were when it goes (the phone layout still uses them in place).
+ * Moves parts of the page (index.html: the filter section, job progress, details editors) into
+ * the shell's containers while they are shown, and puts them back where they were when they go.
  * The old screens draw into those parts with React portals, which follow the moved element.
  */
 import { useLayoutEffect } from 'react';

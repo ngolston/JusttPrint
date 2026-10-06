@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Box, ChevronDown, CircleUserRound, Home, Library, ListChecks, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
-import { LIBRARY_CHANGED, library, type LibraryCounts, type LibraryStorage } from '../api';
+import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
 import { EmptyState, ProgressBar } from '../components/Panel';
@@ -10,13 +10,12 @@ import { ModelDetailsPanel } from '../details/ModelDetailsPanel';
 import { detailsAreOpen, hideDetailsPanels, useDetailsVisibility } from '../details/visibility';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
 import { HomePage } from '../pages/HomeDashboard';
 import { LibraryHeader } from '../pages/LibraryPage';
 import { DuplicatesPage } from '../pages/DuplicatesPage';
 import { FilamentPage } from '../pages/FilamentPage';
-import { OrganizePage } from '../OrganizeLibraryDialog';
+import { OrganizePage } from '../pages/OrganizePage';
 import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
 import { TagsPage } from '../pages/TagsPage';
@@ -253,7 +252,7 @@ const isOverlayPage = (page: PageId) => page !== 'library';
 /**
  * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the
  * grid (src/web/grid/) under its header (pages/LibraryPage.tsx), with the old sidebar's details
- * panels as the right column, placed by src/web/styles/legacy-bridge.css; other pages cover it.
+ * panels as the right column, placed by src/web/styles/library-frame.css; other pages cover it.
  * Responsive (spec §36, styles/responsive.css): below 1200 px the details are a drawer; tablets
  * get an icon rail; phones a sidebar drawer, a bottom bar and full-screen details.
  */

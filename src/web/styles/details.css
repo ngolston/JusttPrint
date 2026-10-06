@@ -1,7 +1,7 @@
 /*
  * The details panel on the desktop (src/web/details/ModelDetailsPanel.tsx; spec §20-§28). The
- * editors inside are the old details components, moved in; rules start at #model-details so
- * they beat the legacy stylesheet. Phase 14 drops the legacy rules and these overrides.
+ * editors inside are the older details components, moved in; rules start at #model-details so
+ * they beat the general form rules in legacy/base.css.
  */
 
 body.jp-shell-on #model-details {
@@ -13,7 +13,7 @@ body.jp-shell-on #model-details {
 /* The phone header and the Name field (the title shows the name). */
 body.jp-shell-on #model-details > h3,
 body.jp-shell-on #model-details > #details-name-slot,
-body.jp-shell-on #model-details .mobile-detail-skip { display: none; }
+body.jp-shell-on #model-details .details-name-field { display: none; }
 
 #model-details .jp-details {
   display: flex;

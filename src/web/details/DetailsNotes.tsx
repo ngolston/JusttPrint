@@ -153,7 +153,7 @@ export function DetailsNotes() {
   return (
     <>
       {slot && createPortal(
-        <div className="form-group mobile-detail-extra">
+        <div className="form-group">
           <label>Notes:</label>
           <div className="notes-input-container">
             <div id="model-notes-preview" className="notes-preview notes-sidebar-preview" aria-label="Notes"

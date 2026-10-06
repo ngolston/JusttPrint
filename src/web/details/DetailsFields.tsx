@@ -173,7 +173,7 @@ export function DetailsFields() {
     const list = field === 'designer' ? options.designers : field === 'parentModel' ? options.parents : options.licenses;
     const values = value && !list.includes(value) ? [...list, value] : list;
     return (
-      <div className="form-group mobile-detail-extra" key={field}>
+      <div className="form-group" key={field}>
         <label htmlFor={IDS[field]}>{LABELS[field].label}</label>
         <div className="designer-input-container">
           <select id={IDS[field]} className={field === 'license' ? 'form-control' : undefined} value={value} disabled={!model}
@@ -191,7 +191,7 @@ export function DetailsFields() {
   }
 
   const name: ReactNode = (
-    <div className="form-group mobile-detail-skip">
+    <div className="form-group details-name-field">
       <label htmlFor="model-name">Name:</label>
       <input type="text" id="model-name" readOnly value={model?.fileName || ''} />
     </div>
@@ -199,7 +199,7 @@ export function DetailsFields() {
 
   const fields: ReactNode = (
     <>
-      <div className="form-group mobile-detail-extra">
+      <div className="form-group">
         <label htmlFor="model-source">Source</label>
         <div className="input-with-icon">
           <input type="text" id="model-source" placeholder="Enter source..." spellCheck={false} value={source} disabled={!model}

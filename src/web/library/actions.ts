@@ -16,6 +16,20 @@ import { mergeModel, refreshGrid, showModels } from './models';
 const gridElement = () => document.querySelector<HTMLElement & { currentModels?: GridModel[] | null }>('.file-grid');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Clear every filter and show the whole library again. */
+export async function viewEntireLibrary() {
+  try {
+    const grid = gridElement();
+    if (grid) grid.currentModels = null;
+    filterActions.clearAll();
+    if (window.forceGridRefresh) await window.forceGridRefresh();
+    else await runSearch({ force: true });
+  } catch (error) {
+    console.error('Error loading library:', error);
+    await window.electron?.showMessage?.('Error', 'Failed to load library.');
+  }
+}
+
 // ---- After changes in the managers ----
 
 /** Reload every picker and filter that lists tags, filaments, designers, parent models or licenses. */

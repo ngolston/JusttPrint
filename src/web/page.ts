@@ -43,8 +43,6 @@ declare global {
     applyThemeColors?: (theme: string) => void;
     /** library/actions.ts: reload the designer, parent model and license pickers and filters, and the grid. */
     refreshAfterMetadataChange?: () => Promise<void>;
-    /** The sidebar (SidebarActions.tsx): show Scan STL Home when STL Home directories are set. */
-    updateScanStlHomeButtonVisibility?: () => Promise<void>;
     /** filters/search.ts: the sidebar's current filters, whether any is set, and a short description of them. */
     getCurrentLibraryFilters?: () => LibraryFilters | null;
     libraryFiltersAreActive?: (filters: LibraryFilters | null) => boolean;

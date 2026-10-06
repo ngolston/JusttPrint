@@ -1,8 +1,8 @@
 /* JusttPrint 5 components (src/web/components/). Tokens only; no raw colors. */
 
 /*
- * The legacy stylesheet styles every <button> (90% wide, margin, cyan, padding). New components
- * undo that by class, so legacy screens keep their look until Phase 14 removes the old rules.
+ * legacy/base.css styles every <button> for the older dialogs (90% wide, margin, accent fill).
+ * New components undo that by class.
  */
 .jp-btn, .jp-icon-btn, .jp-tab, .jp-menu__item, .jp-tag__label, .jp-tag__remove, .jp-tag--add, .jp-link, .jp-stat--button {
   width: auto;
@@ -301,3 +301,42 @@ button.jp-tag__label:hover { color: var(--jp-text); }
 
 /* Show more under a long list (components/ShowMore.tsx). */
 .jp-show-more { display: flex; justify-content: center; padding: var(--jp-space-4) 0; }
+
+/* Message and text prompt dialogs (server-bridge.js: showMessage, prompt). */
+.jp-message-dialog {
+  min-width: 320px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: var(--jp-space-5);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-xl);
+  background: var(--jp-surface-1);
+  color: var(--jp-text);
+  box-shadow: var(--jp-shadow-pop);
+  font-family: var(--jp-font);
+}
+.jp-message-dialog::backdrop { background: rgba(4, 9, 13, 0.6); }
+.jp-message-dialog__title { margin-bottom: var(--jp-space-2); font-size: var(--jp-text-title); font-weight: 600; }
+.jp-message-dialog__text {
+  display: block;
+  margin-bottom: var(--jp-space-4);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-ui);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.jp-message-dialog__input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--jp-control-height);
+  margin-top: var(--jp-space-2);
+  padding: 0 var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-bg-2);
+  color: var(--jp-text);
+  font: inherit;
+}
+.jp-message-dialog__input:focus { outline: none; border-color: var(--jp-accent); box-shadow: 0 0 0 3px var(--jp-accent-soft); }
+.jp-message-dialog__buttons { display: flex; gap: var(--jp-space-2); justify-content: flex-end; }
+.jp-message-dialog__buttons .jp-btn { width: auto; margin: 0; }

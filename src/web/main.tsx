@@ -8,7 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
-import { DedupDialog } from './pages/DuplicatesPage';
+import { DuplicatesOpener } from './pages/DuplicatesPage';
 import { DesignGallery } from './design/Gallery';
 import { AppShell } from './shell/AppShell';
 import { BundleDetails } from './details/BundleDetails';
@@ -28,7 +28,7 @@ import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
 import { MultiEditPanel } from './details/MultiEditPanel';
-import { OrganizeLibraryDialog } from './OrganizeLibraryDialog';
+import { OrganizeLibraryOpener } from './pages/OrganizePage';
 import { PartsManagerDialog } from './PartsManagerDialog';
 import { PerformanceSettingsDialog } from './PerformanceSettingsDialog';
 import { PrinterManagerDialog } from './PrinterManagerDialog';
@@ -41,11 +41,9 @@ import './library/actions';
 import './ai/puter';
 import './startup/start';
 import { Sidebar } from './filters/Sidebar';
-import { SidebarActions } from './filters/SidebarActions';
 import { SidebarProgress, ThumbnailJobDialog } from './scan/Progress';
 import { FolderTree } from './folders/FolderTree';
 import { ContextMenu } from './menus/ContextMenu';
-import { MenuBar } from './shell/MenuBar';
 import { PreviewDialog } from './preview/PreviewDialog';
 import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
@@ -87,11 +85,9 @@ function Screens() {
       <SlicerSettingsDialog />
       <MetadataEditorDialog />
       <StlHomeDialog />
-      <OrganizeLibraryDialog />
-      <DedupDialog />
-      <MenuBar />
+      <OrganizeLibraryOpener />
+      <DuplicatesOpener />
       <ContextMenu />
-      <SidebarActions />
       <SidebarProgress />
       <ThumbnailJobDialog />
       <Sidebar />

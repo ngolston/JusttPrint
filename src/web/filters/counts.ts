@@ -1,6 +1,6 @@
 /**
- * The model counts the sidebar and the phone app bar show: models in the grid (set as the grid
- * loads, library/models.ts) and in the library (fetched once the grid settles).
+ * The model counts the library header shows: models in the grid (set as the grid loads,
+ * library/models.ts) and in the library (fetched once the grid settles).
  */
 import { useSyncExternalStore } from 'react';
 import { callAction } from '../api';
@@ -15,7 +15,7 @@ function set(next: Partial<typeof counts>) {
 }
 
 /** The grid reports its count page by page while it loads; one total fetch afterwards is enough. */
-export function refreshTotal() {
+function refreshTotal() {
   if (totalTimer) clearTimeout(totalTimer);
   totalTimer = setTimeout(() => {
     totalTimer = null;
@@ -35,4 +35,3 @@ export function useModelCounts() {
   }, () => counts);
 }
 
-export const plural = (n: number) => `${n} model${n === 1 ? '' : 's'}`;

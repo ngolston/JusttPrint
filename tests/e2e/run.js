@@ -725,7 +725,7 @@ async function browserChecks(base, wsUrl, session) {
         && await page.evaluate(() => document.body.classList.contains('folder-rail-open')));
       await page.click('#folder-rail-toggle');
       await page.waitForSelector('#folder-rail', { state: 'hidden', timeout: 5000 }).catch(() => {});
-      // The details panels are the right column (src/web/styles/legacy-bridge.css), at the spec's 360 px.
+      // The details panels are the right column (src/web/styles/library-frame.css), at the spec's 360 px.
       const column = await page.locator('.sidebar').boundingBox();
       check('the details column sits at the right edge, 360 px wide', !!column && Math.round(column.width) === 360 && Math.round(column.x + column.width) === 1400, JSON.stringify(column));
       // Library header (src/web/pages/LibraryPage.tsx): the model count.
@@ -1054,10 +1054,6 @@ async function browserChecks(base, wsUrl, session) {
       && await page.isVisible('#preview-size-switcher [data-preview-size="s"].active') && !(await page.isVisible('.list-view-header')));
     await page.click('#preview-size-switcher [data-preview-size="m"]');
 
-    // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('server-mode-info-dialog').showModal());
-    await page.click('#server-mode-info-dialog [data-close-dialog="server-mode-info-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('server-mode-info-dialog').open));
     // Searchable list (React, src/web/components/ListPicker.tsx): search narrows it, Cancel picks nothing.
     await openFilters();
     await page.click('#tag-filter + .list-button, .form-group:has(#tag-filter) .list-button');
@@ -1485,7 +1481,8 @@ async function browserChecks(base, wsUrl, session) {
     }));
 
     // The rest of the shell: the old menu bar is gone, the account menu, search and the queue link.
-    check('the shell replaces the old menu bar', !(await page.isVisible('#server-menu-bar')) && await page.isVisible('.jp-sidebar .jp-brand'));
+    check('the shell replaces the old menu bar, logo and phone layout', await page.evaluate(() => !document.querySelector('#server-menu-bar, #logo, #mobile-app-bar, .sidebar-chrome'))
+      && await page.isVisible('.jp-sidebar .jp-brand'));
     await page.click('.jp-account');
     check('the account menu offers Server Access and Log Out', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Server Access")')
       && await page.isVisible('.jp-menu [role="menuitem"]:has-text("Log Out")'));
@@ -1583,6 +1580,29 @@ async function browserChecks(base, wsUrl, session) {
       axeProblems.push(...found.map((problem) => `${hash} ${problem}`));
     }
     check('no serious or critical accessibility problems (axe) on the main pages', axeProblems.length === 0, axeProblems.slice(0, 6).join(' | '));
+    // The older dialogs, drawn with the tokens since Phase 14, and the message box.
+    const dialogProblems = [];
+    const DIALOG_OPENERS = ['openAbout', 'openAiConfig', 'openBackupRestore', 'openFilamentManager', 'openFileTypeSettings', 'openHttpsSettings',
+      'openKeyboardShortcuts', 'openMcpServerSettings', 'openMetadataEditor', 'openPartsStock', 'openPerformanceSettings', 'openPrinterManagement',
+      'openPurgeModels', 'openServerAccess', 'openSlicerSettings', 'openStats', 'openStlHome', 'openSystemReport', 'openTagManager', 'openThemeSettings', 'showMessage'];
+    for (const opener of DIALOG_OPENERS) {
+      await audit.evaluate((name) => {
+        if (name === 'showMessage') window.electron.showMessage('Check', 'A message.', ['OK', 'Cancel']);
+        else window[name]?.();
+      }, opener);
+      const id = await audit.waitForFunction(() => [...document.querySelectorAll('dialog[open]')].pop()?.id || (document.querySelector('dialog.jp-message-dialog[open]') ? 'message' : null),
+        null, { timeout: 10000 }).then((h) => h.jsonValue(), () => '');
+      if (!id) { dialogProblems.push(`${opener}: did not open`); continue; }
+      await audit.waitForTimeout(400);
+      const found = await audit.evaluate(async () => {
+        const dialog = [...document.querySelectorAll('dialog[open]')].pop();
+        const result = await window.axe.run(dialog, { resultTypes: ['violations'] });
+        return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`);
+      });
+      dialogProblems.push(...found.map((problem) => `${opener} ${problem}`));
+      await audit.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => (d.classList.contains('jp-message-dialog') ? d.querySelector('button')?.click() : d.close())));
+    }
+    check('no serious or critical accessibility problems (axe) in the dialogs', dialogProblems.length === 0, dialogProblems.slice(0, 6).join(' | '));
     await auditContext.close();
 
     // Phone layout (spec §36; src/web/shell/AppShell.tsx, styles/responsive.css), same session at phone size.
@@ -1595,7 +1615,7 @@ async function browserChecks(base, wsUrl, session) {
       nav: await phone.waitForSelector('#jp-bottom-nav', { timeout: 10000 }).then(() => true, () => false),
       hero: await phone.waitForSelector('.jp-hero__title', { timeout: 10000 }).then(() => true, () => false),
       sidebarHidden: await phone.waitForSelector('#jp-sidebar', { state: 'hidden', timeout: 5000 }).then(() => true, () => false),
-      menuBarHidden: !(await phone.isVisible('#server-menu-bar'))
+      noOldBar: !(await phone.isVisible('#mobile-app-bar'))
     };
     check('the phone opens Home with the bottom bar instead of the sidebar', Object.values(phoneHome).every(Boolean), JSON.stringify(phoneHome));
     await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
@@ -1942,14 +1962,15 @@ async function browserChecks(base, wsUrl, session) {
     await page.selectOption('#ui-theme', 'modern-purple');
     await page.click('#save-settings');
     await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
-    check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
-      && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    const accent = await page.evaluate(() => ({ token: document.documentElement.style.getPropertyValue('--jp-accent').trim(),
+      button: getComputedStyle(document.querySelector('.jp-tab.is-active, .jp-btn--primary') || document.body).backgroundColor }));
+    check('Theme settings saves and applies the theme to the whole interface', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
+      && accent.token === '#b47cfa' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), JSON.stringify(accent));
     // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
     await page.reload();
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     const themed = await page.waitForFunction(() => document.body.getAttribute('data-theme') === 'modern-purple'
-      && document.documentElement.style.getPropertyValue('--primary-accent').trim() === '#a855f7', null, { timeout: 15000 }).then(() => true, () => false);
+      && document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#b47cfa', null, { timeout: 15000 }).then(() => true, () => false);
     check('the saved theme is applied when the page loads', themed);
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});

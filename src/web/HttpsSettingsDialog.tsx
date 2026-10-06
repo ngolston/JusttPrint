@@ -137,7 +137,7 @@ export function HttpsSettingsDialog() {
       description={<p className="setting-description">Use a custom certificate, Let's Encrypt, or a self-signed certificate for the web UI (<code>https://</code> and <code>wss://</code>) on the listen port below. After enabling TLS, use the matching <code>https://</code> URL in the Chrome extension and MCP client.</p>}
       footer={(
         <>
-          {!locked && <button type="button" id="save-https-settings" disabled={busy} onClick={save}>Save and apply</button>}
+          {!locked && <button type="button" id="save-https-settings" className="is-primary" disabled={busy} onClick={save}>Save and apply</button>}
           <button type="button" id="cancel-https-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

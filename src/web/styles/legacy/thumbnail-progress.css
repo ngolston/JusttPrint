@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 10, 18, 0.72);
+  background: rgba(14, 24, 33, 0.72);
   backdrop-filter: blur(4px);
   opacity: 1;
   transition: opacity 0.2s ease;
@@ -21,10 +21,10 @@
   width: min(460px, calc(100vw - 48px));
   padding: 24px 26px 20px;
   border-radius: 16px;
-  background: #23233a;
+  background: var(--jp-surface-2);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  color: #fff;
+  color: var(--jp-text);
   text-align: center;
 }
 
@@ -37,7 +37,7 @@
 .tp-phase {
   margin: 0 0 16px;
   font-size: 13px;
-  color: #b6b6c8;
+  color: var(--jp-text-2);
   min-height: 18px;
 }
 
@@ -53,7 +53,7 @@
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #28a745 0%, #4fd675 100%);
+  background: linear-gradient(90deg, var(--jp-success) 0%, var(--jp-success) 100%);
   transition: width 0.25s ease;
 }
 
@@ -74,7 +74,7 @@
   justify-content: space-between;
   margin-top: 10px;
   font-size: 13px;
-  color: #d5d5e4;
+  color: var(--jp-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -99,7 +99,7 @@
   padding: 9px 22px;
   border: none;
   border-radius: 999px;
-  color: #fff;
+  color: var(--jp-text);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -108,23 +108,23 @@
 }
 
 .tp-cancel {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff3b30 100%);
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
 }
 
 .tp-cancel:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #ff7b7b 0%, #ff4b40 100%);
-  box-shadow: 0 6px 18px rgba(255, 59, 48, 0.35);
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
+  box-shadow: 0 6px 18px rgba(244, 100, 104, 0.35);
 }
 
 .tp-background {
-  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  background: linear-gradient(135deg, var(--jp-surface-2) 0%, var(--jp-surface-2) 100%);
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .tp-background:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #5a6578 0%, #3d4758 100%);
+  background: linear-gradient(135deg, #5a6578 0%, var(--jp-surface-2) 100%);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 

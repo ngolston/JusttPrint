@@ -119,7 +119,7 @@ export function ThemeSettingsDialog() {
     <ModalDialog id="settings-dialog" title="Theme Settings" dialogRef={dialogRef}
       footer={(
         <>
-          <button type="button" id="save-settings" disabled={saving} onClick={save}>Save</button>
+          <button type="button" id="save-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
           <button type="button" id="cancel-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

@@ -162,7 +162,6 @@
 .jp-page__header .jp-meta { margin: var(--jp-space-1) 0 0; }
 
 /* Settings and Help lists */
-.jp-settings-grid { columns: 3 360px; column-gap: var(--jp-space-4); }
 .jp-settings-group { break-inside: avoid; margin-bottom: var(--jp-space-4); padding: var(--jp-space-4) var(--jp-space-2) var(--jp-space-2); scroll-margin-top: var(--jp-space-6); }
 .jp-page__inner--narrow .jp-settings-group { margin-bottom: 0; }
 .jp-settings-group > .jp-label { margin: 0 0 var(--jp-space-2); padding: 0 var(--jp-space-3); }

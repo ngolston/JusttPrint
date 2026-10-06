@@ -318,7 +318,7 @@ export function PrinterManagerDialog() {
                   onChange={(event) => setSearch(event.target.value)} />
                 <button type="button" id="printer-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>×</button>
               </div>
-              <select id="printer-type-filter" className="printer-type-filter-select" title="Filter by printer type" value={typeFilter}
+              <select id="printer-type-filter" className="printer-type-filter-select" title="Filter by printer type" aria-label="Filter by printer type" value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="">All Types</option>
                 {PRINTER_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}

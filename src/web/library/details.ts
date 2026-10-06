@@ -9,7 +9,6 @@ import { selection } from '../selection';
 import { expandedGroups, listHooks, refreshGrid } from './models';
 
 const panel = (id: 'model-details' | 'bundle-details' | 'multi-edit-panel') => document.getElementById(id);
-const isMobile = () => document.body.classList.contains('mobile-ui');
 
 // ---- The model shown in the details panel ----
 
@@ -144,13 +143,6 @@ export function exitMultiEdit() {
   panel('multi-edit-panel')?.classList.add('hidden');
   panel('model-details')?.classList.remove('hidden');
   clearDetails();
-}
-
-/** Back to single selection without touching the selection. */
-function leaveMultiEditPanel() {
-  multiEdit = false;
-  syncModeButton();
-  panel('multi-edit-panel')?.classList.add('hidden');
 }
 
 /** Ctrl/Cmd+E: from the details panel, start multi-edit with its model; else switch modes. */
@@ -323,13 +315,6 @@ export function cardClick(event: MouseEvent, card: TapCard, filePath: string, vi
     }
     return;
   }
-  // On the phone wall, a tap opens the details.
-  if (view === 'preview' && isMobile() && !multiEdit) {
-    if (card?._suppressTap) return;
-    selection.set([filePath]);
-    showModelDetails(filePath);
-    return;
-  }
   toggleCard(card, filePath);
 }
 
@@ -367,7 +352,7 @@ function expandGroup(record: GroupRecord) {
 /** Click on a group card: collapse it, or expand it (and show a bundle's panel). */
 export function groupClick(record: GroupRecord, view: GridView, card: TapCard) {
   if (tapSuppressed(card)) return;
-  if ((isMobile() && view === 'preview') || !expandedSet(record).has(record.groupKey)) expandGroup(record);
+  if (!expandedSet(record).has(record.groupKey)) expandGroup(record);
   else toggleGroup(record);
 }
 

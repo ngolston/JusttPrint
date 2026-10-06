@@ -17,7 +17,6 @@ export function tileStyle(position: { width: number; height: number }): CSSPrope
 /** What a model card asks of the library (library/hosts.ts: selection, menus, filters, saving). */
 export interface CardHost {
   isSelected(filePath: string): boolean;
-  isMobile(): boolean;
   isNew(model: GridModel): boolean;
   directoryLabel(filePath: string): string;
   directoryFullPath(filePath: string): string;
@@ -227,20 +226,6 @@ function RatingStars({ engagement, label = 'Rating' }: { engagement: ReturnType<
   );
 }
 
-function EngagementBar({ host, model }: { host: CardHost; model: GridModel }) {
-  const engagement = useEngagement(host, model);
-  const { rating, favorite, save } = engagement;
-  return (
-    <div className="model-engagement-bar" data-rating={rating} data-favorite={favorite ? '1' : '0'}>
-      <RatingStars engagement={engagement} />
-      <button type="button" className={`model-favorite-btn${favorite ? ' is-favorited' : ''}`} aria-pressed={favorite} title="Favorite"
-        onClick={(event) => save('favorite', !favorite, event)}>
-        {favorite ? '♥' : '♡'}
-      </button>
-    </div>
-  );
-}
-
 /** What a screen reader says for a card: name, designer, print status, and whether it is selected. */
 export function cardLabel(model: GridModel, selected: boolean): string {
   const designer = typeof model.designer === 'string' && model.designer.trim() ? `by ${model.designer.trim()}` : '';
@@ -354,11 +339,11 @@ export interface ModelCardProps {
   fixedHeight: boolean;
   priority: number;
   /** The JusttPrint 5 card (desktop grid view, spec §16) instead of the older detailed card. */
-  tile?: boolean;
 }
 
 /** A model in the library grid, in the detailed, preview or list view. */
-export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey, bandClasses, position, fixedHeight, priority, tile = false }: ModelCardProps) {
+export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey, bandClasses, position, fixedHeight, priority }: ModelCardProps) {
+  const tile = view === 'detailed';
   const cardRef = useRef<HTMLDivElement>(null);
   // The thumbnail queue renders into this empty, hidden slot (renderModelToPNG writes into its
   // container); React never puts children in it, so the two cannot collide.
@@ -367,7 +352,6 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
   const { current, images } = useThumbnail(host, model, view, priority, renderSlot);
   const tags = useTagNames(host, model);
   const name = displayFileName(model);
-  const mobile = host.isMobile();
   const zipEntry = isZipEntry(model);
   const zipFile = isZipFile(model);
 
@@ -395,18 +379,14 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     Object.assign(cardStyle, { padding: 0, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', overflow: 'hidden' });
   } else if (tile) {
     Object.assign(cardStyle, tileStyle(position));
-  } else {
-    Object.assign(cardStyle, { boxSizing: 'border-box', display: 'flex', flexDirection: 'column' });
-    if (mobile) Object.assign(cardStyle, { padding: '6px 6px 8px', overflow: 'hidden' });
-    else Object.assign(cardStyle, { width: 300, height: 490, minHeight: 490, maxHeight: 490, padding: '16px 16px 0' });
   }
 
   const thumbSize: CSSProperties = view === 'list'
     ? { width: 48, height: 48, flexShrink: 0, position: 'relative' }
     : view === 'preview'
       ? { width: '100%', height: '100%', flex: 1, minHeight: 0, marginBottom: 0 }
-      : mobile ? { width: '100%', height: 'auto', aspectRatio: '1', flexShrink: 0 } : { width: 276, height: 276, flexShrink: 0 };
-  const imageSize: CSSProperties = view === 'list' ? { width: 48, height: 48 } : view === 'preview' || mobile ? { width: '100%', height: '100%' } : { width: 276, height: 276 };
+      : {};
+  const imageSize: CSSProperties = view === 'list' ? { width: 48, height: 48 } : { width: '100%', height: '100%' };
 
   const thumbnail = (src: string | null) => (
     <div className="thumbnail-container" style={{ position: 'relative', ...thumbSize }}>
@@ -462,8 +442,6 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
       cardRef.current?.focus();
     }
   }, [selected]);
-
-  if (tile) return <ModelTile host={host} model={model} common={common} images={images} current={current} setRenderSlot={setRenderSlot} />;
 
   if (view === 'preview') {
     return (
@@ -542,85 +520,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     );
   }
 
-  // Detailed
-  const directory = host.directoryLabel(model.filePath);
-  const designer = text(model.designer);
-  const source = text(model.source);
-  const parentModel = text(model.parentModel);
-  const license = text(model.license);
-  const filterLink = (selectId: string, value: string) => (event: ReactMouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    host.filterBySelect(selectId, value);
-  };
-  return (
-    <div {...common}>
-      <PrintBadge host={host} model={model} />
-      {zipEntry && <div className="archive-status">Archive</div>}
-      {thumbnailBlock}
-      <div className={`file-name${zipFile ? ' zip-file' : ''}`} style={{
-        display: 'block', fontSize: 13, fontWeight: 500, color: '#fff', marginTop: 8, marginBottom: 8, padding: '5px 8px', textAlign: 'center',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', boxSizing: 'border-box', minHeight: 28, lineHeight: 1.4,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 4, flexShrink: 0
-      }}>{name}</div>
-      <div className="file-info" style={{ minHeight: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4, overflow: 'visible', padding: 0, margin: 0 }}>
-        <div className="file-details" style={{ padding: 0, margin: 0 }}>
-          <div className="metadata-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', padding: 0 }}>
-            {(directory || !!model.size) && (
-              <div className="metadata-item dir-size-row" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                {directory && (
-                  <div className="directory-part" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                    onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.filterByDirectory(model.filePath); }}>
-                    <span className="metadata-icon">📁</span>
-                    <span className="metadata-value directory-link" title={host.directoryFullPath(model.filePath) || directory}>{directory}</span>
-                  </div>
-                )}
-                {!!model.size && (
-                  <div className="size-part" style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                    <span className="metadata-icon">💾</span>
-                    <span className="metadata-value file-size">{host.formatSize(Number(model.size))}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {designer && (
-              <div className="metadata-item designer-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('designer-select', designer)}>
-                <span className="metadata-icon">👤</span>
-                <span className="metadata-value designer-info" style={{ color: '#ccc', display: 'inline-block' }} title={designer}>{designer}</span>
-              </div>
-            )}
-            {source && (
-              <div className="metadata-item source-item">
-                <span className="metadata-icon">🔗</span>
-                <span className="metadata-value source-info" style={{ color: '#ccc' }} title={source}>{source}</span>
-              </div>
-            )}
-            {parentModel && (
-              <div className="metadata-item parent-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('parent-select', parentModel)}>
-                <span className="metadata-icon">📦</span>
-                <span className="metadata-value parent-info" style={{ color: '#ccc' }} title={parentModel}>{parentModel}</span>
-              </div>
-            )}
-            {license && (
-              <div className="metadata-item license-item clickable-metadata" style={{ cursor: 'pointer' }} onClick={filterLink('license-select', license)}>
-                <span className="metadata-icon">📜</span>
-                <span className="metadata-value license-info" style={{ color: '#ccc' }} title={license}>{license}</span>
-              </div>
-            )}
-            {tags !== null && (tags === undefined || tags.length > 0) && (
-              <div className="metadata-item tags-item" style={{ gridColumn: '1 / -1' }}>
-                <span className="metadata-icon">🏷️</span>
-                <span className="metadata-value tags-info" style={{ color: tags ? '#ccc' : '#666' }} title={tags ? tags.join(', ') : ''}>
-                  {tags && <TagLinks host={host} names={tags} />}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      <EngagementBar host={host} model={model} />
-    </div>
-  );
+  return <ModelTile host={host} model={model} common={common} images={images} current={current} setRenderSlot={setRenderSlot} />;
 }
 
 interface TileProps {

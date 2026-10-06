@@ -18,14 +18,6 @@ import { expandedGroups, mergeModel, rebuildGrid, refreshGrid, showModels, shown
 import { directoryLabel, folderFilterFor, formatFileSize, parentDirectory } from './paths';
 import { openSourceUrl, removeFromSelected, saveEngagement, saveModelField, saveSelectedField } from './saving';
 
-/** Phone layout: 2 columns, 3 on a tablet or in landscape; 0 on the desktop layout. */
-function mobileColumns() {
-  const body = document.body;
-  if (!body?.classList.contains('mobile-ui')) return 0;
-  if (body.classList.contains('mobile-ui-wide') || window.matchMedia('(orientation: landscape)').matches) return 3;
-  return 2;
-}
-
 const tagNames = (tags: unknown): string[] => (Array.isArray(tags) ? tags : [])
   .map((t) => (typeof t === 'string' ? t : (t as { name?: string })?.name || '')).filter(Boolean)
   .sort((a, b) => String(a).localeCompare(String(b)));
@@ -58,14 +50,12 @@ function filterBySelect(selectId: string, value: string) {
 window.gridHost = {
   models: shownModels,
   rebuild: rebuildGrid,
-  mobileColumns,
   expanded: () => expandedGroups,
   isSelected: (filePath) => selection.has(filePath),
   // The phone's bottom bar (0 when it is hidden: offsetHeight of a display:none element).
   bottomChrome: () => document.getElementById('jp-bottom-nav')?.offsetHeight || 0,
 
   // Model cards
-  isMobile: () => document.body.classList.contains('mobile-ui'),
   isNew: (model) => isModelNew(model as { isNew?: unknown }),
   directoryLabel,
   directoryFullPath: parentDirectory,

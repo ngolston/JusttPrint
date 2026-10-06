@@ -1,4 +1,4 @@
-/* Type scale (spec §4). Applied by class so the legacy page keeps its own fonts until Phase 14. */
+/* Type scale (spec §4), applied by class. */
 .jp {
   font-family: var(--jp-font);
   font-size: var(--jp-text-ui);
@@ -42,10 +42,6 @@
 .jp-meta {
   font-size: var(--jp-text-meta);
   color: var(--jp-text-2);
-}
-
-.jp-muted {
-  color: var(--jp-text-3);
 }
 
 .jp-label {

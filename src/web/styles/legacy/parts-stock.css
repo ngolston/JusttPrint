@@ -4,9 +4,9 @@
   max-width: 860px;
   width: 92%;
   border-radius: 20px;
-  background: rgba(24, 24, 38, 0.96);
+  background: rgba(14, 24, 33, 0.96);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--jp-text);
   padding: 24px 28px;
 }
 
@@ -35,7 +35,7 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--jp-text);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -43,7 +43,7 @@
 
 .parts-stock-header .setting-description {
   margin: 0;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -81,27 +81,27 @@
   font-weight: 600 !important;
   cursor: pointer !important;
   line-height: 1 !important;
-  border: 1px solid rgba(56, 189, 248, 0.4) !important;
-  background: rgba(56, 189, 248, 0.12) !important;
-  color: #38bdf8 !important;
+  border: 1px solid rgba(8, 185, 241, 0.4) !important;
+  background: rgba(8, 185, 241, 0.12) !important;
+  color: var(--jp-accent) !important;
   transition: all 0.2s ease !important;
 }
 
 .parts-stock-toggle-add-btn:hover {
-  background: rgba(56, 189, 248, 0.24) !important;
-  color: #fff !important;
-  border-color: rgba(56, 189, 248, 0.6) !important;
+  background: rgba(8, 185, 241, 0.24) !important;
+  color: var(--jp-text) !important;
+  border-color: rgba(8, 185, 241, 0.6) !important;
 }
 
 .parts-stock-toggle-add-btn.active {
   background: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
-  color: #cbd5e1 !important;
+  color: var(--jp-text-2) !important;
 }
 
 .parts-stock-toggle-add-btn.active:hover {
   background: rgba(255, 255, 255, 0.14) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
 }
 
 .parts-stock-section-header {
@@ -114,7 +114,7 @@
 #parts-stock-form-label {
   font-size: 14px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--jp-text);
   letter-spacing: 0.01em;
   margin: 0;
 }
@@ -141,14 +141,14 @@
 .parts-stock-field-label {
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   user-select: none;
 }
 
 .parts-stock-field-label .required {
-  color: #38bdf8;
+  color: var(--jp-accent);
   margin-left: 2px;
 }
 
@@ -166,7 +166,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 10px !important;
   background: rgba(255, 255, 255, 0.05) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   font-size: 13.5px !important;
   line-height: 1.4 !important;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
@@ -176,9 +176,9 @@
 #parts-stock-dialog input[type="text"]:focus,
 #parts-stock-dialog input[type="number"]:focus {
   outline: none !important;
-  border-color: var(--primary-accent, #00d4ff) !important;
+  border-color: var(--primary-accent, var(--jp-accent)) !important;
   background: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent, #00d4ff) 18%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 18%, transparent) !important;
 }
 
 #parts-stock-dialog input::placeholder {
@@ -242,8 +242,8 @@
   align-items: center;
   justify-content: center;
   padding: 10px 22px !important;
-  background: var(--primary-accent, #00d4ff) !important;
-  color: #fff !important;
+  background: var(--primary-accent, var(--jp-accent)) !important;
+  color: var(--jp-on-accent) !important;
   border: none !important;
   border-radius: 10px !important;
   font-size: 13.5px !important;
@@ -257,7 +257,7 @@
 
 .parts-stock-btn-primary:hover {
   transform: none;
-  background: var(--primary-accent-hover, #5b9fff) !important;
+  background: var(--primary-accent-hover, var(--jp-accent-hover)) !important;
   box-shadow: none !important;
 }
 
@@ -272,7 +272,7 @@
   justify-content: center;
   padding: 10px 16px !important;
   background: rgba(255, 255, 255, 0.08) !important;
-  color: #e2e8f0 !important;
+  color: var(--jp-text) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 10px !important;
   font-size: 13.5px !important;
@@ -285,7 +285,7 @@
 
 .parts-stock-btn-cancel:hover {
   background: rgba(255, 255, 255, 0.14) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
 }
 
 #parts-stock-cancel-edit[hidden] {
@@ -296,7 +296,7 @@
   margin-top: 10px;
   font-size: 13px;
   font-weight: 500;
-  color: #38bdf8;
+  color: var(--jp-accent);
   min-height: 1.2em;
   display: flex;
   align-items: center;
@@ -309,7 +309,7 @@
 }
 
 .parts-stock-status.error {
-  color: #f87171;
+  color: var(--jp-danger);
 }
 
 /* Parts List Section */
@@ -328,7 +328,7 @@
 .parts-stock-list-section label {
   font-size: 14px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--jp-text);
   letter-spacing: 0.01em;
   margin: 0;
 }
@@ -338,9 +338,9 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 12px;
-  background: rgba(0, 212, 255, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: rgba(8, 185, 241, 0.12);
+  color: var(--jp-accent);
+  border: 1px solid rgba(8, 185, 241, 0.2);
 }
 
 .parts-stock-count-badge:empty {
@@ -371,7 +371,7 @@
   border-radius: 6px !important;
   background: rgba(255, 255, 255, 0.08) !important;
   border: none !important;
-  color: #94a3b8 !important;
+  color: var(--jp-text-2) !important;
   font-size: 15px !important;
   display: inline-flex !important;
   align-items: center;
@@ -382,7 +382,7 @@
 
 #parts-stock-dialog .input-with-icon #parts-stock-clear-search:hover {
   background: rgba(255, 255, 255, 0.16) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
 }
 
 .parts-stock-list {
@@ -395,7 +395,7 @@
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  background: rgba(14, 14, 24, 0.5);
+  background: rgba(14, 24, 33, 0.5);
   width: 100%;
 }
 
@@ -405,7 +405,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--jp-text-3);
   padding: 26px 16px;
   text-align: center;
   font-size: 13px;
@@ -431,13 +431,13 @@
 }
 
 .parts-stock-item.is-low {
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(244, 100, 104, 0.35);
+  background: rgba(244, 100, 104, 0.07);
 }
 
 .parts-stock-item.is-low:hover {
-  border-color: rgba(239, 68, 68, 0.5);
-  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(244, 100, 104, 0.5);
+  background: rgba(244, 100, 104, 0.1);
 }
 
 .parts-stock-item-body {
@@ -449,7 +449,7 @@
 }
 
 .parts-stock-item-name {
-  color: #f8fafc;
+  color: var(--jp-text);
   font-size: 13.5px;
   font-weight: 600;
   overflow: hidden;
@@ -462,7 +462,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   font-size: 11px;
 }
 
@@ -474,13 +474,13 @@
   font-size: 11px;
   font-weight: 500;
   background: rgba(255, 255, 255, 0.07);
-  color: #cbd5e1;
+  color: var(--jp-text-2);
 }
 
 .parts-stock-tag.category {
-  background: rgba(0, 212, 255, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: rgba(8, 185, 241, 0.12);
+  color: var(--jp-accent);
+  border: 1px solid rgba(8, 185, 241, 0.2);
 }
 
 .parts-stock-low-badge {
@@ -490,9 +490,9 @@
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(244, 100, 104, 0.2);
   color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  border: 1px solid rgba(244, 100, 104, 0.35);
 }
 
 .parts-stock-notes-text {
@@ -523,7 +523,7 @@
   margin: 0 !important;
   border: none !important;
   background: rgba(255, 255, 255, 0.08) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   border-radius: 6px !important;
   font-size: 15px !important;
   font-weight: 600 !important;
@@ -551,7 +551,7 @@
   padding: 0 4px !important;
   margin: 0 !important;
   text-align: center !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   font-weight: 600 !important;
   font-size: 13px !important;
   border-radius: 4px !important;
@@ -574,7 +574,7 @@
   margin: 0 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   background: rgba(255, 255, 255, 0.06) !important;
-  color: #e2e8f0 !important;
+  color: var(--jp-text) !important;
   border-radius: 8px !important;
   font-size: 12px !important;
   font-weight: 500 !important;
@@ -588,7 +588,7 @@
 
 .parts-stock-edit:hover {
   background: rgba(255, 255, 255, 0.14) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
@@ -600,7 +600,7 @@
   margin: 0 !important;
   border: none !important;
   background: transparent !important;
-  color: #94a3b8 !important;
+  color: var(--jp-text-2) !important;
   border-radius: 8px !important;
   font-size: 18px !important;
   cursor: pointer;
@@ -612,8 +612,8 @@
 }
 
 .parts-stock-remove:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  color: #ef4444 !important;
+  background: rgba(244, 100, 104, 0.18) !important;
+  color: var(--jp-danger) !important;
 }
 
 /* Full-width Close button spanning entire dialog at bottom */
@@ -626,7 +626,7 @@
 #parts-stock-close {
   width: 100% !important;
   background: rgba(255, 255, 255, 0.07) !important;
-  color: #f1f5f9 !important;
+  color: var(--jp-text) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 12px !important;
   padding: 10px 24px !important;
@@ -643,7 +643,7 @@
 #parts-stock-close:hover {
   background: rgba(255, 255, 255, 0.14) !important;
   border-color: rgba(255, 255, 255, 0.28) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
 }
 
 .form-group .log-print-parts-add {
@@ -676,12 +676,12 @@
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background-color: rgba(0, 0, 0, 0.2);
-  color: #fff;
+  color: var(--jp-text);
   text-align: center;
 }
 
 .part-chip-stock {
-  color: #aaa;
+  color: var(--jp-text-2);
   font-size: 11px;
 }
 

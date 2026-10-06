@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { organize, settings, type OrganizeJob, type OrganizePreview, type OrganizeResult } from './api';
-import { ModalDialog } from './components/ModalDialog';
-import { exposeGlobal, showMessage } from './page';
-import { navigate } from './shell/routes';
+import { organize, settings, type OrganizeJob, type OrganizePreview, type OrganizeResult } from '../api';
+import { exposeGlobal, showMessage } from '../page';
+import { navigate } from '../shell/routes';
 
 declare global {
   interface Window {
@@ -395,28 +394,8 @@ export function OrganizePage() {
   );
 }
 
-/**
- * The phone layout's Organize Library dialog (the shell, and so the page, comes to phones in
- * Phase 12). window.openOrganizeLibrary opens the page on the desktop and this dialog on phones.
- */
-export function OrganizeLibraryDialog() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => exposeGlobal('openOrganizeLibrary', () => {
-    if (document.body.classList.contains('jp-shell-on')) {
-      navigate('organize');
-      return;
-    }
-    setOpen(true);
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }), []);
-
-  return (
-    <ModalDialog id="organize-library-dialog" title="Organize Library" dialogRef={dialogRef} onClose={() => setOpen(false)}
-      description={<p className="setting-description">{INTRO}</p>}
-      footer={<button type="button" id="organize-close-button" onClick={() => dialogRef.current?.close()}>Close</button>}>
-      {open && <OrganizeLibrary actions={(buttons) => <div className="dialog-buttons">{buttons}</div>} />}
-    </ModalDialog>
-  );
+/** window.openOrganizeLibrary (Settings, the old menu actions): the Organize Library page. */
+export function OrganizeLibraryOpener() {
+  useEffect(() => exposeGlobal('openOrganizeLibrary', () => navigate('organize')), []);
+  return null;
 }

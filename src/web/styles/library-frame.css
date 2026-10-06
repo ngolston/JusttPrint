@@ -1,10 +1,8 @@
 /*
- * The old library screens inside the JusttPrint 5 shell (body.jp-shell-on, set by AppShell on
- * desktop). The old layout positions itself against the window: a 30px menu bar, the sidebar at
- * the left, the grid after it. In the shell the grid sits right of the new sidebar under the
- * library header, and the old sidebar, now holding only the details panels (its filters moved
- * to the Filter popover, its job progress to the new sidebar), is the details column on the
- * right (spec §20). Removed with the old screens in Phase 14.
+ * Where the library's page parts sit inside the shell (body.jp-shell-on, set by AppShell): the
+ * grid right of the sidebar and the folder rail, under the top bar, and the details column
+ * (.sidebar in index.html) on the right (spec §20). responsive.css changes this for narrower
+ * screens.
  */
 /* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
 html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 8px); }
@@ -16,14 +14,6 @@ body.jp-shell-on {
   padding-top: var(--jp-legacy-top) !important;
   background: var(--jp-bg);
 }
-
-/* The new sidebar and top bar replace the menu bar, the old logo and the sidebar's tool buttons;
-   the details column has a fixed width (no resize handle). */
-body.jp-shell-on #server-menu-bar,
-body.jp-shell-on #logo,
-body.jp-shell-on .sidebar-chrome,
-body.jp-shell-on .grid-view-selector-background,
-body.jp-shell-on .sidebar-resize-handle { display: none !important; }
 
 body.server-mode.jp-shell-on .sidebar {
   top: var(--jp-legacy-top) !important;
@@ -55,13 +45,15 @@ body.jp-shell-on .file-grid.preview-wall {
   max-width: calc(100vw - (var(--jp-legacy-left) + var(--folder-rail-width, 0px) + var(--jp-legacy-right)));
 }
 
-/* The old stylesheet positions the `main` element this replaced. */
+/* legacy/base.css positions the `main` element this replaced. */
 .library-main { position: relative; }
 
 body.jp-shell-on .grid-view-selector {
   display: block;
   padding: 0;
   background: var(--jp-bg);
+  /* Above the cards' badges and ratings, so the Filter popover inside it covers them. */
+  z-index: 20;
 }
 
 body.jp-shell-on .file-grid {

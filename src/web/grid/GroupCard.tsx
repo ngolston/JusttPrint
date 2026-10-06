@@ -94,11 +94,11 @@ export interface GroupCardProps {
   position: { top: number; left: number; width: number; height: number };
   fixedHeight: boolean;
   /** The JusttPrint 5 card (desktop grid view), sized like the model cards. */
-  tile?: boolean;
 }
 
 /** A ZIP bundle or parent-model group in the library grid. */
-export function GroupCard({ host, record, view, index, position, fixedHeight, tile = false }: GroupCardProps) {
+export function GroupCard({ host, record, view, index, position, fixedHeight }: GroupCardProps) {
+  const tile = view === 'detailed';
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInfoRef = useRef<HTMLDivElement>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -256,7 +256,6 @@ export function GroupCard({ host, record, view, index, position, fixedHeight, ti
               ? `${count} part${count === 1 ? '' : 's'} • ${kindLabel || 'folder'} • ${print.label}`
               : `${count} model${count === 1 ? '' : 's'} • ${print.label}`}
           </div>
-          {view === 'detailed' && <GroupTags host={host} record={record} />}
         </div>
         {view === 'preview' && (
           <div className="preview-tile-overlay">
@@ -269,7 +268,6 @@ export function GroupCard({ host, record, view, index, position, fixedHeight, ti
             )}
           </div>
         )}
-        {view === 'detailed' && <GroupEngagement host={host} record={record} />}
       </>
     );
   }

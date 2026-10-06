@@ -20,7 +20,7 @@
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--jp-text);
   font-size: 13px;
   font-weight: 650;
   line-height: 1;
@@ -57,7 +57,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  color: var(--jp-text);
   font-size: 14px;
   line-height: 1.45;
   text-align: left;
@@ -66,8 +66,8 @@
 }
 
 .notes-richtext:focus {
-  border-color: var(--primary-accent, #00d4ff);
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+  border-color: var(--primary-accent, var(--jp-accent));
+  box-shadow: 0 0 0 3px rgba(8, 185, 241, 0.1);
 }
 
 .notes-richtext :is(p, ul, ol, pre, blockquote) {
@@ -80,11 +80,11 @@
 }
 
 .notes-richtext a {
-  color: var(--primary-accent, #00d4ff);
+  color: var(--primary-accent, var(--jp-accent));
 }
 
 .notes-richtext code {
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--jp-font-mono);
   background: rgba(0, 0, 0, 0.35);
   padding: 0.1em 0.35em;
   border-radius: 4px;
@@ -100,7 +100,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  color: var(--jp-text);
   font-size: 14px;
   line-height: 1.45;
   text-align: left;
@@ -140,11 +140,11 @@
 .notes-preview h3 { font-size: 1.02em; }
 
 .notes-preview a {
-  color: var(--primary-accent, #00d4ff);
+  color: var(--primary-accent, var(--jp-accent));
 }
 
 .notes-preview code {
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--jp-font-mono);
   font-size: 0.92em;
   background: rgba(0, 0, 0, 0.35);
   padding: 0.1em 0.35em;
@@ -170,7 +170,7 @@
 
 .notes-preview blockquote {
   padding-left: 0.8em;
-  border-left: 3px solid var(--primary-accent, #00d4ff);
+  border-left: 3px solid var(--primary-accent, var(--jp-accent));
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -197,20 +197,6 @@
   padding: 0;
 }
 
-.notes-markdown-hint {
-  margin: -8px 0 12px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.notes-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: stretch;
-}
-
-.notes-split textarea,
 .notes-modal .notes-preview {
   width: 100%;
   min-height: 360px;
@@ -224,11 +210,7 @@
 }
 
 @media (max-width: 720px) {
-  .notes-split {
-    grid-template-columns: 1fr;
-  }
 
-  .notes-split textarea,
   .notes-modal .notes-preview,
   .notes-richtext {
     min-height: 180px;

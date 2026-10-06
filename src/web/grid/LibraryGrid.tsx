@@ -19,8 +19,6 @@ import {
 export interface GridHost extends CardHost, GroupCardHost {
   /** The models on screen: the library edits this array in place, then calls refresh(). */
   models(): GridModel[];
-  /** Phone layout columns, or 0 on the desktop layout. */
-  mobileColumns(): number;
   expanded(): ExpandedGroups;
   /** Lay the shown models out again (the view or tile size changed). */
   rebuild?(): void;
@@ -132,10 +130,8 @@ export function LibraryGrid() {
   const { view, previewSize } = useGridView();
   const width = size.width || container?.clientWidth || 0;
   const metrics: ViewMetrics = useMemo(
-    () => viewMetrics({ view, width, previewSize, mobileColumns: host?.mobileColumns() ?? 0 }),
-    // tick/generation: the phone layout is read from the host.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [view, width, host, tick, generation]
+    () => viewMetrics({ view, width, previewSize }),
+    [view, width, previewSize]
   );
 
   // Recomputed on every show/refresh: the library edits the model array in place.
@@ -212,8 +208,6 @@ export function LibraryGrid() {
   const shown = visibleRows(layout, scrollTop, viewportHeight, buffer);
   const indexByKey = new Map(records.map((record, index) => [record.key, index]));
 
-  // Desktop grid view: the JusttPrint 5 cards, all the row's height.
-  const tile = view === 'detailed' && host.mobileColumns() === 0;
   const cells = content ? shown.flatMap((row) => row.records.map((record, column) => {
     const index = indexByKey.get(record.key) ?? -1;
     const position = cellPosition(row, column, metrics, view);
@@ -222,12 +216,12 @@ export function LibraryGrid() {
       return (
         <ModelCard key={`${generation}:${view}:${record.key}`} host={host} model={record.model} view={view} layoutKey={record.key}
           index={index} parentGroupKey={record.parentGroupKey} bandClasses={groupBandClasses(records, index)} position={position}
-          fixedHeight={view === 'preview' || view === 'detailed'} priority={priority} tile={tile} />
+          fixedHeight={view === 'preview' || view === 'detailed'} priority={priority} />
       );
     }
     return (
       <GroupCard key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
-        position={position} fixedHeight={view === 'preview' || (view === 'detailed' && host.mobileColumns() > 0) || tile} tile={tile} />
+        position={position} fixedHeight={view === 'preview' || view === 'detailed'} />
     );
   })) : null;
 

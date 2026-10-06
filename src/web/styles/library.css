@@ -1,8 +1,8 @@
 /*
  * The library page (spec §15-§19): header (pages/LibraryPage.tsx), Filter popover, view
  * buttons (grid/GridToolbar.tsx) and the model cards (grid/ModelCard.tsx and GroupCard.tsx with
- * `tile`). The cards sit in the old grid container, so a few rules beat legacy ones by
- * specificity or !important; those go in Phase 14 with the legacy stylesheets.
+ * `tile`). The cards sit in the grid container that legacy/base.css also styles, so a few rules
+ * beat those by specificity or !important.
  */
 
 /* ---- Header ------------------------------------------------------------------------------- */

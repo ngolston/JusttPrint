@@ -7,11 +7,11 @@
   width: 92%;
   max-height: 90vh;
   border-radius: 20px;
-  background: rgba(24, 24, 38, 0.96);
+  background: rgba(14, 24, 33, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--jp-text);
   padding: 24px 28px;
   border: none;
   overflow: hidden;
@@ -73,7 +73,7 @@
   margin: 0 0 4px 0;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--jp-text);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -81,7 +81,7 @@
 
 .printer-management-header .setting-description {
   margin: 0;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -102,7 +102,7 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   padding: 7px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -112,13 +112,13 @@
 
 .printer-tab-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--jp-text);
 }
 
 .printer-tab-btn.active {
-  background: rgba(0, 212, 255, 0.15);
-  border-color: rgba(0, 212, 255, 0.4);
-  color: #38bdf8;
+  background: rgba(8, 185, 241, 0.15);
+  border-color: rgba(8, 185, 241, 0.4);
+  color: var(--jp-accent);
 }
 
 .printer-tab-badge {
@@ -129,8 +129,8 @@
 }
 
 .printer-tab-badge.due {
-  background: #ef4444;
-  color: #fff;
+  background: var(--jp-danger);
+  color: var(--jp-on-accent);
 }
 
 /* Scrollable Form & Content Container */
@@ -193,27 +193,27 @@
   font-weight: 600 !important;
   cursor: pointer !important;
   line-height: 1 !important;
-  border: 1px solid rgba(56, 189, 248, 0.4) !important;
-  background: rgba(56, 189, 248, 0.12) !important;
-  color: #38bdf8 !important;
+  border: 1px solid rgba(8, 185, 241, 0.4) !important;
+  background: rgba(8, 185, 241, 0.12) !important;
+  color: var(--jp-accent) !important;
   transition: all 0.2s ease !important;
 }
 
 .printer-toggle-add-btn:hover {
-  background: rgba(56, 189, 248, 0.24) !important;
-  color: #fff !important;
-  border-color: rgba(56, 189, 248, 0.6) !important;
+  background: rgba(8, 185, 241, 0.24) !important;
+  color: var(--jp-text) !important;
+  border-color: rgba(8, 185, 241, 0.6) !important;
 }
 
 .printer-toggle-add-btn.active {
   background: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
-  color: #cbd5e1 !important;
+  color: var(--jp-text-2) !important;
 }
 
 .printer-toggle-add-btn.active:hover {
   background: rgba(255, 255, 255, 0.14) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
 }
 
 .printer-section-header {
@@ -226,7 +226,7 @@
 .printer-section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--jp-text);
   letter-spacing: 0.01em;
   margin: 0;
 }
@@ -253,14 +253,14 @@
 .printer-field-label {
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   user-select: none;
 }
 
 .printer-field-label .required {
-  color: #38bdf8;
+  color: var(--jp-accent);
   margin-left: 2px;
 }
 
@@ -275,7 +275,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 10px !important;
   background: rgba(255, 255, 255, 0.05) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   font-size: 13.5px !important;
   line-height: 1.4 !important;
   font-family: inherit;
@@ -291,9 +291,9 @@
 #printer-management-dialog select:focus,
 #printer-management-dialog textarea:focus {
   outline: none !important;
-  border-color: var(--primary-accent, #00d4ff) !important;
+  border-color: var(--primary-accent, var(--jp-accent)) !important;
   background: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent, #00d4ff) 18%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 18%, transparent) !important;
 }
 
 #printer-management-dialog input::placeholder,
@@ -303,8 +303,8 @@
 }
 
 #printer-management-dialog select option {
-  background-color: #1e1e2e;
-  color: #fff;
+  background-color: var(--jp-surface-1);
+  color: var(--jp-text);
 }
 
 /* Web Address input group with Open button */
@@ -333,9 +333,9 @@
   height: 36px !important;
   border-radius: 8px !important;
   margin: 0 !important;
-  background: rgba(0, 212, 255, 0.12) !important;
-  border: 1px solid rgba(0, 212, 255, 0.3) !important;
-  color: #38bdf8 !important;
+  background: rgba(8, 185, 241, 0.12) !important;
+  border: 1px solid rgba(8, 185, 241, 0.3) !important;
+  color: var(--jp-accent) !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
@@ -346,9 +346,9 @@
 
 .printer-url-open-btn:hover,
 #printer-management-dialog .printer-url-open-btn:hover {
-  background: color-mix(in srgb, var(--primary-accent, #00d4ff) 22%, transparent) !important;
-  border-color: var(--primary-accent, #00d4ff) !important;
-  color: #fff !important;
+  background: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 22%, transparent) !important;
+  border-color: var(--primary-accent, var(--jp-accent)) !important;
+  color: var(--jp-on-accent) !important;
   transform: none;
 }
 
@@ -367,14 +367,14 @@
 .printer-klipper-toggle-row input[type="checkbox"] {
   width: 17px;
   height: 17px;
-  accent-color: var(--primary-accent, #00d4ff);
+  accent-color: var(--primary-accent, var(--jp-accent));
   cursor: pointer;
   margin: 0;
 }
 
 .printer-klipper-toggle-label {
   font-size: 13px;
-  color: #f1f5f9;
+  color: var(--jp-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -383,7 +383,7 @@
 
 .klipper-tag-badge {
   background: linear-gradient(135deg, #a855f7, #6366f1);
-  color: #fff;
+  color: var(--jp-text);
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 7px;
@@ -409,8 +409,8 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  background: var(--primary-accent, #00d4ff);
-  color: #fff;
+  background: var(--primary-accent, var(--jp-accent));
+  color: var(--jp-on-accent);
   border: none;
   border-radius: 10px;
   padding: 10px 32px;
@@ -423,7 +423,7 @@
 
 .printer-btn-primary:hover,
 #printer-management-dialog .printer-btn-primary:hover {
-  background: var(--primary-accent-hover, #5b9fff);
+  background: var(--primary-accent-hover, var(--jp-accent-hover));
   transform: none;
   box-shadow: none;
 }
@@ -432,7 +432,7 @@
 #printer-management-dialog .printer-btn-cancel {
   width: auto !important;
   background: rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
+  color: var(--jp-text-2);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 10px 20px;
@@ -445,7 +445,7 @@
 .printer-btn-cancel:hover,
 #printer-management-dialog .printer-btn-cancel:hover {
   background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: var(--jp-text);
 }
 
 .printer-status-msg {
@@ -457,11 +457,11 @@
 }
 
 .printer-status-msg.error {
-  color: #f87171;
+  color: var(--jp-danger);
 }
 
 .printer-status-msg.success {
-  color: #4ade80;
+  color: var(--jp-success);
 }
 
 /* Printer List Section */
@@ -516,12 +516,12 @@
 .printer-card-name {
   font-size: 15.5px;
   font-weight: 700;
-  color: #fff;
+  color: var(--jp-text);
 }
 
 .printer-card-model {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--jp-text-2);
 }
 
 .printer-card-meta {
@@ -538,13 +538,13 @@
   padding: 2px 8px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
+  color: var(--jp-text-2);
 }
 
 .printer-badge.printer-type {
-  background: rgba(16, 185, 129, 0.16);
-  border: 1px solid rgba(16, 185, 129, 0.36);
-  color: #6ee7b7;
+  background: rgba(33, 201, 107, 0.16);
+  border: 1px solid rgba(33, 201, 107, 0.36);
+  color: var(--jp-success);
   letter-spacing: 0.04em;
   font-weight: 700;
 }
@@ -556,13 +556,13 @@
 }
 
 .printer-badge.prints-count {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
+  background: rgba(8, 185, 241, 0.12);
+  color: var(--jp-accent);
 }
 
 .printer-badge.reminder-due {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(244, 100, 104, 0.2);
+  border: 1px solid rgba(244, 100, 104, 0.4);
   color: #fca5a5;
   animation: pulse-glow 2s infinite ease-in-out;
 }
@@ -585,7 +585,7 @@
   border-radius: 8px !important;
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #e2e8f0 !important;
+  color: var(--jp-text) !important;
   cursor: pointer;
 }
 
@@ -621,7 +621,7 @@
   border-radius: 8px !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   background: rgba(255, 255, 255, 0.06) !important;
-  color: #cbd5e1 !important;
+  color: var(--jp-text-2) !important;
   cursor: pointer;
   flex-shrink: 0 !important;
   transition: all 0.15s ease !important;
@@ -630,36 +630,36 @@
 .printer-action-btn:hover,
 #printer-management-dialog .printer-action-btn:hover {
   background: rgba(255, 255, 255, 0.12) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .printer-action-btn.web-ui,
 #printer-management-dialog .printer-action-btn.web-ui {
-  background: color-mix(in srgb, var(--primary-accent, #00d4ff) 12%, transparent) !important;
-  border-color: color-mix(in srgb, var(--primary-accent, #00d4ff) 30%, transparent) !important;
-  color: var(--primary-accent, #00d4ff) !important;
+  background: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 30%, transparent) !important;
+  color: var(--primary-accent, var(--jp-accent)) !important;
 }
 
 .printer-action-btn.web-ui:hover,
 #printer-management-dialog .printer-action-btn.web-ui:hover {
-  background: color-mix(in srgb, var(--primary-accent, #00d4ff) 24%, transparent) !important;
-  color: #fff !important;
-  border-color: var(--primary-accent, #00d4ff) !important;
+  background: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 24%, transparent) !important;
+  color: var(--jp-on-accent) !important;
+  border-color: var(--primary-accent, var(--jp-accent)) !important;
 }
 
 .printer-action-btn.maintenance,
 #printer-management-dialog .printer-action-btn.maintenance {
-  background: rgba(16, 185, 129, 0.12) !important;
-  border-color: rgba(16, 185, 129, 0.3) !important;
-  color: #34d399 !important;
+  background: rgba(33, 201, 107, 0.12) !important;
+  border-color: rgba(33, 201, 107, 0.3) !important;
+  color: var(--jp-success) !important;
 }
 
 .printer-action-btn.maintenance:hover,
 #printer-management-dialog .printer-action-btn.maintenance:hover {
-  background: rgba(16, 185, 129, 0.24) !important;
-  color: #fff !important;
-  border-color: #10b981 !important;
+  background: rgba(33, 201, 107, 0.24) !important;
+  color: var(--jp-text) !important;
+  border-color: var(--jp-success) !important;
 }
 
 .printer-action-btn.danger,
@@ -667,21 +667,21 @@
   width: 32px !important;
   min-width: 32px !important;
   padding: 0 !important;
-  color: #f87171 !important;
+  color: var(--jp-danger) !important;
   font-size: 13px !important;
 }
 
 .printer-action-btn.danger:hover,
 #printer-management-dialog .printer-action-btn.danger:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  border-color: #ef4444 !important;
+  background: rgba(244, 100, 104, 0.18) !important;
+  border-color: var(--jp-danger) !important;
 }
 
 /* Empty state */
 .printer-empty-state {
   text-align: center;
   padding: 36px 20px;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -745,13 +745,13 @@
 }
 
 .reminder-item.is-overdue {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(244, 100, 104, 0.4);
+  background: rgba(244, 100, 104, 0.08);
 }
 
 .reminder-item.is-due-soon {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 184, 46, 0.4);
+  background: rgba(245, 184, 46, 0.08);
 }
 
 .reminder-item.is-completed {
@@ -770,7 +770,7 @@
 .log-title {
   font-size: 13.5px;
   font-weight: 600;
-  color: #fff;
+  color: var(--jp-text);
 }
 
 .reminder-meta,
@@ -779,7 +779,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--jp-text-2);
   flex-wrap: wrap;
 }
 
@@ -791,23 +791,23 @@
 }
 
 .due-pill.overdue {
-  background: #ef4444;
-  color: #fff;
+  background: var(--jp-danger);
+  color: var(--jp-on-accent);
 }
 
 .due-pill.due-soon {
-  background: #f59e0b;
+  background: var(--jp-warning);
   color: #000;
 }
 
 .due-pill.upcoming {
   background: rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  color: var(--jp-text-2);
 }
 
 .due-pill.completed {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background: rgba(33, 201, 107, 0.2);
+  color: var(--jp-success);
 }
 
 .reminder-actions,
@@ -819,9 +819,9 @@
 }
 
 .reminder-done-btn {
-  background: rgba(16, 185, 129, 0.2);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  background: rgba(33, 201, 107, 0.2);
+  border: 1px solid rgba(33, 201, 107, 0.4);
+  color: var(--jp-success);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 11.5px;
@@ -831,8 +831,8 @@
 }
 
 .reminder-done-btn:hover {
-  background: #10b981;
-  color: #fff;
+  background: var(--jp-success);
+  color: var(--jp-on-accent);
 }
 
 /* Dialog footer buttons */
@@ -852,7 +852,7 @@
   width: auto !important;
   min-width: 100px;
   background: rgba(255, 255, 255, 0.08) !important;
-  color: #fff !important;
+  color: var(--jp-text) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 10px !important;
   padding: 9px 20px !important;
@@ -870,17 +870,17 @@
 /* Print History entry with printer badge */
 .print-history-printer {
   font-size: 12px;
-  color: #38bdf8;
+  color: var(--jp-accent);
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(0, 212, 255, 0.1);
+  background: rgba(8, 185, 241, 0.1);
   padding: 2px 8px;
   border-radius: 6px;
   margin-top: 4px;
 }
 
 .print-history-printer-model {
-  color: #94a3b8;
+  color: var(--jp-text-2);
   font-size: 11px;
 }

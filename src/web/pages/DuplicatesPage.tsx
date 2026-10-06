@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { CheckCircle2, Copy, FolderOpen, Trash2 } from 'lucide-react';
 import { dedup, settings, type DuplicateFile, type DuplicateGroup, type HashProgress } from '../api';
 import { cx } from '../components/Button';
-import { ModalDialog } from '../components/ModalDialog';
 import { fileIsUnderPreferredDirectory, pickDedupKeeperPath } from '../dedup-keeper.mjs';
 import { exposeGlobal, onServerEvent, showMessage, type LibraryFilters } from '../page';
 import { navigate } from '../shell/routes';
@@ -526,29 +525,8 @@ export function DuplicatesPage() {
   );
 }
 
-/**
- * The phone layout's De-Dup dialog (the shell, and so the page, comes to phones in Phase 12).
- * window.openDedup opens the page on the desktop and this dialog on phones.
- */
-export function DedupDialog() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => exposeGlobal('openDedup', () => {
-    if (document.body.classList.contains('jp-shell-on')) {
-      navigate('duplicates');
-      return;
-    }
-    setOpen(true);
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }), []);
-
-  return (
-    <ModalDialog id="dedup-dialog" className="dedup-dialog" title="Duplicate Files" dialogRef={dialogRef} fullscreenToggle
-      onClose={() => setOpen(false)}
-      description={<p className="dedup-intro">{INTRO}</p>}
-      footer={<button type="button" id="close-dedup" onClick={() => dialogRef.current?.close()}>Close</button>}>
-      {open && <Duplicates footer={(actions) => <div className="dialog-buttons dedup-actions">{actions}</div>} />}
-    </ModalDialog>
-  );
+/** window.openDedup (Settings, the old menu actions): the Duplicates page. */
+export function DuplicatesOpener() {
+  useEffect(() => exposeGlobal('openDedup', () => navigate('duplicates')), []);
+  return null;
 }

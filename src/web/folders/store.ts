@@ -101,8 +101,8 @@ export const folderTreeActions = {
   },
 
   /**
-   * Expand the tree down to a model's folder and scroll to it: in the rail when it is open or the
-   * JusttPrint 5 shell is shown (its folder panel), else in the popover (phone layout).
+   * Expand the tree down to a model's folder and scroll to it: in the folder rail when it is open
+   * or the shell is shown, else in the popover.
    */
   async reveal(filePath: string) {
     const dir = directoryOfFile(filePath).replace(/::$/, '');

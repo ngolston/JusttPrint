@@ -1,4 +1,4 @@
-/* Duplicates and Organize Library pages (pages/DuplicatesPage.tsx, OrganizeLibraryDialog.tsx; spec §46). */
+/* Duplicates and Organize Library pages (pages/DuplicatesPage.tsx, pages/OrganizePage.tsx; spec §46). */
 
 /* ---- Duplicates ---- */
 .jp-dup { display: flex; flex-direction: column; height: calc(100vh - var(--jp-topbar-height)); max-width: 1400px; padding-bottom: 0; }

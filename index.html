@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>JusttPrint - 3D Model Manager</title>
-  <meta name="theme-color" content="#1e1e2e">
+  <meta name="theme-color" content="#081017">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,37 +12,19 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="theme.css">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="parts-stock.css">
-  <link rel="stylesheet" href="printer-management.css">
-  <link rel="stylesheet" href="notes-markdown.css">
-  <link rel="stylesheet" href="preview-wall.css">
-  <link rel="stylesheet" href="thumbnail-progress.css">
-  <link rel="stylesheet" href="mobile-ui.css">
-  <link rel="stylesheet" href="organize-library.css">
   <link rel="stylesheet" href="web-build/app.css">
   <!-- Puter.js is loaded dynamically only when needed to avoid unnecessary socket.io connections -->
-
-
 </head>
-
 
 <body class="server-mode">
   <!-- The React screens and the JusttPrint 5 shell (src/web/main.tsx). First, so the skip link and navigation come first in the Tab order. -->
   <div id="react-root"></div>
-  <!-- Phone layout: overlay, app bar, bottom nav and More sheet: React (src/web/shell/MobileShell.tsx) -->
-  <div id="mobile-shell-slot" style="display: contents"></div>
+  <!-- The details column (the shell shows it on the right, or as a drawer). Its filter parts move
+       into the library header's Filter popover and chips, the job progress into the shell sidebar
+       (src/web/shell/adopt.ts). -->
   <div class="sidebar" role="complementary" aria-label="Model details">
-    <!-- Phone layout: the Filters sheet header: React (src/web/shell/MobileShell.tsx) -->
-    <div id="mobile-drawer-slot" style="display: contents"></div>
-    <div class="sidebar-chrome">
-    <img src="logo.png" alt="JusttPrint Logo" id="logo">
-    <!-- Model counts, tool buttons, Scan Directory, Scan STL Home, View Entire Library: React (src/web/filters/SidebarActions.tsx) -->
-    <div id="sidebar-actions-slot" style="display: contents"></div>
     <!-- Scan and thumbnail job progress: React (src/web/scan/Progress.tsx) -->
     <div id="sidebar-progress-slot" style="display: contents"></div>
-    </div>
     <!-- The current filter strip: React (src/web/filters/Sidebar.tsx). -->
     <div id="current-filter">
       <div id="current-filter-body"></div>
@@ -68,16 +50,15 @@
     </div>
 
     <div id="model-details" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><!-- Phone header: React (src/web/shell/MobileShell.tsx) --><span id="details-header-slot" style="display: contents"></span></h3>
+      <h3>Model Details</h3>
       <!-- Desktop: preview, identity, actions and the sections below in the JusttPrint 5 order: React (src/web/details/ModelDetailsPanel.tsx) -->
       <div id="details-hero-slot" style="display: contents"></div>
       <button type="button" id="enter-multi-edit-button" class="full-width-button">Enter Multi-Edit Mode</button>
       <!-- Print status: React (src/web/print/PrintHistory.tsx) -->
       <div id="details-print-slot" style="display: contents"></div>
-      <div id="details-more-slot" style="display: contents"></div>
       <!-- Name: React (src/web/details/DetailsFields.tsx) -->
       <div id="details-name-slot" style="display: contents"></div>
-      <div class="form-group mobile-detail-extra" id="details-path-group">
+      <div class="form-group" id="details-path-group">
         <label for="model-path">Path:</label>
         <div class="path-tree-field">
           <div id="path-tree-container" class="path-tree-container"></div>
@@ -98,32 +79,21 @@
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><span id="bundle-header-slot" style="display: contents"></span></h3>
+      <h3 id="bundle-details-title"></h3>
       <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
       <div id="bundle-details-slot" style="display: contents"></div>
     </div>
-    <!-- Searchable list: React (src/web/components/ListPicker.tsx) -->
     <div id="multi-edit-panel" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <span id="multi-header-slot" style="display: contents"></span></h3>
+      <h3>Multi-Edit Panel</h3>
       <!-- Body: React (src/web/details/MultiEditPanel.tsx) -->
       <div id="multi-edit-slot" style="display: contents"></div>
     </div>
-    <!-- Terms of Service and welcome: React (src/web/startup/FirstRun.tsx) -->
-
-
-    <!-- Review Generated Tags: React (src/web/tags/TagPreviewDialog.tsx) -->
-
-    <!-- Server task progress: React (src/web/components/ServerProgressDialog.tsx) -->
-    
-    <!-- Preview Model Dialog -->
   </div>
-  <!-- Sidebar resize handle, folder rail contents and the folder popover: React (src/web/folders/FolderTree.tsx) -->
-  <div id="sidebar-resize-slot" style="display: contents"></div>
+  <!-- Folder rail contents and the folder popover: React (src/web/folders/FolderTree.tsx) -->
   <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden></aside>
   <div class="main-content">
     <!-- The library's main landmark; it is a plain region while a page covers it (src/web/shell/AppShell.tsx). -->
     <div class="library-main" id="library-content" role="main" aria-label="Model library">
-      <div class="grid-view-selector-background"></div>
       <div class="grid-view-selector">
         <div id="folder-rail-toggle-slot" style="display: contents"></div>
         <!-- View buttons, tile size and Show/Hide columns: React (src/web/grid/GridToolbar.tsx) -->
@@ -158,137 +128,6 @@
           </div>
         </div>
       </dialog>
-      <dialog id="guide-dialog" class="modal guide-dialog">
-        <form method="dialog">
-          <h2>JusttPrint Guide</h2>
-          
-          <h3>Getting Started</h3>
-          <p>Click the "Scan Directory" button to select a folder containing your 3D model files (.stl and .3mf). JusttPrint will scan and catalog your models.</p>
-
-          <h3>Managing Models</h3>
-          <ul>
-            <li><strong>View Models:</strong> Browse your models in the grid view. Each model shows a 3D preview thumbnail.</li>
-            <li><strong>Edit Details:</strong> Click a model to open its details panel where you can edit:
-              <ul>
-                <li>Designer name</li>
-                <li>Source URL</li>
-                <li>Parent model</li>
-                <li>Tags</li>
-                <li>Print status</li>
-                <li>Notes</li>
-              </ul>
-            </li>
-            <li><strong>Bulk Edit:</strong> Select multiple models using checkboxes to edit their details simultaneously.</li>
-          </ul>
-
-          <h3>Features</h3>
-          <ul>
-            <li><strong>Filtering:</strong> Use the dropdown menus to filter models by Designer, Parent model, or Tags.</li>
-            <li><strong>Tags:</strong> Create and assign tags to organize your models. Click the (+) button to add new tags.</li>
-            <li><strong>Thumbnails:</strong> Use Settings > Purge Thumbnails to regenerate model previews if needed.</li>
-          </ul>
-
-          <h3>Tips</h3>
-          <ul>
-            <li>Use the Reload option in the File menu if the application needs refreshing.</li>
-          </ul>
-
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="guide-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
-      <dialog id="server-mode-info-dialog" class="modal">
-        <form method="dialog">
-          <h2>Server Mode Information</h2>
-          <div class="about-content">
-            <div class="about-tos">
-              <h3>What is Server Mode?</h3>
-              <div class="about-tos-content">
-                <p>Server Mode allows you to run JusttPrint as a web server that can be accessed from any browser on your network. This is useful for accessing your 3D model library from multiple computers or devices without installing the application on each one.</p>
-                <p>Server Mode runs JusttPrint as an HTTP server on port 5000, making it accessible from any device on your local network through a web browser.</p>
-              </div>
-            </div>
-
-            <div class="about-tos">
-              <h3>How to Start in Server Mode</h3>
-              <div class="about-tos-content">
-                <p>To start JusttPrint in Server Mode, launch it with the <code>--server</code> flag:</p>
-                <ul>
-                  <li><strong>Windows:</strong> <code>justtprint.exe --server</code></li>
-                  <li><strong>Command Line:</strong> <code>justtprint --server</code></li>
-                </ul>
-                <p>The server will start and continue running until you close the application.</p>
-              </div>
-            </div>
-
-            <div class="about-tos">
-              <h3>Important Requirements</h3>
-              <div class="about-tos-content">
-                <ul>
-                  <li>Server Mode requires <strong>UNC (Universal Naming Convention) paths</strong> for all file operations</li>
-                  <li>UNC paths use the format: <code>\\\\server\\share\\path\\to\\file</code></li>
-                  <li>Local drive paths (C:\, D:\, etc.) will <strong>not work</strong> in Server Mode</li>
-                  <li>The server listens on all network interfaces (0.0.0.0). Default port is 5000; change it under Tools → MCP Server → HTTPS / SSL</li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="about-tos">
-              <h3>Accessing the Server</h3>
-              <div class="about-tos-content">
-                <p>Once started, you can access JusttPrint from any browser on your network:</p>
-                <p><strong>http://&lt;your-computer-ip&gt;:5000</strong></p>
-                <p>For example, if your computer's IP address is 192.168.1.100:</p>
-                <p><strong>http://192.168.1.100:5000</strong></p>
-                <p>To serve HTTPS, open <strong>Tools → MCP Server → HTTPS / SSL</strong>. You can point at your own PEM files, generate a self-signed certificate for LAN use, or request a Let's Encrypt certificate for a public domain (requires inbound port 80). Set the listen port there if 5000 is already in use (for example Synology DSM). After TLS is on, use <strong>https://&lt;host&gt;:&lt;port&gt;</strong>.</p>
-              </div>
-            </div>
-
-            <div class="about-tos">
-              <h3>Docker Deployment (Linux)</h3>
-              <div class="about-tos-content">
-                <p>JusttPrint can be deployed as a Docker container for easy server mode deployment on Linux systems.</p>
-                
-                <h4>Quick Start:</h4>
-                <p><strong>Build and run with Docker Compose:</strong></p>
-                <pre><code>docker-compose up -d</code></pre>
-                
-                <p><strong>Or build and run manually:</strong></p>
-                <pre><code>docker build -t justtprint:latest .
-docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.config/justtprint justtprint:latest</code></pre>
-                
-                <h4>Accessing Network Shares:</h4>
-                <p>Docker containers cannot directly access Windows UNC paths. You need to mount network shares:</p>
-                <ol>
-                  <li><strong>Mount SMB/CIFS share on host:</strong>
-                    <pre><code>sudo mount -t cifs //server/share /mnt/network-share -o username=user,password=pass</code></pre>
-                  </li>
-                  <li><strong>Add to docker-compose.yml:</strong>
-                    <pre><code>volumes:
-  - /mnt/network-share:/mnt/network-share:ro</code></pre>
-                  </li>
-                  <li><strong>Use Linux paths in JusttPrint:</strong> <code>/mnt/network-share/path/to/files</code></li>
-                </ol>
-                
-                <p><strong>Note:</strong> When running in Docker, the application automatically accepts Linux-style absolute paths (starting with <code>/</code>) instead of requiring UNC paths.</p>
-                
-                <p>For detailed Docker deployment instructions, see the README.md file.</p>
-              </div>
-            </div>
-          </div>
-          <div class="dialog-buttons">
-            <button type="button" data-close-dialog="server-mode-info-dialog">Close</button>
-          </div>
-        </form>
-      </dialog>
-
-
-
-
-
-
-
     </div>
   </div>
   <div id="loading-overlay">
@@ -298,8 +137,6 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
       <button id="continue-anyways"><strong>CONTINUE ANYWAYS</strong><br><i>MAY IMPACT PERFORMANCE</i></button>
     </div>
   </div>
-
-  <!-- Thumbnail job dialog: React (src/web/scan/Progress.tsx) -->
 
   <script src="slicer-protocol.js"></script>
   <script src="server-bridge.js"></script>

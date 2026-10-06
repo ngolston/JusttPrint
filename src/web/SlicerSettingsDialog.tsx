@@ -111,7 +111,7 @@ export function SlicerSettingsDialog() {
     <ModalDialog id="slicer-dialog" title="Slicer Settings" dialogRef={dialogRef}
       footer={(
         <>
-          <button type="button" id="save-slicer-settings" disabled={saving} onClick={save}>Save</button>
+          <button type="button" id="save-slicer-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
           <button type="button" id="cancel-slicer-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>

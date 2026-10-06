@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { ModalDialog } from './components/ModalDialog';
-import { viewEntireLibrary } from './filters/SidebarActions';
+import { viewEntireLibrary } from './library/actions';
 import { exposeGlobal } from './page';
 import { scanDirectory } from './scan/scan';
 import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';

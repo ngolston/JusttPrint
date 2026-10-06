@@ -53,13 +53,13 @@
 }
 
 .preview-size-switcher button:hover {
-  color: #fff;
+  color: var(--jp-text);
   background: rgba(255, 255, 255, 0.08);
 }
 
 .preview-size-switcher button.active {
   color: #0a0a0a;
-  background: var(--primary-accent, #00d4ff);
+  background: var(--primary-accent, var(--jp-accent));
 }
 
 /* Neutralize legacy .file-item-preview card chrome */
@@ -71,7 +71,7 @@
   padding: 0 !important;
   margin: 0;
   border-radius: 4px !important;
-  background: #1a1a1a !important;
+  background: var(--jp-surface-1) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   border: none !important;
@@ -88,26 +88,26 @@
 .file-item.file-item-preview.preview-tile:hover {
   transform: none;
   z-index: 3;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-accent, #00d4ff) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 55%, transparent);
   border-color: transparent !important;
 }
 
 .file-item.file-item-preview.preview-tile.selected {
-  outline: 2px solid var(--primary-accent, #00d4ff);
+  outline: 2px solid var(--primary-accent, var(--jp-accent));
   outline-offset: 0;
   z-index: 2;
 }
 
 /* Keep grouped-child highlighting visible in Preview wall despite neutralized tile chrome. */
 .file-grid.preview-wall .file-item.file-item-preview.preview-tile.parent-model-group-child {
-  border: 1px solid color-mix(in srgb, var(--primary-accent, #00d4ff) 72%, transparent) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-accent, #00d4ff) 22%, transparent) !important;
-  background: color-mix(in srgb, var(--primary-accent, #00d4ff) 14%, #12121a) !important;
+  border: 1px solid color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 72%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 22%, transparent) !important;
+  background: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 14%, var(--jp-surface-1)) !important;
 }
 
 .file-grid.preview-wall .file-item.file-item-preview.preview-tile.parent-model-group-child:hover {
-  border-color: color-mix(in srgb, var(--primary-accent, #00d4ff) 90%, transparent) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-accent, #00d4ff) 30%, transparent) !important;
+  border-color: color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 90%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-accent, var(--jp-accent)) 30%, transparent) !important;
 }
 
 /* Thumbnail fills tile — beat .file-grid .thumbnail-container { object-fit: contain } + flex centering */
@@ -254,7 +254,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--primary-accent, #00d4ff);
+  background: var(--primary-accent, var(--jp-accent));
   border: 2px solid rgba(0, 0, 0, 0.5);
   z-index: 16;
   display: flex;
@@ -273,7 +273,7 @@
   content: "";
   width: 5px;
   height: 9px;
-  border: solid #0a0a0a;
+  border: solid var(--jp-border);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg) translate(-1px, -1px);
 }
@@ -326,7 +326,7 @@
   font-size: 11px;
   font-weight: 500;
   line-height: 1.25;
-  color: #fff;
+  color: var(--jp-text);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   overflow: hidden;
   display: -webkit-box;
@@ -336,7 +336,7 @@
 }
 
 .preview-tile-name.zip-file {
-  color: #4ade80;
+  color: var(--jp-success);
 }
 
 .preview-tile-actions {
@@ -357,7 +357,7 @@
   cursor: pointer;
   pointer-events: auto;
   color: #0a0a0a;
-  background: var(--primary-accent, #00d4ff);
+  background: var(--primary-accent, var(--jp-accent));
 }
 
 .preview-tile-open-btn:hover {
@@ -379,8 +379,8 @@
   border-radius: 4px !important;
   transform: none !important;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(20, 25, 40, 0.95) 0%, rgba(10, 12, 22, 0.98) 100%) !important;
-  border: 1px solid rgba(0, 212, 255, 0.2) !important;
+  background: linear-gradient(180deg, rgba(14, 24, 33, 0.95) 0%, rgba(14, 24, 33, 0.98) 100%) !important;
+  border: 1px solid rgba(8, 185, 241, 0.2) !important;
 }
 
 .file-grid.preview-wall .parent-model-group-preview {
@@ -400,7 +400,7 @@
   border-radius: 0 !important;
   border: none !important;
   box-shadow: none !important;
-  background: var(--model-background-color, #0a0d1a) !important;
+  background: var(--model-background-color, var(--jp-surface-1)) !important;
   display: block !important;
   overflow: hidden;
 }

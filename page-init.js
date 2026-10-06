@@ -2,22 +2,10 @@
 
 /**
  * Page wiring that used to sit in inline <script> blocks and onclick="" attributes in
- * index.html. The Content Security Policy only runs scripts from files (script-src 'self'),
- * so markup declares what a control does with data attributes and this file attaches it:
- *
- *   data-close-dialog="dialog-id"   closes that <dialog> (works for markup added later too)
- *
- * Loaded at the end of <body>, after the other app scripts.
+ * index.html (the Content Security Policy only runs scripts from files: script-src 'self'):
+ * the loading overlay. Loaded at the end of <body>, after the other app scripts.
  */
 (function () {
-  // Close buttons, including ones other scripts add later.
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-close-dialog]');
-    if (!button) return;
-    const dialog = document.getElementById(button.dataset.closeDialog);
-    if (dialog && typeof dialog.close === 'function') dialog.close();
-  });
-
   // Loading overlay: "Continue anyway" hides it.
   document.getElementById('continue-anyways')?.addEventListener('click', () => {
     const overlay = document.getElementById('loading-overlay');

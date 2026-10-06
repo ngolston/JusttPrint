@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import css from './tokens.css?raw';
+import { THEME_ACCENTS } from '../startup/theme';
 
 /** The design tokens from tokens.css (hex colors only). */
 const tokens = Object.fromEntries([...css
@@ -60,5 +61,15 @@ describe('token contrast (spec §37, WCAG 2.2 AA)', () => {
 
   it('borders that outline controls reach 3:1 where they are the only boundary (focus ring)', () => {
     expect(contrast(tokens['jp-accent'], tokens['jp-bg'])).toBeGreaterThanOrEqual(3);
+  });
+
+  it('every Theme accent works as the accent (links, on-accent text, focus ring)', () => {
+    for (const [theme, colors] of Object.entries(THEME_ACCENTS)) {
+      if (!colors) continue;
+      for (const accent of [colors.accent, colors.hover]) {
+        expect(contrast(tokens['jp-on-accent'], accent), `on-accent on ${theme}`).toBeGreaterThanOrEqual(4.5);
+        for (const surface of SURFACES) expect(contrast(accent, tokens[surface]), `${theme} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 });
