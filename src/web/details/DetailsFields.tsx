@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { libraryValues, tags as tagApi } from '../api';
 import { askText, exposeGlobal } from '../page';
+import { pickFromList, type ListField } from '../components/ListPicker';
 
 /** The model the details panel shows (only the fields this section edits are typed). */
 export interface DetailsModel {
@@ -15,14 +16,11 @@ export interface DetailsModel {
 }
 
 type PickerField = 'designer' | 'parentModel' | 'license';
-type ListField = 'designer' | 'parent' | 'license' | 'tag' | 'filament';
 
-/** What this section asks of renderer.js. */
+/** What this section asks of the library (library/hosts.ts). */
 export interface DetailsHost {
   /** Save one field of the model (autoSaveModel: also updates its grid card). */
   saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'filaments' | 'notes', value: string | string[] | number[]): Promise<boolean>;
-  /** The searchable list dialog; resolves to the picked value (a filament's id), or null. */
-  pickFromList(field: ListField): Promise<string | null>;
   /** Open the source URL in a new tab (checks it is http/https). */
   openSource(url: string): void;
   /** A new designer, parent model, license or tag exists: refresh the filters and other pickers. */
@@ -32,7 +30,7 @@ export interface DetailsHost {
 declare global {
   interface Window {
     detailsHost?: DetailsHost;
-    /** The details panel's metadata fields (renderer.js showModelDetails drives it). */
+    /** The details panel's metadata fields (library/details.ts drives it). */
     detailsFields?: {
       show: (model: DetailsModel) => void;
       clear: () => void;
@@ -140,7 +138,7 @@ export function DetailsFields() {
   }
 
   async function pick(field: PickerField) {
-    const value = await host?.pickFromList(LABELS[field].list);
+    const value = await pickFromList(LABELS[field].list);
     if (value) await save(field, value);
   }
 
@@ -223,7 +221,7 @@ export function DetailsFields() {
               {options.tags.filter((tag) => !tags.includes(tag)).map((tag) => <option key={tag} value={tag}>{tag}</option>)}
             </select>
             <button type="button" className="list-button icon-button" title="Search existing tags" disabled={!model}
-              onClick={async () => { const picked = await host?.pickFromList('tag'); if (picked) await addTag(picked); }}>☰</button>
+              onClick={async () => { const picked = await pickFromList('tag'); if (picked) await addTag(picked); }}>☰</button>
             <button type="button" id="details-add-tag" className="icon-button" title="New tag" disabled={!model} onClick={newTag}>+</button>
           </div>
           <div id="model-tags" className="tags-list">

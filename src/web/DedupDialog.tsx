@@ -4,6 +4,7 @@ import { ModalDialog } from './components/ModalDialog';
 import { fileIsUnderPreferredDirectory, pickDedupKeeperPath } from './dedup-keeper.mjs';
 import { exposeGlobal, onServerEvent, showMessage, type LibraryFilters } from './page';
 import { formatFileSize } from './StatsDialog';
+import { makeThumbnail } from './thumbnails/pipeline';
 
 declare global {
   interface Window {
@@ -42,7 +43,7 @@ async function loadPreview(filePath: string): Promise<string | null> {
   const stored = await dedup.thumbnail(filePath).catch(() => null);
   if (stored && stored !== '3d.png' && stored.trim()) return stored;
   // No stored thumbnail: draw one in this browser.
-  return (await window.renderModelToPNG?.(filePath, document.createElement('div')).catch(() => null)) ?? null;
+  return (await makeThumbnail(filePath).catch(() => null))?.image ?? null;
 }
 
 function GroupPreview({ filePath }: { filePath: string }) {

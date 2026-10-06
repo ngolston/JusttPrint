@@ -1,7 +1,7 @@
 /**
  * The library grid's layout, without the DOM: which records to show (models, ZIP bundles and
  * parent-model groups, expanded or not), how they fall into rows for each view, and where each
- * cell goes. Ported from renderVirtualGrid and buildParentModelDisplayRecords in renderer.js.
+ * cell goes.
  */
 
 export type GridView = 'detailed' | 'preview' | 'list';

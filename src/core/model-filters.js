@@ -336,7 +336,8 @@ function parseSearchUnary(tokens, i, params, filters) {
   }
   const [inner, k] = parseSearchPrimary(tokens, j, params, filters);
   if (negate) {
-    return [`NOT (${inner})`, k];
+    // COALESCE: a NULL column makes the comparison NULL, and NOT NULL would drop the row.
+    return [`NOT COALESCE((${inner}), 0)`, k];
   }
   return [inner, k];
 }
@@ -634,7 +635,7 @@ function buildModelFilterConditions(filters) {
       const combined = compileSearchTokensToSQL(filters.searchTokens, params, filters);
       if (combined) {
         if (filters.searchInverted) {
-          conditions.push(`NOT (${combined})`);
+          conditions.push(`NOT COALESCE((${combined}), 0)`);
         } else {
           conditions.push(`(${combined})`);
         }
@@ -651,7 +652,7 @@ function buildModelFilterConditions(filters) {
       if (parts.length) {
         const combined = parts.join(op);
         if (filters.searchInverted) {
-          conditions.push(`NOT (${combined})`);
+          conditions.push(`NOT COALESCE((${combined}), 0)`);
         } else {
           conditions.push(`(${combined})`);
         }
@@ -659,7 +660,7 @@ function buildModelFilterConditions(filters) {
     } else if (filters.search) {
       const frag = pushSearchClauseFragment('all', filters.search, params, filters);
       if (filters.searchInverted) {
-        conditions.push(`NOT (${frag})`);
+        conditions.push(`NOT COALESCE((${frag}), 0)`);
       } else {
         conditions.push(frag);
       }

@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { normalizeRating } from './ModelCard';
 import type { GridModel, GridView, GroupRecord } from './layout';
+import { applyColumns } from './columns';
 
-/** What a group card asks of renderer.js. */
+/** What a group card asks of the library (library/hosts.ts). */
 export interface GroupCardHost {
   /** Goes up when group images change (cache cleared, preferred image picked). */
   groupThumbnailVersion(): number;
@@ -24,7 +25,6 @@ export interface GroupCardHost {
   saveGroupField(filePaths: string[], field: 'rating' | 'favorite', value: number | boolean): Promise<boolean>;
   filterBySelect(selectId: string, value: string): void;
   filterByTag(name: string): void;
-  applyListColumns(fileInfo: HTMLElement): void;
 }
 
 function GroupEngagement({ host, record }: { host: GroupCardHost; record: GroupRecord }) {
@@ -122,7 +122,7 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   }, []);
 
   useLayoutEffect(() => {
-    if (view === 'list' && fileInfoRef.current) host.applyListColumns(fileInfoRef.current);
+    if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
   const classes = ['parent-model-group', `parent-model-group-${view}`, view !== 'list' && 'file-item', view !== 'list' && `file-item-${view}`,

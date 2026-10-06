@@ -1,8 +1,7 @@
 /**
  * The grid selection: which models are selected. Paths compare normalized (slashes, URL
  * encoding, drive-letter case) but keep the spelling they were first added with. The grid
- * cards and the multi-edit panel subscribe; renderer.js reads and changes it through
- * window.selection.
+ * cards and the multi-edit panel subscribe (also as window.selection).
  */
 import { normalizePath } from './grid/layout';
 

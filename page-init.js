@@ -24,15 +24,6 @@
     if (overlay) overlay.style.display = 'none';
   });
 
-  // Toolbar buttons.
-  const send = (channel) => () => window.electron && window.electron.send(channel);
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('dup-button')?.addEventListener('click', send('open-dedup'));
-    document.getElementById('tag-button')?.addEventListener('click', send('open-tag-manager'));
-    document.getElementById('filament-button')?.addEventListener('click', send('open-filament-manager'));
-    document.getElementById('roulette-button')?.addEventListener('click', send('start-print-roulette'));
-  });
-
   // Loading overlay: rotate the message every 5 seconds while it is visible.
   document.addEventListener('DOMContentLoaded', () => {
     const loadingMessage = document.querySelector('#loading-overlay .spinner p');
@@ -57,13 +48,5 @@
       }
       loadingMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
     }, 5000);
-  });
-
-  // Welcome dialog: dismiss, then open the guide.
-  document.getElementById('dismiss-welcome')?.addEventListener('click', () => {
-    document.getElementById('welcome-message')?.close();
-    setTimeout(() => {
-      if (typeof window.showGuide === 'function') window.showGuide();
-    }, 500);
   });
 })();

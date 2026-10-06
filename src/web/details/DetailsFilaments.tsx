@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { filaments as filamentApi, models, type Filament } from '../api';
 import { exposeGlobal } from '../page';
 import { colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
+import { pickFromList } from '../components/ListPicker';
 
 /** The model the details panel shows (only the fields this section reads). */
 interface FilamentsModel {
@@ -12,7 +13,7 @@ interface FilamentsModel {
 
 declare global {
   interface Window {
-    /** The details panel's filaments (renderer.js showModelDetails and filament.js drive it). */
+    /** The details panel's filaments (library/details.ts and library/actions.ts drive it). */
     detailsFilaments?: {
       show: (model: FilamentsModel) => void;
       /** Reload the shown model's filaments from the server. */
@@ -83,8 +84,8 @@ export function DetailsFilaments() {
     add
   }));
 
-  async function pickFromList() {
-    const value = await window.detailsHost?.pickFromList('filament');
+  async function pickFilament() {
+    const value = await pickFromList('filament');
     if (value) await add(Number(value));
   }
 
@@ -99,7 +100,7 @@ export function DetailsFilaments() {
             <option value="">Select a filament...</option>
             {available.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
           </select>
-          <button type="button" className="list-button icon-button" title="Search existing filaments" onClick={pickFromList}>☰</button>
+          <button type="button" className="list-button icon-button" title="Search existing filaments" onClick={pickFilament}>☰</button>
           <button type="button" id="add-filament-button" className="icon-button" title="Filament Manager"
             onClick={() => window.openFilamentManager?.()}>+</button>
         </div>

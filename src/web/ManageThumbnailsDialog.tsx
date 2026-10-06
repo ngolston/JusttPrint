@@ -6,7 +6,7 @@ declare global {
   interface Window {
     /** Open Manage Thumbnails for one model. */
     openManageThumbnails?: (filePath: string) => Promise<void>;
-    /** renderer.js: redraw a model's card after its images changed. */
+    /** library/hosts.ts: redraw a model's card after its images changed. */
     refreshModelThumbnails?: (filePath: string) => Promise<void>;
   }
 }

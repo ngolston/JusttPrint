@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 4.4.0**
+**Version 4.5.0**
 
 JusttPrint is a self-hosted web app for managing your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network. It catalogs STL, 3MF and other model files, renders thumbnails, and handles tags, metadata, print history and duplicates.
 
@@ -9,7 +9,7 @@ JusttPrint is a self-hosted web app for managing your 3D printing model collecti
 ## Features
 
 ### Core Functionality
-- **Directory Scanning**: Automatically scan and catalog STL and 3MF files (up to 50MB per file)
+- **Directory Scanning**: Automatically scan and catalog STL and 3MF files (up to 50MB per file); models without a thumbnail are then rendered on the server in the background
 - **3D Model Preview**: View thumbnails of your 3D models with customizable background colors
 - **File Management**: Quick access to file locations, delete files with database cleanup
 - **Database Backup & Restore**: Back up the library database and restore it from the browser; a restore checks the file first and keeps the previous database
@@ -583,7 +583,7 @@ A single path still works (`STL_HOME=/mnt/network-share/models`). For several di
 #### How It Works in Docker
 
 - **On Container Startup**: When the JusttPrint container starts, it automatically scans every STL Home directory that is configured
-- **Periodic Scanning**: The container scans each STL Home directory at the configured interval
+- **Periodic Scanning**: The container scans each STL Home directory at the configured interval (a changed interval applies from the next scan), and open pages refresh when it finds new models
 - **Path Requirements**: 
   - Must use Linux-style absolute paths starting with `/`
   - Path must correspond to a mounted volume in your Docker configuration
@@ -886,11 +886,10 @@ To automatically mount on host reboot, add to `/etc/fstab`:
 
 ### Web UI
 - `index.html`, `styles.css` - Page structure and styling
-- `renderer.js` - UI logic (being replaced screen by screen with React + TypeScript)
-- `src/web/` - React + TypeScript, built with Vite into `web-build/` and mounted into the page (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. The dialogs and managers; the library grid (`grid/`) and its selection (`selection.ts`); the details, ZIP bundle and multi-edit panels (`details/`); print status, history and the Log Print dialog (`print/`); notes Markdown (`notes/`); the 3D preview (`preview/`); grid thumbnails (`thumbnails/`); and the model parse worker (`parse/worker.ts`, built to `web-build/parse-worker.js`). three.js is its own chunk, loaded with the first preview or thumbnail
+- `src/web/` - React + TypeScript, built with Vite into `web-build/` and mounted into the page (`main.tsx`). `api.ts` calls the HTTP API, `page.ts` holds the hooks into the rest of the page, `components/` the shared pieces. The dialogs and managers; the menu bar and phone layout (`shell/`); the model menu (`menus/`); Review Generated Tags (`tags/`); page startup, the theme, the update check and the terms and welcome dialogs (`startup/`); Puter.com AI requests (`ai/`); the sidebar's search, sort and filters (`filters/`) and folder tree (`folders/`); the library grid (`grid/`), its selection (`selection.ts`) and what drives the grid, details and multi-edit, plus Print Roulette, Clear New Flag, Add Image and the server's library events (`library/`); the details, ZIP bundle and multi-edit panels (`details/`); print status, history and the Log Print dialog (`print/`); notes Markdown (`notes/`); the 3D preview (`preview/`); thumbnails: the render queue, the model loader and the server's bulk job (`thumbnails/`); scanning and its progress (`scan/`); and the model parse worker (`parse/worker.ts`, built to `web-build/parse-worker.js`). three.js is its own chunk, loaded with the first preview or thumbnail
 - `server-bridge.js` - Connects the UI to the server: actions over the HTTP API, events over a WebSocket
-- `page-init.js` - Wires up buttons declared with `data-close-dialog` and the toolbar buttons. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
-- `search.js`, `query-builder.js`, `folder-tree.js`, `mobile-ui.js`, `guide.js` - Search and filters, folder tree, phone layout, guide
+- `page-init.js` - Wires up buttons declared with `data-close-dialog`. The page has no inline scripts or `onclick=` handlers: the Content Security Policy only runs script files from the server
+- `guide.js` - Quick Start Guide
 
 ### Configuration
 - `package.json` - Dependencies and scripts

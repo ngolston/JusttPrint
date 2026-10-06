@@ -1,4 +1,4 @@
-/** three.js meshes from the parse worker's plain arrays (renderer.js loadModelData). */
+/** three.js meshes from the parse worker's plain arrays (src/web/thumbnails/loader.ts). */
 import { THREE } from './setup';
 
 export interface GeometryData {
@@ -12,8 +12,6 @@ export interface GeometryData {
 
 declare global {
   interface Window {
-    /** renderer.js: parse a model in the parse worker into plain geometry arrays. */
-    loadModelData?: (filePath: string) => Promise<{ geometries: GeometryData[]; fileExtension: string } | null>;
     /** stl-sanity.js */
     normalsAreMissing?: (normals: Float32Array) => boolean;
     repairZeroFaceNormals?: (positions: Float32Array, normals: Float32Array) => number;

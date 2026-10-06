@@ -106,25 +106,37 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] First a self-contained dialog, to set up Vite, TypeScript and the build in the Docker image. Server Access is in `src/web/` (built into `web-build/app.js` by `npm run build:web`, and by a stage in the Dockerfile).
   - [x] The dialogs and managers (4.2.0): tags, parts, filament, printers, stats, system report, backup/restore, about, shortcuts, every settings dialog, purge, metadata manager, STL Home, organize, de-dup.
   - [x] The model grid (virtualized), the details panel, the ZIP bundle and multi-edit panels, the 3D preview on current three.js (an imperative engine in `src/web/preview/engine.ts`; react-three-fiber was not needed), Manage Thumbnails, the Log Print dialog, the thumbnail renderer and parse worker, and the grid selection (`src/web/selection.ts`).
-  - [ ] What is left in `renderer.js` and the other page scripts: the sidebar (search and filters with `search.js` and `query-builder.js`, the folder tree), the details panel header and the phone layout (`mobile-ui.js`), context menus, keyboard shortcuts, scanning and the thumbnail queue, the welcome and terms dialogs, and the tag preview dialog.
-  - Remove `renderer.js`, `server-bridge.js` and the inline scripts and `onclick` attributes as their screens move over; this also allows a strict `script-src` CSP (section 1).
+  - [x] The sidebar's search, sort and filters and the filter strip (`src/web/filters/`), replacing `search.js` and `query-builder.js`.
+  - [x] The folder tree (select, popover, rail, Reveal in folders) and the sidebar layout (More filters, resize handles) in `src/web/folders/`, replacing `folder-tree.js` and `sidebar-layout.js`.
+  - [x] The sidebar's counts and buttons (`src/web/filters/SidebarActions.tsx`).
+  - [x] The menu bar and the phone layout (`src/web/shell/`): one menu for both, the app bar, bottom nav, sheets, More sheet and the details panels' phone header, replacing `mobile-ui.js`.
+  - [x] The model menu (right-click, long-press and ⋯) in `src/web/menus/ContextMenu.tsx`.
+  - [x] Keyboard shortcuts (`src/web/shortcuts.ts`, tested), shared with the Keyboard Shortcuts dialog.
+  - [x] The Terms of Service and welcome dialogs (`src/web/startup/FirstRun.tsx`).
+  - [x] Review Generated Tags (`src/web/tags/`), with its state and merge rule tested.
+  - [x] Scanning, the thumbnail queue and the model loader, and the bulk thumbnail jobs with their progress (`src/web/scan/`, `src/web/thumbnails/`).
+  - [x] The grid toolbar (views, tile size, Show/Hide columns) and the list view's columns and header (`src/web/grid/`).
+  - [x] The searchable list dialog (`src/web/components/ListPicker.tsx`).
+  - [x] The grid's model list and groups, selection, the details and bundle panels, multi-edit mode and saving (`src/web/library/`).
+  - [x] Startup, the theme and the update check (`src/web/startup/`), Puter AI (`src/web/ai/`), and the page and server events (`src/web/library/actions.ts`, `components/ServerProgressDialog.tsx`). `renderer.js`, `filament.js` and `grid-refresh.js` are gone.
+  - [ ] The page scripts left: `server-bridge.js` (the WebSocket and in-page message dialogs; React screens could call the HTTP API and an in-page dialog component directly), `guide.js` (Quick Start Guide), `page-init.js`, `pwa.js`, `slicer-protocol.js`, `step-assembly.js` and `stl-sanity.js` (the last two are also used by the parse worker).
   - Test each screen in the browser against the container before moving on.
 - [ ] **Audit every desktop-only action** and give each one a web equivalent:
   - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
   - [ ] File pickers for restore/import: browser uploads.
   - [ ] "Show in folder" and "open file": download, or copy the path.
-  - [ ] Native right-click menus (the `menuItems` handler, [src/server/ipc/context-menu.js:74](src/server/ipc/context-menu.js#L74)): in-page context menus.
+  - [x] Native right-click menus: in-page model menu (`src/web/menus/ContextMenu.tsx`), built by [src/server/ipc/context-menu.js](src/server/ipc/context-menu.js).
   - [ ] Input dialogs (`input-dialog.html`): in-page modals.
   - [ ] Backup/restore: download and upload a backup file in the browser.
   - [ ] "Send to slicer": the existing helper/protocol handler, documented for web users.
-- [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload.
+- [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
 - [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict.
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
-- [ ] **Retire `renderer.js`** (~25k lines): it goes away screen by screen through the React rewrite above, rather than being split into modules first.
+- [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
 
 ## 🟡 6. Medium: bugs, tests and CI
 
-- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuterJS` in [renderer.js](renderer.js)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
+- [ ] **Puter.com AI cannot load Puter.js.** The CSP (`script-src 'self'`) blocks `https://js.puter.com/v2/` (`loadPuter` in [src/web/ai/puter.ts](src/web/ai/puter.ts)), so tagging and Test with the Puter.com service fail in the browser. Either allow that origin in `script-src` ([src/server/http.js](src/server/http.js)), bundle Puter.js, or drop Puter.com as a service.
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.
@@ -149,7 +161,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
-- [ ] **Fix the sidebar banner text in Docker.** It says "UNC paths required for all file operations", which only applies to Windows server mode.
+- [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.
 - [ ] **Filament Manager: the hex color field is squeezed to nothing** next to the color picker, so a hex value cannot be typed (`.filament-color-row`).
 - [ ] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input** (`styles.css` ~276), not just dropdowns. Several dialogs work around it one by one.
 

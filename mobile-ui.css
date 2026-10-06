@@ -354,12 +354,10 @@ body.mobile-ui .sidebar-resize-handle,
 body.mobile-ui .panel-resize-handle,
 body.mobile-ui #logo,
 body.mobile-ui .icon-buttons-container,
-body.mobile-ui #server-mode-indicator,
 body.mobile-ui .folder-rail-toggle,
 body.mobile-ui #scan-directory-button,
 body.mobile-ui #scan-stl-home-button,
 body.mobile-ui #view-library-button,
-body.mobile-ui #view-library-message,
 body.mobile-ui .model-stats,
 body.mobile-ui .grid-view-selector,
 body.mobile-ui .grid-view-selector-background,
@@ -425,7 +423,8 @@ body.mobile-ui #filter-stack {
   width: 100%;
 }
 
-body.mobile-ui #filter-stack > .form-group {
+body.mobile-ui #filter-stack > .form-group,
+body.mobile-ui #sidebar-filters-slot > .form-group {
   order: 10;
 }
 

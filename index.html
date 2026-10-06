@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="server-mode">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -21,363 +21,42 @@
   <link rel="stylesheet" href="thumbnail-progress.css">
   <link rel="stylesheet" href="mobile-ui.css">
   <link rel="stylesheet" href="organize-library.css">
-  <!-- Local vendor copies — CDN scripts blocked first paint / ready-to-show on cold install -->
-  <script src="vendor/fuse.min.js"></script>
   <!-- Puter.js is loaded dynamically only when needed to avoid unnecessary socket.io connections -->
 
 
 </head>
 
 
-<body>
-  <div id="mobile-ui-overlay" hidden></div>
-  <header id="mobile-app-bar" hidden aria-label="JusttPrint">
-    <div class="mobile-bar-top">
-      <span class="mobile-bar-logo" aria-hidden="true"></span>
-      <div class="mobile-bar-text">
-        <div class="mobile-bar-title" id="mobile-bar-title">Library</div>
-        <div class="mobile-bar-subtitle" id="mobile-bar-count"></div>
-      </div>
-      <div class="mobile-view-switch" role="group" aria-label="Library view">
-        <button type="button" data-mobile-view="preview" aria-pressed="false" aria-label="Wall">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
-        </button>
-        <button type="button" data-mobile-view="list" aria-pressed="false" aria-label="List">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 5.5h16v2.6H4V5.5zm0 5.2h16v2.6H4v-2.6zm0 5.2h16v2.6H4v-2.6z"/></svg>
-        </button>
-      </div>
-    </div>
-    <div id="mobile-filter-chips" hidden></div>
-  </header>
-  <nav id="mobile-bottom-nav" hidden aria-label="Mobile navigation">
-    <div class="mobile-dock">
-      <button type="button" id="mobile-nav-library" data-nav="library">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
-        <span>Library</span>
-      </button>
-      <button type="button" id="mobile-nav-folders" data-nav="folders">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 6.5A2.5 2.5 0 0 1 4.5 4H9l2 2.2h8.5A2.5 2.5 0 0 1 22 8.7v8.8a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 17.5v-11z"/></svg>
-        <span>Folders</span>
-      </button>
-      <button type="button" id="mobile-nav-filters" data-nav="filters">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 4.5h18v2.4l-6.2 6.8V20l-5.6 2.2v-8.5L3 6.9V4.5z"/></svg>
-        <span>Filters</span>
-      </button>
-      <button type="button" id="mobile-nav-more" data-nav="more">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.35" fill="currentColor"/><circle cx="12" cy="12" r="2.35" fill="currentColor"/><circle cx="19" cy="12" r="2.35" fill="currentColor"/></svg>
-        <span>More</span>
-      </button>
-    </div>
-  </nav>
-  <section id="mobile-more-sheet" hidden aria-label="More">
-    <header id="mobile-more-head">
-      <span class="mobile-sheet-grab" aria-hidden="true"></span>
-      <div class="mobile-more-titlebar">
-        <button type="button" id="mobile-more-back" hidden>Back</button>
-        <h2 id="mobile-more-title">More</h2>
-        <button type="button" id="mobile-more-close">Close</button>
-      </div>
-    </header>
-    <div id="mobile-more-body">
-      <div id="mobile-more-home">
-        <div class="mobile-tool-grid">
-          <button type="button" class="mobile-tool" data-menu-label="Filament Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20.01A10 10 0 0 0 12 2zm0 4.2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6z"/></svg>
-            <span>Filament</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Printer Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v5H6V3zm-2 7h16a2 2 0 0 1 2 2v5h-4v4H6v-4H2v-5a2 2 0 0 1 2-2zm6 7v2h4v-2h-4z"/></svg>
-            <span>Printers</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Parts Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a5 5 0 0 1-6.6 6.6L8.4 18.6a2 2 0 1 1-2.8-2.8l6.5-6.5a5 5 0 0 1 6.6-6.6l-3.8 3.8z"/></svg>
-            <span>Parts</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Tag Manager">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12.5V4h8.5l9.2 9.2a2 2 0 0 1 0 2.8l-5.7 5.7a2 2 0 0 1-2.8 0L3 12.5zM7.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>
-            <span>Tags</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="De-Dup">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 3h10a2 2 0 0 1 2 2v10h-2V5H7V3zm-2 4h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
-            <span>De-Dup</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Organize Library">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 2h7v5h-7v-5z"/></svg>
-            <span>Organize</span>
-          </button>
-          <button type="button" class="mobile-tool" data-menu-label="Print Roulette">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20.01A10 10 0 0 0 12 2zm0 4a1.4 1.4 0 1 1 0 2.8A1.4 1.4 0 0 1 12 6zm5 7.5a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8zM12 16.2a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8zM7 13.5a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8z"/></svg>
-            <span>Roulette</span>
-          </button>
-        </div>
-        <div class="mobile-more-actions">
-          <button type="button" data-menu-label="Scan Directory">Scan Directory</button>
-          <button type="button" data-menu-label="View Entire Library">View Entire Library</button>
-        </div>
-        <div id="mobile-more-sections"></div>
-      </div>
-      <div id="mobile-more-drill" hidden></div>
-    </div>
-  </section>
+<body class="server-mode">
+  <!-- Phone layout: overlay, app bar, bottom nav and More sheet: React (src/web/shell/MobileShell.tsx) -->
+  <div id="mobile-shell-slot" style="display: contents"></div>
   <div class="sidebar">
+    <!-- Phone layout: the Filters sheet header: React (src/web/shell/MobileShell.tsx) -->
+    <div id="mobile-drawer-slot" style="display: contents"></div>
     <div class="sidebar-chrome">
     <img src="logo.png" alt="JusttPrint Logo" id="logo">
-    <div class="model-stats">
-      <div id="view-count" class="model-count">0 models in view</div>
-      <div id="total-count" class="model-count">0 models total</div>
+    <!-- Model counts, tool buttons, Scan Directory, Scan STL Home, View Entire Library: React (src/web/filters/SidebarActions.tsx) -->
+    <div id="sidebar-actions-slot" style="display: contents"></div>
+    <!-- Scan and thumbnail job progress: React (src/web/scan/Progress.tsx) -->
+    <div id="sidebar-progress-slot" style="display: contents"></div>
     </div>
-    <div class="icon-buttons-container">
-      <button id="dup-button" class="icon-button" title="De-Dup">
-        <img src="dup.png" alt="De-Dup">
-      </button>
-      <button id="tag-button" class="icon-button" title="Tag - Tag Manager">
-        <img src="tag.png" alt="Tag Manager">
-      </button>
-      <button id="filament-button" class="icon-button" title="Filament - Filament Manager">
-        <img src="filament.png" alt="Filament Manager">
-      </button>
-      <button id="roulette-button" class="icon-button" title="Roulette - Print Roulette">
-        <img src="roulette.png" alt="Print Roulette">
-      </button>
-    </div>
-    <button id="scan-directory-button">Scan Directory</button>
-    <button id="scan-stl-home-button" class="secondary-button" style="display: none;">Scan STL Home</button>
-    <button id="view-library-button">View Entire Library</button>
-    <div id="view-library-message" class="library-view-banner">
-      <!-- Updated text will appear here -->
-    </div>
-    <div class="progress-section hidden" id="progress-section">
-      <div class="progress-container" id="progress-container">
-        <div class="progress-bar" id="progress-bar"></div>
-        <div class="progress-text" id="progress-text"></div>
-      </div>
-      <div class="progress-container" id="render-progress-container">
-        <div class="progress-bar" id="render-progress-bar"></div>
-        <div class="progress-text" id="render-progress-text"></div>
-      </div>
-      <button id="stop-thumbnail-generation" class="stop-button" title="Stop thumbnail generation">Stop Processing</button>
-      <div class="performance-notice">Scanning may impact performance.</div>
-    </div>
-    </div>
+    <!-- The current filter strip: React (src/web/filters/Sidebar.tsx). -->
     <div id="current-filter">
       <div id="current-filter-body"></div>
-      <div id="search-boolean-toolbar" class="search-boolean-toolbar query-builder-control" hidden>
-        <span class="search-boolean-toolbar-label">Search logic:</span>
-        <a href="#" id="search-add-and-btn" class="search-boolean-op-link" title="Add AND to the query, then choose your next search or filter">AND</a>
-        <span class="search-boolean-op-sep" aria-hidden="true">·</span>
-        <a href="#" id="search-add-or-btn" class="search-boolean-op-link" title="Add OR to the query, then choose your next search or filter">OR</a>
-        <span class="search-boolean-op-sep" aria-hidden="true">·</span>
-        <a href="#" id="search-add-not-btn" class="search-boolean-op-link" title="Add NOT before the next search term">NOT</a>
-        <span id="search-boolean-hint" class="search-boolean-hint" hidden>Next: enter another search and press search, or pick a filter below.</span>
-      </div>
-      <button type="button" id="clear-all-filters-button" class="clear-filter-button" hidden>Clear All Filters</button>
+      <div id="current-filter-actions" style="display: contents"></div>
     </div>
     <div class="filter-section">
       <div class="filter-pinned">
-      <div class="form-group search-models-field">
-        <label for="search-filter-input">Search Models:</label>
-        <div class="input-with-icon">
-          <input type="search" id="search-filter-input" placeholder="Search models" enterkeyhint="search" autocomplete="off">
-          <button id="filter-search-button" class="icon-button" title="Add this text to the active query (all fields)">🔍</button>
-          <button id="clear-filter-search-button" class="icon-button" title="Clear search">×</button>
-        </div>
-        <label class="search-notes-toggle" title="Include notes in all-fields search. Turn off to skip long imported descriptions. A search limited to the Notes field still matches notes.">
-          <input type="checkbox" id="search-include-notes" checked>
-          <span>Include Notes</span>
-        </label>
+      <!-- Search, notes and sort: React (src/web/filters/Sidebar.tsx) -->
+      <div id="sidebar-search-slot" style="display: contents"></div>
+      <!-- Folders: React (src/web/folders/FolderTree.tsx) -->
+      <div id="sidebar-folders-slot" style="display: contents"></div>
       </div>
-      <div class="form-group">
-        <label for="sort-select">Sort By:</label>
-        <select id="sort-select">
-          <option value="name-asc">Name (A-Z)</option>
-          <option value="name-desc">Name (Z-A)</option>
-          <option value="size-asc">Size (Smallest First)</option>
-          <option value="size-desc">Size (Largest First)</option>
-          <option value="date-asc">Modified (Oldest First)</option>
-          <option value="date-desc" selected>Modified (Newest First)</option>
-          <option value="dateadded-asc">Date Added (Oldest First)</option>
-          <option value="dateadded-desc">Date Added (Newest First)</option>
-          <option value="directory-asc">Parent Directory (A-Z)</option>
-          <option value="directory-desc">Parent Directory (Z-A)</option>
-          <option value="designer-asc">Designer (A-Z)</option>
-          <option value="designer-desc">Designer (Z-A)</option>
-          <option value="parentmodel-asc">Parent Model (A-Z)</option>
-          <option value="parentmodel-desc">Parent Model (Z-A)</option>
-          <option value="printed-asc">Printed (Not Printed First)</option>
-          <option value="printed-desc">Printed (Printed First)</option>
-          <option value="printstatus-asc">Print Status (Printing First)</option>
-          <option value="printstatus-desc">Print Status (Unprinted First)</option>
-          <option value="printcount-desc">Print Count (Most First)</option>
-          <option value="printcount-asc">Print Count (Least First)</option>
-          <option value="lastprinted-desc">Last Printed (Newest First)</option>
-          <option value="lastprinted-asc">Last Printed (Oldest First)</option>
-          <option value="rating-desc">Rating (Highest First)</option>
-          <option value="rating-asc">Rating (Lowest First)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="folder-select">Folders:</label>
-        <div class="dropdown-with-list">
-          <select id="folder-select">
-            <option value="">All folders</option>
-          </select>
-          <button type="button" id="folder-tree-button" class="list-button icon-button folder-tree-button" title="Browse folder tree">☰</button>
-        </div>
-      </div>
-      </div>
-      <button type="button" id="filter-stack-toggle" class="filter-stack-toggle" aria-expanded="false" aria-controls="filter-stack">
-        <span class="filter-stack-toggle-label">More filters</span>
-        <span class="filter-stack-toggle-chevron" aria-hidden="true">▸</span>
-      </button>
+      <!-- More filters: React (src/web/filters/Sidebar.tsx) -->
+      <div id="filter-stack-toggle-slot" style="display: contents"></div>
       <div id="filter-stack" class="filter-stack">
-      <div class="form-group">
-        <label for="designer-select">Select Designer:</label>
-        <div class="dropdown-with-list">
-          <select id="designer-select">
-            <option value="">All Designers</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="designer" data-target="designer-select" title="Search existing designers">☰</button>
-        </div>
-        <div id="designer-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="designer-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="designer-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="designer-combine" value="AND"> All</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="parent-select">Select Parent Model:</label>
-        <div class="dropdown-with-list">
-          <select id="parent-select">
-            <option value="">All Parent Models</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="parent" data-target="parent-select" title="Search existing parent models">☰</button>
-        </div>
-        <div id="parentModel-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="parentModel-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="parentModel-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="parentModel-combine" value="AND"> All</label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="license-select">Select License:</label>
-        <div class="dropdown-with-list">
-          <select id="license-select">
-            <option value="">All Licenses</option>
-          </select>
-          <button type="button" class="list-button icon-button" data-field="license" data-target="license-select" title="Search existing licenses">☰</button>
-        </div>
-        <div id="license-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="license-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="license-combine" value="OR" checked> Any</label>
-          <label><input type="radio" name="license-combine" value="AND"> All</label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="printed-select">Print Status:</label>
-        <select id="printed-select">
-          <option value="all">All Models</option>
-          <option value="unprinted">Unprinted</option>
-          <option value="want">Want</option>
-          <option value="queued">Queued</option>
-          <option value="printing">Printing</option>
-          <option value="printed">Printed</option>
-          <option value="failed">Failed</option>
-          <option value="ever-printed">Ever printed</option>
-          <option value="never-printed">Never printed</option>
-          <option value="not-printed">Not printed</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="new-select">New Status:</label>
-        <select id="new-select">
-          <option value="all">All Models</option>
-          <option value="new">New Models Only</option>
-          <option value="not-new">Exclude New Models</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="favorite-select">Favorite:</label>
-        <select id="favorite-select">
-          <option value="all">All Models</option>
-          <option value="favorited">Favorites</option>
-          <option value="not-favorited">Not Favorites</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="rating-select">Rating:</label>
-        <select id="rating-select">
-          <option value="all">All Ratings</option>
-          <option value="unrated">Unrated</option>
-          <option value="1">1 Star</option>
-          <option value="2">2 Stars</option>
-          <option value="3">3 Stars</option>
-          <option value="4">4 Stars</option>
-          <option value="5">5 Stars</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="rating-min-select">Min Rating:</label>
-        <select id="rating-min-select">
-          <option value="all">All</option>
-          <option value="1">At Least 1</option>
-          <option value="2">At Least 2</option>
-          <option value="3">At Least 3</option>
-          <option value="4">At Least 4</option>
-          <option value="5">At Least 5</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="filetype-select">File Type:</label>
-        <select id="filetype-select">
-          <option value="">All Types</option>
-          <option value="stl">STL</option>
-          <option value="3mf">3MF</option>
-          <!-- Zip and additional types are added by populateFileTypeFilter() from settings -->
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="tag-filter">Filter by Tag:</label>
-        <div class="dropdown-with-list">
-          <div class="tags-input-container">
-            <select id="tag-filter">
-              <option value="">All Tags</option>
-            </select>
-          </div>
-          <button type="button" class="list-button icon-button" data-field="tag" data-target="tag-filter" title="Search existing tags">☰</button>
-        </div>
-        <div id="tags-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="tags-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="tags-combine" value="OR"> Any tag</label>
-          <label><input type="radio" name="tags-combine" value="AND" checked> All tags</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="filament-filter">Filter by Filament:</label>
-        <div class="dropdown-with-list">
-          <div class="tags-input-container">
-            <select id="filament-filter">
-              <option value="">All Filaments</option>
-            </select>
-          </div>
-          <button type="button" class="list-button icon-button" data-field="filament" data-target="filament-filter" title="Search existing filaments">☰</button>
-        </div>
-        <div id="filaments-filter-chips" class="filter-multi-chips" hidden></div>
-        <div id="filaments-combine-row" class="filter-combine-row query-builder-control" hidden>
-          <span class="filter-combine-label">Match:</span>
-          <label><input type="radio" name="filaments-combine" value="OR"> Any filament</label>
-          <label><input type="radio" name="filaments-combine" value="AND" checked> All filaments</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <button type="button" id="invert-filter-button" title="Invert the current filter (NOT equal instead of equal)">Invert Filters</button>
-      </div>
+      <!-- Filters: React (src/web/filters/Sidebar.tsx) -->
+      <div id="sidebar-filters-slot" style="display: contents"></div>
 
       <div class="form-group">
         <button id="edit-mode-toggle">Multi-Edit Mode</button>
@@ -386,18 +65,19 @@
     </div>
 
     <div id="model-details" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><span class="mobile-details-name" id="mobile-details-name" hidden></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-details-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-favorite" aria-pressed="false" aria-label="Favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.2s-6.8-4.3-9.2-8.2C1 9.2 2.2 5.8 5.6 5.2 7.6 4.8 9.4 5.8 12 8.2c2.6-2.4 4.4-3.4 6.4-3 3.4.6 4.6 4 2.8 6.8-2.4 3.9-9.2 8.2-9.2 8.2z"/></svg><span class="mobile-action-label">Favorite</span></button><button type="button" class="mobile-details-preview-btn" id="mobile-details-log-print" aria-label="Log a print"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h9l3 3v15H6V3zm8 1.5V7h2.5L14 4.5zM8 11h8v1.8H8V11zm0 3.2h8v1.8H8v-1.8zM8 17.4h5.2V19H8v-1.6z"/></svg><span>Log print</span></button></span></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Model Details</span><!-- Phone header: React (src/web/shell/MobileShell.tsx) --><span id="details-header-slot" style="display: contents"></span></h3>
       <button type="button" id="enter-multi-edit-button" class="full-width-button">Enter Multi-Edit Mode</button>
       <!-- Print status: React (src/web/print/PrintHistory.tsx) -->
       <div id="details-print-slot" style="display: contents"></div>
-      <button type="button" id="mobile-details-more" aria-expanded="false">More details</button>
+      <div id="details-more-slot" style="display: contents"></div>
       <!-- Name: React (src/web/details/DetailsFields.tsx) -->
       <div id="details-name-slot" style="display: contents"></div>
       <div class="form-group mobile-detail-extra">
         <label for="model-path">Path:</label>
         <div class="path-tree-field">
           <div id="path-tree-container" class="path-tree-container"></div>
-          <button type="button" id="reveal-in-folders-button" class="icon-button" title="Reveal in folders">☰</button>
+          <!-- Reveal in folders: React (src/web/details/DetailsPath.tsx) -->
+          <div id="details-reveal-slot" style="display: contents"></div>
         </div>
       </div>
       <!-- Source, designer, parent model, license and tags: React (src/web/details/DetailsFields.tsx) -->
@@ -411,159 +91,37 @@
     </div>
 
     <div id="bundle-details" class="model-details bundle-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button><span class="mobile-details-actions"><button type="button" class="mobile-details-preview-btn" id="mobile-bundle-open-preview" aria-label="View in 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2zm0 2.3L6 8.2v6.3l6 3.4 6-3.4V8.2L12 4.5z"/></svg><span>3D</span></button></span></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading" id="bundle-details-title"></span><span id="bundle-header-slot" style="display: contents"></span></h3>
       <!-- Title (in the header above) and body: React (src/web/details/BundleDetails.tsx) -->
       <div id="bundle-details-slot" style="display: contents"></div>
     </div>
-    <dialog id="searchable-list-dialog" class="modal">
-      <form method="dialog">
-        <h3 id="searchable-list-title">Select Item</h3>
-        <div class="form-group">
-          <input type="text" id="searchable-list-search" placeholder="Search..." autocomplete="off">
-        </div>
-        <div class="searchable-list-container">
-          <ul id="searchable-list-items" class="searchable-list"></ul>
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="searchable-list-cancel" data-close-dialog="searchable-list-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
+    <!-- Searchable list: React (src/web/components/ListPicker.tsx) -->
     <div id="multi-edit-panel" class="model-details hidden">
-      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <button type="button" class="mobile-panel-close" data-mobile-close-details aria-label="Close details">×</button></h3>
+      <h3><span class="mobile-sheet-grab" aria-hidden="true"></span><span class="mobile-details-heading">Multi-Edit Panel</span> <span id="multi-header-slot" style="display: contents"></span></h3>
       <!-- Body: React (src/web/details/MultiEditPanel.tsx) -->
       <div id="multi-edit-slot" style="display: contents"></div>
     </div>
-    <dialog id="terms-of-service-dialog" class="modal tos-dialog">
-      <div class="tos-dialog-content">
-        <div class="tos-header">
-          <img src="logo.png" alt="JusttPrint Logo" class="tos-logo">
-          <h2>Terms of Service</h2>
-        </div>
-        <div class="tos-body">
-          <div class="tos-scroll-content">
-            <h3>MIT License</h3>
-            <p class="tos-copyright">Copyright (c) 2025 JusttPrint</p>
-            <p>
-              Permission is hereby granted, free of charge, to any person obtaining a copy
-              of this software and associated documentation files (the "Software"), to deal
-              in the Software without restriction, including without limitation the rights
-              to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-              copies of the Software, and to permit persons to whom the Software is
-              furnished to do so, subject to the following conditions:
-            </p>
-            <p>
-              The above copyright notice and this permission notice shall be included in all
-              copies or substantial portions of the Software.
-            </p>
-            <p class="tos-warning">
-              THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-              IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-              FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-              AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-              LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-              OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-              SOFTWARE.
-            </p>
-            <p>
-              By using this software, you agree to abide by the terms of this license.
-            </p>
-          </div>
-        </div>
-        <div class="tos-footer">
-          <button id="decline-terms" class="tos-button tos-button-decline">I Decline</button>
-          <button id="accept-terms" class="tos-button tos-button-accept">I Accept</button>
-        </div>
-      </div>
-    </dialog>
+    <!-- Terms of Service and welcome: React (src/web/startup/FirstRun.tsx) -->
 
 
-    <!-- Tag preview dialog -->
-    <dialog id="tag-preview-dialog" class="modal">
-      <form method="dialog">
-        <h3>Review Generated Tags</h3>
-        <div id="tag-preview-model-info" style="margin-bottom: 15px; padding: 12px; background: #2a2a2a; border-radius: 6px; border: 1px solid #444;">
-          <div style="color: #fff; font-weight: 600; margin-bottom: 6px;">Model:</div>
-          <div id="tag-preview-model-name" style="color: #4a9eff; font-size: 14px; word-break: break-all;"></div>
-          <div id="tag-preview-model-path" style="color: #999; font-size: 12px; margin-top: 4px; word-break: break-all;"></div>
-        </div>
-        <p class="setting-description">
-          Review and select which tags to apply to this model. Uncheck any tags you don't want to include.
-        </p>
-        <p id="tag-preview-status" class="setting-description" hidden></p>
-        <div id="tag-preview-container" style="max-height: 400px; overflow-y: auto; margin: 15px 0; padding: 10px; background: #1e1e1e; border-radius: 6px; border: 1px solid #333;">
-          <!-- Tags will be dynamically added here -->
-        </div>
-        <div class="dialog-buttons">
-          <button type="button" id="tag-preview-apply">Apply Selected Tags</button>
-          <button type="button" id="tag-preview-cancel" data-close-dialog="tag-preview-dialog">Cancel</button>
-        </div>
-      </form>
-    </dialog>
+    <!-- Review Generated Tags: React (src/web/tags/TagPreviewDialog.tsx) -->
 
-    <!-- Add progress dialog for tag generation -->
-    <dialog id="progress-dialog" class="modal">
-      <div class="progress-container">
-        <h3 id="progress-title">Processing...</h3>
-        <p id="progress-message">Please wait...</p>
-        <div class="progress-bar-container">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-        <p id="progress-status">0 / 0</p>
-      </div>
-    </dialog>
+    <!-- Server task progress: React (src/web/components/ServerProgressDialog.tsx) -->
     
     <!-- Preview Model Dialog -->
   </div>
-  <div id="sidebar-resize-handle" class="panel-resize-handle sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" title="Drag to resize sidebar"></div>
-  <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden>
-    <div class="folder-rail-header">
-      <span>Folders</span>
-      <button type="button" id="folder-rail-close" class="icon-button" title="Hide folder tree">×</button>
-    </div>
-    <div id="folder-rail-search-wrap" class="folder-tree-search-wrap">
-      <input type="search" id="folder-rail-search" placeholder="Find folder..." autocomplete="off">
-    </div>
-    <div id="folder-rail-tree" class="folder-tree"></div>
-    <div id="folder-rail-resize-handle" class="panel-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize folders panel" title="Drag to resize folders panel"></div>
-  </aside>
-  <div id="folder-tree-popover" class="folder-tree-popover hidden" role="dialog" aria-label="Folder tree" hidden>
-    <input type="search" id="folder-tree-search" placeholder="Find folder..." autocomplete="off">
-    <div id="folder-tree-popover-tree" class="folder-tree"></div>
-    <div id="folder-tree-resize-handle" class="panel-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize folders panel" title="Drag to resize folders panel"></div>
-  </div>
+  <!-- Sidebar resize handle, folder rail contents and the folder popover: React (src/web/folders/FolderTree.tsx) -->
+  <div id="sidebar-resize-slot" style="display: contents"></div>
+  <aside id="folder-rail" class="folder-rail hidden" aria-label="Folder tree" hidden></aside>
   <div class="main-content">
     <main>
       <div class="grid-view-selector-background"></div>
       <div class="grid-view-selector">
-        <button type="button" id="folder-rail-toggle" class="folder-rail-toggle" title="Show folder tree beside the grid">
-          <span>Folders</span>
-        </button>
-        <button class="view-button active" data-view="detailed" title="Detailed - Large thumbnails with full details">
-          <span>Detailed</span>
-        </button>
-        <button class="view-button" data-view="preview" title="Preview - Wall of thumbnails">
-          <span>Preview</span>
-        </button>
-        <button class="view-button" data-view="list" title="List - Horizontal list view">
-          <span>List</span>
-        </button>
-        <div class="preview-size-switcher" id="preview-size-switcher" hidden title="Tile size">
-          <button type="button" data-preview-size="s" title="Small tiles">S</button>
-          <button type="button" data-preview-size="m" class="active" title="Medium tiles">M</button>
-          <button type="button" data-preview-size="l" title="Large tiles">L</button>
-        </div>
-        <button type="button" id="list-view-columns-toolbar-btn" class="list-view-columns-toolbar-btn" title="Show or hide columns. Drag column headers to reorder; drag a column edge to resize." hidden>
-          Show/Hide columns
-        </button>
+        <div id="folder-rail-toggle-slot" style="display: contents"></div>
+        <!-- View buttons, tile size and Show/Hide columns: React (src/web/grid/GridToolbar.tsx) -->
+        <div id="grid-toolbar-slot" style="display: contents"></div>
       </div>
       <div class="file-grid"></div>
-      <dialog id="welcome-message" class="welcome-dialog">
-        <div class="welcome-content">
-          <h2>Welcome to JusttPrint!</h2>
-          <button id="dismiss-welcome">Get Started!</button>
-        </div>
-      </dialog>
       <dialog id="quickstart-guide" class="modal" style="width: 80%; max-width: 1000px;" tabindex="-1">
         <div class="guide-content">
           <div class="guide-header">
@@ -733,40 +291,14 @@ docker run -d --name justtprint-server -p 5000:5000 -v justtprint-data:/root/.co
     </div>
   </div>
 
-  <!-- Progress overlay for thumbnail regeneration / missing thumbnail generation -->
-  <div id="thumbnail-progress-overlay" class="tp-overlay" role="dialog" aria-modal="true" aria-labelledby="thumbnail-progress-title" hidden>
-    <div class="tp-panel">
-      <h3 class="tp-title" id="thumbnail-progress-title">Generating Thumbnails</h3>
-      <p class="tp-phase" id="thumbnail-progress-phase">Preparing...</p>
-      <div class="tp-track" id="thumbnail-progress-track">
-        <div class="tp-fill" id="thumbnail-progress-fill"></div>
-      </div>
-      <div class="tp-meta">
-        <span id="thumbnail-progress-count"></span>
-        <span id="thumbnail-progress-percent"></span>
-      </div>
-      <div class="tp-actions">
-        <button type="button" class="tp-background" id="thumbnail-progress-background" hidden>Background</button>
-        <button type="button" class="tp-cancel" id="thumbnail-progress-cancel">Stop</button>
-      </div>
-    </div>
-  </div>
+  <!-- Thumbnail job dialog: React (src/web/scan/Progress.tsx) -->
 
-  <script src="thumbnail-progress.js"></script>
   <script src="slicer-protocol.js"></script>
   <script src="server-bridge.js"></script>
-  <script src="query-builder.js"></script>
-  <script src="grid-refresh.js"></script>
-  <script src="search.js"></script>
-  <script src="sidebar-layout.js"></script>
-  <script src="folder-tree.js"></script>
   <script src="step-assembly.js"></script>
   <script src="stl-sanity.js"></script>
-  <script src="renderer.js"></script>
-  <script src="filament.js"></script>
   <script src="guide.js"></script>
   <script src="pwa.js"></script>
-  <script src="mobile-ui.js"></script>
 
   <!-- React screens (src/web/, mounted by main.tsx) -->
   <div id="react-root"></div>

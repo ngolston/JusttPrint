@@ -49,13 +49,23 @@ async function runServerStlHomeScan(reason) {
   }
 }
 
+/** Minutes until the next scheduled scan (read each time, so a changed setting applies). */
+function scanIntervalMs() {
+  return (parseInt(getSettingValueOr('stlHomeUpdateFrequency', '60'), 10) || 60) * 60 * 1000;
+}
+
+function scheduleNextStlHomeScan() {
+  serverStlHomeTimer = setTimeout(async () => {
+    await runServerStlHomeScan('scheduled').catch((error) => console.error('[STL Home] scheduled scan:', error));
+    scheduleNextStlHomeScan();
+  }, scanIntervalMs());
+  if (serverStlHomeTimer.unref) serverStlHomeTimer.unref();
+}
+
 /** First scan at startup, then every stlHomeUpdateFrequency minutes (default 60). */
 function startServerStlHomeScans() {
   runServerStlHomeScan('startup').catch((error) => console.error('[STL Home] startup scan:', error));
-  const minutes = parseInt(getSettingValueOr('stlHomeUpdateFrequency', '60'), 10) || 60;
-  serverStlHomeTimer = setInterval(() => {
-    runServerStlHomeScan('scheduled').catch((error) => console.error('[STL Home] scheduled scan:', error));
-  }, minutes * 60 * 1000);
+  scheduleNextStlHomeScan();
 }
 
 module.exports = { startServerStlHomeScans };

@@ -185,7 +185,7 @@ async function apiChecks(base, wsUrl) {
   }, 60000, 'STL Home scan').catch((error) => error.message);
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
   check('home after login', (await http.request('/')).status === 200);
-  check('web asset served', (await http.request('/renderer.js')).status === 200);
+  check('web asset served', (await http.request('/page-init.js')).status === 200);
   for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
@@ -196,7 +196,7 @@ async function apiChecks(base, wsUrl) {
   check('frame-ancestors', /frame-ancestors 'self'/.test(health.headers.get('content-security-policy') || ''));
   check('CSP allows only script files from this server', /script-src 'self' 'wasm-unsafe-eval';/.test(health.headers.get('content-security-policy') || '') && !/unsafe-inline/.test(health.headers.get('content-security-policy') || ''));
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
-  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/renderer.js')));
+  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
   check('only the parse worker may eval (STEP library)', /'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')));
   check('no X-Powered-By', !health.headers.get('x-powered-by'));
 
@@ -648,8 +648,68 @@ async function browserChecks(base, wsUrl, session) {
       await page.click(pathFolder);
       const folderFiltered = await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false);
       check('clicking a folder in the path shows that folder', folderFiltered);
+      // Folder tree (React, src/web/folders/): the select, Reveal in folders, the popover, the rail and the panel widths.
+      const treeRow = (scope) => `${scope} .folder-tree-row[data-path="${cardDir.replace(/"/g, '\\"')}"]`;
+      check('the Folders select follows the folder shown', (await page.inputValue('#folder-select')) === cardDir);
+      await page.click('#reveal-in-folders-button');
+      check('Reveal in folders opens the tree at the model\'s folder',
+        await page.waitForSelector(`${treeRow('#folder-tree-popover')}.is-selected`, { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#folder-tree-button');
+      check('the ☰ button closes the folder popover', await page.waitForSelector('#folder-tree-popover', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
+      await page.selectOption('#folder-select', '');
+      check('"All folders" clears the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#folder-tree-button');
+      await page.fill('#folder-tree-search', path.basename(cardDir));
+      await page.click(treeRow('#folder-tree-popover'));
+      check('picking a folder in the popover shows it and closes the popover',
+        await page.waitForFunction((dir) => window.currentDirectoryFilter === dir, cardDir, { timeout: 10000 }).then(() => true, () => false)
+        && !(await page.isVisible('#folder-tree-popover')));
+      await page.click('#folder-rail-toggle');
+      check('the Folders toggle opens the rail beside the grid',
+        await page.waitForSelector(`${treeRow('#folder-rail')}.is-selected`, { timeout: 10000 }).then(() => true, () => false)
+        && await page.evaluate(() => document.body.classList.contains('folder-rail-open')));
+      await page.click('#folder-rail-close');
+      const railSetting = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['folderRailOpen'])).result === 'false' ? true : null), 5000, 'rail setting').catch(() => false);
+      check('closing the rail hides it and saves that', railSetting === true && !(await page.isVisible('#folder-rail')));
+      const handle = await page.locator('#sidebar-resize-handle').boundingBox();
+      const widthBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sidebar')).width);
+      if (handle) {
+        await page.mouse.move(handle.x + handle.width / 2, handle.y + 200);
+        await page.mouse.down();
+        await page.mouse.move(handle.x + handle.width / 2 + 40, handle.y + 200, { steps: 4 });
+        await page.mouse.up();
+      }
+      const savedWidth = await waitFor(async () => (await invoke(base, session, 'get-setting', ['sidebarWidth'])).result || null, 5000, 'sidebar width').catch(() => null);
+      check('dragging the sidebar edge resizes it and saves the width', !!handle && Number(savedWidth) > parseInt(widthBefore, 10) - 5
+        && (await page.evaluate(() => document.documentElement.style.getPropertyValue('--sidebar-width'))) === `${savedWidth}px`, `${widthBefore} → ${savedWidth}`);
+      await page.evaluate(() => document.documentElement.style.removeProperty('--sidebar-width'));
+      // Sidebar actions (React, src/web/filters/SidebarActions.tsx): counts, Scan Directory, View Entire Library.
+      const totalModels = (await invoke(base, session, 'getTotalModelCount', [])).result;
+      const counted = await page.waitForFunction((n) => document.getElementById('total-count')?.textContent === `${n} model${n === 1 ? '' : 's'} total`
+        && /^\d+ models? in view$/.test(document.getElementById('view-count')?.textContent || ''), totalModels, { timeout: 10000 }).then(() => true, () => false);
+      check('the sidebar shows the models in view and in total', counted, await page.textContent('.model-stats'));
+      await page.click('#scan-directory-button');
+      const scanPrompt = await page.waitForSelector('dialog.browser-input-dialog[open]:has-text("Scan Directory")', { timeout: 10000 }).catch(() => null);
+      if (scanPrompt) await page.click('dialog.browser-input-dialog[open] button:text-is("Cancel")');
+      check('Scan Directory asks for a container folder; Cancel scans nothing', !!scanPrompt && await page.isEnabled('#scan-directory-button')
+        && !(await page.isVisible('dialog.browser-input-dialog[open]')));
+      await page.click('#view-library-button');
+      check('View Entire Library leaves the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
       await page.evaluate(async () => { window.currentDirectoryFilter = ''; await window.performCombinedSearch?.(); });
       await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+      // Model menu (React, src/web/menus/ContextMenu.tsx): right-click, a destructive item asks first, Escape closes.
+      await page.click(`${card} .file-name`, { button: 'right' });
+      check('right-clicking a card shows the model menu', await page.waitForSelector('#html-context-menu .html-context-menu-item:text-is("Preview")', { timeout: 10000 }).then(() => true, () => false));
+      await page.click('#html-context-menu .html-context-menu-item:text-is("Remove from Library")');
+      const removeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Confirm Remove") button:text-is("No")', { timeout: 10000 }).catch(() => null);
+      if (removeAsk) await removeAsk.click();
+      await page.waitForSelector('#html-context-menu', { state: 'detached', timeout: 5000 }).catch(() => {});
+      check('Remove from Library asks first, and No keeps the model', !!removeAsk && !(await page.isVisible('#html-context-menu'))
+        && !!(await invoke(base, session, 'get-model', [cardPath])).result);
+      await page.click(`${card} .file-name`, { button: 'right' });
+      await page.waitForSelector('#html-context-menu', { timeout: 10000 }).catch(() => {});
+      await page.keyboard.press('Escape');
+      check('Escape closes the model menu', await page.waitForSelector('#html-context-menu', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
@@ -688,6 +748,70 @@ async function browserChecks(base, wsUrl, session) {
       check('Print Roulette picks one model and shows it', !!rouletteDone && picked.length === 1
         && await page.getAttribute('#path-tree-container', 'data-file-path') === picked[0], JSON.stringify(picked));
       if (rouletteDone) await rouletteDone.click();
+
+      // Sidebar filters (React, src/web/filters/): the grid, the filter strip and the saved settings follow them.
+      const third = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath'))))
+        .find((p) => p !== cardPath && p !== other);
+      const shownPaths = () => page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')).sort());
+      const waitShown = (paths) => page.waitForFunction((want) => {
+        const have = [...document.querySelectorAll('.file-grid .file-item-detailed[data-filepath]')].map((el) => el.getAttribute('data-filepath')).sort();
+        return JSON.stringify(have) === JSON.stringify([...want].sort());
+      }, paths, { timeout: 10000 }).then(() => true, async () => JSON.stringify(await shownPaths()));
+      const stripText = () => page.textContent('#current-filter-body').then((t) => t.replace(/\s+/g, ' ').trim());
+      await invoke(base, session, 'update-models-batch', [[
+        { filePath: other, designer: 'E2E Sidebar Designer', tags: ['e2e-s1'] },
+        { filePath: third, tags: ['e2e-s1', 'e2e-s2'] }
+      ]]);
+      await page.evaluate(() => window.libraryFilters.reloadOptions());
+      await page.waitForSelector('#designer-select option[value="E2E Sidebar Designer"]', { state: 'attached', timeout: 10000 }).catch(() => {});
+      // "More filters" folds away while a details panel is open.
+      if (!(await page.isVisible('#designer-select'))) await page.click('#filter-stack-toggle');
+      await page.selectOption('#designer-select', 'E2E Sidebar Designer');
+      const byDesigner = await waitShown([other]);
+      check('the designer filter narrows the grid and shows in the filter strip', byDesigner === true
+        && /Showing 1 models.*Designer: E2E Sidebar Designer/.test(await stripText()), `${byDesigner} ${await stripText()}`);
+      await page.click('#current-filter-body .filter-pill:has-text("Designer:") .filter-remove');
+      check('removing a filter chip shows the library again', await waitShown([cardPath, other, third]) === true && !(await page.isVisible('#current-filter-body .filter-pill')));
+      const cardName = path.basename(cardPath);
+      await page.fill('#search-filter-input', cardName);
+      await page.press('#search-filter-input', 'Enter');
+      check('a search narrows the grid and becomes a chip', await waitShown([cardPath]) === true && await page.inputValue('#search-filter-input') === ''
+        && (await stripText()).includes(`Search: "${cardName}"`));
+      await page.click('#search-add-or-btn');
+      const awaitingHint = await page.isVisible('#search-boolean-hint');
+      await page.selectOption('#designer-select', 'E2E Sidebar Designer');
+      const orResult = await waitShown([cardPath, other]);
+      check('OR then a filter pick adds it to the query', awaitingHint && orResult === true
+        && /Search: ".*".*OR.*Designer: E2E Sidebar Designer/.test(await stripText()) && await page.inputValue('#designer-select') === '',
+        `${awaitingHint} ${orResult} ${await stripText()}`);
+      await page.click('#invert-filter-button');
+      const inverted = await waitShown([third]);
+      check('Invert Filters inverts the query', inverted === true && (await stripText()).includes('NOT')
+        && await page.getAttribute('#invert-filter-button', 'class') === 'active', `${inverted} ${await stripText()}`);
+      await page.click('#clear-all-filters-button');
+      check('Clear All Filters shows the whole library', await waitShown([cardPath, other, third]) === true
+        && !(await page.isVisible('#clear-all-filters-button')) && !(await page.getAttribute('#invert-filter-button', 'class')));
+      await page.selectOption('#tag-filter', 'e2e-s1');
+      const oneTag = await waitShown([other, third]);
+      await page.selectOption('#tag-filter', 'e2e-s2');
+      const bothTags = await waitShown([third]);
+      check('two tags must both match by default', oneTag === true && bothTags === true && await page.isVisible('#tags-combine-row')
+        && (await page.locator('#tags-filter-chips .filter-value-chip').count()) === 2, `${oneTag} ${bothTags}`);
+      await page.check('#tags-combine-row input[value="OR"]');
+      check('Any tag matches either tag', await waitShown([other, third]) === true && (await stripText()).includes('(any)'));
+      await page.click('#clear-all-filters-button');
+      await waitShown([cardPath, other, third]);
+      await page.selectOption('#sort-select', 'name-asc');
+      const savedSort = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['sortOption'])).result === 'name-asc' ? true : null), 10000, 'sort saved').catch(() => false);
+      const sortedNames = await page.$$eval('.file-grid .file-item-detailed .file-name', (els) => els.map((el) => el.textContent.trim().toLowerCase()));
+      check('the sort order applies and is saved', savedSort === true && JSON.stringify(sortedNames) === JSON.stringify([...sortedNames].sort()), JSON.stringify(sortedNames));
+      await page.selectOption('#sort-select', 'date-desc');
+      await page.uncheck('#search-include-notes');
+      const notesSettingSaved = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['searchIncludeNotes'])).result === '0' ? true : null), 10000, 'notes saved').catch(() => false);
+      check('the notes toggle is saved', notesSettingSaved === true);
+      await page.check('#search-include-notes');
+      await invoke(base, session, 'update-models-batch', [[{ filePath: other, designer: null, tags: [] }, { filePath: third, tags: [] }]]);
+      await page.evaluate(() => window.libraryFilters.reloadOptions());
       // Ctrl-click is a right-click on macOS; the app takes Cmd there.
       const multiKey = process.platform === 'darwin' ? 'Meta' : 'Control';
       await page.click(`${card} .file-name`, { modifiers: [multiKey] });
@@ -704,7 +828,8 @@ async function browserChecks(base, wsUrl, session) {
       await page.evaluate(() => Promise.all(((window._electronEventListeners || {})['refresh-grid'] || []).map((listener) => listener())));
       await page.waitForTimeout(1000);
       check('a server grid refresh keeps the multi-edit selection', (await page.locator('.file-grid .file-item.selected').count()) === 2
-        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
+        && await page.isVisible('#multi-edit-panel') && /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()),
+        JSON.stringify(await page.evaluate(() => ({ selected: window.selection.size, highlighted: document.querySelectorAll('.file-grid .file-item.selected').length }))));
       await page.click('#multi-designer-add');
       const multiPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
       if (multiPrompt) {
@@ -813,12 +938,82 @@ async function browserChecks(base, wsUrl, session) {
     }
     await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: null, rating: 0 }))]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
+
+    // Grid toolbar and list view columns (React, src/web/grid/GridToolbar.tsx, ListHeader.tsx, columns.ts).
+    await page.click('.view-button[data-view="list"]');
+    const listShown = await page.waitForSelector('.file-grid .list-view-header [data-list-col="name"] .sortable-header', { timeout: 10000 }).then(() => true, () => false);
+    const savedView = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['gridView'])).result === 'list' ? true : null), 5000, 'gridView').catch(() => false);
+    check('the List button shows the list with its column header, and is saved', listShown && savedView === true
+      && await page.isVisible('#list-view-columns-toolbar-btn') && await page.isVisible('.view-button.active[data-view="list"]'));
+    await page.click('.list-view-header [data-list-col="name"] .sortable-header');
+    const sortedByName = await page.waitForFunction(() => window.libraryFilters.state().sort === 'name-asc'
+      && document.querySelector('.list-view-header [data-list-col="name"] .sort-indicator')?.textContent === '↑', null, { timeout: 5000 }).then(() => true, () => false);
+    await page.click('.list-view-header [data-list-col="name"] .sortable-header');
+    const sortedDesc = await page.waitForFunction(() => window.libraryFilters.state().sort === 'name-desc', null, { timeout: 5000 }).then(() => true, () => false);
+    check('clicking a column title sorts by it, and again the other way', sortedByName && sortedDesc);
+    await page.evaluate(() => window.libraryFilters.setSort('dateAdded DESC'));
+    await page.click('#list-view-columns-toolbar-btn');
+    await page.uncheck('.list-view-columns-popover input[data-col-id="size"]');
+    const sizeHidden = await page.waitForFunction(() => [...document.querySelectorAll('.file-grid [data-list-col="size"]')].every((el) => el.style.display === 'none'), null, { timeout: 5000 }).then(() => true, () => false);
+    const layoutSaved = await waitFor(async () => {
+      const raw = (await invoke(base, session, 'get-setting', ['listViewColumnLayout'])).result;
+      return raw && JSON.parse(raw).visibility.size === false ? true : null;
+    }, 5000, 'column layout').catch(() => false);
+    check('Show/Hide columns hides a column in the header and rows, and saves it', sizeHidden && layoutSaved === true);
+    await page.check('.list-view-columns-popover input[data-col-id="size"]');
+    await page.mouse.click(5, 5);
+    check('a click outside closes the columns popover', !(await page.isVisible('.list-view-columns-popover')));
+    const nameCell = await page.locator('.list-view-header [data-list-col="name"]').boundingBox();
+    const handle = await page.locator('.list-view-header [data-list-col="name"] .list-view-col-resize-handle').boundingBox();
+    if (handle) {
+      // The handle straddles the cell edge; the cell clips its outer half.
+      await page.mouse.move(handle.x + 1, handle.y + handle.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handle.x + 61, handle.y + handle.height / 2, { steps: 4 });
+      await page.mouse.up();
+    }
+    const widened = await page.evaluate(() => document.querySelector('.list-view-header [data-list-col="name"]').getBoundingClientRect().width);
+    const rowWidth = await page.evaluate(() => document.querySelector('.file-grid .file-info [data-list-col="name"]')?.getBoundingClientRect().width);
+    check('dragging a column edge widens the column in the header and rows', !!nameCell && widened > nameCell.width + 40 && Math.abs(rowWidth - widened) < 2,
+      `${nameCell && nameCell.width} -> ${widened} (row ${rowWidth})`);
+    const dragColumn = async (from, to) => {
+      const a = await page.locator(`.list-view-header [data-list-col="${from}"] .sortable-header`).boundingBox();
+      const b = await page.locator(`.list-view-header [data-list-col="${to}"]`).boundingBox();
+      await page.mouse.move(a.x + 10, a.y + a.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(b.x + 5, b.y + b.height / 2, { steps: 6 });
+      await page.mouse.up();
+    };
+    await dragColumn('size', 'name');
+    const moved = await page.evaluate(() => {
+      const left = (sel) => document.querySelector(sel)?.getBoundingClientRect().left ?? 0;
+      return left('.list-view-header [data-list-col="size"]') < left('.list-view-header [data-list-col="name"]')
+        && left('.file-grid .file-info [data-list-col="size"]') < left('.file-grid .file-info [data-list-col="name"]');
+    });
+    check('dragging a column title moves the column in the header and rows, without sorting', moved
+      && await page.evaluate(() => window.libraryFilters.state().sort) === 'dateAdded DESC');
+    await dragColumn('name', 'size');
     await page.click('.view-button[data-view="preview"]');
+    await page.click('#preview-size-switcher [data-preview-size="s"]');
+    const smallTiles = await waitFor(async () => ((await invoke(base, session, 'get-setting', ['previewTileSize'])).result === 's' ? true : null), 5000, 'tile size').catch(() => false);
+    check('the tile size switcher shows smaller tiles and saves the size', smallTiles === true
+      && await page.isVisible('#preview-size-switcher [data-preview-size="s"].active') && !(await page.isVisible('.list-view-header')));
+    await page.click('#preview-size-switcher [data-preview-size="m"]');
 
     // CSP (script-src 'self'): controls that used inline onclick="" still work.
-    await page.evaluate(() => document.getElementById('searchable-list-dialog').showModal());
-    await page.click('#searchable-list-dialog [data-close-dialog="searchable-list-dialog"]');
-    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('searchable-list-dialog').open));
+    await page.evaluate(() => document.getElementById('server-mode-info-dialog').showModal());
+    await page.click('#server-mode-info-dialog [data-close-dialog="server-mode-info-dialog"]');
+    check('data-close-dialog button closes its dialog', await page.evaluate(() => !document.getElementById('server-mode-info-dialog').open));
+    // Searchable list (React, src/web/components/ListPicker.tsx): search narrows it, Cancel picks nothing.
+    if (!(await page.isVisible('#tag-filter'))) await page.click('#filter-stack-toggle');
+    await page.click('#tag-filter + .list-button, .form-group:has(#tag-filter) .list-button');
+    await page.waitForSelector('#searchable-list-dialog[open] li', { timeout: 10000 }).catch(() => {});
+    const allTags = await page.locator('#searchable-list-dialog li').count();
+    await page.fill('#searchable-list-search', 'e2e-model');
+    const narrowed = await page.locator('#searchable-list-dialog li').count();
+    await page.click('#searchable-list-cancel');
+    check('the searchable list narrows as you type, and Cancel closes it without a pick', allTags > 1 && narrowed >= 1 && narrowed < allTags
+      && !(await page.isVisible('#searchable-list-dialog')) && (await page.evaluate(() => window.libraryFilters.state().tags.length)) === 0, `${allTags} -> ${narrowed}`);
     await page.evaluate(() => document.getElementById('preview-dialog').showModal());
     await page.click('#preview-fullscreen-toggle');
     check('the preview goes full screen', await page.evaluate(() => document.getElementById('preview-dialog').classList.contains('modal-fullscreen')));
@@ -862,7 +1057,7 @@ async function browserChecks(base, wsUrl, session) {
     // Rename a designer through the in-page input dialog (Metadata Manager).
     const cube = path.join(LIBRARY, 'Designer A', 'cube.stl');
     await invoke(base, session, 'update-models-batch', [[{ filePath: cube, designer: 'Old Designer' }]]);
-    await page.evaluate(() => window.electron.send('open-metadata-editor'));
+    await page.evaluate(() => window.openMetadataEditor());
     await page.waitForSelector('#metadata-editor-dialog[open]', { timeout: 15000 }).catch(() => {});
     const renameButton = await page.waitForSelector(
       '#metadata-editor-dialog .metadata-item:has-text("Old Designer") .metadata-rename', { timeout: 15000 }
@@ -916,7 +1111,7 @@ async function browserChecks(base, wsUrl, session) {
     const otherTab = await page.context().newPage();
     await otherTab.goto(base + '/');
     await otherTab.waitForFunction(() => window._electronBridgeReady === true && typeof window.openTagManager === 'function', null, { timeout: 60000 });
-    await page.evaluate(() => window.electron.send('open-tag-manager'));
+    await page.evaluate(() => window.openTagManager());
     await page.waitForSelector('#tag-manager-dialog[open]', { timeout: 10000 }).catch(() => {});
     await otherTab.waitForTimeout(1000);
     check('a dialog opened in one tab stays in that tab', await page.isVisible('#tag-manager-dialog') && !(await otherTab.isVisible('#tag-manager-dialog')));
@@ -1095,8 +1290,10 @@ async function browserChecks(base, wsUrl, session) {
 
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
-    await page.evaluate(() => window.openStats());
-    check('Library Stats opens', await page.isVisible('#stats-dialog'));
+    // Opened from the menu bar (React, src/web/shell/MenuBar.tsx).
+    await page.click('#server-menu-bar .server-menu-button:text-is("Help")');
+    await page.click('#server-menu-bar .server-menu-item:text-is("Library Stats")');
+    check('Library Stats opens from the Help menu', await page.isVisible('#stats-dialog') && !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
     const shownTotal = await page.waitForFunction((total) => {
       const text = document.getElementById('stats-total-models')?.textContent;
       return text === total ? text : null;
@@ -1105,6 +1302,101 @@ async function browserChecks(base, wsUrl, session) {
     check('Library Stats draws its charts', await page.isVisible('#stats-dialog .stats-pie svg') && (await page.locator('#stats-dialog .stats-bar-row').count()) === 4);
     await page.click('#stats-dialog .dialog-buttons button');
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
+    await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
+    await page.hover('#server-menu-bar .server-menu-item-has-submenu:has-text("MCP Server")');
+    check('a menu submenu opens on hover', await page.isVisible('#server-menu-bar .server-menu-subitem:text-is("HTTPS / SSL")'));
+    await page.click('main');
+    check('a click outside closes the menu', !(await page.isVisible('#server-menu-bar .server-menu-dropdown')));
+
+    // Phone layout (React, src/web/shell/MobileShell.tsx), same session at phone size.
+    const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+      storageState: await page.context().storageState() })).newPage();
+    phone.on('pageerror', (error) => errors.push(`phone: ${error.message}`));
+    await phone.goto(base + '/');
+    await phone.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const phoneTile = await phone.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => null);
+    check('the phone layout shows the app bar and bottom nav instead of the menu bar', await phone.isVisible('#mobile-app-bar') && await phone.isVisible('#mobile-bottom-nav')
+      && !(await phone.isVisible('#server-menu-bar')) && (await phone.textContent('#mobile-bar-title')) === 'Library'
+      && /^\d+ models?$/.test(await phone.textContent('#mobile-bar-count')));
+    check('the phone shows the wall, not the detailed cards', await phone.waitForSelector('.view-button.active[data-view="preview"]', { state: 'attached', timeout: 10000 }).then(() => true, () => false)
+      && await phone.isVisible('#mobile-app-bar [data-mobile-view="preview"].is-active'));
+    await phone.tap('#mobile-nav-filters');
+    check('Filters opens the sidebar as a sheet', await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))
+      && await phone.isVisible('#mobile-drawer-head') && await phone.isVisible('#mobile-nav-filters.is-active'));
+    await phone.tap('#mobile-drawer-done');
+    check('Done closes the Filters sheet', !(await phone.evaluate(() => document.body.classList.contains('mobile-sidebar-open'))) && !(await phone.isVisible('#mobile-ui-overlay')));
+    await phone.tap('#mobile-nav-more');
+    check('More lists the tools and the rest of the menu', await phone.isVisible('#mobile-more-sheet .mobile-tool[data-menu-label="Tag Manager"]')
+      && await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Theme")')
+      && !(await phone.isVisible('#mobile-more-sections .mobile-more-row:text-is("Tag Manager")')));
+    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("MCP Server")');
+    check('a submenu opens as its own page', (await phone.textContent('#mobile-more-title')) === 'MCP Server' && await phone.isVisible('#mobile-more-drill .mobile-more-row:text-is("HTTPS / SSL")'));
+    await phone.tap('#mobile-more-back');
+    await phone.tap('#mobile-more-sections .mobile-more-row:text-is("Library Stats")');
+    check('a More action closes the sheet and opens its screen', await phone.waitForSelector('#stats-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
+      && !(await phone.isVisible('#mobile-more-sheet')));
+    await phone.click('#stats-dialog .dialog-buttons button');
+    if (phoneTile) {
+      await phoneTile.tap();
+      const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('mobile-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
+      check('tapping a model opens its details as a sheet with its name', phoneDetails
+        && (await phone.textContent('#mobile-details-name')).trim().length > 0 && await phone.isVisible('#mobile-details-open-preview'));
+      await phone.tap('#model-details .mobile-panel-close');
+      check('× closes the details sheet', await phone.waitForFunction(() => !document.body.classList.contains('mobile-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
+    }
+    await phone.close();
+
+    // First run (React, src/web/startup/FirstRun.tsx): the terms, then the welcome, then the guide.
+    await invoke(base, session, 'save-setting', ['tosAcceptedDate', '']);
+    await invoke(base, session, 'save-setting', ['hasRunBefore', '']);
+    const fresh = await page.context().newPage();
+    fresh.on('pageerror', (error) => errors.push(`first run: ${error.message}`));
+    await fresh.goto(base + '/');
+    check('a first visit asks to accept the terms', await fresh.waitForSelector('#terms-of-service-dialog[open] #accept-terms', { timeout: 30000 }).then(() => true, () => false)
+      && !(await fresh.isVisible('#welcome-message')));
+    await fresh.press('#terms-of-service-dialog', 'Escape');
+    check('Escape does not skip the terms', await fresh.isVisible('#terms-of-service-dialog'));
+    await fresh.click('#accept-terms');
+    check('accepting saves it and shows the welcome', await fresh.waitForSelector('#welcome-message[open]', { timeout: 30000 }).then(() => true, () => false)
+      && !!(await invoke(base, session, 'get-setting', ['tosAcceptedDate'])).result);
+    await fresh.click('#dismiss-welcome');
+    check('Get Started opens the Quick Start Guide', await fresh.waitForSelector('#quickstart-guide[open]', { timeout: 10000 }).then(() => true, () => false)
+      && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true');
+    await fresh.close();
+
+    // Review Generated Tags (React, src/web/tags/TagPreviewDialog.tsx), driven by the events an AI run sends.
+    const reviewPaths = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter((p) => !p.includes('::')).slice(0, 2);
+    if (reviewPaths.length === 2) {
+      const [ra, rb] = reviewPaths;
+      const tagNames = async (filePath) => (((await invoke(base, session, 'get-model', [filePath])).result || {}).tags || []).map((t) => (typeof t === 'string' ? t : t.name));
+      const tagsBefore = await tagNames(ra);
+      const emit = (...args) => page.evaluate((a) => window.electron.send(...a), args);
+      await emit('start-batch-tag-generation', 2, [ra, rb, ra]);
+      await page.waitForFunction(() => document.querySelectorAll('#tag-preview-container .tag-review-model').length === 2, null, { timeout: 10000 }).catch(() => {});
+      check('a batch run lists each model once while it waits, with Apply off', await page.isVisible('#tag-preview-dialog')
+        && (await page.locator('#tag-preview-container .tag-review-model').count()) === 2 && await page.isDisabled('#tag-preview-apply')
+        && /\(0\/2 processed/.test(await page.textContent('#tag-preview-dialog h3')));
+      await emit('tags-generated', ra, ['e2e-ai-a', 'e2e-ai-b'], null);
+      await emit('tags-generated', rb, [], 'Rate limit exceeded: wait a minute');
+      const limitNotice = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Rate Limit Exceeded") button', { timeout: 10000 }).catch(() => null);
+      if (limitNotice) await limitNotice.click();
+      check('suggestions show as ticked boxes, and a rate limit is reported once', !!limitNotice
+        && (await page.locator('#tag-preview-container input[type=checkbox]:checked').count()) === 2
+        && /wait a minute/.test(await page.textContent('#tag-preview-container')));
+      await emit('batch-tag-generation-complete');
+      check('Apply turns on when the batch ends', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 5000 }).then(() => true, () => false));
+      await page.uncheck('#tag-preview-container input[value="e2e-ai-b"]');
+      await page.click('#tag-preview-apply');
+      const applied = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Tags applied") button', { timeout: 15000 }).catch(() => null);
+      if (applied) await applied.click();
+      const tagsAfter = await tagNames(ra);
+      check('Apply saves only the ticked tags, plus "AI Tagged"', !!applied && tagsAfter.includes('e2e-ai-a') && tagsAfter.includes('AI Tagged')
+        && !tagsAfter.includes('e2e-ai-b') && !(await page.isVisible('#tag-preview-dialog')), JSON.stringify(tagsAfter));
+      await emit('tags-generated', ra, ['late'], null);
+      await page.waitForTimeout(500);
+      check('a late result does not reopen a closed review', !(await page.isVisible('#tag-preview-dialog')));
+      await invoke(base, session, 'update-models-batch', [[{ filePath: ra, tags: tagsBefore }]]);
+    }
 
     // System Report (React): every section finishes, and both benchmarks complete.
     await page.evaluate(() => window.openSystemReport());
@@ -1158,6 +1450,14 @@ async function browserChecks(base, wsUrl, session) {
       && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 12);
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
+    // Shortcuts (React, src/web/shortcuts.ts).
+    const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${modKey}+/`);
+    check('Ctrl+/ focuses the search box', await page.evaluate(() => document.activeElement?.id === 'search-filter-input'));
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.evaluate(() => window.libraryFilters.setFromSelect('favorite-select', 'favorited'));
+    await page.keyboard.press(`${modKey}+Shift+C`);
+    check('Ctrl+Shift+C clears the filters', await page.waitForFunction(() => window.libraryFilters.state().favorite === 'all', null, { timeout: 5000 }).then(() => true, () => false));
     await page.evaluate(() => window.openAbout());
     const aboutVersion = await page.waitForFunction((version) => {
       const text = document.getElementById('about-version')?.textContent || '';
@@ -1299,7 +1599,39 @@ async function browserChecks(base, wsUrl, session) {
     const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--primary-accent').trim());
     check('Theme settings saves and applies the theme', (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple'
       && accent === '#a855f7' && !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')), accent);
+    // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const themed = await page.waitForFunction(() => document.body.getAttribute('data-theme') === 'modern-purple'
+      && document.documentElement.style.getPropertyValue('--primary-accent').trim() === '#a855f7', null, { timeout: 15000 }).then(() => true, () => false);
+    check('the saved theme is applied when the page loads', themed);
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+    await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+
+    // Tools → Clear New Flag (src/web/library/actions.ts).
+    const flagged = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter((p) => !p.includes('::'))[0];
+    if (flagged) {
+      const flaggedModel = (await invoke(base, session, 'get-model', [flagged])).result;
+      await invoke(base, session, 'save-model', [{ ...flaggedModel, markAsNew: true }]);
+      await page.click('#server-menu-bar .server-menu-button:text-is("Tools")');
+      await page.click('#server-menu-bar .server-menu-item:text-is("Clear New Flag")');
+      const askClear = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("clear the New flag") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+      if (askClear) await askClear.click();
+      const doneDialog = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Clear New Flag") button', { timeout: 10000 }).catch(() => null);
+      const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
+      if (doneDialog) await doneDialog.click();
+      check('Clear New Flag asks, clears the flag and says how many', !!askClear && !!done
+        && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew);
+
+      // Add Image (model menu → server → this page): pick a file, and it becomes another image of the model.
+      const imagesBefore = ((await invoke(base, session, 'get-all-thumbnails', [flagged])).result || []).length;
+      const chooser = page.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null);
+      await page.evaluate((p) => window.electron.send('add-image-request', p), flagged);
+      const fileChooser = await chooser;
+      if (fileChooser) await fileChooser.setFiles(path.join(ROOT, 'logo.png'));
+      const added = await waitFor(async () => (((await invoke(base, session, 'get-all-thumbnails', [flagged])).result || []).length > imagesBefore ? true : null), 15000, 'image added').catch(() => false);
+      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true);
+    }
 
     // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.
     await invoke(base, session, 'save-slicer', [{ name: 'Seed Slicer', path: '/usr/bin/seed-slicer' }]);
@@ -1477,6 +1809,58 @@ async function browserChecks(base, wsUrl, session) {
         && !document.getElementById('model-details')?.classList.contains('hidden'), null, { timeout: 10000 }).then(() => true, () => false);
       check('a model in the bundle list opens its details', openedChild && await page.isHidden('#bundle-details'));
     }
+
+    // Thumbnails and scanning (TypeScript, src/web/thumbnails/ and src/web/scan/).
+    const cubePath = path.join(LIBRARY, 'Designer A', 'cube.stl');
+    const storedThumb = async (filePath) => String(((await invoke(base, session, 'get-model', [filePath])).result || {}).thumbnail || '');
+    await page.evaluate(() => window.libraryFilters.setFromSelect('favorite-select', 'all'));
+    await page.evaluate(() => window.clearAllLibraryFilters?.());
+    // A card without an image renders one in this browser and saves it.
+    await invoke(base, session, 'save-thumbnail', [cubePath, '3d.png']);
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const cardRender = await waitFor(async () => ((await storedThumb(cubePath)).startsWith('data:image') ? true : null), 60000, 'card render').catch(() => false);
+    check('a card without a thumbnail renders one in the browser and saves it', cardRender === true);
+    // Tools → Generate Missing Thumbnails runs the server job in the dialog.
+    await invoke(base, session, 'save-thumbnail', [cubePath, '3d.png']);
+    await page.evaluate(() => window.electron.send('generate-missing-thumbnails'));
+    const askMissing = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("missing thumbnails") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (askMissing) await askMissing.click();
+    const jobDialog = await page.waitForSelector('#thumbnail-progress-overlay', { timeout: 10000 }).then(() => true, () => false);
+    const jobDone = await page.waitForSelector('#thumbnail-progress-overlay', { state: 'detached', timeout: 120000 }).then(() => true, () => false);
+    check('Generate Missing Thumbnails asks, shows the server job, and renders the model', !!askMissing && jobDialog && jobDone
+      && (await storedThumb(cubePath)).startsWith('data:image'));
+    // Regenerate in the background: the sidebar follows it, and its end is reported.
+    await page.evaluate(() => window.electron.send('regenerate-thumbnails'));
+    const askAll = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("regenerate thumbnails for all") button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
+    if (askAll) await askAll.click();
+    await page.click('#thumbnail-progress-background', { timeout: 10000 }).catch(() => {});
+    const inSidebar = await page.waitForSelector('#sidebar-progress-slot #render-progress-container', { timeout: 10000 }).then(() => true, () => false);
+    const finishedNote = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Thumbnail generation finished") button', { timeout: 120000 }).catch(() => null);
+    if (finishedNote) await finishedNote.click();
+    check('a background job shows in the sidebar and reports when it is done', !!askAll && inSidebar && !!finishedNote
+      && !(await page.isVisible('#render-progress-container')));
+    // Scan Directory: the server indexes, the new model is offered, and its thumbnail is rendered.
+    const scanDir = fs.mkdtempSync('/tmp/justtprint-e2e-scan-');
+    const scannedModel = path.join(fs.realpathSync(scanDir), 'scanned-cube.stl');
+    fs.copyFileSync(cubePath, scannedModel);
+    await page.click('#scan-directory-button');
+    await page.fill('dialog.browser-input-dialog[open] input', scanDir);
+    await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+    const offer = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("1 new model(s) found") button:text-is("Yes")', { timeout: 60000 }).catch(() => null);
+    if (offer) await offer.click();
+    const shownNew = await page.waitForFunction((p) => {
+      const shown = [...document.querySelectorAll('.file-grid [data-filepath]')].map((el) => el.getAttribute('data-filepath'));
+      return shown.length === 1 && shown[0].endsWith(p);
+    }, path.basename(scannedModel), { timeout: 15000 }).then(() => true, () => false);
+    const scannedThumb = await waitFor(async () => {
+      const models = (await invoke(base, session, 'get-all-models')).result || [];
+      const model = models.find((m) => m.filePath.endsWith('scanned-cube.stl'));
+      return model && (await storedThumb(model.filePath)).startsWith('data:image') ? true : null;
+    }, 120000, 'scanned thumbnail').catch(() => false);
+    check('Scan Directory adds the new model, offers to show it, and its thumbnail is rendered', !!offer && shownNew && scannedThumb === true);
+    fs.rmSync(scanDir, { recursive: true, force: true });
+    await page.evaluate(async () => { window.clearAllLibraryFilters?.(); await window.performCombinedSearch({ force: true }); });
 
     // Purge Models (React). Empties the library, so it runs last among the library checks.
     await page.evaluate(() => window.openPurgeModels());

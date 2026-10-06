@@ -1,28 +1,70 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { ModalDialog } from './components/ModalDialog';
+import { viewEntireLibrary } from './filters/SidebarActions';
 import { exposeGlobal } from './page';
+import { scanDirectory } from './scan/scan';
+import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';
+import { printRoulette } from './library/actions';
+
+/** What the shortcuts need from the library (multi-edit mode, the details panel, the selection). */
+export interface ShortcutHost {
+  multiEdit(): boolean;
+  exitMultiEdit(): void;
+  /** Show the next or previous model in the details panel; false when there is none. */
+  navigate(direction: 'next' | 'previous'): boolean;
+  /** Ctrl/Cmd+E: from the details panel, start multi-edit with its model; else toggle. */
+  toggleMultiEdit(fromDetails: boolean): void;
+  /** Select every model the filters show, and open multi-edit. */
+  selectAll(): Promise<void>;
+}
 
 declare global {
   interface Window {
     openKeyboardShortcuts?: () => void;
+    shortcutHost?: ShortcutHost;
   }
 }
 
-/** Each shortcut is a list of alternatives; each alternative a list of keys pressed together. */
-const SHORTCUTS: [string, string[][]][] = [
-  ['Focus search', [['Ctrl', '/']]],
-  ['Scan directory', [['Ctrl', 'Shift', 'S']]],
-  ['Clear all filters', [['Ctrl', 'Shift', 'C']]],
-  ['Print Roulette', [['Ctrl', 'Shift', 'R']]],
-  ['Toggle Multi-Edit mode', [['Ctrl', 'E']]],
-  ['Select all (filtered) models', [['Ctrl', 'A']]],
-  ['Next model (detail view)', [['↓'], ['J']]],
-  ['Previous model (detail view)', [['↑'], ['K']]],
-  ['Exit Multi-Edit mode', [['Escape']]],
-  ['Bold in notes', [['Ctrl', 'B']]],
-  ['Italic in notes', [['Ctrl', 'I']]],
-  ['Show this shortcuts dialog', [['Ctrl', 'Shift', '?']]]
-];
+function inFormControl(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  return !!el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable);
+}
+
+function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean): boolean {
+  switch (action) {
+    case 'exitMultiEdit': host.exitMultiEdit(); return true;
+    case 'focusSearch': {
+      const input = document.getElementById('search-filter-input') as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+      return true;
+    }
+    case 'showShortcuts': window.openKeyboardShortcuts?.(); return true;
+    case 'next': case 'previous': return host.navigate(action);
+    case 'scan': scanDirectory(); return true;
+    case 'clearFilters': viewEntireLibrary(); return true;
+    case 'roulette': printRoulette(); return true;
+    case 'toggleMultiEdit': host.toggleMultiEdit(detailsVisible); return true;
+    case 'selectAll': host.selectAll(); return true;
+  }
+}
+
+/** The app's keyboard shortcuts (src/web/shortcuts.ts). */
+export function KeyboardShortcuts() {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const host = window.shortcutHost;
+      if (!host) return;
+      const details = document.getElementById('model-details');
+      const detailsVisible = !!details && !details.classList.contains('hidden');
+      const action = shortcutFor(event, { inInput: inFormControl(), detailsVisible, multiEdit: host.multiEdit() });
+      if (action && run(action, host, detailsVisible)) event.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  return null;
+}
 
 /** Help → Keyboard Shortcuts (also Ctrl+Shift+?). Registers window.openKeyboardShortcuts. */
 export function KeyboardShortcutsDialog() {
@@ -36,7 +78,7 @@ export function KeyboardShortcutsDialog() {
     <ModalDialog id="keyboard-shortcuts-dialog" title="Keyboard Shortcuts" dialogRef={dialogRef}
       description={<p className="keyboard-shortcuts-intro">Power-user and accessibility shortcuts. Use <kbd>Ctrl</kbd> on Windows/Linux and <kbd>⌘</kbd> on Mac unless noted.</p>}>
       <div className="keyboard-shortcuts-list">
-        {SHORTCUTS.map(([action, alternatives]) => (
+        {SHORTCUT_HELP.map(([action, alternatives]) => (
           <div key={action} className="shortcut-row">
             <span className="shortcut-action">{action}</span>
             {alternatives.map((keys, index) => (

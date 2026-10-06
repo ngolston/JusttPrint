@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { cachedThumbnail, fetchPrimaryThumbnail, isImageOnlyMiss } from '../thumbnails/cache';
+import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQueue } from '../thumbnails/cards';
+import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
 import type { GridModel, GridView } from './layout';
+import { applyColumns } from './columns';
 
-/** What a model card asks of renderer.js (thumbnail queue, selection, menus, filters, saving). */
+/** What a model card asks of the library (library/hosts.ts: selection, menus, filters, saving). */
 export interface CardHost {
   isSelected(filePath: string): boolean;
   isMobile(): boolean;
@@ -10,22 +14,7 @@ export interface CardHost {
   directoryFullPath(filePath: string): string;
   formatSize(bytes: number): string;
 
-  /** Stored primary thumbnail (cached), or null. */
-  fetchPrimaryThumbnail(filePath: string): Promise<string | null>;
-  /** The primary thumbnail if it is already cached (no request). */
-  cachedPrimaryThumbnail(filePath: string): string | null;
-  /** Render a thumbnail in this browser (priority queue); on success the model is updated and the grid refreshed. */
-  ensureThumbnailQueued(model: GridModel, container: HTMLElement, priority: number): void;
-  /** Load every image of a model with several; updates model.thumbnail and refreshes. */
-  loadAllThumbnails(model: GridModel): void;
-  /** Make image `index` the default; updates model.thumbnail (now first) and refreshes. */
-  setDefaultThumbnail(model: GridModel, index: number): Promise<void>;
-  isFailurePlaceholder(thumbnail: string): boolean;
-  imageOnlyMiss(filePath: string): boolean;
-  typedPlaceholder(filePath: string): string;
-  bulkThumbnailJobActive(): boolean;
-
-  /** Click on a card: selection, details, multi-edit (renderer.js handleFileClick / toggleModelSelection). */
+  /** Click on a card: selection, details, multi-edit (library/details.ts cardClick). */
   cardClick(event: MouseEvent, card: HTMLElement, filePath: string, view: GridView): void;
   /** Preview wall: open the 3D preview. */
   openPreview(card: HTMLElement | null, filePath: string, select: boolean): void;
@@ -41,8 +30,6 @@ export interface CardHost {
   tagNames(model: GridModel): Promise<string[]>;
   /** The print-status badge (PrintHistory.applyBadge/bindBadge): class, text and click. */
   printBadge(element: HTMLElement, model: GridModel): void;
-  /** List view: column widths and order from the user's column settings. */
-  applyListColumns(fileInfo: HTMLElement): void;
 }
 
 const FAILURE_FREE = (thumbnail: unknown): thumbnail is string =>
@@ -82,24 +69,24 @@ function tagNamesOf(model: GridModel): string[] | null {
 /** Image to show, whether to fetch or render one, and the carousel images. */
 function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority: number, container: HTMLElement | null) {
   const all = parseThumbnails(model.thumbnail);
-  const imageOnlyMiss = host.imageOnlyMiss(model.filePath);
+  const imageOnlyMiss = isImageOnlyMiss(model.filePath);
   let current: string | null = all[0] ?? null;
   let flagged = !!model.hasThumbnail;
   let multiple = all.length > 1 || !!model.hasMultipleThumbnails;
   // Stuck failure art must not block regenerating; typed placeholders for image-only misses stay.
-  if (current && host.isFailurePlaceholder(current) && !imageOnlyMiss) {
+  if (current && isFailurePlaceholder(current) && !imageOnlyMiss) {
     current = null;
     flagged = false;
     multiple = false;
   }
   if (imageOnlyMiss && !current) {
-    current = host.typedPlaceholder(model.filePath);
+    current = typedPlaceholder(extensionOf(model.filePath));
     flagged = true;
   }
   // Already cached: show it at once instead of a placeholder frame while the fetch resolves.
   if (!current && flagged) {
-    const cached = host.cachedPrimaryThumbnail(model.filePath);
-    if (cached && !host.isFailurePlaceholder(cached)) current = cached;
+    const cached = cachedThumbnail(model.filePath);
+    if (cached && !isFailurePlaceholder(cached)) current = cached;
   }
   // A render that failed shows its failure art here only (it is not saved); no retry until reloaded.
   const failed = !current && typeof model._failedThumbnail === 'string' ? model._failedThumbnail : null;
@@ -119,29 +106,29 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
       // The list query leaves the blob out: fetch the stored primary image.
       if (alreadyAsked('primary')) return;
       requested.current = { model, kind: 'primary' };
-      host.fetchPrimaryThumbnail(model.filePath).then((thumbnail) => {
-        if (thumbnail && !host.isFailurePlaceholder(thumbnail)) {
+      fetchPrimaryThumbnail(model.filePath).then((thumbnail) => {
+        if (thumbnail && !isFailurePlaceholder(thumbnail)) {
           model.thumbnail = thumbnail;
           model.hasThumbnail = true;
-          if (carouselView && multiple) host.loadAllThumbnails(model);
+          if (carouselView && multiple) loadAllThumbnails(model);
           else window.libraryGrid?.refresh();
         } else if (carouselView && !imageOnlyMiss) {
           // Flagged as having one, but it is empty: render it again.
           model.hasThumbnail = false;
-          host.ensureThumbnailQueued(model, container, priority);
+          queueCardThumbnail(model, container, priority);
         }
       }).catch(() => {});
     } else if (current && multiple && all.length < 2 && carouselView) {
       if (alreadyAsked('all')) return;
       requested.current = { model, kind: 'all' };
-      host.loadAllThumbnails(model);
+      loadAllThumbnails(model);
     }
   });
 
   // No image at all: queue a render in this browser (deduplicated, reprioritized on scroll).
   useEffect(() => {
-    if (!container || current || flagged || imageOnlyMiss || host.bulkThumbnailJobActive()) return;
-    host.ensureThumbnailQueued(model, container, priority);
+    if (!container || current || flagged || imageOnlyMiss || thumbnailQueue.paused) return;
+    queueCardThumbnail(model, container, priority);
   });
 
   return { current, images: carouselView && all.length > 1 ? all : null };
@@ -175,7 +162,7 @@ function Carousel({ host, model, images, style, children }: {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = null;
       pendingDefaultSaves.delete(model.filePath);
-      host.setDefaultThumbnail(model, next).then(() => setIndex(0)).catch((error) => console.error('Error saving default thumbnail:', error));
+      setDefaultThumbnail(model, next).then(() => setIndex(0)).catch((error) => console.error('Error saving default thumbnail:', error));
     };
     pendingDefaultSaves.set(model.filePath, save);
     saveTimer.current = setTimeout(save, 2000);
@@ -319,7 +306,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
   }, []);
 
   useLayoutEffect(() => {
-    if (view === 'list' && fileInfoRef.current) host.applyListColumns(fileInfoRef.current);
+    if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
   const classes = ['file-item', `file-item-${view}`, view === 'preview' && 'preview-tile', host.isSelected(model.filePath) && 'selected', ...bandClasses]

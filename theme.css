@@ -23,7 +23,7 @@
   --dialog-background: var(--surface);
 }
 
-/* Server-mode menu bar. Display toggling stays inline in renderer.js. */
+/* Menu bar (src/web/shell/MenuBar.tsx). */
 .server-menu-bar {
   position: fixed;
   top: 0;

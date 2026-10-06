@@ -3,28 +3,28 @@ import { createPortal, flushSync } from 'react-dom';
 import { selection } from '../selection';
 import { GroupCard, type GroupCardHost } from './GroupCard';
 import { ModelCard, type CardHost } from './ModelCard';
+import { afterGridPaint } from '../thumbnails/cards';
+import { applyColumns, loadColumnLayout, subscribeColumns } from './columns';
+import { ListHeader } from './ListHeader';
+import { useGridView } from './view';
 import {
   buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
-  viewMetrics, visibleRows, type DisplayRecord, type ExpandedGroups, type GridModel, type GridView, type GroupRecord,
-  type PreviewTileSize, type ViewMetrics
+  viewMetrics, visibleRows, type ExpandedGroups, type GridModel, type GroupRecord,
+  type ViewMetrics
 } from './layout';
 
 /**
- * What the grid needs from renderer.js while the cards are still built there. Each method
- * disappears as its part moves to React.
+ * What the grid needs from the library (src/web/library/hosts.ts).
  */
 export interface GridHost extends CardHost, GroupCardHost {
-  /** The models on screen: renderer.js edits this array in place, then calls refresh(). */
+  /** The models on screen: the library edits this array in place, then calls refresh(). */
   models(): GridModel[];
-  view(): GridView;
-  previewSize(): PreviewTileSize;
   /** Phone layout columns, or 0 on the desktop layout. */
   mobileColumns(): number;
   expanded(): ExpandedGroups;
-  createListHeader(): HTMLElement & { updateSortIndicators?: () => void };
+  /** Lay the shown models out again (the view or tile size changed). */
+  rebuild?(): void;
   isSelected(filePath: string): boolean;
-  /** After cards were added or removed: drop jobs for gone cards, re-sort and run the queue. */
-  afterPaint(): void;
   /** Bottom chrome height on phones (the tab bar), so the grid ends above it. */
   bottomChrome(): number;
 }
@@ -55,7 +55,7 @@ const groupCardKey = (record: GroupRecord) => `${record.key}#${record.children.l
 /**
  * The library grid in .file-grid: lays the models out for the current view (tested in
  * layout.ts), renders only the rows near the viewport, and keeps them in place while scrolling.
- * renderer.js drives it through window.libraryGrid.
+ * The library (library/models.ts) drives it through window.libraryGrid.
  */
 export function LibraryGrid() {
   const [container] = useState(() => document.querySelector<HTMLElement>('.file-grid'));
@@ -64,7 +64,6 @@ export function LibraryGrid() {
   const [scrollTop, setScrollTop] = useState(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [content, setContent] = useState<HTMLElement | null>(null);
-  const headerHostRef = useRef<HTMLDivElement>(null);
   const focusRef = useRef(false);
   const host = window.gridHost;
 
@@ -120,16 +119,16 @@ export function LibraryGrid() {
     };
   }, [container]);
 
-  const view = host?.view() ?? 'detailed';
+  const { view, previewSize } = useGridView();
   const width = size.width || container?.clientWidth || 0;
   const metrics: ViewMetrics = useMemo(
-    () => viewMetrics({ view, width, previewSize: host?.previewSize() ?? 'm', mobileColumns: host?.mobileColumns() ?? 0 }),
-    // tick/generation: the preview size, phone layout and view are read from renderer.js.
+    () => viewMetrics({ view, width, previewSize, mobileColumns: host?.mobileColumns() ?? 0 }),
+    // tick/generation: the phone layout is read from the host.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [view, width, host, tick, generation]
   );
 
-  // Recomputed on every show/refresh: renderer.js edits the model array in place.
+  // Recomputed on every show/refresh: the library edits the model array in place.
   const { records, layout } = useMemo(() => {
     const models = host?.models() ?? [];
     const built = buildDisplayRecords(models, host?.expanded() ?? { bundles: new Set(), parentModels: new Set() });
@@ -161,16 +160,11 @@ export function LibraryGrid() {
     }
   }, [container, host, view, metrics, generation]);
 
-  // The list view's column header, built by renderer.js, sits above the rows.
-  useLayoutEffect(() => {
-    const hostEl = headerHostRef.current;
-    if (!hostEl || !host) return undefined;
-    if (view !== 'list') return undefined;
-    const header = host.createListHeader();
-    hostEl.appendChild(header);
-    header.updateSortIndicators?.();
-    return () => header.remove();
-  }, [host, view, generation]);
+  // The list view's columns follow their saved layout (also on rows drawn before it loaded).
+  useEffect(() => {
+    loadColumnLayout();
+    return subscribeColumns(() => applyColumns(container));
+  }, [container]);
 
   // After switching between detailed and preview, bring the selection into view.
   useLayoutEffect(() => {
@@ -190,7 +184,7 @@ export function LibraryGrid() {
 
   useLayoutEffect(() => {
     committing = false;
-    host?.afterPaint();
+    afterGridPaint();
   });
 
   if (!container || !host) return null;
@@ -221,7 +215,7 @@ export function LibraryGrid() {
 
   return createPortal(
     <>
-      <div ref={headerHostRef} className="list-view-header-host" style={{ display: 'contents' }} />
+      {view === 'list' && <ListHeader />}
       <div className="virtual-spacer" style={{ width: '100%', position: 'relative', height: layout.totalHeight }} />
       <div ref={setContent} className="virtual-content"
         style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }}>

@@ -19,15 +19,15 @@ export interface PrintDetailsModel extends PrintModel {
 
 declare global {
   interface Window {
-    /** Print status, badges and the Log Print dialog, for renderer.js, search.js and query-builder.js. */
+    /** Print status, badges and the Log Print dialog, for the grid cards and the search labels. */
     PrintHistory?: typeof printHistory;
     /** The details panel's print status and print history (PrintHistory.populateDetails drives it). */
     detailsPrint?: { show: (model: PrintDetailsModel) => void; clear: () => void };
-    /** renderer.js: reload one model's grid card. */
+    /** library/hosts.ts: reload one model's grid card. */
     updateModelElement?: (filePath: string) => Promise<void>;
-    /** renderer.js: the model the details panel shows. */
+    /** library/hosts.ts: the model the details panel shows. */
     getCurrentModelFilePath?: () => string | null;
-    /** filament.js: display labels by filament id. */
+    /** filters/Sidebar.tsx: display labels by filament id. */
     filamentLabelById?: Record<string, string>;
   }
 }
@@ -106,7 +106,7 @@ const printHistory = {
   refreshAfterChange
 };
 
-// Set when the bundle loads, before renderer.js filters or draws cards with it.
+// Set when the bundle loads, before the grid draws cards with it.
 window.PrintHistory = printHistory;
 
 interface ChosenPart {

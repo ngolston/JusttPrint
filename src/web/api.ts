@@ -105,6 +105,11 @@ export const settings = {
   save: (key: string, value: unknown) => callAction<unknown>('save-setting', key, value)
 };
 
+export const folders = {
+  /** The scanned folders as a tree (src/core/folder-tree-lib.js buildFolderForest). */
+  tree: () => callAction<import('./folders/tree').FolderForest>('get-folder-tree')
+};
+
 export interface Filament {
   id: number;
   name: string;

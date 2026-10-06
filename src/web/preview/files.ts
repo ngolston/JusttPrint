@@ -1,14 +1,7 @@
 /**
  * Read a library file's bytes for parsing in this browser: over HTTP from the server
  * (/api/file, or /api/download for ZIP entries), falling back to the bridge's IPC read.
- * Also used by renderer.js (loadModelData) through window.loadLibraryFileBuffer.
  */
-
-declare global {
-  interface Window {
-    loadLibraryFileBuffer?: (filePath: string) => Promise<ArrayBuffer>;
-  }
-}
 
 interface FileBridge {
   readModelFile?: (filePath: string) => Promise<unknown>;
@@ -68,6 +61,3 @@ export async function loadLibraryFileBuffer(filePath: string): Promise<ArrayBuff
   if (ipcBuf && ipcBuf.byteLength > 0) return ipcBuf;
   throw new Error('Cannot read model file');
 }
-
-// renderer.js reads files through this; set it when the bundle loads.
-window.loadLibraryFileBuffer = loadLibraryFileBuffer;

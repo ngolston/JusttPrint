@@ -2,7 +2,35 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [4.5.0] - 2026-10-05
+
+**Upgrading:** no changes needed for Docker. If you serve the files yourself, rebuild with `npm run build:web`; `search.js`, `query-builder.js`, `renderer.js`, `filament.js`, `grid-refresh.js`, `folder-tree.js`, `sidebar-layout.js`, `mobile-ui.js`, `thumbnail-progress.js` and `vendor/fuse.min.js` are removed.
+
+**Changes:**
+- The sidebar's search, sort and filters, and the filter strip above them (chips, AND / OR / NOT, Clear All), are React (`src/web/filters/`). The filters live in one store with a tested query model (`query.ts`) that builds the server request, the chips and the AND / OR / NOT editing. `search.js` and `query-builder.js` (about 2,000 lines) and about 550 lines of `renderer.js` are gone, including filter listeners that were attached twice.
+- The sidebar's Folders control, the folder tree popover and the folder rail beside the grid are React (`src/web/folders/`), as are **More filters** and the drag handles that resize the sidebar and the folder panels. `folder-tree.js` and `sidebar-layout.js` are gone. The Folders select now also follows folder changes made elsewhere (a path click in the details panel, a removed chip), and folder names are no longer inserted as HTML.
+- The top of the sidebar is React (`src/web/filters/SidebarActions.tsx`): the model counts, the De-Dup, Tag, Filament and Roulette buttons, **Scan Directory**, **Scan STL Home** and **View Entire Library**. **Scan Directory** asks for the folder in the app's own prompt (it used the browser's prompt and asked for a UNC path). Removed: the "Server Mode / UNC paths required" box at the top of the sidebar, and an empty banner under View Entire Library that was never shown.
+- The menu bar (Tools, Settings, Help) and the phone layout are React (`src/web/shell/`). Both read one menu definition, so the phone's More sheet no longer copies the menu bar's markup. The phone's app bar, bottom nav, Filters and More sheets, and the details panels' phone buttons (3D, Favorite, Log print) replace `mobile-ui.js`. **Restart Server** asks and reports in the app's own dialogs instead of the browser's.
+- The model menu (right-click, long-press, and the card's ⋯ button) is React (`src/web/menus/ContextMenu.tsx`). Errors show in the app's own dialog instead of the browser's alert, and menu labels are no longer built as HTML.
+- Keyboard shortcuts are React (`src/web/shortcuts.ts`), with one table for the keys and the Keyboard Shortcuts dialog. ↑ / ↓ with Ctrl or ⌘ no longer move between models.
+- The Terms of Service and welcome dialogs are React (`src/web/startup/FirstRun.tsx`). Escape no longer closes the terms without an answer, which left the app waiting.
+- Review Generated Tags is React (`src/web/tags/`), about 1,100 lines of `renderer.js` less. Each model shows once however often the server reports it, so the old duplicate-removal workarounds are gone. Applying shows its progress on the Apply button; it used the shared progress dialog, whose bar had the same id as the scan progress bar in the sidebar and moved that one instead.
+- Scanning and thumbnails are TypeScript (`src/web/scan/`, `src/web/thumbnails/`): the render queue (tested), the model loader, the server's bulk thumbnail job and its dialog, and the sidebar progress. About 3,400 lines of `renderer.js` are gone.
+- After a scan, the server's thumbnail worker renders every model still without a thumbnail, in the background (it used to be the browser, and only for up to 80 models). Every open page follows a running thumbnail job in the sidebar, also one started by another page, by the server after an STL Home scan, or before the page was reloaded.
+- Pages refresh after the server's own STL Home scans. The browser no longer runs its own periodic STL Home scan next to the server's, and a changed STL Home update interval applies from the next scan without a restart.
+- A model that fails to render shows its failure image instead of being retried over and over while on screen, and placeholder images are drawn once instead of for every check.
+- The grid's toolbar (Detailed / Preview / List, the tile size, Show/Hide columns) and the list view's column header are React (`src/web/grid/`), with the column layout in a tested module (`columns.ts`). About 900 lines of `renderer.js` are gone. Columns are ordered with CSS instead of moving the rows' elements, which React owns.
+- The searchable list behind the ☰ buttons (designers, parent models, licenses, tags, filaments) is React (`src/web/components/ListPicker.tsx`), about 330 lines of `renderer.js` less.
+- The grid's model list, the bundle and parent-model groups, selection, the details and bundle panels, multi-edit mode and saving are TypeScript (`src/web/library/`), with the filter check after an edit and the path labels tested. About 2,300 lines of `renderer.js` are gone, along with code nothing called (group tag prompts, a per-card element index, field statistics nobody read).
+- `renderer.js` is gone. Its last part (startup, the theme, the update check, Print Roulette, Clear New Flag, Add Image, downloads, the server's thumbnail events, Puter.com AI and the progress dialog for backups and organizing) is TypeScript in `src/web/startup/`, `src/web/ai/` and `src/web/library/actions.ts`. Event forwarders for the old desktop menus, and handlers registered too late to ever run, are removed. Server events that arrive before the page has a listener for them now wait in `server-bridge.js` instead of being dropped.
+- Fixed: answering Yes to "Update Available" did nothing; it now opens the release page.
+- Fixed: the "Database Cleanup" message after a cleanup never showed (its handler read the message from the wrong argument).
+- Fixed: rendering a thumbnail for a ZIP entry left a temporary copy of the file on the server each time.
+- Fixed: the backup, restore and organize progress dialogs moved the sidebar's scan progress bar (both used the id `progress-bar`).
+- Fixed: a left-click on a card right after right-clicking it was ignored for about half a second (that guard is now only for touch long-press).
+- Fixed: **Reveal in folders** on a model at the top level of a ZIP looked for a folder named after the model instead of the archive.
+- Fixed: changing a filter while a search was still loading could be ignored. Designer, tag and other names in the filter chips are no longer inserted as HTML.
+- Fixed: **Invert Filters** on a query, and NOT in a query, left out every model whose field in the query was empty (for example a model with no designer when the query named a designer).
 
 ## [4.4.0] - 2026-10-05
 

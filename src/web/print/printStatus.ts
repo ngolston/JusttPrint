@@ -167,7 +167,7 @@ export function colorCss(hex: string | null | undefined): string {
   return /^[0-9a-fA-F]{6}$/.test(h) ? `#${h.toUpperCase()}` : 'transparent';
 }
 
-/** "Vendor Name (Material)", or the label filament.js already built for that id. */
+/** "Vendor Name (Material)", or the label the sidebar already built for that id. */
 export function filamentLabel(filament: FilamentLike, labelsById?: Record<string, string>, unnamed = 'Filament'): string {
   const id = String(filament?.id ?? '');
   if (labelsById?.[id]) return labelsById[id];

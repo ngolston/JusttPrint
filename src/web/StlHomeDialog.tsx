@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { settings } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
+import { scanFolders } from './scan/scan';
 
 declare global {
   interface Window {
@@ -145,12 +146,8 @@ export function StlHomeDialog() {
       for (const [key, value] of values) await settings.save(key, value);
       dialogRef.current?.close();
       await window.updateScanStlHomeButtonVisibility?.();
-      if (form.homes.length) {
-        window.performSTLHomeScan?.(form.homes).catch((error) => console.error('STL Home scan on save:', error));
-        window.startPeriodicSTLHomeScan?.();
-      } else {
-        window.stopPeriodicSTLHomeScan?.();
-      }
+      // Scan the directories now; the server then rescans them on its interval.
+      if (form.homes.length) scanFolders(form.homes, { stlHome: true }).catch((error) => console.error('STL Home scan on save:', error));
     } catch (error) {
       await showMessage('Error', `Failed to save STL Home: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
