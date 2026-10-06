@@ -217,6 +217,7 @@ export function AppShell() {
         </main>
       )}
     </div>,
-    document.body
+    // Inside the React root, so screens moved into the shell (settings/EmbeddedDialog.tsx) keep their events.
+    document.getElementById('react-root') ?? document.body
   );
 }

@@ -95,6 +95,8 @@ export interface SettingsItem {
   run: () => void;
   replaces?: string[];
   danger?: boolean;
+  /** A settings form shown inside the Settings page: its dialog's id and the global that opens it. */
+  embed?: { dialog: string; open: string };
 }
 
 export interface SettingsGroup {
@@ -105,10 +107,10 @@ export interface SettingsGroup {
 
 export const SETTINGS: SettingsGroup[] = [
   { id: 'general', label: 'General', items: [
-    { id: 'performance', label: 'Performance', description: 'File size limit, memory and worker settings.', icon: Gauge, run: menu('Performance'), replaces: ['Performance'] }
+    { id: 'performance', label: 'Performance', description: 'File size limit, memory and worker settings.', icon: Gauge, run: menu('Performance'), replaces: ['Performance'], embed: { dialog: 'performance-settings-dialog', open: 'openPerformanceSettings' } }
   ] },
   { id: 'appearance', label: 'Appearance', items: [
-    { id: 'theme', label: 'Theme', description: 'Accent color, model color, lighting and background of previews.', icon: Brush, run: menu('Theme'), replaces: ['Theme'] }
+    { id: 'theme', label: 'Theme', description: 'Accent color, model color, lighting and background of previews.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' } }
   ] },
   { id: 'library', label: 'Library', items: [
     { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'] },
@@ -119,12 +121,12 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'purge', label: 'Purge Models', description: 'Remove models of chosen file types from the library.', icon: Trash2, run: menu('Purge Models'), replaces: ['Purge Models'], danger: true }
   ] },
   { id: 'scanning', label: 'Scanning', items: [
-    { id: 'stl-home', label: 'STL Home', description: 'Library folders scanned at startup and on a schedule.', icon: HardDrive, run: menu('STL Home'), replaces: ['STL Home'] },
-    { id: 'file-types', label: 'File Types', description: 'Extra file types to scan, and models inside ZIP files.', icon: Box, run: menu('File Type'), replaces: ['File Type'] },
+    { id: 'stl-home', label: 'STL Home', description: 'Library folders scanned at startup and on a schedule.', icon: HardDrive, run: menu('STL Home'), replaces: ['STL Home'], embed: { dialog: 'stl-home-dialog', open: 'openStlHome' } },
+    { id: 'file-types', label: 'File Types', description: 'Extra file types to scan, and models inside ZIP files.', icon: Box, run: menu('File Type'), replaces: ['File Type'], embed: { dialog: 'file-type-settings-dialog', open: 'openFileTypeSettings' } },
     { id: 'scan-folder', label: 'Scan a Folder', description: 'Scan one folder once, outside STL Home.', icon: Scan, run: menu('Scan Directory'), replaces: ['Scan Directory'] }
   ] },
   { id: 'slicer', label: 'Slicer', items: [
-    { id: 'slicers', label: 'Slicers', description: 'Slicers for Send to Slicer, and the helper for this computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'] }
+    { id: 'slicers', label: 'Slicers', description: 'Slicers for Send to Slicer, and the helper for this computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'], embed: { dialog: 'slicer-dialog', open: 'openSlicerSettings' } }
   ] },
   { id: 'printers', label: 'Printers', items: [
     { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers') },
@@ -134,21 +136,21 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'filament', label: 'Filament', description: 'Your filament catalog, and Spoolman sync.', icon: Cable, run: () => navigate('filament') }
   ] },
   { id: 'integrations', label: 'Integrations', items: [
-    { id: 'mcp', label: 'MCP Server', description: 'Connect an AI app (Claude, Cursor, VS Code) to your library.', icon: Cpu, run: open('openMcpServerSettings'), replaces: ['Settings'] }
+    { id: 'mcp', label: 'MCP Server', description: 'Connect an AI app (Claude, Cursor, VS Code) to your library.', icon: Cpu, run: open('openMcpServerSettings'), replaces: ['Settings'], embed: { dialog: 'mcp-server-settings-dialog', open: 'openMcpServerSettings' } }
   ] },
   { id: 'ai', label: 'AI', items: [
-    { id: 'ai', label: 'AI Tagging', description: 'AI service, model, and how tags are generated.', icon: Sparkles, run: menu('AI Config') }
+    { id: 'ai', label: 'AI Tagging', description: 'AI service, model, and how tags are generated.', icon: Sparkles, run: menu('AI Config'), embed: { dialog: 'ai-config-dialog', open: 'openAiConfig' } }
   ] },
   { id: 'server', label: 'Server', items: [
-    { id: 'https', label: 'HTTPS / SSL', description: 'Listen port and certificates.', icon: ShieldCheck, run: menu('HTTPS / SSL'), replaces: ['HTTPS / SSL'] },
+    { id: 'https', label: 'HTTPS / SSL', description: 'Listen port and certificates.', icon: ShieldCheck, run: menu('HTTPS / SSL'), replaces: ['HTTPS / SSL'], embed: { dialog: 'https-settings-dialog', open: 'openHttpsSettings' } },
     { id: 'restart', label: 'Restart Server', description: 'Disconnects everyone for a moment.', icon: RefreshCw, run: menu('Restart Server'), replaces: ['Restart Server'] }
   ] },
   { id: 'authentication', label: 'Authentication', items: [
-    { id: 'access', label: 'Server Access', description: 'Password and API token.', icon: KeyRound, run: menu('Server Access'), replaces: ['Server Access'] },
+    { id: 'access', label: 'Server Access', description: 'Password and API token.', icon: KeyRound, run: menu('Server Access'), replaces: ['Server Access'], embed: { dialog: 'server-access-dialog', open: 'openServerAccess' } },
     { id: 'logout', label: 'Log Out', description: 'Log out of this browser.', icon: LogOut, run: menu('Log Out'), replaces: ['Log Out'] }
   ] },
   { id: 'backup', label: 'Backup', items: [
-    { id: 'backup', label: 'Backup and Restore', description: 'Back up the library database or restore one.', icon: Archive, run: menu('Backup/Restore'), replaces: ['Backup/Restore'] }
+    { id: 'backup', label: 'Backup and Restore', description: 'Back up the library database or restore one.', icon: Archive, run: menu('Backup/Restore'), replaces: ['Backup/Restore'], embed: { dialog: 'backup-restore-dialog', open: 'openBackupRestore' } }
   ] },
   { id: 'advanced', label: 'Advanced', items: [
     { id: 'regenerate', label: 'Regenerate Thumbnails', description: 'Render every thumbnail again.', icon: Image, run: menu('Regenerate Thumbnails'), replaces: ['Regenerate Thumbnails'] },

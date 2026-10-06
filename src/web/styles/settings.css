@@ -1,0 +1,88 @@
+/* Settings page (pages/SettingsPage.tsx; spec §47). */
+
+.jp-settings-page { max-width: 1180px; }
+.jp-settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--jp-space-6); align-items: start; }
+.jp-settings-index { position: sticky; top: var(--jp-space-6); }
+.jp-settings-index ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.jp-settings-index__link {
+  display: block;
+  padding: 7px var(--jp-space-3);
+  border-radius: var(--jp-radius-md);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-ui);
+  text-decoration: none;
+  transition: background-color var(--jp-transition), color var(--jp-transition);
+}
+.jp-settings-index__link:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+.jp-settings-index__link.is-active { background: var(--jp-accent-soft); color: var(--jp-text); }
+.jp-settings-index__link:focus-visible { outline: none; box-shadow: var(--jp-focus-ring); }
+@media (max-width: 1000px) {
+  .jp-settings-layout { grid-template-columns: minmax(0, 1fr); }
+  .jp-settings-index { display: none; }
+}
+
+.jp-settings-groups { display: flex; flex-direction: column; gap: var(--jp-space-4); }
+.jp-settings-groups .jp-settings-group { margin: 0; padding: var(--jp-space-5); scroll-margin-top: var(--jp-space-4); }
+.jp-settings-group__title { margin: 0 0 var(--jp-space-3); font-size: 18px; font-weight: 650; color: var(--jp-text); }
+.jp-settings-form + .jp-settings-form,
+.jp-settings-form + .jp-settings-list { margin-top: var(--jp-space-4); padding-top: var(--jp-space-4); border-top: 1px solid var(--jp-border); }
+.jp-settings-form__header { display: flex; align-items: center; gap: var(--jp-space-3); margin-bottom: var(--jp-space-3); }
+.jp-settings-form__title { margin: 0; font-size: var(--jp-text-title); font-weight: 600; color: var(--jp-text); }
+
+/* A settings dialog opened inside the page (settings/EmbeddedDialog.tsx): no overlay, frame or own title. */
+.jp-settings-embed { min-width: 0; }
+.jp-settings-embed dialog.modal.is-embedded {
+  position: static;
+  inset: auto;
+  display: block;
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--jp-text);
+  transform: none;
+  overflow: visible;
+}
+.jp-settings-embed dialog.modal.is-embedded:not([open]) { display: none; }
+.jp-settings-embed dialog.is-embedded .modal-header-row,
+.jp-settings-embed dialog.is-embedded .modal-fullscreen-icon-btn { display: none; }
+.jp-settings-embed dialog.is-embedded form { margin: 0; }
+.jp-settings-embed dialog.is-embedded .form-group { width: auto; padding: 0; }
+.jp-settings-embed dialog.is-embedded .dialog-buttons { justify-content: flex-start; margin-top: var(--jp-space-4); }
+.jp-settings-embed dialog.is-embedded .dialog-buttons button { width: auto; }
+.jp-settings-embed dialog.is-embedded .setting-description { color: var(--jp-text-3); }
+.jp-settings-form__header,
+.jp-settings-form__header .jp-settings-row__text { text-align: left; }
+
+/* The old fields in the new look (the dialogs' own markup is kept). */
+.jp-settings-embed dialog.is-embedded label { color: var(--jp-text); font: 500 var(--jp-text-meta) var(--jp-font); }
+.jp-settings-embed dialog.is-embedded select,
+.jp-settings-embed dialog.is-embedded input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.jp-settings-embed dialog.is-embedded textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: var(--jp-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background-color: var(--jp-surface-2) !important;
+  backdrop-filter: none;
+  color: var(--jp-text);
+  font: 400 var(--jp-text-ui) var(--jp-font);
+  box-shadow: none;
+}
+.jp-settings-embed dialog.is-embedded textarea { padding: var(--jp-space-2) var(--jp-space-3); }
+.jp-settings-embed dialog.is-embedded select:focus,
+.jp-settings-embed dialog.is-embedded input:focus,
+.jp-settings-embed dialog.is-embedded textarea:focus { outline: none; border-color: var(--jp-accent); box-shadow: 0 0 0 3px var(--jp-accent-soft); }
+.jp-settings-embed dialog.is-embedded .form-group select,
+.jp-settings-embed dialog.is-embedded .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) { width: 100%; }
+.jp-settings-embed dialog.is-embedded input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.jp-settings-embed dialog.is-embedded textarea { background-image: none !important; }

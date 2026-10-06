@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cx } from '../components/Button';
 import { HELP, SETTINGS, type SettingsItem } from '../shell/nav';
+import { EmbeddedDialog } from '../settings/EmbeddedDialog';
 
 /** One row: icon, name, what it does; the whole row opens it. */
 export function SettingsRow({ item }: { item: SettingsItem }) {
@@ -20,30 +21,101 @@ export function SettingsRow({ item }: { item: SettingsItem }) {
   );
 }
 
+/** A settings form inside the page: its name and what it does, then the form itself. */
+function EmbeddedSetting({ item }: { item: SettingsItem }) {
+  const Icon = item.icon;
+  if (!item.embed) return null;
+  return (
+    <section className="jp-settings-form" id={`setting-${item.id}`} aria-labelledby={`setting-${item.id}-title`}>
+      <header className="jp-settings-form__header">
+        <span className="jp-settings-row__icon"><Icon size={18} aria-hidden="true" /></span>
+        <span className="jp-settings-row__text">
+          <h3 className="jp-settings-form__title" id={`setting-${item.id}-title`}>{item.label}</h3>
+          <span className="jp-settings-row__description">{item.description}</span>
+        </span>
+      </header>
+      <EmbeddedDialog dialogId={item.embed.dialog} opener={item.embed.open} />
+    </section>
+  );
+}
+
 /**
- * Settings (spec §47): every setting and tool, grouped. Rows open today's screens; Phase 11 moves
- * their contents into this page. #/settings/<group> scrolls to a group.
+ * Settings (spec §47): one page with every setting and tool, grouped. The settings forms are on
+ * the page (the dialogs, opened in place: settings/EmbeddedDialog.tsx); tools and actions are
+ * rows that open their screens. The index on the left jumps to a group; #/settings/<group>
+ * opens the page at it.
  */
 export function SettingsPage({ section }: { section: string }) {
+  const [active, setActive] = useState(section || SETTINGS[0].id);
+
+  // Opening the forms may focus their fields; keep the page at the top or the requested group.
   useEffect(() => {
-    if (section) document.getElementById(`settings-${section}`)?.scrollIntoView({ block: 'start' });
+    const timer = setTimeout(() => {
+      const focused = document.activeElement as HTMLElement | null;
+      if (focused && focused.closest('.jp-settings-page')) focused.blur();
+      const target = section && document.getElementById(`settings-${section}`);
+      const page = document.querySelector('.jp-page');
+      if (target) target.scrollIntoView({ block: 'start' });
+      else page?.scrollTo({ top: 0 });
+    }, 120);
+    return () => clearTimeout(timer);
   }, [section]);
 
+  // The index follows the group in view.
+  useEffect(() => {
+    const page = document.querySelector('.jp-page');
+    if (!page) return undefined;
+    const onScroll = () => {
+      const top = page.getBoundingClientRect().top + 80;
+      let current = SETTINGS[0].id;
+      for (const group of SETTINGS) {
+        const el = document.getElementById(`settings-${group.id}`);
+        if (el && el.getBoundingClientRect().top <= top) current = group.id;
+      }
+      setActive(current);
+    };
+    page.addEventListener('scroll', onScroll, { passive: true });
+    return () => page.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <div className="jp-page__inner">
+    <div className="jp-page__inner jp-settings-page">
       <header className="jp-page__header">
         <h1 className="jp-page-title">Settings</h1>
         <p className="jp-meta">Library, scanning, printers, AI, server and backup settings.</p>
       </header>
-      <div className="jp-settings-grid">
-        {SETTINGS.map((group) => (
-          <section key={group.id} id={`settings-${group.id}`} className="jp-card jp-settings-group" aria-labelledby={`settings-${group.id}-title`}>
-            <h2 className="jp-label" id={`settings-${group.id}-title`}>{group.label}</h2>
-            <ul className="jp-settings-list">
-              {group.items.map((item) => <SettingsRow key={item.id} item={item} />)}
-            </ul>
-          </section>
-        ))}
+      <div className="jp-settings-layout">
+        <nav className="jp-settings-index" aria-label="Settings groups">
+          <ul>
+            {SETTINGS.map((group) => (
+              <li key={group.id}>
+                <a href={`#/settings/${group.id}`} className={cx('jp-settings-index__link', active === group.id && 'is-active')}
+                  aria-current={active === group.id ? 'true' : undefined}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setActive(group.id);
+                    document.getElementById(`settings-${group.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                  }}>{group.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="jp-settings-groups">
+          {SETTINGS.map((group) => {
+            const rows = group.items.filter((item) => !item.embed);
+            return (
+              <section key={group.id} id={`settings-${group.id}`} className="jp-card jp-settings-group" aria-labelledby={`settings-${group.id}-title`}>
+                <h2 className="jp-settings-group__title" id={`settings-${group.id}-title`}>{group.label}</h2>
+                {group.items.filter((item) => item.embed).map((item) => <EmbeddedSetting key={item.id} item={item} />)}
+                {rows.length > 0 && (
+                  <ul className="jp-settings-list">
+                    {rows.map((item) => <SettingsRow key={item.id} item={item} />)}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

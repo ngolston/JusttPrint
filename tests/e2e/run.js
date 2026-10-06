@@ -1449,6 +1449,23 @@ async function browserChecks(base, wsUrl, session) {
     check('the sidebar opens Settings and marks it as the current page', /#\/settings$/.test(page.url())
       && await page.isVisible('.jp-page h1:text-is("Settings")')
       && await page.getAttribute('.jp-sidebar .jp-nav__row:has-text("Settings")', 'aria-current') === 'page');
+    // Settings forms sit on the page (src/web/settings/EmbeddedDialog.tsx): the dialogs, opened in place.
+    check('Settings shows the settings forms on the page', await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
+      && await page.isVisible('#setting-stl-home #stl-home-dialog[open]') && await page.isVisible('#setting-mcp #mcp-server-settings-dialog[open]')
+      && await page.evaluate(() => !document.querySelector('#performance-settings-dialog:modal')));
+    const sizeBefore = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
+    await page.fill('#max-file-size', '61');
+    await page.click('#save-performance-settings');
+    const inlineSaved = await page.waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 }).catch(() => null);
+    if (inlineSaved) await inlineSaved.click();
+    check('a settings form saves on the page and stays open', !!inlineSaved && (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result === '61'
+      && await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 5000 }).then(() => true, () => false));
+    await invoke(base, session, 'save-setting', ['maxFileSizeMB', sizeBefore == null ? '50' : sizeBefore]);
+    await page.click('.jp-settings-index__link:text-is("Backup")');
+    check('the index jumps to a group', await page.waitForFunction(() => {
+      const group = document.getElementById('settings-backup')?.getBoundingClientRect();
+      return !!group && group.top < window.innerHeight / 2 && group.top > 0;
+    }, null, { timeout: 5000 }).then(() => true, () => false));
     await page.click('.jp-settings-row:has-text("Library Stats")');
     check('Library Stats opens from Settings', await page.isVisible('#stats-dialog'));
     const shownTotal = await page.waitForFunction((total) => {
@@ -1461,6 +1478,10 @@ async function browserChecks(base, wsUrl, session) {
     check('Library Stats closes', !(await page.isVisible('#stats-dialog')));
     await page.goBack();
     check('Back returns to the library', !(await page.isVisible('.jp-page')) && !/#\/settings/.test(page.url()));
+    check('leaving Settings returns its forms to dialogs', await page.evaluate(() => {
+      const dialog = document.getElementById('performance-settings-dialog');
+      return !!dialog && !dialog.open && !dialog.closest('.jp-settings-embed') && !dialog.classList.contains('is-embedded');
+    }));
 
     // The rest of the shell: the old menu bar is gone, the account menu, search and the queue link.
     check('the shell replaces the old menu bar', !(await page.isVisible('#server-menu-bar')) && await page.isVisible('.jp-sidebar .jp-brand'));
