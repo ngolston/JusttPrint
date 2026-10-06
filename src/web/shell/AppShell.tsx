@@ -12,10 +12,10 @@ import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { onServerEvent } from '../page';
 import { HelpPage } from '../pages/HelpPage';
-import { HomePage } from '../pages/HomePage';
 import { LibraryHeader } from '../pages/LibraryPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { useAdopt } from './adopt';
+import { useLibraryData } from './libraryData';
 import { useLayout } from './layout';
 import { ACCOUNT, NAV, type NavItem } from './nav';
 import { navigate, useRoute, type PageId } from './routes';
@@ -27,33 +27,6 @@ export function formatBytes(bytes: number): string {
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
   const value = bytes / 1024 ** i;
   return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
-}
-
-/**
- * Data that follows the library: loaded once, then again (at most once a second) after the server
- * announces a change (refresh-grid, from any browser) or this page changes something.
- */
-function useLibraryData<T>(load: () => Promise<T>): T | null {
-  const [data, setData] = useState<T | null>(null);
-  useEffect(() => {
-    let alive = true;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const fetchNow = () => { load().then((value) => { if (alive) setData(value); }, () => {}); };
-    const refresh = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(fetchNow, 1000);
-    };
-    fetchNow();
-    const off = onServerEvent('refresh-grid', refresh);
-    window.addEventListener(LIBRARY_CHANGED, refresh);
-    return () => {
-      alive = false;
-      if (timer) clearTimeout(timer);
-      off();
-      window.removeEventListener(LIBRARY_CHANGED, refresh);
-    };
-  }, [load]);
-  return data;
 }
 
 function StorageIndicator() {
@@ -193,6 +166,8 @@ function DetailsPlaceholder() {
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
 const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', settings: 'Settings', help: 'Help' };
+/** Pages drawn over the library; Home and Library are the library screen (Home adds the dashboard on top). */
+const isOverlayPage = (page: PageId) => page === 'settings' || page === 'help';
 
 /**
  * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the
@@ -211,7 +186,7 @@ export function AppShell() {
   }, [mobile]);
 
   useEffect(() => {
-    document.title = page === 'library' ? 'JusttPrint' : `${PAGE_TITLES[page]} · JusttPrint`;
+    document.title = page === 'home' ? 'JusttPrint' : `${PAGE_TITLES[page]} · JusttPrint`;
   }, [page]);
 
   // Phones keep the old phone layout (Phase 12); the server's hidden thumbnail page has no UI.
@@ -223,9 +198,8 @@ export function AppShell() {
       <LibraryHeader />
       <ModelDetailsPanel />
       <DetailsPlaceholder />
-      {page !== 'library' && (
+      {isOverlayPage(page) && (
         <main className="jp-page" aria-label={PAGE_TITLES[page]}>
-          {page === 'home' && <HomePage />}
           {page === 'settings' && <SettingsPage section={section} />}
           {page === 'help' && <HelpPage />}
         </main>

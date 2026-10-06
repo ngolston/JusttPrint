@@ -34,12 +34,12 @@ describe('shell navigation', () => {
 });
 
 describe('routes', () => {
-  it('reads pages and sections from the hash, and falls back to the library', () => {
+  it('reads pages and sections from the hash, and falls back to Home', () => {
     expect(parseRoute('#/settings/ai')).toEqual({ page: 'settings', section: 'ai' });
     expect(parseRoute('#/home')).toEqual({ page: 'home', section: '' });
-    expect(parseRoute('')).toEqual({ page: 'library', section: '' });
-    expect(parseRoute('#/design-system')).toEqual({ page: 'library', section: '' });
-    expect(parseRoute('#/nope')).toEqual({ page: 'library', section: '' });
+    expect(parseRoute('')).toEqual({ page: 'home', section: '' });
+    expect(parseRoute('#/design-system')).toEqual({ page: 'home', section: '' });
+    expect(parseRoute('#/nope')).toEqual({ page: 'home', section: '' });
     expect(formatRoute('settings', 'a b')).toBe('#/settings/a%20b');
     expect(parseRoute(formatRoute('settings', 'a b')).section).toBe('a b');
   });

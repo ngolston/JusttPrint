@@ -476,6 +476,20 @@ async function browserChecks(base, wsUrl, session) {
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     await page.waitForTimeout(3000);
 
+    // Home dashboard (React, src/web/pages/HomeDashboard.tsx): the app opens on it, above the library.
+    const libraryTotal = (await invoke(base, session, 'get-library-counts')).result || {};
+    check('the app opens on Home with a greeting', await page.isVisible('.jp-sidebar .jp-nav__row[aria-current="page"]:has-text("Home")')
+      && /^Good (morning|afternoon|evening)$/.test((await page.textContent('.jp-hero__title').catch(() => '')).trim()));
+    check('the dashboard figures are the library counts', await page.waitForFunction((n) => document.querySelector('.jp-hero .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 }).then(() => true, () => false),
+      `${await page.textContent('.jp-hero .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`);
+    check('Recent Activity lists the models added', await page.waitForSelector('.jp-activity-list .jp-activity__title:has-text("new models added")', { timeout: 10000 }).then(() => true, () => false));
+    check('Your Printers offers to add a printer', await page.isVisible('.jp-home__panel :text("No printers yet")') || await page.isVisible('.jp-printer-list'));
+    check('the dashboard draws a library model', await page.waitForSelector('.jp-hero__render, .jp-hero__fallback', { timeout: 60000 }).then(() => true, () => false));
+    check('Home also shows the library', await page.isVisible('.jp-library-header__title') && (await page.locator('.file-grid [data-filepath]').count()) > 0);
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    check('Library shows the library without the dashboard', await page.waitForSelector('.jp-hero', { state: 'detached', timeout: 5000 }).then(() => true, () => false)
+      && /#\/library$/.test(page.url()));
+
     const previewView = await page.$('.view-button[data-view="preview"]');
     if (previewView) {
       await previewView.click();

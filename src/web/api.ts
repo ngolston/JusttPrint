@@ -243,8 +243,14 @@ export interface LibraryCounts {
 export const library = {
   stats: () => callAction<LibraryStats>('get-stats'),
   storage: () => callAction<LibraryStorage>('get-library-storage'),
-  counts: () => callAction<LibraryCounts>('get-library-counts')
+  counts: () => callAction<LibraryCounts>('get-library-counts'),
+  activity: (limit?: number) => callAction<ActivityItem[]>('get-recent-activity', ...(limit == null ? [] : [limit]))
 };
+
+/** Dashboard Recent Activity (src/core/recent-activity.js), newest first. */
+export type ActivityItem =
+  | { kind: 'print'; id: number; at: string; outcome: string; quantity: number; filePath: string; fileName: string | null; printer: string | null; filaments: string[] }
+  | { kind: 'added'; at: string; day: string; count: number };
 
 export interface ServerGpuInfo {
   available: boolean;

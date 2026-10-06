@@ -1,7 +1,7 @@
 /**
  * Pages of the JusttPrint 5 shell, addressed by the URL hash (#/library, #/settings/ai, ...), so
  * back, forward and reload keep the page. Unknown hashes (and #/design-system, the component
- * gallery) show the library.
+ * gallery) show Home.
  */
 import { useSyncExternalStore } from 'react';
 
@@ -14,8 +14,8 @@ export interface Route {
   section: string;
 }
 
-/** Until the dashboard exists (Phase 5), the app opens on the library. */
-export const DEFAULT_PAGE: PageId = 'library';
+/** The app opens on Home: the dashboard above the library. */
+export const DEFAULT_PAGE: PageId = 'home';
 
 export function parseRoute(hash: string): Route {
   const [page = '', section = ''] = String(hash || '').replace(/^#\/?/, '').split('/');

@@ -50,6 +50,16 @@ declare global {
  */
 let committing = false;
 
+/** The grid fills the window from its top edge down to the bottom chrome (the phone tab bar). */
+function fitHeight(container: HTMLElement, host: GridHost | undefined) {
+  const top = container.getBoundingClientRect().top;
+  const bottom = host?.bottomChrome() ?? 0;
+  const height = `calc(100vh - ${top}px - ${bottom}px)`;
+  if (container.style.height === height) return;
+  container.style.height = height;
+  container.style.maxHeight = height;
+}
+
 const groupCardKey = (record: GroupRecord) => `${record.key}#${record.children.length}#${record.expanded ? 1 : 0}`;
 
 /**
@@ -145,10 +155,7 @@ export function LibraryGrid() {
     container.style.overflowY = 'auto';
     container.style.overflowX = 'hidden';
     container.style.display = 'block';
-    const top = container.getBoundingClientRect().top;
-    const bottom = host?.bottomChrome() ?? 0;
-    container.style.height = `calc(100vh - ${top}px - ${bottom}px)`;
-    container.style.maxHeight = container.style.height;
+    fitHeight(container, host);
     container.classList.toggle('preview-wall', view === 'preview');
     const grid = container as HTMLElement & { _previewTilePx?: number };
     if (view === 'preview') {
@@ -159,6 +166,15 @@ export function LibraryGrid() {
       delete grid._previewTilePx;
     }
   }, [container, host, view, metrics, generation]);
+
+  // The header above the grid changes height (filter chips, the Home dashboard): fit again.
+  useEffect(() => {
+    const header = container?.previousElementSibling;
+    if (!container || !header) return undefined;
+    const observer = new ResizeObserver(() => fitHeight(container, window.gridHost));
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [container]);
 
   // The list view's columns follow their saved layout (also on rows drawn before it loaded).
   useEffect(() => {

@@ -162,6 +162,7 @@ const ACTIONS = {
   'get-stats': [],
   'get-library-storage': [],
   'get-library-counts': [],
+  'get-recent-activity': ['number?'],
   'get-gpu-info': [],
   'benchmark-filesystem': [],
   'benchmark-database': []
