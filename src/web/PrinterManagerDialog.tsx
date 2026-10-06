@@ -88,7 +88,7 @@ function StatusLine({ id, status, hideWhenEmpty }: { id: string; status: { text:
 }
 
 /**
- * Tools → Printer Manager: onboard printers, open their web interfaces, and track maintenance
+ * Settings → Printer Manager: onboard printers, open their web interfaces, and track maintenance
  * (scheduled reminders and a history log). Registers window.openPrinterManagement.
  */
 export function PrinterManagerDialog() {

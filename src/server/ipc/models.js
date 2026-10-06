@@ -689,7 +689,7 @@ async function saveModel(modelData) {
           && !isMacOsResourceForkEntry(e.name)
       );
       if (toAdd.length === 0) {
-        throw new Error('No supported model files found in the ZIP file. Enable additional file types in Settings > File Type if needed.');
+        throw new Error('No supported model files found in the ZIP file. Enable additional file types in Settings > File Types if needed.');
       }
       const baseMeta = {
         designer,

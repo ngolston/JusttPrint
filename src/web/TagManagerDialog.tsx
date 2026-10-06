@@ -13,7 +13,7 @@ declare global {
 }
 
 /**
- * Tools → Tag Manager: create tags, rename them inline (renaming onto an existing name merges),
+ * Settings → Tag Manager: create tags, rename them inline (renaming onto an existing name merges),
  * and delete them. Registers window.openTagManager.
  */
 export function TagManagerDialog() {

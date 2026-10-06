@@ -176,14 +176,14 @@ type PreviewState =
   | { kind: 'done'; ok: boolean; message: string };
 
 /**
- * Tools → Organize Library: copy the models in a scanned folder into a new folder structure
+ * Settings → Organize Library: copy the models in a scanned folder into a new folder structure
  * (Designer / Parent Model / ...), removing each original once its copy is checked. Preview
  * first; any change asks for a new preview. Registers window.openOrganizeLibrary.
  */
 /**
  * Organize Library: copy models from a scanned folder into a folder structure, removing each
- * original after its copy is checked. Mounted while shown: as the #/organize page, or in the
- * dialog on phones. `actions` places the Preview and Copy buttons.
+ * original after its copy is checked. Mounted while the #/organize page is shown. `actions`
+ * places the Preview and Copy buttons.
  */
 function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNode }) {
   const [sources, setSources] = useState<string[]>([]);

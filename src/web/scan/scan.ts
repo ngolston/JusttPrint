@@ -131,7 +131,7 @@ export async function scanDirectory() {
 export async function scanStlHome() {
   if (progress) return;
   const homes = await stlHomeDirectories();
-  if (!homes.length) return void showMessage('STL Home', 'Set STL Home directories in Settings first (Settings → STL Home).');
+  if (!homes.length) return void showMessage('STL Home', 'Set STL Home directories in Settings first (Settings → Scanning → STL Home).');
   await callAction('save-directory', homes[0]).catch(() => {});
   filterActions.clearAll();
   await scanFolders(homes, { stlHome: true });

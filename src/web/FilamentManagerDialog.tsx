@@ -39,7 +39,7 @@ function errorText(error: unknown, fallback: string): string {
 }
 
 /**
- * Tools → Filament Manager: the filament catalog (manual entries and Spoolman spools) and
+ * Settings → Filament Manager: the filament catalog (manual entries and Spoolman spools) and
  * Spoolman setup.
  * Registers window.openFilamentManager.
  */

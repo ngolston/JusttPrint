@@ -1,86 +1,54 @@
 /* guide.js
  *
- * This module handles the quick‐start guide pages.
- * The guide is automatically shown after the welcome dialog is dismissed
- * and when the Help > Guide menu item is clicked.
- *
- * It uses the dialog element (<dialog id="quickstart-guide">) defined in index.html.
- *
- * The guide consists of five pages:
- *   • Page 1: Scanning for models (image: guide/guide-scan.png)
- *   • Page 2: Editing model details (image: guide/guide-edit.png)
- *   • Page 3: Filtering and searching (image: guide/guide-filter.png)
- *   • Page 4: Settings (no image)
- *   • Page 5: Advanced tools and a thank you message (no image)
+ * The Quick Start Guide (Help → Quick Start Guide; also shown once after the welcome dialog).
+ * It fills the dialog <dialog id="quickstart-guide"> in index.html, one page at a time:
+ * the library, model details, finding models, printing, and settings and tools.
  */
 
 const guidePages = [
   {
-    title: "Scanning for Models",
-    content: `🚀 Ready to dive into your 3D model collection? Click the <strong>Scan Directory</strong> button to effortlessly scan for your 3D models! 🌟 
-    You can also set up a <strong>STL Home</strong> in <strong>Settings</strong> to automatically scan a folder every time the server starts and on a schedule. 
-    <p><strong style="color: Green;">Pro Tip:</strong><br> 
-    <span style="color: Green;">Scan multiple directories to build your ultimate library of 3D models!</span>`,
-    image: "guide/guide-scan.png"
+    title: "Your Library",
+    content: `The sidebar on the left takes you everywhere. <strong>Library</strong> shows your models as cards, with tabs for
+    <strong>All Models</strong>, <strong>Printed</strong>, <strong>Unprinted</strong>, <strong>Queue</strong> and <strong>Favorites</strong>.
+    <p>JusttPrint scans your <strong>STL Home</strong> folders on its own. Add or change them under <strong>Settings → Scanning → STL Home</strong>,
+    and use <strong>Scan Library</strong> in the sidebar to scan right away.</p>`,
+    image: "guide/guide-library.png"
   },
   {
-    title: "Editing Model Details",
-    content: `✨ Click on any model to unlock its details! Here, you can edit essential information like the:<br>
-    <ul>
-      <li><strong>Designer</strong></li>
-      <li><strong>Parent Model</strong></li>
-      <li><strong>License</strong></li>
-      <li><strong>Tags</strong></li>
-    </ul>
-    Use the add (+) button to enrich your dropdowns with new entries. 
-    <p><strong style="color: Green;">Pro Tip:</strong><br> 
-    <span style="color: Green;">Activate <strong>Multi-Edit Mode</strong> to modify multiple models at once and streamline your workflow!</span></p>`,
-    image: "guide/guide-edit.png"
+    title: "Model Details",
+    content: `Click a card to see the model on the right: a large preview (<strong>3D</strong> opens it in 3D), its tags,
+    <strong>Open in Slicer</strong>, <strong>Log Print</strong>, and its details, filament, notes and print history.
+    Every field saves as you change it.
+    <p>Ctrl/⌘-click or Shift-click several cards to edit them together. Right-click a card, or press the Menu key, for more actions.</p>`,
+    image: "guide/guide-details.png"
   },
   {
-    title: "Filtering and Searching",
-    content: `🔍 Searching for that perfect model? Use the filtering options at the top to quickly find models by:<br>
-    <ul>
-      <li><strong>Designer</strong></li>
-      <li><strong>Parent Model</strong></li>
-      <li><strong>License</strong></li>
-      <li><strong>File Type</strong></li>
-      <li><strong>Tags</strong></li>
-    </ul>
-    You can also type in the search box for instant results! Plus, right-click on any model to access powerful options like move, delete, open, or slice it. 
-    Your 3D printing journey just got easier!`,
+    title: "Finding Models",
+    content: `Search from the box at the top (<strong>Ctrl/⌘ K</strong>). <strong>Filter</strong> narrows the library by folder,
+    designer, parent model, license, tags, print status, filament and more; the active filters show as chips you can remove.
+    <p>Switch between <strong>Grid</strong>, <strong>Wall</strong> and <strong>List</strong>, and open the folder panel to browse your folders.</p>`,
     image: "guide/guide-filter.png"
   },
   {
-    title: "Settings",
-    content: `⚙️ Customize your JusttPrint experience! From the <strong>Settings</strong> menu, you can:<br>
-    <ul>
-      <li>Change the <strong>Theme</strong> to match your style! 🎨</li>
-      <li>Adjust <strong>Performance</strong> settings to optimize your workflow! 🚀</li>
-      <li>Set your <strong>STL Home</strong> directories for automatic scans on startup! 🏠</li>
-      <li>Specify the <strong>Slicer Path</strong> to open models directly in your favorite slicer! 🖨️</li>
-    </ul>`,
-    image: ""
+    title: "Printing",
+    content: `<strong>Home</strong> shows your figures, recent activity and printers.
+    <strong>Queue</strong> lists what is printing, what is up next and what printed lately.
+    <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders, and
+    <strong>Filament</strong> your filament catalog, with optional Spoolman sync.
+    <p>Log a print from a card's status badge or the details panel; JusttPrint keeps a dated history for each model.</p>`,
+    image: "guide/guide-home.png"
   },
   {
-    title: "Advanced Tools",
-    content: `🌟 Explore powerful features under the <strong>Tools</strong> menu!<br>
-    <ul>
-      <li><strong>Filament Manager</strong> – Track which filament a model uses. Add filaments yourself, or open <strong>Spoolman Setup</strong> in that same window to sync your catalog! 🧵</li>
-      <li><strong>Printer Manager</strong> – Onboard your 3D printers, launch Klipper/OctoPrint web interfaces, track maintenance logs, and schedule reminders. 🖨️</li>
-      <li><strong>Parts Manager</strong> – Keep a count of screws, bearings, inserts, and other hardware. When you log a print, pick the parts it used and they come out of stock. 🔩</li>
-      <li><strong>Tag Manager</strong> – Organize your models with tags for easy access! Click a tag to rename it across the library, or clear the name to delete it. 🏷️</li>
-      <li><strong>Print Roulette</strong> – Feeling indecisive? Let JusttPrint randomly select your next model to print! 🎲</li>
-      <li><strong>Backup/Restore</strong> – Safeguard your data with easy backup and restore options! 💾</li>
-      <li><strong>De-Dup</strong> – Say goodbye to clutter! Clean up duplicate files in your library, and limit the scan to the models currently in view (designer, tags, search, and other filters) so a large collection does not have to be processed all at once. 🧹</li>
-      <li><strong>AI Tagging</strong> – Configure your AI services in <strong>Settings > AI Config</strong> to enable powerful AI-assisted tagging. Cloud providers need an API key; local OpenAI-compatible servers (Ollama, LM Studio, and similar) do not. Tag generation also sees the parent folder names and the model's description. Right-click one or more models for <strong>Generate Tags</strong>, or use <strong>Tag from Folder</strong> to copy those folder names onto the models without calling the AI. 🤖</li>
-      <li><strong>Slicer Integration</strong> – Configure slicers in <strong>Settings</strong> for right-click <strong>Open in Slicer</strong> and the preview dialog <strong>Send to Slicer</strong> button. Sending again while a slicer is open starts a new instance with your model loaded. 🖨️</li>
-      <li><strong>Folder &amp; ZIP bundles</strong> – Multi-part folders and ZIP archives group into one row. Click to expand; right-click <strong>Preview</strong> for an all-parts 3D view; double-click for bundle details. 📦</li>
-    </ul>
-    Thank you for choosing JusttPrint! Visit <strong>Help > Support JusttPrint</strong> to learn how you can support this amazing project!`,
-    image: ""
+    title: "Settings and Tools",
+    content: `<strong>Tags</strong>, <strong>Duplicates</strong> and <strong>Organize</strong> help you tidy the library, and
+    <strong>AI Tagging</strong> suggests tags for you. <strong>Settings</strong> has everything else in one page: theme, scanning,
+    slicers, AI, server access, backups and more.
+    <p><strong>Help</strong> lists the keyboard shortcuts and links to the documentation. Thank you for using JusttPrint!</p>`,
+    image: "guide/guide-settings.png"
   }
 ];
+
+let currentPage = 0;
 
 // Update the guide dialog with the current page's content and image.
 function updateGuide() {
@@ -111,39 +79,13 @@ function updateGuide() {
     // Clear existing contents before adding new content
     guideText.innerHTML = '';
 
-    // For pages 2 and 3 (indexes 1 and 2) show a two-column layout (image on left, text on right)
-    if (currentPage === 1 || currentPage === 2) {
-      // Create a two-column container
-      const twoColumnContainer = document.createElement("div");
-      twoColumnContainer.className = "guide-two-column";
-
-      // Create the image element
-      const imgElement = document.createElement("img");
-      imgElement.src = page.image;
-      imgElement.alt = page.title;
-
-      // Create a text container for the title and content
-      const textContainer = document.createElement("div");
-      textContainer.className = "guide-text-content";
-      textContainer.innerHTML = `<h3>${page.title}</h3><p>${page.content}</p>`;
-
-      // Append to two-column container
-      twoColumnContainer.appendChild(imgElement);
-      twoColumnContainer.appendChild(textContainer);
-      guideText.appendChild(twoColumnContainer);
-
-      // Hide the standalone guideImage element (not used in this layout)
-      guideImage.style.display = "none";
+    guideText.innerHTML = `<h3>${page.title}</h3><p>${page.content}</p>`;
+    if (page.image) {
+      guideImage.src = page.image;
+      guideImage.alt = page.title;
+      guideImage.style.display = "block";
     } else {
-      // Default layout: show title and content in guideText, and if an image exists, display it.
-      guideText.innerHTML = `<h3>${page.title}</h3><p>${page.content}</p>`;
-      if (page.image) {
-        guideImage.src = page.image;
-        guideImage.alt = page.title;
-        guideImage.style.display = "block";
-      } else {
-        guideImage.style.display = "none";
-      }
+      guideImage.style.display = "none";
     }
 
     // Fade in the new content
@@ -154,7 +96,6 @@ function updateGuide() {
     backButton.disabled = currentPage === 0;
 
     // Update Next button text and icon
-    const nextButtonSpans = nextButton.querySelectorAll('span');
     if (currentPage === guidePages.length - 1) {
       // Last page: show "Finish" without arrow
       nextButton.innerHTML = '<span>Finish</span>';
@@ -183,24 +124,8 @@ function prevGuide() {
   }
 }
 
-let serverGuideAdjusted = false;
-
-async function omitSlicerGuideForServerMode() {
-  if (serverGuideAdjusted) return;
-  serverGuideAdjusted = true;
-  const serverMode = await window.electron?.isServerMode?.().catch(() => false);
-  if (!serverMode) return;
-  for (const page of guidePages) {
-    page.content = page.content
-      .replace(', or slice it', '')
-      .replace(/\s*<li>Specify the <strong>Slicer Path<\/strong>[\s\S]*?<\/li>/, '')
-      .replace(/\s*<li><strong>Slicer Integration<\/strong>[\s\S]*?<\/li>/, '');
-  }
-}
-
 // Opens the guide dialog starting at the first page.
-async function showGuide() {
-  await omitSlicerGuideForServerMode();
+function showGuide() {
   currentPage = 0;
   updateGuide();
   const guideDialog = document.getElementById("quickstart-guide");

@@ -37,7 +37,7 @@ function rowsFor(entries: MetadataEntry[], type: MetadataType, search: string): 
 }
 
 /**
- * Tools → Metadata Manager: rename (or merge) and clear designers, parent models and licenses
+ * Settings → Metadata Manager: rename (or merge) and clear designers, parent models and licenses
  * across the library. Registers window.openMetadataEditor.
  */
 export function MetadataEditorDialog() {

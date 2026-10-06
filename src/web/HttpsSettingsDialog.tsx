@@ -45,7 +45,7 @@ function statusLine(status: TlsStatus): string {
 }
 
 /**
- * Tools → MCP Server → HTTPS / SSL: the listen port, and TLS from certificate files, Let's
+ * Settings → MCP Server → HTTPS / SSL: the listen port, and TLS from certificate files, Let's
  * Encrypt or a self-signed certificate. Locked when JUSTTPRINT_TLS_CERT/KEY are set.
  * Registers window.openHttpsSettings.
  */

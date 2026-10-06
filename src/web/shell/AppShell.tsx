@@ -290,11 +290,15 @@ export function AppShell() {
     document.querySelector('.main-content > .library-main')?.setAttribute('role', covered ? 'region' : 'main');
   }, [page, menuOpen]);
 
-  // The menu drawer takes the focus while open and gives it back to the Menu button.
+  // The menu drawer takes the focus while open and gives it back to the Menu button (after it
+  // was open: not when the page loads).
+  const menuWasOpen = useRef(false);
   useEffect(() => {
+    const wasOpen = menuWasOpen.current;
+    menuWasOpen.current = menuOpen;
     if (!narrow('(max-width: 700px)')) return;
     if (menuOpen) document.querySelector<HTMLElement>('#jp-sidebar .jp-nav__row[aria-current="page"], #jp-sidebar .jp-nav__row')?.focus();
-    else if (document.activeElement === document.body) document.querySelector<HTMLElement>('.jp-topbar__menu')?.focus();
+    else if (wasOpen && document.activeElement === document.body) document.querySelector<HTMLElement>('.jp-topbar__menu')?.focus();
   }, [menuOpen]);
 
   // The details drawer (below 1200 px) takes the focus when it opens; closing it returns to the model.

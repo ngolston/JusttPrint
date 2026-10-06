@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-/** Tools → Purge Models: remove every model from the database. Registers window.openPurgeModels. */
+/** Settings → Purge Models: remove every model from the database. Registers window.openPurgeModels. */
 export function PurgeModelsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [purging, setPurging] = useState(false);
