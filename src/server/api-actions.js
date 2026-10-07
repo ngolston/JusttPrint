@@ -137,6 +137,7 @@ const ACTIONS = {
   'backup-database': [],
   'restore-database': ['object?'],
   'get-auto-backup': [],
+  'get-folder-watch-status': [],
   'save-auto-backup': ['object'],
   'run-auto-backup': [],
   'restore-auto-backup': ['string'],

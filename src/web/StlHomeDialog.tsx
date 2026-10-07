@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { settings } from './api';
+import { callAction, settings } from './api';
 import { pickFolder } from './components/FolderPicker';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
@@ -48,17 +48,34 @@ interface Form {
   useParentModel: boolean;
   designerIndex: string;
   parentModelIndex: string;
+  watch: boolean;
 }
 
 const EMPTY: Form = {
   homes: [], excluded: [], frequency: '60', pathMetadata: false, direction: 'fromModel',
-  useDesigner: true, useParentModel: true, designerIndex: '1', parentModelIndex: '0'
+  useDesigner: true, useParentModel: true, designerIndex: '1', parentModelIndex: '0', watch: true
 };
+
+/** What get-folder-watch-status returns (src/server/stl-home.js). */
+interface WatchStatus {
+  enabled: boolean;
+  roots: { path: string; folders: number; error: string }[];
+}
+
+/** One line on folder watching: how many folders, or why one could not be watched. */
+function watchSummary(status: WatchStatus | null): string {
+  if (!status || !status.enabled || !status.roots.length) return '';
+  const failed = status.roots.filter((root) => root.error);
+  if (failed.length) return failed.map((root) => root.error).join(' ');
+  const folders = status.roots.reduce((sum, root) => sum + root.folders, 0);
+  return `Watching ${folders.toLocaleString()} folder${folders === 1 ? '' : 's'}.`;
+}
 
 async function loadForm(): Promise<Form> {
   const keys = ['stlHomeDirectories', 'stlHome', 'stlHomeExcludeDirectories', 'stlHomeUpdateFrequency', 'pathMetadataStlHomeEnabled',
-    'pathMetadataStlHomeDirection', 'pathMetadataUseDesigner', 'pathMetadataUseParentModel', 'pathMetadataDesignerIndex', 'pathMetadataParentModelIndex'];
-  const [homes, legacy, excluded, frequency, enabled, direction, useDesigner, useParent, designerIndex, parentIndex] =
+    'pathMetadataStlHomeDirection', 'pathMetadataUseDesigner', 'pathMetadataUseParentModel', 'pathMetadataDesignerIndex', 'pathMetadataParentModelIndex',
+    'stlHomeWatch'];
+  const [homes, legacy, excluded, frequency, enabled, direction, useDesigner, useParent, designerIndex, parentIndex, watch] =
     await Promise.all(keys.map((key) => settings.get<string | null>(key)));
   const list = parseDirList(homes);
   return {
@@ -70,7 +87,8 @@ async function loadForm(): Promise<Form> {
     useDesigner: useDesigner !== '0',
     useParentModel: useParent !== '0',
     designerIndex: designerIndex != null && designerIndex !== '' ? String(designerIndex) : '1',
-    parentModelIndex: parentIndex != null && parentIndex !== '' ? String(parentIndex) : '0'
+    parentModelIndex: parentIndex != null && parentIndex !== '' ? String(parentIndex) : '0',
+    watch: watch !== '0'
   };
 }
 
@@ -124,8 +142,10 @@ export function StlHomeDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState<Form>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null);
 
   useEffect(() => exposeGlobal('openStlHome', () => {
+    callAction<WatchStatus>('get-folder-watch-status').then(setWatchStatus, () => setWatchStatus(null));
     loadForm()
       .then(setForm)
       .catch((error) => console.error('[STL Home] Could not load the settings:', error))
@@ -148,7 +168,8 @@ export function StlHomeDialog() {
         ['pathMetadataUseDesigner', form.useDesigner ? '1' : '0'],
         ['pathMetadataUseParentModel', form.useParentModel ? '1' : '0'],
         ['pathMetadataDesignerIndex', form.designerIndex || '1'],
-        ['pathMetadataParentModelIndex', form.parentModelIndex || '0']
+        ['pathMetadataParentModelIndex', form.parentModelIndex || '0'],
+        ['stlHomeWatch', form.watch ? '1' : '0']
       ];
       for (const [key, value] of values) await settings.save(key, value);
       dialogRef.current?.close();
@@ -192,11 +213,21 @@ export function StlHomeDialog() {
         <DirList id="stl-home-directories" items={form.homes} empty="No directories selected." placeholder="Enter a directory path" pickTitle="Add STL Home Directory"
           onChange={(homes) => set('homes', homes)} />
       </div>
+      <div className="form-group" id="stl-home-watch-group">
+        <div className="form-group checkbox-container">
+          <input type="checkbox" id="stl-home-watch" checked={form.watch} onChange={(event) => set('watch', event.target.checked)} />
+          <label htmlFor="stl-home-watch">Watch these directories for changes</label>
+        </div>
+        <p className="setting-description">
+          New, changed and deleted files show up within seconds, without waiting for the next scan. Network shares (SMB/NFS) and Docker Desktop on Mac or Windows may not report changes; the timed scan below still covers them.
+        </p>
+        {form.watch && watchSummary(watchStatus) && <p id="stl-home-watch-status" className="setting-description">{watchSummary(watchStatus)}</p>}
+      </div>
       <div className="form-group" id="stl-home-update-frequency-group">
         <label htmlFor="stl-home-update-frequency">Update Frequency (minutes):</label>
         <input type="number" id="stl-home-update-frequency" min="1" max="1440" value={form.frequency}
           onChange={(event) => set('frequency', event.target.value)} />
-        <p className="setting-description">How frequently the STL Home directories will be scanned for new files.</p>
+        <p className="setting-description">How often the STL Home directories are scanned in full, for changes that watching misses.</p>
       </div>
       <div className="form-group" id="stl-home-exclude-group">
         <label htmlFor="stl-home-exclude-input">Excluded directories</label>

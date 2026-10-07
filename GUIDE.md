@@ -22,7 +22,7 @@ On a **laptop** screen the details panel opens as a drawer from the right. On a 
 ## Getting started
 
 1. Start the container, open `http://<server-ip>:5000` and log in.
-2. Add your models folder under **Settings → Scanning → STL Home**: **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away and then on a schedule (every 60 minutes unless you change it). **Scan Library** in the sidebar scans again at any time.
+2. Add your models folder under **Settings → Scanning → STL Home**: **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
 4. Optional: pick an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer**, your printers on **Printers** and your filament on **Filament**.
 

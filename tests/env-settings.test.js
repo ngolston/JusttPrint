@@ -50,6 +50,10 @@ test('AI settings are validated', () => {
   assert.strictEqual(settingsFromEnv({ JUSTTPRINT_AI_ENDPOINT: 'not a url' }, ctx).errors.length, 1);
 });
 
+test('folder watching can be switched off', () => {
+  assert.strictEqual(byKey(settingsFromEnv({ JUSTTPRINT_WATCH_FOLDERS: 'false' }, ctx)).stlHomeWatch, '0');
+});
+
 test('automatic backup settings are validated', () => {
   const ok = byKey(settingsFromEnv({
     JUSTTPRINT_AUTO_BACKUP: 'yes',

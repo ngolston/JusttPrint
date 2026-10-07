@@ -170,7 +170,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **User accounts and roles** (admin, read-only, guest) for sharing with family or a makerspace.
 - [x] **Automatic, scheduled backups** with retention, saved to a mounted volume: Settings → Backup → Automatic Backups ([src/server/auto-backup.js](src/server/auto-backup.js), [src/web/settings/AutoBackup.tsx](src/web/settings/AutoBackup.tsx)) and the `JUSTTPRINT_*BACKUP*` variables.
 - [ ] **Clean up hand-made backups and exports.** **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
-- [ ] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand.
+- [x] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand. One `fs.watch` per STL Home folder ([src/server/folder-watch.js](src/server/folder-watch.js)), batched rescans of the changed folders ([src/server/stl-home.js](src/server/stl-home.js)); network shares still rely on the timed scan.
 - [ ] **Upload models through the web UI** (drag and drop) into a chosen library folder.
 - [ ] **Send to printer**: upload and start a print via OctoPrint, Moonraker or Bambu, using the saved printer details. A server is a natural fit for this.
 - [ ] **Cost and time estimates** from G-code or sliced 3MF metadata plus filament prices.

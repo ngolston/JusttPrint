@@ -47,6 +47,8 @@ const ENV_SETTINGS = [
     const url = new URL(String(value).trim());
     return url.toString().replace(/\/$/, '');
   }],
+  // Folder watching for STL Home (src/server/stl-home.js).
+  ['JUSTTPRINT_WATCH_FOLDERS', 'stlHomeWatch', parseBoolean],
   // Automatic database backups (src/server/auto-backup.js).
   ['JUSTTPRINT_AUTO_BACKUP', 'autoBackupEnabled', parseBoolean],
   ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', 'autoBackupIntervalHours', (value) => String(wholeNumber(value, 1, 8760))],
