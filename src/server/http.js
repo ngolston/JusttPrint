@@ -587,7 +587,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
             console.warn('[TLS] Port 80 listener:', err.message);
           });
         }
-        console.log(`Server mode requires UNC paths for all file operations`);
       }
       resolve();
     };
@@ -622,7 +621,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   wss.on('connection', (ws, req) => {
     const isThumbnailWorker = thumbnailWorker.isWorkerRequest(req);
-    console.log(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
+    console.debug(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
     wsClients.add(ws);
     if (isThumbnailWorker) thumbnailWorker.attach(ws);
 
@@ -672,7 +671,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     });
 
     ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+      console.debug('WebSocket client disconnected');
       wsClients.delete(ws);
       unregisterClient(clientId);
       clientDialogs.dropClient(ws);

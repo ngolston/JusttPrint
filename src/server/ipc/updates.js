@@ -11,13 +11,13 @@ async function checkForUpdates(isBeta = false) {
     // First check if we've already shown update dialog this session
     const versionCheckPerformed = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('versionCheckPerformedOnStartup');
     if (versionCheckPerformed && versionCheckPerformed.value === 'true') {
-      console.log('Version check already performed this session, skipping');
+      console.debug('Version check already performed this session, skipping');
       return null;
     }
 
     return new Promise((resolve, reject) => {
       const versionUrl = releasesApiUrl(isBeta);
-      console.log('Main Process - Checking GitHub releases:', versionUrl);
+      console.debug('Main Process - Checking GitHub releases:', versionUrl);
 
       https.get(versionUrl, {
         // GitHub's API requires a User-Agent.
@@ -34,14 +34,14 @@ async function checkForUpdates(isBeta = false) {
           }
           console.log('Main Process - Latest release:', version, `(HTTP ${res.statusCode})`);
           if (version) {
-            console.log('Main Process - Valid version format received:', version);
+            console.debug('Main Process - Valid version format received:', version);
             // Update the database with the latest version
             try {
               database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(version, 'latestVersion');
               database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(new Date().toISOString(), 'lastUpdateCheck');
               // Mark that we've performed the version check
               database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('true', 'versionCheckPerformedOnStartup');
-              console.log('Database updated with latest version:', version);
+              console.debug('Database updated with latest version:', version);
             } catch (dbError) {
               console.error('Error updating version in database:', dbError);
             }
@@ -64,7 +64,7 @@ async function checkForUpdates(isBeta = false) {
 // Update the IPC handler
 ipcMain.handle('check-for-updates', async (event, isBeta) => {
   try {
-    console.log('Main Process - Update check requested:', { isBeta });
+    console.debug('Main Process - Update check requested:', { isBeta });
     // Add timeout to the version check
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Version check timed out')), 5000);
@@ -73,7 +73,7 @@ ipcMain.handle('check-for-updates', async (event, isBeta) => {
     const versionPromise = checkForUpdates(isBeta);
     const latestVersion = await Promise.race([versionPromise, timeoutPromise]);
     
-    console.log('Main Process - Latest version found:', latestVersion);
+    console.debug('Main Process - Latest version found:', latestVersion);
     return latestVersion;
   } catch (error) {
     console.error('Error checking for updates:', error);

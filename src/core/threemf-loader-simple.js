@@ -213,7 +213,7 @@ class Simple3MFLoader {
       const uint8Array = new Uint8Array(data);
       const unzipped = fflate.unzipSync(uint8Array);
       const zipKeys = Object.keys(unzipped);
-      console.log('3MF zip entries:', zipKeys.length);
+      console.debug('3MF zip entries:', zipKeys.length);
 
       const modelEntries = zipKeys.filter(k => k.toLowerCase().endsWith('.model'));
       if (modelEntries.length === 0) {
@@ -286,7 +286,7 @@ class Simple3MFLoader {
           }
         }
       } catch (e) {
-        console.log('Failed to parse rels:', e.message);
+        console.debug('Failed to parse rels:', e.message);
       }
     }
 

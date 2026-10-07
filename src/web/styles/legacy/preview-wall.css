@@ -185,8 +185,8 @@
 }
 
 /*
- * Corner badges — must beat .file-grid .print-status { top/left } and .file-grid .archive-status { top/right }.
- * Layout: New top-left, Printed top-right, Archive bottom-left (away from 1/N badge bottom-right).
+ * Corner badges — must beat .file-grid .print-status { top/left }.
+ * Layout: New top-left, Printed top-right; Archive is in the name row (.preview-tile-archive).
  */
 .file-grid.preview-wall .file-item.preview-tile > .print-status {
   position: absolute !important;
@@ -209,19 +209,23 @@
   pointer-events: auto;
 }
 
-.file-grid.preview-wall .file-item.preview-tile > .archive-status {
-  position: absolute !important;
-  bottom: 4px !important;
-  left: 4px !important;
-  top: auto !important;
-  right: auto !important;
-  transform: none !important;
-  z-index: 14;
-  margin: 0;
-  padding: 2px 5px;
+.file-grid.preview-wall .preview-tile-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.file-grid.preview-wall .preview-tile-name-row .preview-tile-name { flex: 1; min-width: 0; }
+
+/* Archive: a small label in front of the name (beats .file-grid .archive-status { position: absolute }). */
+.file-grid.preview-wall .preview-tile-archive {
+  position: static;
+  flex: none;
+  margin: 1px 0 0;
+  padding: 1px 5px;
   font-size: 8px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.3;
   border-radius: 4px;
   pointer-events: none;
 }

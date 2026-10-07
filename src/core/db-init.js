@@ -174,7 +174,7 @@ function initializeDatabase() {
 // Add migration function for dateAdded column
 function migrateDateAddedColumn() {
   try {
-    console.log('Checking for dateAdded column migration...');
+    console.debug('Checking for dateAdded column migration...');
     
     // Check if dateAdded column exists
     const tableInfo = database.db.prepare("PRAGMA table_info(models)").all();
@@ -195,7 +195,7 @@ function migrateDateAddedColumn() {
       
       console.log('dateAdded column added and existing records updated');
     } else {
-      console.log('dateAdded column already exists');
+      console.debug('dateAdded column already exists');
     }
     
     return true;
@@ -208,7 +208,7 @@ function migrateDateAddedColumn() {
 /** Add isNew column for "new until edited" badge; existing rows are not new. */
 function migrateIsNewColumn() {
   try {
-    console.log('Checking for isNew column migration...');
+    console.debug('Checking for isNew column migration...');
     const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
     const hasIsNew = tableInfo.some(col => col.name === 'isNew');
     if (!hasIsNew) {
@@ -217,7 +217,7 @@ function migrateIsNewColumn() {
       database.db.prepare('UPDATE models SET isNew = 0').run();
       console.log('isNew column added; existing models marked as not new');
     } else {
-      console.log('isNew column already exists');
+      console.debug('isNew column already exists');
     }
     return true;
   } catch (error) {
@@ -229,7 +229,7 @@ function migrateIsNewColumn() {
 /** Add rating (0-5) and favorite (0/1) columns for model engagement. */
 function migrateRatingFavoriteColumns() {
   try {
-    console.log('Checking for rating/favorite column migration...');
+    console.debug('Checking for rating/favorite column migration...');
     const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
     const hasRating = tableInfo.some(col => col.name === 'rating');
     const hasFavorite = tableInfo.some(col => col.name === 'favorite');
@@ -264,7 +264,7 @@ function migratePrintLifecycleColumns() {
 /** Zip bundle columns for grouped browsing (folder siblings are not bundled). */
 function migrateBundleColumns() {
   try {
-    console.log('Checking for bundle column migration...');
+    console.debug('Checking for bundle column migration...');
     const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
     const names = new Set(tableInfo.map((col) => col.name));
     const additions = [
@@ -347,7 +347,7 @@ function clearFailurePlaceholderThumbnails() {
     ).get('failurePlaceholderThumbCleanupComplete')?.value;
     if (done === '1') return true;
 
-    console.log('Clearing likely failure-placeholder thumbnails (one-shot)...');
+    console.debug('Clearing likely failure-placeholder thumbnails (one-shot)...');
     const cleared = database.db.prepare(`
       UPDATE models
       SET thumbnail = '3d.png'
@@ -373,7 +373,7 @@ function clearFailurePlaceholderThumbnails() {
 // Add this function to clean up any database objects referencing models_old
 function cleanupModelsOldReferences() {
   try {
-    console.log('Checking for database objects referencing models_old...');
+    console.debug('Checking for database objects referencing models_old...');
     
     // Check for triggers that reference models_old
     const triggers = database.db.prepare(`
@@ -435,7 +435,7 @@ function cleanupModelsOldReferences() {
       }
     }
     
-    console.log('Finished cleaning up models_old references');
+    console.debug('Finished cleaning up models_old references');
     return true;
   } catch (error) {
     console.error('Error cleaning up models_old references:', error);
@@ -446,7 +446,7 @@ function cleanupModelsOldReferences() {
 // Add this function after repairModelTagsTable
 function initializeDefaultSettings() {
   try {
-    console.log('Initializing default settings...');
+    console.debug('Initializing default settings...');
     
     // Check if settings table exists
     const tableExists = database.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'").get();
@@ -501,7 +501,7 @@ function initializeDefaultSettings() {
     // Usage tracking was removed; drop its settings from older databases.
     database.db.prepare("DELETE FROM settings WHERE key IN ('CollectUsage', 'ClientId')").run();
 
-    console.log('Default settings initialized');
+    console.debug('Default settings initialized');
     return true;
   } catch (error) {
     console.error('Error initializing default settings:', error);
@@ -573,15 +573,15 @@ function removeSpoolmanData() {
 
 function verifyDatabaseIntegrity() {
   try {
-    console.log('Verifying database integrity...');
+    console.debug('Verifying database integrity...');
     
     // Check if foreign keys are enabled
     const foreignKeysEnabled = database.db.pragma('foreign_keys');
-    console.log(`Foreign keys enabled: ${foreignKeysEnabled}`);
+    console.debug(`Foreign keys enabled: ${foreignKeysEnabled}`);
     
     // Run integrity check
     const integrityCheck = database.db.pragma('integrity_check');
-    console.log(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
+    console.debug(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
     
     repairModelTagsTable();
     

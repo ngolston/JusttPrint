@@ -179,16 +179,16 @@ ipcMain.handle('get-all-models', getAllModelsHandler);
 
 const getModelsFilteredHandler = async (event, filters) => {
   try {
-    console.log('getModelsFiltered called with filters:', filters);
-    console.log('Designer inverted flag:', filters.designerInverted);
+    console.debug('getModelsFiltered called with filters:', filters);
+    console.debug('Designer inverted flag:', filters.designerInverted);
 
     const { conditions, params } = buildModelFilterConditions(filters);
 
     // Build WHERE clause
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     
-    console.log('WHERE clause built:', whereClause);
-    console.log('Conditions:', conditions);
+    console.debug('WHERE clause built:', whereClause);
+    console.debug('Conditions:', conditions);
     
     // Determine ORDER BY clause based on sortOption
     let orderClause = "";
@@ -270,12 +270,12 @@ const selectCols = MODEL_LIST_COLUMNS_QUALIFIED;
     } else if (offset != null) {
       query += ` LIMIT 999999 OFFSET ${Math.floor(offset)}`;
     }
-    console.log('Executing query:', query);
-    console.log('With params:', params);
+    console.debug('Executing query:', query);
+    console.debug('With params:', params);
     
     const models = database.db.prepare(query).all(...params);
 
-    console.log(`Returning ${models.length} filtered models`);
+    console.debug(`Returning ${models.length} filtered models`);
     return models;
   } catch (error) {
     console.error("Error in getModelsFiltered IPC:", error);
@@ -518,8 +518,8 @@ async function updateModelsBatch(modelDataBatch) {
           filaments
         } = modelData;
 
-        console.log(`[Batch ${i}] Processing model: ${filePath}`);
-        console.log(`[Batch ${i}] Field values:`, { fileName, designer, source, notes, printed, parentModel, license, tags });
+        console.debug(`[Batch ${i}] Processing model: ${filePath}`);
+        console.debug(`[Batch ${i}] Field values:`, { fileName, designer, source, notes, printed, parentModel, license, tags });
 
         // Get existing model to preserve values that aren't being updated
         const existingModel = getExistingModelStmt.get(filePath);
@@ -529,7 +529,7 @@ async function updateModelsBatch(modelDataBatch) {
           continue; // Skip this model if it doesn't exist
         }
         
-        console.log(`[Batch ${i}] Found existing model with ID: ${existingModel.id}`);
+        console.debug(`[Batch ${i}] Found existing model with ID: ${existingModel.id}`);
         // Only update fields that are explicitly provided (not undefined)
         const finalFileName = fileName !== undefined ? fileName : existingModel.fileName;
         const finalDesigner = designer !== undefined ? (designer || null) : existingModel.designer;
@@ -562,7 +562,7 @@ async function updateModelsBatch(modelDataBatch) {
         }
 
         // Update model fields
-        console.log(`[Batch ${i}] Updating model with values:`, {
+        console.debug(`[Batch ${i}] Updating model with values:`, {
           finalFileName,
           finalDesigner,
           finalSource,
@@ -589,7 +589,7 @@ async function updateModelsBatch(modelDataBatch) {
           clearIsNew ? 1 : 0,
           filePath
         );
-        console.log(`[Batch ${i}] Update result:`, updateResult);
+        console.debug(`[Batch ${i}] Update result:`, updateResult);
 
         // Replace the tags when a list is given; an empty list removes them all.
         if (Array.isArray(tags)) {
@@ -641,7 +641,7 @@ function sortedTagNames(tags) {
 // Add this function before the IPC handlers
 async function saveModel(modelData) {
   try {
-    console.log('saveModel:', modelData?.filePath, modelData?.id != null ? `(id ${modelData.id})` : '');
+    console.debug('saveModel:', modelData?.filePath, modelData?.id != null ? `(id ${modelData.id})` : '');
     
     let {
       id: inputId, // Rename to avoid confusion
@@ -720,7 +720,7 @@ async function saveModel(modelData) {
     // Ensure tags is always an array, even if a single string was passed
     const tags = rawTags ? (Array.isArray(rawTags) ? rawTags : [rawTags]) : [];
 
-    console.log(`Processing notes field: "${notes}"`);
+    console.debug(`Processing notes field: "${notes}"`);
 
     // Enable foreign key constraints
     database.db.pragma('foreign_keys = ON');
@@ -734,7 +734,7 @@ async function saveModel(modelData) {
       
       if (existingModel) {
         // Update existing model
-        console.log(`Updating existing model with ID: ${existingModel.id}`);
+        console.debug(`Updating existing model with ID: ${existingModel.id}`);
         
         // Get existing model data to preserve values that aren't being updated
         const existingModelData = getModelById(existingModel.id);
@@ -822,7 +822,7 @@ async function saveModel(modelData) {
         modelId = existingModel.id;
       } else {
         // Insert new model
-        console.log('Inserting new model');
+        console.debug('Inserting new model');
         
         const printFields = printEvents.resolvePrintFieldsOnSave(null, { printed, printStatus });
         const dateAdded = new Date().toISOString();
@@ -858,7 +858,7 @@ async function saveModel(modelData) {
         insertedNewModel = true;
       }
       
-      console.log(`Model saved with ID: ${modelId}`);
+      console.debug(`Model saved with ID: ${modelId}`);
     } catch (modelError) {
       console.error('Error saving model data:', modelError);
       throw modelError;
@@ -868,7 +868,7 @@ async function saveModel(modelData) {
     // Note: We need to process tags even if the array is empty (to remove all tags)
     if (modelId && tags && Array.isArray(tags)) {
       try {
-        console.log(`Processing ${tags.length} tags for model ID ${modelId}`);
+        console.debug(`Processing ${tags.length} tags for model ID ${modelId}`);
         
         // Double-check that the model exists before proceeding
         const modelExists = database.db.prepare('SELECT 1 FROM models WHERE id = ?').get(modelId);
@@ -889,7 +889,7 @@ async function saveModel(modelData) {
           
           // First, remove all existing tags for this model
           const deleteResult = database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
-          console.log(`Deleted ${deleteResult.changes} existing tag relationships`);
+          console.debug(`Deleted ${deleteResult.changes} existing tag relationships`);
 
           // Process each tag individually (only if there are tags to add)
           if (tags.length > 0) {
@@ -897,7 +897,7 @@ async function saveModel(modelData) {
               if (tagName && typeof tagName === 'string' && tagName.trim() !== '') {
                 const trimmedTagName = tagName.trim();
                 try {
-                  console.log(`Processing tag: "${trimmedTagName}"`);
+                  console.debug(`Processing tag: "${trimmedTagName}"`);
                   
                   // First ensure the tag exists in the tags table
                   database.db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)').run(trimmedTagName);
@@ -906,7 +906,7 @@ async function saveModel(modelData) {
                   const tagRow = database.db.prepare('SELECT id FROM tags WHERE name = ?').get(trimmedTagName);
                   
                   if (tagRow && tagRow.id) {
-                    console.log(`Found tag ID ${tagRow.id} for "${trimmedTagName}"`);
+                    console.debug(`Found tag ID ${tagRow.id} for "${trimmedTagName}"`);
                     
                     // Now create the relationship with the known IDs
                     database.db.prepare('INSERT OR IGNORE INTO model_tags (model_id, tag_id) VALUES (?, ?)').run(modelId, tagRow.id);
@@ -920,7 +920,7 @@ async function saveModel(modelData) {
               }
             }
           } else {
-            console.log('Tags array is empty - all tags have been removed from this model');
+            console.debug('Tags array is empty - all tags have been removed from this model');
           }
         })();
       } catch (tagError) {

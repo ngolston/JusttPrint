@@ -32,19 +32,19 @@ ipcMain.handle('trash-file', async (event, filePath) => {
   
   // Simple path normalization - replace all backslashes with forward slashes
   const normalizedPath = filePath.replace(/\\/g, "/");
-  console.log('trash-file handler received path:', filePath);
-  console.log('Normalized path:', normalizedPath);
+  console.debug('trash-file handler received path:', filePath);
+  console.debug('Normalized path:', normalizedPath);
   
   try {
     if (!isUrlModel(filePath)) {
-      console.log('Attempting trashItem with path:', normalizedPath);
+      console.debug('Attempting trashItem with path:', normalizedPath);
       await shell.trashItem(normalizedPath);
-      console.log('trashItem succeeded');
+      console.debug('trashItem succeeded');
     }
     
     // Remove from database (for both file and URL-only models)
     await new Promise((resolve, reject) => {
-      console.log('Deleting from database:', normalizedPath);
+      console.debug('Deleting from database:', normalizedPath);
       database.db.transaction(() => {
         const model = database.db.prepare('SELECT id FROM models WHERE filePath = ?').get(normalizedPath);
         if (model) {
@@ -77,7 +77,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
       throw new Error(validationError.message);
     }
     
-    console.log('main: delete-file handler called with:', filePath);
+    console.debug('main: delete-file handler called with:', filePath);
     const result = await deleteFile(filePath);
     
     // Send refresh-grid event to update the UI after file deletion
@@ -185,7 +185,7 @@ ipcMain.handle('move-files', async (event, filePaths, destinationFolder) => {
       }
 
       const newDestination = path.join(destinationFolder, path.basename(filePath));
-      console.log(`Moving file from ${filePath} to ${newDestination}`); // Log the move operation
+      console.debug(`Moving file from ${filePath} to ${newDestination}`); // Log the move operation
       await fs.promises.rename(filePath, newDestination);
       database.db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, filePath);
     }

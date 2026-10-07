@@ -49,7 +49,7 @@ function initializeOpenAI(apiKey, baseURL, service = 'openai', puterIPCHandler =
   // Check for 'puter' (case-insensitive) to handle variations
   if (normalizedService === 'puter') {
     openaiClient = null;
-    console.log('[AITagging] Skipping OpenAI client initialization for Puter.com service');
+    console.debug('[AITagging] Skipping OpenAI client initialization for Puter.com service');
     return;
   }
   
@@ -209,7 +209,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
     return [];
   }
   
-  console.log(`parseTagsFromResponse: Raw content (first 200 chars): ${content.substring(0, 200)}`);
+  console.debug(`parseTagsFromResponse: Raw content (first 200 chars): ${content.substring(0, 200)}`);
   
   let tags = [];
   
@@ -238,7 +238,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
       
       // Try to parse as JSON
       const parsed = JSON.parse(cleanedContent);
-      console.log('parseTagsFromResponse: Parsed JSON:', parsed);
+      console.debug('parseTagsFromResponse: Parsed JSON:', parsed);
       
       if (Array.isArray(parsed)) {
         tags = parsed;
@@ -249,7 +249,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
         tags = Object.values(parsed).flat().filter(t => typeof t === 'string');
       }
       
-      console.log(`parseTagsFromResponse: Extracted ${tags.length} tags from JSON`);
+      console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from JSON`);
     } catch (e) {
       // Not JSON, fall through to text parsing
       console.warn('Failed to parse JSON response, falling back to text parsing:', e.message);
@@ -264,7 +264,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
           const tagsArray = JSON.parse(tagsContent);
           if (Array.isArray(tagsArray)) {
             tags = tagsArray.filter(t => typeof t === 'string');
-            console.log(`parseTagsFromResponse: Extracted ${tags.length} tags from partial JSON`);
+            console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from partial JSON`);
           }
         } catch (e2) {
           console.warn('Failed to extract tags from partial JSON:', e2.message);
@@ -275,7 +275,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
   
   // If JSON parsing failed or not using JSON, parse as text
   if (tags.length === 0) {
-    console.log('parseTagsFromResponse: Parsing as text');
+    console.debug('parseTagsFromResponse: Parsing as text');
     // Try comma-separated first
     if (content.includes(',')) {
       tags = content.split(',').map(t => t.trim());
@@ -286,7 +286,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
       // Single tag or space-separated
       tags = content.split(/\s+/).map(t => t.trim()).filter(t => t.length > 0);
     }
-    console.log(`parseTagsFromResponse: Extracted ${tags.length} tags from text`);
+    console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from text`);
   }
   
   // Normalize and validate tags
@@ -294,7 +294,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
     const normalized = normalizeTag(tag);
     const isValid = normalized && isTagValid(normalized);
     if (!isValid) {
-      console.log(`parseTagsFromResponse: Filtered out invalid tag: "${tag}" -> "${normalized}"`);
+      console.debug(`parseTagsFromResponse: Filtered out invalid tag: "${tag}" -> "${normalized}"`);
     }
     return isValid ? normalized : null;
   }).filter(tag => tag !== null);
@@ -302,7 +302,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
   // Deduplicate
   tags = deduplicateTags(tags);
   
-  console.log(`parseTagsFromResponse: Final tags (${tags.length}):`, tags);
+  console.debug(`parseTagsFromResponse: Final tags (${tags.length}):`, tags);
   return tags;
 }
 
@@ -417,7 +417,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
     basePrompt = buildPrompt(mergedOptions, filename);
   }
   const prompt = basePrompt + JSON_RESPONSE_INSTRUCTIONS;
-  console.log('[AITagging] Prompt (first 800 chars):', prompt.length > 800 ? prompt.substring(0, 800) + '...' : prompt);
+  console.debug('[AITagging] Prompt (first 800 chars):', prompt.length > 800 ? prompt.substring(0, 800) + '...' : prompt);
 
   // Handle puter service differently
   if (currentService === 'puter') {
@@ -429,7 +429,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
     while (attempt < maxRetries) {
       try {
         await delay(delayMs);
-        console.log(`Attempting to generate tags with Puter model: ${model || "gpt-5-nano"} (attempt ${attempt + 1}/${maxRetries})`);
+        console.debug(`Attempting to generate tags with Puter model: ${model || "gpt-5-nano"} (attempt ${attempt + 1}/${maxRetries})`);
         
         // Convert base64 to data URL for puter (mime from stored thumb; often jpeg after compress)
         const imageUrl = `data:${mimeType};base64,${base64Image}`;
@@ -453,7 +453,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
           return [];
         }
 
-        console.log(`Puter AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
+        console.debug(`Puter AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
 
         // Parse tags from response
         const tags = parseTagsFromResponse(responseContent, useJsonResponse);
@@ -461,7 +461,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         // Limit to maxTags
         const limitedTags = tags.slice(0, maxTags);
         
-        console.log(`Successfully generated ${limitedTags.length} tags using Puter (from ${tags.length} parsed)`);
+        console.debug(`Successfully generated ${limitedTags.length} tags using Puter (from ${tags.length} parsed)`);
         return limitedTags;
       } catch (error) {
         console.error("Error generating tags with Puter:", error);
@@ -490,7 +490,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       if (pacedDelayMs > 0) await delay(pacedDelayMs);
       pacedDelayMs = delayMs;
 
-      console.log(`Attempting to generate tags with model: ${model || defaultModelForService(currentService)} (attempt ${attempt + 1}/${maxRetries})`);
+      console.debug(`Attempting to generate tags with model: ${model || defaultModelForService(currentService)} (attempt ${attempt + 1}/${maxRetries})`);
 
       // Gemini's OpenAI-compatible endpoint can return 400 with no body when given
       // max_tokens or response_format (e.g. in Docker or behind proxies). Use minimal payload for Gemini.
@@ -522,7 +522,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         return [];
       }
 
-      console.log(`AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
+      console.debug(`AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
 
       // Parse tags from response
       const tags = parseTagsFromResponse(responseContent, useJsonResponse);
@@ -538,7 +538,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       // Limit to maxTags
       const limitedTags = tags.slice(0, maxTags);
       
-      console.log(`Successfully generated ${limitedTags.length} tags (from ${tags.length} parsed)`);
+      console.debug(`Successfully generated ${limitedTags.length} tags (from ${tags.length} parsed)`);
       return limitedTags;
     } catch (error) {
       if (isRateLimitError(error)) {
@@ -624,11 +624,11 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
   
   // If service is not 'puter' but endpoint contains 'puter.com', treat it as Puter
   if (normalizedService !== 'puter' && baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com'))) {
-    console.log('[AITagging] Endpoint contains puter.com, forcing service to puter');
+    console.debug('[AITagging] Endpoint contains puter.com, forcing service to puter');
     normalizedService = 'puter';
   }
   
-  console.log('[AITagging] testAIConfig called with:', { 
+  console.debug('[AITagging] testAIConfig called with:', { 
     service, 
     normalizedService,
     baseURL,
@@ -643,8 +643,8 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
   
   if (isPuterService) {
-    console.log('[AITagging] Detected Puter.com service, skipping OpenAI client initialization');
-    console.log('[AITagging] Service check:', { 
+    console.debug('[AITagging] Detected Puter.com service, skipping OpenAI client initialization');
+    console.debug('[AITagging] Service check:', { 
       service, 
       normalizedService, 
       baseURL, 
@@ -661,10 +661,10 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     }
     
     try {
-      console.log('[AITagging] Testing Puter AI configuration with text-only request');
+      console.debug('[AITagging] Testing Puter AI configuration with text-only request');
       const response = await puterIPCHandler('test', null, model || 'gpt-5-nano');
       
-      console.log('[AITagging] Puter AI test successful');
+      console.debug('[AITagging] Puter AI test successful');
       return { 
         success: true, 
         tags: ["Puter AI connection successful"],
@@ -693,7 +693,7 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
   }
   
   // For other services, initialize OpenAI client (which will validate API key)
-  console.log('[AITagging] Non-Puter service detected, initializing OpenAI client');
+  console.debug('[AITagging] Non-Puter service detected, initializing OpenAI client');
   try {
     initializeOpenAI(apiKey, baseURL, normalizedService, puterIPCHandler);
   } catch (error) {
@@ -728,7 +728,7 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
       model: testModel,
       ...completionOptions(isGemini ? 'gemini' : normalizedService, testModel, { maxTokens: 50 })
     };
-    console.log('[AITagging] Testing AI configuration with text-only request for service:', normalizedService, 'model:', testModel);
+    console.debug('[AITagging] Testing AI configuration with text-only request for service:', normalizedService, 'model:', testModel);
     const completion = await openaiClient.chat.completions.create(payload);
 
     return {

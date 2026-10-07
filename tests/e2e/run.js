@@ -1152,6 +1152,15 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, parentModel: null, rating: 0 }))]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
 
+    // Wall view: a ZIP entry's Archive label sits beside its name, not on top of it.
+    await page.click('.view-button[data-view="preview"]');
+    const archiveOverlap = await page.waitForSelector('.file-grid .preview-tile .preview-tile-archive', { timeout: 10000 })
+      .then(() => page.evaluate(() => {
+        const badge = document.querySelector('.file-grid .preview-tile .preview-tile-archive').getBoundingClientRect();
+        const name = document.querySelector('.file-grid .preview-tile .preview-tile-archive').closest('.preview-tile').querySelector('.preview-tile-name').getBoundingClientRect();
+        return badge.right > name.left && badge.left < name.right && badge.bottom > name.top && badge.top < name.bottom;
+      }), () => null);
+    check('in the Wall view the Archive label does not cover the file name', archiveOverlap === false, String(archiveOverlap));
     // Grid toolbar and list view columns (React, src/web/grid/GridToolbar.tsx, ListHeader.tsx, columns.ts).
     await page.click('.view-button[data-view="list"]');
     const listShown = await page.waitForSelector('.file-grid .list-view-header [data-list-col="name"] .sortable-header', { timeout: 10000 }).then(() => true, () => false);

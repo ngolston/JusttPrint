@@ -215,7 +215,7 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
         }
       }
 
-      console.log('Found duplicate groups:', duplicateGroups.length);
+      console.debug('Found duplicate groups:', duplicateGroups.length);
       // Array of { hash, files } — leaner than a hash-keyed object for large result sets
       return duplicateGroups;
     } catch (error) {
@@ -349,7 +349,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
             const hash = await calculateFileHashWithRetry(readablePath);
             updateHash.run(hash, model.filePath);
             successCount++;
-            console.log(`Hash calculated for: ${model.filePath} (${successCount} succeeded, ${failedCount} failed, ${processedCount + 1}/${modelsWithMissingHashes.length} total)`);
+            console.debug(`Hash calculated for: ${model.filePath} (${successCount} succeeded, ${failedCount} failed, ${processedCount + 1}/${modelsWithMissingHashes.length} total)`);
           } catch (hashError) {
             if (hasSha256) {
               skippedCount++;
@@ -417,7 +417,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
 const generateMissingHashesHandler = async (event, filters = null) => {
   // Check if hash generation is already in progress
   if (isGeneratingHashes) {
-    console.log('Hash generation already in progress, returning current status');
+    console.debug('Hash generation already in progress, returning current status');
     return {
       alreadyRunning: true,
       total: countModelsNeedingHash({ includeSha256: true, filters })

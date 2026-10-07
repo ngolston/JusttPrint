@@ -200,7 +200,7 @@ ipcMain.handle('open-file-in-slicer', openFileInSlicerHandler);
 // Add this function to check and create the slicers table if it doesn't exist
 function ensureSlicersTableExists() {
   try {
-    console.log('Checking if slicers table exists...');
+    console.debug('Checking if slicers table exists...');
     
     // Check if the slicers table exists
     const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
@@ -217,7 +217,7 @@ function ensureSlicersTableExists() {
       
       console.log('Slicers table created successfully');
     } else {
-      console.log('Slicers table already exists');
+      console.debug('Slicers table already exists');
     }
     
     return true;

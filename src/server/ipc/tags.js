@@ -168,7 +168,7 @@ async function generateTagsHandler(event, filePath) {
     const model = getModelByFilePath(filePath, { includeThumbnail: true });
     
     if (!model) {
-      console.log(`Model not found in database: ${filePath}`);
+      console.debug(`Model not found in database: ${filePath}`);
       return [];
     }
     
@@ -184,7 +184,7 @@ async function generateTagsHandler(event, filePath) {
     
     // Check if model already has the "AI Tagged" tag (unless retagging is allowed)
     if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
-      console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
+      console.debug(`Model ${filePath} already has AI Tagged tag, skipping generation`);
       return [];
     }
     
@@ -202,7 +202,7 @@ async function generateTagsHandler(event, filePath) {
 
     if (!model.thumbnail) {
       // If no thumbnail exists, we need to generate one or use a default image
-      console.log('No thumbnail found for model, using default image');
+      console.debug('No thumbnail found for model, using default image');
       try {
         const fs = require('fs').promises;
         const defaultImagePath = './logo.png'; // Use a default image that's guaranteed to be in PNG format

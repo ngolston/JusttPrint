@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.1.0] - 2026-10-07
+
+**Upgrading:** no changes needed. `docker logs` now shows less; set `JUSTTPRINT_LOG_LEVEL=debug` when you need the old detail to track down a problem. Reload open browser tabs after the update.
+
+**Changes:**
+- **Readable logs:** every line in `docker logs` now starts with the time and its level (`INFO`, `WARN`, `ERROR`). Detail that only helps when tracking down a problem (each database query, each saved model, each hashed file, each menu click) is hidden unless you set `JUSTTPRINT_LOG_LEVEL=debug`; `warn` or `error` show even less.
+- **Fixed:** in the Wall view, a ZIP entry's **Archive** label covered the start of its file name. It now sits in front of the name.
+- Security review: no HTML is built from library data except model notes, whose Markdown renderer escapes everything and only links to http, https and mailto; new tests try the usual injection tricks against it. Links built from data (a model's source, a printer's web page) only open http and https.
+
 ## [6.0.1] - 2026-10-07
 
 **Upgrading:** no changes needed. To free space, delete the old backup and export files under **Settings → Backup** (the page shows how many and how big). Reload open browser tabs after the update.
