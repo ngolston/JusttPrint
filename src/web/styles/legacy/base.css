@@ -732,7 +732,6 @@ button:disabled {
 #details-filaments-slot > .form-group,
 #details-notes-slot > .form-group,
 #bundle-details-slot > .form-group,
-#multi-edit-slot > .form-group,
 #details-history-slot > .form-group {
   margin-bottom: 15px;
 }
@@ -3231,70 +3230,6 @@ dialog:not([open]) {
   font-size: 14px;
 }
 
-#multi-edit-panel .selected-count {
-  padding: 0 16px;
-}
-
-
-/* Make multi-edit panel match model details styling */
-#multi-edit-panel.model-details {
-  margin-top: 20px;
-  width: 100%;
-  background: color-mix(in srgb, var(--model-background-color) 25%, transparent);
-  padding: 16px 0 24px;
-  border-top: 1px solid var(--jp-border-strong);
-  border-bottom: 1px solid var(--jp-border-strong);
-}
-
-#multi-edit-panel h3 {
-  padding: 0 16px;
-  margin-top: 0;
-  margin-bottom: 15px;
-}
-
-#multi-edit-panel .form-group {
-  margin-bottom: 15px;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0 16px;
-  box-sizing: border-box;
-}
-
-#multi-edit-panel .full-width-button {
-  width: calc(100% - 32px);
-  max-width: none;
-  margin: 8px 16px;
-}
-
-#multi-edit-panel .checkbox-container {
-  display: flex;
-  flex-direction: row !important;
-  align-items: center;
-  width: 100%;
-  gap: 8px;
-  padding: 8px 16px;
-  margin-bottom: 15px;
-  margin-left: 0;
-}
-
-#multi-edit-panel .checkbox-container label {
-  margin: 0;
-  flex: 1;
-  cursor: pointer;
-}
-
-#multi-edit-panel .checkbox-container input[type="checkbox"] {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  margin: 0;
-  padding: 0;
-  cursor: pointer;
-  accent-color: var(--primary-accent, var(--jp-accent));
-  flex-shrink: 0;
-}
 
 #edit-mode-toggle {
   background: var(--primary-accent, var(--jp-accent));
@@ -3349,91 +3284,6 @@ dialog:not([open]) {
 #invert-filter-button.active:hover {
   background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
   box-shadow: 0 6px 20px rgba(244, 100, 104, 0.4);
-}
-
-/* Apply the same styles to multi-edit panel */
-#multi-edit-panel .designer-input-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-}
-
-#multi-edit-panel .designer-input-container select {
-  flex: 1;
-  color: var(--jp-text) !important;
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-#multi-edit-panel .designer-input-container select option {
-  background-color: rgba(14, 24, 33, 0.95) !important;
-  background: rgba(14, 24, 33, 0.95) !important;
-  color: var(--jp-text) !important;
-}
-
-#multi-edit-panel .designer-input-container select option:not(:checked):not([selected]):not(:hover) {
-  background-color: rgba(14, 24, 33, 0.95) !important;
-  background: rgba(14, 24, 33, 0.95) !important;
-  color: var(--jp-text) !important;
-}
-
-#multi-edit-panel .designer-input-container select option:checked,
-#multi-edit-panel .designer-input-container select option[selected] {
-  background: var(--primary-gradient, linear-gradient(135deg, var(--jp-accent) 0%, var(--jp-accent-hover) 100%)) !important;
-  background-color: transparent !important;
-  color: var(--jp-on-accent) !important;
-}
-
-#multi-edit-panel .designer-input-container select option:checked:hover,
-#multi-edit-panel .designer-input-container select option[selected]:hover {
-  background: var(--primary-gradient-hover, linear-gradient(135deg, var(--jp-accent-hover) 0%, var(--jp-accent-hover) 100%)) !important;
-  background-color: transparent !important;
-  color: var(--jp-on-accent) !important;
-}
-
-#multi-edit-panel .designer-input-container select option:hover:not(:checked):not([selected]) {
-  background-color: rgba(8, 185, 241, 0.5) !important;
-  background: rgba(8, 185, 241, 0.5) !important;
-  color: var(--jp-text) !important;
-}
-
-#multi-edit-panel .designer-input-container .icon-button {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-left: 5px;
-  cursor: pointer;
-  width: 20px;
-  color: var(--jp-text);
-  font-size: 20px;
-}
-
-#multi-edit-panel .designer-input-container .icon-button:hover {
-  color: var(--jp-accent);
-}
-
-#multi-edit-panel .tags-input-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 85%;
-}
-
-#multi-edit-panel .tags-input-container .icon-button {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-left: 5px;
-  cursor: pointer;
-  width: 20px;
-  color: var(--jp-text);
-  font-size: 20px;
-}
-
-#multi-edit-panel .tags-input-container .icon-button:hover {
-  color: var(--jp-accent);
 }
 
 .welcome-dialog {
@@ -3500,50 +3350,6 @@ dialog:not([open]) {
 .welcome-message {
   display: none;
 }
-
-/* Remove the old multi-edit panel button styles */
-#multi-edit-panel .designer-input-container .icon-button,
-#multi-edit-panel .tags-input-container .icon-button {
-  background: var(--jp-accent);
-  color: var(--jp-on-accent);
-  border: none;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: background-color 0.2s ease;
-}
-
-#multi-edit-panel .designer-input-container .icon-button:hover,
-#multi-edit-panel .tags-input-container .icon-button:hover {
-  background: var(--jp-accent);
-}
-
-/* Make all input containers consistent */
-#multi-edit-panel .designer-input-container,
-#multi-edit-panel .tags-input-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-}
-
-#multi-edit-panel .designer-input-container select,
-#multi-edit-panel .tags-input-container select {
-  flex: 1;
-  margin-right: 0;
-  color: var(--jp-text) !important;
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* SIMPLIFIED: #multi-edit-panel select options inherit from global select option rules */
 
 /* Make all buttons consistent - smaller size */
 .icon-button {
@@ -3966,12 +3772,6 @@ dialog:not([open]) {
   font-size: 12px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.65);
-}
-
-#multi-edit-panel .tags-container > .full-width-button {
-  width: 100%;
-  max-width: none;
-  margin: 8px 0 0;
 }
 
 #tag-manager-list .tag:hover {
@@ -5059,24 +4859,6 @@ dialog:not([open]) {
   box-sizing: border-box;
 }
 
-#select-all-button {
-  margin: 8px 16px 12px;
-  background-color: var(--jp-surface-2);
-  color: var(--jp-text);
-  border: 1px solid var(--jp-border-strong);
-  padding: 8px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  width: calc(100% - 32px);
-  max-width: none;
-  box-sizing: border-box;
-}
-
-#select-all-button:hover {
-  background-color: var(--jp-surface-2);
-}
-
 /* ============================================
    TERMS OF SERVICE DIALOG - MODERN STYLING
    ============================================ */
@@ -5983,8 +5765,7 @@ dialog:not([open]) {
 }
 
 /* Add styles for the multi-edit mode buttons - match filter section width */
-#enter-multi-edit-button,
-#exit-multi-edit-button {
+#enter-multi-edit-button {
   margin: 8px 16px 12px;
   background-color: var(--jp-surface-2);
   color: var(--jp-text);
@@ -5998,8 +5779,7 @@ dialog:not([open]) {
   box-sizing: border-box;
 }
 
-#enter-multi-edit-button:hover,
-#exit-multi-edit-button:hover {
+#enter-multi-edit-button:hover {
   background-color: var(--jp-surface-2);
 }
 

@@ -33,6 +33,8 @@
   cursor: pointer;
   transition: background-color var(--jp-transition), border-color var(--jp-transition), color var(--jp-transition);
 }
+.jp-btn > svg { flex: none; }
+.jp-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .jp-btn--sm { height: 30px; padding: 0 var(--jp-space-3); font-size: var(--jp-text-meta); border-radius: var(--jp-radius-sm); }
 .jp-btn--lg { height: var(--jp-control-height-lg); padding: 0 var(--jp-space-5); font-size: 15px; }
 .jp-btn--primary { background: var(--jp-accent); color: var(--jp-on-accent); font-weight: 600; }
