@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.5.0] - 2026-10-07
+
+**Upgrading:** no changes needed. To open share links from outside your home network, JusttPrint must be reachable from there (a reverse proxy with HTTPS); the links use the address you opened JusttPrint with. Reload open browser tabs after the update.
+
+**Changes:**
+- **Collections** (sidebar): group models from any folders. **Add to Collection…** in the model menu adds one model or a whole selection (tick the collections, or make a new one in the dialog); a collection's page shows its models with **×** to take one out, plus **Rename**, **Description**, **Share** and delete (the models stay). Everyone can view collections; editors and admins change them.
+- **Share links and QR codes:** **Share…** in a model's menu, or **Share** on a collection, makes a read-only link that opens without an account, with a QR code to copy, scan or save. Choose whether files may be downloaded and when the link expires (never, or after 1 to 90 days). The page shows names, pictures, designer, license, tags and source links, never notes, file locations or print history, and a shared collection includes models added later. **Settings → Sharing** lists every link with its views, and turns links off. Deleting a collection turns off its links. Editors and admins make links.
+- The shared pages have no scripts, are not indexed by search engines, and a link only reaches its own models.
+
 ## [6.4.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Every user starts with the layout and color scheme the server had; from now on, changing them changes them for that user only. Reload open browser tabs after the update.

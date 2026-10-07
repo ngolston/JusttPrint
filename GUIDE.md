@@ -10,7 +10,7 @@ The sidebar on the left holds every page:
 
 | Section | Pages |
 |---------|-------|
-| (top) | **Home**, **Library** |
+| (top) | **Home**, **Library**, **Collections** |
 | Printing | **Queue**, **Printers**, **Filament**, **Statistics** |
 | Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
 | System | **Settings**, **Help** |
@@ -108,6 +108,25 @@ Editors and admins can add models from the browser:
 - Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless changed). The dialog warns about such files: they are saved, and appear once an admin raises the limit and scans again.
 - Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
 - After the upload, the folder is scanned, so the models appear with thumbnails.
+
+## Collections
+
+A collection groups models from any folders: a project, a gift list, the spare parts for one printer. A model can be in several collections, and stays where it is on disk.
+
+- **Add to Collection…** in a model's menu (right-click, or **…** on a card) adds it, or every selected model, to the collections you tick; **Create and Add** makes a new one on the spot. A dash means some of the selected models are in that collection already.
+- **Collections** in the sidebar shows them as cards with a picture of the latest model added. Open one to see its models; click a model to show it in the Library, or **×** to take it out of the collection.
+- **Rename**, **Description**, **Share** and the bin (delete) are at the top of a collection. Deleting a collection keeps the models and turns off its share links.
+
+Everyone can look at collections; editors and admins make and change them.
+
+## Sharing
+
+**Share…** in a model's menu, or **Share** on a collection, makes a read-only link to send to someone without an account:
+
+- Choose whether the files may be downloaded, and when the link expires (never, or after 1 to 90 days). **Create Link** shows the link and its QR code: **Copy Link**, or **Save QR Code** to print it.
+- The page shows the name, pictures, designer, license, tags and source link of each model, and the collection's description. It never shows notes, file locations or print history. A shared collection also shows the models added to it later.
+- Anyone with the link can open it, as long as they can reach your server; to share outside your network, JusttPrint must be reachable from the internet (use HTTPS).
+- The Share dialog lists the links to that item; **Settings → Sharing** lists every link with how often it was opened. The bin or **Turn Off** ends a link at once.
 
 ## Users and roles
 

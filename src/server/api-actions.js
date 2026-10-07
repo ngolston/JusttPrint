@@ -151,6 +151,19 @@ const ACTIONS = {
   'export-library': [],
   'import-library': ['object?'],
 
+  // Collections and share links
+  'get-collections': [],
+  'get-collection': ['id'],
+  'get-collection-membership': ['array'],
+  'create-collection': ['object'],
+  'update-collection': ['id', 'object'],
+  'delete-collection': ['id'],
+  'add-to-collection': ['id', 'array'],
+  'remove-from-collection': ['id', 'array'],
+  'create-share-link': ['object'],
+  'get-share-links': ['object?'],
+  'revoke-share-link': ['string'],
+
   // User accounts
   'list-users': [],
   'create-user': ['object'],
@@ -204,7 +217,8 @@ const VIEWER_ACTIONS = new Set([
   'get-setting', 'save-setting', 'get-app-version', 'check-for-updates', 'open-update-page',
   'get-stats', 'get-library-storage', 'get-library-counts', 'get-recent-activity', 'get-recent-prints', 'get-print-statistics',
   // The thumbnail renderer reads the GPU backend in every browser.
-  'get-gpu-info'
+  'get-gpu-info',
+  'get-collections', 'get-collection', 'get-collection-membership'
 ]);
 
 /** Actions that change the library: editors and admins. */
@@ -217,7 +231,9 @@ const EDITOR_ACTIONS = new Set([
   'save-filament', 'delete-filament', 'save-part', 'delete-part', 'save-printer', 'delete-printer',
   'save-printer-maintenance-log', 'delete-printer-maintenance-log', 'save-printer-reminder', 'delete-printer-reminder',
   'complete-printer-reminder', 'log-print-event', 'log-print-events-batch', 'delete-print-event', 'set-print-status',
-  'set-print-status-batch', 'fetch-thangs-page'
+  'set-print-status-batch', 'fetch-thangs-page',
+  'create-collection', 'update-collection', 'delete-collection', 'add-to-collection', 'remove-from-collection',
+  'create-share-link', 'get-share-links', 'revoke-share-link'
 ]);
 
 /** The least role an action needs: viewer, editor or admin. */

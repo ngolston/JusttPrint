@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 6.4.0**
+**Version 6.5.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -14,6 +14,8 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered on the server
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
 - **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download
+- **Collections**: group models from any folders into projects, gift lists or spare-part sets
+- **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with optional downloads and an expiry date
 - **Statistics**: prints per month, success rate, filament used, top designers, most printed models and printers
 - **3D preview** of single models or every part in a folder or ZIP bundle
 - **Tags, designers, licenses, notes and source links** for every model
@@ -143,11 +145,13 @@ All are optional. You can change most of these later under **Settings** in the a
 
 ## Using the Web App
 
-The sidebar holds every page: **Home**, **Library**, **Queue**, **Printers**, **Filament**, **Statistics**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
+The sidebar holds every page: **Home**, **Library**, **Collections**, **Queue**, **Printers**, **Filament**, **Statistics**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
 
 - **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
 - **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload, move and delete files; **Admins** also change settings, backups, server access and accounts. The server checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone.
 - **Upload models**: drop files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files go in 16 MB pieces, so large files (5 or 10 GB, up to `JUSTTPRINT_MAX_UPLOAD_MB`) get through reverse proxies and Cloudflare; a piece that fails is sent again, and after a lost connection, a reload or a server restart, uploading the same file again continues where it stopped. Files are never replaced (a taken name becomes `Name (2).stl`), only types the library scans are accepted (**Settings → Scanning → File Types**), and the folder is scanned afterwards so the models appear with thumbnails. Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless you change it): raise it before uploading bigger models, or they are saved but not added. Editors and admins only.
+- **Collections** (sidebar): choose **Add to Collection…** in a model's menu (it works on a selection too) or make one with **New Collection**; a model can be in several. Everyone can browse collections; editors and admins change them.
+- **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; links can expire after 1 to 90 days. Anyone who can reach your server's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
 - **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the filaments, designers, models and printers printed most, and how many models were added, for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).

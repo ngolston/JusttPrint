@@ -21,6 +21,7 @@ import { QueuePage } from '../pages/QueuePage';
 import { TagsPage } from '../pages/TagsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { StatsPage } from '../pages/StatsPage';
+import { CollectionsPage } from '../pages/CollectionsPage';
 import { roleAllows, useCurrentUser } from '../session';
 import { useAdopt } from './adopt';
 import { useLibraryData } from './libraryData';
@@ -256,7 +257,7 @@ function SkipLink({ page }: { page: PageId }) {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', stats: 'Statistics', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', stats: 'Statistics', collections: 'Collections', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
 /** The least role a page needs: the role of its sidebar entry. */
 function pageRole(page: PageId) {
   return NAV.flatMap((section) => section.items).find((item) => item.page === page)?.role || 'viewer';
@@ -372,6 +373,7 @@ export function AppShell() {
           {user && !allowed && <NotAllowed />}
           {allowed && page === 'home' && <HomePage />}
           {allowed && page === 'stats' && <StatsPage />}
+          {allowed && page === 'collections' && <CollectionsPage section={section} />}
           {allowed && page === 'queue' && <QueuePage />}
           {allowed && page === 'printers' && <PrintersPage section={section} />}
           {allowed && page === 'filament' && <FilamentPage />}

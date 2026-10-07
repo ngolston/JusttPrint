@@ -166,6 +166,7 @@ const NETWORK_IPC_PATH_RULES = {
   'get-file-stats': [[0, 'file']],
   'move-files': [[0, 'files'], [1, 'dir']],
   'add-uploaded-files': [[0, 'dir']],
+  'add-to-collection': [[1, 'files']],
   'organize-library-preview': [[0, 'organize']],
   'organize-library-run': [[0, 'organize']],
   'show-item-in-folder': 'blocked',

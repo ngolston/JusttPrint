@@ -53,6 +53,9 @@ import { ServerAccessDialog } from './ServerAccessDialog';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { UsersDialog } from './UsersDialog';
 import { UploadDialog, UploadDropZone } from './upload/UploadDialog';
+import { AddToCollectionDialog } from './collections/AddToCollectionDialog';
+import { ShareDialog } from './share/ShareDialog';
+import { ShareLinksDialog } from './share/ShareLinksDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
 import { StlHomeDialog } from './StlHomeDialog';
@@ -71,6 +74,9 @@ function Screens() {
       <UsersDialog />
       <UploadDialog />
       <UploadDropZone />
+      <AddToCollectionDialog />
+      <ShareDialog />
+      <ShareLinksDialog />
       <TagManagerDialog />
       <TagPreviewDialog />
       <PuterSignInDialog />
