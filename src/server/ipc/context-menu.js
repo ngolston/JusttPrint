@@ -35,11 +35,11 @@ function isPreviewableModelFile(filePath) {
 }
 
 function sendPreviewBundleEvent(event, payload) {
-  events.broadcast('preview-bundle-models', payload);
+  events.toCaller(event, 'preview-bundle-models', payload);
 }
 
 function sendPreviewModelEvent(event, filePath) {
-  events.broadcast('preview-model', filePath);
+  events.toCaller(event, 'preview-model', filePath);
 }
 
 // Update the show-context-menu handler
@@ -62,7 +62,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
 
   // In single edit mode, if exactly one file is right-clicked, instruct the renderer to select it.
   if (filePaths.length === 1) {
-    event.sender.send('select-model-by-filepath', filePaths[0]);
+    events.toCaller(event, 'select-model-by-filepath', filePaths[0]);
   }
 
   // Check if any file is a zip entry
@@ -127,25 +127,22 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     menuItems.push({ type: 'separator' });
   }
 
-  // Add "Download" option for server mode at the top
+  // Download and Copy Path run in the browser that opened the menu (clientAction); the click
+  // handlers are for callers that cannot.
   if (filePaths.length === 1) {
     menuItems.push({
       label: 'Download',
+      clientAction: { type: 'download', filePath: filePaths[0] },
       click: async () => {
-        try {
-          console.log('Download clicked for file:', filePaths[0]);
-          console.log('Broadcasting download-model event via WebSocket');
-          events.broadcast('download-model', filePaths[0]);
-        } catch (error) {
-          console.error('Error triggering download:', error);
-          clientDialogs.messageBox(event, {
-            type: 'error',
-            title: 'Error',
-            message: 'Could not download file',
-            detail: error.message
-          });
-        }
+        events.toCaller(event, 'download-model', filePaths[0]);
       }
+    });
+  }
+  if (filePaths.length >= 1) {
+    menuItems.push({
+      label: filePaths.length === 1 ? 'Copy Path' : 'Copy Paths',
+      clientAction: { type: 'copy-paths', filePaths: filePaths.slice() },
+      click: () => {}
     });
     menuItems.push({ type: 'separator' });
   }
@@ -271,7 +268,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
             // In server mode, use broadcastEvent to send to all WebSocket clients
             console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
-            events.broadcast('start-batch-tag-generation', filesToProcess.length, filesToProcess);
+            events.toCaller(event, 'start-batch-tag-generation', filesToProcess.length, filesToProcess);
           } else if (filesToProcess.length === 1) {
             // For single file, also open dialog immediately with "Generating..." status
             const singleModel = getModelByFilePath(filesToProcess[0], { includeThumbnail: true });
@@ -294,7 +291,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               console.log('[Generate Tags] Sending start-single-tag-generation event');
               // In server mode, use broadcastEvent to send to all WebSocket clients
               console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
-              events.broadcast('start-single-tag-generation', filesToProcess[0], modelData);
+              events.toCaller(event, 'start-single-tag-generation', filesToProcess[0], modelData);
             } else {
               console.log('Model not found in database for single file generation');
             }
@@ -314,7 +311,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           const processFile = async (filePath, index) => {
             if (rateLimitStopped) {
               completed++;
-              events.broadcast('tags-generated', filePath, [], rateLimitSkipMessage);
+              events.toCaller(event, 'tags-generated', filePath, [], rateLimitSkipMessage);
               return;
             }
             try {
@@ -324,7 +321,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               if (!model) {
                 console.log(`Model not found in database: ${filePath}, skipping`);
                 completed++;
-                events.broadcast('tags-generated', filePath, [], null);
+                events.toCaller(event, 'tags-generated', filePath, [], null);
                 return;
               }
 
@@ -342,7 +339,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
                 console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
                 completed++;
-                events.broadcast('tags-generated', filePath, [], null);
+                events.toCaller(event, 'tags-generated', filePath, [], null);
                 return;
               }
 
@@ -375,7 +372,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                   // Check if it's a rate limit error
                   if (error.message && error.message.includes('Rate limit')) {
                     rateLimitStopped = true;
-                    events.broadcast('tags-generated', filePath, [], error.message);
+                    events.toCaller(event, 'tags-generated', filePath, [], error.message);
                     completed++;
                     return;
                   }
@@ -405,7 +402,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                     // Check if it's a rate limit error
                     if (error.message && error.message.includes('Rate limit')) {
                       rateLimitStopped = true;
-                      events.broadcast('tags-generated', filePath, [], error.message);
+                      events.toCaller(event, 'tags-generated', filePath, [], error.message);
                       completed++;
                       return;
                     }
@@ -413,7 +410,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 }
               }
 
-              events.broadcast('tags-generated', filePath, tags, null);
+              events.toCaller(event, 'tags-generated', filePath, tags, null);
 
               completed++;
               // Progress is now shown in the review dialog
@@ -424,9 +421,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               // Check if it's a rate limit error
               if (error.message && error.message.includes('Rate limit')) {
                 rateLimitStopped = true;
-                events.broadcast('tags-generated', filePath, [], error.message);
+                events.toCaller(event, 'tags-generated', filePath, [], error.message);
               } else {
-                events.broadcast('tags-generated', filePath, []);
+                events.toCaller(event, 'tags-generated', filePath, []);
               }
             }
           };
@@ -441,13 +438,13 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           
           // Signal batch completion for multiple files
           if (totalFiles > 1) {
-            events.broadcast('batch-tag-generation-complete');
+            events.toCaller(event, 'batch-tag-generation-complete');
           }
         } catch (error) {
           console.error('Error generating tags:', error);
 
           if (filePaths.length > 1) {
-            events.broadcast('batch-tag-generation-complete');
+            events.toCaller(event, 'batch-tag-generation-complete');
           }
 
           // Close progress dialog if open
@@ -682,7 +679,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Add Image',
       click: async () => {
         try {
-          events.broadcast('add-image-request', filePaths);
+          events.toCaller(event, 'add-image-request', filePaths);
         } catch (error) {
           console.error('Error adding image:', error);
           clientDialogs.messageBox(event, {
@@ -718,7 +715,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           return;
         }
 
-        events.broadcast('manage-thumbnails-request', filePaths[0]);
+        events.toCaller(event, 'manage-thumbnails-request', filePaths[0]);
       } catch (error) {
         console.error('Error opening manage thumbnails:', error);
         clientDialogs.messageBox(event, {
@@ -805,6 +802,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         enabled: item.enabled !== false, // Default to true if not specified
         index: index
       };
+      if (item.clientAction) serialized.clientAction = item.clientAction;
       // Handle submenus
       if (item.submenu) {
         serialized.submenu = item.submenu.map((subItem, subIndex) => {

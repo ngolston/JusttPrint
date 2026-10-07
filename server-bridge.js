@@ -458,7 +458,6 @@
   // Map of method names to IPC channels (from preload.js)
   const methodToChannel = {
     'loadDirectory': 'load-directory',
-    'openFileDialog': 'open-file-dialog',
     'saveDirectory': 'save-directory',
     'scanDirectory': 'scan-directory',
     'getModel': 'get-model',

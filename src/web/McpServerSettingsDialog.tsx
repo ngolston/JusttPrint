@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { mcp, type McpConnectionInfo } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { mcpClientSetups, tokenFromClientConfig, type McpClientId } from './mcp/clients';
-import { exposeGlobal } from './page';
+import { copyText, exposeGlobal } from './page';
 
 declare global {
   interface Window {
@@ -28,12 +28,9 @@ function savedClient(): McpClientId {
 function CopyButton({ id, text, label }: { id: string; text: string; label: string }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
+    if (await copyText(text)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
     }
   }
   return <button type="button" id={id} onClick={copy}>{copied ? 'Copied' : label}</button>;

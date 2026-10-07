@@ -93,7 +93,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Remove everything specific to Windows, macOS and Linux desktops.** Desktop build scripts, installer assets, `Dockerfile.build-linux`, slicer install detection, macOS/AppImage switches, asar lookups, `LOCALAPPDATA` paths and Windows UNC path modes are gone; the README and GUIDE describe Docker only. Kept: the Send to Slicer helper. The Chrome extension was removed later (4.5.x).
 - [x] **Rewrite `main.js` to be cleaner and lighter.** `main.js` (12.6k lines) is gone. Its code now lives in modules under `src/core/` (database, models, search/filter SQL, thumbnails, library paths, file formats) and `src/server/` (HTTP/WebSocket server, MCP, thumbnail worker, and one IPC module per area in `src/server/ipc/`); `src/server/app.js` only starts and stops the server. Removed on the way: duplicate handler registrations, the always-off `DEBUG` logging, the Electron-era event fallbacks, dead functions and ~120 unused imports, `node-fetch`. Server-only libraries moved from the root into `src/`, so they are no longer served as static files. The e2e suite grew from 58 to 108 checks to cover each moved area.
 - [ ] **Split the largest modules further**: `src/server/http.js` (~1.2k lines: routes, WebSocket dispatcher, TLS), `ipc/context-menu.js` and `ipc/models.js` (~1.1k each), `ipc/previews.js`. Also drop `threemf-svg-extrude.js` if it stays unused (only a test loads it).
-- [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers ask for a container path until the folder browser exists.
+- [x] **Server-initiated dialogs in the browser.** `src/server/client-dialogs.js` sends message boxes and prompts to the browser that made the request and waits for the answer (Pull Metadata, Purge Models, Tag from Folder, errors). Folder pickers are Choose Folder (section 5).
 - [ ] **Re-compress large stored thumbnails on Node.** `thumbnail-compress.js` used Electron's `nativeImage`; on Node it skips compression. Do it in the Chromium worker or with an image library.
 - [ ] **Server GPU details in System Report** (`app.getGPUInfo` returns nothing on Node). Report the worker Chromium's WebGL renderer instead.
 - [x] **Replace the IPC-over-WebSocket shim with a proper HTTP API.** `POST /api/actions/<name>` (`src/server/api.js`), with the allowed actions and their argument types in `src/server/api-actions.js`. Login, same origin, arguments and library paths are checked before a handler runs. The WebSocket only pushes events and dialogs.
@@ -121,16 +121,16 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Startup, the theme and the update check (`src/web/startup/`), Puter AI (`src/web/ai/`), and the page and server events (`src/web/library/actions.ts`, `components/ServerProgressDialog.tsx`). `renderer.js`, `filament.js` and `grid-refresh.js` are gone.
   - [ ] The page scripts left: `server-bridge.js` (the WebSocket and in-page message dialogs; React screens could call the HTTP API and an in-page dialog component directly), `guide.js` (Quick Start Guide), `page-init.js`, `pwa.js`, `slicer-protocol.js`, `step-assembly.js` and `stl-sanity.js` (the last two are also used by the parse worker).
   - Test each screen in the browser against the container before moving on.
-- [ ] **Audit every desktop-only action** and give each one a web equivalent:
-  - [ ] Folder pickers (`showOpenDialog`): a server-side folder browser limited to the mounted volumes.
-  - [ ] File pickers for restore/import: browser uploads.
-  - [ ] "Show in folder" and "open file": download, or copy the path.
+- [x] **Audit every desktop-only action** and give each one a web equivalent:
+  - [x] Folder pickers: Choose Folder ([src/web/components/FolderPicker.tsx](src/web/components/FolderPicker.tsx)), a server-side folder browser ([src/server/folder-browse.js](src/server/folder-browse.js)) that starts from the mounted volumes and library folders and follows the scan rule (no system, app or data folders). Used by Scan a Folder, STL Home, Duplicates and Organize.
+  - [x] File pickers for restore/import: browser uploads (Settings → Backup).
+  - [x] "Show in folder" and "open file": **Download** and **Copy Path** in the model menu, run in the browser that clicked; **Reveal in folders** in the details panel.
   - [x] Native right-click menus: in-page model menu (`src/web/menus/ContextMenu.tsx`), built by [src/server/ipc/context-menu.js](src/server/ipc/context-menu.js).
-  - [ ] Input dialogs (`input-dialog.html`): in-page modals.
-  - [ ] Backup/restore: download and upload a backup file in the browser.
-  - [ ] "Send to slicer": the existing helper/protocol handler, documented for web users.
+  - [x] Input dialogs: in-page prompts (`askText` in [src/web/page.ts](src/web/page.ts)).
+  - [x] Backup/restore: download and upload a backup file in the browser.
+  - [x] "Send to slicer": the helper and `justtprint://` link, documented in GUIDE.md (Slicers).
 - [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
-- [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict.
+- [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict. The model menu's events now go only to the browser that clicked (`events.toCaller` in [src/server/events.js](src/server/events.js)); other `event.sender.send` calls in `src/server/ipc/` still go to every browser and need the same review.
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
 - [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
 

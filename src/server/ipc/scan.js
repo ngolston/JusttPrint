@@ -4,13 +4,16 @@ const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { Worker } = require('worker_threads');
 const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
 const { getScanExcludeNames, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath } = require('../../core/library-paths');
 const { deleteModelsByIds } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
-const { clientDialogs } = require('../dialogs');
+const { browseFolders, mountPoints } = require('../folder-browse');
+const { networkPathContext } = require('../path-context');
+const { isInsideOrSame, isSystemDirectory } = require('../server-paths');
 const { shouldSkipEntryPath, compileExcludeDirs, isExcludedPath } = require('../../core/scan-skip');
 const { clampFolderLevels } = require('../../core/library-context');
 const { shouldAutoTagNewScanFiles } = require('../../core/folder-tags');
@@ -41,16 +44,6 @@ ipcMain.handle('save-directory', async (event, directoryPath) => {
     console.error('Error saving directory:', error);
     throw error;
   }
-});
-
-ipcMain.handle('open-file-dialog', async (event) => {
-  // Test mode: use fixed path so Playwright/Cline can run scan without native dialog (desktop: C:\temp, server/docker: /test)
-  const testPath = process.env.JUSTTPRINT_TEST_SCAN_PATH;
-  if (testPath && typeof testPath === 'string') {
-    return [testPath];
-  }
-  const folder = await askForFolder(event, { title: 'Scan Directory' });
-  return folder ? [folder] : null;
 });
 
 // Update the isValidFile function to get the max file size from settings
@@ -536,25 +529,19 @@ function isSkippedLibraryPath(filePath, extraLower) {
 }
 
 /**
- * The server cannot open a folder picker on the user's computer, so it asks the browser for a
- * path inside the container. (A folder browser for mounted volumes is planned.)
+ * Choose folder (src/web/components/FolderPicker.tsx): the places to start from (the container's
+ * mounted volumes and the library folders) and the subfolders of `dir`. System, app and data
+ * folders are never listed. Where there is no /proc (the server run directly on a Mac or PC),
+ * the home folder stands in for the mounts.
  */
-async function askForFolder(event, { title, defaultPath } = {}) {
-  const value = await clientDialogs.input(event, {
-    title: title || 'Select Directory',
-    message: 'Folder path inside the container (for example /mnt/models/sorted):',
-    defaultValue: defaultPath ? String(defaultPath) : '',
-    placeholder: '/mnt/models'
-  });
-  const folder = value ? value.trim() : '';
-  return folder || null;
-}
-
-// Add new IPC handler for opening folder dialog
-ipcMain.handle('open-folder-dialog', async (event, titleOrOptions) => {
-  const options = titleOrOptions && typeof titleOrOptions === 'object' ? titleOrOptions : { title: titleOrOptions };
-  const folder = await askForFolder(event, { title: options.title, defaultPath: options.defaultPath });
-  return folder ? { canceled: false, filePaths: [folder] } : { canceled: true, filePaths: [] };
+ipcMain.handle('browse-folders', async (event, dir) => {
+  const ctx = networkPathContext();
+  const mounts = mountPoints();
+  const places = [...mounts, ...(mounts.length ? [] : [os.homedir()]), ...ctx.roots];
+  const isBlocked = (candidate) => isSystemDirectory(candidate)
+    || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir))
+    || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir));
+  return browseFolders({ dir: dir || null, places, isBlocked });
 });
 
 function rememberScannedDirectory(directoryPath) {

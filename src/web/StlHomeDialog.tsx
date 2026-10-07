@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { settings } from './api';
+import { pickFolder } from './components/FolderPicker';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
 import { scanFolders } from './scan/scan';
@@ -74,18 +75,23 @@ async function loadForm(): Promise<Form> {
 }
 
 /** An editable list of directories: Remove per row, and a path field with Add (or Enter). */
-function DirList({ id, items, empty, placeholder, onChange }: {
-  id: string; items: string[]; empty: string; placeholder: string; onChange: (items: string[]) => void;
+function DirList({ id, items, empty, placeholder, pickTitle, onChange }: {
+  id: string; items: string[]; empty: string; placeholder: string; pickTitle: string; onChange: (items: string[]) => void;
 }) {
   const [draft, setDraft] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
-  function add() {
-    const dir = draft.trim();
+  function add(value = draft) {
+    const dir = value.trim();
     if (!dir || items.some((item) => dirKey(item) === dirKey(dir))) return;
     onChange([...items, dir]);
     setDraft('');
     requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: 'nearest' }));
+  }
+
+  async function browse() {
+    const dir = await pickFolder({ title: pickTitle, initial: draft.trim() || items[items.length - 1], confirmLabel: 'Add This Folder' });
+    if (dir) add(dir);
   }
 
   return (
@@ -103,7 +109,8 @@ function DirList({ id, items, empty, placeholder, onChange }: {
         <input type="text" id={`${id}-input`} placeholder={placeholder} autoComplete="off" value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(); } }} />
-        <button type="button" id={`${id}-add`} className="secondary-button" onClick={add}>Add</button>
+        <button type="button" id={`${id}-browse`} className="secondary-button" onClick={browse}>Browse…</button>
+        <button type="button" id={`${id}-add`} className="secondary-button" onClick={() => add()}>Add</button>
       </div>
     </>
   );
@@ -182,7 +189,7 @@ export function StlHomeDialog() {
       <div className="form-group" id="stl-home-directories-group">
         <label htmlFor="stl-home-directories-input">Directories</label>
         <p className="setting-description">Paths on the server. Add more than one to cover separate libraries.</p>
-        <DirList id="stl-home-directories" items={form.homes} empty="No directories selected." placeholder="Enter a directory path"
+        <DirList id="stl-home-directories" items={form.homes} empty="No directories selected." placeholder="Enter a directory path" pickTitle="Add STL Home Directory"
           onChange={(homes) => set('homes', homes)} />
       </div>
       <div className="form-group" id="stl-home-update-frequency-group">
@@ -194,7 +201,7 @@ export function StlHomeDialog() {
       <div className="form-group" id="stl-home-exclude-group">
         <label htmlFor="stl-home-exclude-input">Excluded directories</label>
         <p className="setting-description">STL Home scans skip these directories and everything inside them. Use a full path, or a path relative to the STL Home directory being scanned. Folders starting with a dot, such as .manyfold and .git, are always skipped. Models already in the library stay until you remove them, except files found in those hidden folders, which the next scan can drop from the library.</p>
-        <DirList id="stl-home-exclude" items={form.excluded} empty="No directories excluded." placeholder="Enter a path to exclude"
+        <DirList id="stl-home-exclude" items={form.excluded} empty="No directories excluded." placeholder="Enter a path to exclude" pickTitle="Exclude a Directory"
           onChange={(excluded) => set('excluded', excluded)} />
       </div>
       <div className="form-group" id="stl-home-path-metadata-group">

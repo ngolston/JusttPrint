@@ -342,3 +342,37 @@ button.jp-tag__label:hover { color: var(--jp-text); }
 .jp-message-dialog__input:focus { outline: none; border-color: var(--jp-accent); box-shadow: 0 0 0 3px var(--jp-accent-soft); }
 .jp-message-dialog__buttons { display: flex; gap: var(--jp-space-2); justify-content: flex-end; }
 .jp-message-dialog__buttons .jp-btn { width: auto; margin: 0; }
+
+/* Choose Folder (src/web/components/FolderPicker.tsx): places, path bar, subfolders */
+.jp-folder-picker { width: min(620px, calc(100vw - 32px)); }
+.jp-folder-picker .jp-overlay__body { display: flex; flex-direction: column; gap: var(--jp-space-3); }
+#folder-picker-dialog { display: flex; flex-direction: column; gap: var(--jp-space-3); min-width: 0; }
+.jp-folder-picker__places { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); }
+.jp-folder-picker__place {
+  display: inline-flex; align-items: center; gap: 6px; width: auto; max-width: 100%; height: 28px; margin: 0;
+  padding: 0 var(--jp-space-3); border: 1px solid var(--jp-border); border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2); color: var(--jp-text-2); font: 500 var(--jp-text-small) var(--jp-font);
+  box-shadow: none; cursor: pointer;
+}
+.jp-folder-picker__place span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-folder-picker__place:hover { background: var(--jp-surface-hover); color: var(--jp-text); transform: none; }
+.jp-folder-picker__place.is-active { border-color: var(--jp-accent-border); background: var(--jp-accent-soft); color: var(--jp-accent); }
+.jp-folder-picker__bar { display: flex; align-items: center; gap: var(--jp-space-2); margin: 0; }
+.jp-folder-picker__bar .jp-input { flex: 1; min-width: 0; height: 32px; margin: 0; font-family: var(--jp-font-mono, ui-monospace, monospace); font-size: var(--jp-text-meta); }
+.jp-folder-picker__bar .jp-icon-btn { flex: none; border: 1px solid var(--jp-border); }
+.jp-folder-picker__error { margin: 0; color: var(--jp-danger); font-size: var(--jp-text-meta); overflow-wrap: anywhere; }
+.jp-folder-picker__list {
+  height: min(340px, 45vh); margin: 0; padding: var(--jp-space-1); overflow-y: auto; list-style: none;
+  border: 1px solid var(--jp-border); border-radius: var(--jp-radius-md); background: var(--jp-bg-2);
+  scrollbar-width: thin; scrollbar-color: var(--jp-border-strong) transparent;
+}
+.jp-folder-picker__list[aria-busy="true"] { opacity: 0.6; }
+.jp-folder-picker__folder {
+  display: flex; align-items: center; justify-content: flex-start; gap: var(--jp-space-2); width: 100%; height: 34px; margin: 0;
+  padding: 0 var(--jp-space-3); border: 0; border-radius: var(--jp-radius-sm); background: none;
+  color: var(--jp-text); font: 400 var(--jp-text-meta) var(--jp-font); text-align: left; box-shadow: none; cursor: pointer;
+}
+.jp-folder-picker__folder svg { flex: none; color: var(--jp-accent); }
+.jp-folder-picker__folder span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-folder-picker__folder:hover, .jp-folder-picker__folder:focus-visible { background: var(--jp-surface-hover); transform: none; outline: none; }
+.jp-folder-picker__empty { padding: var(--jp-space-3); color: var(--jp-text-3); font-size: var(--jp-text-meta); }

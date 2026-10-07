@@ -114,6 +114,23 @@
   color: var(--jp-text);
   font: 400 var(--jp-text-ui) var(--jp-font);
 }
+.jp-organize .organize-path-row { display: flex; gap: var(--jp-space-2); }
+.jp-organize .organize-path-row input[type="text"] { flex: 1; min-width: 0; }
+.jp-organize .organize-path-row button {
+  flex: none;
+  width: auto;
+  height: var(--jp-control-height);
+  margin: 0;
+  padding: 0 var(--jp-space-4);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  box-shadow: none;
+}
+.jp-organize .organize-path-row button:hover:not(:disabled) { background: var(--jp-surface-hover); transform: none; }
+.jp-organize .organize-path-row button:disabled { opacity: 0.45; cursor: not-allowed; }
 .jp-organize .form-group input[type="text"]:focus { outline: none; border-color: var(--jp-accent); box-shadow: 0 0 0 3px var(--jp-accent-soft); }
 .jp-organize .setting-description { margin: 6px 0 0; color: var(--jp-text-3); font-size: var(--jp-text-small); font-style: normal; }
 .jp-organize .organize-structure { margin-bottom: var(--jp-space-4); }

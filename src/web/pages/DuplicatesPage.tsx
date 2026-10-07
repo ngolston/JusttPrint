@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { CheckCircle2, Copy, FolderOpen, Trash2 } from 'lucide-react';
 import { dedup, settings, type DuplicateFile, type DuplicateGroup, type HashProgress } from '../api';
 import { cx } from '../components/Button';
+import { pickFolder } from '../components/FolderPicker';
 import { fileIsUnderPreferredDirectory, pickDedupKeeperPath } from '../dedup-keeper.mjs';
 import { exposeGlobal, onServerEvent, showMessage, type LibraryFilters } from '../page';
 import { navigate } from '../shell/routes';
@@ -458,6 +459,11 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
                 event.preventDefault();
                 commitPreferred(event.currentTarget.value, true, true);
               }} />
+            <button type="button" id="dedup-preferred-browse" className="jp-btn jp-btn--secondary jp-btn--md" title="Choose the preferred directory"
+              onClick={async () => {
+                const dir = await pickFolder({ title: 'Preferred Directory', initial: preferredDir.trim() || undefined });
+                if (dir) commitPreferred(dir, true, true);
+              }}>Browse…</button>
             <button type="button" id="dedup-preferred-clear" className="jp-btn jp-btn--ghost jp-btn--md" title="Clear the preferred directory"
               onClick={() => commitPreferred('', false)}>Clear path</button>
           </div>
