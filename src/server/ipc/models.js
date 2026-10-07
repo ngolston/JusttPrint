@@ -44,8 +44,9 @@ function normalizePath(filepath) {
 
 // Match library paths against a scanned directory prefix. Stored paths often use '\' on Windows while
 // scan roots are normalized with forward slashes; naive LIKE would fail to pair them.
+/** LIKE pattern for the models inside a folder (not a sibling such as "Designer Bx" for "Designer B"). */
 function directoryScanPrefixSqlParam(scanDirectoryPath) {
-  return normalizePath(scanDirectoryPath).replace(/\/$/, '').toLowerCase() + '%';
+  return normalizePath(scanDirectoryPath).replace(/\/$/, '').toLowerCase() + '/%';
 }
 
 ipcMain.handle('get-model', async (event, filePath) => {

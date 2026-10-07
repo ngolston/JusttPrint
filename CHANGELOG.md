@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.3.1] - 2026-10-07
+
+**Upgrading:** no changes needed. If the server log showed "Could not start Chromium" before, thumbnails are now rendered by the server again. Reload open browser tabs after the update.
+
+**Changes:**
+- CI now builds the Docker image on every push and smoke-tests it the way it is run: it must report healthy, run as `PUID`/`PGID`, accept the password, scan the mounted library, serve the web UI, render thumbnails in its own Chromium with no browser open, and close the database on `docker stop`. Run it locally with `npm run test:docker` (needs Docker).
+- **Fixed:** on some Linux hosts the container's Chromium could not start ("chrome_crashpad_handler: --database is required"), so the server rendered no thumbnails and only open browsers did. Chromium now gets its own writable folders and no crash reporter, and the server tries again a few times if it still fails to start. Found by the new smoke test.
+- **Fixed:** for a library inside a folder whose name starts with a dot (for example `/home/me/.local/models`), every scan removed all its models and added them back as new, losing their tags, notes, ratings and print history. Only folders inside the library count as hidden now.
+- **Fixed:** scanning a folder also checked the models of a sibling folder whose name starts the same (`Designer B` and `Designer Bx`).
+
 ## [5.3.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Folder watching starts on its own for your STL Home folders; turn it off under **Settings → Scanning → STL Home** or with `JUSTTPRINT_WATCH_FOLDERS=false`. A very large library on an older Linux host can run out of folder watches: the STL Home page then says so, and raising `fs.inotify.max_user_watches` on the host fixes it. Reload open browser tabs after the update.

@@ -50,3 +50,25 @@ jobs:
             tests/e2e/.work/*.png
           include-hidden-files: true
           retention-days: 14
+
+  docker:
+    # Build the image users pull and smoke-test it (scripts/docker-smoke.js): healthy, logs in,
+    # scans the fixture library, serves the web UI, renders a thumbnail, stops cleanly.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: justtprint:smoke
+          # Reuse unchanged layers (dependencies, Chromium) from earlier runs.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Docker smoke test
+        run: node scripts/docker-smoke.js justtprint:smoke

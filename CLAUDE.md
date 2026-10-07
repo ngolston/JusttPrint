@@ -10,7 +10,7 @@ Every time, in this order:
 
 1. Update `README.md` so it matches the changes (version line, features, setup, structure).
 2. Bump the version (`npm version <x.y.z> --no-git-tag-version`; semver: breaking = major, features = minor, fixes = patch) and turn `## [Unreleased]` in `CHANGELOG.md` into `## [x.y.z] - <date>` with upgrade notes when needed.
-3. Run `npm test` and `npm run test:e2e`.
+3. Run `npm test`, `npm run test:e2e` and `npm run test:docker` (builds the image and smoke-tests it; needs Docker).
 4. Commit, merge into `main`, push `main`.
 5. Tag `vx.y.z`, push the tag, and create the GitHub release on ngolston/JusttPrint with the changelog entry as notes.
 

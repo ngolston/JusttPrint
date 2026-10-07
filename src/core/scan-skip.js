@@ -67,6 +67,26 @@ function shouldSkipEntryPath(entryPath, extraLower) {
   return false;
 }
 
+/**
+ * True when a stored model (a file, or "archive.zip::entry") would be skipped by a scan of
+ * `scanRoot`. Only the part inside the scanned folder counts: a library that lives under a dot
+ * folder (/home/me/.local/models) is not skipped, as the scan worker does not skip it either.
+ */
+function isSkippedLibraryFile(filePath, extraLower, scanRoot = '') {
+  if (!filePath) return false;
+  const text = String(filePath);
+  const separator = text.indexOf('::');
+  const diskPath = separator >= 0 ? text.slice(0, separator) : text;
+  const entryPath = separator >= 0 ? text.slice(separator + 2) : '';
+  let inside = diskPath;
+  if (scanRoot) {
+    const relative = path.relative(path.resolve(String(scanRoot)), path.resolve(diskPath));
+    if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) inside = relative;
+  }
+  if (shouldSkipEntryPath(inside, extraLower)) return true;
+  return !!entryPath && shouldSkipEntryPath(entryPath, extraLower);
+}
+
 function normalizeExcludePath(p) {
   let resolved = path.resolve(String(p));
   const root = path.parse(resolved).root;
@@ -124,6 +144,7 @@ module.exports = {
   shouldSkipDirectoryName,
   shouldSkipFileName,
   shouldSkipEntryPath,
+  isSkippedLibraryFile,
   normalizeExcludePath,
   compileExcludeDirs,
   isExcludedDir,
