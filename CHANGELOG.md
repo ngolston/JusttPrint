@@ -5,7 +5,10 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Changes:**
-- CI now builds the Docker image on every push and smoke-tests it the way it is run: it must report healthy, run as `PUID`/`PGID`, accept the password, scan the mounted library, serve the web UI, render thumbnails in its own Chromium with no browser open, and close the database on `docker stop`. Run it locally with `npm run test:docker` (needs Docker). The app itself is unchanged.
+- CI now builds the Docker image on every push and smoke-tests it the way it is run: it must report healthy, run as `PUID`/`PGID`, accept the password, scan the mounted library, serve the web UI, render thumbnails in its own Chromium with no browser open, and close the database on `docker stop`. Run it locally with `npm run test:docker` (needs Docker).
+- **Fixed:** on some Linux hosts the container's Chromium could not start ("chrome_crashpad_handler: --database is required"), so the server rendered no thumbnails and only open browsers did. Chromium now gets its own writable folders and no crash reporter, and the server tries again a few times if it still fails to start. Found by the new smoke test.
+- **Fixed:** for a library inside a folder whose name starts with a dot (for example `/home/me/.local/models`), every scan removed all its models and added them back as new, losing their tags, notes, ratings and print history. Only folders inside the library count as hidden now.
+- **Fixed:** scanning a folder also checked the models of a sibling folder whose name starts the same (`Designer B` and `Designer Bx`).
 
 ## [5.3.0] - 2026-10-07
 

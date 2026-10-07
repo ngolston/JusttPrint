@@ -14,7 +14,7 @@ const { scheduleBackgroundHashGeneration } = require('./hashes');
 const { browseFolders, mountPoints } = require('../folder-browse');
 const { networkPathContext } = require('../path-context');
 const { isInsideOrSame, isSystemDirectory } = require('../server-paths');
-const { shouldSkipEntryPath, compileExcludeDirs, isExcludedPath } = require('../../core/scan-skip');
+const { isSkippedLibraryFile, compileExcludeDirs, isExcludedPath } = require('../../core/scan-skip');
 const { clampFolderLevels } = require('../../core/library-context');
 const { shouldAutoTagNewScanFiles } = require('../../core/folder-tags');
 const { pathsAreSame } = require('../../core/organize-library');
@@ -161,7 +161,7 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
       const batch = modelsInDirectory.slice(i, i + MAX_CONCURRENT_CHECKS);
       const batchPromises = batch.map(async (model) => {
         if (isExcludedPath(model.filePath, excluded)) return;
-        if (isSkippedLibraryPath(model.filePath, scanExcludeNames)) {
+        if (isSkippedLibraryFile(model.filePath, scanExcludeNames, scanDirectoryPath)) {
           filesToDelete.push({
             filePath: model.filePath,
             id: model.id,
@@ -527,15 +527,6 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
 }
 
 ipcMain.handle('scan-directory', scanDirectoryHandler);
-
-function isSkippedLibraryPath(filePath, extraLower) {
-  if (!filePath) return false;
-  const pathInfo = parseZipPath(filePath);
-  const diskPath = pathInfo.isZipEntry ? pathInfo.zipPath : filePath;
-  if (shouldSkipEntryPath(diskPath, extraLower)) return true;
-  if (pathInfo.isZipEntry && shouldSkipEntryPath(pathInfo.entryPath, extraLower)) return true;
-  return false;
-}
 
 /**
  * Choose folder (src/web/components/FolderPicker.tsx): the places to start from (the container's

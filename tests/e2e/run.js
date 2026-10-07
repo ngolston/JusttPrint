@@ -191,6 +191,8 @@ async function apiChecks(base, wsUrl) {
   const watchStatus = (await invoke(base, ctxCookie(), 'get-folder-watch-status')).result || {};
   check('STL Home folders are watched', watchStatus.enabled === true && watchStatus.roots?.some((root) => root.path === LIBRARY && root.folders >= 4 && !root.error),
     JSON.stringify(watchStatus));
+  const neighbour = path.join(LIBRARY, 'Designer B', 'box.3mf');
+  const neighbourId = ((await invoke(base, ctxCookie(), 'get-model', [neighbour])).result || {}).id;
   const watchedDir = path.join(LIBRARY, 'Designer B', 'Watched Drop');
   const watchedFile = path.join(watchedDir, 'dropped.stl');
   fs.mkdirSync(watchedDir);
@@ -201,6 +203,9 @@ async function apiChecks(base, wsUrl) {
   fs.rmSync(watchedDir, { recursive: true });
   const gone = await waitFor(async () => (!(await hasModel(watchedFile)) ? true : null), 30000, 'deleted watched file').catch(() => false);
   check('a deleted model leaves the library without a scan', gone === true && ((await invoke(base, ctxCookie(), 'get-stats')).result || {}).totalModels === 4);
+  // The rescans must not drop and re-add the other models in the folder (that loses their tags and history).
+  const neighbourAfter = ((await invoke(base, ctxCookie(), 'get-model', [neighbour])).result || {}).id;
+  check('a rescan keeps the other models in the folder (same record)', !!neighbourId && neighbourAfter === neighbourId, `${neighbourId} -> ${neighbourAfter}`);
   check('a watched subfolder is not added to the scanned folders',
     !JSON.stringify((await invoke(base, ctxCookie(), 'get-setting', ['scannedDirectories'])).result || '').includes('Designer B'));
   check('home after login', (await http.request('/')).status === 200);

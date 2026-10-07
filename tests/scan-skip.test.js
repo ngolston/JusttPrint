@@ -6,6 +6,7 @@ const {
   shouldSkipDirectoryName,
   shouldSkipFileName,
   shouldSkipEntryPath,
+  isSkippedLibraryFile,
   normalizeExcludeNames
 } = require('../src/core/scan-skip');
 
@@ -39,4 +40,14 @@ test('extra folder names from settings are skipped', () => {
   assert.strictEqual(shouldSkipDirectoryName('temp', extra), true);
   assert.strictEqual(shouldSkipDirectoryName('models', extra), false);
   assert.strictEqual(shouldSkipEntryPath('prints/cache/part.stl', extra), true);
+});
+
+test('stored models are judged by the path inside the scanned folder', () => {
+  const root = '/home/me/.local/models';
+  assert.strictEqual(isSkippedLibraryFile(`${root}/Designer B/box.3mf`, new Set(), root), false, 'a library under a dot folder is not skipped');
+  assert.strictEqual(isSkippedLibraryFile(`${root}/Designer B/.manyfold/render.stl`, new Set(), root), true);
+  assert.strictEqual(isSkippedLibraryFile(`${root}/cache/part.stl`, new Set(['cache']), root), true);
+  assert.strictEqual(isSkippedLibraryFile(`${root}/pack.zip::inner/.hidden/a.stl`, new Set(), root), true);
+  assert.strictEqual(isSkippedLibraryFile(`${root}/pack.zip::inner/a.stl`, new Set(), root), false);
+  assert.strictEqual(isSkippedLibraryFile('/mnt/models/._part.stl', new Set(), '/mnt/models'), true);
 });

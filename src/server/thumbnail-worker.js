@@ -6,6 +6,9 @@
  * WebSocket like a browser, identified by a secret cookie.
  */
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const puppeteer = require('puppeteer');
 const { parseCookies, SESSION_COOKIE } = require('./server-auth');
 const { jsonStringifyForWs } = require('./ws-json');
@@ -50,8 +53,29 @@ function chromiumArgs() {
   const gpu = custom
     ? custom.split(/\s+/)
     : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', ...gpu];
+  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', '--disable-crash-reporter',
+    `--crash-dumps-dir=${path.join(chromiumHome(), 'crashes')}`, ...gpu];
 }
+
+/**
+ * Chromium's own writable folders. In the container XDG_CONFIG_HOME is /root/.config (the app's
+ * data path), which the PUID user cannot write: Chromium then has nowhere for its crash database
+ * and, on some hosts, fails to start ("chrome_crashpad_handler: --database is required").
+ */
+function chromiumHome() {
+  const dir = path.join(os.tmpdir(), 'justtprint-chromium');
+  for (const sub of ['config', 'cache', 'crashes']) {
+    try {
+      fs.mkdirSync(path.join(dir, sub), { recursive: true });
+    } catch (_) { /* reported by the launch */ }
+  }
+  return dir;
+}
+
+/** Launch attempts after a failure before giving up until the next server start. */
+const LAUNCH_RETRIES = 5;
+const LAUNCH_RETRY_MS = 60 * 1000;
+let launchFailures = 0;
 
 /**
  * Start Chromium and open the worker page. Restarts itself if Chromium dies, until stop().
@@ -69,8 +93,14 @@ async function start(options) {
       headless: true,
       executablePath,
       acceptInsecureCerts: true,
-      args: chromiumArgs()
+      args: chromiumArgs(),
+      env: {
+        ...process.env,
+        XDG_CONFIG_HOME: path.join(chromiumHome(), 'config'),
+        XDG_CACHE_HOME: path.join(chromiumHome(), 'cache')
+      }
     });
+    launchFailures = 0;
     browser = launched;
     launched.on('disconnected', () => {
       browser = null;
@@ -95,7 +125,15 @@ async function start(options) {
     console.log('[Thumbnail worker] Headless Chromium started');
   } catch (error) {
     browser = null;
+    launchFailures++;
     console.error('[Thumbnail worker] Could not start Chromium:', error.message);
+    if (launchFailures <= LAUNCH_RETRIES && !stopped) {
+      console.warn(`[Thumbnail worker] Trying again in a minute (${launchFailures} of ${LAUNCH_RETRIES}). Thumbnails still render in open browsers.`);
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(() => {
+        start(options).catch((retryError) => console.error('[Thumbnail worker] retry:', retryError.message));
+      }, LAUNCH_RETRY_MS);
+    }
   }
 }
 
