@@ -83,9 +83,12 @@ async function runAction(req, res, keepaliveMs) {
     return;
   }
 
+  const wsClient = clients.get(req.get(CLIENT_HEADER) || '') || null;
+  // A handler's event.sender.send answers the browser that asked (its progress, dialogs and
+  // messages); changes every browser must see use events.broadcast.
   const event = {
-    sender: { send: (channel, ...eventArgs) => events.broadcast(channel, ...eventArgs) },
-    wsClient: clients.get(req.get(CLIENT_HEADER) || '') || null,
+    sender: { send: (channel, ...eventArgs) => events.toCaller({ wsClient }, channel, ...eventArgs) },
+    wsClient,
     fromNetwork: true
   };
 

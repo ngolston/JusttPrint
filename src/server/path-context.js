@@ -23,6 +23,7 @@ function networkPathContext() {
     roots: [...getLibraryRootPaths(), ...readScannedDirectorySetting()],
     generatedDir,
     autoBackupDir: require('./auto-backup').downloadFolder(),
+    downloadsDir: generatedDir ? path.join(generatedDir, 'downloads') : '',
     appDir: path.join(__dirname, '..', '..'),
     dataDir,
     isExtractTemp: (candidate) => isJusttPrintExtractTempPath(candidate),

@@ -130,7 +130,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Backup/restore: download and upload a backup file in the browser.
   - [x] "Send to slicer": the helper and `justtprint://` link, documented in GUIDE.md (Slicers).
 - [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
-- [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict. The model menu's events now go only to the browser that clicked (`events.toCaller` in [src/server/events.js](src/server/events.js)); other `event.sender.send` calls in `src/server/ipc/` still go to every browser and need the same review.
+- [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict. Messages for one browser now reach only that browser (6.0.1): `event.sender.send` in an action answers the browser that called it (`events.toCaller`, [src/server/events.js](src/server/events.js)), and changes every browser must see use `events.broadcast`. Left: edits from two browsers at once are not merged (the last save wins).
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
 - [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
 
@@ -169,7 +169,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 - [ ] **User accounts and roles** (admin, read-only, guest) for sharing with family or a makerspace.
 - [x] **Automatic, scheduled backups** with retention, saved to a mounted volume: Settings → Backup → Automatic Backups ([src/server/auto-backup.js](src/server/auto-backup.js), [src/web/settings/AutoBackup.tsx](src/web/settings/AutoBackup.tsx)) and the `JUSTTPRINT_*BACKUP*` variables.
-- [ ] **Clean up hand-made backups and exports.** **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
+- [x] **Clean up hand-made backups and exports.** Done in 6.0.1 ([src/server/download-files.js](src/server/download-files.js)): downloads go into `downloads/` and are deleted after an hour; Settings → Backup offers to delete old ones. Before: **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
 - [x] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand. One `fs.watch` per STL Home folder ([src/server/folder-watch.js](src/server/folder-watch.js)), batched rescans of the changed folders ([src/server/stl-home.js](src/server/stl-home.js)); network shares still rely on the timed scan.
 - [ ] **Upload models through the web UI** (drag and drop) into a chosen library folder.
 - [ ] **Send to printer**: upload and start a print via OctoPrint, Moonraker or Bambu, using the saved printer details. A server is a natural fit for this.

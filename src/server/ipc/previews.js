@@ -877,7 +877,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     const onMessage = async (message) => {
       const { ok, json, error, type, message: statusMessage } = message || {};
       if (type === 'status') {
-        events.broadcast('3mf-preview-status', requestId, statusMessage);
+        events.toCaller(event, '3mf-preview-status', requestId, statusMessage);
         return;
       }
 

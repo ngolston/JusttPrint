@@ -1,5 +1,7 @@
 'use strict';
 
+const events = require('../events');
+
 const database = require('../../core/database');
 const { ipcMain, shell } = require('../runtime');
 const fs = require('fs');
@@ -80,7 +82,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     
     // Send refresh-grid event to update the UI after file deletion
     if (result) {
-      event.sender.send('refresh-grid');
+      events.broadcast('refresh-grid');
     }
     
     return result;
@@ -187,7 +189,7 @@ ipcMain.handle('move-files', async (event, filePaths, destinationFolder) => {
       await fs.promises.rename(filePath, newDestination);
       database.db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(newDestination, filePath);
     }
-    event.sender.send('refresh-grid');
+    events.broadcast('refresh-grid');
     return true;
   } catch (error) {
     console.error("Error moving files:", error);

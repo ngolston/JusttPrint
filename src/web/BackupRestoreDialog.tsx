@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { backup, downloadUrl, type FileResult } from './api';
+import { backup, downloadUrl, leftoverDownloads, type FileResult, type LeftoverDownloads } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, refreshModelDisplay, showMessage } from './page';
 import { AutoBackup } from './settings/AutoBackup';
+import { formatFileSize } from './StatsDialog';
 
 declare global {
   interface Window {
@@ -46,6 +47,26 @@ export function BackupRestoreDialog() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<Task | null>(null);
   const [opened, setOpened] = useState(0);
+  const [leftovers, setLeftovers] = useState<LeftoverDownloads | null>(null);
+
+  useEffect(() => {
+    leftoverDownloads.list().then(setLeftovers, () => setLeftovers(null));
+  }, [opened]);
+
+  async function deleteLeftovers() {
+    if (!leftovers?.files.length) return;
+    const n = leftovers.files.length;
+    const answer = await showMessage('Delete Old Backup Files',
+      `Delete ${n} backup and export file${n === 1 ? '' : 's'} (${formatFileSize(leftovers.totalBytes)}) from ${leftovers.folder}? Automatic backups and your database are not touched.`,
+      ['Delete', 'Cancel']);
+    if (answer !== 'Delete') return;
+    try {
+      await leftoverDownloads.remove();
+    } catch (error) {
+      await showMessage('Error', `Could not delete the files: ${errorText(error)}`);
+    }
+    setLeftovers(await leftoverDownloads.list().catch(() => null));
+  }
 
   useEffect(() => exposeGlobal('openBackupRestore', () => {
     setOpened((n) => n + 1);
@@ -140,6 +161,14 @@ export function BackupRestoreDialog() {
     <ModalDialog id="backup-restore-dialog" title="Backup/Restore" dialogRef={dialogRef}
       footer={<button type="button" id="save-backup-restore" onClick={() => dialogRef.current?.close()}>Close</button>}>
       <AutoBackup opened={opened} />
+      {!!leftovers?.files.length && (
+        <div id="leftover-downloads" className="leftover-downloads">
+          <p className="setting-description">
+            {leftovers.files.length} backup and export file{leftovers.files.length === 1 ? '' : 's'} from earlier downloads take up {formatFileSize(leftovers.totalBytes)} in the data folder. New ones are deleted an hour after you download them.
+          </p>
+          <button type="button" id="delete-leftover-downloads" onClick={deleteLeftovers}>Delete Them</button>
+        </div>
+      )}
       <div className="backup-restore-columns">
         <div>
           <h4>Database</h4>
