@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [5.3.1] - 2026-10-07
+
+**Upgrading:** no changes needed. If the server log showed "Could not start Chromium" before, thumbnails are now rendered by the server again. Reload open browser tabs after the update.
 
 **Changes:**
 - CI now builds the Docker image on every push and smoke-tests it the way it is run: it must report healthy, run as `PUID`/`PGID`, accept the password, scan the mounted library, serve the web UI, render thumbnails in its own Chromium with no browser open, and close the database on `docker stop`. Run it locally with `npm run test:docker` (needs Docker).
