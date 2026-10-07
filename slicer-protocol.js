@@ -15,6 +15,30 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   const PROTOCOL = 'justtprint:';
   const MAX_URL_LENGTH = 30000;
+  /** OrcaSlicer takes one file per link: the next one follows after this pause. */
+  const ORCA_LINK_GAP_MS = 1500;
+
+  /**
+   * OrcaSlicer's own link for one file (src/server/slicer-links.js): OrcaSlicer downloads the
+   * address after file= (it decodes it once) and names the file after its last part.
+   */
+  function buildOrcaSlicerOpenUrl(origin, file) {
+    if (!file || !file.token || !file.name) throw new Error('Missing slicer download link');
+    const address = new URL(origin).origin + '/api/slicer-file/' + encodeURIComponent(file.token) + '/' + encodeURIComponent(file.name);
+    return 'orcaslicer://open?file=' + encodeURIComponent(address);
+  }
+
+  /** Open a link of another app (justtprint://, orcaslicer://) from the page without leaving it. */
+  function openAppLink(href) {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.display = 'none';
+    frame.src = href;
+    document.body.appendChild(frame);
+    setTimeout(() => {
+      if (frame.parentNode) frame.parentNode.removeChild(frame);
+    }, 3000);
+  }
 
   function currentPlatform() {
     if (typeof process !== 'undefined' && process.platform) return process.platform;
@@ -147,6 +171,19 @@
     if (typeof document === 'undefined' || typeof window === 'undefined') {
       return { ok: false, reason: 'no-document' };
     }
+    if (commandData && commandData.type === 'slicer-error') {
+      throw new Error(commandData.message || 'Could not open the slicer');
+    }
+    if (commandData && commandData.type === 'open-in-orcaslicer') {
+      const hrefs = (Array.isArray(commandData.files) ? commandData.files : [])
+        .map((file) => buildOrcaSlicerOpenUrl(window.location.origin, file));
+      if (!hrefs.length) throw new Error('No model files to open in OrcaSlicer');
+      hrefs.forEach((href, index) => {
+        if (index === 0) openAppLink(href);
+        else setTimeout(() => openAppLink(href), index * ORCA_LINK_GAP_MS);
+      });
+      return { ok: true, hrefs };
+    }
     const href = buildJusttPrintOpenUrl({
       origin: window.location.origin,
       slicerName: commandData && commandData.slicerName,
@@ -160,15 +197,7 @@
     }
     launchFromCommand.lastHref = href;
     launchFromCommand.lastAt = now;
-
-    const frame = document.createElement('iframe');
-    frame.setAttribute('aria-hidden', 'true');
-    frame.style.display = 'none';
-    frame.src = href;
-    document.body.appendChild(frame);
-    setTimeout(() => {
-      if (frame.parentNode) frame.parentNode.removeChild(frame);
-    }, 3000);
+    openAppLink(href);
     return { ok: true, href };
   }
 
@@ -176,6 +205,7 @@
     PROTOCOL,
     MAX_URL_LENGTH,
     buildJusttPrintOpenUrl,
+    buildOrcaSlicerOpenUrl,
     parseJusttPrintProtocolUrl,
     assertSafeSlicerPath,
     assertOriginAllowed,

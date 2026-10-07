@@ -67,7 +67,7 @@ Then: README, GUIDE screenshots, CHANGELOG with upgrade notes, 5.0.0 release.
 
 ## Later features (not in 5.0.0)
 
-Printer connections with live status and a real Print button; Collections; notifications; user accounts with names; light theme; filament stock levels.
+Collections; notifications; user accounts with names; light theme; filament stock levels.
 
 ## Progress
 

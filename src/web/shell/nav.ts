@@ -136,7 +136,7 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'scan-folder', label: 'Scan a Folder', description: 'Scan one folder once, outside STL Home.', icon: Scan, run: menu('Scan Directory'), replaces: ['Scan Directory'] }
   ] },
   { id: 'slicer', label: 'Slicer', items: [
-    { id: 'slicers', label: 'Slicers', description: 'Slicers for Send to Slicer, and the helper for this computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'], embed: { dialog: 'slicer-dialog', open: 'openSlicerSettings' } }
+    { id: 'slicers', label: 'Slicers', description: 'OrcaSlicer (no helper needed), or other slicers through the helper on each computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'], embed: { dialog: 'slicer-dialog', open: 'openSlicerSettings' } }
   ] },
   { id: 'printers', label: 'Printers', items: [
     { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers'), role: 'viewer' },

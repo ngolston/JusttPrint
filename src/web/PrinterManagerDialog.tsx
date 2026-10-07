@@ -279,7 +279,7 @@ export function PrinterManagerDialog() {
                       <span className="printer-klipper-toggle-label">
                         <span>Running Klipper</span>
                         <span className="klipper-tag-badge">Klipper</span>
-                        <span style={{ ...muted, marginLeft: '4px' }}>(Enables Moonraker / Mainsail / Fluidd web interface integration)</span>
+                        <span style={{ ...muted, marginLeft: '4px' }}>(Shows a Klipper badge on the printer)</span>
                       </span>
                     </label>
                   </div>

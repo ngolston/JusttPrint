@@ -649,7 +649,7 @@
       document.body.appendChild(link);
       link.click();
       setTimeout(() => link.remove(), 100);
-    } else if (commandData.type === 'open-in-slicer') {
+    } else if (commandData.type === 'open-in-slicer' || commandData.type === 'open-in-orcaslicer' || commandData.type === 'slicer-error') {
       window.electron.launchSlicerCommand(commandData);
     }
   });

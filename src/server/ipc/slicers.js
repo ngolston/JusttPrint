@@ -5,6 +5,8 @@ const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const { parseZipPath } = require('../../core/library-paths');
 const { getServerAuth } = require('../auth');
+const { isOrcaLinkSlicer, issueSlicerFileLinks } = require('../slicer-links');
+const { libraryPathAllowed } = require('../path-context');
 
 /*
  * Send to Slicer never runs anything on the server (a desktop slicer cannot open in a
@@ -152,8 +154,18 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
 
 ipcMain.handle('clear-and-save-slicers', clearAndSaveSlicersHandler);
 
-/** The open-in-slicer command the browser hands to the helper. */
+/**
+ * The open-in-slicer command the browser runs: for OrcaSlicer's own links (a slicer whose path is
+ * orcaslicer://, slicer-links.js) one download address per file, else the helper's justtprint:// link.
+ */
 function slicerCommand(slicer, filePaths) {
+  if (isOrcaLinkSlicer(slicer)) {
+    for (const filePath of filePaths) {
+      const archive = parseZipPath(filePath).isZipEntry ? parseZipPath(filePath).zipPath : filePath;
+      if (!libraryPathAllowed(archive)) throw new Error(`Path is outside the library folders: ${filePath}`);
+    }
+    return { type: 'open-in-orcaslicer', slicerName: slicer.name, files: issueSlicerFileLinks(filePaths) };
+  }
   const pathInfo = parseZipPath(filePaths[0]);
   return {
     type: 'open-in-slicer',

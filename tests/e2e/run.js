@@ -2657,6 +2657,20 @@ async function accountChecks(base, wsUrl, admin) {
   check('a turned-off link stops working', (await fetch(`${base}/s/${viewOnly.token}`)).status === 404);
   check('Settings → Sharing lists the links', ((await invoke(base, editor, 'get-share-links', [])).result || []).some((l) => l.token === link.token && l.targetName === 'E2E Gifts'));
 
+  console.log('\n# Open in OrcaSlicer (no helper)');
+  const slicersBefore = (await invoke(base, admin, 'get-slicers')).result || [];
+  check('OrcaSlicer is added without a path', (await invoke(base, admin, 'clear-and-save-slicers', [[...slicersBefore.map((x) => ({ name: x.name, path: x.path })), { name: 'OrcaSlicer Link', path: 'orcaslicer://' }]])).result === true);
+  const orca = (await invoke(base, viewer, 'open-file-in-slicer', [{ filePaths: [uploadedPath], slicerName: 'OrcaSlicer Link' }])).result || {};
+  const orcaFile = orca.command?.files?.[0] || {};
+  check('viewers get an OrcaSlicer link per file', orca.command?.type === 'open-in-orcaslicer' && orcaFile.name === 'Uploaded_Cube.stl', JSON.stringify(orca));
+  const orcaDownload = await fetch(`${base}/api/slicer-file/${orcaFile.token}/${orcaFile.name}`);
+  check('OrcaSlicer downloads the file without a login', orcaDownload.status === 200 && Buffer.from(await orcaDownload.arrayBuffer()).equals(cubeBytes)
+    && /Uploaded%20Cube\.stl/.test(orcaDownload.headers.get('content-disposition') || ''));
+  check('a made-up token is refused', (await fetch(`${base}/api/slicer-file/AAAAAAAAAAAAAAAAAAAAAA/x.stl`)).status === 404);
+  check('files outside the library get no link', /outside the library/.test((await invoke(base, viewer, 'open-file-in-slicer', [{ filePaths: ['/etc/passwd'], slicerName: 'OrcaSlicer Link' }])).error || ''));
+  check('more than 10 files are refused with advice', /up to 10 files/.test((await invoke(base, viewer, 'open-file-in-slicer', [{ filePaths: Array(11).fill(uploadedPath), slicerName: 'OrcaSlicer Link' }])).error || ''));
+  await invoke(base, admin, 'clear-and-save-slicers', [slicersBefore.map((x) => ({ name: x.name, path: x.path }))]);
+
   if (!CHROME) return;
   const { chromium } = require('@playwright/test');
   const browser = await chromium.launch({ executablePath: CHROME });

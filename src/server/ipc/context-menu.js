@@ -190,7 +190,13 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         // The browser launches straight from the menu item's clientAction; this only runs
         // when a client asks the server to run the item, and answers that browser alone.
         click: async () => {
-          events.sendTo(event.wsClient, 'execute-client-command', slicerCommand(slicer, filePaths));
+          let command;
+          try {
+            command = slicerCommand(slicer, filePaths);
+          } catch (error) {
+            command = { type: 'slicer-error', message: error.message };
+          }
+          events.sendTo(event.wsClient, 'execute-client-command', command);
         }
       }))
     };
@@ -847,7 +853,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             subIndex: subIndex
           };
           if (subItem.slicerPath) {
-            entry.clientAction = slicerCommand({ name: subItem.slicerName || subItem.label, path: subItem.slicerPath }, filePaths);
+            try {
+              entry.clientAction = slicerCommand({ name: subItem.slicerName || subItem.label, path: subItem.slicerPath }, filePaths);
+            } catch (error) {
+              // Too many files for OrcaSlicer's links, or a path outside the library: say so when clicked.
+              entry.clientAction = { type: 'slicer-error', message: error.message };
+            }
           }
           return entry;
         });
