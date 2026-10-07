@@ -6,14 +6,15 @@
  * Screens that are still dialogs open as dialogs; later phases turn them into pages.
  */
 import {
-  Archive, BookOpen, Box, Brush, Cable, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
+  Archive, BarChart3, BookOpen, Box, Brush, Cable, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
   ExternalLink, HelpCircle, Home, Image, Info, Keyboard, KeyRound, Library, ListChecks, LogOut, type LucideIcon, Package, Printer,
-  RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, Wrench
+  RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, UserCog, Wrench
 } from 'lucide-react';
 import { scanDirectory, scanStlHome } from '../scan/scan';
 import { stlHomeDirectories } from '../scan/stlHome';
 import { findMenuAction } from './menu';
 import { navigate, type PageId } from './routes';
+import { roleAllows, type Role } from '../session';
 
 /** Run an old menu action by its label, looked up when clicked. */
 const menu = (label: string) => () => { void findMenuAction(label)?.(); };
@@ -38,6 +39,8 @@ export interface NavItem {
   run?: () => void;
   /** Old menu bar labels this item replaces. */
   replaces?: string[];
+  /** The least role that sees it (default viewer). */
+  role?: Role;
 }
 
 export interface NavSection {
@@ -65,17 +68,18 @@ export const NAV: NavSection[] = [
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
       { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
-      { id: 'filament', label: 'Filament', icon: Cable, page: 'filament' }
+      { id: 'filament', label: 'Filament', icon: Cable, page: 'filament' },
+      { id: 'stats', label: 'Statistics', icon: BarChart3, page: 'stats' }
     ]
   },
   {
     label: 'Manage',
     items: [
-      { id: 'tags', label: 'Tags', icon: Tags, page: 'tags', replaces: ['Tag Manager'] },
-      { id: 'duplicates', label: 'Duplicates', icon: Copy, page: 'duplicates', replaces: ['De-Dup'] },
-      { id: 'organize', label: 'Organize', icon: FolderTree, page: 'organize', replaces: ['Organize Library'] },
-      { id: 'scan', label: 'Scan Library', icon: ScanSearch, run: () => { void scanLibrary(); } },
-      { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiConfig'), replaces: ['AI Config'] }
+      { id: 'tags', label: 'Tags', icon: Tags, page: 'tags', replaces: ['Tag Manager'], role: 'editor' },
+      { id: 'duplicates', label: 'Duplicates', icon: Copy, page: 'duplicates', replaces: ['De-Dup'], role: 'editor' },
+      { id: 'organize', label: 'Organize', icon: FolderTree, page: 'organize', replaces: ['Organize Library'], role: 'admin' },
+      { id: 'scan', label: 'Scan Library', icon: ScanSearch, run: () => { void scanLibrary(); }, role: 'editor' },
+      { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiConfig'), replaces: ['AI Config'], role: 'admin' }
     ]
   },
   {
@@ -97,6 +101,8 @@ export interface SettingsItem {
   danger?: boolean;
   /** A settings form shown inside the Settings page: its dialog's id and the global that opens it. */
   embed?: { dialog: string; open: string };
+  /** The least role that sees it (default admin: settings change the whole server). */
+  role?: Role;
 }
 
 export interface SettingsGroup {
@@ -113,11 +119,11 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'theme', label: 'Theme', description: 'Accent color, model color, lighting and background of previews.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' } }
   ] },
   { id: 'library', label: 'Library', items: [
-    { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'] },
-    { id: 'stats', label: 'Library Stats', description: 'Model counts, sizes and how complete the metadata is.', icon: Database, run: menu('Library Stats'), replaces: ['Library Stats'] },
-    { id: 'entire', label: 'View Entire Library', description: 'Clear every filter and show all models.', icon: Library, run: inLibrary('View Entire Library'), replaces: ['View Entire Library'] },
-    { id: 'roulette', label: 'Print Roulette', description: 'Pick random models to print.', icon: Shuffle, run: inLibrary('Print Roulette'), replaces: ['Print Roulette'] },
-    { id: 'clear-new', label: 'Clear New Flag', description: 'Mark every model as seen.', icon: RotateCcw, run: menu('Clear New Flag'), replaces: ['Clear New Flag'] },
+    { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'], role: 'editor' },
+    { id: 'stats', label: 'Library Stats', description: 'Model counts, sizes and how complete the metadata is.', icon: Database, run: menu('Library Stats'), replaces: ['Library Stats'], role: 'viewer' },
+    { id: 'entire', label: 'View Entire Library', description: 'Clear every filter and show all models.', icon: Library, run: inLibrary('View Entire Library'), replaces: ['View Entire Library'], role: 'viewer' },
+    { id: 'roulette', label: 'Print Roulette', description: 'Pick random models to print.', icon: Shuffle, run: inLibrary('Print Roulette'), replaces: ['Print Roulette'], role: 'viewer' },
+    { id: 'clear-new', label: 'Clear New Flag', description: 'Mark every model as seen.', icon: RotateCcw, run: menu('Clear New Flag'), replaces: ['Clear New Flag'], role: 'editor' },
     { id: 'purge', label: 'Purge Models', description: 'Remove models of chosen file types from the library.', icon: Trash2, run: menu('Purge Models'), replaces: ['Purge Models'], danger: true }
   ] },
   { id: 'scanning', label: 'Scanning', items: [
@@ -129,11 +135,11 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'slicers', label: 'Slicers', description: 'Slicers for Send to Slicer, and the helper for this computer.', icon: Wrench, run: menu('Slicer'), replaces: ['Slicer'], embed: { dialog: 'slicer-dialog', open: 'openSlicerSettings' } }
   ] },
   { id: 'printers', label: 'Printers', items: [
-    { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers') },
-    { id: 'parts', label: 'Parts Manager', description: 'Spare parts stock for your printers.', icon: Package, run: menu('Parts Manager'), replaces: ['Parts Manager'] }
+    { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers'), role: 'viewer' },
+    { id: 'parts', label: 'Parts Manager', description: 'Spare parts stock for your printers.', icon: Package, run: menu('Parts Manager'), replaces: ['Parts Manager'], role: 'editor' }
   ] },
   { id: 'filament', label: 'Filament', items: [
-    { id: 'filament', label: 'Filament', description: 'Your filament catalog.', icon: Cable, run: () => navigate('filament') }
+    { id: 'filament', label: 'Filament', description: 'Your filament catalog.', icon: Cable, run: () => navigate('filament'), role: 'viewer' }
   ] },
   { id: 'integrations', label: 'Integrations', items: [
     { id: 'mcp', label: 'MCP Server', description: 'Connect an AI app (Claude, Cursor, VS Code) to your library.', icon: Cpu, run: open('openMcpServerSettings'), replaces: ['Settings'], embed: { dialog: 'mcp-server-settings-dialog', open: 'openMcpServerSettings' } }
@@ -146,19 +152,21 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'restart', label: 'Restart Server', description: 'Disconnects everyone for a moment.', icon: RefreshCw, run: menu('Restart Server'), replaces: ['Restart Server'] }
   ] },
   { id: 'authentication', label: 'Authentication', items: [
-    { id: 'access', label: 'Server Access', description: 'Password and API token.', icon: KeyRound, run: menu('Server Access'), replaces: ['Server Access'], embed: { dialog: 'server-access-dialog', open: 'openServerAccess' } },
-    { id: 'logout', label: 'Log Out', description: 'Log out of this browser.', icon: LogOut, run: menu('Log Out'), replaces: ['Log Out'] }
+    { id: 'users', label: 'Users', description: 'Who can log in, and what each one may do.', icon: UserCog, run: open('openUsers'), embed: { dialog: 'users-dialog', open: 'openUsers' } },
+    { id: 'password', label: 'Change Password', description: 'Change the password you log in with.', icon: KeyRound, run: open('openChangePassword'), role: 'viewer' },
+    { id: 'access', label: 'Server Access', description: 'The API token for MCP clients and scripts.', icon: KeyRound, run: menu('Server Access'), replaces: ['Server Access'], embed: { dialog: 'server-access-dialog', open: 'openServerAccess' } },
+    { id: 'logout', label: 'Log Out', description: 'Log out of this browser.', icon: LogOut, run: menu('Log Out'), replaces: ['Log Out'], role: 'viewer' }
   ] },
   { id: 'backup', label: 'Backup', items: [
     { id: 'backup', label: 'Backup and Restore', description: 'Back up the library database or restore one.', icon: Archive, run: menu('Backup/Restore'), replaces: ['Backup/Restore'], embed: { dialog: 'backup-restore-dialog', open: 'openBackupRestore' } }
   ] },
   { id: 'advanced', label: 'Advanced', items: [
-    { id: 'regenerate', label: 'Regenerate Thumbnails', description: 'Render every thumbnail again.', icon: Image, run: menu('Regenerate Thumbnails'), replaces: ['Regenerate Thumbnails'] },
-    { id: 'missing', label: 'Generate Missing Thumbnails', description: 'Render thumbnails for models without one.', icon: Image, run: menu('Generate Missing Thumbnails'), replaces: ['Generate Missing Thumbnails'] },
+    { id: 'regenerate', label: 'Regenerate Thumbnails', description: 'Render every thumbnail again.', icon: Image, run: menu('Regenerate Thumbnails'), replaces: ['Regenerate Thumbnails'], role: 'editor' },
+    { id: 'missing', label: 'Generate Missing Thumbnails', description: 'Render thumbnails for models without one.', icon: Image, run: menu('Generate Missing Thumbnails'), replaces: ['Generate Missing Thumbnails'], role: 'editor' },
     { id: 'report', label: 'System Report', description: 'Server, GPU and database details for troubleshooting.', icon: ClipboardList, run: menu('System Report'), replaces: ['System Report'] }
   ] },
   { id: 'about', label: 'About', items: [
-    { id: 'about', label: 'About JusttPrint', description: 'Version, updates and license.', icon: Info, run: menu('About'), replaces: ['About'] }
+    { id: 'about', label: 'About JusttPrint', description: 'Version, updates and license.', icon: Info, run: menu('About'), replaces: ['About'], role: 'viewer' }
   ] }
 ];
 
@@ -167,15 +175,31 @@ export const HELP: SettingsItem[] = [
   { id: 'shortcuts', label: 'Keyboard Shortcuts', description: 'Every shortcut in one list.', icon: Keyboard, run: menu('Keyboard Shortcuts'), replaces: ['Keyboard Shortcuts'] },
   { id: 'docs', label: 'Installing and Setup', description: 'The README: Docker, environment variables, network shares.', icon: Info, run: menu('Server Mode Info'), replaces: ['Server Mode Info'] },
   { id: 'github', label: 'GitHub', description: 'Releases, issues and source code.', icon: ExternalLink, run: menu('GitHub'), replaces: ['GitHub'] },
-  { id: 'report', label: 'System Report', description: 'Details to include when reporting a problem.', icon: ClipboardList, run: menu('System Report') },
+  { id: 'report', label: 'System Report', description: 'Details to include when reporting a problem.', icon: ClipboardList, run: menu('System Report'), role: 'admin' },
   { id: 'about', label: 'About JusttPrint', description: 'Version, updates and license.', icon: Info, run: menu('About') }
 ];
 
-/** The account button in the top bar. There are no user accounts: one password per server. */
+/** The account button in the top bar. */
 export const ACCOUNT: SettingsItem[] = [
+  { id: 'password', label: 'Change Password', description: '', icon: KeyRound, run: open('openChangePassword'), role: 'viewer' },
+  { id: 'users', label: 'Users', description: '', icon: UserCog, run: () => navigate('settings', 'authentication') },
   { id: 'access', label: 'Server Access', description: '', icon: KeyRound, run: menu('Server Access') },
-  { id: 'logout', label: 'Log Out', description: '', icon: LogOut, run: menu('Log Out') }
+  { id: 'logout', label: 'Log Out', description: '', icon: LogOut, run: menu('Log Out'), role: 'viewer' }
 ];
+
+/** Navigation entries the user's role may use. */
+export const navFor = (role: string | null | undefined) => NAV
+  .map((section) => ({ ...section, items: section.items.filter((item) => roleAllows(role, item.role || 'viewer')) }))
+  .filter((section) => section.items.length > 0);
+
+/** Settings, Help or account entries the user's role may use (settings default to admin, Help to viewer). */
+export const itemsFor = (items: SettingsItem[], role: string | null | undefined, fallback: Role = 'admin') =>
+  items.filter((item) => roleAllows(role, item.role || fallback));
+
+/** Settings groups with at least one entry for this role. */
+export const settingsFor = (role: string | null | undefined) => SETTINGS
+  .map((group) => ({ ...group, items: itemsFor(group.items, role) }))
+  .filter((group) => group.items.length > 0);
 
 /** Old menu labels that have a place in the shell. */
 export function replacedMenuLabels(): Set<string> {

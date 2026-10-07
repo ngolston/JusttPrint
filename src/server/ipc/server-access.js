@@ -2,7 +2,7 @@
 
 const { flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
-const { closeAllClients, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, syncPort80Server } = require('../http');
+const { closeClientsOfUser, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, syncPort80Server } = require('../http');
 const fs = require('fs');
 const { buildMcpClientConfig, listToolDefinitions, SERVER_NAME: MCP_SERVER_NAME } = require('../mcp-server');
 const serverTls = require('../server-tls');
@@ -48,24 +48,43 @@ function getMcpConnectionInfo() {
 ipcMain.handle('get-server-access-info', async () => ({
   apiToken: getServerAuth().apiToken(),
   passwordFromEnv: !!process.env.JUSTTPRINT_PASSWORD,
+  envUsername: getServerAuth().envUsername(),
   minPasswordLength: MIN_PASSWORD_LENGTH
 }));
 
+/** Log a user's browsers out shortly after the answer is sent (their sessions no longer work). */
+function endSessionsOf(userId, reason) {
+  setTimeout(() => closeClientsOfUser(userId, 4001, reason), 1500);
+}
+
+/** The caller changes their own password, which logs them out in every browser. */
 ipcMain.handle('set-server-password', async (event, currentPassword, newPassword) => {
-  if (process.env.JUSTTPRINT_PASSWORD) {
-    throw new Error('The password is set by JUSTTPRINT_PASSWORD. Change it there and restart.');
-  }
-  const auth = getServerAuth();
-  // The desktop window may reset a forgotten password; browsers must know the current one.
-  if (event && event.fromNetwork && !auth.verifyPassword(currentPassword)) {
-    throw new Error('Current password is wrong');
-  }
-  auth.setPassword(newPassword);
-  // Open sockets were authorized with the old password; drop them so every browser logs in again.
-  setTimeout(() => {
-    closeAllClients(4001, 'Password changed');
-  }, 1500);
-  return { success: true };
+  const user = event && event.user;
+  const result = getServerAuth().changeOwnPassword(user, currentPassword, newPassword);
+  endSessionsOf(user.id, 'Password changed');
+  return result;
+});
+
+// Settings → Users (admins only, api-actions.js).
+ipcMain.handle('list-users', async () => ({
+  users: getServerAuth().listUsers(),
+  minPasswordLength: MIN_PASSWORD_LENGTH
+}));
+
+ipcMain.handle('create-user', async (event, details) => getServerAuth().createUser(details || {}));
+
+ipcMain.handle('update-user', async (event, id, changes) => {
+  const userId = Number(id);
+  const result = getServerAuth().updateUser(userId, changes || {});
+  if (changes && changes.password) endSessionsOf(userId, 'Password changed');
+  return result;
+});
+
+ipcMain.handle('delete-user', async (event, id) => {
+  const userId = Number(id);
+  const result = getServerAuth().deleteUser(event && event.user, userId);
+  endSessionsOf(userId, 'Account deleted');
+  return result;
 });
 
 ipcMain.handle('regenerate-server-api-token', async () => ({

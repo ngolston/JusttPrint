@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.2.0] - 2026-10-07
+
+**Upgrading:** JusttPrint now has user accounts. The first start turns your password into the **admin** account (or the name in the new `JUSTTPRINT_USERNAME`): browsers are logged out once, so log in again with the user name `admin` and your usual password. `JUSTTPRINT_PASSWORD` keeps setting that account's password on every start. Scripts that log in with only a password still work, and the MCP API token is unchanged (it acts as an admin). Behind a reverse proxy, raise its upload size limit to use uploads (nginx: `client_max_body_size`). Reload open browser tabs after the update.
+
+**Changes:**
+- **User accounts and roles** (Settings → Authentication → Users): admins add people with a user name, password and role. **Viewers** browse, search, preview, download and see Statistics; **Editors** also edit models, tags and the print log, upload, move, trash and delete files, and scan; **Admins** also change settings, backups, Organize, AI setup, HTTPS, the API token and the accounts. The server checks the role on every action (a refused one says why), viewers' model menus only offer Preview, Download, Copy Path and Open in Slicer, and each person sees only the pages and settings their role can use. An admin can change a role, set a new password (which logs that person out everywhere) or delete an account; the last admin and the `JUSTTPRINT_PASSWORD` account stay admins. The login page asks for a user name, and the account menu shows who is logged in.
+- **Change Password** (account menu): each user changes their own password, which logs them out in every browser. Server Access now only holds the API token.
+- **Upload models from the browser:** drop model files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files stream to disk with a progress bar, never replace a file (a taken name becomes `Name (2).stl`), must be a type the library scans, and may be up to 2 GB (`JUSTTPRINT_MAX_UPLOAD_MB`). The folder is scanned afterwards, so the models show up with thumbnails. Editors and admins only.
+- **Statistics page** (sidebar): prints, success rate, failed and cancelled prints and models added for the last 6 or 12 months, 2 years or all time; prints per month by outcome (hover a month, or show the table); and the designers, models, filaments and printers printed most. All from your print log and library.
+- Settings are shared by every user: viewers and editors may only save display preferences (view, sort, column layout), and cannot read API keys or tokens.
+
 ## [6.1.0] - 2026-10-07
 
 **Upgrading:** no changes needed. `docker logs` now shows less; set `JUSTTPRINT_LOG_LEVEL=debug` when you need the old detail to track down a problem. Reload open browser tabs after the update.

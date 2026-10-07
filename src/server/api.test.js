@@ -1,6 +1,6 @@
 'use strict';
 
-// The HTTP API route (api.js): status codes, binary results, and keep-alive for long calls.
+// The HTTP API route (api.js): roles, status codes, binary results, and keep-alive for long calls.
 const assert = require('assert');
 const express = require('express');
 const { ipcMain } = require('./runtime');
@@ -19,6 +19,12 @@ ipcMain.handle('internal-only', async () => 1); // a handler that is not an acti
 
 async function main() {
   const app = express();
+  // Stands in for requireAuth: the X-Test-Role header picks the caller's role (default admin).
+  app.use((req, res, next) => {
+    const role = req.get('x-test-role') || 'admin';
+    if (role !== 'none') req.user = { id: 7, username: `test-${role}`, role };
+    next();
+  });
   registerApiRoutes(app, { keepaliveMs: 50 });
   const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -35,10 +41,19 @@ async function main() {
     assert.strictEqual(res.status, 200);
     assert.deepStrictEqual(await res.json(), { result: { totalModels: 4, args: [], mesh: [1.5, 2] } });
     assert.strictEqual(seenEvent.fromNetwork, true, 'handlers see fromNetwork');
+    assert.deepStrictEqual(seenEvent.user, { id: 7, username: 'test-admin', role: 'admin' }, 'handlers see the caller');
     assert.strictEqual(seenEvent.wsClient, fakeSocket, 'the client header picks the caller\'s WebSocket');
     unregisterClient(clientId);
     await call('get-stats', {}, { [CLIENT_HEADER]: clientId });
     assert.strictEqual(seenEvent.wsClient, null, 'unknown client ids give no WebSocket');
+
+    // Roles: get-stats only reads; get-default-ai-prompt (AI settings) needs an admin.
+    assert.strictEqual((await call('get-stats', { args: [] }, { 'x-test-role': 'viewer' })).status, 200, 'viewers may read');
+    res = await call('get-default-ai-prompt', { args: [] }, { 'x-test-role': 'editor' });
+    assert.strictEqual(res.status, 403, 'editors cannot reach admin actions');
+    assert.match((await res.json()).error, /Editor accounts cannot do this/);
+    assert.strictEqual((await call('get-default-ai-prompt', { args: [] }, { 'x-test-role': 'viewer' })).status, 403);
+    assert.strictEqual((await call('get-stats', { args: [] }, { 'x-test-role': 'none' })).status, 403, 'no user, no action');
 
     res = await call('get-default-ai-prompt', { args: [] });
     assert.strictEqual(res.headers.get('content-type'), 'application/octet-stream');

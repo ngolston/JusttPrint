@@ -25,6 +25,7 @@
 @import './tags.css';
 @import './manage.css';
 @import './settings.css';
+@import './stats.css';
 @import './library-frame.css';
 /* Last: the narrower sizes override the layout above. */
 @import './responsive.css';

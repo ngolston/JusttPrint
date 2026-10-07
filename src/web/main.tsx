@@ -50,6 +50,9 @@ import { PrintHistory } from './print/PrintHistory';
 import { PurgeModelsDialog } from './PurgeModelsDialog';
 import { PuterSignInDialog } from './ai/PuterSignInDialog';
 import { ServerAccessDialog } from './ServerAccessDialog';
+import { ChangePasswordDialog } from './ChangePasswordDialog';
+import { UsersDialog } from './UsersDialog';
+import { UploadDialog, UploadDropZone } from './upload/UploadDialog';
 import { SlicerSettingsDialog } from './SlicerSettingsDialog';
 import { StatsDialog } from './StatsDialog';
 import { StlHomeDialog } from './StlHomeDialog';
@@ -64,6 +67,10 @@ function Screens() {
     <>
       <FirstRun />
       <ServerAccessDialog />
+      <ChangePasswordDialog />
+      <UsersDialog />
+      <UploadDialog />
+      <UploadDropZone />
       <TagManagerDialog />
       <TagPreviewDialog />
       <PuterSignInDialog />

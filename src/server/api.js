@@ -4,11 +4,12 @@
  * The HTTP API the web UI calls: `POST /api/actions/<name>` with a JSON body `{ "args": [...] }`.
  * Only actions listed in api-actions.js exist, and each call is checked before it runs:
  * login (requireAuth, mounted before this), same origin for POST (rejectForeignOrigins),
- * the argument list (api-actions.js) and library paths (server-paths.js).
+ * the caller's role (api-actions.js, users.js), the argument list (api-actions.js) and
+ * library paths (server-paths.js). Handlers get the caller as `event.user`.
  *
  * Responses:
  * - 200 `{ "result": ... }`, or the raw bytes (application/octet-stream) when the result is binary.
- * - 400 bad arguments, 403 path outside the library, 404 unknown action, 500 the action failed;
+ * - 400 bad arguments, 403 role too low or path outside the library, 404 unknown action, 500 the action failed;
  *   all with `{ "error": "..." }`.
  * - Calls still running after 15 seconds (scans, hashing, large previews) commit to 200 and send
  *   a space every 15 seconds, so reverse proxies do not time them out. The JSON follows (leading
@@ -24,7 +25,8 @@ const crypto = require('crypto');
 const express = require('express');
 const events = require('./events');
 const { ipcMain } = require('./runtime');
-const { assertActionArgs, isAction } = require('./api-actions');
+const { assertActionArgs, isAction, requiredRole } = require('./api-actions');
+const { ROLE_LABELS, roleAllows } = require('./users');
 const { assertNetworkIpcArgs } = require('./server-paths');
 const { networkPathContext } = require('./path-context');
 const { jsonStringifyForWs } = require('./ws-json');
@@ -66,6 +68,15 @@ async function runAction(req, res, keepaliveMs) {
     return;
   }
 
+  const user = req.user || null;
+  const role = requiredRole(name);
+  if (!user || !roleAllows(user.role, role)) {
+    const who = user ? `${ROLE_LABELS[user.role] || user.role} accounts` : 'This account';
+    console.warn(`[API] Refused ${name} for ${user ? user.username : 'nobody'}: needs ${role}`);
+    sendError(res, 403, `${who} cannot do this. Ask an admin${role === 'admin' ? '' : ' to make you an editor'}.`);
+    return;
+  }
+
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const args = body.args === undefined ? [] : body.args;
   try {
@@ -89,6 +100,7 @@ async function runAction(req, res, keepaliveMs) {
   const event = {
     sender: { send: (channel, ...eventArgs) => events.toCaller({ wsClient }, channel, ...eventArgs) },
     wsClient,
+    user,
     fromNetwork: true
   };
 

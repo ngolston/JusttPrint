@@ -19,6 +19,8 @@ const { cleanupExtractTempFile } = require('../core/extract-temp');
 const { clientDialogs } = require('./dialogs');
 const { isServableStaticPath } = require('./server-paths');
 const { getServerAuth } = require('./auth');
+const { ROLE_LABELS, roleAllows } = require('./users');
+const { registerUploadRoutes } = require('./uploads');
 const { extractModelFromZip } = require('../core/zip-entries');
 const { libraryPathAllowed } = require('./path-context');
 const { getMcpToolContext } = require('./mcp-tools');
@@ -29,6 +31,14 @@ const WebSocket = require('ws');
 const { version } = require('../../package.json');
 
 const PING_INTERVAL = 30000; // 30 seconds
+
+/** Middleware: the logged-in user (req.user, set by requireAuth) must have at least this role. */
+function requireRole(role) {
+  return (req, res, next) => {
+    if (req.user && roleAllows(req.user.role, role)) return next();
+    res.status(403).json({ error: `${req.user ? `${ROLE_LABELS[req.user.role] || req.user.role} accounts` : 'This account'} cannot do this. Ask an admin.` });
+  };
+}
 
 // Server mode detection
 let httpServer = null;
@@ -47,6 +57,15 @@ let letsEncryptRenewInFlight = false;
 function closeAllClients(code, reason) {
   if (!wsClients) return;
   wsClients.forEach((client) => {
+    try { client.close(code, reason); } catch (_) { /* ignore */ }
+  });
+}
+
+/** Close the WebSockets of one user (their password changed, or the account was deleted). */
+function closeClientsOfUser(userId, code, reason) {
+  if (!wsClients || !userId) return;
+  wsClients.forEach((client) => {
+    if (!client.user || client.user.id !== userId) return;
     try { client.close(code, reason); } catch (_) { /* ignore */ }
   });
 }
@@ -276,6 +295,11 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   auth.registerRoutes(expressApp, express);
   expressApp.use(auth.requireAuth);
   registerApiRoutes(expressApp);
+
+  // MCP tools change anything (the API token is an admin); Puter AI requests come from AI tagging.
+  expressApp.use('/mcp', requireRole('admin'));
+  expressApp.use('/api/puter-ai', requireRole('editor'));
+  registerUploadRoutes(expressApp, { requireRole });
 
   expressApp.use(express.json({ limit: '50mb' }));
   registerMcpRoutes(expressApp, getMcpToolContext());
@@ -614,6 +638,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     verifyClient: (info, done) => {
       const result = getServerAuth().verifyUpgrade(info.req);
       if (!result.ok) console.warn(`[Server] WebSocket rejected: ${result.reason}`);
+      else info.req.user = result.user;
       done(result.ok, result.status, result.reason);
     }
   });
@@ -622,6 +647,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   wss.on('connection', (ws, req) => {
     const isThumbnailWorker = thumbnailWorker.isWorkerRequest(req);
     console.debug(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
+    ws.user = req.user || null;
     wsClients.add(ws);
     if (isThumbnailWorker) thumbnailWorker.attach(ws);
 
@@ -986,4 +1012,4 @@ async function maybeRenewLetsEncryptCertificate() {
   }
 }
 
-module.exports = { closeAllClients, closeHttpServer, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, maybeRenewLetsEncryptCertificate, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, startHttpServer, stopPort80Server, syncPort80Server };
+module.exports = { closeAllClients, closeClientsOfUser, closeHttpServer, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, maybeRenewLetsEncryptCertificate, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, startHttpServer, stopPort80Server, syncPort80Server };

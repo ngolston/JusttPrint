@@ -7,6 +7,9 @@
  *
  * Argument kinds: string, number, boolean, object (not an array), array, id (number or
  * string), any. A trailing `?` means the argument may be left out or null.
+ *
+ * Each action also needs a role (users.js): VIEWER_ACTIONS only read, EDITOR_ACTIONS change
+ * the library, and everything else (settings, server, backups, accounts) needs an admin.
  */
 const ACTIONS = {
   // Models
@@ -26,6 +29,10 @@ const ACTIONS = {
   getTotalModelCount: [],
   'get-folder-tree': [],
   'get-all-model-references': [],
+
+  // Uploads (the files arrive on POST /api/upload, src/server/uploads.js)
+  'get-upload-info': [],
+  'add-uploaded-files': ['string'],
 
   // Scanning and library folders
   'load-directory': [],
@@ -144,6 +151,12 @@ const ACTIONS = {
   'export-library': [],
   'import-library': ['object?'],
 
+  // User accounts
+  'list-users': [],
+  'create-user': ['object'],
+  'update-user': ['id', 'object'],
+  'delete-user': ['id'],
+
   // Settings, server access, updates
   'get-setting': ['string'],
   'save-setting': ['string', 'any'],
@@ -168,10 +181,51 @@ const ACTIONS = {
   'get-library-counts': [],
   'get-recent-activity': ['number?'],
   'get-recent-prints': ['number?', 'string?', 'number?'],
+  'get-print-statistics': ['object?'],
   'get-gpu-info': [],
   'benchmark-filesystem': [],
   'benchmark-database': []
 };
+
+/** Actions that only read: every logged-in user. */
+const VIEWER_ACTIONS = new Set([
+  'get-model', 'get-designers', 'get-licenses', 'get-all-models', 'get-models-filtered', 'get-parent-models',
+  'get-additional-file-types-catalog', 'get-model-count-by-file-type-ids', 'getTotalModelCount', 'get-folder-tree',
+  'get-all-model-references', 'load-directory', 'extract-model-from-zip', 'delete-temp-file', 'get-file-stats',
+  'get3MFImages', 'getLYSImages', 'getF3DImages', 'getChituboxImages', 'getVoxlImages', 'get3MFSTL', 'read-model-file',
+  'parse-3mf-preview', 'cancel-3mf-preview', 'getThumbnail', 'get-all-thumbnails', 'get-server-thumbnail-job-status',
+  'get-all-tags', 'get-model-tags', 'get-group-tags', 'get-all-metadata', 'get-duplicates', 'is-generating-hashes',
+  'getModelsWithoutHash', 'show-context-menu', 'execute-context-menu-action', 'get-all-filaments', 'get-model-filaments',
+  'get-all-parts', 'get-all-printers', 'get-printer-maintenance-logs', 'get-printer-reminders', 'get-print-events',
+  'get-slicers', 'open-file-in-slicer', 'get-upload-info',
+  // Each user changes their own password.
+  'set-server-password',
+  // Settings: non-admins read only what is not secret, and save only display preferences (ipc/settings.js).
+  'get-setting', 'save-setting', 'get-app-version', 'check-for-updates', 'open-update-page',
+  'get-stats', 'get-library-storage', 'get-library-counts', 'get-recent-activity', 'get-recent-prints', 'get-print-statistics',
+  // The thumbnail renderer reads the GPU backend in every browser.
+  'get-gpu-info'
+]);
+
+/** Actions that change the library: editors and admins. */
+const EDITOR_ACTIONS = new Set([
+  'save-model', 'save-model-batch', 'update-models-batch', 'clear-new-model-flags', 'add-uploaded-files',
+  'browse-folders', 'scan-directory', 'save-directory', 'trash-file', 'delete-file', 'move-files', 'calculate-file-hash',
+  'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
+  'get-models-without-thumbnails', 'get-models-with-default-thumbnails', 'start-server-thumbnail-job', 'cancel-server-thumbnail-job',
+  'save-tag', 'rename-tag', 'delete-tag', 'rename-metadata', 'delete-metadata', 'pull-3mf-metadata', 'generateMissingHashes',
+  'save-filament', 'delete-filament', 'save-part', 'delete-part', 'save-printer', 'delete-printer',
+  'save-printer-maintenance-log', 'delete-printer-maintenance-log', 'save-printer-reminder', 'delete-printer-reminder',
+  'complete-printer-reminder', 'log-print-event', 'log-print-events-batch', 'delete-print-event', 'set-print-status',
+  'set-print-status-batch', 'fetch-thangs-page'
+]);
+
+/** The least role an action needs: viewer, editor or admin. */
+function requiredRole(name) {
+  if (VIEWER_ACTIONS.has(name)) return 'viewer';
+  if (EDITOR_ACTIONS.has(name)) return 'editor';
+  return 'admin';
+}
 
 function matchesKind(kind, value) {
   switch (kind) {
@@ -210,4 +264,4 @@ function isAction(name) {
   return Object.prototype.hasOwnProperty.call(ACTIONS, name);
 }
 
-module.exports = { ACTIONS, assertActionArgs, isAction };
+module.exports = { ACTIONS, VIEWER_ACTIONS, EDITOR_ACTIONS, assertActionArgs, isAction, requiredRole };

@@ -23,6 +23,8 @@ const LIBRARY = path.join(WORK, 'library');
 const DATA = path.join(WORK, 'data');
 /** A folder outside the app for Choose Folder (the e2e library is inside the app folder, which cannot be browsed). */
 let browseDir = '';
+/** The library folder the upload checks use (outside the app folder, like browseDir). */
+let uploadLibrary = '';
 const PASSWORD = 'e2e-test-password';
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROME : '');
@@ -594,9 +596,11 @@ async function browserChecks(base, wsUrl, session) {
 
     await page.goto(base + '/');
     check('browser lands on login page', page.url().includes('/login'));
+    await page.fill('#username', 'admin');
     await page.fill('#password', 'wrong-password');
     await page.click('button[type=submit]');
     check('wrong password shows an error', await page.isVisible('.error'));
+    check('the user name is kept after a wrong password', (await page.inputValue('#username')) === 'admin');
     await page.fill('#password', PASSWORD);
     await page.click('button[type=submit]');
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
@@ -2484,8 +2488,8 @@ async function browserChecks(base, wsUrl, session) {
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
       .then((handle) => handle.jsonValue()).catch(() => '');
     check('API token shown', String(shownToken).startsWith('pv_'), shownToken);
-    // The e2e server's password comes from JUSTTPRINT_PASSWORD, so the dialog explains that instead of a form.
-    check('password set by environment: no change form', await page.isVisible('text=JUSTTPRINT_PASSWORD') && !(await page.isVisible('#server-access-new-password')));
+    // The e2e server's password comes from JUSTTPRINT_PASSWORD, so the dialog says where it is set.
+    check('password set by environment: Server Access says so', await page.isVisible('#server-access-dialog :text("JUSTTPRINT_PASSWORD")'));
     await page.click('#close-server-access');
     check('Close closes Server Access', !(await page.isVisible('#server-access-dialog')));
     await page.evaluate(() => window.openServerAccess());
@@ -2503,6 +2507,173 @@ async function browserChecks(base, wsUrl, session) {
   }
 }
 
+/** Log in through the API as a user; returns { cookie, origin } for invoke(), or null. */
+async function loginAs(base, username, password) {
+  const response = await fetch(`${base}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ username, password })
+  });
+  if (!response.ok) return null;
+  return { cookie: (response.headers.get('set-cookie') || '').split(';')[0], origin: base };
+}
+
+/** POST /api/upload as a session; resolves to { status, ...body }. */
+async function uploadAs(base, session, folder, name, body) {
+  const response = await fetch(`${base}/api/upload?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(name)}`, {
+    method: 'POST', headers: { origin: base, cookie: session.cookie, 'content-type': 'application/octet-stream' }, body
+  });
+  return { status: response.status, ...(await response.json().catch(() => ({}))) };
+}
+
+/**
+ * User accounts, roles, uploads and the Statistics page. Runs after the browser checks, which end
+ * with an empty library (Purge Models), so the uploads here do not change the counts above.
+ */
+async function accountChecks(base, wsUrl, admin) {
+  console.log('\n# User accounts and roles');
+  const status = await (await fetch(`${base}/api/auth/status`, { headers: { cookie: admin.cookie } })).json();
+  check('the JUSTTPRINT_PASSWORD login is the admin account', status.user && status.user.username === 'admin' && status.user.role === 'admin', JSON.stringify(status));
+  check('an admin adds an editor', (await invoke(base, admin, 'create-user', [{ username: 'maker', password: 'maker-password', role: 'editor' }])).status === 200);
+  check('an admin adds a viewer', (await invoke(base, admin, 'create-user', [{ username: 'kid', password: 'kid-password', role: 'viewer' }])).status === 200);
+  check('user names are unique (any case)', /already a user/.test((await invoke(base, admin, 'create-user', [{ username: 'KID', password: 'kid-password', role: 'viewer' }])).error || ''));
+  check('wrong user name refused', (await loginAs(base, 'nobody', 'kid-password')) === null);
+  const editor = await loginAs(base, 'maker', 'maker-password');
+  const viewer = await loginAs(base, 'kid', 'kid-password');
+  check('editor and viewer log in', !!editor && !!viewer);
+  const users = (await invoke(base, admin, 'list-users')).result || {};
+  check('the user list has all three, without password hashes', users.users?.length === 3 && !JSON.stringify(users).includes('scrypt'), JSON.stringify(users).slice(0, 200));
+  check('viewers read the library', (await invoke(base, viewer, 'get-library-counts')).status === 200);
+  const viewerEdit = await invoke(base, viewer, 'save-tag', ['nope']);
+  check('viewers cannot edit', viewerEdit.status === 403 && /Viewer accounts cannot do this/.test(viewerEdit.error || ''), JSON.stringify(viewerEdit));
+  check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);
+  check('editors cannot change settings', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['stlHomeDirectories', '[]'])).error || ''));
+  check('editors may save display preferences', (await invoke(base, editor, 'save-setting', ['gridView', 'true'])).result === true);
+  check('editors cannot see the API token', (await invoke(base, editor, 'get-server-access-info')).status === 403);
+  check('editors cannot manage users', (await invoke(base, editor, 'list-users')).status === 403);
+  check('viewers cannot use MCP', (await fetch(`${base}/mcp`, { method: 'POST', headers: { origin: base, cookie: viewer.cookie, 'content-type': 'application/json' }, body: '{}' })).status === 403);
+  const viewerSocket = await openEvents(wsUrl, { cookie: viewer.cookie, origin: base });
+  check('viewers get the event WebSocket', !!viewerSocket.hello);
+
+  console.log('\n# Uploads');
+  // A library folder outside the app folder (the e2e library is inside it, and the app folder is never a destination).
+  uploadLibrary = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-uploads-'));
+  const folder = path.join(uploadLibrary, 'Designer A');
+  fs.mkdirSync(folder);
+  check('the upload library is scanned', (await invoke(base, admin, 'scan-directory', [uploadLibrary])).status === 200);
+  const cubeBytes = fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer A', 'cube.stl'));
+  const info = (await invoke(base, editor, 'get-upload-info')).result || {};
+  check('upload info lists the scanned types', Array.isArray(info.extensions) && info.extensions.includes('.stl') && info.maxBytes > 0, JSON.stringify(info));
+  check('viewers cannot upload', (await uploadAs(base, viewer, folder, 'nope.stl', cubeBytes)).status === 403);
+  const first = await uploadAs(base, editor, folder, 'Uploaded Cube.stl', cubeBytes);
+  check('an editor uploads into a library folder', first.status === 200 && first.fileName === 'Uploaded Cube.stl' && fs.existsSync(path.join(folder, 'Uploaded Cube.stl')), JSON.stringify(first));
+  const second = await uploadAs(base, editor, folder, 'Uploaded Cube.stl', cubeBytes);
+  check('a taken name gets a number, nothing is replaced', second.fileName === 'Uploaded Cube (2).stl', JSON.stringify(second));
+  check('uploads outside the library refused', (await uploadAs(base, editor, '/tmp', 'x.stl', cubeBytes)).status === 403);
+  check('upload names with folders refused', (await uploadAs(base, editor, folder, '../x.stl', cubeBytes)).status === 400);
+  check('types the library does not scan refused', (await uploadAs(base, editor, folder, 'page.html', '<b>hi</b>')).status === 400);
+  check('no temp files are left behind', !fs.readdirSync(folder).some((name) => name.endsWith('.justtprint-upload')));
+  const added = await invoke(base, editor, 'add-uploaded-files', [folder]);
+  // Folder watching may add the files first; either way they are in the library afterwards.
+  const uploadedModels = ((await invoke(base, admin, 'get-all-models')).result || []).filter((m) => /Uploaded Cube/.test(m.fileName));
+  check('the uploaded files are in the library', added.status === 200 && uploadedModels.length === 2, `${JSON.stringify(added)} ${uploadedModels.length}`);
+
+  console.log('\n# Statistics');
+  const uploadedPath = path.join(folder, 'Uploaded Cube.stl');
+  await invoke(base, editor, 'log-print-event', [{ filePath: uploadedPath, outcome: 'printed', quantity: 3 }]);
+  await invoke(base, editor, 'log-print-event', [{ filePath: uploadedPath, outcome: 'failed' }]);
+  const stats = (await invoke(base, viewer, 'get-print-statistics', [{ months: 12 }])).result || {};
+  check('viewers read the statistics', stats.totals && stats.totals.printed === 3 && stats.totals.failed === 1 && stats.totals.successRate === 0.75, JSON.stringify(stats.totals));
+  check('the month of the prints is counted', stats.byMonth?.length === 12 && stats.byMonth[11].printed === 3, JSON.stringify(stats.byMonth?.[11]));
+  check('the most printed model is listed', stats.models?.[0]?.fileName === 'Uploaded Cube.stl');
+
+  if (!CHROME) return;
+  const { chromium } = require('@playwright/test');
+  const browser = await chromium.launch({ executablePath: CHROME });
+  try {
+    const errors = [];
+    const open = async (username, password) => {
+      const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+      page.on('pageerror', (error) => errors.push(`${username}: ${error.message}`));
+      await page.goto(`${base}/`);
+      await page.fill('#username', username);
+      await page.fill('#password', password);
+      await page.click('button[type=submit]');
+      await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+      return page;
+    };
+
+    const editorPage = await open('maker', 'maker-password');
+    check('the account button shows the user and role', await editorPage.waitForSelector('#jp-account-who:has-text("maker")', { timeout: 10000 }).then(() => true, () => false)
+      && (await editorPage.textContent('#jp-account-who')).includes('Editor'));
+    check('editors do not see admin pages', !(await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Organize")'))
+      && await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Tags")'));
+    // The dialog starts at the last folder used (kept in this browser).
+    await editorPage.evaluate((dir) => { localStorage.setItem('justtprint.uploadFolder', dir); window.location.hash = '#/library'; }, folder);
+    await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 });
+    await editorPage.click('#jp-upload-button');
+    await editorPage.waitForSelector('#jp-upload-input', { state: 'attached', timeout: 5000 });
+    check('the dialog starts at the last folder used', await editorPage.waitForFunction((dir) => document.getElementById('jp-upload-folder')?.textContent === dir, folder, { timeout: 10000 }).then(() => true, () => false));
+    await editorPage.click('#jp-upload-choose-folder');
+    const picker = await editorPage.waitForSelector('#folder-picker-dialog[open], dialog[open]:has-text("Upload Into")', { timeout: 5000 }).catch(() => null);
+    check('Choose Folder opens the folder picker', !!picker);
+    if (picker) await editorPage.keyboard.press('Escape');
+    await editorPage.setInputFiles('#jp-upload-input', [
+      { name: 'Browser Upload.stl', mimeType: 'application/octet-stream', buffer: cubeBytes },
+      { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not a model') }
+    ]);
+    check('files of other types are skipped before sending', await editorPage.waitForSelector('.jp-upload__item.is-skipped:has-text("notes.txt")', { timeout: 5000 }).then(() => true, () => false));
+    await editorPage.click('#jp-upload-start');
+    const summary = await editorPage.waitForFunction(() => /new model/.test(document.getElementById('jp-upload-summary')?.textContent || ''), null, { timeout: 60000 })
+      .then(() => editorPage.textContent('#jp-upload-summary'), () => editorPage.textContent('#jp-upload-summary').catch(() => ''));
+    check('the dialog uploads and adds the model', /Uploaded 1 file; 1 new model/.test(summary || ''), summary);
+    const uploadedTo = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => m.fileName === 'Browser Upload.stl') || {}).filePath || '';
+    check('the browser upload went into the chosen folder', path.dirname(uploadedTo) === folder && fs.existsSync(uploadedTo), uploadedTo);
+    await editorPage.keyboard.press('Escape');
+
+    await editorPage.evaluate(() => { window.location.hash = '#/stats'; });
+    check('Statistics shows the prints', await editorPage.waitForSelector('#jp-stats-tiles .jp-stat__value:text-is("3")', { timeout: 15000 }).then(() => true, () => false)
+      && await editorPage.isVisible('#jp-stats-tiles :text("75%")'));
+    check('the prints chart is drawn with a legend', await editorPage.isVisible('.jp-chart svg[aria-label="Prints per month by outcome"]')
+      && await editorPage.isVisible('.jp-chart__legend :text("Failed")'));
+    await editorPage.click('button:has-text("Show table")', { timeout: 5000 }).catch(() => {});
+    check('the chart has a table view', await editorPage.isVisible('.jp-stats__table'));
+
+    const viewerPage = await open('kid', 'kid-password');
+    await viewerPage.evaluate(() => { window.location.hash = '#/library'; });
+    await viewerPage.waitForTimeout(1500);
+    check('viewers have no Upload button', !(await viewerPage.isVisible('#jp-upload-button')));
+    check('viewers see no library tools in the sidebar', !(await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Scan Library")'))
+      && await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Statistics")'));
+    await viewerPage.evaluate(() => { window.location.hash = '#/organize'; });
+    check('an admin page opened by its address says so', await viewerPage.waitForSelector(':text("Not available to your account")', { timeout: 5000 }).then(() => true, () => false));
+    await viewerPage.evaluate(() => { window.location.hash = '#/settings'; });
+    await viewerPage.waitForSelector('.jp-settings-page', { timeout: 5000 });
+    check('viewers see only their settings', await viewerPage.isVisible('.jp-settings-row:has-text("Change Password")')
+      && !(await viewerPage.isVisible('#setting-users')) && !(await viewerPage.isVisible('.jp-settings-index :text("Backup")')));
+    await viewerPage.click('.jp-settings-row:has-text("Change Password")');
+    await viewerPage.fill('#change-password-current', 'kid-password');
+    await viewerPage.fill('#change-password-new', 'kid-new-password');
+    await viewerPage.fill('#change-password-confirm', 'kid-new-password');
+    await viewerPage.click('#change-password-save');
+    check('a user changes their own password and is logged out', await viewerPage.waitForURL(/\/login/, { timeout: 20000 }).then(() => true, () => false));
+    check('the new password works', !!(await loginAs(base, 'kid', 'kid-new-password')) && !(await loginAs(base, 'kid', 'kid-password')));
+
+    const adminPage = await open('admin', PASSWORD);
+    await adminPage.evaluate(() => { window.location.hash = '#/settings/authentication'; });
+    await adminPage.waitForSelector('#users-list .users-row', { timeout: 15000 });
+    await adminPage.fill('#users-new-name', 'guest-viewer');
+    await adminPage.fill('#users-new-password', 'guest-password');
+    await adminPage.click('#users-add');
+    check('Settings → Users adds a user', await adminPage.waitForSelector('.users-row[data-username="guest-viewer"]', { timeout: 10000 }).then(() => true, () => false));
+    await adminPage.selectOption('.users-row[data-username="guest-viewer"] select', 'editor');
+    check('Settings → Users changes a role', await waitFor(async () => (((await invoke(base, admin, 'list-users')).result || {}).users || [])
+      .some((u) => u.username === 'guest-viewer' && u.role === 'editor'), 10000, 'role change').catch(() => false));
+    check('the JUSTTPRINT_PASSWORD account cannot be changed here', await adminPage.isDisabled('.users-row[data-username="admin"] select'));
+    check('no page errors for any account', errors.length === 0, errors.slice(0, 5).join(' | '));
+  } finally {
+    await browser.close();
+  }
+}
+
 async function main() {
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
@@ -2513,11 +2684,13 @@ async function main() {
     await waitFor(async () => (await fetch(`${base}/api/health`)).ok, 60000, 'server start');
     const session = await apiChecks(base, wsUrl);
     await browserChecks(base, wsUrl, session);
+    await accountChecks(base, wsUrl, session);
     exitCode = failed ? 1 : 0;
   } catch (error) {
     console.log(`FAIL e2e run: ${error.message}`);
   } finally {
     if (browseDir) fs.rmSync(browseDir, { recursive: true, force: true });
+    if (uploadLibrary) fs.rmSync(uploadLibrary, { recursive: true, force: true });
     await stopServer(server);
     const log = fs.readFileSync(path.join(WORK, 'server.log'), 'utf8');
     check('server closed the database on shutdown', log.includes('[Quit] Database closed'));

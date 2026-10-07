@@ -22,4 +22,5 @@ require('./system-report');
 require('./tags');
 require('./thumbnails');
 require('./updates');
+require('./uploads');
 require('./web-pages');

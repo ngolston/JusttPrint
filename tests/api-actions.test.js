@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { ACTIONS, assertActionArgs, isAction } = require('../src/server/api-actions');
+const { ACTIONS, EDITOR_ACTIONS, VIEWER_ACTIONS, assertActionArgs, isAction, requiredRole } = require('../src/server/api-actions');
 
 const ROOT = path.join(__dirname, '..');
 const ipcDir = path.join(ROOT, 'src', 'server', 'ipc');
@@ -58,5 +58,22 @@ refuses('save-model-batch', [{}], /must be an array/);
 refuses('get-all-models', ['date-desc', 'ten'], /must be a number/);
 refuses('get-stats', 'not-a-list', /args must be an array/);
 assert.ok(!isAction('toString'), 'object prototype keys are not actions');
+
+// Roles: the role lists name real actions, and the actions that hand out secrets or change the
+// server stay admin-only.
+for (const name of [...VIEWER_ACTIONS, ...EDITOR_ACTIONS]) assert.ok(isAction(name), `role list names ${name}, which is not an action`);
+for (const name of VIEWER_ACTIONS) assert.ok(!EDITOR_ACTIONS.has(name), `${name} is in both role lists`);
+for (const name of ['get-server-access-info', 'get-mcp-connection-info', 'regenerate-server-api-token', 'list-users', 'create-user',
+  'update-user', 'delete-user', 'restore-database', 'backup-database', 'import-library', 'restart-server', 'apply-tls-settings',
+  'purge-models', 'organize-library-run', 'save-slicer', 'test-ai-config']) {
+  assert.strictEqual(requiredRole(name), 'admin', `${name} must need an admin`);
+}
+for (const name of ['save-model', 'move-files', 'delete-file', 'save-tag', 'log-print-event', 'add-uploaded-files', 'scan-directory']) {
+  assert.strictEqual(requiredRole(name), 'editor', `${name} must need an editor`);
+}
+for (const name of ['get-models-filtered', 'get-model', 'getThumbnail', 'get-print-statistics', 'set-server-password', 'get-upload-info']) {
+  assert.strictEqual(requiredRole(name), 'viewer', `${name} must be open to viewers`);
+}
+assert.strictEqual(requiredRole('an-action-added-later'), 'admin', 'unlisted actions need an admin');
 
 console.log('api actions tests passed');

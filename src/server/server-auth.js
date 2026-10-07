@@ -3,15 +3,20 @@
 /**
  * Login, API tokens and download tokens for the HTTP/WebSocket server.
  *
- * - Browsers log in with the server password and get a signed session cookie.
- * - MCP clients and the desktop window send `Authorization: Bearer <api token>`.
+ * - Browsers log in with a user name and password (users.js) and get a signed session cookie.
+ *   The cookie names the user and is signed with the server secret plus that user's session
+ *   key, so changing a user's password or deleting the account logs them out everywhere.
+ * - MCP clients and scripts send `Authorization: Bearer <api token>`; the token acts as an admin.
  * - The slicer helper gets a short-lived download token in its justtprint:// link.
+ * - The thumbnail worker (started by the server) gets a system session that acts as an admin.
  *
- * Secrets live in the settings table. Changing the password rotates the
- * signing secret, which logs out every session and voids download tokens.
+ * The signing secret and API token live in the settings table. Before user accounts there was
+ * one password (serverPasswordHash); the first start after upgrading turns it into the admin
+ * account (JUSTTPRINT_USERNAME, default "admin").
  */
 
 const crypto = require('crypto');
+const { createMemoryUserStore, isRole, publicUser, ROLE_LABELS, USERNAME_PATTERN } = require('./users');
 
 const SESSION_COOKIE = 'pv_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -21,6 +26,7 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_FAILURES = 10;
 
 const SETTING_KEYS = {
+  /** The single password from before user accounts; moved into the users table on first start. */
   passwordHash: 'serverPasswordHash',
   signingSecret: 'serverSessionSecret',
   apiToken: 'serverApiToken'
@@ -69,6 +75,11 @@ function safeEqual(a, b) {
 function sign(secret, body) {
   return crypto.createHmac('sha256', secret).update(body).digest('base64url');
 }
+
+/** Who the API token, the server's own clients and download links act as. */
+const SYSTEM_USER = Object.freeze({ id: 0, username: 'system', role: 'admin', system: true });
+const API_TOKEN_USER = Object.freeze({ id: 0, username: 'API token', role: 'admin', system: true });
+const DOWNLOAD_USER = Object.freeze({ id: 0, username: 'download link', role: 'viewer', system: true });
 
 function makeSignedToken(secret, kind, ttlMs, now) {
   const body = `${kind}.${now + ttlMs}`;
@@ -152,7 +163,7 @@ function safeNextPath(value) {
   return next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/';
 }
 
-function loginPageHtml(next, error) {
+function loginPageHtml(next, error, username = '') {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -168,7 +179,8 @@ function loginPageHtml(next, error) {
   form { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; }
   img { display: block; width: 64px; height: 64px; margin: 0 auto 12px; }
   h1 { font-size: 1.25rem; text-align: center; margin: 0 0 20px; }
-  label { display: block; font-size: 0.875rem; color: var(--muted); margin-bottom: 6px; }
+  label { display: block; font-size: 0.875rem; color: var(--muted); margin: 12px 0 6px; }
+  label:first-of-type { margin-top: 0; }
   input { width: 100%; padding: 10px 12px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--border); border-radius: 8px; }
   button { width: 100%; margin-top: 16px; padding: 10px; font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
   .error { color: var(--error); font-size: 0.875rem; margin: 12px 0 0; }
@@ -179,12 +191,14 @@ function loginPageHtml(next, error) {
 <form method="post" action="/api/auth/login">
   <img src="/logo.png" alt="">
   <h1>JusttPrint</h1>
+  <label for="username">User name</label>
+  <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="${escapeHtml(username)}" ${username ? '' : 'autofocus '}required>
   <label for="password">Password</label>
-  <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+  <input id="password" name="password" type="password" autocomplete="current-password" ${username ? 'autofocus ' : ''}required>
   <input type="hidden" name="next" value="${escapeHtml(next)}">
   <button type="submit">Log in</button>
   ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ''}
-  <p class="hint">First start: the password is in the server log, or set <code>JUSTTPRINT_PASSWORD</code>.</p>
+  <p class="hint">First start: log in as <code>admin</code> with the password from the server log, or the one in <code>JUSTTPRINT_PASSWORD</code>.</p>
 </form>
 </body>
 </html>`;
@@ -194,15 +208,19 @@ function loginPageHtml(next, error) {
  * @param {object} deps
  * @param {(key: string) => (string|null|undefined)} deps.getSetting
  * @param {(key: string, value: string) => void} deps.setSetting
+ * @param {object} [deps.users] User store (users.js); tests get a memory store.
  * @param {object} [deps.env]
  * @param {{log: Function, warn: Function}} [deps.logger]
  * @param {() => number} [deps.now]
  * @param {() => string[]} [deps.extraOrigins] Origins allowed besides this server (e.g. the desktop UI).
  */
-function createServerAuth({ getSetting, setSetting, env = process.env, logger = console, now = Date.now, extraOrigins = () => [] }) {
+function createServerAuth({ getSetting, setSetting, users = createMemoryUserStore(), env = process.env, logger = console, now = Date.now, extraOrigins = () => [] }) {
   const loginFailures = new Map();
   // The signing secret and API token are checked on every request: read them once, then keep them.
   const remembered = new Map();
+  // Users by id, so sessions keep working while the database is closed (during a restore).
+  const userCache = new Map();
+  let dummyHash = null;
 
   function rememberedSetting(key, create) {
     if (!remembered.has(key)) {
@@ -225,42 +243,139 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     return rememberedSetting(SETTING_KEYS.signingSecret, () => randomSecret());
   }
 
-  function setPassword(password) {
+  const isoNow = () => new Date(now()).toISOString();
+
+  /** The admin account JUSTTPRINT_PASSWORD belongs to, and the one made on first start. */
+  function defaultUsername() {
+    const name = String(env.JUSTTPRINT_USERNAME || '').trim();
+    if (!name) return 'admin';
+    if (!USERNAME_PATTERN.test(name)) {
+      logger.warn(`JUSTTPRINT_USERNAME "${name}" is not a valid user name; using "admin".`);
+      return 'admin';
+    }
+    return name;
+  }
+
+  /** The user whose password comes from JUSTTPRINT_PASSWORD (it cannot be changed in the web UI). */
+  function envUsername() {
+    return env.JUSTTPRINT_PASSWORD ? defaultUsername() : null;
+  }
+
+  function isEnvUser(row) {
+    const name = envUsername();
+    return !!row && !!name && row.username.toLowerCase() === name.toLowerCase();
+  }
+
+  function assertPassword(password) {
     if (String(password || '').length < MIN_PASSWORD_LENGTH) {
       throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
     }
-    setSetting(SETTING_KEYS.passwordHash, hashPassword(password));
-    storeRemembered(SETTING_KEYS.signingSecret, randomSecret());
   }
 
-  function verifyPassword(password) {
-    const stored = getSetting(SETTING_KEYS.passwordHash);
-    return !!stored && verifyPasswordHash(password, stored);
+  function loadUser(id) {
+    try {
+      const row = users.findById(id);
+      if (row) userCache.set(row.id, row);
+      else userCache.delete(Number(id));
+      return row;
+    } catch (_) {
+      return userCache.get(Number(id)) || null;
+    }
+  }
+
+  function forget(id) {
+    userCache.delete(Number(id));
   }
 
   /**
-   * Make sure a password exists. JUSTTPRINT_PASSWORD wins when set; otherwise a
-   * random password is generated once and printed to the log.
+   * Make sure an admin can log in. The first start (or the first after upgrading from the single
+   * password) creates the admin account: with JUSTTPRINT_PASSWORD when set, else the old
+   * password, else a random password printed once to the log. Later starts only make the
+   * JUSTTPRINT_PASSWORD account match the variable.
    */
   function ensureCredentials() {
+    const username = defaultUsername();
     const envPassword = env.JUSTTPRINT_PASSWORD;
-    if (envPassword) {
-      if (!verifyPassword(envPassword)) setPassword(envPassword);
-      return { source: 'env' };
+    if (users.count() === 0) {
+      const legacyHash = getSetting(SETTING_KEYS.passwordHash);
+      let passwordHash;
+      let source;
+      let generated;
+      if (envPassword) {
+        assertPassword(envPassword);
+        passwordHash = hashPassword(envPassword);
+        source = 'env';
+      } else if (legacyHash) {
+        passwordHash = legacyHash;
+        source = 'stored';
+      } else {
+        generated = randomSecret(12);
+        passwordHash = hashPassword(generated);
+        source = 'generated';
+      }
+      users.insert({ username, passwordHash, role: 'admin', now: isoNow() });
+      if (legacyHash) {
+        setSetting(SETTING_KEYS.passwordHash, '');
+        logger.log(`[Auth] The server password is now the password of the admin account "${username}".`);
+      }
+      if (generated) {
+        logger.warn([
+          '',
+          '================================================================',
+          ' JusttPrint admin login (shown once):',
+          `   user name: ${username}`,
+          `   password:  ${generated}`,
+          ' Change it under Settings > Users, or set JUSTTPRINT_PASSWORD.',
+          '================================================================',
+          ''
+        ].join('\n'));
+      }
+      return generated ? { source, username, password: generated } : { source, username };
     }
-    if (getSetting(SETTING_KEYS.passwordHash)) return { source: 'stored' };
-    const generated = randomSecret(12);
-    setPassword(generated);
-    logger.warn([
-      '',
-      '================================================================',
-      ' JusttPrint server password (shown once):',
-      `   ${generated}`,
-      ' Change it under Settings > Server Access, or set JUSTTPRINT_PASSWORD.',
-      '================================================================',
-      ''
-    ].join('\n'));
-    return { source: 'generated', password: generated };
+    if (envPassword) {
+      const row = users.findByName(username);
+      if (!row) {
+        assertPassword(envPassword);
+        users.insert({ username, passwordHash: hashPassword(envPassword), role: 'admin', now: isoNow() });
+      } else {
+        if (row.role !== 'admin') users.update(row.id, { role: 'admin' });
+        if (!verifyPasswordHash(envPassword, row.password_hash)) {
+          assertPassword(envPassword);
+          users.update(row.id, { passwordHash: hashPassword(envPassword), resetSessions: true });
+        }
+        forget(row.id);
+      }
+      return { source: 'env', username };
+    }
+    return { source: 'stored', username };
+  }
+
+  /** A restored database from before user accounts has no users yet: make the admin first. */
+  function ensureUsersExist() {
+    try {
+      if (users.count() === 0) ensureCredentials();
+    } catch (error) {
+      logger.warn(`[Auth] Could not check the user accounts: ${error.message}`);
+    }
+  }
+
+  /** The user for a user name and password, or null. Unknown names cost as much as wrong passwords. */
+  function verifyLogin(username, password) {
+    const name = String(username || '').trim() || defaultUsername();
+    let row = null;
+    try {
+      row = users.findByName(name);
+    } catch (_) {
+      row = [...userCache.values()].find((cached) => cached.username.toLowerCase() === name.toLowerCase()) || null;
+    }
+    if (!row) {
+      if (!dummyHash) dummyHash = hashPassword(randomSecret());
+      verifyPasswordHash(String(password || ''), dummyHash);
+      return null;
+    }
+    if (!verifyPasswordHash(String(password || ''), row.password_hash)) return null;
+    userCache.set(row.id, row);
+    return row;
   }
 
   function apiToken() {
@@ -273,18 +388,34 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     return token;
   }
 
+  function userSessionToken(row) {
+    const body = `u.${row.id}.${now() + SESSION_TTL_MS}`;
+    return `${body}.${sign(signingSecret(), `${body}.${row.session_key}`)}`;
+  }
+
   /** Session cookie value for a client the server starts itself (the thumbnail worker). */
   function issueSessionToken() {
-    return makeSignedToken(signingSecret(), 'session', SESSION_TTL_MS, now());
+    return makeSignedToken(signingSecret(), 'sys', SESSION_TTL_MS, now());
   }
 
   function issueDownloadToken() {
     return makeSignedToken(signingSecret(), 'dl', DOWNLOAD_TOKEN_TTL_MS, now());
   }
 
-  function hasValidSession(req) {
+  /** Who a session cookie belongs to: { id, username, role }, the system user, or null. */
+  function sessionUser(req) {
     const cookie = parseCookies(req.headers && req.headers.cookie)[SESSION_COOKIE];
-    return !!cookie && checkSignedToken(signingSecret(), 'session', cookie, now());
+    if (!cookie) return null;
+    const parts = cookie.split('.');
+    if (parts[0] === 'sys') return checkSignedToken(signingSecret(), 'sys', cookie, now()) ? SYSTEM_USER : null;
+    if (parts[0] !== 'u' || parts.length !== 4) return null;
+    const id = Number(parts[1]);
+    const expires = Number(parts[2]);
+    if (!Number.isInteger(id) || id <= 0 || !Number.isFinite(expires) || expires < now()) return null;
+    const row = loadUser(id);
+    if (!row || !isRole(row.role)) return null;
+    if (!safeEqual(parts[3], sign(signingSecret(), `u.${parts[1]}.${parts[2]}.${row.session_key}`))) return null;
+    return { id: row.id, username: row.username, role: row.role };
   }
 
   function hasValidApiToken(req) {
@@ -292,15 +423,23 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     return !!token && safeEqual(token, apiToken());
   }
 
+  /** The logged-in user of a request (session cookie or API token), or null. */
+  function authenticate(req) {
+    return sessionUser(req) || (hasValidApiToken(req) ? API_TOKEN_USER : null);
+  }
+
   function isAuthenticated(req) {
-    return hasValidSession(req) || hasValidApiToken(req);
+    return !!authenticate(req);
+  }
+
+  function hasDownloadToken(req) {
+    const token = req.query && typeof req.query.token === 'string' ? req.query.token : '';
+    return !!token && checkSignedToken(signingSecret(), 'dl', token, now());
   }
 
   /** Download routes also accept ?token= so the slicer helper can fetch files. */
   function isDownloadAuthorized(req) {
-    if (isAuthenticated(req)) return true;
-    const token = req.query && typeof req.query.token === 'string' ? req.query.token : '';
-    return !!token && checkSignedToken(signingSecret(), 'dl', token, now());
+    return isAuthenticated(req) || hasDownloadToken(req);
   }
 
   function sessionCookie(req, value, maxAgeMs) {
@@ -346,10 +485,17 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     return req.method === 'GET' && String(req.headers.accept || '').includes('text/html');
   }
 
-  /** Express middleware: everything except PUBLIC_PATHS needs a session or API token. */
+  /**
+   * Express middleware: everything except PUBLIC_PATHS needs a session or API token.
+   * Sets req.user to who is calling ({ id, username, role }).
+   */
   function requireAuth(req, res, next) {
     if (isPublicPath(req.path)) return next();
-    if (isDownloadPath(req.path) ? isDownloadAuthorized(req) : isAuthenticated(req)) return next();
+    const user = authenticate(req) || (isDownloadPath(req.path) && hasDownloadToken(req) ? DOWNLOAD_USER : null);
+    if (user) {
+      req.user = user;
+      return next();
+    }
     if (wantsHtml(req)) {
       res.redirect(302, `/login?next=${encodeURIComponent(req.originalUrl || '/')}`);
       return;
@@ -387,19 +533,89 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
   /** For WebSocket upgrades: same origin, plus a session or API token. */
   function verifyUpgrade(req) {
     if (!originAllowed(req, extraOrigins())) return { ok: false, status: 403, reason: 'Origin not allowed' };
-    if (!isAuthenticated(req)) return { ok: false, status: 401, reason: 'Login required' };
-    return { ok: true };
+    const user = authenticate(req);
+    if (!user) return { ok: false, status: 401, reason: 'Login required' };
+    return { ok: true, user };
+  }
+
+  // Accounts (Settings → Users). `actor` is who asks: { id, username, role }.
+
+  function listUsers() {
+    return users.list().map((row) => ({ ...publicUser(row), fromEnv: isEnvUser(row) }));
+  }
+
+  function findUserOrThrow(id) {
+    const row = users.findById(Number(id));
+    if (!row) throw new Error('That user no longer exists');
+    return row;
+  }
+
+  function assertNotLastAdmin(row, message) {
+    if (row.role === 'admin' && users.countRole('admin') <= 1) throw new Error(message);
+  }
+
+  function createUser({ username, password, role } = {}) {
+    const name = String(username || '').trim();
+    if (!USERNAME_PATTERN.test(name)) {
+      throw new Error('User names are 1 to 64 letters, digits, dots, dashes, underscores or @, starting with a letter or digit');
+    }
+    if (!isRole(role)) throw new Error('Choose a role: viewer, editor or admin');
+    assertPassword(password);
+    if (users.findByName(name)) throw new Error(`There is already a user named ${name}`);
+    const id = users.insert({ username: name, passwordHash: hashPassword(password), role, now: isoNow() });
+    return publicUser(users.findById(id));
+  }
+
+  /** Change a user's role and/or password. A new password logs that user out everywhere. */
+  function updateUser(id, { role, password } = {}) {
+    const row = findUserOrThrow(id);
+    if (role !== undefined && role !== null && role !== row.role) {
+      if (!isRole(role)) throw new Error('Choose a role: viewer, editor or admin');
+      if (isEnvUser(row)) throw new Error(`${row.username} is the JUSTTPRINT_PASSWORD account and stays an admin`);
+      assertNotLastAdmin(row, 'This is the only admin. Make another user an admin first.');
+      users.update(row.id, { role });
+    }
+    if (password !== undefined && password !== null && password !== '') {
+      if (isEnvUser(row)) throw new Error('This password is set by JUSTTPRINT_PASSWORD. Change it there and restart.');
+      assertPassword(password);
+      users.update(row.id, { passwordHash: hashPassword(password), resetSessions: true });
+    }
+    forget(row.id);
+    return publicUser(users.findById(row.id));
+  }
+
+  function deleteUser(actor, id) {
+    const row = findUserOrThrow(id);
+    if (actor && actor.id === row.id) throw new Error('You cannot delete your own account');
+    if (isEnvUser(row)) throw new Error(`${row.username} is the JUSTTPRINT_PASSWORD account and cannot be deleted`);
+    assertNotLastAdmin(row, 'This is the only admin and cannot be deleted');
+    users.remove(row.id);
+    forget(row.id);
+    return { success: true };
+  }
+
+  /** A user changes their own password; logs them out everywhere. */
+  function changeOwnPassword(actor, currentPassword, newPassword) {
+    if (!actor || !actor.id) throw new Error('Only a logged-in user can change their password');
+    const row = findUserOrThrow(actor.id);
+    if (isEnvUser(row)) throw new Error('The password is set by JUSTTPRINT_PASSWORD. Change it there and restart.');
+    if (!verifyPasswordHash(String(currentPassword || ''), row.password_hash)) throw new Error('Current password is wrong');
+    assertPassword(newPassword);
+    users.update(row.id, { passwordHash: hashPassword(newPassword), resetSessions: true });
+    forget(row.id);
+    return { success: true };
   }
 
   function registerRoutes(app, express) {
     const form = express.urlencoded({ extended: false, limit: '10kb' });
 
     app.get('/login', (req, res) => {
-      if (hasValidSession(req)) {
+      if (sessionUser(req)) {
         res.redirect(302, safeNextPath(req.query.next));
         return;
       }
-      res.type('html').send(loginPageHtml(safeNextPath(req.query.next), req.query.error ? 'Wrong password.' : ''));
+      const username = typeof req.query.user === 'string' ? req.query.user.slice(0, 64) : '';
+      res.type('html').send(loginPageHtml(safeNextPath(req.query.next), req.query.error ? 'Wrong user name or password.' : '', username));
     });
 
     app.post('/api/auth/login', form, express.json({ limit: '10kb' }), (req, res) => {
@@ -407,30 +623,36 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
       const next = safeNextPath(body.next);
       const isForm = !String(req.headers['content-type'] || '').includes('application/json');
       const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+      const username = typeof body.username === 'string' ? body.username.trim().slice(0, 64) : '';
 
       if (loginBlocked(ip)) {
         if (isForm) {
-          res.status(429).type('html').send(loginPageHtml(next, 'Too many attempts. Try again in 15 minutes.'));
+          res.status(429).type('html').send(loginPageHtml(next, 'Too many attempts. Try again in 15 minutes.', username));
         } else {
           res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
         }
         return;
       }
-      if (!verifyPassword(body.password)) {
+      ensureUsersExist();
+      const row = verifyLogin(username, body.password);
+      if (!row) {
         recordLoginFailure(ip);
         if (isForm) {
-          res.redirect(303, `/login?error=1&next=${encodeURIComponent(next)}`);
+          res.redirect(303, `/login?error=1&next=${encodeURIComponent(next)}${username ? `&user=${encodeURIComponent(username)}` : ''}`);
         } else {
-          res.status(401).json({ error: 'Wrong password' });
+          res.status(401).json({ error: 'Wrong user name or password' });
         }
         return;
       }
       loginFailures.delete(ip);
-      res.setHeader('Set-Cookie', sessionCookie(req, makeSignedToken(signingSecret(), 'session', SESSION_TTL_MS, now()), SESSION_TTL_MS));
+      try {
+        users.touchLogin(row.id, isoNow());
+      } catch (_) { /* database closed during a restore */ }
+      res.setHeader('Set-Cookie', sessionCookie(req, userSessionToken(row), SESSION_TTL_MS));
       if (isForm) {
         res.redirect(303, next);
       } else {
-        res.json({ success: true });
+        res.json({ success: true, user: { id: row.id, username: row.username, role: row.role } });
       }
     });
 
@@ -440,30 +662,41 @@ function createServerAuth({ getSetting, setSetting, env = process.env, logger = 
     });
 
     app.get('/api/auth/status', (req, res) => {
-      res.json({ authenticated: isAuthenticated(req) });
+      const user = authenticate(req);
+      res.json(user
+        ? { authenticated: true, user: { id: user.id, username: user.username, role: user.role, roleLabel: ROLE_LABELS[user.role] } }
+        : { authenticated: false });
     });
   }
 
   return {
     ensureCredentials,
-    setPassword,
-    verifyPassword,
+    verifyLogin,
+    envUsername,
     apiToken,
     regenerateApiToken,
     issueDownloadToken,
     issueSessionToken,
+    authenticate,
     isAuthenticated,
     isDownloadAuthorized,
     requireAuth,
     cors,
     rejectForeignOrigins,
     verifyUpgrade,
-    registerRoutes
+    registerRoutes,
+    listUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+    changeOwnPassword
   };
 }
 
 module.exports = {
   SESSION_COOKIE,
+  SYSTEM_USER,
+  API_TOKEN_USER,
   SETTING_KEYS,
   SECRET_SETTING_KEYS,
   MIN_PASSWORD_LENGTH,
