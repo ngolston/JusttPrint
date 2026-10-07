@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { backup, downloadUrl, type FileResult } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, refreshModelDisplay, showMessage } from './page';
+import { AutoBackup } from './settings/AutoBackup';
 
 declare global {
   interface Window {
@@ -36,16 +37,18 @@ function download(filePath: string) {
 }
 
 /**
- * Settings → Backup/Restore: download a database backup or a library export, restore a backup,
- * or merge an export into the library. Registers window.openBackupRestore.
+ * Settings → Backup/Restore: automatic backups, download a database backup or a library export,
+ * restore a backup, or merge an export into the library. Registers window.openBackupRestore.
  */
 export function BackupRestoreDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<Task | null>(null);
+  const [opened, setOpened] = useState(0);
 
   useEffect(() => exposeGlobal('openBackupRestore', () => {
+    setOpened((n) => n + 1);
     if (!dialogRef.current?.open) dialogRef.current?.showModal();
   }), []);
 
@@ -136,6 +139,7 @@ export function BackupRestoreDialog() {
   return (
     <ModalDialog id="backup-restore-dialog" title="Backup/Restore" dialogRef={dialogRef}
       footer={<button type="button" id="save-backup-restore" onClick={() => dialogRef.current?.close()}>Close</button>}>
+      <AutoBackup opened={opened} />
       <div className="backup-restore-columns">
         <div>
           <h4>Database</h4>

@@ -33,6 +33,7 @@ const {
 const thumbnailWorker = require('./thumbnail-worker');
 const { scheduleBackgroundThumbnailCompression } = require('./thumbnail-compression');
 const { startServerStlHomeScans } = require('./stl-home');
+const autoBackup = require('./auto-backup');
 const { scheduleBackgroundHashGeneration } = require('./ipc/hashes');
 const { requestThumbnailJobCancel } = require('./ipc/thumbnails');
 require('./ipc/server-access');
@@ -46,6 +47,7 @@ let databaseClosedOnQuit = false;
 function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
+  autoBackup.stop();
   thumbnailWorker.stop();
   try {
     requestThumbnailJobCancel();
@@ -139,6 +141,7 @@ async function start() {
     sessionToken: () => getServerAuth().issueSessionToken()
   });
   startServerStlHomeScans();
+  autoBackup.schedule({ startup: true });
   scheduleBackgroundHashGeneration('startup');
   scheduleBackgroundThumbnailCompression('startup');
   setTimeout(() => {

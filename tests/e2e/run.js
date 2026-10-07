@@ -425,6 +425,30 @@ async function apiChecks(base, wsUrl) {
     check('library works after restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
     check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }
+  // Automatic backups (src/server/auto-backup.js): off by default, into the data volume unless a folder is chosen.
+  const act = (name, ...args) => invoke(base, { cookie, origin }, name, args);
+  const autoDefault = (await act('get-auto-backup')).result || {};
+  check('automatic backups are off by default and go to backups/ in the data folder', autoDefault.enabled === false
+    && autoDefault.directory === path.join(DATA, 'backups') && Array.isArray(autoDefault.backups), JSON.stringify(autoDefault).slice(0, 300));
+  check('automatic backups refuse a system folder', /system folder/.test((await act('save-auto-backup', { directory: '/etc/backups' })).error || ''));
+  const autoDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-autobackup-'));
+  fs.writeFileSync(path.join(autoDir, 'other.db'), 'not ours');
+  const autoSaved = (await act('save-auto-backup', { enabled: true, keep: 2, intervalHours: 12, directory: autoDir })).result || {};
+  check('automatic backup settings are saved', autoSaved.enabled === true && autoSaved.keep === 2 && autoSaved.intervalHours === 12 && autoSaved.directory === autoDir);
+  const autoRuns = [];
+  for (let n = 0; n < 3; n++) autoRuns.push((await act('run-auto-backup')).result || {});
+  const autoAfter = autoRuns[2].status || {};
+  check('Back Up Now writes checked backups and keeps the newest 2', autoRuns.every((r) => r.success) && autoAfter.backups.length === 2
+    && autoAfter.lastError === '' && !!autoAfter.nextRun && fs.existsSync(path.join(autoDir, 'other.db')), JSON.stringify(autoRuns.map((r) => r.message || r.backup?.name)));
+  const newest = autoAfter.backups[0];
+  check('an automatic backup can be downloaded', !!newest && (await http.request(download(newest.path))).status === 200);
+  check('other files in the backup folder cannot', (await http.request(download(path.join(autoDir, 'other.db')))).status !== 200);
+  check('restore refuses a name that is not an automatic backup', /Not an automatic backup/.test(((await act('restore-auto-backup', '../other.db')).result || {}).message || ''));
+  const autoRestored = (await act('restore-auto-backup', newest.name)).result || {};
+  check('restore from an automatic backup', autoRestored.success === true && ((await act('get-stats')).result || {}).totalModels > 0, JSON.stringify(autoRestored));
+  await act('save-auto-backup', { enabled: false, directory: '' });
+  fs.rmSync(autoDir, { recursive: true, force: true });
+
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
   const trash = await invoke(base, { cookie, origin }, 'trash-file', [part]);
   const trashed = !fs.existsSync(part) && fs.readdirSync(WORK, { recursive: true }).some((p) => String(p).endsWith('part one.stl.trashinfo'));
@@ -1822,6 +1846,17 @@ async function browserChecks(base, wsUrl, session) {
     const refused = await page.waitForSelector('dialog[open]:has-text("Not a JusttPrint backup")', { timeout: 30000 }).catch(() => null);
     check('Restore refuses a file that is not a backup', !!refused);
     if (refused) await page.click('dialog[open]:has-text("Not a JusttPrint backup") button:text-is("OK")');
+    // Automatic Backups: switching them on writes the first backup; it lists and downloads.
+    await page.check('#auto-backup-enabled');
+    const firstAuto = await page.waitForSelector('#auto-backup-list .auto-backup-item', { timeout: 60000 }).catch(() => null);
+    const autoStatus = firstAuto ? await page.textContent('#auto-backup-status') : '';
+    const autoDownload = firstAuto ? await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#auto-backup-list .auto-backup-download')])
+      .then(([download]) => download).catch(() => null) : null;
+    check('switching on Automatic Backups writes the first backup, shows when, and downloads it', !!firstAuto && /Last backup: .*Next: /.test(autoStatus)
+      && /^justtprint-auto-\d{8}-\d{6}\.db$/.test(autoDownload?.suggestedFilename() || ''), `${autoStatus} / ${autoDownload?.suggestedFilename()}`);
+    await page.uncheck('#auto-backup-enabled');
+    await page.waitForFunction(() => !/Next:/.test(document.getElementById('auto-backup-status')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
+    for (const name of fs.readdirSync(path.join(DATA, 'backups'))) if (/^justtprint-auto-/.test(name)) fs.rmSync(path.join(DATA, 'backups', name));
     await page.click('#save-backup-restore');
     check('Backup/Restore closes', !(await page.isVisible('#backup-restore-dialog')));
 

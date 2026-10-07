@@ -168,7 +168,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 ## 🟢 8. Feature ideas, server and web (most valuable first)
 
 - [ ] **User accounts and roles** (admin, read-only, guest) for sharing with family or a makerspace.
-- [ ] **Automatic, scheduled backups** with retention, saved to a mounted volume.
+- [x] **Automatic, scheduled backups** with retention, saved to a mounted volume: Settings → Backup → Automatic Backups ([src/server/auto-backup.js](src/server/auto-backup.js), [src/web/settings/AutoBackup.tsx](src/web/settings/AutoBackup.tsx)) and the `JUSTTPRINT_*BACKUP*` variables.
+- [ ] **Clean up hand-made backups and exports.** **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
 - [ ] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand.
 - [ ] **Upload models through the web UI** (drag and drop) into a chosen library folder.
 - [ ] **Send to printer**: upload and start a print via OctoPrint, Moonraker or Bambu, using the saved printer details. A server is a natural fit for this.

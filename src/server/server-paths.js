@@ -28,6 +28,8 @@ const STATIC_BLOCKED_FILES = new Set([
 ]);
 
 const SERVER_GENERATED_FILE = /^justtprint-(backup|library)-[\w.-]+\.(db|json|zip)$/i;
+/** Automatic backups (src/server/auto-backup.js), in their own folder. */
+const AUTO_BACKUP_FILE = /^justtprint-auto-\d{8}-\d{6}(-\d+)?\.db$/;
 
 /** True when a URL path may be served from the app folder. */
 function isServableStaticPath(urlPath) {
@@ -98,15 +100,19 @@ function isInsideRoots(filePath, roots, realpath) {
  * @param {string[]} ctx.roots Library folders (scanned directories, STL Home, last scan).
  * @param {(filePath: string) => boolean} [ctx.isKnownModel] Exact match against stored models.
  * @param {string} [ctx.generatedDir] Folder where backups and exports are written.
+ * @param {string} [ctx.autoBackupDir] Folder of the automatic backups (justtprint-auto-*.db only).
  * @param {(filePath: string) => boolean} [ctx.isExtractTemp] The app's own zip-extract temp files.
  * @param {(filePath: string) => string} [ctx.realpath] Follows symlinks (fs.realpathSync). Without it, paths are compared as written.
  */
-function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false, generatedDir = '', isExtractTemp = () => false, realpath = null } = {}) {
+function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false, generatedDir = '', autoBackupDir = '', isExtractTemp = () => false, realpath = null } = {}) {
   const raw = String(filePath || '');
   if (!raw || raw.includes('\0')) return false;
   if (isInsideRoots(raw, roots, realpath)) return true;
   if (isExtractTemp(raw)) return true;
   if (generatedDir && compareKey(path.dirname(raw)) === compareKey(generatedDir) && SERVER_GENERATED_FILE.test(path.basename(raw))) {
+    return true;
+  }
+  if (autoBackupDir && compareKey(path.dirname(raw)) === compareKey(autoBackupDir) && AUTO_BACKUP_FILE.test(path.basename(raw))) {
     return true;
   }
   try {

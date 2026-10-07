@@ -15,6 +15,13 @@ function parseBoolean(value) {
   throw new Error(`expected true or false, got "${value}"`);
 }
 
+function wholeNumber(value, min, max) {
+  const text = String(value).trim();
+  const number = Number(text);
+  if (!/^\d+$/.test(text) || number < min || number > max) throw new Error(`expected a whole number from ${min} to ${max}, got "${value}"`);
+  return number;
+}
+
 function splitList(value) {
   return String(value).split(/[,;\n]/).map((item) => item.trim()).filter(Boolean);
 }
@@ -39,6 +46,15 @@ const ENV_SETTINGS = [
   ['JUSTTPRINT_AI_ENDPOINT', 'apiEndpoint', (value) => {
     const url = new URL(String(value).trim());
     return url.toString().replace(/\/$/, '');
+  }],
+  // Automatic database backups (src/server/auto-backup.js).
+  ['JUSTTPRINT_AUTO_BACKUP', 'autoBackupEnabled', parseBoolean],
+  ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', 'autoBackupIntervalHours', (value) => String(wholeNumber(value, 1, 8760))],
+  ['JUSTTPRINT_BACKUP_KEEP', 'autoBackupKeep', (value) => String(wholeNumber(value, 1, 1000))],
+  ['JUSTTPRINT_BACKUP_DIR', 'autoBackupDirectory', (value) => {
+    const dir = String(value).trim().replace(/\/+$/, '') || '/';
+    if (!dir.startsWith('/')) throw new Error(`expected an absolute container path, got "${value}"`);
+    return dir;
   }]
 ];
 

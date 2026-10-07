@@ -136,6 +136,10 @@ const ACTIONS = {
   // Backup
   'backup-database': [],
   'restore-database': ['object?'],
+  'get-auto-backup': [],
+  'save-auto-backup': ['object'],
+  'run-auto-backup': [],
+  'restore-auto-backup': ['string'],
   'export-library': [],
   'import-library': ['object?'],
 
