@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.0.4] - 2026-10-06
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- The Multi-Edit panel is redrawn in the JusttPrint 5 style, like the single-model details panel: the selection count as its title, **Select All** and **Clear Selection** side by side, then **Printing**, **Details**, **Tags** and **Filament** sections with labels beside each field, and **Exit Multi-Edit Mode** at the bottom. Its old styles are removed.
+- The Remove pickers for tags and filament say "None to remove" and are disabled when no selected model has one.
+- Button icons no longer shrink when a label is long.
+
 ## [5.0.3] - 2026-10-06
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.

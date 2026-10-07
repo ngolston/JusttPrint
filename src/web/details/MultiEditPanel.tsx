@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ClipboardPen, ExternalLink, List, ListChecks, Plus, Spool, Tags, X } from 'lucide-react';
 import { filaments as filamentApi, libraryValues, models, tags as tagApi, type Filament } from '../api';
 import { askText, exposeGlobal, showMessage } from '../page';
 import { selection } from '../selection';
 import { STATUSES, STATUS_LABELS, colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
+import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
 
 type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
@@ -91,8 +93,9 @@ const PROMPTS: Record<'designer' | 'parentModel' | 'license', string> = {
 };
 
 /**
- * Everything under the multi-edit panel's header (#multi-edit-slot): selection buttons and count,
- * and fields that apply to every selected model as soon as they change. Registers window.multiEdit.
+ * The multi-edit panel's body (#multi-edit-slot), laid out like the JusttPrint 5 details panel: the
+ * count and selection buttons, then Printing, Details, Tags and Filament sections whose fields apply to
+ * every selected model as soon as they change. Registers window.multiEdit.
  */
 export function MultiEditPanel() {
   const [slot] = useState(() => document.getElementById('multi-edit-slot'));
@@ -203,18 +206,28 @@ export function MultiEditPanel() {
 
   if (!slot) return null;
 
-  const valueSelect = (field: 'designer' | 'parentModel' | 'license', id: string, title: string, empty: string, values: string[], list: ListField) => (
-    <div className="form-group">
+  const listButton = (title: string, onClick: () => void) => (
+    <button type="button" className="jp-icon-btn jp-icon-btn--sm jp-multi__tool" title={title} aria-label={title} onClick={onClick}>
+      <List size={16} aria-hidden="true" />
+    </button>
+  );
+  const addButton = (title: string, onClick: () => void, id?: string) => (
+    <button type="button" id={id} className="jp-icon-btn jp-icon-btn--sm jp-multi__tool" title={title} aria-label={title} onClick={onClick}>
+      <Plus size={16} aria-hidden="true" />
+    </button>
+  );
+
+  const valueRow = (field: 'designer' | 'parentModel' | 'license', id: string, title: string, empty: string, values: string[], list: ListField) => (
+    <div className="jp-multi__row">
       <label htmlFor={id}>{title}</label>
-      <div className="designer-input-container">
+      <div className="jp-multi__control">
         <select id={id} value={picked[field]} onChange={(e) => pickValue(field, e.target.value)}>
           <option value="">{empty}</option>
           {values.map((v) => <option key={v} value={v}>{v}</option>)}
           {picked[field] && !values.includes(picked[field]) && <option value={picked[field]}>{picked[field]}</option>}
         </select>
-        <button type="button" className="list-button icon-button" title={`Search existing ${PROMPTS[field]}s`}
-          onClick={async () => { const v = await pickFromList(list); if (v) await pickValue(field, v); }}>☰</button>
-        <button type="button" id={`${id}-add`} className="icon-button" title={`New ${PROMPTS[field]}`} onClick={() => addNewValue(field)}>+</button>
+        {listButton(`Search existing ${PROMPTS[field]}s`, async () => { const v = await pickFromList(list); if (v) await pickValue(field, v); })}
+        {addButton(`New ${PROMPTS[field]}`, () => addNewValue(field), `${id}-add`)}
       </div>
     </div>
   );
@@ -222,108 +235,139 @@ export function MultiEditPanel() {
   const addableFilaments = options.filaments.filter((f) => !addedFilaments.some((a) => Number(a.id) === f.id));
 
   return createPortal(
-    <>
-      <button type="button" id="exit-multi-edit-button" className="full-width-button" onClick={() => host?.exit()}>Exit Multi-Edit Mode</button>
-      <button type="button" id="select-all-button" className="full-width-button" onClick={() => host?.selectAllVisible()}>Select All Visible</button>
-      <button type="button" id="clear-selection-button" className="full-width-button" onClick={() => host?.clearSelection()}>Clear Selection</button>
-      <p className="selected-count">{`${count} model${count !== 1 ? 's' : ''} selected`}</p>
-      <div className="form-group">
-        <label htmlFor="multi-print-status">Print status</label>
-        <select id="multi-print-status" value="" onChange={async (e) => {
-          const paths = host?.selectedPaths() || [];
-          const status = e.target.value;
-          if (!paths.length || !status) return;
-          await window.PrintHistory?.setStatus(paths, status);
-        }}>
-          <option value="">No change</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-        </select>
+    <div className="jp jp-details jp-multi">
+      <div className="jp-details__identity">
+        <h2 className="jp-details__title selected-count">{`${count} model${count !== 1 ? 's' : ''} selected`}</h2>
+        <p className="jp-details__byline">Changes apply to every selected model right away.</p>
       </div>
-      <div className="form-group">
-        <button type="button" id="multi-log-print-button" className="full-width-button" onClick={() => {
-          const paths = host?.selectedPaths() || [];
-          if (paths.length) window.PrintHistory?.openLogDialog({ filePaths: paths });
-        }}>Log a print on selected</button>
+
+      <div className="jp-details__actions">
+        <Button id="select-all-button" icon={ListChecks} title="Select every model shown in the library" onClick={() => host?.selectAllVisible()}>Select All</Button>
+        <Button id="clear-selection-button" icon={X} onClick={() => host?.clearSelection()}>Clear Selection</Button>
       </div>
-      <div className="form-group">
-        <label htmlFor="multi-source">Source:</label>
-        <div className="input-with-icon">
-          <input type="text" id="multi-source" placeholder="Enter source..." spellCheck={false} value={source}
-            onChange={(e) => {
-              const value = e.target.value;
-              setSource(value);
-              window.clearTimeout(sourceTimer.current);
-              sourceTimer.current = window.setTimeout(() => { save('source', value.trim()); }, 500);
-            }} />
-          <button type="button" id="multi-open-source-button" className="icon-button" title="Open in browser"
-            onClick={() => host?.openSource(source.trim())}>↗</button>
-        </div>
-      </div>
-      {valueSelect('designer', 'multi-designer', 'Designer:', 'Select Designer', options.designers, 'designer')}
-      {valueSelect('parentModel', 'multi-parent', 'Parent Model:', 'None', options.parents, 'parent')}
-      {valueSelect('license', 'multi-license', 'License:', 'Select License', options.licenses, 'license')}
-      <div className="form-group">
-        <label>Tags:</label>
-        <div className="tags-container">
-          <div className="tags-input-container">
-            <select id="multi-tag-select" value="" onChange={(e) => addTag(e.target.value)}>
-              <option value="">Select a tag...</option>
-              {options.tags.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <button type="button" className="list-button icon-button" title="Search existing tags"
-              onClick={async () => addTag(await pickFromList('tag'))}>☰</button>
-            <button type="button" id="multi-add-tag" className="icon-button" title="New tag" onClick={addNewTag}>+</button>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <label htmlFor="multi-tag-remove-select" style={{ display: 'block', marginBottom: 4 }}>Remove from selected:</label>
-            <div className="tags-input-container">
-              <select id="multi-tag-remove-select" value="" onChange={(e) => removeTag(e.target.value)}>
-                <option value="">Select a tag to remove...</option>
-                {count === 0 && <option value="" disabled>No files selected</option>}
-                {onSelected.tags.map((t) => <option key={t} value={t}>{t}</option>)}
+
+      <section className="jp-details__section">
+        <h3 className="jp-details__heading">Printing</h3>
+        <div className="jp-multi__rows">
+          <div className="jp-multi__row">
+            <label htmlFor="multi-print-status">Status</label>
+            <div className="jp-multi__control">
+              <select id="multi-print-status" value="" onChange={async (e) => {
+                const paths = host?.selectedPaths() || [];
+                const status = e.target.value;
+                if (!paths.length || !status) return;
+                await window.PrintHistory?.setStatus(paths, status);
+              }}>
+                <option value="">No change</option>
+                {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
               </select>
-              <button type="button" className="list-button icon-button" title="Search tags to remove from selected files"
-                onClick={async () => removeTag(await pickFromList('tag', true))}>☰</button>
             </div>
           </div>
-          <button type="button" id="multi-edit-tags-button" className="full-width-button" onClick={() => window.openTagManager?.()}>Edit Tags</button>
         </div>
-      </div>
-      <div className="form-group">
-        <label>Filament:</label>
-        <div className="tags-container">
-          <div className="tags-input-container">
-            <select id="multi-filament-select" value="" onChange={(e) => addFilament(Number(e.target.value))}>
-              <option value="">Select a filament...</option>
-              {addableFilaments.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
-            </select>
-            <button type="button" className="list-button icon-button" title="Search existing filaments"
-              onClick={async () => addFilament(Number(await pickFromList('filament')))}>☰</button>
-            <button type="button" className="icon-button" title="Filament Manager" onClick={() => window.openFilamentManager?.()}>+</button>
+        <Button id="multi-log-print-button" className="jp-multi__wide" icon={ClipboardPen} onClick={() => {
+          const paths = host?.selectedPaths() || [];
+          if (paths.length) window.PrintHistory?.openLogDialog({ filePaths: paths });
+        }}>Log a Print on Selected</Button>
+      </section>
+
+      <section className="jp-details__section">
+        <h3 className="jp-details__heading">Details</h3>
+        <div className="jp-multi__rows">
+          <div className="jp-multi__row">
+            <label htmlFor="multi-source">Source</label>
+            <div className="jp-multi__control">
+              <input type="text" id="multi-source" placeholder="Enter a link or name…" spellCheck={false} value={source}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSource(value);
+                  window.clearTimeout(sourceTimer.current);
+                  sourceTimer.current = window.setTimeout(() => { save('source', value.trim()); }, 500);
+                }} />
+              <button type="button" id="multi-open-source-button" className="jp-icon-btn jp-icon-btn--sm jp-multi__tool" title="Open in browser"
+                aria-label="Open in browser" disabled={!source.trim()} onClick={() => host?.openSource(source.trim())}>
+                <ExternalLink size={16} aria-hidden="true" />
+              </button>
+            </div>
           </div>
-          <div id="multi-filaments" className="tags-list">
+          {valueRow('designer', 'multi-designer', 'Designer', 'No change', options.designers, 'designer')}
+          {valueRow('parentModel', 'multi-parent', 'Parent model', 'No change', options.parents, 'parent')}
+          {valueRow('license', 'multi-license', 'License', 'No change', options.licenses, 'license')}
+        </div>
+      </section>
+
+      <section className="jp-details__section">
+        <h3 className="jp-details__heading">Tags</h3>
+        <div className="jp-multi__rows">
+          <div className="jp-multi__row">
+            <label htmlFor="multi-tag-select">Add</label>
+            <div className="jp-multi__control">
+              <select id="multi-tag-select" className="jp-multi__picker" value="" onChange={(e) => addTag(e.target.value)}>
+                <option value="">Add a tag…</option>
+                {options.tags.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {listButton('Search existing tags', async () => addTag(await pickFromList('tag')))}
+              {addButton('New tag', addNewTag, 'multi-add-tag')}
+            </div>
+          </div>
+          <div className="jp-multi__row">
+            <label htmlFor="multi-tag-remove-select">Remove</label>
+            <div className="jp-multi__control">
+              <select id="multi-tag-remove-select" className="jp-multi__picker" value="" disabled={!onSelected.tags.length} onChange={(e) => removeTag(e.target.value)}>
+                <option value="">{onSelected.tags.length ? 'Remove a tag…' : 'None to remove'}</option>
+                {onSelected.tags.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {listButton('Search tags to remove from the selection', async () => removeTag(await pickFromList('tag', true)))}
+            </div>
+          </div>
+        </div>
+        <Button id="multi-edit-tags-button" variant="ghost" size="sm" icon={Tags} className="jp-multi__manage" onClick={() => window.openTagManager?.()}>Manage Tags</Button>
+      </section>
+
+      <section className="jp-details__section">
+        <h3 className="jp-details__heading">Filament</h3>
+        {addedFilaments.length > 0 && (
+          <div id="multi-filaments" className="jp-multi__filaments">
             {addedFilaments.map((f) => (
               <div key={String(f.id)} className="filament-chip" data-filament-id={String(f.id)} title={label(f)}>
                 <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
                 <span className="filament-chip-text">{label(f)}</span>
-                <span className="filament-chip-remove" onClick={() => removeFilament(Number(f.id))}>×</span>
+                <button type="button" className="jp-icon-btn jp-icon-btn--sm filament-chip-remove" title="Remove from selected" aria-label={`Remove ${label(f)} from selected`}
+                  onClick={() => removeFilament(Number(f.id))}>
+                  <X size={14} aria-hidden="true" />
+                </button>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 8 }}>
-            <label htmlFor="multi-filament-remove-select" style={{ display: 'block', marginBottom: 4 }}>Remove Filament:</label>
-            <div className="tags-input-container">
-              <select id="multi-filament-remove-select" value="" onChange={(e) => removeFilament(Number(e.target.value))}>
-                <option value="">Select a filament to remove...</option>
+        )}
+        <div className="jp-multi__rows">
+          <div className="jp-multi__row">
+            <label htmlFor="multi-filament-select">Add</label>
+            <div className="jp-multi__control">
+              <select id="multi-filament-select" className="jp-multi__picker" value="" onChange={(e) => addFilament(Number(e.target.value))}>
+                <option value="">Add a filament…</option>
+                {addableFilaments.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
+              </select>
+              {listButton('Search existing filaments', async () => addFilament(Number(await pickFromList('filament'))))}
+            </div>
+          </div>
+          <div className="jp-multi__row">
+            <label htmlFor="multi-filament-remove-select">Remove</label>
+            <div className="jp-multi__control">
+              <select id="multi-filament-remove-select" className="jp-multi__picker" value="" disabled={!onSelected.filaments.length} onChange={(e) => removeFilament(Number(e.target.value))}>
+                <option value="">{onSelected.filaments.length ? 'Remove a filament…' : 'None to remove'}</option>
                 {onSelected.filaments.map((f) => <option key={String(f.id)} value={String(f.id)}>{label(f)}</option>)}
               </select>
-              <button type="button" className="list-button icon-button" title="Search filaments to remove from selected files"
-                onClick={async () => removeFilament(Number(await pickFromList('filament', true)))}>☰</button>
+              {listButton('Search filaments to remove from the selection', async () => removeFilament(Number(await pickFromList('filament', true))))}
             </div>
           </div>
         </div>
+        <Button variant="ghost" size="sm" icon={Spool} className="jp-multi__manage" onClick={() => window.openFilamentManager?.()}>Manage Filament</Button>
+      </section>
+
+      <div className="jp-details__footer">
+        <Button id="exit-multi-edit-button" className="jp-multi__wide" onClick={() => host?.exit()}>Exit Multi-Edit Mode</Button>
       </div>
-    </>,
+    </div>,
     slot
   );
 }

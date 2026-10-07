@@ -77,7 +77,7 @@ Click a model to see it in the details panel:
 
 ### Editing several models
 
-Select several cards (Ctrl/⌘-click or Shift-click) to open the multi-edit panel. Changes there apply to every selected model: designer, parent model, license, source, print status, tags and filament.
+Select several cards (Ctrl/⌘-click or Shift-click) to open the multi-edit panel. Changes there apply to every selected model as soon as you make them: print status, source, designer, parent model and license, and adding or removing a tag or filament. **Log a Print on Selected** records one print for all of them.
 
 ### Print status and history
 

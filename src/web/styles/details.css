@@ -12,13 +12,13 @@ body.jp-shell-on #model-details {
 }
 /* The multi-edit and bundle panels sit on the column's own background too, without the old tint
    and the strip above them. */
-body.jp-shell-on #multi-edit-panel.model-details,
 body.jp-shell-on #bundle-details.model-details {
   margin: 0;
   padding-top: var(--jp-space-4);
   border: 0;
   background: none;
 }
+#multi-edit-panel.model-details { margin: 0; padding: 0; border: 0; background: none; }
 /* The phone header and the Name field (the title shows the name). */
 body.jp-shell-on #model-details > h3,
 body.jp-shell-on #model-details > #details-name-slot,
@@ -445,3 +445,101 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 #model-details .jp-details select:hover,
 #model-details .jp-details select:focus { background-color: var(--jp-surface-2) !important; }
 #model-details .jp-details select option { background-color: var(--jp-surface-2) !important; color: var(--jp-text); }
+
+/* ---- Multi-edit panel (src/web/details/MultiEditPanel.tsx): the details panel's layout ---- */
+#multi-edit-panel .jp-multi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-4);
+  padding: var(--jp-space-4) var(--jp-space-4) var(--jp-space-6);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: left;
+}
+#multi-edit-panel .jp-multi .jp-details__title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--jp-text);
+}
+#multi-edit-panel .jp-multi .jp-details__byline { margin: 2px 0 0; font-size: var(--jp-text-meta); color: var(--jp-text-2); }
+#multi-edit-panel .jp-multi .jp-details__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--jp-space-2); }
+#multi-edit-panel .jp-multi .jp-details__actions .jp-btn,
+#multi-edit-panel .jp-multi .jp-multi__wide { width: 100%; }
+#multi-edit-panel .jp-multi .jp-details__section { display: flex; flex-direction: column; gap: var(--jp-space-3); padding-top: var(--jp-space-4); border-top: 1px solid var(--jp-border); }
+#multi-edit-panel .jp-multi .jp-details__heading { margin: 0; padding: 0; letter-spacing: 0; font-size: var(--jp-text-title); font-weight: 600; color: var(--jp-text); }
+#multi-edit-panel .jp-multi .jp-multi__manage { align-self: flex-start; margin-left: calc(var(--jp-space-3) * -1); }
+
+/* Label column, then the control and its small buttons. */
+#multi-edit-panel .jp-multi__rows { display: flex; flex-direction: column; gap: var(--jp-space-2); }
+#multi-edit-panel .jp-multi__row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--jp-space-3);
+}
+#multi-edit-panel .jp-multi__row > label { margin: 0; padding: 0; color: var(--jp-text-2); font: 400 var(--jp-text-meta) var(--jp-font); letter-spacing: 0; }
+#multi-edit-panel .jp-multi__control { display: flex; align-items: center; gap: 4px; min-width: 0; }
+#multi-edit-panel .jp-multi select,
+#multi-edit-panel .jp-multi input[type="text"] {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0 26px 0 var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background-color: var(--jp-surface-1) !important;
+  backdrop-filter: none;
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aab9c5' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: none;
+  text-overflow: ellipsis;
+  transition: background-color var(--jp-transition), border-color var(--jp-transition);
+}
+#multi-edit-panel .jp-multi input[type="text"] { padding-right: var(--jp-space-3); background-image: none; }
+#multi-edit-panel .jp-multi select.jp-multi__picker { border-style: dashed; border-color: var(--jp-border-strong); background-color: transparent !important; color: var(--jp-text-2); }
+#multi-edit-panel .jp-multi select:hover:not(:disabled),
+#multi-edit-panel .jp-multi input[type="text"]:hover { background-color: var(--jp-surface-2) !important; border-color: var(--jp-border-strong); }
+#multi-edit-panel .jp-multi select:focus,
+#multi-edit-panel .jp-multi input[type="text"]:focus { outline: none; background-color: var(--jp-surface-2) !important; border-color: var(--jp-accent); box-shadow: none; }
+#multi-edit-panel .jp-multi select:disabled { opacity: 0.6; cursor: not-allowed; }
+#multi-edit-panel .jp-multi input::placeholder { color: var(--jp-text-3); }
+#multi-edit-panel .jp-multi select option { background-color: var(--jp-surface-2) !important; color: var(--jp-text); }
+#multi-edit-panel .jp-multi .jp-multi__tool { flex: none; border: 1px solid var(--jp-border); background: var(--jp-surface-2); color: var(--jp-text-2); }
+#multi-edit-panel .jp-multi .jp-multi__tool:hover:not(:disabled) { border-color: var(--jp-border-strong); }
+
+/* Filaments added in this session: spool, name, remove. */
+#multi-edit-panel .jp-multi__filaments { display: flex; flex-direction: column; gap: var(--jp-space-2); }
+#multi-edit-panel .jp-multi__filaments .filament-chip {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--jp-space-3);
+  max-width: none;
+  margin: 0;
+  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-1);
+  color: var(--jp-text);
+  font-size: var(--jp-text-meta);
+}
+#multi-edit-panel .jp-multi__filaments .filament-swatch {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 7px rgba(0, 0, 0, 0.35), inset 0 0 0 8px rgba(255, 255, 255, 0.15);
+}
+#multi-edit-panel .jp-multi__filaments .filament-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#multi-edit-panel .jp-multi__filaments .filament-chip-remove { color: var(--jp-text-3); }
