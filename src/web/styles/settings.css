@@ -118,3 +118,44 @@
 .jp-settings-embed #slicer-dialog.is-embedded .slicer-list-actions .full-width-button,
 .jp-settings-embed #mcp-server-settings-dialog.is-embedded .mcp-inline-actions button,
 .jp-settings-embed #https-settings-dialog.is-embedded .mcp-inline-actions button { border: 1px solid var(--jp-border); background: var(--jp-surface-2); color: var(--jp-text); }
+
+/* Settings → Backup → Automatic Backups (src/web/settings/AutoBackup.tsx) */
+#backup-restore-dialog .auto-backup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-3);
+  margin: 0 0 var(--jp-space-6);
+  padding-bottom: var(--jp-space-6);
+  border-bottom: 1px solid var(--jp-border);
+  text-align: left;
+}
+#backup-restore-dialog .auto-backup h4 { margin: 0; font-size: 16px; font-weight: 600; color: var(--jp-text); }
+#backup-restore-dialog .auto-backup p { margin: 0; }
+#backup-restore-dialog .auto-backup .form-group { margin: 0; }
+#backup-restore-dialog .auto-backup .form-group > label { display: block; margin-bottom: 6px; }
+#backup-restore-dialog .auto-backup-toggle { display: inline-flex; align-items: center; gap: var(--jp-space-2); width: auto; margin: 0; cursor: pointer; }
+#backup-restore-dialog .auto-backup-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--jp-accent); }
+#backup-restore-dialog .auto-backup-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: var(--jp-space-4); }
+#backup-restore-dialog .auto-backup-folder { display: flex; gap: var(--jp-space-2); }
+#backup-restore-dialog .auto-backup-folder input { flex: 1; min-width: 0; font-family: var(--jp-font-mono); font-size: var(--jp-text-meta); }
+#backup-restore-dialog .auto-backup-folder button { flex: none; }
+#backup-restore-dialog .auto-backup code { font-family: var(--jp-font-mono); font-size: var(--jp-text-small); overflow-wrap: anywhere; }
+#backup-restore-dialog .auto-backup-status-row { display: flex; align-items: center; justify-content: space-between; gap: var(--jp-space-3); flex-wrap: wrap; }
+#backup-restore-dialog .auto-backup-status { color: var(--jp-text-2); font-size: var(--jp-text-meta); overflow-wrap: anywhere; }
+#backup-restore-dialog .auto-backup-status.is-error { color: var(--jp-danger); }
+#backup-restore-dialog .auto-backup-list {
+  display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none;
+  border: 1px solid var(--jp-border); border-radius: var(--jp-radius-md); overflow: hidden;
+}
+#backup-restore-dialog .auto-backup-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--jp-space-3);
+  padding: var(--jp-space-2) var(--jp-space-3); font-size: var(--jp-text-meta);
+}
+#backup-restore-dialog .auto-backup-item + .auto-backup-item { border-top: 1px solid var(--jp-border); }
+#backup-restore-dialog .auto-backup-item__when { color: var(--jp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#backup-restore-dialog .auto-backup-item__size { color: var(--jp-text-3); font-variant-numeric: tabular-nums; }
+#backup-restore-dialog .auto-backup-item button { height: 30px !important; padding: 0 var(--jp-space-3) !important; font-size: var(--jp-text-meta) !important; }
+@media (max-width: 640px) {
+  #backup-restore-dialog .auto-backup-fields { grid-template-columns: 1fr 1fr; }
+  #backup-restore-dialog .auto-backup-item { grid-template-columns: minmax(0, 1fr) auto; }
+}

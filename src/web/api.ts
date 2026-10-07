@@ -299,6 +299,42 @@ export const backup = {
     callAction<{ success: boolean; imported?: number; updated?: number; message?: string }>('import-library', { json })
 };
 
+/** Automatic backups (src/server/auto-backup.js), as Settings → Backup shows them. */
+export interface AutoBackupStatus {
+  enabled: boolean;
+  intervalHours: number;
+  keep: number;
+  /** Where backups go: the chosen folder, or the default on the data volume. */
+  directory: string;
+  /** The chosen folder; '' means the default. */
+  customDirectory: string;
+  defaultDirectory: string;
+  lastRun: string;
+  lastAttempt: string;
+  lastError: string;
+  /** Settings the container's environment variables set (they win at every start). */
+  setByEnvironment: string[];
+  running: boolean;
+  nextRun: string | null;
+  backups: { name: string; path: string; size: number; date: string }[];
+  folderProblem: string;
+}
+
+export interface AutoBackupSettings {
+  enabled?: boolean;
+  intervalHours?: number;
+  keep?: number;
+  directory?: string;
+}
+
+export const autoBackup = {
+  status: () => callAction<AutoBackupStatus>('get-auto-backup'),
+  save: (settings: AutoBackupSettings) => callAction<AutoBackupStatus>('save-auto-backup', settings),
+  runNow: () => callAction<{ success: boolean; message?: string; status: AutoBackupStatus }>('run-auto-backup'),
+  /** Replaces the library database with an automatic backup, by file name. */
+  restore: (name: string) => callAction<{ success: boolean; message?: string }>('restore-auto-backup', name)
+};
+
 export function downloadUrl(filePath: string): string {
   return `/api/download/${encodeURIComponent(filePath)}`;
 }

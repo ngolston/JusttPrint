@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.2.0] - 2026-10-07
+
+**Upgrading:** no changes needed; automatic backups stay off until you switch them on under **Settings → Backup**. To keep backups on another disk, mount a folder there (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Reload open browser tabs after the update.
+
+**Changes:**
+- **Automatic Backups** (Settings → Backup): the server backs up the database every 6 hours, 12 hours, day or week and keeps the newest copies (7 unless you change it). Off until you switch it on; the first backup is written right away. Backups go to `backups` in the data folder, or to a folder you choose (**Browse…**), for example a volume on another disk. Each copy is checked before it is kept, and only files named `justtprint-auto-….db` are ever deleted. The page shows the last and next backup and any error, has **Back Up Now**, and lists the backups with **Download** and **Restore** (restoring from the server needs no upload).
+- New environment variables `JUSTTPRINT_AUTO_BACKUP`, `JUSTTPRINT_BACKUP_INTERVAL_HOURS`, `JUSTTPRINT_BACKUP_KEEP` and `JUSTTPRINT_BACKUP_DIR` (they win over the page, which shows them locked).
+- **Fixed:** in Choose Folder, typing a path while the first folder was still loading could be overwritten, so Enter opened the wrong folder.
+
 ## [5.1.0] - 2026-10-06
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. **Choose Folder** shows the volumes you mount into the container, so mount your models folders as before (see Volumes in the README).

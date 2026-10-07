@@ -9,6 +9,8 @@ const spoolman = require('../../core/spoolman');
 const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
+const { checkBackupFile } = require('../../core/backup-check');
+const autoBackup = require('../auto-backup');
 
 function upsertImportedFilament(filament) {
   if (!filament || typeof filament !== 'object') return null;
@@ -67,39 +69,13 @@ ipcMain.handle('backup-database', async () => {
   }
 });
 
-/** Throws unless the file is a readable SQLite database with a models table. */
-function checkBackupFile(filePath) {
-  let candidate;
-  try {
-    candidate = new Database(filePath, { readonly: true, fileMustExist: true });
-    const check = candidate.pragma('quick_check', { simple: true });
-    if (check !== 'ok') throw new Error(`the database is damaged (${check})`);
-    const models = candidate.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='models'").get();
-    if (!models) throw new Error('it has no models table');
-  } catch (error) {
-    throw new Error(`Not a JusttPrint backup: ${error.message}`);
-  } finally {
-    if (candidate) candidate.close();
-  }
-}
-
-// Replaces the library database with an uploaded backup. The upload is checked in a temp
-// file first; the current database is kept next to it as justtprint.db.before-restore.
-ipcMain.handle('restore-database', async (event, payload = null) => {
-  if (!payload || !payload.base64) {
-    return { success: false, message: 'Upload a backup file to restore.' };
-  }
+/**
+ * Replace the library database with a checked copy (an upload or an automatic backup) at
+ * `uploadPath`, which is consumed. The current database is kept next to it as
+ * justtprint.db.before-restore.
+ */
+async function restoreFromCheckedFile(uploadPath) {
   const dbPath = getDatabasePath();
-  const uploadPath = `${dbPath}.restore-upload`;
-  try {
-    await fs.promises.writeFile(uploadPath, Buffer.from(payload.base64, 'base64'));
-    checkBackupFile(uploadPath);
-  } catch (error) {
-    await fs.promises.rm(uploadPath, { force: true });
-    console.error('Restore refused:', error.message);
-    return { success: false, message: error.message };
-  }
-
   try {
     // The server's own login (password, session secret, API token) is not library data:
     // keep it, so a restore does not change the password or log everyone out.
@@ -113,6 +89,7 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
     database.db = new Database(dbPath);
     const keepLogin = database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     for (const row of serverLogin) keepLogin.run(row.key, row.value);
+    autoBackup.schedule();
     return { success: true };
   } catch (error) {
     console.error('Restore error:', error);
@@ -124,6 +101,55 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
     }
     return { success: false, message: error.message };
   }
+}
+
+const BACKUP_RUNNING = 'A backup is being written. Try again when it has finished.';
+
+// Replaces the library database with an uploaded backup. The upload is checked in a temp
+// file first.
+ipcMain.handle('restore-database', async (event, payload = null) => {
+  if (!payload || !payload.base64) {
+    return { success: false, message: 'Upload a backup file to restore.' };
+  }
+  if (autoBackup.isRunning()) return { success: false, message: BACKUP_RUNNING };
+  const uploadPath = `${getDatabasePath()}.restore-upload`;
+  try {
+    await fs.promises.writeFile(uploadPath, Buffer.from(payload.base64, 'base64'));
+    checkBackupFile(uploadPath);
+  } catch (error) {
+    await fs.promises.rm(uploadPath, { force: true });
+    console.error('Restore refused:', error.message);
+    return { success: false, message: error.message };
+  }
+  return restoreFromCheckedFile(uploadPath);
+});
+
+// Automatic backups (src/server/auto-backup.js): settings, Back Up Now, and Restore by name.
+ipcMain.handle('get-auto-backup', async () => autoBackup.status());
+ipcMain.handle('save-auto-backup', async (event, input = {}) => autoBackup.saveSettings(input || {}));
+ipcMain.handle('run-auto-backup', async () => {
+  const result = await autoBackup.runBackup('manual');
+  return { ...result, status: autoBackup.status() };
+});
+ipcMain.handle('restore-auto-backup', async (event, name) => {
+  if (autoBackup.isRunning()) return { success: false, message: BACKUP_RUNNING };
+  let backupFile;
+  try {
+    backupFile = autoBackup.findBackup(name);
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+  const uploadPath = `${getDatabasePath()}.restore-upload`;
+  try {
+    await fs.promises.copyFile(backupFile.path, uploadPath);
+    checkBackupFile(uploadPath);
+  } catch (error) {
+    await fs.promises.rm(uploadPath, { force: true });
+    console.error('Restore refused:', error.message);
+    return { success: false, message: error.message };
+  }
+  console.log(`[Backup] Restoring ${backupFile.path}`);
+  return restoreFromCheckedFile(uploadPath);
 });
 
 // Export library handler

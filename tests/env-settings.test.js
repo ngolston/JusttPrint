@@ -49,3 +49,17 @@ test('AI settings are validated', () => {
   assert.strictEqual(settingsFromEnv({ JUSTTPRINT_AI_SERVICE: 'skynet' }, ctx).errors.length, 1);
   assert.strictEqual(settingsFromEnv({ JUSTTPRINT_AI_ENDPOINT: 'not a url' }, ctx).errors.length, 1);
 });
+
+test('automatic backup settings are validated', () => {
+  const ok = byKey(settingsFromEnv({
+    JUSTTPRINT_AUTO_BACKUP: 'yes',
+    JUSTTPRINT_BACKUP_INTERVAL_HOURS: '12',
+    JUSTTPRINT_BACKUP_KEEP: ' 14 ',
+    JUSTTPRINT_BACKUP_DIR: '/mnt/backups/'
+  }, ctx));
+  assert.deepStrictEqual(ok, { autoBackupEnabled: '1', autoBackupIntervalHours: '12', autoBackupKeep: '14', autoBackupDirectory: '/mnt/backups' });
+  for (const [name, value] of [['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '0'], ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '1.5'],
+    ['JUSTTPRINT_BACKUP_KEEP', 'all'], ['JUSTTPRINT_BACKUP_DIR', 'backups']]) {
+    assert.match(settingsFromEnv({ [name]: value }, ctx).errors[0] || '', new RegExp(name), `${name}=${value}`);
+  }
+});

@@ -130,7 +130,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | AI | AI tagging settings |
 | Server | HTTPS / SSL and the listen port, Restart Server |
 | Authentication | Server Access (password and API token), Log Out |
-| Backup | Download a backup, export the library, restore |
+| Backup | Automatic backups, download a backup, export the library, restore |
 | Advanced | Regenerate Thumbnails, Generate Missing Thumbnails, System Report |
 | About | Version, update check, license |
 
@@ -152,7 +152,8 @@ AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to
 
 - The database, thumbnails and settings live in the container's data folder (`/root/.config/justtprint`); mount it as a volume so it survives updates.
 - A backup copy (`backup_justtprint.db`) is written every time the server stops.
-- **Settings → Backup** downloads a backup or restores one. Keep a backup before removing the container or its data volume.
+- **Settings → Backup → Automatic Backups** copies the database on a schedule (every day unless you change it) and keeps the newest copies (7 unless you change it). They go to `backups` in the data folder, or to a folder you choose with **Browse…**; a folder on another disk also protects against a disk failure. Each backup in the list can be downloaded or restored.
+- **Settings → Backup** also downloads a backup by hand or restores one from a file. Keep a backup before removing the container or its data volume.
 
 ## Tips
 

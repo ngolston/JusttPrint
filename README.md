@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 5.1.0**
+**Version 5.2.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -22,7 +22,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama
 - **MCP server** so AI agents can search and update your library
 - **Send to Slicer** from the preview, through a small helper on your computer
-- **Backup and restore** of the library database from the browser
+- **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
 
 See [GUIDE.md](GUIDE.md) for how to use each feature and [CHANGELOG.md](CHANGELOG.md) for what changed.
@@ -120,6 +120,10 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_AI_API_KEY` | API key for that service (never written to the log). |
 | `JUSTTPRINT_AI_MODEL` | AI model name, for example `gpt-5-nano`. |
 | `JUSTTPRINT_AI_ENDPOINT` | Server address for `custom`, for example a local Ollama server. |
+| `JUSTTPRINT_AUTO_BACKUP` | `true` or `false`: back up the database automatically (off by default). |
+| `JUSTTPRINT_BACKUP_INTERVAL_HOURS` | Hours between automatic backups (default `24`). |
+| `JUSTTPRINT_BACKUP_KEEP` | How many automatic backups to keep (default `7`). |
+| `JUSTTPRINT_BACKUP_DIR` | Folder for automatic backups, as a container path, for example `/backups` (mount a volume there). Default: `backups` in the data folder. |
 | `JUSTTPRINT_PORT` | Port inside the container (default `5000`). Change the `ports` line to match. |
 | `JUSTTPRINT_ALLOWED_ORIGINS` | Your public address when behind a reverse proxy, for example `https://library.example.com`. |
 | `JUSTTPRINT_TRUST_PROXY` | Number of reverse proxies in front (usually `1`). Leave unset without a proxy. |
@@ -127,7 +131,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_MAX_OLD_SPACE_MB` | Raise if the log shows `OOM error in V8`. |
 | `JUSTTPRINT_TLS_CERT` / `_KEY` / `_CA` | Certificate files for HTTPS. Easier: **Settings → Server → HTTPS / SSL**. |
 
-`JUSTTPRINT_PASSWORD`, the scan settings and the AI settings win over the app's settings on every start. `STL_HOME`, `STL_HOME_EXCLUDE` and `JUSTTPRINT_PORT` only fill an empty setting, so changes made in the app are kept (set `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1` to apply them every start).
+`JUSTTPRINT_PASSWORD`, the scan settings, the AI settings and the backup settings win over the app's settings on every start. `STL_HOME`, `STL_HOME_EXCLUDE` and `JUSTTPRINT_PORT` only fill an empty setting, so changes made in the app are kept (set `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1` to apply them every start).
 
 ## Using the Web App
 
@@ -214,7 +218,7 @@ Run these in the folder with `docker-compose.yml`:
 
 With Docker Run, update by pulling the image (`docker pull ace2123/justtprint:latest`), removing the container (`docker rm -f justtprint-server`) and running the same `docker run` command again. Your library is safe in `./data`.
 
-**Backups:** use **Settings → Backup → Backup and Restore** in the app, or copy the `./data` folder while the container is stopped.
+**Backups:** turn on **Automatic Backups** under **Settings → Backup**: the server copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there, or copy the `./data` folder while the container is stopped.
 
 ## Upgrading to 5.0
 
