@@ -32,7 +32,7 @@ const {
 } = require('./http');
 const thumbnailWorker = require('./thumbnail-worker');
 const { scheduleBackgroundThumbnailCompression } = require('./thumbnail-compression');
-const { startServerStlHomeScans } = require('./stl-home');
+const { startServerStlHomeScans, startWatching, stopWatching } = require('./stl-home');
 const autoBackup = require('./auto-backup');
 const { scheduleBackgroundHashGeneration } = require('./ipc/hashes');
 const { requestThumbnailJobCancel } = require('./ipc/thumbnails');
@@ -48,6 +48,7 @@ function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
   autoBackup.stop();
+  stopWatching();
   thumbnailWorker.stop();
   try {
     requestThumbnailJobCancel();
@@ -141,6 +142,7 @@ async function start() {
     sessionToken: () => getServerAuth().issueSessionToken()
   });
   startServerStlHomeScans();
+  startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });
   scheduleBackgroundHashGeneration('startup');
   scheduleBackgroundThumbnailCompression('startup');

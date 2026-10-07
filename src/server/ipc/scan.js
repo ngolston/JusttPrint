@@ -279,7 +279,13 @@ function stlHomeExcludeDirectoriesForScan(directoryPath, options) {
   return [];
 }
 
-// Update the scan-directory handler to use a more efficient scanning process
+/**
+ * Scan a folder: index new and changed models, drop the ones whose files are gone.
+ * options.isStlHomeScan: apply STL Home exclusions and folder-name metadata.
+ * options.scanRoot: the STL Home folder that `directoryPath` is inside (folder watching scans
+ *   only a changed subfolder): relative exclusions and folder levels count from it.
+ * options.rememberDirectory: false keeps the folder out of the scanned-directories list.
+ */
 async function scanDirectoryHandler(event, directoryPath, options = {}) {
   try {
     // Validate UNC path in server mode
@@ -289,9 +295,12 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
       throw new Error(validationError.message);
     }
     
-    rememberScannedDirectory(directoryPath);
+    if (options.rememberDirectory !== false) rememberScannedDirectory(directoryPath);
     const maxFileSize = await getMaxFileSize();
-    const excludeDirectories = stlHomeExcludeDirectoriesForScan(directoryPath, options);
+    const scanRoot = typeof options.scanRoot === 'string' && options.scanRoot ? options.scanRoot : directoryPath;
+    // Relative exclusions are relative to the STL Home folder, not to a subfolder being scanned.
+    const excludeDirectories = stlHomeExcludeDirectoriesForScan(directoryPath, options)
+      .map((entry) => (path.isAbsolute(entry) ? entry : path.resolve(scanRoot, entry)));
     
     // Read enableZipArchives and scanAdditionalFileTypes from database
     const zipSetting = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives');
@@ -451,7 +460,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
             // STL Home scan with path metadata: set designer/parent from folder segments (from model level up) when enabled
             if (options.isStlHomeScan && Array.isArray(allFilePaths) && allFilePaths.length > 0) {
               try {
-                applyPathMetadataFromSegments(directoryPath, allFilePaths);
+                applyPathMetadataFromSegments(scanRoot, allFilePaths);
               } catch (pathMetaErr) {
                 console.error('Path metadata from folder (STL Home):', pathMetaErr);
               }
@@ -578,4 +587,4 @@ function applyFolderTagsToNewScanFiles(filePaths) {
   return result;
 }
 
-module.exports = { scanDirectoryHandler };
+module.exports = { scanDirectoryHandler, readStlHomeExcludeDirectories };

@@ -186,6 +186,23 @@ async function apiChecks(base, wsUrl) {
     return stats.result && stats.result.totalModels === 4 ? 4 : null;
   }, 60000, 'STL Home scan').catch((error) => error.message);
   check('startup scan found the 4 fixture models', scanned === 4, scanned);
+  // Folder watching (src/server/folder-watch.js): a file added to STL Home appears without a scan, a deleted one goes.
+  const ctxCookie = () => ({ cookie: http.cookie(), origin: base });
+  const watchStatus = (await invoke(base, ctxCookie(), 'get-folder-watch-status')).result || {};
+  check('STL Home folders are watched', watchStatus.enabled === true && watchStatus.roots?.some((root) => root.path === LIBRARY && root.folders >= 4 && !root.error),
+    JSON.stringify(watchStatus));
+  const watchedDir = path.join(LIBRARY, 'Designer B', 'Watched Drop');
+  const watchedFile = path.join(watchedDir, 'dropped.stl');
+  fs.mkdirSync(watchedDir);
+  fs.copyFileSync(cube, watchedFile);
+  const hasModel = async (p) => ((await invoke(base, ctxCookie(), 'get-all-models')).result || []).some((m) => m.filePath === p);
+  const appeared = await waitFor(async () => ((await hasModel(watchedFile)) ? true : null), 30000, 'watched file').catch(() => false);
+  check('a model copied into a new STL Home folder appears without a scan', appeared === true);
+  fs.rmSync(watchedDir, { recursive: true });
+  const gone = await waitFor(async () => (!(await hasModel(watchedFile)) ? true : null), 30000, 'deleted watched file').catch(() => false);
+  check('a deleted model leaves the library without a scan', gone === true && ((await invoke(base, ctxCookie(), 'get-stats')).result || {}).totalModels === 4);
+  check('a watched subfolder is not added to the scanned folders',
+    !JSON.stringify((await invoke(base, ctxCookie(), 'get-setting', ['scannedDirectories'])).result || '').includes('Designer B'));
   check('home after login', (await http.request('/')).status === 200);
   check('web asset served', (await http.request('/page-init.js')).status === 200);
   for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {

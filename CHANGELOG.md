@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.3.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Folder watching starts on its own for your STL Home folders; turn it off under **Settings → Scanning → STL Home** or with `JUSTTPRINT_WATCH_FOLDERS=false`. A very large library on an older Linux host can run out of folder watches: the STL Home page then says so, and raising `fs.inotify.max_user_watches` on the host fixes it. Reload open browser tabs after the update.
+
+**Changes:**
+- **Folder watching:** JusttPrint now watches the STL Home folders. Models you copy in show up within seconds (with thumbnails), and deleted ones leave the library, without waiting for the next scan or pressing **Scan Library**. It waits until a copy has finished, rescans only the folders that changed, and skips hidden and excluded folders. On by default; switch it off under **Settings → Scanning → STL Home** or with `JUSTTPRINT_WATCH_FOLDERS=false`. Network shares (SMB/NFS) and Docker Desktop on Mac or Windows may not report changes; the timed STL Home scan still covers them. The STL Home page shows how many folders are watched, or why watching failed.
+
 ## [5.2.0] - 2026-10-07
 
 **Upgrading:** no changes needed; automatic backups stay off until you switch them on under **Settings → Backup**. To keep backups on another disk, mount a folder there (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Reload open browser tabs after the update.

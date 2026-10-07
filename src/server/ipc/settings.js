@@ -42,6 +42,8 @@ const saveSettingHandler = async (event, key, value) => {
     // Log the key only: values can be API keys.
     database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
     console.log('Saved setting:', key);
+    // STL Home folders, exclusions or the watch switch changed: restart folder watching.
+    require('../stl-home').settingChanged(key);
     return true;
   } catch (error) {
     console.error('Error saving setting:', error);
@@ -50,3 +52,6 @@ const saveSettingHandler = async (event, key, value) => {
 };
 
 ipcMain.handle('save-setting', saveSettingHandler);
+
+// Folder watching for STL Home (src/server/stl-home.js): on or off, and what is watched.
+ipcMain.handle('get-folder-watch-status', async () => require('../stl-home').watchStatus());

@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 5.2.0**
+**Version 5.3.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -112,6 +112,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_PASSWORD` | Login password. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
 | `STL_HOME` | Folders to scan automatically, as container paths. Several: `/mnt/models,/mnt/archive`. |
 | `STL_HOME_EXCLUDE` | Folders inside STL Home to skip, for example `/mnt/models/cache`. |
+| `JUSTTPRINT_WATCH_FOLDERS` | `true` or `false`: watch the STL Home folders for changes (default on). |
 | `PUID` / `PGID` | User and group the app runs as. Match the owner of your models folder (`id -u` and `id -g`; Synology is often `1026`/`100`). Default `1000`/`1000`. |
 | `JUSTTPRINT_ENABLE_ZIP` | `true` or `false`: also scan models inside ZIP files. |
 | `JUSTTPRINT_FILE_TYPES` | Extra file types to scan, for example `obj,step,ply,gcode`. |
@@ -138,7 +139,7 @@ All are optional. You can change most of these later under **Settings** in the a
 The sidebar holds every page: **Home**, **Library**, **Queue**, **Printers**, **Filament**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
 
 - **Log in** with your password. Browsers stay logged in for 30 days. Change the password under **Settings → Authentication → Server Access** (this logs out every browser).
-- **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). New files then show up on their own, and **Scan Library** in the sidebar scans them right away. Remove every folder to stop automatic scans.
+- **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
 - **HTTPS**: open **Settings → Server → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
 - **Send to Slicer**: install the helper on your computer from **Settings → Slicer → Slicers**.
@@ -190,6 +191,8 @@ sudo mount -t cifs //server/share /mnt/share -o username=user,password=pass,uid=
 ```
 
 Then set `STL_HOME=/mnt/share/models` (or add it under **Settings → STL Home**). Windows paths like `Z:\models` or `\\server\share` do not work inside JusttPrint.
+
+A network share does not tell the container when files change, so folder watching cannot see changes made from other computers. The timed STL Home scan picks them up instead; lower **Update Frequency** under **Settings → Scanning → STL Home** if you want them sooner.
 
 ## NVIDIA GPU (optional)
 
