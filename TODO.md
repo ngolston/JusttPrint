@@ -140,7 +140,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.
-- [ ] **Build the Docker image in CI and smoke-test it**: start it, log in, scan a fixture library, load the web UI.
+- [x] **Build the Docker image in CI and smoke-test it**: [scripts/docker-smoke.js](scripts/docker-smoke.js) (`npm run test:docker`, and the `docker` job in [.github/workflows/tests.yml](.github/workflows/tests.yml)) starts the image with the fixture library and checks health, PUID, login, the STL Home scan, the web UI, server-side thumbnails and a clean `docker stop`.
 - [x] **Add end-to-end tests that drive the web UI.** `npm run test:e2e` starts the server on plain Node with `tests/fixtures/library` and runs 53 checks (API, security, path guard, MCP, backup, trash, and the browser UI).
 - [ ] **Run `npm run test:e2e` against the built Docker image too** (same checks, server in the container).
 - [ ] **Rebuild the performance checks on the e2e harness**: large-grid scrolling and 3MF preview stress. The old scripts predated the login and were removed.

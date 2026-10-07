@@ -20,6 +20,7 @@
     "build:web": "tsc -p src/web && vite build",
     "dev:web": "vite build --watch --mode development",
     "test:e2e": "npm run build:web && node tests/e2e/run.js",
+    "test:docker": "node scripts/docker-smoke.js",
     "test:bundle": "node tests/bundle-keys.test.js",
     "test:print-events": "node tests/print-events.test.js",
     "test:printers": "node tests/printer-manager.test.js",

@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Changes:**
+- CI now builds the Docker image on every push and smoke-tests it the way it is run: it must report healthy, run as `PUID`/`PGID`, accept the password, scan the mounted library, serve the web UI, render thumbnails in its own Chromium with no browser open, and close the database on `docker stop`. Run it locally with `npm run test:docker` (needs Docker). The app itself is unchanged.
+
 ## [5.3.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Folder watching starts on its own for your STL Home folders; turn it off under **Settings → Scanning → STL Home** or with `JUSTTPRINT_WATCH_FOLDERS=false`. A very large library on an older Linux host can run out of folder watches: the STL Home page then says so, and raising `fs.inotify.max_user_watches` on the host fixes it. Reload open browser tabs after the update.
