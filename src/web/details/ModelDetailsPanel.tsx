@@ -10,6 +10,7 @@ import { formatFileSize } from '../library/paths';
 import { exposeGlobal, onServerEvent } from '../page';
 import { useAdopt } from '../shell/adopt';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
+import { useCan } from '../session';
 
 /** The model the panel shows, as get-model returns it (with its images). */
 export interface PanelModel extends GridModel {
@@ -59,10 +60,13 @@ async function saveCardField(filePath: string, field: 'favorite' | 'rating', val
   return !!ok;
 }
 
-function Rating({ model, onSaved }: { model: PanelModel; onSaved: (rating: number) => void }) {
+function Rating({ model, readOnly, onSaved }: { model: PanelModel; readOnly?: boolean; onSaved: (rating: number) => void }) {
   const [hover, setHover] = useState<number | null>(null);
   const rating = normalizeRating(model.rating);
   const shown = hover ?? rating;
+  if (readOnly) {
+    return <span className="jp-rating" role="img" aria-label={rating ? `Rated ${rating} of 5` : 'Not rated'}>{[1, 2, 3, 4, 5].map((star) => <span key={star} className={cx('jp-rating__star', star <= rating && 'is-filled')} aria-hidden="true">{star <= rating ? '★' : '☆'}</span>)}</span>;
+  }
   return (
     <span className="jp-rating" role="radiogroup" aria-label="Rating">
       {[1, 2, 3, 4, 5].map((star) => (
@@ -114,6 +118,7 @@ function SlicerButton({ filePath, slicers }: { filePath: string; slicers: Slicer
  */
 export function ModelDetailsPanel() {
   const [slot] = useState(() => document.getElementById('details-hero-slot'));
+  const canEdit = useCan('editor');
   const [model, setModel] = useState<PanelModel | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [slicers, setSlicers] = useState<Slicer[]>([]);
@@ -174,6 +179,7 @@ export function ModelDetailsPanel() {
 
   if (!slot) return null;
   const images = panelImages(model);
+  // Viewers read; the favorite, rating and Log Print are for editors and admins.
   const shown = images[imageIndex < images.length ? imageIndex : 0];
   const favorite = !!model?.favorite;
   const designer = typeof model?.designer === 'string' ? model.designer.trim() : '';
@@ -187,13 +193,13 @@ export function ModelDetailsPanel() {
           <img src={shown} alt="" draggable={false} />
         </button>
         <div className="jp-details__preview-actions">
-          <button type="button" className={cx('jp-details__overlay-btn', favorite && 'is-favorited')} aria-pressed={favorite}
+          {canEdit && <button type="button" className={cx('jp-details__overlay-btn', favorite && 'is-favorited')} aria-pressed={favorite}
             aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
             onClick={async () => {
               if (model && await saveCardField(model.filePath, 'favorite', !favorite)) setModel({ ...model, favorite: !favorite });
             }}>
             <Heart size={18} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
-          </button>
+          </button>}
           <button type="button" className="jp-details__overlay-btn" aria-label="More actions" title="More actions" aria-haspopup="menu"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
@@ -229,11 +235,11 @@ export function ModelDetailsPanel() {
 
       <div className="jp-details__actions">
         <SlicerButton filePath={filePath} slicers={slicers} />
-        <button type="button" id="jp-details-log-print" className="jp-btn jp-btn--secondary jp-btn--lg"
+        {canEdit && <button type="button" id="jp-details-log-print" className="jp-btn jp-btn--secondary jp-btn--lg"
           onClick={() => { if (filePath) void window.PrintHistory?.openLogDialog({ filePaths: [filePath] }); }}>
           <ClipboardPen size={18} aria-hidden="true" />
           <span>Log Print</span>
-        </button>
+        </button>}
       </div>
 
       <section className="jp-details__section">
@@ -249,7 +255,7 @@ export function ModelDetailsPanel() {
             <div className="jp-prop__value" ref={setPathHost} />
           </div>
           <Prop label="Added">{formatAdded(model?.dateAdded) || '—'}</Prop>
-          <Prop label="Rating">{model && <Rating model={model} onSaved={(rating) => setModel({ ...model, rating })} />}</Prop>
+          <Prop label="Rating">{model && <Rating model={model} readOnly={!canEdit} onSaved={(rating) => setModel({ ...model, rating })} />}</Prop>
         </div>
       </section>
 

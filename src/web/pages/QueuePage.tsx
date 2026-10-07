@@ -14,6 +14,7 @@ import { selection } from '../selection';
 import { fetchPrimaryThumbnail } from '../thumbnails/cache';
 import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
+import { EditOnly } from '../components/EditOnly';
 
 const LIMIT = 200;
 const loadPrinting = () => callAction<GridModel[]>('get-models-filtered', { printed: 'printing', sortOption: 'name-asc', limit: LIMIT });
@@ -123,9 +124,9 @@ export function QueuePage() {
                 status={<StatusBadge tone="accent">Printing</StatusBadge>}
                 actions={(
                   <>
-                    <Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(model.filePath)}>Log Print</Button>
-                    <IconButton size="sm" icon={Undo2} label="Back to the queue" disabled={busy === model.filePath}
-                      onClick={() => run(model.filePath, 'queued')} />
+                    <EditOnly><Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(model.filePath)}>Log Print</Button></EditOnly>
+                    <EditOnly><IconButton size="sm" icon={Undo2} label="Back to the queue" disabled={busy === model.filePath}
+                      onClick={() => run(model.filePath, 'queued')} /></EditOnly>
                   </>
                 )} />
             ))}
@@ -146,11 +147,11 @@ export function QueuePage() {
                 lead={<span className="jp-queue__index" aria-hidden="true">{index + 1}</span>}
                 status={<StatusBadge tone="warning" icon={Clock}>In Queue</StatusBadge>}
                 actions={(
-                  <>
+                  <EditOnly>
                     <Button size="sm" icon={Play} disabled={busy === model.filePath} onClick={() => run(model.filePath, 'printing')}>Start</Button>
                     <IconButton size="sm" icon={X} label="Remove from the queue" disabled={busy === model.filePath}
                       onClick={() => run(model.filePath, 'unprinted')} />
-                  </>
+                  </EditOnly>
                 )} />
             ))}
           </ol>
@@ -166,8 +167,8 @@ export function QueuePage() {
               <Row key={event.id} filePath={event.filePath} name={cardTitle({ filePath: event.filePath, fileName: event.fileName })}
                 meta={[timeAgo(event.at), event.printer, event.filaments[0]].filter(Boolean).join(' • ')}
                 status={<StatusBadge tone="success">{event.quantity > 1 ? `Printed ×${event.quantity}` : 'Printed'}</StatusBadge>}
-                actions={<IconButton size="sm" icon={RotateCcw} label="Queue it again" disabled={busy === event.filePath}
-                  onClick={() => run(event.filePath, 'queued')} />} />
+                actions={<EditOnly><IconButton size="sm" icon={RotateCcw} label="Queue it again" disabled={busy === event.filePath}
+                  onClick={() => run(event.filePath, 'queued')} /></EditOnly>} />
             ))}
           </ul>
         )}

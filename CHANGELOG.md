@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.4.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Every user starts with the layout and color scheme the server had; from now on, changing them changes them for that user only. Reload open browser tabs after the update.
+
+**Changes:**
+- **Your own display preferences:** grid or list view, sort order, list columns, panel widths, the folder panel and recent folders, tile size, the De-Dup preferred folder and the color scheme are now kept per user. Until someone changes one, they get the server's value, which stays as the default for new users. The thumbnail colors and lighting stay the same for everyone (admins change them), and the API token and MCP use the server's values.
+- **Settings → Appearance → Theme** is open to every user for their own color scheme; only admins can change the thumbnail colors and lighting there.
+- **Viewers see no edit controls:** the details panel shows designer, parent model, license, source, tags, filament, notes, rating and print status without ways to change them, and without Log Print or the favorite button; the Queue, Printers, Filament, Home and archive details hide their edit buttons, and Multi-Edit Mode is hidden. The server already refused these edits; now they are not offered.
+- Each new user sees the welcome and the Quick Start Guide once, on their first login.
+- A deleted user's preferences are deleted with the account.
+
 ## [6.3.0] - 2026-10-07
 
 **Upgrading:** no changes needed. To upload files of 5 or 10 GB, set `JUSTTPRINT_MAX_UPLOAD_MB` (for example `10240`) and raise the scan limit under **Settings → General → Performance** (50 MB unless changed), or big models are saved but not added to the library. Behind nginx, `client_max_body_size 32m;` is now enough for any file size. Reload open browser tabs after the update.

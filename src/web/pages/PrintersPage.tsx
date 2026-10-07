@@ -14,6 +14,7 @@ import { askText, showMessage } from '../page';
 import { selection } from '../selection';
 import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
+import { EditOnly } from '../components/EditOnly';
 
 const loadPrinters = () => printerApi.list();
 
@@ -142,9 +143,11 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
             <ExternalLink size={16} aria-hidden="true" /><span>Open Web UI</span>
           </a>
         )}
+        <EditOnly>
         <Button icon={Pencil} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, action: 'edit' })}>Edit</Button>
         <Button icon={Wrench} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>Maintenance</Button>
         <Button variant="ghost" icon={Trash2} onClick={remove} aria-label={`Delete ${printer.nickname}`}>Delete</Button>
+        </EditOnly>
       </div>
 
       <section className="jp-printer-detail__section">
@@ -180,7 +183,7 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
                         </span>
                       </span>
                       {overdue && <StatusBadge tone="warning">Due</StatusBadge>}
-                      <Button size="sm" icon={CheckCircle2} onClick={() => complete(reminder)}>Done</Button>
+                      <EditOnly><Button size="sm" icon={CheckCircle2} onClick={() => complete(reminder)}>Done</Button></EditOnly>
                     </li>
                   );
                 })}
@@ -257,15 +260,17 @@ export function PrintersPage({ section }: { section: string }) {
           </p>
         </div>
         <div className="jp-printers__header-actions">
+          <EditOnly>
           <Button icon={Package} onClick={() => window.openPartsStock?.()}>Parts</Button>
           <Button variant="primary" icon={Plus} onClick={add} id="jp-add-printer">Add Printer</Button>
+          </EditOnly>
         </div>
       </header>
       {!list ? (
         <div className="jp-home__skeleton"><Skeleton height={88} /><Skeleton height={88} /></div>
       ) : !list.length ? (
         <Panel>
-          <EmptyState icon={PrinterIcon} title="No printers yet" action={<Button variant="primary" icon={Plus} onClick={add}>Add Printer</Button>}>
+          <EmptyState icon={PrinterIcon} title="No printers yet" action={<EditOnly><Button variant="primary" icon={Plus} onClick={add}>Add Printer</Button></EditOnly>}>
             Add your printers to keep their web pages, maintenance reminders and print history together.
           </EmptyState>
         </Panel>

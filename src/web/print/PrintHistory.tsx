@@ -5,6 +5,7 @@ import {
   type Filament, type Part, type PrintEvent, type Printer
 } from '../api';
 import { exposeGlobal, showMessage } from '../page';
+import { getCurrentUser, roleAllows, useCan } from '../session';
 import {
   OUTCOME_LABELS, STATUSES, STATUS_LABELS, badgeClassNames, badgeText, badgeTitle, bundleSummary, colorCss,
   detailsHint, effectiveStatus, filamentLabel, filterLabel, formatPrintDate, friendlyError, modelMatchesPrintFilter,
@@ -62,6 +63,7 @@ async function setStatusForPaths(filePaths: string[], status: string) {
 }
 
 async function openLogDialog({ filePaths }: { filePaths?: string[] } = {}) {
+  if (!roleAllows(getCurrentUser()?.role, 'editor')) return;
   const paths = (filePaths || []).filter(Boolean);
   if (paths.length) await openLogDialogImpl?.(paths);
 }
@@ -324,7 +326,8 @@ function StatusMenu() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const open = (anchor: HTMLElement, filePath: string) => setMenu({ anchor, filePath });
+    // Viewers cannot change the print status.
+    const open = (anchor: HTMLElement, filePath: string) => { if (roleAllows(getCurrentUser()?.role, 'editor')) setMenu({ anchor, filePath }); };
     openStatusMenuImpl = open;
     return () => { if (openStatusMenuImpl === open) openStatusMenuImpl = null; };
   }, []);
@@ -362,7 +365,7 @@ const LOG_PRINT_ICON = (
   </svg>
 );
 
-function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete: () => void }) {
+function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => void }) {
   const filaments = (event.filaments || []).map(labelOf).join(', ');
   const parts = (event.parts || []).map((part) => `${part.name || 'Part'} ×${Number(part.quantity) || 0}`).join(', ');
   const printerName = event.printer_nickname || event.printer_name;
@@ -382,8 +385,8 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete: () => v
       {filaments && <div className="print-history-filaments">{filaments}</div>}
       {parts && <div className="print-history-parts">{parts}</div>}
       {event.notes && <div className="print-history-notes">{event.notes}</div>}
-      <button type="button" className="print-history-delete icon-button" title="Delete this log entry" aria-label="Delete print log"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}>×</button>
+      {onDelete && <button type="button" className="print-history-delete icon-button" title="Delete this log entry" aria-label="Delete print log"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}>×</button>}
     </li>
   );
 }
@@ -395,6 +398,7 @@ type HistoryState = { model: PrintDetailsModel; events: PrintEvent[] | null; fai
  * rendered into #details-print-slot and #details-history-slot. Registers window.detailsPrint.
  */
 function DetailsPrint() {
+  const canEdit = useCan('editor');
   const [statusSlot] = useState(() => document.getElementById('details-print-slot'));
   const [historySlot] = useState(() => document.getElementById('details-history-slot'));
   const [model, setModel] = useState<PrintDetailsModel | null>(null);
@@ -453,7 +457,7 @@ function DetailsPrint() {
   } else if (shown?.events && !shown.events.length) {
     historyItems = <li className="print-history-empty">{effectiveStatus(shown.model) === 'printed' ? 'No logged prints yet' : 'No print history yet'}</li>;
   } else if (shown?.events) {
-    historyItems = shown.events.map((event) => <HistoryItem key={event.id} event={event} onDelete={() => deleteEvent(event)} />);
+    historyItems = shown.events.map((event) => <HistoryItem key={event.id} event={event} onDelete={canEdit ? () => deleteEvent(event) : undefined} />);
   }
 
   return (
@@ -462,15 +466,15 @@ function DetailsPrint() {
         <div className="form-group print-lifecycle-group">
           <label htmlFor="model-print-status">Print status</label>
           <div className="print-lifecycle-controls">
-            <select id="model-print-status" value={status} onChange={(e) => {
+            <select id="model-print-status" value={status} disabled={!canEdit} onChange={(e) => {
               const filePath = window.getCurrentModelFilePath?.();
               setStatus(e.target.value);
               if (filePath && e.target.value) setStatusForPaths([filePath], e.target.value);
             }}>
               {STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}
             </select>
-            <button type="button" id="log-print-button" className="icon-button log-print-icon-button" title="Log a print"
-              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>
+            {canEdit && <button type="button" id="log-print-button" className="icon-button log-print-icon-button" title="Log a print"
+              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>}
           </div>
           <p id="print-history-hint" className="print-history-hint">{model ? detailsHint(model) : ''}</p>
         </div>,
@@ -480,8 +484,8 @@ function DetailsPrint() {
         <div className="form-group print-history-group">
           <div className="print-history-label-row">
             <label>Print history</label>
-            <button type="button" id="log-print-history-button" className="icon-button log-print-icon-button" title="Log a print"
-              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>
+            {canEdit && <button type="button" id="log-print-history-button" className="icon-button log-print-icon-button" title="Log a print"
+              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>}
           </div>
           <ul id="print-history-list" className="print-history-list" aria-label="Print history">{historyItems}</ul>
         </div>,

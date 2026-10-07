@@ -20,6 +20,7 @@ import { selection } from '../selection';
 import { useLibraryData } from '../shell/libraryData';
 import { NAV } from '../shell/nav';
 import { navigate } from '../shell/routes';
+import { EditOnly } from '../components/EditOnly';
 
 const loadActivity = () => library.activity(8);
 const loadPrinters = () => printerApi.list();
@@ -218,7 +219,7 @@ function RecentActivity({ activity }: { activity: ActivityItem[] | null }) {
       {!activity ? (
         <div className="jp-home__skeleton"><Skeleton height={36} /><Skeleton height={36} /><Skeleton height={36} /></div>
       ) : !activity.length ? (
-        <EmptyState icon={Library} title="Nothing yet" action={<Button icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button>}>
+        <EmptyState icon={Library} title="Nothing yet" action={<EditOnly><Button icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button></EditOnly>}>
           Scanned models and logged prints show up here.
         </EmptyState>
       ) : (
@@ -261,7 +262,7 @@ function YourPrinters({ list }: { list: Printer[] | null }) {
       {!list ? (
         <div className="jp-home__skeleton"><Skeleton height={36} /><Skeleton height={36} /><Skeleton height={36} /></div>
       ) : !list.length ? (
-        <EmptyState icon={PrinterIcon} title="No printers yet" action={<Button icon={PrinterIcon} onClick={() => window.openPrinterManagement?.({ action: 'add' })}>Add a Printer</Button>}>
+        <EmptyState icon={PrinterIcon} title="No printers yet" action={<EditOnly><Button icon={PrinterIcon} onClick={() => window.openPrinterManagement?.({ action: 'add' })}>Add a Printer</Button></EditOnly>}>
           Add your printers to keep their web pages and maintenance in one place.
         </EmptyState>
       ) : (
@@ -336,7 +337,7 @@ function RecentModels() {
       </header>
       {!recent ? <div className="jp-home__skeleton"><Skeleton height={200} /></div> : !recent.length ? (
         <Panel>
-          <EmptyState icon={Library} title="Your library is empty" action={<Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button>}>
+          <EmptyState icon={Library} title="Your library is empty" action={<EditOnly><Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button></EditOnly>}>
             Scan your model folders (STL Home) to fill the library.
           </EmptyState>
         </Panel>

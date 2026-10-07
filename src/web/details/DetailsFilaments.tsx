@@ -6,6 +6,7 @@ import { colorCss, filamentLabel, type FilamentLike } from '../print/printStatus
 import { addFilament } from '../components/AddFilamentDialog';
 import { pickFromList } from '../components/ListPicker';
 import { navigate } from '../shell/routes';
+import { useCan } from '../session';
 
 /** The model the details panel shows (only the fields this section reads). */
 interface FilamentsModel {
@@ -37,6 +38,7 @@ const byLabel = (a: FilamentLike, b: FilamentLike) => label(a).localeCompare(lab
  * Each change saves at once. Registers window.detailsFilaments.
  */
 export function DetailsFilaments() {
+  const canEdit = useCan('editor');
   const [slot] = useState(() => document.getElementById('details-filaments-slot'));
   const [filePath, setFilePath] = useState<string | null>(null);
   const [assigned, setAssigned] = useState<FilamentLike[]>([]);
@@ -97,7 +99,7 @@ export function DetailsFilaments() {
     <div className="form-group">
       <label>Filament:</label>
       <div className="tags-container">
-        <div className="tags-input-container">
+        {canEdit && <div className="tags-input-container">
           <select id="filament-select" aria-label="Add a filament" value="" onChange={(e) => add(Number(e.target.value))}>
             <option value="">Select a filament...</option>
             {available.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
@@ -105,13 +107,14 @@ export function DetailsFilaments() {
           <button type="button" className="list-button icon-button" title="Search existing filaments" onClick={pickFilament}>☰</button>
           <button type="button" id="add-filament-button" className="icon-button" title="Add a new filament to the catalog and to this model"
             onClick={async () => { const created = await addFilament(); if (created) { await reloadOptions(); await add(created.id, created); } }}>+</button>
-        </div>
+        </div>}
+        {!canEdit && assigned.length === 0 && <span className="jp-meta">None</span>}
         <div id="model-filaments" className="tags-list">
           {assigned.map((f) => (
             <div key={String(f.id)} className="filament-chip" data-filament-id={String(f.id)} title={label(f)}>
               <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
               <span className="filament-chip-text">{label(f)}</span>
-              <span className="filament-chip-remove" role="button" aria-label={`Remove ${label(f)}`} onClick={() => save(assigned.filter((a) => a !== f))}>×</span>
+              {canEdit && <span className="filament-chip-remove" role="button" aria-label={`Remove ${label(f)}`} onClick={() => save(assigned.filter((a) => a !== f))}>×</span>}
               <button type="button" className="filament-chip-open" aria-label="Open the Filament page" title="Open the Filament page"
                 onClick={() => navigate('filament')}>›</button>
             </div>

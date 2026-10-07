@@ -2555,6 +2555,16 @@ async function accountChecks(base, wsUrl, admin) {
   const viewerSocket = await openEvents(wsUrl, { cookie: viewer.cookie, origin: base });
   check('viewers get the event WebSocket', !!viewerSocket.hello);
 
+  // Display preferences are each user's own; the server-wide value is the default.
+  const adminView = (await invoke(base, admin, 'get-setting', ['sortOption'])).result;
+  check('a user saves their own sort order', (await invoke(base, viewer, 'save-setting', ['sortOption', 'name-desc'])).result === true
+    && (await invoke(base, viewer, 'get-setting', ['sortOption'])).result === 'name-desc');
+  check('another user keeps theirs', (await invoke(base, admin, 'get-setting', ['sortOption'])).result === adminView
+    && (await invoke(base, editor, 'get-setting', ['sortOption'])).result !== 'name-desc');
+  check('everyone picks their own color scheme', (await invoke(base, viewer, 'save-setting', ['uiTheme', 'modern-green'])).result === true
+    && (await invoke(base, editor, 'get-setting', ['uiTheme'])).result !== 'modern-green');
+  check('thumbnail colors stay for admins', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['renderColor', '#ff0000'])).error || ''));
+
   console.log('\n# Uploads');
   // A library folder outside the app folder (the e2e library is inside it, and the app folder is never a destination).
   uploadLibrary = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-uploads-'));
@@ -2627,6 +2637,17 @@ async function accountChecks(base, wsUrl, admin) {
       await page.fill('#password', password);
       await page.click('button[type=submit]');
       await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+      // The first-run welcome is per user: each new account sees it once.
+      const welcome = await page.waitForSelector('#welcome-message[open]', { timeout: 5000 }).catch(() => null);
+      if (username !== 'admin') check(`${username} gets the welcome on their first login`, !!welcome);
+      if (welcome) {
+        await page.click('#dismiss-welcome');
+        // Get Started opens the Quick Start Guide; close it too.
+        if (await page.waitForSelector('#quickstart-guide[open]', { timeout: 5000 }).catch(() => null)) {
+          await page.keyboard.press('Escape');
+          await page.waitForSelector('#quickstart-guide[open]', { state: 'detached', timeout: 5000 }).catch(() => {});
+        }
+      }
       return page;
     };
 
@@ -2670,6 +2691,14 @@ async function accountChecks(base, wsUrl, admin) {
     await viewerPage.evaluate(() => { window.location.hash = '#/library'; });
     await viewerPage.waitForTimeout(1500);
     check('viewers have no Upload button', !(await viewerPage.isVisible('#jp-upload-button')));
+    // A viewer's details panel shows the model but offers no edits.
+    await viewerPage.click('.file-grid [data-filepath] .file-name', { timeout: 10000 }).catch(() => {});
+    await viewerPage.waitForSelector('#model-designer', { timeout: 10000 }).catch(() => {});
+    check('a viewer\'s details panel is read-only', await viewerPage.isDisabled('#model-designer')
+      && !(await viewerPage.isVisible('#tag-select')) && !(await viewerPage.isVisible('#open-notes-modal-button'))
+      && !(await viewerPage.isVisible('#jp-details-log-print')) && !(await viewerPage.isVisible('#filament-select'))
+      && await viewerPage.isDisabled('#model-print-status') && !(await viewerPage.isVisible('#edit-mode-toggle')));
+    check('viewers still open models in a slicer from the details', await viewerPage.isVisible('#jp-details-open-slicer'));
     check('viewers see no library tools in the sidebar', !(await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Scan Library")'))
       && await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Statistics")'));
     await viewerPage.evaluate(() => { window.location.hash = '#/organize'; });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { settings } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
+import { useCan } from './session';
 
 declare global {
   interface Window {
@@ -59,6 +60,8 @@ export function ThemeSettingsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [saving, setSaving] = useState(false);
+  // The UI theme is each user's own; the thumbnail colors and lighting are the server's (admins).
+  const isAdmin = useCan('admin');
 
   useEffect(() => exposeGlobal('openThemeSettings', () => {
     (async () => {
@@ -80,18 +83,22 @@ export function ThemeSettingsDialog() {
   async function save() {
     setSaving(true);
     try {
-      const renderChanged = (window.currentRenderColor || DEFAULT_THEME.modelColor) !== theme.modelColor
-        || (window.currentRenderLighting ?? true) !== theme.lighting;
-      await settings.save('modelBackgroundColor', theme.background);
-      await settings.save('renderColor', theme.modelColor);
-      await settings.save('renderLighting', String(theme.lighting));
+      const renderChanged = isAdmin && ((window.currentRenderColor || DEFAULT_THEME.modelColor) !== theme.modelColor
+        || (window.currentRenderLighting ?? true) !== theme.lighting);
+      if (isAdmin) {
+        await settings.save('modelBackgroundColor', theme.background);
+        await settings.save('renderColor', theme.modelColor);
+        await settings.save('renderLighting', String(theme.lighting));
+      }
       await settings.save('uiTheme', theme.uiTheme);
 
-      document.documentElement.style.setProperty('--model-background-color', theme.background);
+      if (isAdmin) document.documentElement.style.setProperty('--model-background-color', theme.background);
       document.body.setAttribute('data-theme', theme.uiTheme);
       window.applyThemeColors?.(theme.uiTheme);
-      window.currentRenderColor = theme.modelColor;
-      window.currentRenderLighting = theme.lighting;
+      if (isAdmin) {
+        window.currentRenderColor = theme.modelColor;
+        window.currentRenderLighting = theme.lighting;
+      }
       dialogRef.current?.close();
 
       if (renderChanged && await showMessage('Regenerate Thumbnails?',
@@ -108,7 +115,7 @@ export function ThemeSettingsDialog() {
   const select = (key: 'uiTheme' | 'background' | 'modelColor', id: string, label: string, options: [string, string][], help: string) => (
     <div className="form-group">
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={theme[key]} onChange={(event) => set(key, event.target.value)}>
+      <select id={id} value={theme[key]} disabled={key !== 'uiTheme' && !isAdmin} onChange={(event) => set(key, event.target.value)}>
         {options.map(([value, name]) => <option key={value} value={value}>{name}</option>)}
       </select>
       <div className="setting-description">{help}</div>
@@ -123,12 +130,13 @@ export function ThemeSettingsDialog() {
           <button type="button" id="cancel-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
         </>
       )}>
-      {select('uiTheme', 'ui-theme', 'UI Theme:', THEMES, 'Change the overall color scheme of the application')}
+      {select('uiTheme', 'ui-theme', 'UI Theme:', THEMES, 'The color scheme of the app, for your account only')}
+      {!isAdmin && <p className="setting-description">The thumbnail colors below are the same for everyone; an admin changes them.</p>}
       {select('background', 'model-background-color', 'Model Background Color:', BACKGROUNDS, 'Background color for 3D model thumbnails')}
       <p className="setting-description theme-render-note">Note: These settings are for STLs and 3MFs without embedded data.</p>
       {select('modelColor', 'render-color', 'Model Color:', MODEL_COLORS, 'Color of the 3D model in thumbnails')}
       <div className="form-group checkbox-container theme-lighting">
-        <input type="checkbox" id="render-lighting" checked={theme.lighting} onChange={(event) => set('lighting', event.target.checked)} />
+        <input type="checkbox" id="render-lighting" checked={theme.lighting} disabled={!isAdmin} onChange={(event) => set('lighting', event.target.checked)} />
         <div>
           <label htmlFor="render-lighting" className="theme-lighting-label">Enable Advanced Lighting</label>
           <div className="setting-description theme-lighting-help">Adds ambient and directional lighting for better depth. Disabling may improve performance on lower-end devices.</div>

@@ -116,7 +116,7 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'performance', label: 'Performance', description: 'File size limit, memory and worker settings.', icon: Gauge, run: menu('Performance'), replaces: ['Performance'], embed: { dialog: 'performance-settings-dialog', open: 'openPerformanceSettings' } }
   ] },
   { id: 'appearance', label: 'Appearance', items: [
-    { id: 'theme', label: 'Theme', description: 'Accent color, model color, lighting and background of previews.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' } }
+    { id: 'theme', label: 'Theme', description: 'Your color scheme; for admins also the model color, lighting and background of thumbnails.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' }, role: 'viewer' }
   ] },
   { id: 'library', label: 'Library', items: [
     { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'], role: 'editor' },
