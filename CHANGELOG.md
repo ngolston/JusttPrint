@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.1.0] - 2026-10-06
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. **Choose Folder** shows the volumes you mount into the container, so mount your models folders as before (see Volumes in the README).
+
+**Changes:**
+- **Choose Folder:** Scan a Folder, the STL Home lists (**Browse…**), the Duplicates preferred directory and Organize's folders open a folder browser instead of asking you to type a path. It starts from the volumes mounted into the container and your library folders, lists subfolders, and still takes a typed or pasted path. System, app and data folders cannot be browsed, the same rule as scanning.
+- The model menu has **Copy Path** (**Copy Paths** for several models).
+- **Fixed:** with JusttPrint open in more than one browser, the model menu acted on all of them: **Download** downloaded the file in every open tab, and **Preview**, **Add Image**, **Manage Thumbnails** and **Generate Tags** opened there too. They now happen only in the browser you clicked in.
+- **Fixed:** the Copy buttons for the API token (Server Access) and the MCP address did nothing over plain `http://` on a LAN address; they now copy there too.
+- Removed the unused typed-path folder and file dialogs from the server.
+
 ## [5.0.4] - 2026-10-06
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.

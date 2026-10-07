@@ -72,6 +72,37 @@ export async function askText(title: string, message: string, defaultValue = '')
   return window.prompt(`${title}\n\n${message}`, defaultValue);
 }
 
+/**
+ * Copy text to the clipboard. Over plain http on a LAN address the browser has no Clipboard API
+ * (it needs https or localhost), so this falls back to copying from a hidden text field.
+ * Resolves to false when neither works.
+ */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall back below */ }
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  Object.assign(field.style, { position: 'fixed', top: '0', left: '0', opacity: '0', pointerEvents: 'none' });
+  const previous = document.activeElement as HTMLElement | null;
+  document.body.appendChild(field);
+  field.focus();
+  field.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  }
+  field.remove();
+  previous?.focus?.();
+  return copied;
+}
+
 export async function refreshTagRelatedUi(): Promise<void> {
   await window.refreshTagRelatedUi?.();
 }

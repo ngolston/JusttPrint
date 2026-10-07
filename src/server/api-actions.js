@@ -30,8 +30,7 @@ const ACTIONS = {
   // Scanning and library folders
   'load-directory': [],
   'save-directory': ['string'],
-  'open-file-dialog': [],
-  'open-folder-dialog': ['any?'],
+  'browse-folders': ['string?'],
   'scan-directory': ['string', 'object?'],
 
   // Files

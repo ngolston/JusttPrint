@@ -9,7 +9,8 @@ import { useSyncExternalStore } from 'react';
 import { callAction, settings } from '../api';
 import { runSearch } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { askText, onServerEvent, showMessage } from '../page';
+import { onServerEvent, showMessage } from '../page';
+import { pickFolder } from '../components/FolderPicker';
 import { invalidateThumbnail } from '../thumbnails/cache';
 import { startThumbnailJob } from '../thumbnails/jobs';
 import { stlHomeDirectories } from './stlHome';
@@ -115,12 +116,11 @@ export async function scanFolders(dirs: string[], options: { stlHome?: boolean }
   await skippedNotice(skipped);
 }
 
-/** Scan Directory: ask for a folder inside the container (starting from the first STL Home). */
+/** Scan Directory: choose a folder on the server (starting from the first STL Home). */
 export async function scanDirectory() {
   if (progress) return;
   const homes = await stlHomeDirectories();
-  const entered = await askText('Scan Directory', 'Folder to scan (a path inside the container, for example /models):', homes[0] || '');
-  const dir = entered?.trim();
+  const dir = (await pickFolder({ title: 'Scan Directory', initial: homes[0], confirmLabel: 'Scan This Folder' }))?.trim();
   if (!dir) return;
   await callAction('save-directory', dir).catch(() => {});
   filterActions.clearAll();

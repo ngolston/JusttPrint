@@ -21,6 +21,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const WORK = path.join(__dirname, '.work');
 const LIBRARY = path.join(WORK, 'library');
 const DATA = path.join(WORK, 'data');
+/** A folder outside the app for Choose Folder (the e2e library is inside the app folder, which cannot be browsed). */
+let browseDir = '';
 const PASSWORD = 'e2e-test-password';
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROME : '');
@@ -249,6 +251,21 @@ async function apiChecks(base, wsUrl) {
   check('page fetch outside Thangs refused', /Only https links to thangs\.com/.test(thangs.error || ''), JSON.stringify(thangs));
   check('scan of the app folder refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
   check('move out of library refused', refused(await invoke(base, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
+  // Choose Folder (browse-folders): the same folders as scanning; system, app and data folders are refused.
+  browseDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-browse-'));
+  fs.mkdirSync(path.join(browseDir, 'Prints', 'Benchy'), { recursive: true });
+  fs.mkdirSync(path.join(browseDir, '.cache'));
+  fs.writeFileSync(path.join(browseDir, 'part.stl'), 'solid');
+  const placesOnly = await invoke(base, { cookie, origin }, 'browse-folders', []);
+  check('Choose Folder lists places and no folder yet', Array.isArray(placesOnly.result?.places) && placesOnly.result.path === null
+    && !placesOnly.result.places.some((place) => place.path === '/' || place.path.startsWith(ROOT)), JSON.stringify(placesOnly).slice(0, 300));
+  const browsed = (await invoke(base, { cookie, origin }, 'browse-folders', [browseDir])).result;
+  check('Choose Folder lists subfolders only (no files or hidden folders)', browsed?.path === browseDir
+    && JSON.stringify(browsed.folders.map((f) => f.name)) === '["Prints"]' && browsed.parent === path.dirname(browseDir), JSON.stringify(browsed));
+  for (const [what, dir] of [['/etc', '/etc'], ['the app folder', ROOT], ['the data folder', DATA], ['/', '/']]) {
+    const res = await invoke(base, { cookie, origin }, 'browse-folders', [dir]);
+    check(`Choose Folder refuses ${what}`, /cannot be browsed/.test(res.result?.error || '') && res.result.path === null, JSON.stringify(res).slice(0, 200));
+  }
   const read = await invoke(base, { cookie, origin }, 'read-model-file', [cube]);
   check('read library file returns its bytes', Buffer.isBuffer(read.result) && read.result.equals(fs.readFileSync(cube)), read.error);
 
@@ -734,9 +751,20 @@ async function browserChecks(base, wsUrl, session) {
         && document.getElementById('jp-library-count')?.title === `${n} models in the library`, totalModels, { timeout: 10000 }).then(() => true, () => false);
       check('the header shows the models in view and in total', counted, await page.textContent('#jp-library-count'));
       await runSetting('Scan a Folder');
-      const scanPrompt = await page.waitForSelector('dialog.browser-input-dialog[open]:has-text("Scan Directory")', { timeout: 10000 }).catch(() => null);
-      if (scanPrompt) await page.click('dialog.browser-input-dialog[open] button:text-is("Cancel")');
-      check('Scan a Folder asks for a container folder; Cancel scans nothing', !!scanPrompt && !(await page.isVisible('dialog.browser-input-dialog[open]')));
+      const scanPicker = await page.waitForSelector('dialog.jp-folder-picker[open]:has-text("Scan Directory")', { timeout: 10000 }).catch(() => null);
+      await page.fill('#folder-picker-path', browseDir);
+      await page.press('#folder-picker-path', 'Enter');
+      const pickerListed = await page.waitForSelector('#folder-picker-list .jp-folder-picker__folder:has-text("Prints")', { timeout: 10000 }).then(() => true, () => false);
+      await page.click('#folder-picker-list .jp-folder-picker__folder:has-text("Prints")');
+      const pickerOpened = await page.waitForFunction((dir) => document.getElementById('folder-picker-path')?.value === dir,
+        path.join(browseDir, 'Prints'), { timeout: 10000 }).then(() => true, () => false);
+      await page.fill('#folder-picker-path', '/etc');
+      await page.press('#folder-picker-path', 'Enter');
+      const pickerRefused = await page.waitForSelector('.jp-folder-picker__error:has-text("cannot be browsed")', { timeout: 10000 }).then(() => true, () => false)
+        && await page.isVisible('#folder-picker-list .jp-folder-picker__folder:has-text("Benchy")');
+      await page.click('dialog.jp-folder-picker[open] .jp-overlay__footer button:has-text("Cancel")');
+      check('Scan a Folder opens Choose Folder: a typed path lists its folders, a click opens one, a system folder is refused, Cancel scans nothing',
+        !!scanPicker && pickerListed && pickerOpened && pickerRefused && !(await page.isVisible('dialog.jp-folder-picker[open]')));
       await runSetting('View Entire Library');
       check('View Entire Library leaves the folder', await page.waitForFunction(() => window.currentDirectoryFilter === '', null, { timeout: 10000 }).then(() => true, () => false));
       await showLibrary();
@@ -755,6 +783,29 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForSelector('#html-context-menu', { timeout: 10000 }).catch(() => {});
       await page.keyboard.press('Escape');
       check('Escape closes the model menu', await page.waitForSelector('#html-context-menu', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
+      // Copy Path and Download run in this browser; another open browser gets nothing.
+      const secondPage = await page.context().newPage();
+      const secondDownloads = [];
+      secondPage.on('download', (download) => secondDownloads.push(download.suggestedFilename()));
+      await secondPage.goto(base + '/');
+      await secondPage.waitForSelector(card, { timeout: 30000 }).catch(() => {});
+      await page.evaluate(() => {
+        window.__copiedText = null;
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__copiedText = text; } } });
+      });
+      await page.click(`${card} .file-name`, { button: 'right' });
+      await page.click('#html-context-menu .html-context-menu-item:text-is("Copy Path")');
+      check('Copy Path copies the model\'s path', await page.waitForFunction((p) => window.__copiedText === p, cardPath, { timeout: 5000 }).then(() => true, () => false),
+        await page.evaluate(() => window.__copiedText));
+      await page.click(`${card} .file-name`, { button: 'right' });
+      const [menuDownload] = await Promise.all([
+        page.waitForEvent('download', { timeout: 10000 }).catch(() => null),
+        page.click('#html-context-menu .html-context-menu-item:text-is("Download")')
+      ]);
+      await secondPage.waitForTimeout(1500);
+      check('Download saves the file in this browser only', menuDownload?.suggestedFilename() === path.basename(cardPath) && secondDownloads.length === 0,
+        JSON.stringify({ here: menuDownload?.suggestedFilename(), secondPage: secondDownloads }));
+      await secondPage.close();
       await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, designer: null, source: null }, { filePath: listedOn, designer: null }]]);
       await page.click(`${card} .model-star[data-star="3"]`);
       const rated = await waitFor(async () => (((await invoke(base, session, 'get-model', [cardPath])).result || {}).rating === 3 ? true : null), 10000, 'rating').catch(() => false);
@@ -2227,8 +2278,11 @@ async function browserChecks(base, wsUrl, session) {
     const scannedModel = path.join(fs.realpathSync(scanDir), 'scanned-cube.stl');
     fs.copyFileSync(cubePath, scannedModel);
     await runSetting('Scan a Folder');
-    await page.fill('dialog.browser-input-dialog[open] input', scanDir);
-    await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+    await page.waitForSelector('dialog.jp-folder-picker[open]', { timeout: 10000 }).catch(() => {});
+    await page.fill('#folder-picker-path', scanDir);
+    await page.press('#folder-picker-path', 'Enter');
+    await page.waitForFunction((dir) => document.getElementById('folder-picker-path')?.value === dir, scanDir, { timeout: 10000 }).catch(() => {});
+    await page.click('#folder-picker-choose');
     const offer = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("1 new model(s) found") button:text-is("Yes")', { timeout: 60000 }).catch(() => null);
     if (offer) await offer.click();
     const shownNew = await page.waitForFunction((p) => {
@@ -2308,6 +2362,7 @@ async function main() {
   } catch (error) {
     console.log(`FAIL e2e run: ${error.message}`);
   } finally {
+    if (browseDir) fs.rmSync(browseDir, { recursive: true, force: true });
     await stopServer(server);
     const log = fs.readFileSync(path.join(WORK, 'server.log'), 'utf8');
     check('server closed the database on shutdown', log.includes('[Quit] Database closed'));

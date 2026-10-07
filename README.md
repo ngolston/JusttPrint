@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 5.0.4**
+**Version 5.1.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -134,8 +134,8 @@ All are optional. You can change most of these later under **Settings** in the a
 The sidebar holds every page: **Home**, **Library**, **Queue**, **Printers**, **Filament**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
 
 - **Log in** with your password. Browsers stay logged in for 30 days. Change the password under **Settings → Authentication → Server Access** (this logs out every browser).
-- **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan (container paths such as `/mnt/models`) and how often (default 60 minutes). New files then show up on their own, and **Scan Library** in the sidebar scans them right away. Remove every folder to stop automatic scans.
-- **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then enter a container path.
+- **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). New files then show up on their own, and **Scan Library** in the sidebar scans them right away. Remove every folder to stop automatic scans.
+- **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
 - **HTTPS**: open **Settings → Server → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
 - **Send to Slicer**: install the helper on your computer from **Settings → Slicer → Slicers**.
 

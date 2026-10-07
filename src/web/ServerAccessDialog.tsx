@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { serverAccess, type ServerAccessInfo } from './api';
 import { ModalDialog } from './components/ModalDialog';
-import { exposeGlobal } from './page';
+import { copyText, exposeGlobal } from './page';
 
 const DEFAULT_MIN_PASSWORD_LENGTH = 8;
 
@@ -64,10 +64,9 @@ export function ServerAccessDialog() {
 
   async function copyToken() {
     if (!info?.apiToken) return;
-    try {
-      await navigator.clipboard.writeText(info.apiToken);
+    if (await copyText(info.apiToken)) {
       setStatus('Token copied.');
-    } catch {
+    } else {
       tokenRef.current?.select();
       setStatus('Select the token and copy it.');
     }

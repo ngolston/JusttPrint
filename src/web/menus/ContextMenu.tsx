@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { callAction } from '../api';
-import { exposeGlobal, showMessage } from '../page';
+import { callAction, downloadUrl } from '../api';
+import { copyText, exposeGlobal, showMessage } from '../page';
 
 /** One entry of a menu the server built (src/server/ipc/context-menu.js). */
 export interface ContextMenuItem {
@@ -9,8 +9,31 @@ export interface ContextMenuItem {
   label?: string;
   enabled?: boolean;
   submenu?: ContextMenuItem[];
-  /** Run in this browser instead of on the server (Send to Slicer through the helper). */
-  clientAction?: unknown;
+  /** Run in this browser instead of on the server: Download, Copy Path, or Send to Slicer through the helper. */
+  clientAction?: ClientAction;
+}
+
+type ClientAction =
+  | { type: 'download'; filePath: string }
+  | { type: 'copy-paths'; filePaths: string[] }
+  | { type: 'open-in-slicer'; [key: string]: unknown };
+
+/** Save a library file (or a ZIP entry) through /api/download. */
+function downloadFile(filePath: string) {
+  const link = document.createElement('a');
+  link.href = downloadUrl(filePath);
+  link.download = '';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => link.remove(), 100);
+}
+
+/** Copy the paths, one per line; show them when the browser refuses. */
+async function copyPaths(filePaths: string[]) {
+  const text = filePaths.join('\n');
+  if (await copyText(text)) return;
+  await showMessage('Copy Path', `The browser did not allow copying. Select the path${filePaths.length === 1 ? '' : 's'} below and copy:\n\n${text}`);
 }
 
 export interface ContextMenuData {
@@ -118,8 +141,11 @@ export function ContextMenu() {
 
   const run = async (item: ContextMenuItem, index: number, subIndex: number | null) => {
     try {
-      if (item.clientAction && window.JusttPrintSlicerProtocol) {
-        window.JusttPrintSlicerProtocol.launchFromCommand(item.clientAction);
+      const action = item.clientAction;
+      if (action?.type === 'download') return downloadFile(action.filePath);
+      if (action?.type === 'copy-paths') return await copyPaths(action.filePaths);
+      if (action && window.JusttPrintSlicerProtocol) {
+        window.JusttPrintSlicerProtocol.launchFromCommand(action);
         return;
       }
       if (!(await confirmDestructive(item.label, menu))) return;

@@ -21,6 +21,7 @@ import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { GridToolbar } from './grid/GridToolbar';
 import { LibraryGrid } from './grid/LibraryGrid';
+import { FolderPicker } from './components/FolderPicker';
 import { ListPicker } from './components/ListPicker';
 import { ServerProgressDialog } from './components/ServerProgressDialog';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
@@ -93,6 +94,7 @@ function Screens() {
       <Sidebar />
       <FolderTree />
       <ListPicker />
+      <FolderPicker />
       <ServerProgressDialog />
       <GridToolbar />
       <LibraryGrid />

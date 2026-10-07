@@ -26,4 +26,14 @@ function sendTo(ws, channel, ...args) {
   return true;
 }
 
-module.exports = { setBroadcaster, broadcast, sendTo };
+/**
+ * Send an event to the browser that made a request (a menu click, a dialog): its own preview,
+ * download or file picker must not open in every other browser. Falls back to every browser
+ * when the request carried no WebSocket.
+ */
+function toCaller(event, channel, ...args) {
+  if (sendTo(event && event.wsClient, channel, ...args)) return;
+  broadcast(channel, ...args);
+}
+
+module.exports = { setBroadcaster, broadcast, sendTo, toCaller };

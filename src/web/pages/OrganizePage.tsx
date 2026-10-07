@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { organize, settings, type OrganizeJob, type OrganizePreview, type OrganizeResult } from '../api';
+import { pickFolder } from '../components/FolderPicker';
 import { exposeGlobal, showMessage } from '../page';
 import { navigate } from '../shell/routes';
 
@@ -297,14 +298,28 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
       </div>
       <div className="form-group">
         <label htmlFor="organize-source-subfolder">Folder inside it</label>
-        <input type="text" id="organize-source-subfolder" placeholder="Entire scanned folder" autoComplete="off" spellCheck={false}
-          value={sub} onChange={(event) => { setSub(event.target.value); changed(); }} />
+        <div className="organize-path-row">
+          <input type="text" id="organize-source-subfolder" placeholder="Entire scanned folder" autoComplete="off" spellCheck={false}
+            value={sub} onChange={(event) => { setSub(event.target.value); changed(); }} />
+          <button type="button" id="organize-source-subfolder-browse" disabled={!root} onClick={async () => {
+            const typed = sub.trim();
+            const start = !typed ? root : typed.startsWith('/') ? typed : `${root.replace(/\/+$/, '')}/${typed}`;
+            const dir = await pickFolder({ title: 'Folder to Organize', initial: start });
+            if (dir) { setSub(dir); changed(); }
+          }}>Browse…</button>
+        </div>
         <p className="setting-description">Leave this blank to use the whole scanned folder, or type a folder inside it (relative to it, or a full path).</p>
       </div>
       <div className="form-group">
         <label htmlFor="organize-dest-input">Destination directory</label>
-        <input type="text" id="organize-dest-input" placeholder="New library root, a path on the server" autoComplete="off" spellCheck={false}
-          value={dest} onChange={(event) => { setDest(event.target.value); changed(); }} />
+        <div className="organize-path-row">
+          <input type="text" id="organize-dest-input" placeholder="New library root, a path on the server" autoComplete="off" spellCheck={false}
+            value={dest} onChange={(event) => { setDest(event.target.value); changed(); }} />
+          <button type="button" id="organize-dest-browse" onClick={async () => {
+            const dir = await pickFolder({ title: 'Destination Directory', initial: dest.trim() || root || undefined });
+            if (dir) { setDest(dir); changed(); }
+          }}>Browse…</button>
+        </div>
       </div>
       <div className="organize-structure">
         <span className="organize-structure-label">Folder structure</span>
