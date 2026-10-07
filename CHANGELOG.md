@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [5.0.3] - 2026-10-06
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- The Multi-Edit and bundle panels on the right now use the same background as the rest of the details column. They had kept an old navy tint and a strip above their heading from before JusttPrint 5.
+- The library grid and the details column have thin scrollbars in the theme's colours, and the details column no longer keeps an empty scrollbar strip when it has nothing to scroll.
+
 ## [5.0.2] - 2026-10-06
 
 **Upgrading:** no changes needed. The app is unchanged from 5.0.0 (only a test changed).
