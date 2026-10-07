@@ -3,8 +3,21 @@
 /**
  * Uploads from the browser into a library folder (Library → Upload, or drop files on the page).
  *
- * `POST /api/upload?folder=<library folder>&name=<file name>` with the file as the request body
- * (any content type; it is streamed to disk, never held in memory). Editors and admins only.
+ * The browser uploads in pieces (upload-sessions.js), which gets files of many gigabytes through
+ * reverse proxies and resumes after a dropped connection. Editors and admins only:
+ *
+ *   POST   /api/upload/sessions            { folder, name, size }  -> { id, size, received }
+ *   GET    /api/upload/sessions/:id                               -> { id, size, received }
+ *   PUT    /api/upload/sessions/:id?offset=N   (the piece)         -> { received }
+ *   POST   /api/upload/sessions/:id/finish                        -> { fileName, filePath, size }
+ *   DELETE /api/upload/sessions/:id                               -> { success }
+ *
+ * A wrong offset answers 409 with { received }: continue from there. Pieces are at most
+ * JUSTTPRINT_UPLOAD_CHUNK_MB (default 16; the browser sends that size) or 64 MB, whichever is more.
+ *
+ * For scripts, one request also works: `POST /api/upload?folder=<library folder>&name=<file name>`
+ * with the file as the request body (streamed to disk, never held in memory). It must finish
+ * within the server's request timeout (5 minutes).
  * The folder must be inside the library (server-paths.js, rule `dir`), the name a plain file
  * name of a type the library scans, and the size within JUSTTPRINT_MAX_UPLOAD_MB (default
  * 2048). The file is written to a hidden temp file next to its destination, then linked to
@@ -18,18 +31,44 @@
  */
 
 const crypto = require('crypto');
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const database = require('../core/database');
 const { assertNetworkPathAllowed, isInsideOrSame } = require('./server-paths');
 const { networkPathContext } = require('./path-context');
 
+const { createUploadSessions } = require('./upload-sessions');
+
 const DEFAULT_MAX_UPLOAD_MB = 2048;
+const DEFAULT_CHUNK_MB = 16;
+const MIN_CHUNK_BYTES = 256;
+const MAX_PIECE_BYTES = 64 * 1024 * 1024;
 const MAX_NAME_LENGTH = 200;
 
 function maxUploadBytes(env = process.env) {
   const mb = Number(env.JUSTTPRINT_MAX_UPLOAD_MB);
   return Math.round((Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_UPLOAD_MB) * 1024 * 1024);
+}
+
+/** Size of the pieces the browser sends (JUSTTPRINT_UPLOAD_CHUNK_MB; lower it for a proxy that takes less). */
+function uploadChunkBytes(env = process.env) {
+  const mb = Number(env.JUSTTPRINT_UPLOAD_CHUNK_MB);
+  return Math.max(MIN_CHUNK_BYTES, Math.round((Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_CHUNK_MB) * 1024 * 1024));
+}
+
+let sessionStore = null;
+
+/** The open piece-by-piece uploads (kept in uploads-pending.json in the data folder). */
+function uploadSessions() {
+  if (!sessionStore) {
+    const { app } = require('./runtime');
+    sessionStore = createUploadSessions({
+      stateFile: path.join(app.getPath('userData'), 'uploads-pending.json'),
+      place: placeWithoutReplacing
+    });
+  }
+  return sessionStore;
 }
 
 /** File types an upload may have: the ones the library scans (Settings → File Types), and ZIP when on. */
@@ -178,16 +217,82 @@ async function handleUpload(req, res) {
  * @param {(role: string) => Function} deps.requireRole
  */
 function registerUploadRoutes(expressApp, { requireRole }) {
-  expressApp.post('/api/upload', requireRole('editor'), (req, res) => {
+  const editor = requireRole('editor');
+  const json = express.json({ limit: '10kb' });
+  /** Run a session step; errors answer with their status and, for a wrong offset, where the upload stands. */
+  const step = (fn) => (req, res) => {
+    Promise.resolve().then(() => fn(req, res)).then((body) => {
+      if (body !== undefined && !res.headersSent) res.json(body);
+    }).catch((error) => {
+      if (error.status !== 409 && error.status !== 404) console.warn(`[Upload] ${req.method} ${req.path}: ${error.message}`);
+      if (res.headersSent) return;
+      const body = { error: error.message };
+      if (error.received !== undefined) body.received = error.received;
+      // A refused piece may still be arriving: read it to the end, so the answer gets through.
+      if (req.readable && !req.readableEnded) req.resume();
+      res.status(error.status && error.status >= 400 && error.status < 600 && error.status !== 499 ? error.status : 500).json(body);
+    });
+  };
+
+  expressApp.post('/api/upload/sessions', editor, json, step((req) => {
+    const body = req.body || {};
+    const ctx = networkPathContext();
+    let folder;
+    let name;
+    try {
+      folder = checkFolder(body.folder, ctx);
+      name = checkUploadName(body.name, allowedUploadExtensions());
+    } catch (error) {
+      error.status = /outside the library/.test(error.message) ? 403 : 400;
+      throw error;
+    }
+    const session = uploadSessions().start({ user: req.user, folder, name, size: Number(body.size), maxBytes: maxUploadBytes() });
+    console.log(`[Upload] ${req.user.username} started ${path.join(folder, name)} (${session.size} bytes)`);
+    return { ...session, chunkBytes: uploadChunkBytes() };
+  }));
+
+  expressApp.get('/api/upload/sessions/:id', editor, step((req) => uploadSessions().status(req.params.id, req.user)));
+
+  expressApp.put('/api/upload/sessions/:id', editor, step((req) => uploadSessions().writePiece(
+    req.params.id, req.user, Number(req.query.offset), req, { maxPieceBytes: Math.max(MAX_PIECE_BYTES, uploadChunkBytes()) }
+  )));
+
+  expressApp.post('/api/upload/sessions/:id/finish', editor, step((req) => {
+    const result = uploadSessions().finish(req.params.id, req.user);
+    console.log(`[Upload] ${req.user.username} uploaded ${result.filePath} (${result.size} bytes)`);
+    return { success: true, ...result };
+  }));
+
+  expressApp.delete('/api/upload/sessions/:id', editor, step((req) => uploadSessions().abort(req.params.id, req.user)));
+
+  expressApp.post('/api/upload', editor, (req, res) => {
     handleUpload(req, res).catch((error) => {
       console.error('[Upload] Unexpected error:', error);
       if (!res.headersSent) res.status(500).json({ error: 'Upload failed' });
     });
   });
+
+  // Unfinished uploads left for a day are deleted with their temp files.
+  const sweep = () => {
+    try {
+      const removed = uploadSessions().sweep();
+      if (removed) console.log(`[Upload] Deleted ${removed} upload(s) left unfinished for a day`);
+    } catch (error) {
+      console.warn(`[Upload] Cleaning up unfinished uploads: ${error.message}`);
+    }
+  };
+  if (!sweepTimer) {
+    sweepTimer = setInterval(sweep, 60 * 60 * 1000);
+    if (sweepTimer.unref) sweepTimer.unref();
+    setImmediate(sweep);
+  }
 }
+
+let sweepTimer = null;
 
 module.exports = {
   registerUploadRoutes,
+  uploadChunkBytes,
   allowedUploadExtensions,
   checkFolder,
   checkUploadName,

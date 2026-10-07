@@ -32,7 +32,7 @@ const ACTIONS = {
 
   // Uploads (the files arrive on POST /api/upload, src/server/uploads.js)
   'get-upload-info': [],
-  'add-uploaded-files': ['string'],
+  'add-uploaded-files': ['string', 'array?'],
 
   // Scanning and library folders
   'load-directory': [],

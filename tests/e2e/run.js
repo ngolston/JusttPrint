@@ -79,6 +79,8 @@ function startServer(port) {
       JUSTTPRINT_PORT: String(port),
       JUSTTPRINT_PASSWORD: PASSWORD,
       JUSTTPRINT_ENABLE_ZIP: 'true',
+      // Tiny upload pieces, so the upload checks send a model in several pieces.
+      JUSTTPRINT_UPLOAD_CHUNK_MB: '0.0001', // the 256-byte minimum
       STL_HOME: LIBRARY,
       // Keep Move to Trash inside the work folder (the home trash is the fallback on a single-drive machine).
       XDG_DATA_HOME: path.join(WORK, 'share'),
@@ -2571,10 +2573,37 @@ async function accountChecks(base, wsUrl, admin) {
   check('upload names with folders refused', (await uploadAs(base, editor, folder, '../x.stl', cubeBytes)).status === 400);
   check('types the library does not scan refused', (await uploadAs(base, editor, folder, 'page.html', '<b>hi</b>')).status === 400);
   check('no temp files are left behind', !fs.readdirSync(folder).some((name) => name.endsWith('.justtprint-upload')));
-  const added = await invoke(base, editor, 'add-uploaded-files', [folder]);
-  // Folder watching may add the files first; either way they are in the library afterwards.
-  const uploadedModels = ((await invoke(base, admin, 'get-all-models')).result || []).filter((m) => /Uploaded Cube/.test(m.fileName));
-  check('the uploaded files are in the library', added.status === 200 && uploadedModels.length === 2, `${JSON.stringify(added)} ${uploadedModels.length}`);
+  const added = await invoke(base, editor, 'add-uploaded-files', [folder, [first.filePath, second.filePath]]);
+  check('the uploaded files are in the library', added.status === 200 && added.result.inLibrary === 2, JSON.stringify(added));
+
+  // In pieces (what the browser does): order, resume, owner, finish.
+  const api = async (session, method, urlPath, body, contentType = 'application/json') => {
+    const response = await fetch(base + urlPath, { method, headers: { origin: base, cookie: session.cookie, ...(body !== undefined ? { 'content-type': contentType } : {}) }, body });
+    return { status: response.status, ...(await response.json().catch(() => ({}))) };
+  };
+  const started = await api(editor, 'POST', '/api/upload/sessions', JSON.stringify({ folder, name: 'Pieces.stl', size: cubeBytes.length }));
+  check('an upload in pieces starts with the piece size', started.status === 200 && started.received === 0 && started.chunkBytes > 0 && started.chunkBytes < cubeBytes.length, JSON.stringify(started));
+  const piece = started.chunkBytes;
+  const put = (session, offset, bytes) => api(session, 'PUT', `/api/upload/sessions/${started.id}?offset=${offset}`, bytes, 'application/octet-stream');
+  check('the first piece arrives', (await put(editor, 0, cubeBytes.subarray(0, piece))).received === piece);
+  const wrong = await put(editor, 0, cubeBytes.subarray(0, piece));
+  check('a piece at the wrong offset says where to continue', wrong.status === 409 && wrong.received === piece, JSON.stringify(wrong));
+  check('another user cannot add to the upload', (await put(admin, piece, cubeBytes.subarray(piece, 2 * piece))).status === 403);
+  check('viewers cannot start uploads', (await api(viewer, 'POST', '/api/upload/sessions', JSON.stringify({ folder, name: 'x.stl', size: 1 }))).status === 403);
+  check('finishing early is refused', (await api(editor, 'POST', `/api/upload/sessions/${started.id}/finish`)).status === 409);
+  check('the status says how far it got (to resume)', (await api(editor, 'GET', `/api/upload/sessions/${started.id}`)).received === piece);
+  check('the unfinished upload is a hidden temp file', fs.readdirSync(folder).some((name) => name.endsWith('.justtprint-upload')) && !fs.existsSync(path.join(folder, 'Pieces.stl')));
+  let offset = piece;
+  while (offset < cubeBytes.length) offset = (await put(editor, offset, cubeBytes.subarray(offset, offset + piece))).received;
+  const finished = await api(editor, 'POST', `/api/upload/sessions/${started.id}/finish`);
+  check('the pieces make the file', finished.status === 200 && fs.readFileSync(path.join(folder, 'Pieces.stl')).equals(cubeBytes), JSON.stringify(finished));
+  check('no temp file is left', !fs.readdirSync(folder).some((name) => name.endsWith('.justtprint-upload')));
+  const cancelled = await api(editor, 'POST', '/api/upload/sessions', JSON.stringify({ folder, name: 'Cancelled.stl', size: 10 }));
+  await api(editor, 'DELETE', `/api/upload/sessions/${cancelled.id}`);
+  check('a cancelled upload leaves nothing behind', (await api(editor, 'GET', `/api/upload/sessions/${cancelled.id}`)).status === 404
+    && !fs.readdirSync(folder).some((name) => name.endsWith('.justtprint-upload')));
+  check('too large for the limit is refused before sending', (await api(editor, 'POST', '/api/upload/sessions', JSON.stringify({ folder, name: 'huge.stl', size: 1e15 }))).status === 413);
+  await invoke(base, editor, 'add-uploaded-files', [folder, [finished.filePath]]);
 
   console.log('\n# Statistics');
   const uploadedPath = path.join(folder, 'Uploaded Cube.stl');
@@ -2622,11 +2651,11 @@ async function accountChecks(base, wsUrl, admin) {
     ]);
     check('files of other types are skipped before sending', await editorPage.waitForSelector('.jp-upload__item.is-skipped:has-text("notes.txt")', { timeout: 5000 }).then(() => true, () => false));
     await editorPage.click('#jp-upload-start');
-    const summary = await editorPage.waitForFunction(() => /new model/.test(document.getElementById('jp-upload-summary')?.textContent || ''), null, { timeout: 60000 })
+    const summary = await editorPage.waitForFunction(() => /in the library|failed|Nothing/.test(document.getElementById('jp-upload-summary')?.textContent || ''), null, { timeout: 60000 })
       .then(() => editorPage.textContent('#jp-upload-summary'), () => editorPage.textContent('#jp-upload-summary').catch(() => ''));
-    check('the dialog uploads and adds the model', /Uploaded 1 file; 1 new model/.test(summary || ''), summary);
+    check('the dialog uploads in pieces and adds the model', /Uploaded 1 file; it is in the library/.test(summary || ''), summary);
     const uploadedTo = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => m.fileName === 'Browser Upload.stl') || {}).filePath || '';
-    check('the browser upload went into the chosen folder', path.dirname(uploadedTo) === folder && fs.existsSync(uploadedTo), uploadedTo);
+    check('the browser upload went into the chosen folder, whole', path.dirname(uploadedTo) === folder && fs.existsSync(uploadedTo) && fs.readFileSync(uploadedTo).equals(cubeBytes), uploadedTo);
     await editorPage.keyboard.press('Escape');
 
     await editorPage.evaluate(() => { window.location.hash = '#/stats'; });

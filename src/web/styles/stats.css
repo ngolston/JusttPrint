@@ -95,6 +95,8 @@
 .jp-upload__name { overflow: hidden; color: var(--jp-text); text-overflow: ellipsis; white-space: nowrap; }
 .jp-upload__size { color: var(--jp-text-3); font-variant-numeric: tabular-nums; }
 .jp-upload__progress, .jp-upload__message { grid-column: 2 / -1; }
+.jp-upload__progress { display: flex; flex-direction: column; gap: 2px; }
+.jp-upload__sent { color: var(--jp-text-3); font-size: var(--jp-text-small); font-variant-numeric: tabular-nums; }
 .jp-upload__message { color: var(--jp-text-2); font-size: var(--jp-text-small); }
 .jp-upload__summary { min-height: 1.4em; margin: var(--jp-space-3) 0 0; color: var(--jp-text-2); font-size: var(--jp-text-meta); }
 .jp-upload-overlay {
