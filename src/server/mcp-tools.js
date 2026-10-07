@@ -6,7 +6,7 @@ const { ipcMain, shell } = require('./runtime');
 
 // Some MCP tools reuse the IPC handler of the same action.
 const ipcHandlerRegistry = ipcMain._handlers;
-const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler, syncSpoolmanFilamentsHandler } = require('./ipc/filaments');
+const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler } = require('./ipc/filaments');
 const fs = require('fs');
 const path = require('path');
 const printEvents = require('../core/print-events');
@@ -664,8 +664,7 @@ function getMcpToolContext() {
         await fs.promises.copyFile(dbPath, destPath);
       }
       return { success: true, filePath: destPath };
-    },
-    syncSpoolmanFilaments: async (args) => syncSpoolmanFilamentsHandler(mcpIpcEvent(), args.url, args.token)
+    }
   };
 }
 

@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 5.3.1**
+**Version 6.0.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -15,7 +15,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **3D preview** of single models or every part in a folder or ZIP bundle
 - **Tags, designers, licenses, notes and source links** for every model
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
-- **Filament catalog**, with optional sync from Spoolman
+- **Filament catalog**: the filament you print with, on your models and in your print log
 - **Search and filters** by name, folder, tag, designer, status, filament and more
 - **Multi-edit** to change many models at once
 - **Duplicate finder** based on file contents
@@ -223,6 +223,10 @@ With Docker Run, update by pulling the image (`docker pull ace2123/justtprint:la
 
 **Backups:** turn on **Automatic Backups** under **Settings → Backup**: the server copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there, or copy the `./data` folder while the container is stopped.
 
+## Upgrading to 6.0
+
+6.0 removes the Filament Manager dialog and Spoolman support. Your filament catalog, the filaments on your models and in your print history stay; filaments that came from Spoolman become ordinary filaments. On the first start the Spoolman settings are deleted, so keep a backup if you may go back to 5.x. Add filaments on the **Filament** page (see **Upgrading** under 6.0.0 in [CHANGELOG.md](CHANGELOG.md)).
+
 ## Upgrading to 5.0
 
 JusttPrint 5 is a new interface; your library, settings and data folder are unchanged, so pulling the new image is all it takes. The old menu bar is gone: everything it had is on the sidebar's pages, under **Settings** or under **Help** (see **Upgrading** under 5.0.0 in [CHANGELOG.md](CHANGELOG.md)).
@@ -242,7 +246,7 @@ JusttPrint 4.0.0 is the renamed Printventory. The data folder, database file and
 
 ## Privacy
 
-JusttPrint does not collect usage data. It only contacts outside services to check GitHub for updates (turn off under **Settings → About → About JusttPrint**), for AI tagging, page imports and Spoolman when you use them.
+JusttPrint does not collect usage data. It only contacts outside services to check GitHub for updates (turn off under **Settings → About → About JusttPrint**), for AI tagging and page imports when you use them.
 
 ## License
 

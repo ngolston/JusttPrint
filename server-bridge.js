@@ -501,8 +501,6 @@
     'deletePrintEvent': 'delete-print-event',
     'setPrintStatus': 'set-print-status',
     'setPrintStatusBatch': 'set-print-status-batch',
-    'testSpoolmanConnection': 'test-spoolman-connection',
-    'syncSpoolmanFilaments': 'sync-spoolman-filaments',
     'getStats': 'get-stats',
     'getModelTags': 'get-model-tags',
     'getGroupTags': 'get-group-tags',
@@ -575,10 +573,6 @@
   console.log('[Bridge] Creating event listener methods...');
   window.electron.onOpenTagManager = function(callback) {
     window.electron.on('open-tag-manager', callback);
-  };
-
-  window.electron.onOpenFilamentManager = function(callback) {
-    window.electron.on('open-filament-manager', callback);
   };
 
   window.electron.onOpenPrinterManagement = function(callback) {

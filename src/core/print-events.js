@@ -517,7 +517,7 @@ function getPrintEvents(db, modelId) {
 
   const filamentsByEventId = new Map();
   for (const row of db.prepare(`
-    SELECT pef.event_id, f.id, f.name, f.vendor, f.material, f.color_hex, f.diameter, f.spoolman_id, f.source
+    SELECT pef.event_id, f.id, f.name, f.vendor, f.material, f.color_hex, f.diameter
     FROM filaments f
     JOIN print_event_filaments pef ON pef.filament_id = f.id
     JOIN print_events pe ON pe.id = pef.event_id
@@ -530,9 +530,7 @@ function getPrintEvents(db, modelId) {
       vendor: row.vendor,
       material: row.material,
       color_hex: row.color_hex,
-      diameter: row.diameter,
-      spoolman_id: row.spoolman_id,
-      source: row.source
+      diameter: row.diameter
     };
     const list = filamentsByEventId.get(row.event_id);
     if (list) list.push(filament);

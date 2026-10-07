@@ -75,12 +75,6 @@ async function refreshAfterTagManagerClose() {
   await reloadGrid();
 }
 
-async function refreshAfterFilamentManagerClose() {
-  reloadAllPickers();
-  await reloadShownModel();
-  await runSearch();
-}
-
 // ---- Tools ----
 
 /** Clear the New flag on every model, after asking. */
@@ -207,7 +201,6 @@ declare global {
     refreshTagRelatedUi?: () => Promise<void>;
     refreshAfterTagManagerClose?: () => Promise<void>;
     refreshFilamentPickers?: () => Promise<void>;
-    refreshAfterFilamentManagerClose?: () => Promise<void>;
     refreshAfterMetadataChange?: () => Promise<void>;
     refreshAfterDedupDelete?: () => Promise<void>;
     afterModelsPurged?: () => Promise<void>;
@@ -221,7 +214,6 @@ if (typeof window !== 'undefined') {
   window.refreshTagRelatedUi = refreshTagRelatedUi;
   window.refreshAfterTagManagerClose = refreshAfterTagManagerClose;
   window.refreshFilamentPickers = async () => reloadAllPickers();
-  window.refreshAfterFilamentManagerClose = refreshAfterFilamentManagerClose;
   window.refreshAfterMetadataChange = async () => {
     reloadAllPickers();
     await reloadGrid();

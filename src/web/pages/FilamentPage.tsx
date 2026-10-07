@@ -1,11 +1,12 @@
 import { useId, useMemo, useState } from 'react';
-import { Cable, Library, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Cable, Library, Plus, Trash2 } from 'lucide-react';
 import { filaments as filamentApi, type Filament } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { SearchBox } from '../components/SearchBox';
 import { ShowMoreButton, useShown } from '../components/ShowMore';
-import { normalizeColorHex } from '../FilamentManagerDialog';
+import { addFilament } from '../components/AddFilamentDialog';
+import { normalizeColorHex } from '../filaments';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { timeAgo } from '../home/format';
@@ -74,7 +75,7 @@ function showModels(filament: Filament) {
 
 async function removeFilament(filament: Filament) {
   const answer = await showMessage('Remove Filament',
-    `Remove "${filamentName(filament)}" from JusttPrint? Model assignments will be cleared. Synced filaments return on the next Spoolman sync.`,
+    `Remove "${filamentName(filament)}" from JusttPrint? It is taken off the models that use it.`,
     ['Remove', 'Cancel']);
   if (answer !== 'Remove') return;
   try {
@@ -99,7 +100,6 @@ function FilamentCard({ filament }: { filament: Filament }) {
         <div className="jp-spool-card__badges">
           {filament.material && <span className="jp-badge">{filament.material}</span>}
           {filament.diameter ? <span className="jp-badge">{filament.diameter} mm</span> : null}
-          <span className={cx('jp-badge', filament.source === 'spoolman' && 'jp-badge--accent')}>{filament.source === 'spoolman' ? 'Spoolman' : 'Manual'}</span>
         </div>
         <p className="jp-spool-card__usage">
           {models ? `Used in ${models} ${models === 1 ? 'model' : 'models'}` : 'Not on any model yet'}
@@ -117,10 +117,9 @@ function FilamentCard({ filament }: { filament: Filament }) {
 }
 
 /**
- * Filament (spec §45): the filament catalog (manual entries and Spoolman spools) as spools in their
- * color, with material, diameter, where it is used and when it was last printed. Adding and
- * Spoolman setup use the Filament Manager dialog. Remaining amount, location and printer
- * compatibility are not tracked yet (docs/redesign-5.md).
+ * Filament (spec §45): the filament catalog as spools in their color, with material, diameter,
+ * where it is used and when it was last printed. Add Filament opens components/AddFilamentDialog.
+ * Remaining amount, location and printer compatibility are not tracked yet (docs/redesign-5.md).
  */
 export function FilamentPage() {
   const list = useLibraryData(loadFilaments);
@@ -128,7 +127,6 @@ export function FilamentPage() {
   const [material, setMaterial] = useState('');
   const materials = useMemo(() => materialCounts(list || []), [list]);
   const shown = useMemo(() => filterFilaments(list || [], search, material), [list, search, material]);
-  const fromSpoolman = (list || []).filter((filament) => filament.source === 'spoolman').length;
   const page = useShown(shown, 200, `${search}|${material}`);
 
   return (
@@ -137,12 +135,11 @@ export function FilamentPage() {
         <div>
           <h1 className="jp-page-title">Filament</h1>
           <p className="jp-meta">
-            {list ? `${list.length} ${list.length === 1 ? 'filament' : 'filaments'}${fromSpoolman ? ` • ${fromSpoolman} from Spoolman` : ''}` : 'Your filament catalog.'}
+            {list ? `${list.length} ${list.length === 1 ? 'filament' : 'filaments'}` : 'Your filament catalog.'}
           </p>
         </div>
         <div className="jp-printers__header-actions">
-          <Button icon={RefreshCw} onClick={() => window.openFilamentManager?.({ action: 'spoolman' })}>Spoolman</Button>
-          <Button variant="primary" icon={Plus} id="jp-add-filament" onClick={() => window.openFilamentManager?.({ action: 'add' })}>Add Filament</Button>
+          <Button variant="primary" icon={Plus} id="jp-add-filament" onClick={() => void addFilament()}>Add Filament</Button>
         </div>
       </header>
 
@@ -151,8 +148,8 @@ export function FilamentPage() {
       ) : !list.length ? (
         <Panel>
           <EmptyState icon={Cable} title="No filament yet"
-            action={<Button variant="primary" icon={Plus} onClick={() => window.openFilamentManager?.({ action: 'add' })}>Add Filament</Button>}>
-            Add the filament you print with, or sync your spools from Spoolman.
+            action={<Button variant="primary" icon={Plus} onClick={() => void addFilament()}>Add Filament</Button>}>
+            Add the filament you print with, then pick it on your models and when you log a print.
           </EmptyState>
         </Panel>
       ) : (

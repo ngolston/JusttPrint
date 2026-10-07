@@ -16,11 +16,11 @@ import { DetailsFields } from './details/DetailsFields';
 import { DetailsFilaments } from './details/DetailsFilaments';
 import { DetailsNotes } from './details/DetailsNotes';
 import { DetailsPath } from './details/DetailsPath';
-import { FilamentManagerDialog } from './FilamentManagerDialog';
 import { FileTypeSettingsDialog } from './FileTypeSettingsDialog';
 import { HttpsSettingsDialog } from './HttpsSettingsDialog';
 import { GridToolbar } from './grid/GridToolbar';
 import { LibraryGrid } from './grid/LibraryGrid';
+import { AddFilamentDialog } from './components/AddFilamentDialog';
 import { FolderPicker } from './components/FolderPicker';
 import { ListPicker } from './components/ListPicker';
 import { ServerProgressDialog } from './components/ServerProgressDialog';
@@ -68,7 +68,7 @@ function Screens() {
       <TagPreviewDialog />
       <PuterSignInDialog />
       <PartsManagerDialog />
-      <FilamentManagerDialog />
+      <AddFilamentDialog />
       <PrinterManagerDialog />
       <StatsDialog />
       <SystemReportDialog />

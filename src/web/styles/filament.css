@@ -52,3 +52,19 @@
 .jp-spool-card__badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: var(--jp-space-1); }
 .jp-spool-card__usage { margin: 0; color: var(--jp-text-2); font-size: var(--jp-text-small); }
 .jp-spool-card__actions { display: flex; align-items: center; justify-content: space-between; gap: var(--jp-space-2); padding: 0 var(--jp-space-2) var(--jp-space-2) var(--jp-space-2); }
+
+/* Add Filament (src/web/components/AddFilamentDialog.tsx) */
+.jp-add-filament__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--jp-space-4); margin: 0; }
+.jp-add-filament__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; }
+.jp-add-filament__field > span,
+.jp-add-filament__field > label { color: var(--jp-text-2); font: 500 var(--jp-text-meta) var(--jp-font); }
+.jp-add-filament__field .jp-input { width: 100%; box-sizing: border-box; }
+.jp-add-filament__wide { grid-column: 1 / -1; }
+.jp-add-filament__color { display: flex; align-items: center; gap: var(--jp-space-2); min-width: 0; }
+.jp-add-filament__color input[type="color"] {
+  flex: none; width: 40px; height: 36px; margin: 0; padding: 2px;
+  border: 1px solid var(--jp-border); border-radius: var(--jp-radius-md); background: var(--jp-surface-2); cursor: pointer;
+}
+.jp-add-filament__color .jp-input { flex: 1; min-width: 0; font-family: var(--jp-font-mono); }
+.jp-add-filament__error { margin: 0; color: var(--jp-danger); font-size: var(--jp-text-meta); }
+@media (max-width: 520px) { .jp-add-filament__form { grid-template-columns: 1fr; } }

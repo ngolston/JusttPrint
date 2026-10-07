@@ -56,7 +56,6 @@ export const MENU: MenuGroup[] = [
       separator,
       { kind: 'submenu', label: 'MCP Server', items: [action('Settings', open('openMcpServerSettings')), action('HTTPS / SSL', open('openHttpsSettings'))] },
       separator,
-      action('Filament Manager', open('openFilamentManager')),
       action('Printer Manager', open('openPrinterManagement')),
       action('Parts Manager', open('openPartsStock')),
       action('Tag Manager', open('openTagManager')),

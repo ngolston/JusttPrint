@@ -162,7 +162,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
 - [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.
-- [ ] **Filament Manager: the hex color field is squeezed to nothing** next to the color picker, so a hex value cannot be typed (`.filament-color-row`).
+- [x] **Filament Manager: the hex color field is squeezed to nothing.** The Filament Manager dialog is gone (6.0); **Add Filament** ([src/web/components/AddFilamentDialog.tsx](src/web/components/AddFilamentDialog.tsx)) has a full-width hex field next to the picker.
 - [x] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input.** Only selects get the arrow now (`src/web/styles/legacy/base.css`); the per-dialog workarounds are harmless and go as those dialogs are redrawn.
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)

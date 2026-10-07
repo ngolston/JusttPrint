@@ -1389,39 +1389,56 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#parts-stock-close');
     check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
 
-    // Filament Manager (React): Spoolman panel, add with a color, remove.
+    // Add Filament (src/web/components/AddFilamentDialog.tsx) from the Filament page: name required, a color, then in the pickers.
     const serverFilaments = async () => (await invoke(base, session, 'get-all-filaments')).result || [];
-    await page.evaluate(() => window.openFilamentManager());
-    check('Filament Manager opens', await page.isVisible('#filament-manager-dialog'));
-    await page.click('#spoolman-setup-toggle');
-    await page.fill('#spoolman-url', '');
-    await page.click('#spoolman-test-button');
-    await page.waitForSelector('#spoolman-setup-status:has-text("Enter a Spoolman URL first")', { timeout: 10000 }).catch(() => {});
-    check('Spoolman setup asks for a URL', /Enter a Spoolman URL first/.test(await page.textContent('#spoolman-setup-status')));
-    await page.click('#spoolman-setup-toggle');
-    check('Spoolman panel hides', !(await page.isVisible('#spoolman-setup-panel')));
-    await page.click('#filament-toggle-add-btn');
-    await page.fill('#new-filament-name', 'E2E Galaxy Black');
-    await page.fill('#new-filament-vendor', 'E2E Vendor');
-    await page.fill('#new-filament-material', 'PLA');
-    await page.fill('#new-filament-color', '1a2b3c');
-    check('typing a hex color updates the picker', (await page.inputValue('#new-filament-color-picker')) === '#1a2b3c');
-    await page.click('#add-filament-manager-button');
-    const filamentRow = await page.waitForSelector('#filament-manager-list .filament-manager-item:has-text("E2E Galaxy Black")', { timeout: 10000 }).catch(() => null);
+    check('Spoolman is gone from the API', /Unknown action/.test((await invoke(base, session, 'sync-spoolman-filaments', [])).error || '')
+      && /Unknown action/.test((await invoke(base, session, 'test-spoolman-connection', [])).error || ''));
+    check('the Filament Manager dialog is gone', await page.evaluate(() => !document.getElementById('filament-manager-dialog') && !('openFilamentManager' in window)));
+    await page.evaluate(() => { window.location.hash = '#/filament'; });
+    await page.click('#jp-add-filament');
+    check('Add Filament opens from the Filament page', await page.waitForSelector('dialog.jp-add-filament[open]', { timeout: 10000 }).then(() => true, () => false));
+    await page.click('#add-filament-save');
+    check('Add Filament asks for a name', await page.waitForSelector('#add-filament-error:has-text("Enter a name")', { timeout: 5000 }).then(() => true, () => false));
+    await page.fill('#add-filament-name', 'E2E Galaxy Black');
+    await page.fill('#add-filament-vendor', 'E2E Vendor');
+    await page.fill('#add-filament-material', 'PLA');
+    await page.fill('#add-filament-color', 'zzz');
+    await page.press('#add-filament-color', 'Enter');
+    check('Add Filament refuses a color that is not hex', await page.waitForSelector('#add-filament-error:has-text("hex code")', { timeout: 5000 }).then(() => true, () => false));
+    await page.fill('#add-filament-color', '1a2b3c');
+    check('typing a hex color updates the picker', (await page.inputValue('#add-filament-color-picker')) === '#1a2b3c');
+    await page.click('#add-filament-save');
+    await page.waitForSelector('dialog.jp-add-filament[open]', { state: 'detached', timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('dialog.jp-add-filament:not([open])', { timeout: 10000 }).catch(() => {});
     const filament = (await serverFilaments()).find((f) => f.name === 'E2E Galaxy Black');
-    check('Filament Manager adds a filament', !!filamentRow && filament && filament.color_hex === '1A2B3C' && filament.material === 'PLA' && filament.diameter === 1.75, JSON.stringify(filament));
-    check('filament status is shown after adding', /Added E2E Galaxy Black/.test(await page.textContent('#filament-manager-status')));
+    const filamentCard = filament ? await page.waitForSelector(`.jp-spool-card[data-filament-id="${filament.id}"]`, { timeout: 10000 }).catch(() => null) : null;
+    check('Add Filament adds it to the catalog and the page', !!filamentCard && filament.color_hex === '1A2B3C' && filament.material === 'PLA' && filament.diameter === 1.75
+      && !('spoolman_id' in filament) && !('source' in filament), JSON.stringify(filament));
     if (filament) {
       const added = await page.evaluate((id) => [...document.querySelectorAll('#filament-select option')].some((o) => o.value === String(id)), filament.id);
       check('new filament appears in the model filament picker', added);
-      await page.click(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"] .filament-remove`);
+      await page.click(`.jp-spool-card[data-filament-id="${filament.id}"] button[aria-label^="Remove"]`);
       const confirmRemove = await page.waitForSelector('dialog[open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
       if (confirmRemove) await confirmRemove.click();
-      await page.waitForSelector(`#filament-manager-list .filament-manager-item[data-filament-id="${filament.id}"]`, { state: 'detached', timeout: 10000 }).catch(() => {});
-      check('Filament Manager removes a filament after asking', !!confirmRemove && !(await serverFilaments()).some((f) => f.id === filament.id));
+      check('the Filament page removes a filament after asking', !!confirmRemove
+        && await waitFor(async () => (!(await serverFilaments()).some((f) => f.id === filament.id) ? true : null), 10000, 'filament removed').catch(() => false) === true);
     }
-    await page.click('#filament-manager-close');
-    check('Filament Manager closes', !(await page.isVisible('#filament-manager-dialog')));
+    await showLibrary();
+    // + beside a model's filament picker adds a new filament to the catalog and to that model.
+    const plusPath = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath || '';
+    const plusSelector = `.file-grid [data-filepath="${plusPath.replace(/"/g, '\\"')}"]`;
+    await page.waitForSelector(plusSelector, { timeout: 10000 }).catch(() => {});
+    await page.click(`${plusSelector} .file-name`).catch(() => page.click(plusSelector).catch(() => {}));
+    const plusButton = await page.waitForSelector('#add-filament-button', { state: 'visible', timeout: 10000 }).catch(() => null);
+    if (plusButton) await plusButton.click();
+    await page.waitForSelector('dialog.jp-add-filament[open]', { timeout: 10000 }).catch(() => {});
+    await page.fill('#add-filament-name', 'E2E Quick Orange');
+    await page.click('#add-filament-save');
+    const quickChip = await page.waitForSelector('#model-filaments .filament-chip:has-text("E2E Quick Orange")', { timeout: 10000 }).catch(() => null);
+    const quickOnModel = ((await invoke(base, session, 'get-model', [plusPath])).result?.filaments || []).find((f) => f.name === 'E2E Quick Orange');
+    check('+ on a model adds a new filament and puts it on the model', !!plusButton && !!quickChip && !!quickOnModel, JSON.stringify(quickOnModel));
+    if (quickOnModel) await invoke(base, session, 'delete-filament', [quickOnModel.id]);
+    await page.click(`${plusSelector} .file-name`).catch(() => page.click(plusSelector).catch(() => {}));
 
     // Filament page (React, src/web/pages/FilamentPage.tsx): spools, search, material, Show models, Remove.
     const pageFilament = (await invoke(base, session, 'save-filament', [{ name: 'E2E Page Teal', vendor: 'E2E Vendor', material: 'PETG', color_hex: '00aaaa' }])).result;
@@ -1679,7 +1696,7 @@ async function browserChecks(base, wsUrl, session) {
     check('no serious or critical accessibility problems (axe) on the main pages', axeProblems.length === 0, axeProblems.slice(0, 6).join(' | '));
     // The older dialogs, drawn with the tokens since Phase 14, and the message box.
     const dialogProblems = [];
-    const DIALOG_OPENERS = ['openAbout', 'openAiConfig', 'openBackupRestore', 'openFilamentManager', 'openFileTypeSettings', 'openHttpsSettings',
+    const DIALOG_OPENERS = ['openAbout', 'openAiConfig', 'openBackupRestore', 'openFileTypeSettings', 'openHttpsSettings',
       'openKeyboardShortcuts', 'openMcpServerSettings', 'openMetadataEditor', 'openPartsStock', 'openPerformanceSettings', 'openPrinterManagement',
       'openPurgeModels', 'openServerAccess', 'openSlicerSettings', 'openStats', 'openStlHome', 'openSystemReport', 'openTagManager', 'openThemeSettings', 'showMessage'];
     for (const opener of DIALOG_OPENERS) {

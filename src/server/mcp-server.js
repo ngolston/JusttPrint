@@ -165,7 +165,7 @@ const TOOL_DEFINITIONS = [
   {
     name: 'save_filament',
     description:
-      'Create a manual filament or update an existing non-Spoolman filament. Provide id to update.',
+      'Create a filament or update an existing one. Provide id to update.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -633,17 +633,6 @@ const TOOL_DEFINITIONS = [
     }
   },
   {
-    name: 'sync_spoolman_filaments',
-    description: 'Pull filaments from the configured Spoolman server into JusttPrint.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'Optional Spoolman URL override' },
-        token: { type: 'string', description: 'Optional API token override' }
-      }
-    }
-  },
-  {
     name: 'get_models_with_default_thumbnails',
     description: 'List models that still have the default/empty thumbnail (same set as missing custom thumbnails).',
     inputSchema: {
@@ -857,8 +846,6 @@ async function callTool(name, args, ctx) {
       return ctx.exportLibrary({ destPath: a.destPath });
     case 'backup_database':
       return ctx.backupDatabase({ destPath: a.destPath });
-    case 'sync_spoolman_filaments':
-      return ctx.syncSpoolmanFilaments({ url: a.url, token: a.token });
     case 'get_models_with_default_thumbnails':
       return ctx.getModelsMissingThumbnails(clampLimit(a.limit, 50, 500));
     default:

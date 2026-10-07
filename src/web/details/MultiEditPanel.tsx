@@ -7,6 +7,7 @@ import { selection } from '../selection';
 import { STATUSES, STATUS_LABELS, colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
 import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
+import { navigate } from '../shell/routes';
 
 type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
 
@@ -361,7 +362,7 @@ export function MultiEditPanel() {
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="sm" icon={Spool} className="jp-multi__manage" onClick={() => window.openFilamentManager?.()}>Manage Filament</Button>
+        <Button variant="ghost" size="sm" icon={Spool} className="jp-multi__manage" onClick={() => navigate('filament')}>Manage Filament</Button>
       </section>
 
       <div className="jp-details__footer">

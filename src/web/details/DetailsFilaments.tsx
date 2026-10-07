@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { filaments as filamentApi, models, type Filament } from '../api';
 import { exposeGlobal } from '../page';
 import { colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
+import { addFilament } from '../components/AddFilamentDialog';
 import { pickFromList } from '../components/ListPicker';
+import { navigate } from '../shell/routes';
 
 /** The model the details panel shows (only the fields this section reads). */
 interface FilamentsModel {
@@ -60,9 +62,9 @@ export function DetailsFilaments() {
     await window.detailsHost?.saveField(filePath, 'filaments', next.map((f) => Number(f.id)));
   }
 
-  async function add(id: number) {
+  async function add(id: number, known?: FilamentLike) {
     if (!id || assigned.some((f) => Number(f.id) === id)) return;
-    const record = catalog.find((f) => f.id === id) || { id, name: String(id) };
+    const record = known || catalog.find((f) => f.id === id) || { id, name: String(id) };
     await save([...assigned, record].sort(byLabel));
   }
 
@@ -101,8 +103,8 @@ export function DetailsFilaments() {
             {available.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
           </select>
           <button type="button" className="list-button icon-button" title="Search existing filaments" onClick={pickFilament}>☰</button>
-          <button type="button" id="add-filament-button" className="icon-button" title="Filament Manager"
-            onClick={() => window.openFilamentManager?.()}>+</button>
+          <button type="button" id="add-filament-button" className="icon-button" title="Add a new filament to the catalog and to this model"
+            onClick={async () => { const created = await addFilament(); if (created) { await reloadOptions(); await add(created.id, created); } }}>+</button>
         </div>
         <div id="model-filaments" className="tags-list">
           {assigned.map((f) => (
@@ -110,8 +112,8 @@ export function DetailsFilaments() {
               <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
               <span className="filament-chip-text">{label(f)}</span>
               <span className="filament-chip-remove" role="button" aria-label={`Remove ${label(f)}`} onClick={() => save(assigned.filter((a) => a !== f))}>×</span>
-              <button type="button" className="filament-chip-open" aria-label="Open the Filament Manager" title="Open the Filament Manager"
-                onClick={() => window.openFilamentManager?.()}>›</button>
+              <button type="button" className="filament-chip-open" aria-label="Open the Filament page" title="Open the Filament page"
+                onClick={() => navigate('filament')}>›</button>
             </div>
           ))}
         </div>
