@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 6.5.0**
+**Version 6.6.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -26,7 +26,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama
 - **MCP server** so AI agents can search and update your library
-- **Send to Slicer** from the preview, through a small helper on your computer
+- **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
 
@@ -156,7 +156,7 @@ The sidebar holds every page: **Home**, **Library**, **Collections**, **Queue**,
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
 - **HTTPS**: open **Settings → Server → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
-- **Send to Slicer**: install the helper on your computer from **Settings → Slicer → Slicers**.
+- **Open in Slicer**: for OrcaSlicer, click **Add OrcaSlicer (no helper)** under **Settings → Slicer** and save; Open in Slicer then hands it a link and it downloads the model itself (OrcaSlicer must reach the server's address; with HTTPS it needs a trusted certificate). For other slicers, install the helper on your computer from the same page.
 
 ## AI Tagging
 

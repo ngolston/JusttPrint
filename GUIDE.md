@@ -185,7 +185,10 @@ Most forms are shown right on the page: change the values and click **Save**.
 
 ### Send to Slicer
 
-Slicers run on your computer, not on the server. Add each slicer under **Settings → Slicer** with its path on your computer, then download and run the JusttPrint helper there once. **Open in Slicer** (details panel, model menu) and **Send to Slicer** (3D preview) then download the model and open it in that slicer. On a Mac the helper opens a new slicer window for each send.
+Slicers run on your computer, not on the server. **Open in Slicer** (details panel, model menu) and **Send to Slicer** (3D preview) open the model there.
+
+- **OrcaSlicer, no helper:** under **Settings → Slicer**, click **Add OrcaSlicer (no helper)** and **Save**. Open in Slicer then hands OrcaSlicer a link: it downloads the model from JusttPrint (into its download folder, OrcaSlicer → Preferences) and puts it on the plate, in the window that is already open. Works with OrcaSlicer 2.x on Windows and macOS out of the box; on Linux, turn on OrcaSlicer's desktop integration (AppImage) so the link opens it. Up to 1 GB per file and 10 files at a time (they arrive one after another). The browser may ask once whether to open OrcaSlicer: allow it. The computer must reach the server at the address in the browser, and with HTTPS the certificate must be trusted (OrcaSlicer refuses self-signed ones; use plain HTTP on the home network, or a real certificate). Each download address works for 30 minutes and only for that file.
+- **Other slicers (and OrcaSlicer with options of your own):** add each slicer with its path on your computer, then download and run the JusttPrint helper there once. On a Mac the helper opens a new slicer window for each send.
 
 ### MCP server
 

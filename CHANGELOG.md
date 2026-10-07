@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.6.0] - 2026-10-07
+
+**Upgrading:** no changes needed; slicers set up with the helper keep working. To open models in OrcaSlicer without the helper, add it under **Settings → Slicer → Add OrcaSlicer (no helper)**. Reload open browser tabs after the update.
+
+**Changes:**
+- **Open in OrcaSlicer without the helper:** an OrcaSlicer entry added with **Add OrcaSlicer (no helper)** opens models through OrcaSlicer's own `orcaslicer://` links. OrcaSlicer downloads each model straight from JusttPrint and puts it on the plate of the window already open; nothing else needs installing. Each file gets its own download address that ends in its name and works for 30 minutes; up to 10 files at a time, 1 GB each (OrcaSlicer's limit). Tested with OrcaSlicer 2.4.2. It needs OrcaSlicer to reach the server's address, and with HTTPS a trusted certificate.
+- Other slicers still use the helper, and so can OrcaSlicer when added with its path.
+- Removed the "Send to printer" plan from the to-do list, and the printer form no longer promises a Moonraker integration that does not exist (the Klipper box only shows a badge).
+
 ## [6.5.0] - 2026-10-07
 
 **Upgrading:** no changes needed. To open share links from outside your home network, JusttPrint must be reachable from there (a reverse proxy with HTTPS); the links use the address you opened JusttPrint with. Reload open browser tabs after the update.

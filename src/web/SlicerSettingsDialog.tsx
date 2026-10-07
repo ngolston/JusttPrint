@@ -18,6 +18,10 @@ interface Row {
 let nextKey = 1;
 const row = (name = '', path = ''): Row => ({ key: nextKey++, name, path });
 
+/** The path of a slicer opened through OrcaSlicer's own links (src/server/slicer-links.js): no helper. */
+export const ORCA_LINK_PATH = 'orcaslicer://';
+export const isOrcaLink = (slicerPath: string) => /^orcaslicer:\/\//i.test(slicerPath.trim());
+
 /** "C:\...\orca-slicer.exe" → "Orca Slicer". */
 export function suggestSlicerName(slicerPath: string): string {
   const base = slicerPath.split(/[/\\]/).pop() || '';
@@ -71,6 +75,12 @@ export function SlicerSettingsDialog() {
 
   const update = (key: number, change: Partial<Row>) =>
     setRows((previous) => previous.map((existing) => (existing.key === key ? { ...existing, ...change } : existing)));
+
+  function addOrca() {
+    if (rows.some((existing) => isOrcaLink(existing.path))) return;
+    const name = rows.some((existing) => existing.name.trim().toLowerCase() === 'orcaslicer') ? 'OrcaSlicer (direct)' : 'OrcaSlicer';
+    setRows((previous) => [...previous, row(name, ORCA_LINK_PATH)]);
+  }
 
   function addRow() {
     const added = row();
@@ -128,6 +138,15 @@ export function SlicerSettingsDialog() {
                     input.focus();
                   }
                 }} />
+              {isOrcaLink(entry.path) ? (
+                <div className="input-with-icon slicer-orca-row">
+                  <p className="setting-description slicer-orca-note" id={`slicer-path-${entry.key}`}>
+                    Opens in OrcaSlicer through its own links: no helper, no path. OrcaSlicer downloads the model from this server.
+                  </p>
+                  <button type="button" className="remove-slicer-button icon-button" title="Remove slicer" aria-label="Remove slicer"
+                    onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}>×</button>
+                </div>
+              ) : (<>
               <label className="slicer-field-label" htmlFor={`slicer-path-${entry.key}`}>Path</label>
               <div className="input-with-icon">
                 <input type="text" id={`slicer-path-${entry.key}`} className="slicer-path" autoComplete="off"
@@ -137,15 +156,24 @@ export function SlicerSettingsDialog() {
                 <button type="button" className="remove-slicer-button icon-button" title="Remove slicer" aria-label="Remove slicer"
                   onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}>×</button>
               </div>
+              </>)}
             </div>
           </div>
         ))}
       </div>
       <div className="slicer-list-actions">
-        <button type="button" id="add-slicer-button" className="full-width-button" onClick={addRow}>Add New Slicer</button>
+        {!rows.some((existing) => isOrcaLink(existing.path)) && (
+          <button type="button" id="add-orcaslicer-button" className="full-width-button is-primary" onClick={addOrca}>Add OrcaSlicer (no helper)</button>
+        )}
+        <button type="button" id="add-slicer-button" className="full-width-button" onClick={addRow}>Add Other Slicer (with helper)</button>
       </div>
       <div id="slicer-helper-install">
-        <p className="setting-description">Send to Slicer uses a helper on this computer. Type the slicer's full path on this computer above. Download the helper package for this server, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
+        <p className="setting-description">
+          <strong>OrcaSlicer</strong> needs nothing else: Open in Slicer hands it a link, and it downloads the model from this server
+          (up to 1 GB per file, 10 files at a time). OrcaSlicer must be installed on the computer you click on, and able to reach
+          this server&apos;s address; on Linux, turn on its desktop integration.
+        </p>
+        <p className="setting-description">Other slicers use a helper on each computer. Type the slicer&apos;s full path on that computer above. Download the helper package for this server, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
         {window.location.protocol === 'https:' && (
           <div className="form-group checkbox-container" id="slicer-helper-insecure-row">
             <input type="checkbox" id="slicer-helper-insecure" checked={insecure} onChange={(event) => setInsecure(event.target.checked)} />

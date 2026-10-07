@@ -22,6 +22,7 @@ const { getServerAuth } = require('./auth');
 const { ROLE_LABELS, roleAllows } = require('./users');
 const { registerUploadRoutes } = require('./uploads');
 const { registerSharePages } = require('./share-pages');
+const { registerSlicerFileRoutes } = require('./slicer-links');
 const { extractModelFromZip } = require('../core/zip-entries');
 const { libraryPathAllowed } = require('./path-context');
 const { getMcpToolContext } = require('./mcp-tools');
@@ -296,6 +297,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   auth.registerRoutes(expressApp, express);
   // Share links (core/share-links.js): public, the token is the permission.
   registerSharePages(expressApp);
+  // OrcaSlicer downloads models through short-lived per-file addresses (slicer-links.js).
+  registerSlicerFileRoutes(expressApp);
   expressApp.use(auth.requireAuth);
   registerApiRoutes(expressApp);
 

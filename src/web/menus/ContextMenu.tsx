@@ -16,7 +16,7 @@ export interface ContextMenuItem {
 type ClientAction =
   | { type: 'download'; filePath: string }
   | { type: 'copy-paths'; filePaths: string[] }
-  | { type: 'open-in-slicer'; [key: string]: unknown };
+  | { type: 'open-in-slicer' | 'open-in-orcaslicer' | 'slicer-error'; [key: string]: unknown };
 
 /** Save a library file (or a ZIP entry) through /api/download. */
 function downloadFile(filePath: string) {
