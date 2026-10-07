@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.3.0] - 2026-10-07
+
+**Upgrading:** no changes needed. To upload files of 5 or 10 GB, set `JUSTTPRINT_MAX_UPLOAD_MB` (for example `10240`) and raise the scan limit under **Settings → General → Performance** (50 MB unless changed), or big models are saved but not added to the library. Behind nginx, `client_max_body_size 32m;` is now enough for any file size. Reload open browser tabs after the update.
+
+**Changes:**
+- **Large uploads:** the browser now uploads in 16 MB pieces (`JUSTTPRINT_UPLOAD_CHUNK_MB`), so files of many gigabytes get through reverse proxies with a body size limit and Cloudflare (100 MB per request), and no upload runs into the server's 5-minute request limit. A piece that fails is sent again (for about two minutes); after that, or after a reload, uploading the same file again continues where it stopped, also after a server restart. The progress shows how much has arrived. Cancel deletes what was sent; unfinished uploads are deleted after a day. The server checks the free disk space before an upload starts.
+- The upload dialog warns about files larger than the scan limit (Settings → General → Performance), which are saved but not added to the library, and says afterwards how many of the uploaded files are in the library (folder watching may add them first, so "new models" undercounted).
+- For scripts: `POST /api/upload` (one request) still works; the pieces API is described in `src/server/uploads.js`.
+
 ## [6.2.0] - 2026-10-07
 
 **Upgrading:** JusttPrint now has user accounts. The first start turns your password into the **admin** account (or the name in the new `JUSTTPRINT_USERNAME`): browsers are logged out once, so log in again with the user name `admin` and your usual password. `JUSTTPRINT_PASSWORD` keeps setting that account's password on every start. Scripts that log in with only a password still work, and the MCP API token is unchanged (it acts as an admin). Behind a reverse proxy, raise its upload size limit to use uploads (nginx: `client_max_body_size`). Reload open browser tabs after the update.

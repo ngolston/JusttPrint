@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, CircleAlert, FolderOpen, Plus, Upload, X } from 'lucide-react';
-import { uploadFile, uploads, type UploadInfo } from '../api';
+import { cancelUpload, uploadFile, uploads, type UploadInfo } from '../api';
 import { Button, IconButton } from '../components/Button';
 import { pickFolder } from '../components/FolderPicker';
 import { Modal } from '../components/Overlay';
@@ -12,6 +12,7 @@ import { stlHomeDirectories } from '../scan/stlHome';
 import { useCan } from '../session';
 import { exposeGlobal } from '../page';
 import { checkFile, type FileCheck } from './check';
+import { forgetSession, saveSession, savedSession } from './resume';
 
 declare global {
   interface Window {
@@ -31,6 +32,8 @@ interface Entry {
   progress: number;
   message: string;
   savedAs?: string;
+  /** The server's session while it uploads (cancelled with it). */
+  sessionId?: string;
 }
 
 function rememberedFolder(): string {
@@ -61,6 +64,12 @@ const uploadLabel = (count: number) => (count === 0 ? 'Upload' : `Upload ${count
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+/** The scan-limit warning for a file that may be uploaded, if any. */
+function scanWarning(file: File, info: UploadInfo | null): string {
+  const check = info ? checkFile(file, info) : null;
+  return check && check.ok ? check.warning || '' : '';
+}
+
 function entryFor(file: File, info: UploadInfo | null): Entry {
   const check: FileCheck = info ? checkFile(file, info) : { ok: true };
   return {
@@ -68,7 +77,7 @@ function entryFor(file: File, info: UploadInfo | null): Entry {
     file,
     status: check.ok ? 'waiting' : 'skipped',
     progress: 0,
-    message: check.ok ? '' : check.reason
+    message: check.ok ? check.warning || '' : check.reason
   };
 }
 
@@ -123,31 +132,62 @@ export function UploadDialog() {
     setSummary('');
     let uploaded = 0;
     let failed = 0;
+    const paths: string[] = [];
     for (const entry of queue) {
       const controller = new AbortController();
       abort.current = controller;
-      patch(entry.key, { status: 'uploading', progress: 0, message: '' });
+      patch(entry.key, { status: 'uploading', progress: entry.progress });
+      const resumeId = savedSession(folder, entry.file);
       try {
-        const result = await uploadFile(entry.file, folder, (fraction) => patch(entry.key, { progress: fraction }), controller.signal);
+        const result = await uploadFile(entry.file, folder, {
+          chunkBytes: infoRef.current?.chunkBytes || 16 * 1024 * 1024,
+          signal: controller.signal,
+          resumeId,
+          onSession: (id, received) => {
+            saveSession(folder, entry.file, id);
+            patch(entry.key, {
+              sessionId: id,
+              progress: received / Math.max(1, entry.file.size),
+              message: received > 0 ? `Continuing from ${formatBytes(received)}` : entry.message
+            });
+          },
+          onProgress: (fraction) => patch(entry.key, { progress: fraction }),
+          onRetry: (attempt, delay) => patch(entry.key, { message: `Connection problem, trying again in ${Math.round(delay / 1000)} s (attempt ${attempt})` })
+        });
+        forgetSession(folder, entry.file);
+        paths.push(result.filePath);
         uploaded++;
         patch(entry.key, {
           status: 'done',
           progress: 1,
           savedAs: result.fileName,
-          message: result.fileName !== entry.file.name ? `Saved as ${result.fileName} (the name was taken)` : ''
+          message: [result.fileName !== entry.file.name ? `Saved as ${result.fileName} (the name was taken).` : '', scanWarning(entry.file, infoRef.current)].filter(Boolean).join(' ')
         });
       } catch (error) {
         failed++;
+        if (controller.signal.aborted) {
+          // Cancelled: the server deletes what it has.
+          const id = savedSession(folder, entry.file);
+          if (id) void cancelUpload(id);
+          forgetSession(folder, entry.file);
+          patch(entry.key, { status: 'error', progress: 0, message: 'Cancelled' });
+          break;
+        }
+        // A lost connection keeps the session: Upload again continues it. Other errors start over.
+        if (!(error instanceof Error && /connection was lost/.test(error.message))) forgetSession(folder, entry.file);
         patch(entry.key, { status: 'error', message: errorText(error) });
-        if (controller.signal.aborted) break;
       }
     }
     abort.current = null;
     if (uploaded) {
       setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}. Adding to the library…`);
       try {
-        const { newModels } = await uploads.finish(folder);
-        setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}; ${newModels} new ${newModels === 1 ? 'model' : 'models'} in the library.${failed ? ` ${failed} failed.` : ''}`);
+        const { inLibrary } = await uploads.finish(folder, paths);
+        const files = `${uploaded} ${uploaded === 1 ? 'file' : 'files'}`;
+        const added = inLibrary === uploaded
+          ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
+          : `${inLibrary} of them in the library. The others are larger than the scan limit (Settings → General → Performance): raise it and scan again to add them.`;
+        setSummary(`Uploaded ${files}; ${added}${failed ? ` ${failed} failed.` : ''}`);
       } catch (error) {
         setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}, but the scan failed: ${errorText(error)}`);
       }
@@ -219,7 +259,12 @@ export function UploadDialog() {
                 <IconButton icon={X} size="sm" label={`Remove ${entry.file.name}`}
                   onClick={() => setEntries((list) => list.filter((other) => other.key !== entry.key))} />
               )}
-              {entry.status === 'uploading' && <ProgressBar className="jp-upload__progress" value={entry.progress} max={1} label={`Uploading ${entry.file.name}`} />}
+              {entry.status === 'uploading' && (
+                <span className="jp-upload__progress">
+                  <ProgressBar value={entry.progress} max={1} label={`Uploading ${entry.file.name}`} />
+                  <span className="jp-upload__sent">{formatBytes(entry.progress * entry.file.size)} of {formatBytes(entry.file.size)}</span>
+                </span>
+              )}
               {entry.message && (
                 <span className="jp-upload__message">
                   {entry.status === 'skipped' ? 'Skipped: ' : entry.status === 'error' ? 'Failed: ' : ''}{entry.message}

@@ -17,4 +17,10 @@ describe('upload checks', () => {
     expect(checkFile({ name: '.a.stl', size: 1 }, info)).toEqual({ ok: false, reason: 'hidden files are not uploaded' });
     expect(checkFile({ name: 'notes', size: 1 }, info)).toEqual({ ok: false, reason: 'no file extension' });
   });
+
+  it('warns about files the scan will skip', () => {
+    const check = checkFile({ name: 'huge.stl', size: 60 }, { ...info, scanMaxBytes: 50 });
+    expect(check.ok).toBe(true);
+    expect(check.ok && check.warning).toMatch(/scan limit/);
+  });
 });

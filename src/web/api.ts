@@ -98,6 +98,10 @@ export interface UploadInfo {
   /** Lower-case extensions with the dot (".stl"). */
   extensions: string[];
   maxBytes: number;
+  /** Size of the pieces to send (src/server/uploads.js). */
+  chunkBytes: number;
+  /** Scans skip larger files (Settings → General → Performance): they are uploaded but not added. */
+  scanMaxBytes: number;
 }
 
 export interface UploadResult {
@@ -106,35 +110,145 @@ export interface UploadResult {
   size: number;
 }
 
-/**
- * Upload one file into a library folder (POST /api/upload, src/server/uploads.js), reporting
- * progress as a fraction. XMLHttpRequest, because fetch cannot report upload progress.
- */
-export function uploadFile(file: File, folder: string, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<UploadResult> {
+/** An upload in pieces on the server (src/server/upload-sessions.js). */
+interface UploadSession {
+  id: string;
+  size: number;
+  received: number;
+  fileName: string;
+  folder: string;
+}
+
+/** An upload error; `received` is where the server's copy stands, when it said. */
+export class UploadError extends ApiError {
+  constructor(message: string, status: number, readonly received?: number) {
+    super(message, status);
+    this.name = 'UploadError';
+  }
+}
+
+async function uploadRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, { credentials: 'same-origin', ...init });
+  if (response.status === 401) window.location.href = '/login';
+  const data = await response.json().catch(() => ({})) as T & { error?: string; received?: number };
+  if (!response.ok || data.error) throw new UploadError(data.error || `HTTP ${response.status}`, response.status, data.received);
+  return data;
+}
+
+const sessionUrl = (id: string) => `/api/upload/sessions/${encodeURIComponent(id)}`;
+
+/** Send one piece; progress in bytes of this piece. */
+function sendPiece(id: string, offset: number, piece: Blob, onProgress: (loaded: number) => void, signal?: AbortSignal): Promise<{ received: number }> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open('POST', `/api/upload?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(file.name)}`);
+    request.open('PUT', `${sessionUrl(id)}?offset=${offset}`);
     request.withCredentials = true;
     request.setRequestHeader('Content-Type', 'application/octet-stream');
-    request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(event.loaded / event.total); };
+    request.upload.onprogress = (event) => onProgress(event.loaded);
     request.onload = () => {
-      let data: { error?: string } & Partial<UploadResult> = {};
-      try { data = JSON.parse(request.responseText || '{}'); } catch { /* not JSON */ }
+      let data: { error?: string; received?: number } = {};
+      try { data = JSON.parse(request.responseText || '{}'); } catch { /* not JSON (a proxy's error page) */ }
       if (request.status === 401) window.location.href = '/login';
-      if (request.status >= 200 && request.status < 300 && !data.error) resolve(data as UploadResult);
-      else reject(new ApiError(data.error || `HTTP ${request.status}`, request.status));
+      if (request.status >= 200 && request.status < 300 && !data.error) resolve({ received: Number(data.received) });
+      else reject(new UploadError(data.error || `HTTP ${request.status}`, request.status, data.received));
     };
-    request.onerror = () => reject(new ApiError('The connection to the server was lost', 0));
-    request.onabort = () => reject(new ApiError('Cancelled', 0));
-    signal?.addEventListener('abort', () => request.abort(), { once: true });
-    request.send(file);
+    request.onerror = () => reject(new UploadError('The connection to the server was lost', 0));
+    request.onabort = () => reject(new UploadError('Cancelled', 0));
+    const abort = () => request.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    request.onloadend = () => signal?.removeEventListener('abort', abort);
+    request.send(piece);
   });
+}
+
+/** Pauses before each retry of a piece that failed (about 2 minutes in all). */
+export const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 30000, 30000, 30000];
+
+/** Errors that sending again cannot fix (bad file, no permission, too large, disk full, upload gone). */
+const isPermanent = (status: number) => [400, 403, 404, 413, 507].includes(status);
+
+const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  const timer = setTimeout(resolve, ms);
+  signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new UploadError('Cancelled', 0)); }, { once: true });
+});
+
+export interface UploadOptions {
+  chunkBytes: number;
+  signal?: AbortSignal;
+  /** The session of an earlier attempt at this file: continue it when the server still has it. */
+  resumeId?: string | null;
+  /** Called with the session id once the server has one (to resume after a reload). */
+  onSession?: (id: string, received: number) => void;
+  /** Fraction of the file the server has, as pieces go out. */
+  onProgress?: (fraction: number) => void;
+  /** A piece failed; retrying after `delayMs`. */
+  onRetry?: (attempt: number, delayMs: number) => void;
+}
+
+/**
+ * Upload a file into a library folder in pieces, retrying a piece that fails and continuing
+ * where the server's copy stands. Resolves when the file has its name in the folder.
+ */
+export async function uploadFile(file: File, folder: string, options: UploadOptions): Promise<UploadResult> {
+  const { chunkBytes, signal, resumeId, onSession, onProgress, onRetry } = options;
+  let session: UploadSession | null = null;
+  if (resumeId) {
+    session = await uploadRequest<UploadSession>(sessionUrl(resumeId)).catch(() => null);
+    if (session && (session.size !== file.size || session.folder !== folder || session.fileName !== file.name)) session = null;
+  }
+  if (!session) {
+    session = await uploadRequest<UploadSession>('/api/upload/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder, name: file.name, size: file.size })
+    });
+  }
+  const { id } = session;
+  let received = session.received;
+  onSession?.(id, received);
+  const piece = Math.max(256, chunkBytes || 16 * 1024 * 1024);
+  let attempt = 0;
+  while (received < file.size) {
+    const end = Math.min(file.size, received + piece);
+    const at = received;
+    try {
+      received = (await sendPiece(id, at, file.slice(at, end), (loaded) => onProgress?.((at + loaded) / Math.max(1, file.size)), signal)).received;
+      attempt = 0;
+      onProgress?.(received / Math.max(1, file.size));
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      const status = error instanceof ApiError ? error.status : 0;
+      if (status === 409 && error instanceof UploadError && error.received !== undefined) {
+        received = error.received;
+        continue;
+      }
+      if (isPermanent(status)) throw error;
+      if (attempt >= RETRY_DELAYS_MS.length) {
+        throw new UploadError(`The connection was lost. Upload again to continue from ${Math.round((received / Math.max(1, file.size)) * 100)}%.`, status, received);
+      }
+      const delay = RETRY_DELAYS_MS[attempt++];
+      onRetry?.(attempt, delay);
+      await wait(delay, signal);
+      // The piece may have arrived even though its answer did not.
+      try {
+        received = (await uploadRequest<UploadSession>(sessionUrl(id))).received;
+      } catch (statusError) {
+        if (statusError instanceof ApiError && statusError.status === 404) throw statusError;
+      }
+    }
+  }
+  return uploadRequest<UploadResult>(`${sessionUrl(id)}/finish`, { method: 'POST' });
+}
+
+/** Give up an upload: the server deletes what it has. */
+export function cancelUpload(id: string): Promise<unknown> {
+  return uploadRequest(sessionUrl(id), { method: 'DELETE' }).catch(() => null);
 }
 
 export const uploads = {
   info: () => callAction<UploadInfo>('get-upload-info'),
   /** Scan the folder after a batch so the new models show up. */
-  finish: (folder: string) => callAction<{ newModels: number }>('add-uploaded-files', folder)
+  finish: (folder: string, filePaths: string[]) => callAction<{ newModels: number; inLibrary: number }>('add-uploaded-files', folder, filePaths)
 };
 
 export interface PrintStatistics {
