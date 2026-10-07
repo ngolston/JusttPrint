@@ -10,6 +10,15 @@ body.jp-shell-on #model-details {
   border: 0;
   background: none;
 }
+/* The multi-edit and bundle panels sit on the column's own background too, without the old tint
+   and the strip above them. */
+body.jp-shell-on #multi-edit-panel.model-details,
+body.jp-shell-on #bundle-details.model-details {
+  margin: 0;
+  padding-top: var(--jp-space-4);
+  border: 0;
+  background: none;
+}
 /* The phone header and the Name field (the title shows the name). */
 body.jp-shell-on #model-details > h3,
 body.jp-shell-on #model-details > #details-name-slot,

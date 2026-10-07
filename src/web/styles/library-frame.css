@@ -25,8 +25,16 @@ body.server-mode.jp-shell-on .sidebar {
   border-right: 0;
   border-left: 1px solid var(--jp-border);
   background: var(--jp-bg-2);
+  scrollbar-gutter: auto;
 }
 body.jp-shell-on .sidebar::after { flex-basis: var(--jp-space-4); }
+
+/* The grid and the details column scroll on their own: thin bars in the theme's colours. */
+body.jp-shell-on .sidebar,
+body.jp-shell-on .file-grid {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jp-border-strong) transparent;
+}
 
 body.jp-shell-on .folder-rail,
 body.server-mode.jp-shell-on .folder-rail {
