@@ -133,6 +133,7 @@
 /* Viewers browse: no favorite button, ratings shown but not clickable. The server refuses edits anyway. */
 :root[data-role="viewer"] .model-favorite-btn { display: none; }
 :root[data-role="viewer"] .model-engagement-bar { pointer-events: none; }
+:root[data-role="viewer"] #edit-mode-toggle { display: none; }
 
 /* Users */
 .users-roles { margin: 0 0 12px; padding-left: 18px; }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { htmlToMarkdown, render, sanitizeUrl } from '../notes/markdown';
 import { askText, exposeGlobal } from '../page';
 import { Pencil } from 'lucide-react';
+import { useCan } from '../session';
 
 interface NotesModel {
   filePath: string;
@@ -102,6 +103,7 @@ function openLink(event: MouseEvent): boolean {
  * Notes dialog with a rich-text editor that saves Markdown. Registers window.detailsNotes.
  */
 export function DetailsNotes() {
+  const canEdit = useCan('editor');
   const [slot] = useState(() => document.getElementById('details-notes-slot'));
   const [model, setModel] = useState<NotesModel | null>(null);
   const [notes, setNotes] = useState('');
@@ -121,6 +123,7 @@ export function DetailsNotes() {
   }), []);
 
   function openEditor() {
+    if (!canEdit) return;
     const dialog = dialogRef.current;
     const rich = richRef.current;
     if (!dialog || !rich || !model) return;
@@ -148,7 +151,7 @@ export function DetailsNotes() {
     }
   }
 
-  const html = notes.trim() ? render(notes) : '<p class="notes-preview-empty">Click to add notes...</p>';
+  const html = notes.trim() ? render(notes) : `<p class="notes-preview-empty">${canEdit ? 'Click to add notes...' : 'No notes'}</p>`;
 
   return (
     <>
@@ -159,8 +162,8 @@ export function DetailsNotes() {
             <div id="model-notes-preview" className="notes-preview notes-sidebar-preview" aria-label="Notes"
               dangerouslySetInnerHTML={{ __html: html }}
               onClick={(event) => { if (!openLink(event)) openEditor(); }} />
-            <button type="button" id="open-notes-modal-button" className="icon-button" title="Edit notes"
-              aria-label="Edit notes" onClick={(event) => { event.preventDefault(); openEditor(); }}><Pencil size={14} aria-hidden="true" /></button>
+            {canEdit && <button type="button" id="open-notes-modal-button" className="icon-button" title="Edit notes"
+              aria-label="Edit notes" onClick={(event) => { event.preventDefault(); openEditor(); }}><Pencil size={14} aria-hidden="true" /></button>}
           </div>
         </div>,
         slot

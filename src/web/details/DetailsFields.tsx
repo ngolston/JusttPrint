@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { libraryValues, tags as tagApi } from '../api';
 import { askText, exposeGlobal } from '../page';
 import { pickFromList, type ListField } from '../components/ListPicker';
+import { useCan } from '../session';
 
 /** The model the details panel shows (only the fields this section edits are typed). */
 export interface DetailsModel {
@@ -91,6 +92,8 @@ export function DetailsFields() {
   const [fieldsSlot] = useState(() => document.getElementById('details-fields-slot'));
   const [tagsSlot] = useState(() => document.getElementById('details-tags-slot'));
   const [model, setModel] = useState<DetailsModel | null>(null);
+  // Viewers read the fields; only editors and admins change them.
+  const canEdit = useCan('editor');
   const [source, setSource] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [options, setOptions] = useState<Options>(EMPTY_OPTIONS);
@@ -176,15 +179,17 @@ export function DetailsFields() {
       <div className="form-group" key={field}>
         <label htmlFor={IDS[field]}>{LABELS[field].label}</label>
         <div className="designer-input-container">
-          <select id={IDS[field]} className={field === 'license' ? 'form-control' : undefined} value={value} disabled={!model}
+          <select id={IDS[field]} className={field === 'license' ? 'form-control' : undefined} value={value} disabled={!model || !canEdit}
             onChange={(event) => save(field, event.target.value)}>
-            <option value="">{LABELS[field].empty}</option>
+            <option value="">{canEdit ? LABELS[field].empty : '—'}</option>
             {values.map((option) => <option key={option} value={option}>{option}</option>)}
           </select>
+          {canEdit && (<>
           <button type="button" className="list-button icon-button" title={`Search existing ${LABELS[field].list === 'parent' ? 'parent models' : `${LABELS[field].list}s`}`}
             disabled={!model} onClick={() => pick(field)}>☰</button>
           <button type="button" className="icon-button" id={`details-add-${LABELS[field].list}`} title={LABELS[field].prompt}
             disabled={!model} onClick={() => addNew(field)}>+</button>
+          </>)}
         </div>
       </div>
     );
@@ -202,7 +207,7 @@ export function DetailsFields() {
       <div className="form-group">
         <label htmlFor="model-source">Source</label>
         <div className="input-with-icon">
-          <input type="text" id="model-source" placeholder="Enter source..." spellCheck={false} value={source} disabled={!model}
+          <input type="text" id="model-source" placeholder={canEdit ? 'Enter source...' : ''} spellCheck={false} value={source} disabled={!model} readOnly={!canEdit}
             onChange={(event) => setSource(event.target.value)}
             onBlur={() => { if (model && source !== (model.source || '')) { save('source', source); setModel({ ...model, source }); } }}
             onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
@@ -221,7 +226,7 @@ export function DetailsFields() {
       <div className="form-group details-tags-group">
         <label>Tags:</label>
         <div className="tags-container">
-          <div className="tags-input-container">
+          {canEdit && <div className="tags-input-container">
             <select id="tag-select" aria-label="Add a tag" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
               <option value="">Select a tag...</option>
               {options.tags.filter((tag) => !tags.includes(tag)).map((tag) => <option key={tag} value={tag}>{tag}</option>)}
@@ -229,12 +234,12 @@ export function DetailsFields() {
             <button type="button" className="list-button icon-button" title="Search existing tags" disabled={!model}
               onClick={async () => { const picked = await pickFromList('tag'); if (picked) await addTag(picked); }}>☰</button>
             <button type="button" id="details-add-tag" className="icon-button" title="New tag" disabled={!model} onClick={newTag}>+</button>
-          </div>
+          </div>}
           <div id="model-tags" className="tags-list">
             {tags.map((tag) => (
               <div key={tag} className="tag" data-tag-name={tag} title={tag}>
                 <span className="tag-text">{tag}</span>
-                <span className="tag-remove" role="button" aria-label={`Remove tag ${tag}`} onClick={() => removeTag(tag)}>×</span>
+                {canEdit && <span className="tag-remove" role="button" aria-label={`Remove tag ${tag}`} onClick={() => removeTag(tag)}>×</span>}
               </div>
             ))}
           </div>

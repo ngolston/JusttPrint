@@ -83,6 +83,7 @@ ipcMain.handle('update-user', async (event, id, changes) => {
 ipcMain.handle('delete-user', async (event, id) => {
   const userId = Number(id);
   const result = getServerAuth().deleteUser(event && event.user, userId);
+  require('./settings').forgetUserSettings(userId);
   endSessionsOf(userId, 'Account deleted');
   return result;
 });

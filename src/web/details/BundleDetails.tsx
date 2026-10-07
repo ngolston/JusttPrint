@@ -6,6 +6,7 @@ import { bundleSummary, type PrintModel } from '../print/printStatus';
 import { formatFileSize } from '../StatsDialog';
 import { showFolder } from '../folders/store';
 import { pickFromList } from '../components/ListPicker';
+import { useCan } from '../session';
 
 interface BundleChild extends PrintModel {
   filePath: string;
@@ -61,6 +62,7 @@ function entryName(child: BundleChild) {
  * counts, tags shared across the bundle, and its models. Registers window.bundleDetails.
  */
 export function BundleDetails() {
+  const canEdit = useCan('editor');
   const [titleSlot] = useState(() => document.getElementById('bundle-details-title'));
   const [bodySlot] = useState(() => document.getElementById('bundle-details-slot'));
   const [bundle, setBundle] = useState<BundleShow | null>(null);
@@ -150,7 +152,7 @@ export function BundleDetails() {
           <div className="form-group">
             <label>Tags:</label>
             <div className="tags-container">
-              <div className="tags-input-container">
+              {canEdit && <div className="tags-input-container">
                 <select id="bundle-tag-select" value="" onChange={(e) => addTag(e.target.value)}>
                   <option value="">Select a tag...</option>
                   {allTags.filter((t) => !tagNames.includes(t)).map((t) => <option key={t} value={t}>{t}</option>)}
@@ -159,12 +161,12 @@ export function BundleDetails() {
                   onClick={async () => addTag(await pickFromList('tag'))}>☰</button>
                 <button type="button" id="bundle-add-tag" className="icon-button" title="Add a new tag to all models in this archive"
                   onClick={addNewTag}>+</button>
-              </div>
+              </div>}
               <div id="bundle-tags" className="tags-list">
                 {tagNames.map((name) => (
                   <div key={name} className="tag" data-tag-name={name} title={name}>
                     <span className="tag-text">{name}</span>
-                    <span className="tag-remove" onClick={() => changeTags({ removeTags: [name] })}>×</span>
+                    {canEdit && <span className="tag-remove" onClick={() => changeTags({ removeTags: [name] })}>×</span>}
                   </div>
                 ))}
               </div>

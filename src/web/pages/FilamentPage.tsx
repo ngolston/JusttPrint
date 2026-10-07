@@ -13,6 +13,7 @@ import { timeAgo } from '../home/format';
 import { refreshFilamentPickers, showMessage } from '../page';
 import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
+import { EditOnly } from '../components/EditOnly';
 
 const loadFilaments = () => filamentApi.list();
 
@@ -110,7 +111,7 @@ function FilamentCard({ filament }: { filament: Filament }) {
       </div>
       <div className="jp-spool-card__actions">
         <Button size="sm" variant="ghost" icon={Library} disabled={!models} onClick={() => showModels(filament)}>Show models</Button>
-        <IconButton size="sm" icon={Trash2} label={`Remove ${name}`} onClick={() => removeFilament(filament)} />
+        <EditOnly><IconButton size="sm" icon={Trash2} label={`Remove ${name}`} onClick={() => removeFilament(filament)} /></EditOnly>
       </div>
     </li>
   );
@@ -139,7 +140,7 @@ export function FilamentPage() {
           </p>
         </div>
         <div className="jp-printers__header-actions">
-          <Button variant="primary" icon={Plus} id="jp-add-filament" onClick={() => void addFilament()}>Add Filament</Button>
+          <EditOnly><Button variant="primary" icon={Plus} id="jp-add-filament" onClick={() => void addFilament()}>Add Filament</Button></EditOnly>
         </div>
       </header>
 
@@ -148,7 +149,7 @@ export function FilamentPage() {
       ) : !list.length ? (
         <Panel>
           <EmptyState icon={Cable} title="No filament yet"
-            action={<Button variant="primary" icon={Plus} onClick={() => void addFilament()}>Add Filament</Button>}>
+            action={<EditOnly><Button variant="primary" icon={Plus} onClick={() => void addFilament()}>Add Filament</Button></EditOnly>}>
             Add the filament you print with, then pick it on your models and when you log a print.
           </EmptyState>
         </Panel>
