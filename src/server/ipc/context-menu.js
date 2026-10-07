@@ -197,6 +197,20 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     menuItems.push(slicerSubmenu);
   }
 
+  // Collections and share links: the browser that opened the menu shows the dialog.
+  if (filePaths.length >= 1) {
+    menuItems.push({
+      label: 'Add to Collection…',
+      click: async () => { events.toCaller(event, 'open-add-to-collection', filePaths.slice()); }
+    });
+  }
+  if (filePaths.length === 1 && !String(filePaths[0]).startsWith('url::')) {
+    menuItems.push({
+      label: 'Share…',
+      click: async () => { events.toCaller(event, 'open-share-dialog', { kind: 'model', filePath: filePaths[0] }); }
+    });
+  }
+
   menuItems.push({
     label: 'Tag from Folder',
     click: async () => {

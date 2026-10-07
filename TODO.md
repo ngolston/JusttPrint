@@ -174,8 +174,8 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Upload models through the web UI** (drag and drop) into a chosen library folder. Done in 6.2.0: `POST /api/upload` ([src/server/uploads.js](src/server/uploads.js)) and the Upload Models dialog ([src/web/upload/UploadDialog.tsx](src/web/upload/UploadDialog.tsx)).
 - [ ] **Send to printer**: upload and start a print via OctoPrint, Moonraker or Bambu, using the saved printer details. A server is a natural fit for this.
 - [ ] **Cost and time estimates** from G-code or sliced 3MF metadata plus filament prices.
-- [ ] **Collections/projects** that group models across folders.
-- [ ] **Read-only share links and QR codes** for a model or collection.
+- [x] **Collections/projects** that group models across folders. Done in 6.5.0 ([src/core/collections.js](src/core/collections.js), [src/web/pages/CollectionsPage.tsx](src/web/pages/CollectionsPage.tsx)).
+- [x] **Read-only share links and QR codes** for a model or collection. Done in 6.5.0 ([src/core/share-links.js](src/core/share-links.js), public page [src/server/share-pages.js](src/server/share-pages.js), [src/web/share/ShareDialog.tsx](src/web/share/ShareDialog.tsx)). Possible later: a 3D preview on the shared page.
 - [ ] **Geometry-based duplicate detection**: find the same model across different files.
 - [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs** in the web UI (the Chrome extension that added links is removed).
 - [ ] **Undo for metadata and tag edits.**

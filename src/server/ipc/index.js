@@ -2,6 +2,7 @@
 
 // Every IPC handler module registers its channels with ipcMain when it loads.
 require('./ai');
+require('./collections');
 require('./backup');
 require('./context-menu');
 require('./filaments');

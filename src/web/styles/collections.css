@@ -1,0 +1,48 @@
+/* Collections (pages/CollectionsPage.tsx, collections/AddToCollectionDialog.tsx) and sharing (share/). */
+
+.jp-collections { max-width: 1400px; }
+.jp-collections__header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--jp-space-4); }
+.jp-collections__header .jp-btn { width: auto; margin: 0; }
+.jp-collections__tools { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); }
+.jp-collections__back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: var(--jp-space-3); }
+.jp-collections__description { max-width: 760px; margin: var(--jp-space-2) 0 0; color: var(--jp-text-2); white-space: pre-line; }
+.jp-collections__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--jp-space-4); margin: 0; padding: 0; list-style: none; }
+.jp-collection-card__description { display: -webkit-box; overflow: hidden; color: var(--jp-text-3); font-size: var(--jp-text-small); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.jp-collection-model { position: relative; }
+.jp-collection-model__remove { position: absolute; top: 8px; right: 8px; background: rgba(8, 16, 23, 0.8); }
+
+.jp-collect { width: min(520px, calc(100vw - 32px)); }
+.jp-collect__list { display: flex; flex-direction: column; max-height: 320px; margin: 0 0 var(--jp-space-3); padding: 0; overflow-y: auto; list-style: none; }
+.jp-collect__row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: var(--jp-space-2); padding: 8px 4px; border-bottom: 1px solid var(--jp-border); cursor: pointer; }
+.jp-collect__name { overflow: hidden; color: var(--jp-text); text-overflow: ellipsis; white-space: nowrap; }
+.jp-collect__new { display: flex; align-items: center; gap: var(--jp-space-2); color: var(--jp-text-3); }
+.jp-collect__new .jp-input { flex: 1; min-width: 0; margin: 0; }
+.jp-collect__new .jp-btn { width: auto; margin: 0; flex: none; }
+
+.jp-share { width: min(620px, calc(100vw - 32px)); }
+.jp-share__intro { margin: 0 0 var(--jp-space-4); }
+.jp-share__form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--jp-space-4); }
+.jp-share__form .jp-btn { width: auto; margin: 0; }
+.jp-share__check { display: flex; align-items: center; gap: var(--jp-space-2); color: var(--jp-text); }
+.jp-share__expiry { display: flex; flex-direction: column; gap: 4px; }
+.jp-share__expiry .jp-input { margin: 0; }
+.jp-share__created { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: var(--jp-space-4); align-items: start; }
+.jp-share__qr { box-sizing: border-box; width: 168px; height: 168px; padding: 8px; border-radius: var(--jp-radius-md); background: #fff; }
+.jp-share__qr svg { display: block; width: 100%; height: 100%; }
+.jp-share__link { display: flex; flex-direction: column; gap: var(--jp-space-2); min-width: 0; }
+.jp-share__link .jp-input { width: 100%; margin: 0; font-family: var(--jp-font-mono); font-size: var(--jp-text-meta); }
+.jp-share__buttons { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); }
+.jp-share__buttons .jp-btn { width: auto; margin: 0; }
+.jp-share__status { min-height: 1.4em; margin: var(--jp-space-2) 0; color: var(--jp-text-2); font-size: var(--jp-text-meta); }
+.jp-share__heading { margin: var(--jp-space-4) 0 var(--jp-space-2); color: var(--jp-text); font-size: var(--jp-text-title); }
+.jp-share__list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.jp-share__list li { display: flex; align-items: center; gap: var(--jp-space-2); padding: 8px 10px; border: 1px solid var(--jp-border); border-radius: var(--jp-radius-md); }
+.jp-share__list li.is-expired { opacity: 0.6; }
+.jp-share__list li button { width: auto; margin: 0; flex: none; }
+.jp-share__list-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.jp-share__list-url, .jp-share__list-name { overflow: hidden; color: var(--jp-text); font-size: var(--jp-text-meta); text-overflow: ellipsis; white-space: nowrap; }
+.jp-share__list-url { font-family: var(--jp-font-mono); }
+@media (max-width: 560px) {
+  .jp-share__created { grid-template-columns: 1fr; }
+  .jp-share__qr { margin: 0 auto; }
+}

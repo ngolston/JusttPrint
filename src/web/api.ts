@@ -788,3 +788,81 @@ export const thumbnails = {
   setDefault: (filePath: string, index: number) => callAction<unknown>('set-default-thumbnail', filePath, index),
   remove: (filePath: string, index: number) => callAction<unknown>('delete-thumbnail', filePath, index)
 };
+
+export interface CollectionSummary {
+  id: number;
+  name: string;
+  description: string;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  modelCount: number;
+  /** The most recently added model, for the cover. */
+  coverPath: string | null;
+}
+
+export interface CollectionModel {
+  id: number;
+  filePath: string;
+  fileName: string;
+  designer: string | null;
+  license: string | null;
+  print_status: string | null;
+  print_count: number | null;
+  printed: number | null;
+  bundleKey?: string | null;
+  bundleLabel?: string | null;
+  bundleKind?: string | null;
+  added_at: string;
+}
+
+export interface CollectionDetail extends CollectionSummary {
+  models: CollectionModel[];
+}
+
+/** Collections (src/core/collections.js). Everyone reads; editors change. */
+export const collections = {
+  list: () => callAction<CollectionSummary[]>('get-collections'),
+  get: (id: number) => callAction<CollectionDetail>('get-collection', id),
+  /** For each collection, how many of these models are already in it. */
+  membership: (filePaths: string[]) =>
+    callAction<{ models: number; collections: (CollectionSummary & { selectedInIt: number })[] }>('get-collection-membership', filePaths),
+  create: (name: string, description = '') => callAction<CollectionSummary>('create-collection', { name, description }),
+  update: (id: number, changes: { name?: string; description?: string }) => callAction<CollectionSummary>('update-collection', id, changes),
+  remove: (id: number) => callAction<unknown>('delete-collection', id),
+  add: (id: number, filePaths: string[]) => callAction<{ added: number; name: string }>('add-to-collection', id, filePaths),
+  take: (id: number, filePaths: string[]) => callAction<{ removed: number; name: string }>('remove-from-collection', id, filePaths)
+};
+
+export type ShareKind = 'model' | 'collection';
+
+export interface ShareLink {
+  token: string;
+  kind: ShareKind;
+  targetId: number;
+  targetName: string | null;
+  allowDownload: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+  expired: boolean;
+  views: number;
+  lastViewedAt: string | null;
+}
+
+export interface ShareTarget {
+  kind: ShareKind;
+  /** A collection's id (or a model's). */
+  targetId?: number;
+  /** A model's file path. */
+  filePath?: string;
+}
+
+/** Read-only share links (src/core/share-links.js); the page is /s/<token>. */
+export const shareLinks = {
+  create: (target: ShareTarget, options: { allowDownload: boolean; expiresInDays: number }) =>
+    callAction<ShareLink>('create-share-link', { ...target, ...options }),
+  list: (target?: ShareTarget) => callAction<ShareLink[]>('get-share-links', target ?? null),
+  revoke: (token: string) => callAction<unknown>('revoke-share-link', token),
+  url: (token: string) => `${window.location.origin}/s/${token}`
+};

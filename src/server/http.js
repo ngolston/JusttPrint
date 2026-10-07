@@ -21,6 +21,7 @@ const { isServableStaticPath } = require('./server-paths');
 const { getServerAuth } = require('./auth');
 const { ROLE_LABELS, roleAllows } = require('./users');
 const { registerUploadRoutes } = require('./uploads');
+const { registerSharePages } = require('./share-pages');
 const { extractModelFromZip } = require('../core/zip-entries');
 const { libraryPathAllowed } = require('./path-context');
 const { getMcpToolContext } = require('./mcp-tools');
@@ -293,6 +294,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     res.json({ status: 'ok', version });
   });
   auth.registerRoutes(expressApp, express);
+  // Share links (core/share-links.js): public, the token is the permission.
+  registerSharePages(expressApp);
   expressApp.use(auth.requireAuth);
   registerApiRoutes(expressApp);
 

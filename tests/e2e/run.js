@@ -2624,6 +2624,39 @@ async function accountChecks(base, wsUrl, admin) {
   check('the month of the prints is counted', stats.byMonth?.length === 12 && stats.byMonth[11].printed === 3, JSON.stringify(stats.byMonth?.[11]));
   check('the most printed model is listed', stats.models?.[0]?.fileName === 'Uploaded Cube.stl');
 
+  console.log('\n# Collections and share links');
+  const made = await invoke(base, editor, 'create-collection', [{ name: 'E2E Gifts', description: 'For <b>friends</b>' }]);
+  check('an editor makes a collection', made.status === 200 && made.result.name === 'E2E Gifts', JSON.stringify(made));
+  const giftId = made.result.id;
+  check('viewers cannot make collections', (await invoke(base, viewer, 'create-collection', [{ name: 'Nope' }])).status === 403);
+  check('collection names are unique', (await invoke(base, editor, 'create-collection', [{ name: 'e2e gifts' }])).status === 500);
+  const added2 = await invoke(base, editor, 'add-to-collection', [giftId, [uploadedPath, finished.filePath]]);
+  check('models are added to a collection', added2.result?.added === 2, JSON.stringify(added2));
+  check('paths outside the library are refused', (await invoke(base, editor, 'add-to-collection', [giftId, ['/etc/passwd']])).status === 403);
+  const viewed = (await invoke(base, viewer, 'get-collection', [giftId])).result || {};
+  check('viewers see collections and their models', viewed.models?.length === 2 && viewed.description === 'For <b>friends</b>');
+  check('viewers cannot make share links', (await invoke(base, viewer, 'create-share-link', [{ kind: 'collection', targetId: giftId }])).status === 403);
+  const link = (await invoke(base, editor, 'create-share-link', [{ kind: 'collection', targetId: giftId, allowDownload: true }])).result || {};
+  check('an editor makes a share link', /^[A-Za-z0-9_-]{24}$/.test(link.token || ''), JSON.stringify(link));
+  const publicPage = await fetch(`${base}/s/${link.token}`);
+  const publicHtml = await publicPage.text();
+  check('the shared page opens without logging in', publicPage.status === 200 && publicHtml.includes('E2E Gifts') && publicHtml.includes('Uploaded Cube'));
+  check('the shared page escapes text and shows no paths', publicHtml.includes('&lt;b&gt;friends&lt;/b&gt;') && !publicHtml.includes(uploadLibrary) && !/<script/i.test(publicHtml));
+  check('the shared page is not indexed or cached', /noindex/.test(publicPage.headers.get('x-robots-tag') || '') && publicPage.headers.get('cache-control') === 'no-store');
+  const sharedId = viewed.models[0].id;
+  const sharedFile = await fetch(`${base}/s/${link.token}/file/${sharedId}`);
+  check('shared models download when allowed', sharedFile.status === 200 && (await sharedFile.arrayBuffer()).byteLength === cubeBytes.length);
+  const otherId = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => !viewed.models.some((v) => v.id === m.id)) || {}).id;
+  check('a link reaches only its own models', !!otherId && (await fetch(`${base}/s/${link.token}/file/${otherId}`)).status === 404
+    && (await fetch(`${base}/s/${link.token}/thumb/${otherId}`)).status === 404);
+  const viewOnly = (await invoke(base, editor, 'create-share-link', [{ kind: 'model', filePath: uploadedPath, allowDownload: false }])).result || {};
+  check('a view-only link offers no downloads', !(await (await fetch(`${base}/s/${viewOnly.token}`)).text()).includes('/file/')
+    && (await fetch(`${base}/s/${viewOnly.token}/file/${viewOnly.targetId}`)).status === 404);
+  check('the rest of the server still needs a login', (await fetch(`${base}/api/actions/get-collections`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: '{}' })).status === 401);
+  await invoke(base, editor, 'revoke-share-link', [viewOnly.token]);
+  check('a turned-off link stops working', (await fetch(`${base}/s/${viewOnly.token}`)).status === 404);
+  check('Settings → Sharing lists the links', ((await invoke(base, editor, 'get-share-links', [])).result || []).some((l) => l.token === link.token && l.targetName === 'E2E Gifts'));
+
   if (!CHROME) return;
   const { chromium } = require('@playwright/test');
   const browser = await chromium.launch({ executablePath: CHROME });
@@ -2686,6 +2719,17 @@ async function accountChecks(base, wsUrl, admin) {
       && await editorPage.isVisible('.jp-chart__legend :text("Failed")'));
     await editorPage.click('button:has-text("Show table")', { timeout: 5000 }).catch(() => {});
     check('the chart has a table view', await editorPage.isVisible('.jp-stats__table'));
+
+    // Collections page and the Share dialog with its QR code.
+    await editorPage.evaluate((id) => { window.location.hash = `#/collections/${id}`; }, giftId);
+    check('a collection page lists its models', await editorPage.waitForSelector('#jp-collection-models .jp-recent-card', { timeout: 15000 }).then(() => true, () => false)
+      && (await editorPage.textContent('#jp-collection-title')) === 'E2E Gifts');
+    await editorPage.click('#jp-share-collection');
+    await editorPage.waitForSelector('#jp-share-create', { timeout: 5000 });
+    await editorPage.click('#jp-share-create');
+    check('the Share dialog makes a link with a QR code', await editorPage.waitForSelector('.jp-share__qr svg', { timeout: 10000 }).then(() => true, () => false)
+      && /\/s\/[A-Za-z0-9_-]{24}$/.test(await editorPage.inputValue('#jp-share-url')));
+    await editorPage.keyboard.press('Escape');
 
     const viewerPage = await open('kid', 'kid-password');
     await viewerPage.evaluate(() => { window.location.hash = '#/library'; });

@@ -6,7 +6,7 @@
  * Screens that are still dialogs open as dialogs; later phases turn them into pages.
  */
 import {
-  Archive, BarChart3, BookOpen, Box, Brush, Cable, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
+  Archive, BarChart3, BookOpen, Box, FolderHeart, Link2, Brush, Cable, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
   ExternalLink, HelpCircle, Home, Image, Info, Keyboard, KeyRound, Library, ListChecks, LogOut, type LucideIcon, Package, Printer,
   RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, UserCog, Wrench
 } from 'lucide-react';
@@ -60,7 +60,8 @@ export const NAV: NavSection[] = [
   {
     items: [
       { id: 'home', label: 'Home', icon: Home, page: 'home' },
-      { id: 'library', label: 'Library', icon: Library, page: 'library' }
+      { id: 'library', label: 'Library', icon: Library, page: 'library' },
+      { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' }
     ]
   },
   {
@@ -125,6 +126,9 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'roulette', label: 'Print Roulette', description: 'Pick random models to print.', icon: Shuffle, run: inLibrary('Print Roulette'), replaces: ['Print Roulette'], role: 'viewer' },
     { id: 'clear-new', label: 'Clear New Flag', description: 'Mark every model as seen.', icon: RotateCcw, run: menu('Clear New Flag'), replaces: ['Clear New Flag'], role: 'editor' },
     { id: 'purge', label: 'Purge Models', description: 'Remove models of chosen file types from the library.', icon: Trash2, run: menu('Purge Models'), replaces: ['Purge Models'], danger: true }
+  ] },
+  { id: 'sharing', label: 'Sharing', items: [
+    { id: 'links', label: 'Share Links', description: 'Every read-only link to a model or collection, and turning them off.', icon: Link2, run: open('openShareLinks'), embed: { dialog: 'share-links-dialog', open: 'openShareLinks' }, role: 'editor' }
   ] },
   { id: 'scanning', label: 'Scanning', items: [
     { id: 'stl-home', label: 'STL Home', description: 'Library folders scanned at startup and on a schedule.', icon: HardDrive, run: menu('STL Home'), replaces: ['STL Home'], embed: { dialog: 'stl-home-dialog', open: 'openStlHome' } },
