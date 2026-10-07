@@ -77,8 +77,7 @@ function mockCtx(overrides) {
     openInSlicer: async () => ({ success: true }),
     moveFiles: async () => ({ success: true }),
     exportLibrary: async () => ({ success: true }),
-    backupDatabase: async () => ({ success: true }),
-    syncSpoolmanFilaments: async () => ({ success: true, created: 0, updated: 0 })
+    backupDatabase: async () => ({ success: true })
   }, overrides);
 }
 

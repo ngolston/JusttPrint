@@ -34,7 +34,7 @@ const guidePages = [
     content: `<strong>Home</strong> shows your figures, recent activity and printers.
     <strong>Queue</strong> lists what is printing, what is up next and what printed lately.
     <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders, and
-    <strong>Filament</strong> your filament catalog, with optional Spoolman sync.
+    <strong>Filament</strong> your filament catalog.
     <p>Log a print from a card's status badge or the details panel; JusttPrint keeps a dated history for each model.</p>`,
     image: "guide/guide-home.png"
   },

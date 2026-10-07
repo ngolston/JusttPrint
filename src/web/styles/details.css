@@ -295,7 +295,7 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 #model-details .jp-rating__star.is-filled { color: var(--jp-warning); }
 #model-details .jp-rating__star:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: 2px; }
 
-/* ---- Filament (spec §27): spool, name, chevron to the Filament Manager; pickers below ---- */
+/* ---- Filament (spec §27): spool, name, chevron to the Filament page; pickers below ---- */
 .filament-chip-open { display: none; }
 #model-details .jp-details__editor .form-group { width: auto; margin: 0; padding: 0; }
 #model-details .jp-details__editor .form-group > label { display: none; }

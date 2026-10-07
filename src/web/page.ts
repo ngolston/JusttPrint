@@ -30,7 +30,6 @@ declare global {
     /** library/actions.ts: refresh the filament pickers and the sidebar filament filter. */
     refreshFilamentPickers?: () => Promise<void>;
     /** library/actions.ts: also reload the open model's filaments and the grid. */
-    refreshAfterFilamentManagerClose?: () => Promise<void>;
     /** library/hosts.ts: reload the models and redraw the grid. */
     refreshModelDisplay?: () => Promise<void>;
     /** library/actions.ts: rebuild the sidebar's file type filter from the enabled types. */
@@ -115,9 +114,6 @@ export async function refreshFilamentPickers(): Promise<void> {
   await window.refreshFilamentPickers?.();
 }
 
-export async function refreshAfterFilamentManagerClose(): Promise<void> {
-  await window.refreshAfterFilamentManagerClose?.();
-}
 
 export async function refreshModelDisplay(): Promise<void> {
   await window.refreshModelDisplay?.();

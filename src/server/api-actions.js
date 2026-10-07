@@ -104,8 +104,6 @@ const ACTIONS = {
   'save-filament': ['object'],
   'delete-filament': ['id'],
   'get-model-filaments': ['id?'],
-  'test-spoolman-connection': ['string?', 'string?'],
-  'sync-spoolman-filaments': ['string?', 'string?'],
   'get-all-parts': [],
   'save-part': ['object'],
   'delete-part': ['id'],

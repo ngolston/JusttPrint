@@ -102,7 +102,6 @@ function initializeDatabase() {
           material TEXT,
           color_hex TEXT,
           diameter REAL,
-          spoolman_id INTEGER UNIQUE,
           source TEXT NOT NULL DEFAULT 'manual'
       )`).run();
       database.db.prepare(`CREATE TABLE IF NOT EXISTS model_filaments (
@@ -113,7 +112,6 @@ function initializeDatabase() {
           PRIMARY KEY(model_id, filament_id)
       )`).run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_name ON filaments(name)').run();
-      database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_spoolman_id ON filaments(spoolman_id)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_filament_id ON model_filaments(filament_id)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_model_id ON model_filaments(model_id)').run();
       
@@ -157,6 +155,7 @@ function initializeDatabase() {
     // Check and create slicers table if it doesn't exist
     ensureSlicersTableExists();
     ensureFilamentsTablesExist();
+    removeSpoolmanData();
     ensurePartsTablesExist();
     
     // Initialize default settings
@@ -481,8 +480,6 @@ function initializeDefaultSettings() {
       { key: 'aiTagConcurrency', value: '3' }, // Number of concurrent tag generation requests
       { key: 'browserExtensionPort', value: '5000' }, // HTTP port setting (old name, kept so saved ports still apply)
       { key: 'enableMcpServer', value: '0' }, // MCP listener disabled by default in desktop mode
-      { key: 'spoolmanUrl', value: '' },
-      { key: 'spoolmanApiToken', value: '' },
       { key: 'tlsMode', value: 'off' },
       { key: 'tlsCertPath', value: '' },
       { key: 'tlsKeyPath', value: '' },
@@ -531,7 +528,6 @@ function ensureFilamentsTablesExist() {
         material TEXT,
         color_hex TEXT,
         diameter REAL,
-        spoolman_id INTEGER UNIQUE,
         source TEXT NOT NULL DEFAULT 'manual'
     )`).run();
     database.db.prepare(`CREATE TABLE IF NOT EXISTS model_filaments (
@@ -542,7 +538,6 @@ function ensureFilamentsTablesExist() {
         PRIMARY KEY(model_id, filament_id)
     )`).run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_name ON filaments(name)').run();
-    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_spoolman_id ON filaments(spoolman_id)').run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_filament_id ON model_filaments(filament_id)').run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_model_id ON model_filaments(model_id)').run();
     return true;
@@ -553,6 +548,29 @@ function ensureFilamentsTablesExist() {
 }
 
 // Add this function before saveModel
+/**
+ * Spoolman support was removed in 6.0: delete its settings and each filament's link to Spoolman.
+ * The filaments stay (models and print history use them) as ordinary catalog entries. Databases
+ * from before 6.0 keep an empty spoolman_id column (a UNIQUE column cannot be dropped without
+ * rebuilding the table). Does nothing once done.
+ */
+function removeSpoolmanData() {
+  try {
+    const settings = database.db.prepare("DELETE FROM settings WHERE key IN ('spoolmanUrl', 'spoolmanApiToken')").run().changes;
+    database.db.prepare('DROP INDEX IF EXISTS idx_filaments_spoolman_id').run();
+    const columns = database.db.prepare('PRAGMA table_info(filaments)').all().map((column) => column.name);
+    let filaments = 0;
+    if (columns.includes('spoolman_id')) {
+      filaments = database.db.prepare("UPDATE filaments SET spoolman_id = NULL, source = 'manual' WHERE spoolman_id IS NOT NULL OR source <> 'manual'").run().changes;
+    } else if (columns.includes('source')) {
+      filaments = database.db.prepare("UPDATE filaments SET source = 'manual' WHERE source <> 'manual'").run().changes;
+    }
+    if (settings || filaments) console.log(`Removed Spoolman data: ${settings} setting(s), ${filaments} filament link(s)`);
+  } catch (error) {
+    console.error('Error removing Spoolman data:', error);
+  }
+}
+
 function verifyDatabaseIntegrity() {
   try {
     console.log('Verifying database integrity...');
@@ -574,4 +592,4 @@ function verifyDatabaseIntegrity() {
   }
 }
 
-module.exports = { initializeDatabase, verifyDatabaseIntegrity };
+module.exports = { initializeDatabase, verifyDatabaseIntegrity, removeSpoolmanData };

@@ -89,7 +89,7 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 - **Queue** lists **Printing now**, **Up next** (queued models; **Start** sets one to Printing, × takes it out of the queue) and **Completed** (recent successful prints; ↻ queues one again).
 - **Printers** keeps your printers: make and model, type, firmware, print count and last print. Select one for its web page (**Open Web UI**), maintenance reminders and log, and recent prints. **Add Printer**, **Edit** and **Maintenance** open the printer forms; **Parts** opens the Parts Manager (screws, bearings and other stock that logged prints use up).
-- **Filament** shows each filament in your catalog as a spool in its color, with material, diameter, how many models use it, and its prints. Search and the material chips narrow the list; **Show models** opens the library filtered to that filament. **Add Filament** adds one by hand; **Spoolman** syncs your catalog from a Spoolman server.
+- **Filament** shows each filament in your catalog as a spool in its color, with material, diameter, how many models use it, and its prints. Search and the material chips narrow the list; **Show models** opens the library filtered to that filament. **Add Filament** adds one: name, vendor, material, color (pick it or type the hex code) and diameter. The **+** beside a model's filament picker adds a new filament and puts it on that model.
 
 ![Printers](docs/images/printers.png)
 

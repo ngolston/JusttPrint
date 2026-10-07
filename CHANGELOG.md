@@ -2,6 +2,20 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.0.0] - 2026-10-07
+
+**Upgrading:** the Filament Manager dialog and Spoolman support are removed.
+- Your filaments stay: the catalog, the filaments on your models and in your print history are unchanged. Filaments that came from Spoolman stay as ordinary filaments and can no longer be synced.
+- On the first start, the Spoolman settings (server address and API token) and each filament's link to Spoolman are deleted. Keep a backup if you may go back to 5.x.
+- If you ran Spoolman with `docker-compose.spoolman.yml`, that file is gone; your Spoolman container is not affected.
+- MCP: the `sync_spoolman_filaments` tool is gone.
+
+**Changes:**
+- **Removed:** the Filament Manager dialog (Settings menu, the **+** and **›** in a model's Filament section, Multi-Edit's Manage Filament) and Spoolman: the sync, its settings, the `test-spoolman-connection` and `sync-spoolman-filaments` actions, the MCP tool and the Compose file.
+- **Add Filament** is a small dialog of its own, opened from the **Filament** page or the **+** beside a model's filament picker, which also puts the new filament on that model. The color has a picker and a full-width hex field (the old dialog squeezed it to nothing), and a typed color must be a hex code.
+- **›** on a model's filament and Multi-Edit's **Manage Filament** open the Filament page.
+- Library exports no longer include Spoolman fields; importing an older export matches filaments by name, vendor, material and color.
+
 ## [5.3.1] - 2026-10-07
 
 **Upgrading:** no changes needed. If the server log showed "Could not start Chromium" before, thumbnails are now rendered by the server again. Reload open browser tabs after the update.

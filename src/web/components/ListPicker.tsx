@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { filaments as filamentApi, libraryValues, models, tags as tagApi } from '../api';
-import { formatFilamentLabel } from '../FilamentManagerDialog';
+import { formatFilamentLabel } from '../filaments';
 import { selection } from '../selection';
 
 /** The lists the ☰ buttons search: designers, parent models, licenses, tags and filaments. */

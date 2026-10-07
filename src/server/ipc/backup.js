@@ -5,49 +5,37 @@ const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
-const spoolman = require('../../core/spoolman');
+const { normalizeColorHex } = require('../../core/filament-format');
 const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
 const { checkBackupFile } = require('../../core/backup-check');
 const autoBackup = require('../auto-backup');
 
+/** The catalog filament matching an imported one (name, vendor, material, color), added if missing. */
 function upsertImportedFilament(filament) {
   if (!filament || typeof filament !== 'object') return null;
   const name = String(filament.name || '').trim();
   if (!name) return null;
   const vendor = String(filament.vendor || '').trim() || null;
   const material = String(filament.material || '').trim() || null;
-  const colorHex = spoolman.normalizeColorHex(filament.color_hex) || null;
+  const colorHex = normalizeColorHex(filament.color_hex) || null;
   const diameter = filament.diameter == null || filament.diameter === '' ? null : Number(filament.diameter);
-  const spoolmanId = filament.spoolman_id != null && filament.spoolman_id !== '' ? Number(filament.spoolman_id) : null;
-  const source = spoolmanId ? 'spoolman' : (filament.source === 'spoolman' ? 'spoolman' : 'manual');
 
-  if (spoolmanId) {
-    const existing = database.db.prepare('SELECT id FROM filaments WHERE spoolman_id = ?').get(spoolmanId);
-    if (existing) {
-      database.db.prepare(`
-        UPDATE filaments SET name = ?, vendor = ?, material = ?, color_hex = ?, diameter = ?, source = 'spoolman'
-        WHERE id = ?
-      `).run(name, vendor, material, colorHex, Number.isFinite(diameter) ? diameter : null, existing.id);
-      return existing.id;
-    }
-  }
-
-  const existingManual = database.db.prepare(`
+  // Exports from before 6.0 may carry spoolman_id/source: ignored, the filament is matched by its fields.
+  const existing = database.db.prepare(`
     SELECT id FROM filaments
     WHERE name = ?
       AND IFNULL(vendor, '') = IFNULL(?, '')
       AND IFNULL(material, '') = IFNULL(?, '')
       AND IFNULL(color_hex, '') = IFNULL(?, '')
-      AND spoolman_id IS NULL
   `).get(name, vendor, material, colorHex);
-  if (existingManual) return existingManual.id;
+  if (existing) return existing.id;
 
   const result = database.db.prepare(`
-    INSERT INTO filaments (name, vendor, material, color_hex, diameter, spoolman_id, source)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(name, vendor, material, colorHex, Number.isFinite(diameter) ? diameter : null, spoolmanId || null, source);
+    INSERT INTO filaments (name, vendor, material, color_hex, diameter, source)
+    VALUES (?, ?, ?, ?, ?, 'manual')
+  `).run(name, vendor, material, colorHex, Number.isFinite(diameter) ? diameter : null);
   return result.lastInsertRowid;
 }
 
@@ -195,7 +183,7 @@ function buildLibraryExportData() {
   const filamentsByModelId = new Map();
   if (libraryTableExists('filaments') && libraryTableExists('model_filaments')) {
     for (const row of database.db.prepare(`
-      SELECT mf.model_id, f.name, f.vendor, f.material, f.color_hex, f.diameter, f.spoolman_id, f.source
+      SELECT mf.model_id, f.name, f.vendor, f.material, f.color_hex, f.diameter
       FROM filaments f
       JOIN model_filaments mf ON mf.filament_id = f.id
       ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE
@@ -205,9 +193,7 @@ function buildLibraryExportData() {
         vendor: row.vendor,
         material: row.material,
         color_hex: row.color_hex,
-        diameter: row.diameter,
-        spoolman_id: row.spoolman_id,
-        source: row.source
+        diameter: row.diameter
       });
     }
   }
@@ -215,7 +201,7 @@ function buildLibraryExportData() {
   const filamentsByEventId = new Map();
   if (libraryTableExists('print_events') && libraryTableExists('print_event_filaments') && libraryTableExists('filaments')) {
     for (const row of database.db.prepare(`
-      SELECT pef.event_id, f.name, f.vendor, f.material, f.color_hex, f.diameter, f.spoolman_id, f.source
+      SELECT pef.event_id, f.name, f.vendor, f.material, f.color_hex, f.diameter
       FROM filaments f
       JOIN print_event_filaments pef ON pef.filament_id = f.id
       ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE
@@ -225,9 +211,7 @@ function buildLibraryExportData() {
         vendor: row.vendor,
         material: row.material,
         color_hex: row.color_hex,
-        diameter: row.diameter,
-        spoolman_id: row.spoolman_id,
-        source: row.source
+        diameter: row.diameter
       });
     }
   }

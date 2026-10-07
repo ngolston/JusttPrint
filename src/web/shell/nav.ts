@@ -65,7 +65,7 @@ export const NAV: NavSection[] = [
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
       { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
-      { id: 'filament', label: 'Filament', icon: Cable, page: 'filament', replaces: ['Filament Manager'] }
+      { id: 'filament', label: 'Filament', icon: Cable, page: 'filament' }
     ]
   },
   {
@@ -133,7 +133,7 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'parts', label: 'Parts Manager', description: 'Spare parts stock for your printers.', icon: Package, run: menu('Parts Manager'), replaces: ['Parts Manager'] }
   ] },
   { id: 'filament', label: 'Filament', items: [
-    { id: 'filament', label: 'Filament', description: 'Your filament catalog, and Spoolman sync.', icon: Cable, run: () => navigate('filament') }
+    { id: 'filament', label: 'Filament', description: 'Your filament catalog.', icon: Cable, run: () => navigate('filament') }
   ] },
   { id: 'integrations', label: 'Integrations', items: [
     { id: 'mcp', label: 'MCP Server', description: 'Connect an AI app (Claude, Cursor, VS Code) to your library.', icon: Cpu, run: open('openMcpServerSettings'), replaces: ['Settings'], embed: { dialog: 'mcp-server-settings-dialog', open: 'openMcpServerSettings' } }

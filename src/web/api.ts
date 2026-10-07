@@ -130,8 +130,6 @@ export interface Filament {
   material: string | null;
   color_hex: string | null;
   diameter: number | null;
-  spoolman_id: number | null;
-  source: 'manual' | 'spoolman' | string;
   model_count: number;
   /** Logged prints with this filament, and when the last one was (null when never). */
   print_count?: number;
@@ -144,16 +142,12 @@ export interface FilamentInput {
   material: string;
   color_hex: string;
   diameter: number;
-  source: 'manual';
 }
 
 export const filaments = {
   list: () => callAction<Filament[]>('get-all-filaments'),
   save: (filament: FilamentInput) => callAction<Filament>('save-filament', filament),
-  remove: (id: number) => callAction<unknown>('delete-filament', id),
-  testSpoolman: (url: string, token: string) => callAction<{ version?: string }>('test-spoolman-connection', url, token),
-  syncSpoolman: (url: string, token: string) =>
-    callAction<{ total: number; created: number; updated: number }>('sync-spoolman-filaments', url, token)
+  remove: (id: number) => callAction<unknown>('delete-filament', id)
 };
 
 export interface Printer {
