@@ -97,7 +97,7 @@ function repairModelTags(db) {
     return { ok: false, rebuilt: false, orphansRemoved: 0 };
   }
 
-  console.log('Checking and repairing model_tags table...');
+  console.debug('Checking and repairing model_tags table...');
   const broken = modelTagsForeignKeysBroken(db);
 
   if (broken) {
@@ -126,7 +126,7 @@ function repairModelTags(db) {
     return { ok: true, rebuilt: false, orphansRemoved: orphans };
   }
 
-  console.log('No orphaned model_tags records found');
+  console.debug('No orphaned model_tags records found');
   return { ok: true, rebuilt: false, orphansRemoved: 0 };
 }
 

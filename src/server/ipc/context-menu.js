@@ -79,7 +79,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Preview',
       click: async () => {
         try {
-          console.log('Preview clicked for file:', fp);
+          console.debug('Preview clicked for file:', fp);
           sendPreviewModelEvent(event, fp);
         } catch (error) {
           console.error('Error triggering preview:', error);
@@ -109,7 +109,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Preview',
       click: async () => {
         try {
-          console.log('Preview clicked for bundle/group:', bundlePayload.groupLabel, bundlePayload.children.length);
+          console.debug('Preview clicked for bundle/group:', bundlePayload.groupLabel, bundlePayload.children.length);
           sendPreviewBundleEvent(event, bundlePayload);
         } catch (error) {
           console.error('Error triggering bundle preview:', error);
@@ -218,10 +218,10 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Generate Tags',
       // Remove the restriction to only one file
       click: async (clickEvent) => {
-        console.log('[Generate Tags] Click handler called, filePaths:', filePaths);
+        console.debug('[Generate Tags] Click handler called, filePaths:', filePaths);
         // Use clickEvent.sender if available (server mode), otherwise use captured sender (desktop mode)
         const eventSender = (clickEvent && clickEvent.sender) ? clickEvent.sender : sender;
-        console.log('[Generate Tags] Event sender:', { 
+        console.debug('[Generate Tags] Event sender:', { 
           hasClickEventSender: !!(clickEvent && clickEvent.sender),
           hasCapturedSender: !!sender,
           usingSender: !!eventSender,
@@ -230,15 +230,15 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
         try {
           const aitagging = require('../../core/aitagging');
           const settings = getAISettings();
-          console.log('[Generate Tags] Settings loaded, filesToProcess will be determined');
+          console.debug('[Generate Tags] Settings loaded, filesToProcess will be determined');
           
           // Create puter IPC handler if service is puter
           // Pass clickEvent (which is the mockEvent with proper WebSocket routing) so it can route to the correct client
           // If clickEvent doesn't have sender, create a mock event with the captured sender
           const eventForPuter = clickEvent && clickEvent.sender ? clickEvent : { sender: sender, wsClient: null };
-          console.log('[Generate Tags] Creating puterIPCHandler, aiService:', settings.aiService, 'has clickEvent:', !!clickEvent, 'has wsClient:', !!(clickEvent?.wsClient));
+          console.debug('[Generate Tags] Creating puterIPCHandler, aiService:', settings.aiService, 'has clickEvent:', !!clickEvent, 'has wsClient:', !!(clickEvent?.wsClient));
           const puterIPCHandler = settings.aiService === 'puter' ? createPuterIPCHandler(eventForPuter) : null;
-          console.log('[Generate Tags] puterIPCHandler created:', { hasHandler: !!puterIPCHandler, handlerType: typeof puterIPCHandler });
+          console.debug('[Generate Tags] puterIPCHandler created:', { hasHandler: !!puterIPCHandler, handlerType: typeof puterIPCHandler });
           
           // Initialize OpenAI with the API key
           aitagging.initializeOpenAI(settings.apiKey, settings.apiEndpoint, settings.aiService, puterIPCHandler);
@@ -265,9 +265,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           // Start tag generation - show review dialog immediately for both single and multiple files
           if (filesToProcess.length > 1) {
             // Send all file paths so the dialog can show all models immediately
-            console.log('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
+            console.debug('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
             // In server mode, use broadcastEvent to send to all WebSocket clients
-            console.log('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
+            console.debug('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
             events.toCaller(event, 'start-batch-tag-generation', filesToProcess.length, filesToProcess);
           } else if (filesToProcess.length === 1) {
             // For single file, also open dialog immediately with "Generating..." status
@@ -288,12 +288,12 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 existingTags: modelTags
               };
 
-              console.log('[Generate Tags] Sending start-single-tag-generation event');
+              console.debug('[Generate Tags] Sending start-single-tag-generation event');
               // In server mode, use broadcastEvent to send to all WebSocket clients
-              console.log('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
+              console.debug('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
               events.toCaller(event, 'start-single-tag-generation', filesToProcess[0], modelData);
             } else {
-              console.log('Model not found in database for single file generation');
+              console.debug('Model not found in database for single file generation');
             }
           }
           
@@ -319,7 +319,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               const model = getModelByFilePath(filePath, { includeThumbnail: true });
 
               if (!model) {
-                console.log(`Model not found in database: ${filePath}, skipping`);
+                console.debug(`Model not found in database: ${filePath}, skipping`);
                 completed++;
                 events.toCaller(event, 'tags-generated', filePath, [], null);
                 return;
@@ -337,7 +337,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
 
               // Check if model already has the "AI Tagged" tag (unless retagging is allowed)
               if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
-                console.log(`Model ${filePath} already has AI Tagged tag, skipping generation`);
+                console.debug(`Model ${filePath} already has AI Tagged tag, skipping generation`);
                 completed++;
                 events.toCaller(event, 'tags-generated', filePath, [], null);
                 return;
@@ -359,7 +359,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
 
               if (!model.thumbnail) {
                 // If no thumbnail exists, use default image
-                console.log(`No thumbnail found for model ${filePath}, using default image`);
+                console.debug(`No thumbnail found for model ${filePath}, using default image`);
                 try {
                   const fs = require('fs').promises;
                   const defaultImagePath = './logo.png';
@@ -833,7 +833,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
 
 // IPC handler to execute context menu actions (for server mode browser access)
 const executeContextMenuActionHandler = async (event, requestId, itemIndex, subIndex) => {
-  console.log('[Context Menu] executeContextMenuActionHandler called, requestId:', requestId, 'itemIndex:', itemIndex, 'subIndex:', subIndex);
+  console.debug('[Context Menu] executeContextMenuActionHandler called, requestId:', requestId, 'itemIndex:', itemIndex, 'subIndex:', subIndex);
   const menuData = pendingContextMenus.get(requestId);
   if (!menuData) {
     throw new Error('Context menu request not found or expired');
@@ -846,7 +846,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
     throw new Error('Menu item not found');
   }
   
-  console.log('[Context Menu] Menu item label:', menuItem.label, 'has click:', !!menuItem.click, 'has submenu:', !!menuItem.submenu);
+  console.debug('[Context Menu] Menu item label:', menuItem.label, 'has click:', !!menuItem.click, 'has submenu:', !!menuItem.submenu);
   
   // Handle submenu items
   if (subIndex !== undefined && subIndex !== null && menuItem.submenu) {
@@ -867,7 +867,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
       wsClient: event?.wsClient || originalEvent?.wsClient || null
     };
     
-    console.log('[Context Menu] Created mockEvent for submenu click handler:', {
+    console.debug('[Context Menu] Created mockEvent for submenu click handler:', {
       hasSender: !!mockEvent.sender,
       hasWsClient: !!mockEvent.wsClient,
       true: true
@@ -875,7 +875,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
     
     // Execute the submenu item's click handler
     // Wrap in try-catch to handle errors gracefully
-    console.log('[Context Menu] Executing submenu item click handler:', subMenuItem.label);
+    console.debug('[Context Menu] Executing submenu item click handler:', subMenuItem.label);
     try {
       const result = subMenuItem.click(mockEvent);
       // If it returns a promise, don't await it to avoid IPC timeout
@@ -910,7 +910,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
       wsClient: event?.wsClient || originalEvent?.wsClient || null
     };
     
-    console.log('[Context Menu] Created mockEvent for click handler:', {
+    console.debug('[Context Menu] Created mockEvent for click handler:', {
       hasSender: !!mockEvent.sender,
       hasWsClient: !!mockEvent.wsClient,
       true: true
@@ -918,7 +918,7 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
     
     // Execute the menu item's click handler
     // Wrap in try-catch to handle errors gracefully
-    console.log('[Context Menu] Executing menu item click handler:', menuItem.label);
+    console.debug('[Context Menu] Executing menu item click handler:', menuItem.label);
     try {
       const result = menuItem.click(mockEvent);
       // If it returns a promise, don't await it to avoid IPC timeout

@@ -23,7 +23,7 @@ function siteUrl(raw, hosts) {
 // Reads parent model, designer and license from a Thangs model page.
 ipcMain.handle('fetch-thangs-page', async (event, rawUrl) => {
   const url = siteUrl(rawUrl, ['thangs.com']);
-  console.log('Fetching Thangs page:', url.href);
+  console.debug('Fetching Thangs page:', url.href);
   let browser;
   try {
     browser = await puppeteer.launch({ headless: true });
@@ -53,7 +53,7 @@ ipcMain.handle('fetch-thangs-page', async (event, rawUrl) => {
       return { parentModel, designer, license };
     });
 
-    console.log('Scraped Thangs data:', data);
+    console.debug('Scraped Thangs data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching Thangs page:', error);

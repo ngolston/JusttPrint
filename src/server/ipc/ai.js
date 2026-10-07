@@ -14,7 +14,7 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
   const isPuterService = normalizedService === 'puter' || 
     (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
   
-  console.log('[Main] test-ai-config handler:', { 
+  console.debug('[Main] test-ai-config handler:', { 
     service, 
     normalizedService, 
     baseURL, 
@@ -28,7 +28,7 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
   // Create puter IPC handler if service is puter
   // Pass event so it can route to the correct client (WebSocket in server mode, IPC in normal mode)
   const puterIPCHandler = isPuterService ? createPuterIPCHandler(event) : null;
-  console.log('[Main] Created puterIPCHandler:', { 
+  console.debug('[Main] Created puterIPCHandler:', { 
     isPuterService, 
     hasHandler: !!puterIPCHandler,
     handlerType: typeof puterIPCHandler
@@ -57,7 +57,7 @@ let puterResponseListenerSet = false;
 const puterPendingRequests = new Map(); // Maps requestId -> { resolve, reject, webContents, wsClient }
 
 function createPuterIPCHandler(event = null) {
-  console.log('[Puter IPC Handler] createPuterIPCHandler called, has event:', !!event, 'event keys:', event ? Object.keys(event) : []);
+  console.debug('[Puter IPC Handler] createPuterIPCHandler called, has event:', !!event, 'event keys:', event ? Object.keys(event) : []);
   
   // Set up a single listener for all puter responses (both IPC and WebSocket)
   if (!puterResponseListenerSet) {
@@ -84,20 +84,20 @@ function createPuterIPCHandler(event = null) {
     // In normal mode, event.sender is the webContents
     if (event.sender && event.sender.send) {
       webContents = event.sender;
-      console.log('[Puter IPC Handler] Found webContents from event.sender');
+      console.debug('[Puter IPC Handler] Found webContents from event.sender');
     }
     // In server mode, event might have a wsClient property (set by WebSocket handler)
     if (event.wsClient) {
       wsClient = event.wsClient;
-      console.log('[Puter IPC Handler] Found wsClient from event.wsClient');
+      console.debug('[Puter IPC Handler] Found wsClient from event.wsClient');
     } else {
-      console.log('[Puter IPC Handler] No wsClient found in event');
+      console.debug('[Puter IPC Handler] No wsClient found in event');
     }
   } else {
-    console.log('[Puter IPC Handler] No event provided');
+    console.debug('[Puter IPC Handler] No event provided');
   }
   
-  console.log('[Puter IPC Handler] Extracted:', { hasWebContents: !!webContents, hasWsClient: !!wsClient, true: true });
+  console.debug('[Puter IPC Handler] Extracted:', { hasWebContents: !!webContents, hasWsClient: !!wsClient, true: true });
   
   return async (prompt, imageUrl, model) => {
     const requestId = crypto.randomUUID();
@@ -108,7 +108,7 @@ function createPuterIPCHandler(event = null) {
       // In server mode with WebSocket client, send via WebSocket
       // This routes to the browser client where Puter.js is loaded and can show the captcha
       if (wsClient) {
-        console.log('[Puter AI] Sending request to browser client via WebSocket (captcha will appear in browser window)');
+        console.debug('[Puter AI] Sending request to browser client via WebSocket (captcha will appear in browser window)');
         wsClient.send(JSON.stringify({
           type: 'event',
           channel: 'puter-ai-chat-request',

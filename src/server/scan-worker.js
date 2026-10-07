@@ -1,4 +1,6 @@
 const { parentPort } = require('worker_threads');
+// Worker threads have their own console: same levels and timestamps as the server.
+require('../core/log').install();
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -62,7 +64,7 @@ function loadStreamZip() {
           // Use path.resolve to ensure we have an absolute path
           const resolvedPath = path.resolve(modulePath);
           StreamZip = require(resolvedPath);
-          console.log(`[Worker] Loaded node-stream-zip from: ${resolvedPath}`);
+          console.debug(`[Worker] Loaded node-stream-zip from: ${resolvedPath}`);
           return StreamZip;
         } catch (requireError) {
           console.log(`[Worker] Failed to require ${modulePath}:`, requireError.message);
@@ -75,7 +77,7 @@ function loadStreamZip() {
               const mainPath = path.resolve(modulePath, mainFile);
               if (fs.existsSync(mainPath)) {
                 StreamZip = require(mainPath);
-                console.log(`[Worker] Loaded node-stream-zip from main file: ${mainPath}`);
+                console.debug(`[Worker] Loaded node-stream-zip from main file: ${mainPath}`);
                 return StreamZip;
               }
             }
@@ -132,7 +134,7 @@ function loadStreamZip() {
         StreamZip = require('node-stream-zip');
         Module._nodeModulePaths = originalNodeModulePaths;
         Module._resolveFilename = originalResolveFilename;
-        console.log(`[Worker] Loaded node-stream-zip using modified Module paths from: ${nodeModulesPath}`);
+        console.debug(`[Worker] Loaded node-stream-zip using modified Module paths from: ${nodeModulesPath}`);
         return StreamZip;
       } catch (requireError) {
         Module._nodeModulePaths = originalNodeModulePaths;
@@ -306,7 +308,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
 
   const processDirectory = async (dirPath) => {
     if (isExcludedDir(dirPath, excludedDirs)) {
-      console.log(`Skipping excluded directory ${dirPath}`);
+      console.debug(`Skipping excluded directory ${dirPath}`);
       return;
     }
     if (seenDirs.has(dirPath)) return;
@@ -448,7 +450,7 @@ parentPort.on('message', async ({ directoryPath, maxFileSize, enableZipArchives,
   // Set the node_modules path if provided
   if (passedNodeModulesPath) {
     nodeModulesPath = passedNodeModulesPath;
-    console.log(`[Worker] Received node_modules path: ${nodeModulesPath}`);
+    console.debug(`[Worker] Received node_modules path: ${nodeModulesPath}`);
   }
   
   const extList = Array.from(buildScanExtensionSet(scanExtensions));

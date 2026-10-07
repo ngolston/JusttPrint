@@ -154,13 +154,13 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` still show the old artwork (the owner is providing new images).
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
 - [x] **Remove unneeded dependencies**: the empty `fs` package, `node-fetch`, and `jszip` (zips are read and written with `fflate`; `openZip()` in `src/core/zip-entries.js`).
-- [ ] **Replace the ~500 `console.log` calls with a leveled logger.** Settings reads currently log on every call. Container logs should be readable with `docker logs`.
-- [ ] **Review the 133 `innerHTML =` assignments** for injection of file names or scraped data.
+- [x] **Replace the ~500 `console.log` calls with a leveled logger.** Done (6.1.0): [src/core/log.js](src/core/log.js) adds time and level to every line and hides `console.debug` unless `JUSTTPRINT_LOG_LEVEL=debug`; per-request and per-file lines moved to `console.debug`. Before: Settings reads currently log on every call. Container logs should be readable with `docker logs`.
+- [x] **Review the 133 `innerHTML =` assignments** for injection of file names or scraped data. Done (6.1.0): six were left after the React rewrite; only model notes build HTML from data, through the escaping Markdown renderer ([src/web/notes/markdown.ts](src/web/notes/markdown.ts), with injection tests). Links from data are limited to http(s).
 - [ ] **Remove redundant code**, e.g. the JS content-type middleware where both branches do the same thing ([src/server/http.js:342](src/server/http.js#L342)).
 - [ ] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files` with folder copies once the layout is in place.
 - [ ] **Add ESLint and Prettier**, then gradually add type checking (JSDoc + `// @ts-check`).
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
-- [ ] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view.
+- [x] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view. Done (6.1.0): the label is in the name row.
 - [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.
 - [x] **Filament Manager: the hex color field is squeezed to nothing.** The Filament Manager dialog is gone (6.0); **Add Filament** ([src/web/components/AddFilamentDialog.tsx](src/web/components/AddFilamentDialog.tsx)) has a full-width hex field next to the picker.
 - [x] **Fix the app-wide input style that puts a dropdown arrow on every `.form-group` input.** Only selects get the arrow now (`src/web/styles/legacy/base.css`); the per-dialog workarounds are harmless and go as those dialogs are redrawn.

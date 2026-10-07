@@ -449,7 +449,11 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
         {thumbnailBlock}
         <div className="preview-tile-check" aria-hidden="true" />
         <div className="preview-tile-overlay">
-          <div className={`preview-tile-name${zipFile ? ' zip-file' : ''}`}>{name}</div>
+          {/* Archive sits in the name row, so it never covers the name (it used to sit on top of it). */}
+          <div className="preview-tile-name-row">
+            {zipEntry && <span className="archive-status preview-tile-archive">Archive</span>}
+            <div className={`preview-tile-name${zipFile ? ' zip-file' : ''}`}>{name}</div>
+          </div>
           <div className="preview-tile-actions">
             <button type="button" className="preview-tile-open-btn" title="Open preview" onClick={(event) => {
               event.preventDefault();
@@ -459,7 +463,6 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
           </div>
         </div>
         <PrintBadge host={host} model={model} />
-        {zipEntry && <div className="archive-status">Archive</div>}
       </div>
     );
   }

@@ -41,7 +41,7 @@ const saveSettingHandler = async (event, key, value) => {
     }
     // Log the key only: values can be API keys.
     database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
-    console.log('Saved setting:', key);
+    console.debug('Saved setting:', key);
     // STL Home folders, exclusions or the watch switch changed: restart folder watching.
     require('../stl-home').settingChanged(key);
     return true;

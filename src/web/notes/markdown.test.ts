@@ -2,6 +2,39 @@ import { describe, expect, it } from 'vitest';
 import { htmlToMarkdown, render, sanitizeUrl, type MarkdownNode } from './markdown';
 
 describe('render', () => {
+  it('never lets notes inject HTML or script (notes can come from imports, MCP and pulled metadata)', () => {
+    const attacks = [
+      '<img src=x onerror=alert(1)>',
+      '<script>alert(1)</script>',
+      '# <svg onload=alert(1)>',
+      '- <iframe src="javascript:alert(1)">',
+      '**<b onclick=alert(1)>x</b>**',
+      '```\n</code><script>alert(1)</script>\n```',
+      '> <a href="javascript:alert(1)">x</a>'
+    ];
+    // Every real tag must be one the renderer makes; only links have attributes, and only safe ones.
+    const allowed = new Set(['p', 'br', 'strong', 'em', 's', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'a']);
+    for (const attack of attacks) {
+      const html = render(attack);
+      for (const [, name, attributes] of html.matchAll(/<\/?([a-z0-9]+)([^>]*)>/gi)) {
+        expect(allowed.has(name.toLowerCase()), `${attack} → <${name}>`).toBe(true);
+        if (name.toLowerCase() === 'a' && attributes.trim()) {
+          expect(attributes, attack).toMatch(/^ href="(https?:|mailto:)[^"]*" target="_blank" rel="noopener noreferrer"$/);
+        } else {
+          expect(attributes.trim(), `${attack} → <${name}${attributes}>`).toBe('');
+        }
+      }
+    }
+  });
+
+  it('links only to http, https and mailto, with the URL escaped', () => {
+    expect(render('[x](javascript:alert(1))')).not.toContain('href');
+    expect(render('[x](data:text/html,<script>alert(1)</script>)')).not.toContain('href');
+    const quoted = render('[x](https://a.test/"onmouseover="alert(1))');
+    expect(quoted).toContain('href="https://a.test/');
+    expect(quoted).not.toMatch(/"\s*onmouseover=/);
+  });
+
   it('keeps line breaks in plain notes', () => {
     expect(render('Test notes here')).toBe('<p>Test notes here</p>');
     expect(render('line one\nline two')).toBe('<p>line one<br>line two</p>');

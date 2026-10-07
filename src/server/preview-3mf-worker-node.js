@@ -1,4 +1,6 @@
 const { parentPort } = require('worker_threads');
+// Worker threads have their own console: same levels and timestamps as the server.
+require('../core/log').install();
 const fs = require('fs');
 const { Simple3MFLoader } = require('../core/threemf-loader-simple.js');
 
