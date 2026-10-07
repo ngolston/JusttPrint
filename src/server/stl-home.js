@@ -115,6 +115,29 @@ async function rescanChangedFolders(root, folders) {
   }
 }
 
+/**
+ * Add the files just uploaded to `folder` (inside the library root `root`): scan that folder
+ * once the running STL Home or watch scan (if any) is done, so two scans never insert the same
+ * new file. Returns how many models are new.
+ */
+async function scanUploadedFolder(folder, root, { isStlHomeScan = false } = {}) {
+  while (serverStlHomeScanRunning || watchScanRunning) await new Promise((resolve) => setTimeout(resolve, 250));
+  watchScanRunning = true;
+  let newModels = 0;
+  try {
+    const result = await scanDirectoryHandler(quietEvent, folder, { isStlHomeScan, scanRoot: root, rememberDirectory: false });
+    newModels = Number(result && result.newFilesCount) || 0;
+  } finally {
+    watchScanRunning = false;
+  }
+  console.log(`[Upload] Scanned ${folder}: ${newModels} new`);
+  events.broadcast('refresh-grid');
+  if (newModels > 0 && thumbnailWorker.ready() && !thumbnailJobRunning()) {
+    startServerThumbnailJobInternal('missing').catch((error) => console.error('[Upload] thumbnail job:', error.message));
+  }
+  return newModels;
+}
+
 function stopWatching() {
   for (const watcher of watchers) watcher.close();
   watchers = [];
@@ -170,4 +193,4 @@ function watchStatus() {
   };
 }
 
-module.exports = { startServerStlHomeScans, startWatching, stopWatching, settingChanged, watchStatus };
+module.exports = { startServerStlHomeScans, startWatching, stopWatching, settingChanged, watchStatus, scanUploadedFolder };

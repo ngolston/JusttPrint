@@ -3,6 +3,7 @@ import { autoBackup, downloadUrl, type AutoBackupSettings, type AutoBackupStatus
 import { pickFolder } from '../components/FolderPicker';
 import { showMessage } from '../page';
 import { formatFileSize } from '../StatsDialog';
+import { useCan } from '../session';
 
 /** The choices for "Every"; another value (set by JUSTTPRINT_BACKUP_INTERVAL_HOURS) is added when needed. */
 const INTERVALS: [number, string][] = [[6, '6 hours'], [12, '12 hours'], [24, 'Day'], [168, 'Week']];
@@ -53,14 +54,17 @@ export function AutoBackup({ opened }: { opened: number }) {
   };
   const reload = () => autoBackup.status().then(show, (error) => setProblem(errorText(error)));
 
+  const isAdmin = useCan('admin');
+
   useEffect(() => {
+    if (!isAdmin) return undefined;
     void reload();
     // Scheduled backups run on the server: follow them while the page is open.
     const timer = window.setInterval(() => {
       if (sectionRef.current?.closest('dialog')?.open && document.visibilityState === 'visible') void autoBackup.status().then(setStatus, () => {});
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [opened]);
+  }, [opened, isAdmin]);
 
   async function save(settings: AutoBackupSettings) {
     setProblem('');

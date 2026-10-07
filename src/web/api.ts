@@ -61,14 +61,99 @@ export function changesData(name: string): boolean {
 export interface ServerAccessInfo {
   apiToken: string;
   passwordFromEnv: boolean;
+  /** The admin account whose password JUSTTPRINT_PASSWORD sets, if any. */
+  envUsername: string | null;
   minPasswordLength: number;
 }
 
 export const serverAccess = {
   info: () => callAction<ServerAccessInfo>('get-server-access-info'),
+  /** Change the logged-in user's own password (logs them out everywhere). */
   setPassword: (currentPassword: string, newPassword: string) =>
     callAction<unknown>('set-server-password', currentPassword, newPassword),
   regenerateToken: () => callAction<{ apiToken: string }>('regenerate-server-api-token')
+};
+
+export type UserRole = 'viewer' | 'editor' | 'admin';
+
+export interface UserAccount {
+  id: number;
+  username: string;
+  role: UserRole;
+  createdAt: string | null;
+  lastLoginAt: string | null;
+  /** The JUSTTPRINT_PASSWORD account: stays an admin, password set by the variable. */
+  fromEnv: boolean;
+}
+
+/** Settings → Users (admins). */
+export const users = {
+  list: () => callAction<{ users: UserAccount[]; minPasswordLength: number }>('list-users'),
+  create: (details: { username: string; password: string; role: UserRole }) => callAction<UserAccount>('create-user', details),
+  update: (id: number, changes: { role?: UserRole; password?: string }) => callAction<UserAccount>('update-user', id, changes),
+  remove: (id: number) => callAction<unknown>('delete-user', id)
+};
+
+export interface UploadInfo {
+  /** Lower-case extensions with the dot (".stl"). */
+  extensions: string[];
+  maxBytes: number;
+}
+
+export interface UploadResult {
+  fileName: string;
+  filePath: string;
+  size: number;
+}
+
+/**
+ * Upload one file into a library folder (POST /api/upload, src/server/uploads.js), reporting
+ * progress as a fraction. XMLHttpRequest, because fetch cannot report upload progress.
+ */
+export function uploadFile(file: File, folder: string, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `/api/upload?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(file.name)}`);
+    request.withCredentials = true;
+    request.setRequestHeader('Content-Type', 'application/octet-stream');
+    request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(event.loaded / event.total); };
+    request.onload = () => {
+      let data: { error?: string } & Partial<UploadResult> = {};
+      try { data = JSON.parse(request.responseText || '{}'); } catch { /* not JSON */ }
+      if (request.status === 401) window.location.href = '/login';
+      if (request.status >= 200 && request.status < 300 && !data.error) resolve(data as UploadResult);
+      else reject(new ApiError(data.error || `HTTP ${request.status}`, request.status));
+    };
+    request.onerror = () => reject(new ApiError('The connection to the server was lost', 0));
+    request.onabort = () => reject(new ApiError('Cancelled', 0));
+    signal?.addEventListener('abort', () => request.abort(), { once: true });
+    request.send(file);
+  });
+}
+
+export const uploads = {
+  info: () => callAction<UploadInfo>('get-upload-info'),
+  /** Scan the folder after a batch so the new models show up. */
+  finish: (folder: string) => callAction<{ newModels: number }>('add-uploaded-files', folder)
+};
+
+export interface PrintStatistics {
+  /** 0 for all time. */
+  months: number;
+  from: string;
+  to: string;
+  firstPrintMonth: string | null;
+  totals: { printed: number; failed: number; cancelled: number; successRate: number | null };
+  byMonth: { month: string; printed: number; failed: number; cancelled: number; added: number }[];
+  designers: { name: string; printed: number; models: number }[];
+  models: { id: number; fileName: string; filePath: string; printed: number }[];
+  printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
+  filaments: { id: number; name: string; vendor: string; material: string; colorHex: string; prints: number }[];
+  materials: { material: string; prints: number }[];
+}
+
+export const statistics = {
+  get: (months: number) => callAction<PrintStatistics>('get-print-statistics', { months })
 };
 
 export interface Tag {

@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 6.1.0**
+**Version 6.2.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -12,6 +12,9 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Print queue, printers and filament** pages: what is printing and up next, your printers with their web pages and maintenance reminders, and your filament spools
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets
 - **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered on the server
+- **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder
+- **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download
+- **Statistics**: prints per month, success rate, filament used, top designers, most printed models and printers
 - **3D preview** of single models or every part in a folder or ZIP bundle
 - **Tags, designers, licenses, notes and source links** for every model
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
@@ -109,7 +112,9 @@ All are optional. You can change most of these later under **Settings** in the a
 
 | Variable | What it does |
 |----------|--------------|
-| `JUSTTPRINT_PASSWORD` | Login password. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
+| `JUSTTPRINT_PASSWORD` | Password of the admin account. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
+| `JUSTTPRINT_USERNAME` | User name of that admin account (default `admin`). Other accounts are added under **Settings → Authentication → Users**. |
+| `JUSTTPRINT_MAX_UPLOAD_MB` | Largest file the browser may upload, in MB (default `2048`). |
 | `STL_HOME` | Folders to scan automatically, as container paths. Several: `/mnt/models,/mnt/archive`. |
 | `STL_HOME_EXCLUDE` | Folders inside STL Home to skip, for example `/mnt/models/cache`. |
 | `JUSTTPRINT_WATCH_FOLDERS` | `true` or `false`: watch the STL Home folders for changes (default on). |
@@ -137,9 +142,12 @@ All are optional. You can change most of these later under **Settings** in the a
 
 ## Using the Web App
 
-The sidebar holds every page: **Home**, **Library**, **Queue**, **Printers**, **Filament**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
+The sidebar holds every page: **Home**, **Library**, **Queue**, **Printers**, **Filament**, **Statistics**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
 
-- **Log in** with your password. Browsers stay logged in for 30 days. Change the password under **Settings → Authentication → Server Access** (this logs out every browser).
+- **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
+- **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload, move and delete files; **Admins** also change settings, backups, server access and accounts. The server checks every action, and each person sees only the pages and menu items their role can use. Settings such as the theme are shared by everyone.
+- **Upload models**: drop files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files are never replaced (a taken name becomes `Name (2).stl`), only types the library scans are accepted (**Settings → Scanning → File Types**), and the folder is scanned afterwards so the models appear with thumbnails. Editors and admins only.
+- **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the filaments, designers, models and printers printed most, and how many models were added, for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
 - **HTTPS**: open **Settings → Server → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
@@ -224,6 +232,10 @@ With Docker Run, update by pulling the image (`docker pull ace2123/justtprint:la
 
 **Backups:** turn on **Automatic Backups** under **Settings → Backup**: the server copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there (the copy on the server is deleted an hour later), or copy the `./data` folder while the container is stopped.
 
+## Upgrading to 6.2
+
+6.2 adds user accounts. The first start turns your password into the `admin` account (or `JUSTTPRINT_USERNAME`): log in again with that user name and your usual password. Scripts that log in with only a password still work. The API token for MCP stays the same and acts as an admin.
+
 ## Upgrading to 6.0
 
 6.0 removes the Filament Manager dialog and Spoolman support. Your filament catalog, the filaments on your models and in your print history stay; filaments that came from Spoolman become ordinary filaments. On the first start the Spoolman settings are deleted, so keep a backup if you may go back to 5.x. Add filaments on the **Filament** page (see **Upgrading** under 6.0.0 in [CHANGELOG.md](CHANGELOG.md)).
@@ -239,7 +251,8 @@ JusttPrint 4.0.0 is the renamed Printventory. The data folder, database file and
 ## Troubleshooting
 
 - **Can't open the page:** check the container is running (`docker ps`), the port is free, and your firewall allows it.
-- **Forgot the password:** set `JUSTTPRINT_PASSWORD` and restart the container.
+- **Forgot the password:** set `JUSTTPRINT_PASSWORD` and restart the container; it resets the admin account (`admin`, or `JUSTTPRINT_USERNAME`). An admin resets other users' passwords under **Settings → Authentication → Users**.
+- **Uploads fail behind a reverse proxy:** raise the proxy's body size limit (nginx: `client_max_body_size 2g;`).
 - **No models found:** the path in JusttPrint must be the container path (`/mnt/models`), and that folder must be mounted. Check with `docker exec justtprint-server ls /mnt/models`.
 - **Permission errors when moving or deleting:** remove `:ro` from the mount and set `PUID`/`PGID` to the owner of your files.
 - **Disconnects or `OOM error in V8` in the log:** give the container more memory (`mem_limit`), and raise `JUSTTPRINT_MAX_OLD_SPACE_MB` if needed.

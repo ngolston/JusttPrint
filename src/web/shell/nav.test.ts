@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MENU, type MenuItem } from './menu';
-import { ACCOUNT, HELP, NAV, SETTINGS, replacedMenuLabels } from './nav';
+import { ACCOUNT, HELP, NAV, SETTINGS, itemsFor, navFor, replacedMenuLabels, settingsFor } from './nav';
 import { formatRoute, parseRoute } from './routes';
 
 const actionLabels = (items: MenuItem[]): string[] => items.flatMap((item) =>
@@ -16,7 +16,7 @@ describe('shell navigation', () => {
   it('follows the spec navigation order', () => {
     expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'System']);
     expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
-      'Home', 'Library', 'Queue', 'Printers', 'Filament', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
+      'Home', 'Library', 'Queue', 'Printers', 'Filament', 'Statistics', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
     ]);
     expect(SETTINGS.map((g) => g.label)).toEqual([
       'General', 'Appearance', 'Library', 'Scanning', 'Slicer', 'Printers', 'Filament', 'Integrations', 'AI', 'Server', 'Authentication', 'Backup', 'Advanced', 'About'
@@ -30,6 +30,26 @@ describe('shell navigation', () => {
     for (const list of [HELP, ACCOUNT, ...SETTINGS.map((g) => g.items)]) {
       expect(new Set(list.map((i) => i.id)).size).toBe(list.length);
     }
+  });
+});
+
+describe('roles', () => {
+  const labels = (role: string) => navFor(role).flatMap((s) => s.items.map((i) => i.label));
+
+  it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
+    expect(labels('viewer')).toEqual(['Home', 'Library', 'Queue', 'Printers', 'Filament', 'Statistics', 'Settings', 'Help']);
+    expect(labels('editor')).toEqual(['Home', 'Library', 'Queue', 'Printers', 'Filament', 'Statistics', 'Tags', 'Duplicates', 'Scan Library', 'Settings', 'Help']);
+    expect(labels('admin')).toEqual(NAV.flatMap((s) => s.items.map((i) => i.label)));
+    expect(navFor(null)).toEqual([]);
+  });
+
+  it('keeps server settings, backups and accounts for admins', () => {
+    const viewerSettings = settingsFor('viewer').flatMap((g) => g.items.map((i) => i.id));
+    for (const id of ['users', 'access', 'backup', 'https', 'restart', 'ai', 'mcp', 'stl-home', 'purge']) expect(viewerSettings).not.toContain(id);
+    expect(viewerSettings).toEqual(expect.arrayContaining(['password', 'logout', 'about', 'stats']));
+    expect(settingsFor('admin').flatMap((g) => g.items)).toHaveLength(SETTINGS.flatMap((g) => g.items).length);
+    expect(itemsFor(ACCOUNT, 'viewer').map((i) => i.id)).toEqual(['password', 'logout']);
+    expect(itemsFor(HELP, 'viewer', 'viewer').map((i) => i.id)).not.toContain('report');
   });
 });
 

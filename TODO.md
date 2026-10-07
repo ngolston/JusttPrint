@@ -167,11 +167,11 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟢 8. Feature ideas, server and web (most valuable first)
 
-- [ ] **User accounts and roles** (admin, read-only, guest) for sharing with family or a makerspace.
+- [x] **User accounts and roles** for sharing with family or a makerspace. Done in 6.2.0 as Admin, Editor and Viewer ([src/server/users.js](src/server/users.js), [src/server/server-auth.js](src/server/server-auth.js), roles per action in [src/server/api-actions.js](src/server/api-actions.js), Settings → Users in [src/web/UsersDialog.tsx](src/web/UsersDialog.tsx)). Left: a no-login guest mode, and per-user settings (the theme and layout are shared).
 - [x] **Automatic, scheduled backups** with retention, saved to a mounted volume: Settings → Backup → Automatic Backups ([src/server/auto-backup.js](src/server/auto-backup.js), [src/web/settings/AutoBackup.tsx](src/web/settings/AutoBackup.tsx)) and the `JUSTTPRINT_*BACKUP*` variables.
 - [x] **Clean up hand-made backups and exports.** Done in 6.0.1 ([src/server/download-files.js](src/server/download-files.js)): downloads go into `downloads/` and are deleted after an hour; Settings → Backup offers to delete old ones. Before: **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
 - [x] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand. One `fs.watch` per STL Home folder ([src/server/folder-watch.js](src/server/folder-watch.js)), batched rescans of the changed folders ([src/server/stl-home.js](src/server/stl-home.js)); network shares still rely on the timed scan.
-- [ ] **Upload models through the web UI** (drag and drop) into a chosen library folder.
+- [x] **Upload models through the web UI** (drag and drop) into a chosen library folder. Done in 6.2.0: `POST /api/upload` ([src/server/uploads.js](src/server/uploads.js)) and the Upload Models dialog ([src/web/upload/UploadDialog.tsx](src/web/upload/UploadDialog.tsx)).
 - [ ] **Send to printer**: upload and start a print via OctoPrint, Moonraker or Bambu, using the saved printer details. A server is a natural fit for this.
 - [ ] **Cost and time estimates** from G-code or sliced 3MF metadata plus filament prices.
 - [ ] **Collections/projects** that group models across folders.
@@ -179,7 +179,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [ ] **Geometry-based duplicate detection**: find the same model across different files.
 - [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs** in the web UI (the Chrome extension that added links is removed).
 - [ ] **Undo for metadata and tag edits.**
-- [ ] **Statistics dashboard**: prints per month, success rate, filament used, top designers (Chart.js is already a dependency).
+- [x] **Statistics dashboard**: prints per month, success rate, filament used, top designers. Done in 6.2.0 as the Statistics page ([src/web/pages/StatsPage.tsx](src/web/pages/StatsPage.tsx), [src/core/print-stats.js](src/core/print-stats.js)), drawn in SVG (Chart.js is no longer a dependency). Filament is counted in prints: the print log does not record grams.
 
 ---
 

@@ -3,8 +3,6 @@ import { serverAccess, type ServerAccessInfo } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { copyText, exposeGlobal } from './page';
 
-const DEFAULT_MIN_PASSWORD_LENGTH = 8;
-
 declare global {
   interface Window {
     openServerAccess?: () => void;
@@ -16,16 +14,14 @@ function errorText(error: unknown): string {
 }
 
 /**
- * Settings → Server Access: change the login password and show or regenerate the API token.
+ * Settings → Server Access (admins): show or regenerate the API token. Passwords are per user:
+ * Change Password (ChangePasswordDialog.tsx) and Settings → Users (UsersDialog.tsx).
  * Registers window.openServerAccess, which the menu and the rest of the page call.
  */
 export function ServerAccessDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const tokenRef = useRef<HTMLInputElement>(null);
   const [info, setInfo] = useState<ServerAccessInfo | null>(null);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -33,34 +29,12 @@ export function ServerAccessDialog() {
     return exposeGlobal('openServerAccess', () => {
       const open = ++openCount;
       setStatus('');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
       serverAccess.info()
         .then((result) => { if (open === openCount) setInfo(result); })
         .catch((error) => { if (open === openCount) setStatus(`Could not load server access settings: ${errorText(error)}`); });
     });
   }, []);
-
-  const minLength = info?.minPasswordLength || DEFAULT_MIN_PASSWORD_LENGTH;
-
-  async function changePassword() {
-    if (newPassword.length < minLength) {
-      setStatus(`The new password must be at least ${minLength} characters.`);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setStatus('The new passwords do not match.');
-      return;
-    }
-    try {
-      await serverAccess.setPassword(currentPassword, newPassword);
-      setStatus('Password changed. Browsers need to log in again.');
-    } catch (error) {
-      setStatus(errorText(error));
-    }
-  }
 
   async function copyToken() {
     if (!info?.apiToken) return;
@@ -86,28 +60,12 @@ export function ServerAccessDialog() {
   return (
     <ModalDialog id="server-access-dialog" title="Server Access" dialogRef={dialogRef}
       footer={<button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>Close</button>}>
-      <p className="setting-description">Browsers log in with the server password. MCP clients and scripts use the API token.</p>
+      <p className="setting-description">People log in with their own user name and password (Settings → Users). MCP clients and scripts use the API token, which acts as an admin.</p>
       <div className="settings-group">
-        {info?.passwordFromEnv ? (
+        {info?.passwordFromEnv && (
           <p className="setting-description">
-            The password is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.
+            The password of <strong>{info.envUsername}</strong> is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.
           </p>
-        ) : (
-          <div className="form-group">
-            <label htmlFor="server-access-current-password">Current password</label>
-            <input type="password" id="server-access-current-password" autoComplete="current-password"
-              value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
-            <label htmlFor="server-access-new-password">New password</label>
-            <input type="password" id="server-access-new-password" autoComplete="new-password"
-              value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-            <label htmlFor="server-access-confirm-password">Confirm new password</label>
-            <input type="password" id="server-access-confirm-password" autoComplete="new-password"
-              value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-            <p className="setting-description">Changing the password logs out every browser.</p>
-            <div className="dialog-buttons mcp-inline-actions">
-              <button type="button" id="server-access-change-password" onClick={changePassword}>Change password</button>
-            </div>
-          </div>
         )}
         <p id="server-access-status" className="setting-description" role="status">{status}</p>
         <div className="form-group">

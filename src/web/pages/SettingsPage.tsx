@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cx } from '../components/Button';
-import { HELP, SETTINGS, type SettingsItem } from '../shell/nav';
+import { HELP, itemsFor, settingsFor, type SettingsItem } from '../shell/nav';
+import { useCurrentUser } from '../session';
 import { EmbeddedDialog } from '../settings/EmbeddedDialog';
 
 /** One row: icon, name, what it does; the whole row opens it. */
@@ -46,7 +47,10 @@ function EmbeddedSetting({ item }: { item: SettingsItem }) {
  * opens the page at it.
  */
 export function SettingsPage({ section }: { section: string }) {
-  const [active, setActive] = useState(section || SETTINGS[0].id);
+  const user = useCurrentUser();
+  // Viewers and editors see only what their role can use (settings change the whole server).
+  const groups = useMemo(() => settingsFor(user?.role), [user?.role]);
+  const [active, setActive] = useState(section || groups[0]?.id || '');
 
   // Opening the forms may focus their fields; keep the page at the top or the requested group.
   useEffect(() => {
@@ -67,8 +71,8 @@ export function SettingsPage({ section }: { section: string }) {
     if (!page) return undefined;
     const onScroll = () => {
       const top = page.getBoundingClientRect().top + 80;
-      let current = SETTINGS[0].id;
-      for (const group of SETTINGS) {
+      let current = groups[0]?.id || '';
+      for (const group of groups) {
         const el = document.getElementById(`settings-${group.id}`);
         if (el && el.getBoundingClientRect().top <= top) current = group.id;
       }
@@ -76,18 +80,20 @@ export function SettingsPage({ section }: { section: string }) {
     };
     page.addEventListener('scroll', onScroll, { passive: true });
     return () => page.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [groups]);
 
   return (
     <div className="jp-page__inner jp-settings-page">
       <header className="jp-page__header">
         <h1 className="jp-page-title">Settings</h1>
-        <p className="jp-meta">Library, scanning, printers, AI, server and backup settings.</p>
+        <p className="jp-meta">
+          {user?.role === 'admin' ? 'Library, scanning, printers, AI, server and backup settings.' : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
+        </p>
       </header>
       <div className="jp-settings-layout">
         <nav className="jp-settings-index" aria-label="Settings groups">
           <ul>
-            {SETTINGS.map((group) => (
+            {groups.map((group) => (
               <li key={group.id}>
                 <a href={`#/settings/${group.id}`} className={cx('jp-settings-index__link', active === group.id && 'is-active')}
                   aria-current={active === group.id ? 'true' : undefined}
@@ -101,7 +107,7 @@ export function SettingsPage({ section }: { section: string }) {
           </ul>
         </nav>
         <div className="jp-settings-groups">
-          {SETTINGS.map((group) => {
+          {groups.map((group) => {
             const rows = group.items.filter((item) => !item.embed);
             return (
               <section key={group.id} id={`settings-${group.id}`} className="jp-card jp-settings-group" aria-labelledby={`settings-${group.id}-title`}>
@@ -123,9 +129,10 @@ export function SettingsPage({ section }: { section: string }) {
 
 /** Help: the guide, shortcuts, setup docs and where to report problems. */
 export function HelpList() {
+  const user = useCurrentUser();
   return (
     <ul className="jp-settings-list">
-      {HELP.map((item) => <SettingsRow key={item.id} item={item} />)}
+      {itemsFor(HELP, user?.role, 'viewer').map((item) => <SettingsRow key={item.id} item={item} />)}
     </ul>
   );
 }

@@ -11,18 +11,18 @@ The sidebar on the left holds every page:
 | Section | Pages |
 |---------|-------|
 | (top) | **Home**, **Library** |
-| Printing | **Queue**, **Printers**, **Filament** |
+| Printing | **Queue**, **Printers**, **Filament**, **Statistics** |
 | Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
 | System | **Settings**, **Help** |
 
-The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu (**Server Access**, **Log Out**). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
+The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **Server Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
 
 On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Library, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
 ## Getting started
 
-1. Start the container, open `http://<server-ip>:5000` and log in.
-2. Add your models folder under **Settings → Scanning → STL Home**: **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
+1. Start the container, open `http://<server-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
+2. Add your models folder under **Settings → Scanning → STL Home** (or upload models, see [Uploading models](#uploading-models)): **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
 4. Optional: pick an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer**, your printers on **Printers** and your filament on **Filament**.
 
@@ -93,6 +93,32 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 ![Printers](docs/images/printers.png)
 
+### Statistics
+
+**Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models, filaments and printers printed most. **Filament used** counts the prints that used each filament: the print log records which filament, not how many grams. Everyone can open Statistics.
+
+## Uploading models
+
+Editors and admins can add models from the browser:
+
+- Drop model files anywhere on the page, or click **Upload** in the Library.
+- **Choose Folder** picks the library folder to save into. It starts at the folder the library shows, else the last one you used, else your first STL Home folder.
+- Files of a type the library does not scan are skipped before anything is sent (turn more types on under **Settings → Scanning → File Types**), and so are files over the size limit (2 GB unless `JUSTTPRINT_MAX_UPLOAD_MB` says otherwise).
+- Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
+- After the upload, the folder is scanned, so the models appear with thumbnails.
+
+## Users and roles
+
+An admin adds people under **Settings → Authentication → Users** with a user name, a password and a role:
+
+| Role | Can |
+|------|-----|
+| Viewer | Browse, search, preview, download, open in a slicer, see Statistics |
+| Editor | Also edit models, tags, notes and the print log, upload, move, trash and delete files, scan, find duplicates |
+| Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
+
+Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Settings such as the theme and the library layout are shared by all users. MCP clients use the API token, which acts as an admin.
+
 ## Managing the library
 
 - **Tags** lists every tag with how many models use it. Create, rename (renaming onto an existing tag merges the two), delete, or show a tag's models.
@@ -116,7 +142,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 
 ![Settings](docs/images/settings.png)
 
-**Settings** is one page with an index on the left:
+**Settings** is one page with an index on the left. Viewers and editors see only the few entries their role can use:
 
 | Group | What is there |
 |-------|---------------|
@@ -129,7 +155,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | Integrations | MCP Server: connect an AI app to your library |
 | AI | AI tagging settings |
 | Server | HTTPS / SSL and the listen port, Restart Server |
-| Authentication | Server Access (password and API token), Log Out |
+| Authentication | Users (admins), Change Password, Server Access (the API token), Log Out |
 | Backup | Automatic backups, download a backup, export the library, restore |
 | Advanced | Regenerate Thumbnails, Generate Missing Thumbnails, System Report |
 | About | Version, update check, license |

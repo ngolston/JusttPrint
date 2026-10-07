@@ -5,9 +5,29 @@ const { ipcMain } = require('../runtime');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { version } = require('../../../package.json');
 
+/**
+ * Settings are shared by every user. Viewers and editors may save only these display
+ * preferences (the layout and sort the web UI remembers); everything else needs an admin.
+ */
+const PREFERENCE_SETTING_KEYS = new Set([
+  'gridView', 'lastUsedView', 'listViewColumnLayout', 'perFolderView', 'previewTileSize', 'sortOption',
+  'searchIncludeNotes', 'recentFolderFilters', 'folderRailOpen', 'organizeLibraryLayers', 'dedupPreferredDirectory',
+  'hideSkippedFileSizeNotice', 'hasRunBefore', 'tosAcceptedDate', 'latestVersion', 'lastUpdateCheck', 'lastDeclinedVersion'
+]);
+
+/** Settings only admins may read: API keys, tokens and passwords (the AI service key, for one). */
+const ADMIN_ONLY_SETTING = /(key|keypath)$|token|secret|password/i;
+
+const isAdminCaller = (event) => !event || !event.user || event.user.role === 'admin';
+
+function isPreferenceSetting(key) {
+  return PREFERENCE_SETTING_KEYS.has(key) || /Width$/.test(String(key));
+}
+
 const getSettingHandler = async (event, key) => {
   try {
     if (SECRET_SETTING_KEYS.has(key)) return null;
+    if (!isAdminCaller(event) && ADMIN_ONLY_SETTING.test(String(key))) return null;
     // Values are not logged: some are API keys, and reads happen constantly.
     const result = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
     return result?.value || null;
@@ -31,6 +51,9 @@ ipcMain.handle('get-app-version', async () => {
 
 // Add error handling to the saveSetting handler
 const saveSettingHandler = async (event, key, value) => {
+  if (!isAdminCaller(event) && !isPreferenceSetting(key)) {
+    throw new Error('Only an admin can change this setting');
+  }
   try {
     if (SECRET_SETTING_KEYS.has(key)) {
       throw new Error(`Setting ${key} can only be changed under Server Access`);
@@ -52,6 +75,8 @@ const saveSettingHandler = async (event, key, value) => {
 };
 
 ipcMain.handle('save-setting', saveSettingHandler);
+
+module.exports = { isPreferenceSetting, ADMIN_ONLY_SETTING };
 
 // Folder watching for STL Home (src/server/stl-home.js): on or off, and what is watched.
 ipcMain.handle('get-folder-watch-status', async () => require('../stl-home').watchStatus());

@@ -984,4 +984,4 @@ async function saveModel(modelData) {
   }
 }
 
-module.exports = { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, normalizeFilamentIds, normalizePath, saveModel, updateModelsBatch };
+module.exports = { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, getSupportedExtensionsForLibrary, normalizeFilamentIds, normalizePath, saveModel, updateModelsBatch };

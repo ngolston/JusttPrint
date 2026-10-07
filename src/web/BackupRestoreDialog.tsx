@@ -4,6 +4,7 @@ import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, refreshModelDisplay, showMessage } from './page';
 import { AutoBackup } from './settings/AutoBackup';
 import { formatFileSize } from './StatsDialog';
+import { useCan } from './session';
 
 declare global {
   interface Window {
@@ -48,10 +49,12 @@ export function BackupRestoreDialog() {
   const [busy, setBusy] = useState<Task | null>(null);
   const [opened, setOpened] = useState(0);
   const [leftovers, setLeftovers] = useState<LeftoverDownloads | null>(null);
+  const isAdmin = useCan('admin');
 
   useEffect(() => {
+    if (!isAdmin) return;
     leftoverDownloads.list().then(setLeftovers, () => setLeftovers(null));
-  }, [opened]);
+  }, [opened, isAdmin]);
 
   async function deleteLeftovers() {
     if (!leftovers?.files.length) return;

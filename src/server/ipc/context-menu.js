@@ -42,6 +42,23 @@ function sendPreviewModelEvent(event, filePath) {
   events.toCaller(event, 'preview-model', filePath);
 }
 
+/** Model menu items a viewer may use: they open, download or copy, and change nothing. */
+const VIEWER_MENU_LABELS = new Set(['Preview', 'Download', 'Copy Path', 'Copy Paths', 'Open in Slicer']);
+
+/** The viewer's menu: allowed items only, without leading, trailing or doubled separators. */
+function viewerMenuItems(items) {
+  const kept = [];
+  for (const item of items) {
+    if (item.type === 'separator') {
+      if (kept.length && kept[kept.length - 1].type !== 'separator') kept.push(item);
+    } else if (VIEWER_MENU_LABELS.has(item.label)) {
+      kept.push(item);
+    }
+  }
+  while (kept.length && kept[kept.length - 1].type === 'separator') kept.pop();
+  return kept;
+}
+
 // Update the show-context-menu handler
 ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   let filePaths;
@@ -771,6 +788,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
     }
   );
 
+  // Viewers only look: drop the items that change the library or files.
+  if (event && event.user && event.user.role === 'viewer') menuItems = viewerMenuItems(menuItems);
+
   // The browser renders the menu; clicks come back through execute-context-menu-action.
   {
     // Generate unique request ID for this context menu
@@ -840,6 +860,12 @@ const executeContextMenuActionHandler = async (event, requestId, itemIndex, subI
   }
   
   const { menuItems, event: originalEvent } = menuData;
+  // Only the user who opened a menu may run its items (request ids are guessable).
+  const opener = originalEvent && originalEvent.user;
+  const caller = event && event.user;
+  if (opener && caller && opener.id !== caller.id) {
+    throw new Error('Context menu request not found or expired');
+  }
   const menuItem = menuItems[itemIndex];
   
   if (!menuItem) {
@@ -985,4 +1011,4 @@ function applyFolderTagsToModels(filePaths, levels) {
   return applyFolderTagsInDb(database.db, filePaths, levels);
 }
 
-module.exports = { applyFolderTagsToModels, deleteFile };
+module.exports = { applyFolderTagsToModels, deleteFile, viewerMenuItems };

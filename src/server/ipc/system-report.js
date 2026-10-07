@@ -20,6 +20,9 @@ ipcMain.handle('get-recent-activity', async (event, limit) => require('../../cor
 // Print Queue's Completed list (src/core/recent-activity.js).
 ipcMain.handle('get-recent-prints', async (event, limit, outcome, printerId) =>
   require('../../core/recent-activity').recentPrints(database.db, limit, outcome || null, printerId ?? null));
+// The Statistics page (src/core/print-stats.js): { months } ending this month, 0 for all time.
+ipcMain.handle('get-print-statistics', async (event, options) =>
+  require('../../core/print-stats').printStatistics(database.db, { months: options && options.months != null ? Number(options.months) : 12 }));
 
 ipcMain.handle('get-stats', async () => {
   try {

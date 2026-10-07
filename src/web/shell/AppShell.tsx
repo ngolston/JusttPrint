@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, ChevronDown, CircleUserRound, Home, Library, ListChecks, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
+import { Box, ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
 import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
@@ -20,9 +20,11 @@ import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
 import { TagsPage } from '../pages/TagsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { StatsPage } from '../pages/StatsPage';
+import { roleAllows, useCurrentUser } from '../session';
 import { useAdopt } from './adopt';
 import { useLibraryData } from './libraryData';
-import { ACCOUNT, NAV, type NavItem } from './nav';
+import { ACCOUNT, NAV, itemsFor, navFor, type NavItem } from './nav';
 import { navigate, useRoute, type PageId } from './routes';
 
 /** "12.4 GB", "820 MB", "0 B". */
@@ -78,6 +80,7 @@ function useQueueCount(): number {
 
 function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
   const queue = useQueueCount();
+  const user = useCurrentUser();
   // Scan and thumbnail job progress (src/web/scan/Progress.tsx), above Library Storage.
   const [jobs, setJobs] = useState<HTMLDivElement | null>(null);
   useAdopt('#sidebar-progress-slot', jobs);
@@ -94,7 +97,7 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
         </span>
       </button>
       <div className="jp-nav">
-        {NAV.map((section, index) => (
+        {navFor(user?.role).map((section, index) => (
           <div key={section.label ?? index} className="jp-nav__section">
             {section.label && <div className="jp-label jp-nav__heading">{section.label}</div>}
             <ul>
@@ -113,6 +116,7 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
 
 function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean }) {
   const input = useRef<HTMLInputElement>(null);
+  const user = useCurrentUser();
   const [text, setText] = useState('');
 
   // Ctrl+K / ⌘K focuses the search from anywhere (spec §35).
@@ -152,10 +156,17 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
         placeholder="Search models, designers, tags, or anything..." shortcut={shortcutLabel(navigator.platform)}
         onChange={(event) => setText(event.target.value)} onKeyDown={onKeyDown} />
       <div className="jp-topbar__actions">
-        <Menu label="Account" items={ACCOUNT.map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))}
+        <Menu label="Account" items={itemsFor(ACCOUNT, user?.role).map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))}
           trigger={(props) => (
-            <button type="button" className="jp-account" aria-label="Account" title="Account" {...props}>
+            <button type="button" className="jp-account" aria-label={user ? undefined : 'Account'}
+              title={user ? `${user.username} · ${user.roleLabel}` : 'Account'} {...props}>
               <CircleUserRound size={26} aria-hidden="true" />
+              {user && (
+                <span className="jp-account__who" id="jp-account-who">
+                  <span className="jp-account__name">{user.username}</span>{' '}
+                  <span className="jp-account__role">{user.roleLabel}</span>
+                </span>
+              )}
               <ChevronDown size={16} aria-hidden="true" />
             </button>
           )} />
@@ -245,7 +256,23 @@ function SkipLink({ page }: { page: PageId }) {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', stats: 'Statistics', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
+/** The least role a page needs: the role of its sidebar entry. */
+function pageRole(page: PageId) {
+  return NAV.flatMap((section) => section.items).find((item) => item.page === page)?.role || 'viewer';
+}
+
+/** A page the account cannot use, opened by its address. */
+function NotAllowed() {
+  return (
+    <div className="jp-page__inner">
+      <EmptyState icon={Lock} title="Not available to your account">
+        Ask an admin if you need this page.
+      </EmptyState>
+    </div>
+  );
+}
+
 /** Pages drawn over the library screen (every page but Library). */
 const isOverlayPage = (page: PageId) => page !== 'library';
 
@@ -259,6 +286,9 @@ const isOverlayPage = (page: PageId) => page !== 'library';
 export function AppShell() {
   const { page, section } = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
+  const user = useCurrentUser();
+  // While the user is loading, nothing is drawn rather than a page that is then taken away.
+  const allowed = !!user && roleAllows(user.role, pageRole(page));
   const details = useDetailsVisibility();
   const detailsOpen = detailsAreOpen(details);
 
@@ -339,15 +369,17 @@ export function AppShell() {
       <DetailsPlaceholder />
       {isOverlayPage(page) && (
         <main className="jp-page" id="jp-content" aria-label={PAGE_TITLES[page]} tabIndex={-1}>
-          {page === 'home' && <HomePage />}
-          {page === 'queue' && <QueuePage />}
-          {page === 'printers' && <PrintersPage section={section} />}
-          {page === 'filament' && <FilamentPage />}
-          {page === 'tags' && <TagsPage />}
-          {page === 'duplicates' && <DuplicatesPage />}
-          {page === 'organize' && <OrganizePage />}
-          {page === 'settings' && <SettingsPage section={section} />}
-          {page === 'help' && <HelpPage />}
+          {user && !allowed && <NotAllowed />}
+          {allowed && page === 'home' && <HomePage />}
+          {allowed && page === 'stats' && <StatsPage />}
+          {allowed && page === 'queue' && <QueuePage />}
+          {allowed && page === 'printers' && <PrintersPage section={section} />}
+          {allowed && page === 'filament' && <FilamentPage />}
+          {allowed && page === 'tags' && <TagsPage />}
+          {allowed && page === 'duplicates' && <DuplicatesPage />}
+          {allowed && page === 'organize' && <OrganizePage />}
+          {allowed && page === 'settings' && <SettingsPage section={section} />}
+          {allowed && page === 'help' && <HelpPage />}
         </main>
       )}
     </div>,

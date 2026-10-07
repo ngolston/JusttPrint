@@ -2,10 +2,11 @@
 
 const database = require('../core/database');
 const { createServerAuth } = require('./server-auth');
+const { createSqliteUserStore } = require('./users');
 
 let serverAuth = null;
 
-/** Login, API token and download tokens for the HTTP/WebSocket server. */
+/** Logins, user accounts, API token and download tokens for the HTTP/WebSocket server. */
 function getServerAuth() {
   if (!serverAuth) {
     serverAuth = createServerAuth({
@@ -19,6 +20,7 @@ function getServerAuth() {
       setSetting: (key, value) => {
         database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
       },
+      users: createSqliteUserStore(() => database.db),
       extraOrigins: () => {
         const origins = String(process.env.JUSTTPRINT_ALLOWED_ORIGINS || '')
           .split(',').map((origin) => origin.trim()).filter(Boolean);
