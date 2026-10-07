@@ -627,7 +627,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           }
           
           // Refresh the grid
-          event.sender.send('refresh-grid');
+          events.broadcast('refresh-grid');
           
           // Show completion message
           let message = '';

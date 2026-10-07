@@ -135,6 +135,8 @@ const ACTIONS = {
   'backup-database': [],
   'restore-database': ['object?'],
   'get-auto-backup': [],
+  'get-leftover-downloads': [],
+  'delete-leftover-downloads': [],
   'get-folder-watch-status': [],
   'save-auto-backup': ['object'],
   'run-auto-backup': [],

@@ -159,3 +159,11 @@
   #backup-restore-dialog .auto-backup-fields { grid-template-columns: 1fr 1fr; }
   #backup-restore-dialog .auto-backup-item { grid-template-columns: minmax(0, 1fr) auto; }
 }
+
+/* Settings → Backup: backups and exports earlier versions left in the data folder */
+#backup-restore-dialog .leftover-downloads {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--jp-space-4); flex-wrap: wrap;
+  margin: 0 0 var(--jp-space-6); padding: var(--jp-space-3) var(--jp-space-4);
+  border: 1px solid var(--jp-border); border-radius: var(--jp-radius-md); background: var(--jp-surface-1);
+}
+#backup-restore-dialog .leftover-downloads p { flex: 1; min-width: 220px; margin: 0; }

@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [6.0.1] - 2026-10-07
+
+**Upgrading:** no changes needed. To free space, delete the old backup and export files under **Settings → Backup** (the page shows how many and how big). Reload open browser tabs after the update.
+
+**Changes:**
+- **Fixed:** every **Create Backup** and **Export Library** left a copy in the data folder for good (a copy of the whole database for each backup). They now go into `downloads/` next to the database and are deleted an hour later, once the download has had time to finish.
+- **Fixed:** with JusttPrint open in more than one browser, messages meant for one of them reached all: a scan's progress, "Removed N non-existent files", the progress dialog of Import Library and Organize, and the 3MF preview status. They now go only to the browser that started the action; changes to the library still refresh every browser.
+- **Fixed:** the scheduled STL Home scan no longer pops up "Removed N non-existent files" in every open browser (the server log still has it).
+- **Settings → Backup** lists the backup and export files earlier versions left in the data folder, with their total size and a **Delete Them** button. They are not deleted on their own, because the MCP `backup_database` and `export_library` tools save there too.
+
 ## [6.0.0] - 2026-10-07
 
 **Upgrading:** the Filament Manager dialog and Spoolman support are removed.

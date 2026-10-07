@@ -117,10 +117,12 @@ function client(base) {
 }
 
 /** One call to the HTTP API (POST /api/actions/<name>). Resolves to { status, result } or { status, error }. */
-async function invoke(base, { cookie, origin }, channel, args = []) {
+async function invoke(base, { cookie, origin, client }, channel, args = []) {
   const headers = { 'content-type': 'application/json' };
   if (origin) headers.origin = origin;
   if (cookie) headers.cookie = cookie;
+  // The browser sends its WebSocket's client id, so the server can answer that browser only.
+  if (client) headers['X-JusttPrint-Client'] = client;
   try {
     const response = await fetch(`${base}/api/actions/${encodeURIComponent(channel)}`, { method: 'POST', headers, body: JSON.stringify({ args }) });
     if (response.ok && (response.headers.get('content-type') || '').startsWith('application/octet-stream')) {
@@ -162,6 +164,25 @@ function openEvents(wsUrl, { cookie, origin }, send) {
     });
     ws.on('unexpected-response', (_req, res) => { clearTimeout(timer); resolve({ rejected: res.statusCode }); });
     ws.on('error', (error) => { clearTimeout(timer); resolve({ error: error.message }); });
+  });
+}
+
+/** A browser's event socket kept open: its client id and the event channels it receives. */
+function listenEvents(wsUrl, { cookie, origin }) {
+  return new Promise((resolve) => {
+    const ws = new WebSocket(wsUrl, { headers: { Origin: origin, Cookie: cookie } });
+    const channels = [];
+    const timer = setTimeout(() => { ws.terminate(); resolve(null); }, 10000);
+    ws.on('message', (raw) => {
+      const message = JSON.parse(String(raw));
+      if (message.type === 'hello') {
+        clearTimeout(timer);
+        resolve({ clientId: message.clientId, channels, close: () => ws.close() });
+      } else if (message.type === 'event') {
+        channels.push(message.channel);
+      }
+    });
+    ws.on('error', () => { clearTimeout(timer); resolve(null); });
   });
 }
 
@@ -434,6 +455,21 @@ async function apiChecks(base, wsUrl) {
   const backupPath = backup.result && backup.result.filePath;
   check('backup created', !!backupPath, backup.error);
   if (backupPath) check('backup downloadable', (await http.request(download(backupPath))).status === 200);
+  // Download files (src/server/download-files.js): in downloads/, cleaned up after an hour; old ones in the data folder are listed.
+  const downloadsDir = path.join(DATA, 'data', 'downloads');
+  check('a backup for download goes into downloads/', !!backupPath && path.dirname(backupPath) === downloadsDir, backupPath);
+  const staleDownload = path.join(downloadsDir, 'justtprint-library-stale.json');
+  fs.writeFileSync(staleDownload, '{}');
+  fs.utimesSync(staleDownload, new Date(Date.now() - 2 * 3600 * 1000), new Date(Date.now() - 2 * 3600 * 1000));
+  const freshExport = (await invoke(base, { cookie, origin }, 'export-library')).result || {};
+  check('making a new download deletes ones older than an hour', !!freshExport.filePath && !fs.existsSync(staleDownload) && fs.existsSync(freshExport.filePath));
+  const leftoverFile = path.join(DATA, 'data', 'justtprint-backup-2026-01-01T00-00-00-000Z.db');
+  fs.writeFileSync(leftoverFile, 'old backup');
+  const leftoverList = (await invoke(base, { cookie, origin }, 'get-leftover-downloads')).result || {};
+  check('old backups in the data folder are listed', leftoverList.files?.length === 1 && leftoverList.files[0].name === path.basename(leftoverFile) && leftoverList.totalBytes === 10,
+    JSON.stringify(leftoverList));
+  const leftoverDeleted = (await invoke(base, { cookie, origin }, 'delete-leftover-downloads')).result || {};
+  check('and deleted on request, leaving the database', leftoverDeleted.count === 1 && !fs.existsSync(leftoverFile) && fs.existsSync(path.join(DATA, 'data', 'justtprint.db')));
   const junk = await invoke(base, { cookie, origin }, 'restore-database', [{ base64: Buffer.from('not a database').toString('base64') }]);
   check('restore refuses a file that is not a backup', junk.result && junk.result.success === false && /Not a JusttPrint backup/.test(junk.result.message), JSON.stringify(junk));
   check('library still works after a refused restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
@@ -470,6 +506,33 @@ async function apiChecks(base, wsUrl) {
   check('restore from an automatic backup', autoRestored.success === true && ((await act('get-stats')).result || {}).totalModels > 0, JSON.stringify(autoRestored));
   await act('save-auto-backup', { enabled: false, directory: '' });
   fs.rmSync(autoDir, { recursive: true, force: true });
+
+  // Messages for one browser go to that browser only; library changes go to every browser.
+  const browserA = await listenEvents(wsUrl, { cookie, origin });
+  const browserB = await listenEvents(wsUrl, { cookie, origin });
+  const scannedBefore = (await invoke(base, { cookie, origin }, 'get-setting', ['scannedDirectories'])).result;
+  const ownDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-own-'));
+  fs.copyFileSync(cube, path.join(ownDir, 'keep.stl'));
+  fs.copyFileSync(cube, path.join(ownDir, 'gone.stl'));
+  const asA = { cookie, origin, client: browserA?.clientId };
+  await invoke(base, asA, 'scan-directory', [ownDir]);
+  fs.rmSync(path.join(ownDir, 'gone.stl'));
+  browserA?.channels.splice(0);
+  browserB?.channels.splice(0);
+  await invoke(base, asA, 'scan-directory', [ownDir]);
+  await new Promise((r) => setTimeout(r, 1500));
+  check('a scan\'s progress and "Removed" message go only to the browser that scanned',
+    !!browserA && !!browserB && browserA.channels.includes('db-cleanup') && browserA.channels.includes('scan-progress')
+      && !browserB.channels.includes('db-cleanup') && !browserB.channels.includes('scan-progress'),
+    JSON.stringify({ a: browserA?.channels, b: browserB?.channels }));
+  check('a library change still reaches every browser', !!browserA && !!browserB && browserA.channels.includes('refresh-grid') && browserB.channels.includes('refresh-grid'));
+  fs.rmSync(ownDir, { recursive: true, force: true });
+  // Scanning the deleted folder drops its models (the clean-up runs before the folder is read).
+  await invoke(base, asA, 'scan-directory', [ownDir]);
+  await invoke(base, { cookie, origin }, 'save-setting', ['scannedDirectories', scannedBefore || '[]']);
+  browserA?.close();
+  browserB?.close();
+  check('the library is back to the fixture models', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels === 4);
 
   const part = path.join(LIBRARY, 'Designer A', 'Benchy Pack', 'part one.stl');
   const trash = await invoke(base, { cookie, origin }, 'trash-file', [part]);
@@ -1856,8 +1919,17 @@ async function browserChecks(base, wsUrl, session) {
     check('System Report closes', !(await page.isVisible('#system-report-dialog')));
 
     // Backup/Restore (React): backup and export download, the export imports back, a bad backup is refused.
+    // Backups left in the data folder by older versions: a notice with Delete Them.
+    const uiLeftover = path.join(DATA, 'data', 'justtprint-library-2026-02-02T00-00-00-000Z.json');
+    fs.writeFileSync(uiLeftover, '{}');
     await page.evaluate(() => window.openBackupRestore());
     check('Backup/Restore opens', await page.isVisible('#backup-restore-dialog'));
+    const leftoverNotice = await page.waitForSelector('#leftover-downloads:has-text("1 backup and export file")', { timeout: 10000 }).catch(() => null);
+    if (leftoverNotice) await page.click('#delete-leftover-downloads');
+    const confirmLeftovers = await page.waitForSelector('dialog[open]:has-text("Delete Old Backup Files") button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+    if (confirmLeftovers) await confirmLeftovers.click();
+    const noticeGone = await page.waitForSelector('#leftover-downloads', { state: 'detached', timeout: 10000 }).then(() => true, () => false);
+    check('the Backup page offers to delete old backup files, asks, and deletes them', !!leftoverNotice && !!confirmLeftovers && noticeGone && !fs.existsSync(uiLeftover));
     const backupDownload = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#backup-button')])
       .then(([download]) => download).catch(() => null);
     check('Create Backup downloads a .db file', !!backupDownload && /^justtprint-backup-.*\.db$/.test(backupDownload.suggestedFilename()), backupDownload && backupDownload.suggestedFilename());

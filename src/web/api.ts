@@ -321,6 +321,18 @@ export interface AutoBackupSettings {
   directory?: string;
 }
 
+/** Backups and exports earlier versions left in the data folder (src/server/download-files.js). */
+export interface LeftoverDownloads {
+  folder: string;
+  files: { name: string; size: number; date: string }[];
+  totalBytes: number;
+}
+
+export const leftoverDownloads = {
+  list: () => callAction<LeftoverDownloads>('get-leftover-downloads'),
+  remove: () => callAction<{ count: number; bytes: number }>('delete-leftover-downloads')
+};
+
 export const autoBackup = {
   status: () => callAction<AutoBackupStatus>('get-auto-backup'),
   save: (settings: AutoBackupSettings) => callAction<AutoBackupStatus>('save-auto-backup', settings),

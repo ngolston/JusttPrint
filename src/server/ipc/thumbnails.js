@@ -312,7 +312,7 @@ ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
     
     // Send refresh event
     if (event && event.sender) {
-      event.sender.send('thumbnail-deleted', {
+      events.broadcast('thumbnail-deleted', {
         filePath: filePath,
         thumbnailCount: thumbnails.length
       });

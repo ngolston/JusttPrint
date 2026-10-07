@@ -149,8 +149,10 @@ function publicOrganizePreview(plan) {
   };
 }
 
+/** The progress dialog goes to the browser that started Organize; the grid refresh to every browser. */
 function sendOrganizeEvent(event, channel, data) {
-  events.broadcast(channel, data);
+  if (channel === 'refresh-grid') events.broadcast(channel);
+  else events.toCaller(event, channel, data);
 }
 
 ipcMain.handle('list-organize-sources', async () => {

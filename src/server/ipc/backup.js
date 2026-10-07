@@ -3,7 +3,6 @@
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
-const path = require('path');
 const Database = require('better-sqlite3');
 const { normalizeColorHex } = require('../../core/filament-format');
 const { getDatabasePath } = require('../../core/db-path');
@@ -11,6 +10,7 @@ const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
 const { checkBackupFile } = require('../../core/backup-check');
 const autoBackup = require('../auto-backup');
+const downloadFiles = require('../download-files');
 
 /** The catalog filament matching an imported one (name, vendor, material, color), added if missing. */
 function upsertImportedFilament(filament) {
@@ -39,13 +39,11 @@ function upsertImportedFilament(filament) {
   return result.lastInsertRowid;
 }
 
-// Copies the live database to justtprint-backup-<time>.db in the data folder.
+// Copies the live database to downloads/justtprint-backup-<time>.db for the browser to download
+// (deleted an hour later, src/server/download-files.js).
 ipcMain.handle('backup-database', async () => {
   try {
-    const dbPath = getDatabasePath();
-    const dbDir = path.dirname(dbPath);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(dbDir, `justtprint-backup-${timestamp}.db`);
+    const backupPath = downloadFiles.newDownloadPath('backup', 'db');
 
     // SQLite's online backup: the database stays open, so other requests keep working.
     await database.db.backup(backupPath);
@@ -111,6 +109,10 @@ ipcMain.handle('restore-database', async (event, payload = null) => {
   }
   return restoreFromCheckedFile(uploadPath);
 });
+
+// Backups and exports earlier versions left in the data folder (Settings → Backup shows them).
+ipcMain.handle('get-leftover-downloads', async () => downloadFiles.leftovers());
+ipcMain.handle('delete-leftover-downloads', async () => downloadFiles.deleteLeftovers());
 
 // Automatic backups (src/server/auto-backup.js): settings, Back Up Now, and Restore by name.
 ipcMain.handle('get-auto-backup', async () => autoBackup.status());
@@ -374,9 +376,8 @@ function buildLibraryExportData() {
 ipcMain.handle('export-library', async () => {
   try {
     const exportData = buildLibraryExportData();
-    const exportDir = path.dirname(getDatabasePath());
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const exportPath = path.join(exportDir, `justtprint-library-${timestamp}.json`);
+    // For the browser to download; deleted an hour later (src/server/download-files.js).
+    const exportPath = downloadFiles.newDownloadPath('library', 'json');
     await fs.promises.writeFile(exportPath, JSON.stringify(exportData, null, 2), 'utf8');
     return { success: true, filePath: exportPath };
   } catch (error) {

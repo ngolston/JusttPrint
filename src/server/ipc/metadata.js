@@ -1,5 +1,7 @@
 'use strict';
 
+const events = require('../events');
+
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const path = require('path');
@@ -230,7 +232,7 @@ ipcMain.handle('pull-3mf-metadata', async (event, filePaths) => {
     }
     
     // Refresh the grid
-    event.sender.send('refresh-grid');
+    events.broadcast('refresh-grid');
     
     return {
       success: true,

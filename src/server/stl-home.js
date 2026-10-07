@@ -9,11 +9,16 @@ const { ChangeQueue, TreeWatcher } = require('./folder-watch');
 const { readStlHomeExcludeDirectories, scanDirectoryHandler } = require('./ipc/scan');
 const { startServerThumbnailJobInternal, thumbnailJobRunning } = require('./ipc/thumbnails');
 
-/** Event for work the server starts itself: progress goes to every connected browser. */
+/**
+ * Event for scans the server starts itself: progress goes to every connected browser, but not
+ * the "Removed N non-existent files" message, which would pop up in every browser at each
+ * scheduled scan (the server log has it).
+ */
 function serverIpcEvent() {
   return {
     sender: {
       send(channel, ...args) {
+        if (channel === 'db-cleanup') return;
         events.broadcast(channel, ...args);
       }
     }
