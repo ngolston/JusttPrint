@@ -19,6 +19,17 @@ The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the
 
 On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Library, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
+### Install it as an app
+
+**Settings → Install App** (also under **Help**) adds JusttPrint to your phone's home screen or your computer's apps. It then opens from its own icon, full screen without the address bar. It is still the same JusttPrint in your Docker container; nothing is copied to the device.
+
+- **iPhone and iPad:** in Safari, tap **Share**, then **Add to Home Screen**. Works over plain `http://` too.
+- **Android, Windows, Mac, Linux (Chrome or Edge):** click **Install JusttPrint** in the dialog, or choose **Install app** in the browser's menu (⋮). These browsers install apps only over **HTTPS with a trusted certificate**; over plain `http://` you get a shortcut that opens in the browser instead.
+- **HTTPS for installing:** the easiest way is a reverse proxy with a certificate (for example Nginx Proxy Manager, Caddy, Traefik or Tailscale HTTPS) in front of JusttPrint, or Let's Encrypt in **Settings → HTTPS / SSL** when JusttPrint has a public domain name. A self-signed certificate is not enough for Android: the browser does not trust it.
+- **Firefox** does not install web apps; add a bookmark.
+
+On a touch screen, buttons that appear on hover with a mouse (a card's heart and **…**, the small buttons beside the details fields) are always shown, and controls are larger so they are easy to tap.
+
 ## Getting started
 
 1. Start the container, open `http://<docker-host-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).

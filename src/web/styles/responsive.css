@@ -89,6 +89,10 @@
   .jp-sidebar .jp-brand__text { display: flex; }
   .jp-sidebar .jp-storage { display: block; }
   .jp-sidebar .jp-jobs:not(:empty) { display: block; }
+  /* The whole drawer scrolls (menu, then progress and Library Storage), so nothing hides under the storage card. */
+  body.jp-shell-on .jp-sidebar { overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom); }
+  body.jp-shell-on .jp-sidebar > * { flex-shrink: 0; }
+  .jp-sidebar .jp-nav { flex: none; overflow: visible; }
   .jp-sidebar .jp-nav ul { padding: 0 10px; }
   .jp-sidebar .jp-nav__section + .jp-nav__section { border-top: 0; padding-top: 0; margin-top: var(--jp-space-3); }
   .jp-sidebar .jp-nav__row { justify-content: flex-start; padding: 0 var(--jp-space-3) 0 14px; }
@@ -201,4 +205,49 @@
     padding: var(--jp-space-4);
     border-radius: 0;
   }
+}
+
+/* ---- Touch screens (phones, tablets): no hover, and fingers need room ----
+ * Controls that appear on hover are always shown, and small controls get a tap area of about
+ * 40 px (44 px is the usual guide; the dense details list keeps 40). A mouse keeps the
+ * compact sizes above. */
+@media (hover: none) and (pointer: coarse) {
+  /* Cards: favorite and "…" always visible and larger; a rated card's stars are easier to hit. */
+  .file-grid .jp-model-card .jp-model-card__action { opacity: 1; width: 38px; height: 38px; }
+  .file-grid .jp-model-card .jp-model-card__rating .model-star { padding: 6px 3px; font-size: 16px; }
+  .file-grid .jp-model-card .print-status.jp-status { min-height: 28px; }
+
+  /* Library header: tabs, view switch, chips. */
+  .jp-tab { height: 40px; }
+  .jp-chip { height: 38px; }
+  .jp-library-header .jp-segmented__btn,
+  .jp-library-header .jp-segmented--text .jp-segmented__btn { width: 40px; height: 38px; }
+
+  /* Small icon buttons everywhere. */
+  .jp-icon-btn--sm { width: 40px; height: 40px; }
+
+  /* Details panel. */
+  #model-details .jp-details__overlay-btn { min-width: 40px; height: 40px; }
+  #model-details .jp-details .icon-button,
+  #model-details .jp-details .list-button { width: 40px; min-width: 40px; height: 40px; }
+  #model-details .jp-details__tags .icon-button { width: 40px; min-width: 40px; height: 40px; }
+  #model-details .jp-props__group .form-group .icon-button,
+  #model-details #details-path-group .icon-button,
+  #model-details .print-history-item .print-history-delete.icon-button { opacity: 1; }
+  #model-details .print-history-item .print-history-delete.icon-button { width: 36px; min-width: 36px; height: 36px; }
+  #model-details .jp-props select,
+  #model-details .jp-props input[type="text"],
+  #model-details #tag-select { height: 40px; border-color: var(--jp-border); }
+  #model-details .jp-rating__star { padding: 6px 5px; font-size: 22px; }
+
+  /* Buttons and text links. */
+  .jp-btn { min-height: 40px; }
+  .jp-link.jp-card__action { padding: 10px 4px; margin: -10px -4px; }
+
+  /* Multi-edit. */
+  #multi-edit-panel .jp-multi select,
+  #multi-edit-panel .jp-multi input[type="text"] { height: 40px; }
+
+  /* Toggles with a label: the whole row is the tap area. */
+  #backup-restore-dialog .auto-backup-toggle { min-height: 40px; }
 }

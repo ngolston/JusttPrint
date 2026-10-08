@@ -2,6 +2,18 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.4.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **Install App:** **Settings → Install App** (and **Help**) adds JusttPrint to the home screen or the desktop, with the steps for your browser: one **Install** button in Chrome and Edge, **Share → Add to Home Screen** on iPhone and iPad, and a note when the browser needs HTTPS first. A minimal service worker is registered so browsers offer to install; it handles no requests, so pages load exactly as before. The Guide explains the HTTPS part (a reverse proxy with a certificate is the easiest).
+- **Touch screens:** buttons that appeared only on mouse hover are always shown on phones and tablets: a card's heart and **…**, the search and **+** buttons beside the details fields, and print history's delete. Small controls are finger-sized: card buttons, the view switch, tabs and chips, the details and multi-edit fields and buttons, the rating stars. A mouse keeps the compact sizes.
+- **Phone menu:** the Menu drawer scrolls as a whole, so Help is no longer hidden under Library Storage.
+
+**Fixes:**
+- The arrow beside **Open in Slicer** (choose a slicer) was squeezed to half its width on every screen size.
+
 ## [7.3.3] - 2026-10-07
 
 **Changes:**

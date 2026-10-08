@@ -24,6 +24,7 @@ import { ListPicker } from './components/ListPicker';
 import { ServerProgressDialog } from './components/ServerProgressDialog';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { UndoToast } from './library/UndoToast';
+import { InstallAppDialog } from './InstallAppDialog';
 import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
@@ -87,6 +88,7 @@ function Screens() {
       <KeyboardShortcutsDialog />
       <KeyboardShortcuts />
       <UndoToast />
+      <InstallAppDialog />
       <AboutDialog />
       <PerformanceSettingsDialog />
       <McpServerSettingsDialog />
