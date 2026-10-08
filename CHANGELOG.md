@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.3.1] - 2026-10-07
+
+**Upgrading:** no changes needed. Browsers keep old icons for a while: reload the page, and on a phone remove and add the home-screen icon again to see the new one.
+
+**Changes:**
+- **New logo and icons:** the JusttPrint printer-in-a-hexagon replaces the old Printventory artwork in the browser tab, the home-screen icon (with versions Android can crop to a circle or rounded square), the sidebar, the login page, About, the Terms of Service and shared-link pages, and the README. The installed app's background color matches the app.
+
 ## [7.3.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.
