@@ -21,7 +21,8 @@ type PickerField = 'designer' | 'parentModel' | 'license';
 /** What this section asks of the library (library/hosts.ts). */
 export interface DetailsHost {
   /** Save one field of the model (autoSaveModel: also updates its grid card). */
-  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'notes', value: string | string[]): Promise<boolean>;
+  /** `base`: the value shown when editing started, so a change someone else made meanwhile is not lost (library/saving.ts). */
+  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'notes', value: string | string[], base?: string | string[] | null): Promise<boolean>;
   /** Open the source URL in a new tab (checks it is http/https). */
   openSource(url: string): void;
   /** A new designer, parent model, license or tag exists: refresh the filters and other pickers. */
@@ -120,9 +121,10 @@ export function DetailsFields() {
   };
   useEffect(() => exposeGlobal('detailsFields', api));
 
-  async function save(field: PickerField | 'source' | 'tags', value: string | string[]) {
+  async function save(field: PickerField | 'source' | 'tags', value: string | string[], base?: string | string[] | null) {
     if (!model || !host) return false;
-    const ok = await host.saveField(model.filePath, field, value);
+    const shownBefore = base !== undefined ? base : field === 'tags' ? tags : ((model[field] as string | null | undefined) ?? null);
+    const ok = await host.saveField(model.filePath, field, value, shownBefore);
     if (ok && field !== 'tags' && field !== 'source') setModel({ ...model, [field]: value as string });
     return ok;
   }
@@ -130,15 +132,17 @@ export function DetailsFields() {
   async function addTag(name: string) {
     const trimmed = name.trim();
     if (!model || !trimmed || tags.includes(trimmed)) return;
+    const before = tags;
     const next = [...tags, trimmed].sort((a, b) => a.localeCompare(b));
     setTags(next);
-    await save('tags', next);
+    await save('tags', next, before);
   }
 
   async function removeTag(name: string) {
+    const before = tags;
     const next = tags.filter((tag) => tag !== name);
     setTags(next);
-    await save('tags', next);
+    await save('tags', next, before);
   }
 
   async function pick(field: PickerField) {

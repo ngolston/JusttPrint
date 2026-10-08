@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.1.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **Edits from two browsers at once:** when someone changes a model (its fields, tags, rating, print status or a logged print), every other open browser updates that card and its details panel right away; the details panel waits while you are typing in it. When you save a designer, parent model, license, source or notes that someone else changed after you started editing, JusttPrint no longer overwrites theirs: it shows both versions and you choose **Keep Mine** or **Keep Theirs** (notes also **Keep Both**). Tags merge: what each of you added or removed is kept. For scripts, `save-model` takes `_base` (the values you started from) to get this check; without it, saves work as before.
+- **Wording:** the app and the docs say "JusttPrint backend" for the part of JusttPrint that runs in the Docker container (Settings → **JusttPrint Backend**, **Restart JusttPrint Backend**, **JusttPrint Backend Access** for the API token), and example addresses use `<docker-host-ip>`. Nothing else changed: the container name `justtprint-server` and the environment variables stay.
+
 ## [7.0.0] - 2026-10-07
 
 **Upgrading:** filament is gone from JusttPrint. **Before updating, take a backup** (**Settings → Backup**) if you might want your filament data back: on the first start of 7.0 the filament catalog, the filaments on your models and the filaments in your print history are deleted from the database. Prints themselves (dates, outcomes, quantities, printers, parts, notes) stay. MCP clients lose the `list_filaments`, `save_filament`, `delete_filament` and `set_model_filaments` tools, and `get_model`, `update_model` and `log_print_event` no longer take or return filaments. Library exports no longer contain filaments, and filaments in older exports are ignored on import. Reload open browser tabs after the update.

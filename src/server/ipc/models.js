@@ -12,6 +12,8 @@ const { parseExcludePathList, readStlHomeDirectories } = require('../../core/lib
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
 const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
+const events = require('../events');
+const { findConflicts, mergeTagLists } = require('../../core/edit-merge');
 const { isMacOsResourceForkEntry } = require('../../core/zip-entries');
 const { getDatabasePath } = require('../../core/db-path');
 const { withZipFileLock } = require('../../core/zip-extract');
@@ -71,17 +73,47 @@ ipcMain.handle('get-model', async (event, filePath) => {
   }
 });
 
-// Update the save-model handler to not store tags in the models table
+/** Tell the other open browsers which models changed, so they show the new values (core/edit-merge.js). */
+function announceChanged(event, filePaths) {
+  const paths = [...new Set((filePaths || []).filter((p) => typeof p === 'string' && p))];
+  if (paths.length) events.broadcastToOthers(event, 'models-changed', { filePaths: paths, by: event && event.user ? event.user.username : null });
+}
+
+const storedTagNames = (modelId) => database.db.prepare(
+  'SELECT t.name FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = ?'
+).all(modelId).map((row) => row.name);
+
+/**
+ * Save one model. With `_base` (the edited fields' values when editing started) the save is
+ * checked against what is stored now: when someone else changed one of those fields meanwhile,
+ * nothing is saved and the answer lists the conflicts ({ success: false, conflicts }); tags are
+ * merged instead. Without `_base` it saves as given (imports, MCP, "keep mine").
+ */
 ipcMain.handle('save-model', async (event, modelData) => {
-  return await saveModel(modelData);
+  const data = { ...(modelData || {}) };
+  const base = data._base && typeof data._base === 'object' ? data._base : null;
+  delete data._base;
+  const stored = base && data.filePath ? getModelByFilePath(data.filePath) : null;
+  if (stored) {
+    const conflicts = findConflicts(stored, data, base);
+    if (conflicts.length) return { success: false, conflicts };
+    if (Array.isArray(base.tags) && Array.isArray(data.tags)) data.tags = mergeTagLists(storedTagNames(stored.id), base.tags, data.tags);
+  }
+  const result = await saveModel(data);
+  announceChanged(event, [data.filePath]);
+  return result;
 });
 
 ipcMain.handle('save-model-batch', async (event, modelDataBatch) => {
-  return await saveModelBatch(modelDataBatch);
+  const result = await saveModelBatch(modelDataBatch);
+  announceChanged(event, (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath));
+  return result;
 });
 
 ipcMain.handle('update-models-batch', async (event, modelDataBatch) => {
-  return await updateModelsBatch(modelDataBatch);
+  const result = await updateModelsBatch(modelDataBatch);
+  announceChanged(event, (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath));
+  return result;
 });
 
 ipcMain.handle('get-designers', async () => {

@@ -735,8 +735,21 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     });
   }
 
+  /** The same, to every browser except `except`. */
+  function broadcastToOthers(except, channel, ...args) {
+    const message = jsonStringifyForWs({ type: 'event', channel, args });
+    wsClients.forEach((client) => {
+      if (client === except || client.readyState !== WebSocket.OPEN) return;
+      try {
+        client.send(message);
+      } catch (error) {
+        console.error('Error broadcasting event:', error);
+      }
+    });
+  }
+
   // Store broadcast function globally for use in IPC handlers
-  events.setBroadcaster(broadcastEvent);
+  events.setBroadcaster(broadcastEvent, broadcastToOthers);
 
   // Bind errors are handled in the Promise above (reject). Server-mode callers should catch and exit.
   return serverPromise;

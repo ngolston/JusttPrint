@@ -11,7 +11,7 @@ import { onServerEvent, showMessage } from '../page';
 import { selection } from '../selection';
 import { invalidateThumbnail, syncThumbnailFromField } from '../thumbnails/cache';
 import { currentModelPath, highlightModel, showModelDetails } from './details';
-import { mergeModel, refreshGrid, showModels } from './models';
+import { mergeModel, refreshGrid, showModels, updateModel } from './models';
 
 const gridElement = () => document.querySelector<HTMLElement & { currentModels?: GridModel[] | null }>('.file-grid');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -228,6 +228,36 @@ if (typeof window !== 'undefined') {
     await reloadGrid();
   };
   window.logOutOfServer = logOut;
+
+  window.reloadShownModelDetails = async () => {
+    const filePath = currentModelPath();
+    if (filePath) await showModelDetails(filePath);
+  };
+
+  // Another browser changed models (src/server/ipc/models.js): show the new values here too. The
+  // details panel waits while someone is typing in it; a save then checks for a conflict.
+  let pendingDetails = false;
+  const editingDetails = () => {
+    const active = document.activeElement as HTMLElement | null;
+    return !!document.querySelector('#notes-modal-dialog[open]')
+      || !!(active && active.closest('#model-details, #details-fields-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+  };
+  const refreshDetailsWhenFree = () => {
+    if (!pendingDetails) return;
+    if (editingDetails()) return;
+    pendingDetails = false;
+    void window.reloadShownModelDetails?.();
+  };
+  document.addEventListener('focusout', () => setTimeout(refreshDetailsWhenFree, 0));
+  onServerEvent('models-changed', (data: { filePaths?: string[] }) => {
+    const paths = Array.isArray(data?.filePaths) ? data.filePaths : [];
+    for (const filePath of paths) void updateModel(filePath).catch(() => {});
+    const shownPath = currentModelPath();
+    if (shownPath && paths.includes(shownPath)) {
+      pendingDetails = true;
+      refreshDetailsWhenFree();
+    }
+  });
 
   onServerEvent('thumbnail-added', (data: { filePath?: string }) => { if (data?.filePath) modelImagesChanged(data.filePath, true); });
   onServerEvent('thumbnail-deleted', (data: { filePath?: string }) => {

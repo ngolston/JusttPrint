@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 7.0.0**
+**Version 7.1.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -13,6 +13,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets
 - **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered by the JusttPrint backend
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
+- **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
 - **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download
 - **Collections**: group models from any folders into projects, gift lists or spare-part sets
 - **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with optional downloads and an expiry date

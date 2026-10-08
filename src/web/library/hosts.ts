@@ -97,7 +97,7 @@ window.gridHost = {
 };
 
 window.detailsHost = {
-  saveField: (filePath, field, value) => saveModelField(field, value, filePath),
+  saveField: (filePath, field, value, base) => saveModelField(field, value, filePath, base),
   openSource: (url) => { openSourceUrl(url); },
   valuesChanged: async (kind) => reloadPickers(kind)
 };

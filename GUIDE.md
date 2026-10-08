@@ -108,6 +108,12 @@ Editors and admins can add models from the browser:
 - Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
 - After the upload, the folder is scanned, so the models appear with thumbnails.
 
+## Several people at once
+
+Everyone who has JusttPrint open sees changes as they happen: when someone edits a model, logs a print or changes its status, its card and the details panel update in every other browser (the details panel waits while you are typing in it).
+
+If two people edit the same field of the same model, nobody's work is lost silently. When you save a designer, parent model, license, source or notes that someone else changed after you started, JusttPrint shows both versions: **Keep Mine** or **Keep Theirs** (for notes also **Keep Both**, theirs then yours). Tags never clash: what each person added or removed is kept.
+
 ## Collections
 
 A collection groups models from any folders: a project, a gift list, the spare parts for one printer. A model can be in several collections, and stays where it is on disk.
