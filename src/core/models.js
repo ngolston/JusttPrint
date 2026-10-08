@@ -16,19 +16,10 @@ const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
   "CASE WHEN models.thumbnail IS NOT NULL AND models.thumbnail != '' AND models.thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
   "CASE WHEN models.thumbnail IS NOT NULL AND INSTR(models.thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
 
-/**
- * The material of the model's first filament (in the details panel's order) that has one, for
- * the card's material badge.
- */
-const MODEL_LIST_MATERIAL =
-  "(SELECT f.material FROM model_filaments mf JOIN filaments f ON f.id = mf.filament_id " +
-  "WHERE mf.model_id = models.id AND f.material IS NOT NULL AND TRIM(f.material) != '' " +
-  'ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE LIMIT 1) AS filamentMaterial';
-
-const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}, ${MODEL_LIST_MATERIAL}`;
+const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
 
 const MODEL_LIST_COLUMNS_QUALIFIED =
-  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}, ${MODEL_LIST_MATERIAL}`;
+  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
 
 function getModelByFilePath(filePath, { includeThumbnail = false } = {}) {
   if (!database.db || !filePath) return null;
@@ -68,19 +59,8 @@ function repairModelTagsTable() {
   }
 }
 
-function replaceModelFilaments(modelId, filamentIds) {
-  database.db.prepare('DELETE FROM model_filaments WHERE model_id = ?').run(modelId);
-  if (!filamentIds || filamentIds.length === 0) return;
-  const insert = database.db.prepare('INSERT OR IGNORE INTO model_filaments (model_id, filament_id) VALUES (?, ?)');
-  const exists = database.db.prepare('SELECT 1 FROM filaments WHERE id = ?');
-  for (const id of filamentIds) {
-    if (exists.get(id)) insert.run(modelId, id);
-  }
-}
-
 function deleteModelJunctionRows(modelId) {
   database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
-  database.db.prepare('DELETE FROM model_filaments WHERE model_id = ?').run(modelId);
   printEvents.deletePrintRowsForModel(database.db, modelId);
 }
 
@@ -100,7 +80,6 @@ function deleteModelsByIds(modelIds) {
     const placeholders = batch.map(() => '?').join(',');
     printEvents.deletePrintRowsForModels(database.db, batch);
     database.db.prepare(`DELETE FROM model_tags WHERE model_id IN (${placeholders})`).run(...batch);
-    database.db.prepare(`DELETE FROM model_filaments WHERE model_id IN (${placeholders})`).run(...batch);
     database.db.prepare(`DELETE FROM models WHERE id IN (${placeholders})`).run(...batch);
   }
 }
@@ -146,4 +125,4 @@ function modelUserFieldsChanged(existing, finals) {
   );
 }
 
-module.exports = { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelJunctionRows, deleteModelsByFilePaths, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable, replaceModelFilaments };
+module.exports = { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelJunctionRows, deleteModelsByFilePaths, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable };

@@ -1,5 +1,7 @@
 # JusttPrint 5 redesign: migration plan
 
+> **7.0:** everything to do with filament (Phase 8's Filament page, the details panel's Filament section, the material badge, filament in print history) has been removed. The records below describe 5.0 as built.
+
 Source of truth: `JusttPrint_5_UI_UX_Redesign_Specification.pdf` and the reference render. This plan maps them onto the real app. Work happens on the `redesign-5` branch and ships once, as **5.0.0**. Every phase leaves the app runnable with `npm test` and `npm run test:e2e` green.
 
 ## Decisions
@@ -67,7 +69,7 @@ Then: README, GUIDE screenshots, CHANGELOG with upgrade notes, 5.0.0 release.
 
 ## Later features (not in 5.0.0)
 
-Collections; notifications; user accounts with names; light theme; filament stock levels.
+Notifications; light theme.
 
 ## Progress
 

@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.0.0] - 2026-10-07
+
+**Upgrading:** filament is gone from JusttPrint. **Before updating, take a backup** (**Settings → Backup**) if you might want your filament data back: on the first start of 7.0 the filament catalog, the filaments on your models and the filaments in your print history are deleted from the database. Prints themselves (dates, outcomes, quantities, printers, parts, notes) stay. MCP clients lose the `list_filaments`, `save_filament`, `delete_filament` and `set_model_filaments` tools, and `get_model`, `update_model` and `log_print_event` no longer take or return filaments. Library exports no longer contain filaments, and filaments in older exports are ignored on import. Reload open browser tabs after the update.
+
+**Changes:**
+- **Removed:** the Filament page and its sidebar and Settings entries, Add Filament, the Filament section of a model's details panel and of Multi-Edit, the filament picker in Log Print and filaments in the print history, the Filament filter and the filament search field, the material badge on model cards (and on Home and the Queue), the filament and material lists on the Statistics page, the filament actions of the HTTP API and the MCP filament tools.
+- The database drops its `filaments`, `model_filaments` and `print_event_filaments` tables on the first start, and the leftover Spoolman settings.
+- Removed the "cost and time estimates from filament prices" idea from the to-do list.
+- **Fixed:** screen readers could not announce the months of the Statistics chart properly (each month column now has an image role with its numbers).
+
 ## [6.6.0] - 2026-10-07
 
 **Upgrading:** no changes needed; slicers set up with the helper keep working. To open models in OrcaSlicer without the helper, add it under **Settings → Slicer → Add OrcaSlicer (no helper)**. Reload open browser tabs after the update.

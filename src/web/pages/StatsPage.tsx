@@ -113,7 +113,7 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
                   <text className="jp-chart__x" x={cx} y={height - 8} textAnchor="middle">{monthLabel(month.month, index === 0)}</text>
                 )}
                 {/* Hit area: the whole column, wider than the bar. */}
-                <rect className="jp-chart__hit" x={left + band * index} y={8} width={band} height={plotH} tabIndex={0}
+                <rect className="jp-chart__hit" role="img" x={left + band * index} y={8} width={band} height={plotH} tabIndex={0}
                   aria-label={`${monthTitle(month.month)}: ${series.map((s) => `${s.label} ${valueOf(month, s.key)}`).join(', ')}`}
                   onMouseEnter={() => setActive(index)} onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(index)} onBlur={() => setActive(null)} />
@@ -188,16 +188,6 @@ function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty
   );
 }
 
-function filamentLabel(f: PrintStatistics['filaments'][number]) {
-  const name = [f.vendor, f.name].filter(Boolean).join(' ') || 'Unnamed filament';
-  return (
-    <>
-      <span className="jp-ranked__chip" style={{ background: /^[0-9a-f]{6}$/i.test(f.colorHex) ? `#${f.colorHex}` : 'var(--jp-surface-hover)' }} aria-hidden="true" />
-      {name}{f.material ? <span className="jp-ranked__detail"> {f.material}</span> : null}
-    </>
-  );
-}
-
 function StatsSkeleton() {
   return (
     <div className="jp-stats__tiles">
@@ -207,7 +197,7 @@ function StatsSkeleton() {
 }
 
 /**
- * Statistics (#/stats): prints per month, success rate, the filaments, designers, models and
+ * Statistics (#/stats): prints per month, success rate, the designers, models and
  * printers printed most, and how the library grew. Only what the print log and library hold.
  */
 export function StatsPage() {
@@ -285,16 +275,6 @@ export function StatsPage() {
             <Panel title="Most printed models">
               <RankedBars unit="prints" empty="Nothing printed yet."
                 rows={stats.models.map((m) => ({ key: m.id, label: m.fileName, title: m.filePath, value: m.printed }))} />
-            </Panel>
-            <Panel title="Filament used">
-              <p className="jp-meta jp-stats__subtitle">Prints per filament (the print log records which filament, not how much).</p>
-              <RankedBars unit="prints" empty="No printed prints have a filament logged."
-                rows={stats.filaments.map((f) => ({ key: f.id, label: filamentLabel(f), title: [f.vendor, f.name, f.material].filter(Boolean).join(' '), value: f.prints }))} />
-              {stats.materials.length > 1 && (
-                <p className="jp-meta jp-stats__materials">
-                  By material: {stats.materials.map((m) => `${m.material} ${fmt(m.prints)}`).join(' · ')}
-                </p>
-              )}
             </Panel>
             <Panel title="Printers">
               <RankedBars unit="prints" empty="No prints are logged with a printer."

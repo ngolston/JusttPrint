@@ -14,7 +14,6 @@ import { HelpPage } from '../pages/HelpPage';
 import { HomePage } from '../pages/HomeDashboard';
 import { LibraryHeader } from '../pages/LibraryPage';
 import { DuplicatesPage } from '../pages/DuplicatesPage';
-import { FilamentPage } from '../pages/FilamentPage';
 import { OrganizePage } from '../pages/OrganizePage';
 import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
@@ -257,7 +256,7 @@ function SkipLink({ page }: { page: PageId }) {
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', filament: 'Filament', stats: 'Statistics', collections: 'Collections', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', stats: 'Statistics', collections: 'Collections', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
 /** The least role a page needs: the role of its sidebar entry. */
 function pageRole(page: PageId) {
   return NAV.flatMap((section) => section.items).find((item) => item.page === page)?.role || 'viewer';
@@ -376,7 +375,6 @@ export function AppShell() {
           {allowed && page === 'collections' && <CollectionsPage section={section} />}
           {allowed && page === 'queue' && <QueuePage />}
           {allowed && page === 'printers' && <PrintersPage section={section} />}
-          {allowed && page === 'filament' && <FilamentPage />}
           {allowed && page === 'tags' && <TagsPage />}
           {allowed && page === 'duplicates' && <DuplicatesPage />}
           {allowed && page === 'organize' && <OrganizePage />}

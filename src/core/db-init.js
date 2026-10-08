@@ -95,26 +95,6 @@ function initializeDatabase() {
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_tags_tag_id ON model_tags(tag_id)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_tags_model_id ON model_tags(model_id)').run();
 
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS filaments (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          vendor TEXT,
-          material TEXT,
-          color_hex TEXT,
-          diameter REAL,
-          source TEXT NOT NULL DEFAULT 'manual'
-      )`).run();
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS model_filaments (
-          model_id INTEGER,
-          filament_id INTEGER,
-          FOREIGN KEY(model_id) REFERENCES models(id),
-          FOREIGN KEY(filament_id) REFERENCES filaments(id),
-          PRIMARY KEY(model_id, filament_id)
-      )`).run();
-      database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_name ON filaments(name)').run();
-      database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_filament_id ON model_filaments(filament_id)').run();
-      database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_model_id ON model_filaments(model_id)').run();
-      
       // Single-column indexes for sorting and filtering
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_size ON models(size)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_modifieddate ON models(modifiedDate)').run();
@@ -154,8 +134,7 @@ function initializeDatabase() {
     
     // Check and create slicers table if it doesn't exist
     ensureSlicersTableExists();
-    ensureFilamentsTablesExist();
-    removeSpoolmanData();
+    removeFilamentData();
     ensurePartsTablesExist();
     
     // Initialize default settings
@@ -519,55 +498,25 @@ function ensurePartsTablesExist() {
   }
 }
 
-function ensureFilamentsTablesExist() {
-  try {
-    database.db.prepare(`CREATE TABLE IF NOT EXISTS filaments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        vendor TEXT,
-        material TEXT,
-        color_hex TEXT,
-        diameter REAL,
-        source TEXT NOT NULL DEFAULT 'manual'
-    )`).run();
-    database.db.prepare(`CREATE TABLE IF NOT EXISTS model_filaments (
-        model_id INTEGER,
-        filament_id INTEGER,
-        FOREIGN KEY(model_id) REFERENCES models(id),
-        FOREIGN KEY(filament_id) REFERENCES filaments(id),
-        PRIMARY KEY(model_id, filament_id)
-    )`).run();
-    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_filaments_name ON filaments(name)').run();
-    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_filament_id ON model_filaments(filament_id)').run();
-    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_filaments_model_id ON model_filaments(model_id)').run();
-    return true;
-  } catch (error) {
-    console.error('Error ensuring filaments tables exist:', error);
-    return false;
-  }
-}
-
-// Add this function before saveModel
 /**
- * Spoolman support was removed in 6.0: delete its settings and each filament's link to Spoolman.
- * The filaments stay (models and print history use them) as ordinary catalog entries. Databases
- * from before 6.0 keep an empty spoolman_id column (a UNIQUE column cannot be dropped without
- * rebuilding the table). Does nothing once done.
+ * Filament was removed in 7.0 (and Spoolman, which synced it, in 6.0): drop the catalog, the
+ * filaments on models and in the print history, and their settings. Print events themselves stay.
+ * Does nothing once done.
  */
-function removeSpoolmanData() {
+function removeFilamentData() {
   try {
-    const settings = database.db.prepare("DELETE FROM settings WHERE key IN ('spoolmanUrl', 'spoolmanApiToken')").run().changes;
-    database.db.prepare('DROP INDEX IF EXISTS idx_filaments_spoolman_id').run();
-    const columns = database.db.prepare('PRAGMA table_info(filaments)').all().map((column) => column.name);
-    let filaments = 0;
-    if (columns.includes('spoolman_id')) {
-      filaments = database.db.prepare("UPDATE filaments SET spoolman_id = NULL, source = 'manual' WHERE spoolman_id IS NOT NULL OR source <> 'manual'").run().changes;
-    } else if (columns.includes('source')) {
-      filaments = database.db.prepare("UPDATE filaments SET source = 'manual' WHERE source <> 'manual'").run().changes;
-    }
-    if (settings || filaments) console.log(`Removed Spoolman data: ${settings} setting(s), ${filaments} filament link(s)`);
+    const db = database.db;
+    const tables = ['print_event_filaments', 'model_filaments', 'filaments']
+      .filter((name) => db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
+    const settings = db.prepare("DELETE FROM settings WHERE key IN ('spoolmanUrl', 'spoolmanApiToken', 'filamentFilters', 'selectedFilaments')").run().changes;
+    if (!tables.length && !settings) return;
+    const filaments = tables.includes('filaments') ? db.prepare('SELECT COUNT(*) AS n FROM filaments').get().n : 0;
+    db.transaction(() => {
+      for (const name of tables) db.prepare(`DROP TABLE ${name}`).run();
+    })();
+    console.log(`Removed filament data: ${filaments} filament(s) and ${tables.length} table(s)${settings ? `, ${settings} setting(s)` : ''}`);
   } catch (error) {
-    console.error('Error removing Spoolman data:', error);
+    console.error('Error removing filament data:', error);
   }
 }
 
@@ -592,4 +541,4 @@ function verifyDatabaseIntegrity() {
   }
 }
 
-module.exports = { initializeDatabase, verifyDatabaseIntegrity, removeSpoolmanData };
+module.exports = { initializeDatabase, verifyDatabaseIntegrity, removeFilamentData };

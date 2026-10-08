@@ -125,7 +125,7 @@ export function TagsPage() {
           <Button type="submit" variant="primary" icon={Plus} disabled={!newName.trim()}>Create</Button>
         </form>
         <SearchBox className="jp-tags__search" label="Search tags" placeholder="Search tags" value={search} onChange={(event) => setSearch(event.target.value)} />
-        <div className="jp-filament__materials" role="group" aria-label="Order">
+        <div className="jp-chip-row" role="group" aria-label="Order">
           <button type="button" className={cx('jp-chip', sort === 'count' && 'is-selected')} aria-pressed={sort === 'count'} onClick={() => setSort('count')}>Most used</button>
           <button type="button" className={cx('jp-chip', sort === 'name' && 'is-selected')} aria-pressed={sort === 'name'} onClick={() => setSort('name')}>A–Z</button>
           <button type="button" className={cx('jp-chip', unusedOnly && 'is-selected')} aria-pressed={unusedOnly} onClick={() => setUnusedOnly(!unusedOnly)}>

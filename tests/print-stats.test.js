@@ -30,8 +30,6 @@ function createDb() {
       (4, '/lib/plain.stl', 'plain.stl', NULL, '2026-10-02T09:00:00.000Z');
     CREATE TABLE printers (id INTEGER PRIMARY KEY, nickname TEXT);
     INSERT INTO printers VALUES (1, 'Voron'), (2, 'Mini');
-    CREATE TABLE filaments (id INTEGER PRIMARY KEY, name TEXT, vendor TEXT, material TEXT, color_hex TEXT);
-    INSERT INTO filaments VALUES (1, 'Black', 'Acme', 'pla', '000000'), (2, 'Clear', 'Acme', 'PETG', 'ffffff');
     CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER, printed_at TEXT, outcome TEXT, quantity INTEGER, notes TEXT, created_at TEXT, printer_id INTEGER);
     INSERT INTO print_events VALUES
       (1, 1, '2026-08-03T10:00:00.000Z', 'printed', 2, NULL, 'x', 1),
@@ -39,8 +37,6 @@ function createDb() {
       (3, 2, '2026-10-02T10:00:00.000Z', 'printed', 3, NULL, 'x', 2),
       (4, 3, '2026-10-03T10:00:00.000Z', 'cancelled', 1, NULL, 'x', NULL),
       (5, 3, '2024-05-03T10:00:00.000Z', 'printed', 5, NULL, 'x', NULL);
-    CREATE TABLE print_event_filaments (event_id INTEGER, filament_id INTEGER);
-    INSERT INTO print_event_filaments VALUES (1, 1), (3, 1), (3, 2), (2, 2);
   `);
   return db;
 }
@@ -62,14 +58,13 @@ test('totals, success rate and prints per month over the period', () => {
   assert.strictEqual(stats.firstPrintMonth, '2024-05');
 });
 
-test('designers merge spelling and case; models, printers and filaments rank by prints', () => {
+test('designers merge spelling and case; models and printers rank by prints', () => {
   const stats = printStatistics(createDb(), { months: 3, now: NOW });
   assert.deepStrictEqual(stats.designers.map((d) => [d.name.toLowerCase(), d.printed, d.models]), [['creativetools', 5, 2]]);
   assert.deepStrictEqual(stats.models.map((m) => [m.fileName, m.printed]), [['gear.stl', 3], ['benchy.stl', 2]]);
   assert.deepStrictEqual(stats.printers.map((p) => [p.name, p.printed, p.failed]), [['Mini', 3, 0], ['Voron', 2, 1]]);
   assert.strictEqual(stats.printers[1].successRate, 2 / 3);
-  assert.deepStrictEqual(stats.filaments.map((f) => [f.name, f.prints]), [['Black', 5], ['Clear', 3]], 'failed prints do not count');
-  assert.deepStrictEqual(stats.materials, [{ material: 'PLA', prints: 5 }, { material: 'PETG', prints: 3 }]);
+  assert.ok(!('filaments' in stats) && !('materials' in stats));
 });
 
 test('all time starts at the first logged print', () => {
@@ -86,5 +81,5 @@ test('an empty library without a print log gives zeros, not errors', () => {
   const stats = printStatistics(db, { months: 12, now: NOW });
   assert.deepStrictEqual(stats.totals, { printed: 0, failed: 0, cancelled: 0, successRate: null });
   assert.strictEqual(stats.byMonth.length, 12);
-  assert.deepStrictEqual([stats.designers, stats.printers, stats.filaments], [[], [], []]);
+  assert.deepStrictEqual([stats.designers, stats.printers, stats.models], [[], [], []]);
 });

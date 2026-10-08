@@ -27,9 +27,6 @@ declare global {
     refreshTagRelatedUi?: () => Promise<void>;
     /** library/actions.ts: the full refresh after the Tag Manager closed with changes (also redraws model cards). */
     refreshAfterTagManagerClose?: () => Promise<void>;
-    /** library/actions.ts: refresh the filament pickers and the sidebar filament filter. */
-    refreshFilamentPickers?: () => Promise<void>;
-    /** library/actions.ts: also reload the open model's filaments and the grid. */
     /** library/hosts.ts: reload the models and redraw the grid. */
     refreshModelDisplay?: () => Promise<void>;
     /** library/actions.ts: rebuild the sidebar's file type filter from the enabled types. */
@@ -108,10 +105,6 @@ export async function refreshTagRelatedUi(): Promise<void> {
 
 export async function refreshAfterTagManagerClose(): Promise<void> {
   await window.refreshAfterTagManagerClose?.();
-}
-
-export async function refreshFilamentPickers(): Promise<void> {
-  await window.refreshFilamentPickers?.();
 }
 
 

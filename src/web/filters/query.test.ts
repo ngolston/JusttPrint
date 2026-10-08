@@ -5,8 +5,7 @@ import {
 } from './query';
 
 const labels: Labels = {
-  printed: (v) => ({ printed: 'Printed', 'ever-printed': 'Ever printed' } as Record<string, string>)[v] || v,
-  filament: (id) => ({ '7': 'Acme PLA (PLA)' } as Record<string, string>)[id] || id
+  printed: (v) => ({ printed: 'Printed', 'ever-printed': 'Ever printed' } as Record<string, string>)[v] || v
 };
 const state = (patch: Partial<FilterState> = {}): FilterState => ({ ...emptyFilterState(), ...patch });
 
@@ -22,9 +21,9 @@ describe('serverFilters', () => {
   });
 
   it('sends multi-value filters with their combine mode (one value is OR)', () => {
-    const f = serverFilters(state({ designer: ['Bob'], tags: ['a', 'b'], filaments: ['7'], printed: 'printed', directory: '/m' }));
+    const f = serverFilters(state({ designer: ['Bob'], tags: ['a', 'b'], license: ['MIT'], printed: 'printed', directory: '/m' }));
     expect(f).toMatchObject({
-      designers: ['Bob'], designerCombine: 'OR', tags: ['a', 'b'], tagCombine: 'AND', filaments: ['7'], filamentCombine: 'OR',
+      designers: ['Bob'], designerCombine: 'OR', tags: ['a', 'b'], tagCombine: 'AND', licenses: ['MIT'], licenseCombine: 'OR',
       printed: 'printed', directory: '/m'
     });
     expect(payloadIsFiltered(f)).toBe(true);
@@ -98,8 +97,8 @@ describe('query editing', () => {
 
 describe('describePayload', () => {
   it('summarizes a payload', () => {
-    const f = serverFilters(state({ designer: ['Bob'], filaments: ['7'], printed: 'ever-printed', directory: '/m/Shapes', includeNotes: false, tokens: [{ t: 'clause', field: 'all', value: 'x' }] }));
-    expect(describePayload(f, labels)).toBe('Designer: Bob · Filament: Acme PLA (PLA) · Ever printed · Folder: Shapes · Query · notes off');
+    const f = serverFilters(state({ designer: ['Bob'], license: ['MIT'], printed: 'ever-printed', directory: '/m/Shapes', includeNotes: false, tokens: [{ t: 'clause', field: 'all', value: 'x' }] }));
+    expect(describePayload(f, labels)).toBe('Designer: Bob · License: MIT · Ever printed · Folder: Shapes · Query · notes off');
     expect(describePayload({ search: 'cube' }, labels)).toBe('Search: cube');
   });
 });
@@ -124,11 +123,11 @@ describe('filterStrip', () => {
 
   it('labels filters moved into the query and marks inverted ones', () => {
     const strip = filterStrip(state({
-      tokens: [{ t: 'filterMulti', kind: 'tag', values: ['a', 'b'], combine: 'OR' }, { t: 'op', op: 'AND' }, { t: 'filter', kind: 'filament', value: '7' }],
+      tokens: [{ t: 'filterMulti', kind: 'tag', values: ['a', 'b'], combine: 'OR' }, { t: 'op', op: 'AND' }, { t: 'filter', kind: 'license', value: 'MIT' }],
       inverted: { ...emptyFilterState().inverted, tag: true }
     }), labels);
     expect(strip.chain).toMatchObject([
-      { kind: 'chip', text: 'Tag: a, b (any)', inverted: true }, { kind: 'op', text: 'AND' }, { kind: 'chip', text: 'Filament: Acme PLA (PLA)', inverted: false }
+      { kind: 'chip', text: 'Tag: a, b (any)', inverted: true }, { kind: 'op', text: 'AND' }, { kind: 'chip', text: 'License: MIT', inverted: false }
     ]);
   });
 });

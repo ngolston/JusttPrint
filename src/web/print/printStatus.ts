@@ -42,14 +42,6 @@ export interface PrintModel {
   last_printed_at?: string | null;
 }
 
-export interface FilamentLike {
-  id?: number | string;
-  vendor?: string | null;
-  name?: string | null;
-  material?: string | null;
-  color_hex?: string | null;
-}
-
 export function effectiveStatus(model: PrintModel | null | undefined): string {
   if (model?.print_status) return String(model.print_status).toLowerCase();
   return model?.printed ? 'printed' : 'unprinted';
@@ -157,25 +149,6 @@ export function toDatetimeLocalValue(date: Date): string {
   const d = Number.isNaN(date.getTime()) ? new Date() : date;
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** A filament's swatch color as CSS (the first of several colors), or transparent. */
-export function colorCss(hex: string | null | undefined): string {
-  if (!hex) return 'transparent';
-  let h = String(hex).replace(/^#/, '').trim();
-  if (h.includes(',')) h = h.split(',')[0].trim();
-  if (h.length === 3 || h.length === 4) h = h.split('').map((c) => c + c).join('');
-  if (h.length === 8) h = h.slice(0, 6);
-  return /^[0-9a-fA-F]{6}$/.test(h) ? `#${h.toUpperCase()}` : 'transparent';
-}
-
-/** "Vendor Name (Material)", or the label the sidebar already built for that id. */
-export function filamentLabel(filament: FilamentLike, labelsById?: Record<string, string>, unnamed = 'Filament'): string {
-  const id = String(filament?.id ?? '');
-  if (labelsById?.[id]) return labelsById[id];
-  const base = [filament?.vendor, filament?.name].map((part) => String(part || '').trim()).filter(Boolean).join(' ') || unnamed;
-  const material = String(filament?.material || '').trim();
-  return material ? `${base} (${material})` : base;
 }
 
 /** Option text for a part: "Name (Category) — 12 pcs". */

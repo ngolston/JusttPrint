@@ -112,8 +112,8 @@ function SlicerButton({ filePath, slicers }: { filePath: string; slicers: Slicer
 /**
  * The JusttPrint 5 details panel (spec §20-§28) on the desktop: large preview with Favorite and
  * More, the thumbnail strip, name and designer, tags, Open in Slicer and Log Print, then the
- * Details list, Filament, Notes and Print History. The editors are the existing details
- * components (DetailsFields, DetailsFilaments, DetailsNotes, PrintHistory, DetailsPath), moved
+ * Details list, Notes and Print History. The editors are the existing details
+ * components (DetailsFields, DetailsNotes, PrintHistory, DetailsPath), moved
  * into this layout while it is shown (shell/adopt.ts); the phone keeps the old panel.
  */
 export function ModelDetailsPanel() {
@@ -128,7 +128,6 @@ export function ModelDetailsPanel() {
   const [statusHost, setStatusHost] = useState<HTMLDivElement | null>(null);
   const [fieldsHost, setFieldsHost] = useState<HTMLDivElement | null>(null);
   const [pathHost, setPathHost] = useState<HTMLDivElement | null>(null);
-  const [filamentsHost, setFilamentsHost] = useState<HTMLDivElement | null>(null);
   const [notesHost, setNotesHost] = useState<HTMLDivElement | null>(null);
   const [historyHost, setHistoryHost] = useState<HTMLDivElement | null>(null);
   const [footerHost, setFooterHost] = useState<HTMLDivElement | null>(null);
@@ -136,7 +135,6 @@ export function ModelDetailsPanel() {
   useAdopt('#details-print-slot', statusHost);
   useAdopt('#details-fields-slot', fieldsHost);
   useAdopt('#details-path-group', pathHost);
-  useAdopt('#details-filaments-slot', filamentsHost);
   useAdopt('#details-notes-slot', notesHost);
   useAdopt('#details-history-slot', historyHost);
   useAdopt('#enter-multi-edit-button', footerHost);
@@ -257,11 +255,6 @@ export function ModelDetailsPanel() {
           <Prop label="Added">{formatAdded(model?.dateAdded) || '—'}</Prop>
           <Prop label="Rating">{model && <Rating model={model} readOnly={!canEdit} onSaved={(rating) => setModel({ ...model, rating })} />}</Prop>
         </div>
-      </section>
-
-      <section className="jp-details__section">
-        <h3 className="jp-details__heading">Filament</h3>
-        <div className="jp-details__editor" ref={setFilamentsHost} />
       </section>
 
       <section className="jp-details__section">

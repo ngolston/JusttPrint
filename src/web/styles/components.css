@@ -376,3 +376,28 @@ button.jp-tag__label:hover { color: var(--jp-text); }
 .jp-folder-picker__folder span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jp-folder-picker__folder:hover, .jp-folder-picker__folder:focus-visible { background: var(--jp-surface-hover); transform: none; outline: none; }
 .jp-folder-picker__empty { padding: var(--jp-space-3); color: var(--jp-text-3); font-size: var(--jp-text-meta); }
+
+/* Filter chips (Tags page sort order) and the accent badge. */
+.jp-chip-row { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); }
+.jp-chip {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-1);
+  color: var(--jp-text-2);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+  transition: background-color var(--jp-transition), border-color var(--jp-transition), color var(--jp-transition);
+}
+.jp-chip:hover { border-color: var(--jp-border-strong); color: var(--jp-text); }
+.jp-chip.is-selected { border-color: var(--jp-accent-border); background: var(--jp-accent-soft); color: var(--jp-text); }
+.jp-chip:focus-visible { box-shadow: var(--jp-focus-ring); }
+.jp-chip__count { color: var(--jp-text-3); font-size: var(--jp-text-small); }
+.jp-chip.is-selected .jp-chip__count { color: var(--jp-text-2); }
+.jp-badge--accent { border-color: var(--jp-accent-border); color: var(--jp-accent); }

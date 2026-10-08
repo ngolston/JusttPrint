@@ -4,40 +4,12 @@ const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const Database = require('better-sqlite3');
-const { normalizeColorHex } = require('../../core/filament-format');
 const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
 const { checkBackupFile } = require('../../core/backup-check');
 const autoBackup = require('../auto-backup');
 const downloadFiles = require('../download-files');
-
-/** The catalog filament matching an imported one (name, vendor, material, color), added if missing. */
-function upsertImportedFilament(filament) {
-  if (!filament || typeof filament !== 'object') return null;
-  const name = String(filament.name || '').trim();
-  if (!name) return null;
-  const vendor = String(filament.vendor || '').trim() || null;
-  const material = String(filament.material || '').trim() || null;
-  const colorHex = normalizeColorHex(filament.color_hex) || null;
-  const diameter = filament.diameter == null || filament.diameter === '' ? null : Number(filament.diameter);
-
-  // Exports from before 6.0 may carry spoolman_id/source: ignored, the filament is matched by its fields.
-  const existing = database.db.prepare(`
-    SELECT id FROM filaments
-    WHERE name = ?
-      AND IFNULL(vendor, '') = IFNULL(?, '')
-      AND IFNULL(material, '') = IFNULL(?, '')
-      AND IFNULL(color_hex, '') = IFNULL(?, '')
-  `).get(name, vendor, material, colorHex);
-  if (existing) return existing.id;
-
-  const result = database.db.prepare(`
-    INSERT INTO filaments (name, vendor, material, color_hex, diameter, source)
-    VALUES (?, ?, ?, ?, ?, 'manual')
-  `).run(name, vendor, material, colorHex, Number.isFinite(diameter) ? diameter : null);
-  return result.lastInsertRowid;
-}
 
 // Copies the live database to downloads/justtprint-backup-<time>.db for the browser to download
 // (deleted an hour later, src/server/download-files.js).
@@ -182,42 +154,6 @@ function buildLibraryExportData() {
     }
   }
 
-  const filamentsByModelId = new Map();
-  if (libraryTableExists('filaments') && libraryTableExists('model_filaments')) {
-    for (const row of database.db.prepare(`
-      SELECT mf.model_id, f.name, f.vendor, f.material, f.color_hex, f.diameter
-      FROM filaments f
-      JOIN model_filaments mf ON mf.filament_id = f.id
-      ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE
-    `).all()) {
-      pushGrouped(filamentsByModelId, row.model_id, {
-        name: row.name,
-        vendor: row.vendor,
-        material: row.material,
-        color_hex: row.color_hex,
-        diameter: row.diameter
-      });
-    }
-  }
-
-  const filamentsByEventId = new Map();
-  if (libraryTableExists('print_events') && libraryTableExists('print_event_filaments') && libraryTableExists('filaments')) {
-    for (const row of database.db.prepare(`
-      SELECT pef.event_id, f.name, f.vendor, f.material, f.color_hex, f.diameter
-      FROM filaments f
-      JOIN print_event_filaments pef ON pef.filament_id = f.id
-      ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE
-    `).all()) {
-      pushGrouped(filamentsByEventId, row.event_id, {
-        name: row.name,
-        vendor: row.vendor,
-        material: row.material,
-        color_hex: row.color_hex,
-        diameter: row.diameter
-      });
-    }
-  }
-
   const partsByEventId = new Map();
   if (libraryTableExists('print_events') && libraryTableExists('print_event_parts')) {
     const hasPartsCatalog = libraryTableExists('parts');
@@ -268,7 +204,6 @@ function buildLibraryExportData() {
         printer_manufacturer: row.printer_manufacturer || null,
         printer_model: row.printer_model || null,
         printer_type: row.printer_type || null,
-        filaments: filamentsByEventId.get(row.id) || [],
         parts: partsByEventId.get(row.id) || []
       });
     }
@@ -367,7 +302,6 @@ function buildLibraryExportData() {
       rating: model.rating || 0,
       favorite: model.favorite ? 1 : 0,
       tags: tagsByModelId.get(model.id) || [],
-      filaments: filamentsByModelId.get(model.id) || [],
       printEvents: eventsByModelId.get(model.id) || []
     }))
   };
@@ -410,20 +344,6 @@ ipcMain.handle('import-library', async (event, payload = null) => {
       try {
         const existingModel = database.db.prepare('SELECT id FROM models WHERE filePath = ?').get(modelData.filePath);
 
-        let filamentIds;
-        if (Array.isArray(modelData.filaments)) {
-          filamentIds = [];
-          for (const entry of modelData.filaments) {
-            if (entry && typeof entry === 'object') {
-              const id = upsertImportedFilament(entry);
-              if (id) filamentIds.push(id);
-            } else {
-              const id = Number(entry);
-              if (Number.isInteger(id) && id > 0) filamentIds.push(id);
-            }
-          }
-        }
-
         await saveModel({
           filePath: modelData.filePath,
           fileName: modelData.fileName,
@@ -433,8 +353,7 @@ ipcMain.handle('import-library', async (event, payload = null) => {
           printed: modelData.printed || 0,
           parentModel: modelData.parentModel || null,
           license: modelData.license || null,
-          tags: modelData.tags || [],
-          ...(filamentIds !== undefined ? { filaments: filamentIds } : {})
+          tags: modelData.tags || []
         });
 
         if (existingModel) {

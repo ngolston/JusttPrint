@@ -21,7 +21,7 @@ type PickerField = 'designer' | 'parentModel' | 'license';
 /** What this section asks of the library (library/hosts.ts). */
 export interface DetailsHost {
   /** Save one field of the model (autoSaveModel: also updates its grid card). */
-  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'filaments' | 'notes', value: string | string[] | number[]): Promise<boolean>;
+  saveField(filePath: string, field: PickerField | 'source' | 'tags' | 'notes', value: string | string[]): Promise<boolean>;
   /** Open the source URL in a new tab (checks it is http/https). */
   openSource(url: string): void;
   /** A new designer, parent model, license or tag exists: refresh the filters and other pickers. */

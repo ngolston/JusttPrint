@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { fileTypes as fileTypeApi, filaments as filamentApi, libraryValues, settings, tags as tagApi } from '../api';
+import { fileTypes as fileTypeApi, libraryValues, settings, tags as tagApi } from '../api';
 import { SORT_OPTIONS, filterStrip, type ChipRemove, type Combine, type FilterState, type MultiKind, type StripItem } from './query';
 import { detailsAreOpen, useDetailsVisibility } from '../details/visibility';
 import { exposeGlobal } from '../page';
@@ -27,15 +27,8 @@ interface Options {
   licenses: string[];
   parents: string[];
   tags: { name: string; count: number }[];
-  filaments: { id: string; label: string; count: number }[];
   fileTypes: { value: string; label: string }[];
 }
-
-const filamentLabel = (f: { vendor?: string | null; name?: string | null; material?: string | null }) => {
-  const base = [f.vendor, f.name].map((s) => String(s || '').trim()).filter(Boolean).join(' ') || 'Unnamed filament';
-  const material = String(f.material || '').trim();
-  return material ? `${base} (${material})` : base;
-};
 
 async function loadFileTypes(): Promise<{ value: string; label: string }[]> {
   const types = [{ value: '', label: 'All Types' }, { value: 'stl', label: 'STL' }, { value: '3mf', label: '3MF' }];
@@ -59,24 +52,18 @@ async function loadFileTypes(): Promise<{ value: string; label: string }[]> {
 
 async function loadOptions(): Promise<Options> {
   const clean = (list: (string | null)[]) => [...new Set(list.filter((v): v is string => !!v))];
-  const [designers, licenses, parents, allTags, allFilaments, fileTypes] = await Promise.all([
+  const [designers, licenses, parents, allTags, fileTypes] = await Promise.all([
     libraryValues.designers().catch(() => []),
     libraryValues.licenses().catch(() => []),
     libraryValues.parentModels().catch(() => []),
     tagApi.list().catch(() => []),
-    filamentApi.list().catch(() => []),
     loadFileTypes()
   ]);
-  const filamentList = allFilaments.map((f) => ({ id: String(f.id), label: filamentLabel(f), count: f.model_count || 0 }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-  // The strip and the query show filaments by name.
-  window.filamentLabelById = { ...(window.filamentLabelById || {}), ...Object.fromEntries(filamentList.map((f) => [f.id, f.label])) };
   return {
     designers: clean(designers),
     licenses: clean(licenses),
     parents: clean(parents),
     tags: allTags.map((t) => ({ name: t.name, count: t.model_count })).sort((a, b) => a.name.localeCompare(b.name)),
-    filaments: filamentList,
     fileTypes
   };
 }
@@ -249,11 +236,11 @@ function FilterControls({ container, options }: { container: HTMLElement; option
   const state = useFilters();
   const { loading } = useSearchStatus();
   const disabledClass = loading ? 'disabled-during-loading' : undefined;
-  const pick = async (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', use: (value: string) => void) => {
+  const pick = async (field: 'designer' | 'parent' | 'license' | 'tag', use: (value: string) => void) => {
     const value = await pickFromList(field);
     if (value) applyFilterChange(() => use(value));
   };
-  const listButton = (field: 'designer' | 'parent' | 'license' | 'tag' | 'filament', title: string, use: (value: string) => void) => (
+  const listButton = (field: 'designer' | 'parent' | 'license' | 'tag', title: string, use: (value: string) => void) => (
     <button type="button" className="list-button icon-button" title={title} disabled={loading} onClick={() => pick(field, use)}>☰</button>
   );
   const valueSelect = (kind: 'designer' | 'license' | 'parentModel', id: string, label: string, all: string, values: string[], field: 'designer' | 'parent' | 'license', listTitle: string) => {
@@ -284,7 +271,6 @@ function FilterControls({ container, options }: { container: HTMLElement; option
       </select>
     </div>
   );
-  const filamentName = (id: string) => options.filaments.find((f) => f.id === id)?.label || window.filamentLabelById?.[id] || id;
   const anyInverted = Object.values(state.inverted).some(Boolean);
 
   return createPortal(
@@ -315,21 +301,6 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         </div>
         <ValueChips kind="tags" values={state.tags} labelOf={(v) => (v === '__none__' ? '(empty)' : v)} combine={state.combine.tags}
           combineLabels={['Any tag', 'All tags']} disabled={loading} />
-      </div>
-      <div className="form-group">
-        <label htmlFor="filament-filter">Filter by Filament:</label>
-        <div className="dropdown-with-list">
-          <div className="tags-input-container">
-            <select id="filament-filter" value="" disabled={loading} className={disabledClass}
-              onChange={(e) => { const v = e.target.value; if (v) applyFilterChange(() => filterActions.addValue('filaments', v)); }}>
-              <option value="">All Filaments</option>
-              {options.filaments.map((f) => <option key={f.id} value={f.id}>{`${f.label} (${f.count})`}</option>)}
-            </select>
-          </div>
-          {listButton('filament', 'Search existing filaments', (v) => filterActions.addValue('filaments', v))}
-        </div>
-        <ValueChips kind="filaments" values={state.filaments} labelOf={filamentName} combine={state.combine.filaments}
-          combineLabels={['Any filament', 'All filaments']} disabled={loading} />
       </div>
       <div className="form-group">
         <button type="button" id="invert-filter-button" className={anyInverted ? 'active' : undefined}
@@ -383,7 +354,7 @@ export function Sidebar() {
     filters: document.getElementById('sidebar-filters-slot'),
     stackToggle: document.getElementById('filter-stack-toggle-slot')
   }));
-  const [options, setOptions] = useState<Options>({ designers: [], licenses: [], parents: [], tags: [], filaments: [], fileTypes: [] });
+  const [options, setOptions] = useState<Options>({ designers: [], licenses: [], parents: [], tags: [], fileTypes: [] });
   const { loading } = useSearchStatus();
   const state = useFilters();
 

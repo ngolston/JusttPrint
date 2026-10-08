@@ -1,7 +1,7 @@
 /**
  * JusttPrint MCP (Model Context Protocol) server.
  * Streamable HTTP JSON-RPC at POST /mcp so local AI agents can search the library,
- * manage tags/filaments/print history, update metadata, and write thumbnails
+ * manage tags/print history, update metadata, and write thumbnails
  * while JusttPrint is running.
  */
 'use strict';
@@ -43,7 +43,7 @@ const TOOL_DEFINITIONS = [
   {
     name: 'get_model',
     description:
-      'Get full details for one model by id or filePath, including tags and filaments. Thumbnail images are omitted unless includeThumbnails is true.',
+      'Get full details for one model by id or filePath, including tags. Thumbnail images are omitted unless includeThumbnails is true.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -70,12 +70,7 @@ const TOOL_DEFINITIONS = [
         printStatus: { type: 'string', description: 'unprinted, want, queued, printing, printed, failed' },
         rating: { type: 'integer', description: '0-5' },
         favorite: { type: 'boolean' },
-        tags: { type: 'array', items: { type: 'string' }, description: 'Replacement tag list' },
-        filaments: {
-          type: 'array',
-          items: { type: 'integer' },
-          description: 'Replacement filament id list'
-        }
+        tags: { type: 'array', items: { type: 'string' }, description: 'Replacement tag list' }
       }
     }
   },
@@ -158,52 +153,6 @@ const TOOL_DEFINITIONS = [
     }
   },
   {
-    name: 'list_filaments',
-    description: 'List filaments with vendor, material, color, and how many models use each.',
-    inputSchema: { type: 'object', properties: {} }
-  },
-  {
-    name: 'save_filament',
-    description:
-      'Create a filament or update an existing one. Provide id to update.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer' },
-        name: { type: 'string' },
-        vendor: { type: 'string' },
-        material: { type: 'string' },
-        color_hex: { type: 'string', description: 'Hex color such as #FF8800' },
-        diameter: { type: 'number', description: 'Filament diameter in mm (default 1.75)' }
-      },
-      required: ['name']
-    }
-  },
-  {
-    name: 'delete_filament',
-    description: 'Delete a filament and unlink it from models and print events.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer', description: 'Filament id' }
-      },
-      required: ['id']
-    }
-  },
-  {
-    name: 'set_model_filaments',
-    description: 'Replace the filament list on a model. Pass an empty array to clear.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer' },
-        filePath: { type: 'string' },
-        filaments: { type: 'array', items: { type: 'integer' }, description: 'Filament ids' }
-      },
-      required: ['filaments']
-    }
-  },
-  {
     name: 'get_print_events',
     description: 'List print history events for a model.',
     inputSchema: {
@@ -226,7 +175,6 @@ const TOOL_DEFINITIONS = [
         quantity: { type: 'integer', description: 'Number of copies (default 1)' },
         printedAt: { type: 'string', description: 'ISO datetime; defaults to now' },
         notes: { type: 'string' },
-        filamentIds: { type: 'array', items: { type: 'integer' } },
         parts: {
           type: 'array',
           description: 'Parts removed from stock. Each item is { id, quantity } where quantity is per copy.',
@@ -489,8 +437,7 @@ const TOOL_DEFINITIONS = [
               printStatus: { type: 'string' },
               rating: { type: 'integer' },
               favorite: { type: 'boolean' },
-              tags: { type: 'array', items: { type: 'string' } },
-              filaments: { type: 'array', items: { type: 'integer' } }
+              tags: { type: 'array', items: { type: 'string' } }
             }
           }
         }
@@ -510,7 +457,6 @@ const TOOL_DEFINITIONS = [
         quantity: { type: 'integer' },
         printedAt: { type: 'string' },
         notes: { type: 'string' },
-        filamentIds: { type: 'array', items: { type: 'integer' } },
         parts: {
           type: 'array',
           description: 'Parts removed from stock. Each item is { id, quantity } where quantity is per copy.',
@@ -736,14 +682,6 @@ async function callTool(name, args, ctx) {
       return ctx.addModelTags({ id: a.id, filePath: a.filePath, tags: a.tags });
     case 'remove_model_tags':
       return ctx.removeModelTags({ id: a.id, filePath: a.filePath, tags: a.tags });
-    case 'list_filaments':
-      return ctx.listFilaments();
-    case 'save_filament':
-      return ctx.saveFilament(a);
-    case 'delete_filament':
-      return ctx.deleteFilament(a.id);
-    case 'set_model_filaments':
-      return ctx.setModelFilaments({ id: a.id, filePath: a.filePath, filaments: a.filaments });
     case 'get_print_events':
       return ctx.getPrintEvents({ id: a.id, filePath: a.filePath });
     case 'log_print_event':
@@ -868,7 +806,7 @@ function initializeResult(params, getVersion) {
       version: typeof getVersion === 'function' ? String(getVersion() || '0') : '0'
     },
     instructions:
-      'JusttPrint library MCP. Search and update models, manage tags/filaments/print history, find duplicates, scan folders, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
+      'JusttPrint library MCP. Search and update models, manage tags/print history, find duplicates, scan folders, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
   };
 }
 

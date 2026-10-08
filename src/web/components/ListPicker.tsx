@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { filaments as filamentApi, libraryValues, models, tags as tagApi } from '../api';
-import { formatFilamentLabel } from '../filaments';
+import { libraryValues, models, tags as tagApi } from '../api';
 import { selection } from '../selection';
 
-/** The lists the ☰ buttons search: designers, parent models, licenses, tags and filaments. */
-export type ListField = 'designer' | 'parent' | 'license' | 'tag' | 'filament';
+/** The lists the ☰ buttons search: designers, parent models, licenses and tags. */
+export type ListField = 'designer' | 'parent' | 'license' | 'tag';
 
 interface Item {
   label: string;
-  /** What a pick returns: the label, or a filament's id. */
+  /** What a pick returns: the label. */
   value: string;
 }
 
@@ -20,37 +19,29 @@ interface Request {
 
 const TITLES: Record<ListField, [string, string?]> = {
   designer: ['Select Designer'], parent: ['Select Parent Model'], license: ['Select License'],
-  tag: ['Select Tag', 'Remove Tag'], filament: ['Select Filament', 'Remove Filament']
+  tag: ['Select Tag', 'Remove Tag']
 };
 
 const named = (labels: (string | null | undefined)[]): Item[] =>
   [...new Set(labels.map((l) => String(l ?? '').trim()).filter(Boolean))].map((label) => ({ label, value: label }));
 
-type FilamentLike = { id?: number | string; vendor?: string | null; name?: string | null; material?: string | null };
-const filamentItems = (list: FilamentLike[]): Item[] =>
-  list.filter((f) => f?.id != null).map((f) => ({ label: formatFilamentLabel({ vendor: f.vendor ?? null, name: f.name ?? '', material: f.material ?? null }), value: String(f.id) }));
-
 /** The items for a list; "remove" lists only what the selected models have. */
 async function loadItems(field: ListField, remove: boolean): Promise<Item[]> {
-  if (remove && (field === 'tag' || field === 'filament')) {
-    const selected = await Promise.all(selection.values().map((p) => models.get<{ tags?: string[]; filaments?: FilamentLike[] }>(p).catch(() => null)));
-    if (field === 'tag') return named(selected.flatMap((m) => (Array.isArray(m?.tags) ? m!.tags : [])));
-    const byId = new Map<string, FilamentLike>();
-    selected.flatMap((m) => (Array.isArray(m?.filaments) ? m!.filaments : [])).forEach((f) => { if (f?.id != null && !byId.has(String(f.id))) byId.set(String(f.id), f); });
-    return filamentItems([...byId.values()]);
+  if (remove && field === 'tag') {
+    const selected = await Promise.all(selection.values().map((p) => models.get<{ tags?: string[] }>(p).catch(() => null)));
+    return named(selected.flatMap((m) => (Array.isArray(m?.tags) ? m!.tags : [])));
   }
   switch (field) {
     case 'designer': return named(await libraryValues.designers());
     case 'parent': return named(await libraryValues.parentModels());
     case 'license': return named(await libraryValues.licenses());
     case 'tag': return named((await tagApi.list()).map((t) => t.name));
-    case 'filament': return filamentItems(await filamentApi.list());
   }
 }
 
 let open: ((request: Request) => void) | null = null;
 
-/** Search a list and pick one item. Resolves to the pick (a filament's id), or null when cancelled. */
+/** Search a list and pick one item. Resolves to the pick, or null when cancelled. */
 export function pickFromList(field: ListField, remove = false): Promise<string | null> {
   return new Promise((resolve) => {
     if (open) open({ field, remove, resolve });

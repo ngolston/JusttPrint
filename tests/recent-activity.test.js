@@ -30,26 +30,21 @@ function createDb({ prints = true } = {}) {
     db.exec(`
       CREATE TABLE printers (id INTEGER PRIMARY KEY, nickname TEXT);
       INSERT INTO printers VALUES (1, 'Bambu P1S');
-      CREATE TABLE filaments (id INTEGER PRIMARY KEY, name TEXT, vendor TEXT, material TEXT);
-      INSERT INTO filaments VALUES (1, 'PLA Basic Black', 'Bambu', 'PLA');
       CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER, printed_at TEXT, outcome TEXT, quantity INTEGER, notes TEXT, created_at TEXT, printer_id INTEGER);
       INSERT INTO print_events VALUES
         (1, 1, '2026-10-02T08:00:00.000Z', 'printed', 1, NULL, '', 1),
         (2, 2, '2026-10-04T08:00:00.000Z', 'failed', 2, NULL, '', NULL);
-      CREATE TABLE print_event_filaments (event_id INTEGER, filament_id INTEGER);
-      INSERT INTO print_event_filaments VALUES (1, 1);
     `);
   }
   return db;
 }
 
-test('prints and added days come newest first, with printer and filaments', () => {
+test('prints and added days come newest first, with the printer', () => {
   const items = recentActivity(createDb());
   assert.deepStrictEqual(items.map((i) => `${i.kind}:${i.kind === 'print' ? i.id : i.day}`),
     ['print:2', 'added:2026-10-03', 'print:1', 'added:2026-10-01']);
   const first = items.find((i) => i.kind === 'print' && i.id === 1);
   assert.strictEqual(first.printer, 'Bambu P1S');
-  assert.deepStrictEqual(first.filaments, ['Bambu PLA Basic Black']);
   assert.strictEqual(items.find((i) => i.kind === 'added' && i.day === '2026-10-03').count, 2);
   assert.strictEqual(items[0].quantity, 2);
   assert.strictEqual(items[0].printer, null);

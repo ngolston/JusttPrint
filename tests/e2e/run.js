@@ -353,8 +353,11 @@ async function apiChecks(base, wsUrl) {
   }
   const savedPart = (await ask('save-part', [{ name: 'E2E Magnet', quantity: 12, unit: 'pcs' }])).result;
   check('part saved and listed', !!savedPart && ((await ask('get-all-parts')).result || []).some((p) => p.id === savedPart.id && p.quantity === 12));
-  const filament = (await ask('save-filament', [{ name: 'E2E PLA', material: 'PLA', color_hex: 'ff0000' }])).result;
-  check('filament saved and listed', !!filament && ((await ask('get-all-filaments')).result || []).some((f) => f.id === filament.id && f.name === 'E2E PLA'));
+  // Filament was removed in 7.0: its actions are gone, and models carry no filaments.
+  for (const gone of ['get-all-filaments', 'save-filament', 'delete-filament', 'get-model-filaments', 'sync-spoolman-filaments', 'test-spoolman-connection']) {
+    check(`${gone} is gone`, (await ask(gone, [])).status === 404);
+  }
+  check('models carry no filaments', !('filaments' in ((await ask('get-model', [cube])).result || {})));
   const names = async (filters) => ((await ask('get-models-filtered', [filters])).result || []).map((m) => m.fileName).sort().join(',');
   const term = (value) => ({ t: 'clause', field: 'all', value });
   check('search: one word', await names({ search: 'cube' }) === 'cube.stl', await names({ search: 'cube' }));
@@ -770,26 +773,8 @@ async function browserChecks(base, wsUrl, session) {
       check('shift-click on a card badge sets the status', !!wantItem && wanted === true && !(await page.isVisible('.print-status-menu'))
         && await page.waitForFunction(() => document.getElementById('model-print-status')?.value === 'want', null, { timeout: 10000 }).then(() => true, () => false));
       await invoke(base, session, 'set-print-status', [{ filePath: cardPath, printStatus: 'unprinted' }]);
-      // Filaments in the details panel (React, src/web/details/DetailsFilaments.tsx).
-      const hasPanelFilament = async () => ((await panelModel()).filaments || []).some((f) => f.name === 'E2E PLA');
-      const filamentChip = '#model-filaments .filament-chip:has(.filament-chip-text:text-is("E2E PLA (PLA)"))';
-      await page.waitForSelector('#filament-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
-      await page.selectOption('#filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
-      check('details add a filament from the picker', await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament added').catch(() => false) === true
-        && await page.isVisible(filamentChip)
-        && !(await page.$('#filament-select option:text-is("E2E PLA (PLA)")')));
-      await page.click(`${filamentChip} .filament-chip-remove`);
-      check('details remove a filament', await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament removed').catch(() => false) === true
-        && !(await page.isVisible(filamentChip)));
-      await page.click('.form-group:has(#filament-select) .list-button');
-      const filamentItem = await page.waitForSelector('#searchable-list-dialog[open] li:text-is("E2E PLA (PLA)")', { timeout: 10000 }).catch(() => null);
-      if (filamentItem) await filamentItem.click();
-      else await page.evaluate(() => document.getElementById('searchable-list-dialog')?.close());
-      check('details pick a filament from the list', !!filamentItem
-        && await waitFor(async () => ((await hasPanelFilament()) ? true : null), 10000, 'filament picked').catch(() => false) === true
-        && await page.waitForSelector(filamentChip, { timeout: 10000 }).then(() => true, () => false));
-      await page.click(`${filamentChip} .filament-chip-remove`);
-      await waitFor(async () => (!(await hasPanelFilament()) ? true : null), 10000, 'filament cleanup').catch(() => {});
+      check('the details panel has no Filament section', !(await page.$('#filament-select')) && !(await page.$('#details-filaments-slot'))
+        && !(await page.isVisible('#model-details .jp-details__heading:text-is("Filament")')));
       // Notes in the details panel and the Edit Notes dialog (React, src/web/details/DetailsNotes.tsx).
       const notesBefore = (await panelModel()).notes || '';
       await page.click('#model-notes-preview');
@@ -1040,8 +1025,6 @@ async function browserChecks(base, wsUrl, session) {
       const pair = [cardPath, other];
       const pairModels = async () => Promise.all(pair.map(async (p) => (await invoke(base, session, 'get-model', [p])).result || {}));
       const pairBefore = await pairModels();
-      const petg = (await invoke(base, session, 'save-filament', [{ name: 'E2E PETG', material: 'PETG', color_hex: '00ff00' }])).result;
-      await invoke(base, session, 'update-models-batch', [[{ filePath: cardPath, filaments: [petg.id] }]]);
       check('the multi-edit panel counts the selection', /^2 models selected$/.test((await page.textContent('#multi-edit-panel .selected-count')).trim()));
       // The server asks every page to refresh its grid (after a scan, an MCP edit, ...): the selection stays.
       await page.evaluate(() => Promise.all(((window._electronEventListeners || {})['refresh-grid'] || []).map((listener) => listener())));
@@ -1067,18 +1050,8 @@ async function browserChecks(base, wsUrl, session) {
       if (confirmRemoveTag) await confirmRemoveTag.click();
       const tagOffBoth = await waitFor(async () => ((await pairModels()).every((m) => !hasTag(m)) ? true : null), 10000, 'multi untag').catch(() => false);
       check('multi-edit removes a tag from every selected model after asking', !!confirmRemoveTag && tagOffBoth === true);
-      await page.selectOption('#multi-filament-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
-      const filamentNames = (m) => (m.filaments || []).map((f) => f.name);
-      const plaOnBoth = await waitFor(async () => ((await pairModels()).every((m) => filamentNames(m).includes('E2E PLA')) ? true : null), 10000, 'multi filament').catch(() => false);
-      check('multi-edit adds a filament to every selected model', plaOnBoth === true && await page.isVisible('#multi-filaments .filament-chip:has-text("E2E PLA")'));
-      await page.waitForSelector('#multi-filament-remove-select option:text-is("E2E PLA (PLA)")', { state: 'attached', timeout: 10000 }).catch(() => {});
-      await page.selectOption('#multi-filament-remove-select', { label: 'E2E PLA (PLA)' }).catch(() => {});
-      const plaRemoved = await waitFor(async () => {
-        const [first, second] = await pairModels();
-        return !filamentNames(first).includes('E2E PLA') && !filamentNames(second).includes('E2E PLA') && filamentNames(first).includes('E2E PETG') ? true : null;
-      }, 10000, 'multi filament removed').catch(async () => JSON.stringify((await pairModels()).map(filamentNames)));
-      check('multi-edit removes one filament and keeps the others', plaRemoved === true, String(plaRemoved));
-      await invoke(base, session, 'update-models-batch', [pairBefore.map((m) => ({ filePath: m.filePath, designer: m.designer || null, tags: m.tags || [], filaments: [] }))]);
+      check('multi-edit has no Filament section', !(await page.$('#multi-filament-select')));
+      await invoke(base, session, 'update-models-batch', [pairBefore.map((m) => ({ filePath: m.filePath, designer: m.designer || null, tags: m.tags || [] }))]);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
       check('Escape leaves multi-edit', !(await page.isVisible('#multi-edit-panel')));
@@ -1467,83 +1440,12 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#parts-stock-close');
     check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
 
-    // Add Filament (src/web/components/AddFilamentDialog.tsx) from the Filament page: name required, a color, then in the pickers.
-    const serverFilaments = async () => (await invoke(base, session, 'get-all-filaments')).result || [];
-    check('Spoolman is gone from the API', /Unknown action/.test((await invoke(base, session, 'sync-spoolman-filaments', [])).error || '')
-      && /Unknown action/.test((await invoke(base, session, 'test-spoolman-connection', [])).error || ''));
-    check('the Filament Manager dialog is gone', await page.evaluate(() => !document.getElementById('filament-manager-dialog') && !('openFilamentManager' in window)));
+    // Filament was removed in 7.0: no page, no sidebar entry, no dialogs.
+    check('the sidebar has no Filament page', !(await page.isVisible('.jp-sidebar .jp-nav__row:has-text("Filament")')));
     await page.evaluate(() => { window.location.hash = '#/filament'; });
-    await page.click('#jp-add-filament');
-    check('Add Filament opens from the Filament page', await page.waitForSelector('dialog.jp-add-filament[open]', { timeout: 10000 }).then(() => true, () => false));
-    await page.click('#add-filament-save');
-    check('Add Filament asks for a name', await page.waitForSelector('#add-filament-error:has-text("Enter a name")', { timeout: 5000 }).then(() => true, () => false));
-    await page.fill('#add-filament-name', 'E2E Galaxy Black');
-    await page.fill('#add-filament-vendor', 'E2E Vendor');
-    await page.fill('#add-filament-material', 'PLA');
-    await page.fill('#add-filament-color', 'zzz');
-    await page.press('#add-filament-color', 'Enter');
-    check('Add Filament refuses a color that is not hex', await page.waitForSelector('#add-filament-error:has-text("hex code")', { timeout: 5000 }).then(() => true, () => false));
-    await page.fill('#add-filament-color', '1a2b3c');
-    check('typing a hex color updates the picker', (await page.inputValue('#add-filament-color-picker')) === '#1a2b3c');
-    await page.click('#add-filament-save');
-    await page.waitForSelector('dialog.jp-add-filament[open]', { state: 'detached', timeout: 10000 }).catch(() => {});
-    await page.waitForSelector('dialog.jp-add-filament:not([open])', { timeout: 10000 }).catch(() => {});
-    const filament = (await serverFilaments()).find((f) => f.name === 'E2E Galaxy Black');
-    const filamentCard = filament ? await page.waitForSelector(`.jp-spool-card[data-filament-id="${filament.id}"]`, { timeout: 10000 }).catch(() => null) : null;
-    check('Add Filament adds it to the catalog and the page', !!filamentCard && filament.color_hex === '1A2B3C' && filament.material === 'PLA' && filament.diameter === 1.75
-      && !('spoolman_id' in filament) && !('source' in filament), JSON.stringify(filament));
-    if (filament) {
-      const added = await page.evaluate((id) => [...document.querySelectorAll('#filament-select option')].some((o) => o.value === String(id)), filament.id);
-      check('new filament appears in the model filament picker', added);
-      await page.click(`.jp-spool-card[data-filament-id="${filament.id}"] button[aria-label^="Remove"]`);
-      const confirmRemove = await page.waitForSelector('dialog[open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
-      if (confirmRemove) await confirmRemove.click();
-      check('the Filament page removes a filament after asking', !!confirmRemove
-        && await waitFor(async () => (!(await serverFilaments()).some((f) => f.id === filament.id) ? true : null), 10000, 'filament removed').catch(() => false) === true);
-    }
-    await showLibrary();
-    // + beside a model's filament picker adds a new filament to the catalog and to that model.
-    const plusPath = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath || '';
-    const plusSelector = `.file-grid [data-filepath="${plusPath.replace(/"/g, '\\"')}"]`;
-    await page.waitForSelector(plusSelector, { timeout: 10000 }).catch(() => {});
-    await page.click(`${plusSelector} .file-name`).catch(() => page.click(plusSelector).catch(() => {}));
-    const plusButton = await page.waitForSelector('#add-filament-button', { state: 'visible', timeout: 10000 }).catch(() => null);
-    if (plusButton) await plusButton.click();
-    await page.waitForSelector('dialog.jp-add-filament[open]', { timeout: 10000 }).catch(() => {});
-    await page.fill('#add-filament-name', 'E2E Quick Orange');
-    await page.click('#add-filament-save');
-    const quickChip = await page.waitForSelector('#model-filaments .filament-chip:has-text("E2E Quick Orange")', { timeout: 10000 }).catch(() => null);
-    const quickOnModel = ((await invoke(base, session, 'get-model', [plusPath])).result?.filaments || []).find((f) => f.name === 'E2E Quick Orange');
-    check('+ on a model adds a new filament and puts it on the model', !!plusButton && !!quickChip && !!quickOnModel, JSON.stringify(quickOnModel));
-    if (quickOnModel) await invoke(base, session, 'delete-filament', [quickOnModel.id]);
-    await page.click(`${plusSelector} .file-name`).catch(() => page.click(plusSelector).catch(() => {}));
-
-    // Filament page (React, src/web/pages/FilamentPage.tsx): spools, search, material, Show models, Remove.
-    const pageFilament = (await invoke(base, session, 'save-filament', [{ name: 'E2E Page Teal', vendor: 'E2E Vendor', material: 'PETG', color_hex: '00aaaa' }])).result;
-    const tealModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
-    await invoke(base, session, 'update-models-batch', [[{ filePath: tealModel, filaments: [pageFilament.id] }]]);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
-    const tealCard = `.jp-spool-card[data-filament-id="${pageFilament.id}"]`;
-    check('the Filament page shows each filament as a spool with its use', /#\/filament$/.test(page.url())
-      && await page.waitForSelector(`${tealCard} :text("Used in 1 model")`, { timeout: 10000 }).then(() => true, () => false)
-      && await page.getAttribute(`${tealCard} .jp-spool circle:nth-of-type(2)`, 'fill') === '#00AAAA');
-    await page.fill('.jp-filament__search input', 'e2e vendor');
-    check('search narrows the spools', (await page.locator('.jp-spool-card').count()) === 1);
-    await page.fill('.jp-filament__search input', '');
-    await page.click('.jp-filament__materials .jp-chip:has-text("PETG")');
-    check('a material chip shows only that material', await page.isVisible(tealCard)
-      && !(await page.isVisible('.jp-spool-card:has(.jp-badge:text-is("PLA"))')));
-    await page.click(`${tealCard} button:has-text("Show models")`);
-    check('Show models opens the library filtered to that filament', await page.waitForFunction((id) => (window.libraryFilters.state().filaments || []).includes(String(id)), pageFilament.id, { timeout: 10000 }).then(() => true, () => false)
-      && /#\/library$/.test(page.url()));
-    await page.evaluate(() => window.clearAllLibraryFilters());
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
-    await page.click(`${tealCard} button[aria-label^="Remove"]`);
-    const removeTeal = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Remove Filament") button:text-is("Remove")', { timeout: 10000 }).catch(() => null);
-    if (removeTeal) await removeTeal.click();
-    check('Remove deletes the filament after asking', !!removeTeal
-      && await page.waitForSelector(tealCard, { state: 'detached', timeout: 10000 }).then(() => true, () => false)
-      && !((await invoke(base, session, 'get-all-filaments')).result || []).some((f) => f.id === pageFilament.id));
+    check('#/filament opens Home', await page.waitForSelector('.jp-hero', { timeout: 10000 }).then(() => true, () => false));
+    check('no filament dialogs or filters', await page.evaluate(() => !document.querySelector('dialog.jp-add-filament, #filament-manager-dialog, #filament-filter')
+      && !('openFilamentManager' in window)));
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
 
     // Printer Manager (React): add, edit, maintenance reminders and log, delete.
@@ -1756,7 +1658,7 @@ async function browserChecks(base, wsUrl, session) {
     const auditContext = await browser.newContext({ viewport: { width: 1400, height: 900 }, bypassCSP: true, storageState: await page.context().storageState() });
     const audit = await auditContext.newPage();
     const axeProblems = [];
-    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/filament', '#/tags', '#/settings', '#/help']) {
+    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
       await audit.goto(`${base}/${hash}`);
       await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
       await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
@@ -2754,7 +2656,7 @@ async function accountChecks(base, wsUrl, admin) {
     await viewerPage.waitForSelector('#model-designer', { timeout: 10000 }).catch(() => {});
     check('a viewer\'s details panel is read-only', await viewerPage.isDisabled('#model-designer')
       && !(await viewerPage.isVisible('#tag-select')) && !(await viewerPage.isVisible('#open-notes-modal-button'))
-      && !(await viewerPage.isVisible('#jp-details-log-print')) && !(await viewerPage.isVisible('#filament-select'))
+      && !(await viewerPage.isVisible('#jp-details-log-print'))
       && await viewerPage.isDisabled('#model-print-status') && !(await viewerPage.isVisible('#edit-mode-toggle')));
     check('viewers still open models in a slicer from the details', await viewerPage.isVisible('#jp-details-open-slicer'));
     check('viewers see no library tools in the sidebar', !(await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Scan Library")'))

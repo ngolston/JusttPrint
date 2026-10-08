@@ -1,15 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  filaments as filamentApi, models, parts as partApi, printers as printerApi, prints,
-  type Filament, type Part, type PrintEvent, type Printer
+  models, parts as partApi, printers as printerApi, prints,
+  type Part, type PrintEvent, type Printer
 } from '../api';
 import { exposeGlobal, showMessage } from '../page';
 import { getCurrentUser, roleAllows, useCan } from '../session';
 import {
-  OUTCOME_LABELS, STATUSES, STATUS_LABELS, badgeClassNames, badgeText, badgeTitle, bundleSummary, colorCss,
-  detailsHint, effectiveStatus, filamentLabel, filterLabel, formatPrintDate, friendlyError, modelMatchesPrintFilter,
-  partOptionLabel, printerOptionLabel, toDatetimeLocalValue, type FilamentLike, type PrintModel
+  OUTCOME_LABELS, STATUSES, STATUS_LABELS, badgeClassNames, badgeText, badgeTitle, bundleSummary,
+  detailsHint, effectiveStatus, filterLabel, formatPrintDate, friendlyError, modelMatchesPrintFilter,
+  partOptionLabel, printerOptionLabel, toDatetimeLocalValue, type PrintModel
 } from './printStatus';
 
 /** A model as the details panel and the grid pass it in. */
@@ -28,12 +28,8 @@ declare global {
     updateModelElement?: (filePath: string) => Promise<void>;
     /** library/hosts.ts: the model the details panel shows. */
     getCurrentModelFilePath?: () => string | null;
-    /** filters/Sidebar.tsx: display labels by filament id. */
-    filamentLabelById?: Record<string, string>;
   }
 }
-
-const labelOf = (filament: FilamentLike) => filamentLabel(filament, window.filamentLabelById);
 
 let openLogDialogImpl: ((filePaths: string[]) => Promise<void>) | null = null;
 let openStatusMenuImpl: ((anchor: HTMLElement, filePath: string) => void) | null = null;
@@ -128,8 +124,6 @@ function LogPrintDialog() {
   const [notes, setNotes] = useState('');
   const [printerList, setPrinterList] = useState<Printer[]>([]);
   const [printerId, setPrinterId] = useState('');
-  const [filamentList, setFilamentList] = useState<Filament[]>([]);
-  const [chosenFilaments, setChosenFilaments] = useState<FilamentLike[]>([]);
   const [partList, setPartList] = useState<Part[]>([]);
   const [chosenParts, setChosenParts] = useState<ChosenPart[]>([]);
   const [partId, setPartId] = useState('');
@@ -150,21 +144,11 @@ function LogPrintDialog() {
     setPartQuantity('1');
     setChosenParts([]);
     setStatus('');
-    let prefill: FilamentLike[] = [];
-    if (paths.length === 1) {
-      try {
-        const model = await models.get<{ filaments?: FilamentLike[] }>(paths[0]);
-        prefill = Array.isArray(model?.filaments) ? model.filaments : [];
-      } catch { /* ignore */ }
-    }
-    const [allFilaments, allParts] = await Promise.all([
-      filamentApi.list().catch(() => [] as Filament[]),
+    const [allParts] = await Promise.all([
       partApi.list().catch(() => [] as Part[]),
       loadPrinters()
     ]);
-    setFilamentList(allFilaments);
     setPartList(allParts);
-    setChosenFilaments(prefill.filter((f, i) => prefill.findIndex((g) => Number(g.id) === Number(f.id)) === i));
     dialogRef.current?.showModal();
   }
 
@@ -178,11 +162,6 @@ function LogPrintDialog() {
     document.addEventListener('printers-changed', onPrintersChanged);
     return () => document.removeEventListener('printers-changed', onPrintersChanged);
   }, []);
-
-  function addFilament(id: number) {
-    const filament = filamentList.find((f) => f.id === id);
-    if (filament && !chosenFilaments.some((f) => Number(f.id) === id)) setChosenFilaments([...chosenFilaments, filament]);
-  }
 
   function addPart() {
     const part = partList.find((p) => p.id === Number(partId));
@@ -211,7 +190,6 @@ function LogPrintDialog() {
       quantity: Number(quantity) || 1,
       notes,
       printerId: pickedPrinter > 0 ? pickedPrinter : null,
-      filamentIds: chosenFilaments.map((f) => Number(f.id)).filter((id) => id > 0),
       parts: chosenParts.map((c) => ({ id: c.part.id, quantity: c.quantity }))
     };
     setSaving(true);
@@ -256,26 +234,6 @@ function LogPrintDialog() {
           </select>
         </div>
         <div className="form-group">
-          <label htmlFor="log-print-filament-select">Filament used</label>
-          <select id="log-print-filament-select" value="" onChange={(e) => addFilament(Number(e.target.value))}>
-            <option value="">Add filament…</option>
-            {filamentList.map((f) => <option key={f.id} value={String(f.id)}>{labelOf(f)}</option>)}
-          </select>
-          <div id="log-print-filaments" className="tags-list">
-            {chosenFilaments.map((f) => (
-              <span key={String(f.id)} className="filament-chip" data-filament-id={String(f.id)}>
-                <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
-                {labelOf(f)}
-                <span className="filament-chip-remove" title="Remove" onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setChosenFilaments(chosenFilaments.filter((g) => g !== f));
-                }}>×</span>
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="form-group">
           <label htmlFor="log-print-part-select">Parts used</label>
           <div className="log-print-parts-add">
             <select id="log-print-part-select" value={partId} onChange={(e) => setPartId(e.target.value)}>
@@ -290,12 +248,12 @@ function LogPrintDialog() {
           <p className="setting-description">Quantity is per copy. Saving removes that many from Parts Stock for every copy and every model in this log.</p>
           <div id="log-print-parts" className="tags-list" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
             {chosenParts.map((c) => (
-              <span key={c.part.id} className="filament-chip part-chip" data-part-id={String(c.part.id)} data-part-name={c.part.name || 'Part'}
+              <span key={c.part.id} className="item-chip part-chip" data-part-id={String(c.part.id)} data-part-name={c.part.name || 'Part'}
                 data-stock={String(Number(c.part.quantity) || 0)}>
                 {c.part.name} × <input type="number" className="part-chip-qty" min="1" max="9999" value={c.quantity} aria-label="Quantity per copy"
                   onChange={(e) => setChosenParts(chosenParts.map((d) => (d === c ? { ...d, quantity: clampQuantity(e.target.value) } : d)))} />
                 <span className="part-chip-stock">{Number(c.part.quantity) || 0}{c.part.unit ? ` ${c.part.unit}` : ''} in stock</span>
-                <span className="filament-chip-remove" title="Remove" onClick={(e) => {
+                <span className="item-chip-remove" title="Remove" onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setChosenParts(chosenParts.filter((d) => d !== c));
@@ -366,7 +324,6 @@ const LOG_PRINT_ICON = (
 );
 
 function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => void }) {
-  const filaments = (event.filaments || []).map(labelOf).join(', ');
   const parts = (event.parts || []).map((part) => `${part.name || 'Part'} ×${Number(part.quantity) || 0}`).join(', ');
   const printerName = event.printer_nickname || event.printer_name;
   return (
@@ -382,7 +339,6 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => 
           {event.printer_model && <> <span className="print-history-printer-model">({event.printer_model})</span></>}
         </div>
       )}
-      {filaments && <div className="print-history-filaments">{filaments}</div>}
       {parts && <div className="print-history-parts">{parts}</div>}
       {event.notes && <div className="print-history-notes">{event.notes}</div>}
       {onDelete && <button type="button" className="print-history-delete icon-button" title="Delete this log entry" aria-label="Delete print log"

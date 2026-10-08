@@ -6,10 +6,10 @@
  */
 
 export type Combine = 'AND' | 'OR';
-export type MultiKind = 'designer' | 'license' | 'parentModel' | 'tags' | 'filaments';
-export type InvertKind = 'designer' | 'license' | 'parentModel' | 'tag' | 'filament' | 'search';
+export type MultiKind = 'designer' | 'license' | 'parentModel' | 'tags';
+export type InvertKind = 'designer' | 'license' | 'parentModel' | 'tag' | 'search';
 /** Filter kinds as the server names them inside search tokens. */
-export type AtomKind = 'designer' | 'license' | 'parentModel' | 'tag' | 'filament' | 'fileType' | 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin';
+export type AtomKind = 'designer' | 'license' | 'parentModel' | 'tag' | 'fileType' | 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin';
 
 export type SearchToken =
   | { t: 'clause'; field: string; value: string }
@@ -24,7 +24,6 @@ export interface FilterState {
   license: string[];
   parentModel: string[];
   tags: string[];
-  filaments: string[];
   combine: Record<MultiKind, Combine>;
   printed: string;
   isNew: string;
@@ -63,11 +62,11 @@ export const DEFAULT_SORT = 'date-desc';
 
 export function emptyFilterState(): FilterState {
   return {
-    designer: [], license: [], parentModel: [], tags: [], filaments: [],
-    combine: { designer: 'OR', license: 'OR', parentModel: 'OR', tags: 'AND', filaments: 'AND' },
+    designer: [], license: [], parentModel: [], tags: [],
+    combine: { designer: 'OR', license: 'OR', parentModel: 'OR', tags: 'AND' },
     printed: 'all', isNew: 'all', favorite: 'all', rating: 'all', ratingMin: 'all', fileType: '',
     tokens: [], awaiting: false,
-    inverted: { designer: false, license: false, parentModel: false, tag: false, filament: false, search: false },
+    inverted: { designer: false, license: false, parentModel: false, tag: false, search: false },
     directory: '', dateAdded: null, includeNotes: true, sort: DEFAULT_SORT, viewingEntireLibrary: false
   };
 }
@@ -118,7 +117,7 @@ export function normalizeTokens(tokens: SearchToken[]): SearchToken[] {
 
 export const hasSearchQuery = (state: FilterState) => normalizeTokens(state.tokens).length > 0;
 export const hasMultiValues = (state: FilterState) =>
-  (['designer', 'license', 'parentModel', 'tags', 'filaments'] as MultiKind[]).some((k) => state[k].length > 0);
+  (['designer', 'license', 'parentModel', 'tags'] as MultiKind[]).some((k) => state[k].length > 0);
 
 /** Values and how they combine: one value is OR (the server treats it the same either way). */
 function effective(state: FilterState, kind: MultiKind): { values: string[]; combine: Combine } {
@@ -141,7 +140,6 @@ export function serverFilters(state: FilterState): ServerFilters {
     rating: state.rating === 'all' ? undefined : state.rating,
     ratingMin: state.ratingMin === 'all' ? undefined : state.ratingMin,
     tagInverted: state.inverted.tag,
-    filamentInverted: state.inverted.filament,
     fileType: state.fileType,
     searchInverted: state.inverted.search,
     directory: state.directory || undefined
@@ -157,7 +155,6 @@ export function serverFilters(state: FilterState): ServerFilters {
   add('license', 'licenses', 'licenseCombine');
   add('parentModel', 'parentModels', 'parentModelCombine');
   add('tags', 'tags', 'tagCombine');
-  add('filaments', 'filaments', 'filamentCombine');
 
   const normalized = normalizeTokens(state.tokens);
   if (normalized.some(isOperand)) {
@@ -168,7 +165,6 @@ export function serverFilters(state: FilterState): ServerFilters {
     if (inQuery.has('license')) delete filters.licenses;
     if (inQuery.has('parentModel')) delete filters.parentModels;
     if (inQuery.has('tag')) delete filters.tags;
-    if (inQuery.has('filament')) delete filters.filaments;
     for (const kind of ['fileType', 'printed', 'isNew', 'favorite', 'rating', 'ratingMin'] as const) {
       if (inQuery.has(kind)) delete filters[kind];
     }
@@ -193,7 +189,6 @@ export function payloadIsFiltered(f: ServerFilters | null | undefined): boolean 
   if (listOf(f.licenses, f.license).length) return true;
   if (listOf(f.parentModels, f.parentModel).length) return true;
   if (Array.isArray(f.tags) ? f.tags.length : f.tag) return true;
-  if (Array.isArray(f.filaments) ? f.filaments.length : f.filament) return true;
   if (f.printed) return true;
   for (const key of ['isNew', 'favorite', 'rating', 'ratingMin']) if (f[key] && f[key] !== 'all') return true;
   if (f.fileType || f.directory || f.dateAdded) return true;
@@ -205,8 +200,6 @@ export function payloadIsFiltered(f: ServerFilters | null | undefined): boolean 
 export interface Labels {
   /** Print status filter values ("ever-printed" → "Ever printed"). */
   printed(value: string): string;
-  /** Filament id → "Vendor Name (Material)". */
-  filament(id: string): string;
 }
 
 const allFieldsSearch = (tok: SearchToken) => tok.t === 'clause' && (!tok.field || tok.field === 'all');
@@ -223,8 +216,6 @@ export function describePayload(f: ServerFilters | null | undefined, labels: Lab
   if (parents.length) parts.push(`Parent: ${parents.join(', ')}`);
   const tags = Array.isArray(f.tags) ? f.tags.map(String) : f.tag ? [String(f.tag)] : [];
   if (tags.length) parts.push(`Tag: ${tags.join(', ')}`);
-  const filaments = Array.isArray(f.filaments) ? f.filaments.map(String) : f.filament ? [String(f.filament)] : [];
-  if (filaments.length) parts.push(`Filament: ${filaments.map((id) => labels.filament(id)).join(', ')}`);
   if (f.printed && f.printed !== 'all') parts.push(labels.printed(String(f.printed)));
   if (f.isNew === 'new') parts.push('New');
   if (f.isNew === 'not-new') parts.push('Not new');
@@ -253,7 +244,7 @@ export function describePayload(f: ServerFilters | null | undefined, labels: Lab
 
 export const SEARCH_FIELD_LABELS: Record<string, string> = {
   all: 'All fields', fileName: 'File name', designer: 'Designer', parentModel: 'Parent model', notes: 'Notes',
-  filePath: 'Path', source: 'Source', license: 'License', tag: 'Tag name', filament: 'Filament'
+  filePath: 'Path', source: 'Source', license: 'License', tag: 'Tag name'
 };
 
 const display = (value: string) => (value === '__none__' ? '(empty)' : value);
@@ -263,7 +254,7 @@ export function atomLabel(tok: SearchToken, labels: Labels): string {
   if (tok.t === 'filterMulti') {
     const vs = tok.values.join(', ');
     const mode = tok.combine === 'AND' ? 'all' : 'any';
-    const name: Partial<Record<AtomKind, string>> = { designer: 'Designer', license: 'License', parentModel: 'Parent', tag: 'Tag', filament: 'Filament' };
+    const name: Partial<Record<AtomKind, string>> = { designer: 'Designer', license: 'License', parentModel: 'Parent', tag: 'Tag' };
     return name[tok.kind] ? `${name[tok.kind]}: ${vs} (${mode})` : 'Filter';
   }
   if (tok.t !== 'filter') return 'Filter';
@@ -273,7 +264,6 @@ export function atomLabel(tok: SearchToken, labels: Labels): string {
     case 'license': return `License: ${v}`;
     case 'parentModel': return `Parent: ${v}`;
     case 'tag': return `Tag: ${v}`;
-    case 'filament': return `Filament: ${labels.filament(tok.value) || v}`;
     case 'fileType': return `Type: ${v}`;
     case 'printed': return labels.printed(tok.value);
     case 'isNew': return tok.value === 'new' ? 'New models only' : 'Exclude new models';
@@ -284,7 +274,7 @@ export function atomLabel(tok: SearchToken, labels: Labels): string {
   }
 }
 
-const ATOM_INVERT: Partial<Record<AtomKind, InvertKind>> = { designer: 'designer', license: 'license', parentModel: 'parentModel', tag: 'tag', filament: 'filament' };
+const ATOM_INVERT: Partial<Record<AtomKind, InvertKind>> = { designer: 'designer', license: 'license', parentModel: 'parentModel', tag: 'tag' };
 
 /** What a chip's × removes. */
 export type ChipRemove =
@@ -314,7 +304,7 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
   const single = (key: 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin') => state[key] !== 'all';
   const queryActive = hasSearchQuery(state);
   const active = !!(state.designer.length || state.license.length || state.parentModel.length || single('printed') || single('isNew')
-    || single('favorite') || single('rating') || single('ratingMin') || state.tags.length || state.filaments.length || state.fileType
+    || single('favorite') || single('rating') || single('ratingMin') || state.tags.length || state.fileType
     || queryActive || state.directory || state.dateAdded);
 
   const chain: StripItem[] = [];
@@ -388,7 +378,7 @@ export function sidebarAtoms(state: FilterState): SearchToken[] {
   ];
   for (const [kind, key] of singles) if (state[key] !== 'all') atoms.push({ t: 'filter', kind, value: state[key] });
   if (state.fileType.trim()) atoms.push({ t: 'filter', kind: 'fileType', value: state.fileType.trim() });
-  const pairs: [MultiKind, AtomKind][] = [['designer', 'designer'], ['license', 'license'], ['parentModel', 'parentModel'], ['tags', 'tag'], ['filaments', 'filament']];
+  const pairs: [MultiKind, AtomKind][] = [['designer', 'designer'], ['license', 'license'], ['parentModel', 'parentModel'], ['tags', 'tag']];
   for (const [key, kind] of pairs) {
     const { values, combine } = effective(state, key);
     if (values.length === 1) atoms.push({ t: 'filter', kind, value: values[0] });
@@ -404,7 +394,6 @@ export function clearSidebarKinds(state: FilterState, kinds: Set<AtomKind>): Fil
   if (kinds.has('license')) next.license = [];
   if (kinds.has('parentModel')) next.parentModel = [];
   if (kinds.has('tag')) next.tags = [];
-  if (kinds.has('filament')) next.filaments = [];
   if (kinds.has('fileType')) next.fileType = '';
   for (const key of ['printed', 'isNew', 'favorite', 'rating', 'ratingMin'] as const) if (kinds.has(key)) next[key] = 'all';
   return next;
@@ -476,12 +465,11 @@ export function consumeIntoQuery(state: FilterState, atom: SearchToken): FilterS
   return { ...clearSidebarKinds(state, kindsOf([atom])), tokens, awaiting: false };
 }
 
-/** Invert Filters: flips the first active kind (search, tags, filaments, designer, license, parent model). */
+/** Invert Filters: flips the first active kind (search, tags, designer, license, parent model). */
 export function invertNext(state: FilterState, searchDraft = ''): FilterState | null {
   let kind: InvertKind | null = null;
   if (searchDraft.trim() || hasSearchQuery(state)) kind = 'search';
   else if (state.tags.length) kind = 'tag';
-  else if (state.filaments.length) kind = 'filament';
   else if (state.designer.length) kind = 'designer';
   else if (state.license.length) kind = 'license';
   else if (state.parentModel.length) kind = 'parentModel';

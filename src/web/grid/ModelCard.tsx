@@ -247,15 +247,6 @@ export function cardTitle(model: GridModel): string {
   return dot > 0 ? name.slice(0, dot) : name;
 }
 
-/** The material of the model's first filament (details panel order) that has one. */
-export function materialOf(model: GridModel): string {
-  if (Array.isArray(model.filaments)) {
-    const withMaterial = (model.filaments as { material?: unknown }[]).find((filament) => typeof filament?.material === 'string' && filament.material.trim());
-    return withMaterial ? String(withMaterial.material).trim() : '';
-  }
-  return typeof model.filamentMaterial === 'string' ? model.filamentMaterial.trim() : '';
-}
-
 /** The card's print status: click logs a print, Shift-click picks a status (window.PrintHistory). */
 function CardPrintStatus({ model }: { model: GridModel }) {
   const info = printStatusInfo(effectiveStatus(model as PrintModel));
@@ -538,7 +529,7 @@ interface TileProps {
 /**
  * The JusttPrint 5 model card (spec §16-19): the preview fills the top with Favorite and More
  * at its top-right (and the rating, shown on hover or once set); the footer has the title, the
- * designer (else the folder), the format and material badges and the print status.
+ * designer (else the folder), the format badge and the print status.
  */
 function ModelTile({ host, model, common, images, current, setRenderSlot }: TileProps) {
   const engagement = useEngagement(host, model);
@@ -546,7 +537,6 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
   const designer = text(model.designer);
   const directory = host.directoryLabel(model.filePath).split(/[/\\]/).filter(Boolean).pop() || '';
   const format = formatOf(model);
-  const material = materialOf(model);
   const title = cardTitle(model);
   const zipEntry = isZipEntry(model);
 
@@ -606,7 +596,6 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
             : <span className="jp-model-card__byline" />}
         <div className="jp-model-card__badges">
           {format && <span className="jp-badge" title="File type">{format}</span>}
-          {material && <span className="jp-badge" title="Material of the first filament">{material}</span>}
           <CardPrintStatus model={model} />
         </div>
       </div>

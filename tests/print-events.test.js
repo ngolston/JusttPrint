@@ -42,18 +42,6 @@ function createDb() {
     )
   `).run();
   db.prepare(`
-    CREATE TABLE filaments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      vendor TEXT,
-      material TEXT,
-      color_hex TEXT,
-      diameter REAL,
-      spoolman_id INTEGER,
-      source TEXT
-    )
-  `).run();
-  db.prepare(`
     CREATE TABLE settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -159,17 +147,6 @@ test('derived printed stays true after a later failed reprint', () => {
   assert.strictEqual(model.print_status, 'failed');
   assert.strictEqual(model.print_count, 1);
   assert.strictEqual(model.printed, 1);
-  db.close();
-});
-
-test('event filaments attach without changing model assignments', () => {
-  const db = createDb();
-  const modelId = insertModel(db, { filePath: 'h.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
-  const filamentId = db.prepare("INSERT INTO filaments (name, vendor, material, source) VALUES ('PolyTerra', 'Polymaker', 'PLA', 'manual')").run().lastInsertRowid;
-  printEvents.logPrintEvent(db, { modelId, outcome: 'printed', filamentIds: [filamentId] });
-  const events = printEvents.getPrintEvents(db, modelId);
-  assert.strictEqual(events[0].filaments.length, 1);
-  assert.strictEqual(events[0].filaments[0].name, 'PolyTerra');
   db.close();
 });
 

@@ -16,10 +16,10 @@ describe('shell navigation', () => {
   it('follows the spec navigation order', () => {
     expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'System']);
     expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
-      'Home', 'Library', 'Collections', 'Queue', 'Printers', 'Filament', 'Statistics', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
+      'Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
     ]);
     expect(SETTINGS.map((g) => g.label)).toEqual([
-      'General', 'Appearance', 'Library', 'Sharing', 'Scanning', 'Slicer', 'Printers', 'Filament', 'Integrations', 'AI', 'Server', 'Authentication', 'Backup', 'Advanced', 'About'
+      'General', 'Appearance', 'Library', 'Sharing', 'Scanning', 'Slicer', 'Printers', 'Integrations', 'AI', 'Server', 'Authentication', 'Backup', 'Advanced', 'About'
     ]);
   });
 
@@ -37,8 +37,8 @@ describe('roles', () => {
   const labels = (role: string) => navFor(role).flatMap((s) => s.items.map((i) => i.label));
 
   it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
-    expect(labels('viewer')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Filament', 'Statistics', 'Settings', 'Help']);
-    expect(labels('editor')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Filament', 'Statistics', 'Tags', 'Duplicates', 'Scan Library', 'Settings', 'Help']);
+    expect(labels('viewer')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Settings', 'Help']);
+    expect(labels('editor')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Tags', 'Duplicates', 'Scan Library', 'Settings', 'Help']);
     expect(labels('admin')).toEqual(NAV.flatMap((s) => s.items.map((i) => i.label)));
     expect(navFor(null)).toEqual([]);
   });
