@@ -3,6 +3,7 @@ const events = require('../events');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const { createPuterIPCHandler, getAISettings } = require('./ai');
+const aiTagJob = require('../ai-tag-job');
 const fs = require('fs');
 const path = require('path');
 const { isUrlModel, parseZipPath } = require('../../core/library-paths');
@@ -264,7 +265,13 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           usingSender: !!eventSender,
           hasSend: !!(eventSender && eventSender.send)
         });
+        let tagJob = null;
         try {
+          // One run at a time (the AI client and Puter's browser are shared by the run).
+          if (aiTagJob.running()) {
+            clientDialogs.messageBox(event, { type: 'info', title: 'Generate Tags', message: 'AI tagging is already running. Wait for it to finish, or stop it in the sidebar.' });
+            return;
+          }
           const aitagging = require('../../core/aitagging');
           const settings = getAISettings();
           console.debug('[Generate Tags] Settings loaded, filesToProcess will be determined');
@@ -299,13 +306,22 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
             }
           }
           
+          tagJob = aiTagJob.start(event && event.user ? event.user.username : null, filesToProcess);
+          if (!tagJob) return;
+          const runId = tagJob.id;
+          // Every page hears each result (ai-tag-job.js keeps them for a review picked up later).
+          const report = (filePath, tags, error) => {
+            aiTagJob.record(runId, filePath, tags, error);
+            events.broadcast('tags-generated', filePath, tags, error || null, runId);
+          };
+
           // Start tag generation - show review dialog immediately for both single and multiple files
           if (filesToProcess.length > 1) {
             // Send all file paths so the dialog can show all models immediately
             console.debug('[Generate Tags] Sending start-batch-tag-generation event, count:', filesToProcess.length);
             // In server mode, use broadcastEvent to send to all WebSocket clients
             console.debug('[Generate Tags] Broadcasting start-batch-tag-generation via WebSocket');
-            events.toCaller(event, 'start-batch-tag-generation', filesToProcess.length, filesToProcess);
+            events.toCaller(event, 'start-batch-tag-generation', filesToProcess.length, filesToProcess, runId);
           } else if (filesToProcess.length === 1) {
             // For single file, also open dialog immediately with "Generating..." status
             const singleModel = getModelByFilePath(filesToProcess[0], { includeThumbnail: true });
@@ -328,7 +344,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               console.debug('[Generate Tags] Sending start-single-tag-generation event');
               // In server mode, use broadcastEvent to send to all WebSocket clients
               console.debug('[Generate Tags] Broadcasting start-single-tag-generation via WebSocket');
-              events.toCaller(event, 'start-single-tag-generation', filesToProcess[0], modelData);
+              events.toCaller(event, 'start-single-tag-generation', filesToProcess[0], modelData, runId);
             } else {
               console.debug('Model not found in database for single file generation');
             }
@@ -346,9 +362,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           // Helper function to process a single file
           // Use eventSender (captured from event or clickEvent) for sending events
           const processFile = async (filePath, index) => {
-            if (rateLimitStopped) {
+            if (rateLimitStopped || aiTagJob.stopRequested(runId)) {
               completed++;
-              events.toCaller(event, 'tags-generated', filePath, [], rateLimitSkipMessage);
+              report(filePath, [], rateLimitStopped ? rateLimitSkipMessage : 'Stopped before this model. Tags already generated can still be applied.');
               return;
             }
             try {
@@ -358,7 +374,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               if (!model) {
                 console.debug(`Model not found in database: ${filePath}, skipping`);
                 completed++;
-                events.toCaller(event, 'tags-generated', filePath, [], null);
+                report(filePath, [], null);
                 return;
               }
 
@@ -376,7 +392,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               if (!settings.aiTagAllowRetagging && modelTags.includes("AI Tagged")) {
                 console.debug(`Model ${filePath} already has AI Tagged tag, skipping generation`);
                 completed++;
-                events.toCaller(event, 'tags-generated', filePath, [], null);
+                report(filePath, [], null);
                 return;
               }
 
@@ -409,7 +425,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                   // Check if it's a rate limit error
                   if (error.message && error.message.includes('Rate limit')) {
                     rateLimitStopped = true;
-                    events.toCaller(event, 'tags-generated', filePath, [], error.message);
+                    report(filePath, [], error.message);
                     completed++;
                     return;
                   }
@@ -439,7 +455,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                     // Check if it's a rate limit error
                     if (error.message && error.message.includes('Rate limit')) {
                       rateLimitStopped = true;
-                      events.toCaller(event, 'tags-generated', filePath, [], error.message);
+                      report(filePath, [], error.message);
                       completed++;
                       return;
                     }
@@ -447,7 +463,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 }
               }
 
-              events.toCaller(event, 'tags-generated', filePath, tags, null);
+              report(filePath, tags, null);
 
               completed++;
               // Progress is now shown in the review dialog
@@ -458,9 +474,9 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
               // Check if it's a rate limit error
               if (error.message && error.message.includes('Rate limit')) {
                 rateLimitStopped = true;
-                events.toCaller(event, 'tags-generated', filePath, [], error.message);
+                report(filePath, [], error.message);
               } else {
-                events.toCaller(event, 'tags-generated', filePath, []);
+                report(filePath, []);
               }
             }
           };
@@ -474,14 +490,16 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
           }
           
           // Signal batch completion for multiple files
+          aiTagJob.finish(runId);
           if (totalFiles > 1) {
-            events.toCaller(event, 'batch-tag-generation-complete');
+            events.broadcast('batch-tag-generation-complete', runId);
           }
         } catch (error) {
           console.error('Error generating tags:', error);
 
-          if (filePaths.length > 1) {
-            events.toCaller(event, 'batch-tag-generation-complete');
+          if (tagJob) {
+            aiTagJob.finish(tagJob.id);
+            if (tagJob.batch) events.broadcast('batch-tag-generation-complete', tagJob.id);
           }
 
           // Close progress dialog if open

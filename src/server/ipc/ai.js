@@ -40,6 +40,12 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
 // Register handler for both IPC and WebSocket (server mode)
 ipcMain.handle('test-ai-config', testAIConfigHandler);
 
+// The AI tagging run (src/server/ai-tag-job.js): follow it, stop it, and close its review.
+const aiTagJob = require('../ai-tag-job');
+ipcMain.handle('get-ai-tag-job', async () => aiTagJob.snapshot());
+ipcMain.handle('stop-ai-tag-job', async () => ({ success: aiTagJob.stop() }));
+ipcMain.handle('dismiss-ai-tag-job', async (_event, id) => ({ success: aiTagJob.dismiss(id) }));
+
 ipcMain.handle('get-default-ai-prompt', async () => {
   const settings = getAISettings();
   const aitagging = require('../../core/aitagging');
