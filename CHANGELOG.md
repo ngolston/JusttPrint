@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.5.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. The JusttPrint backend now contacts Printables, Thingiverse and MakerWorld when someone uses **Add Links**: allow outgoing HTTPS to `api.printables.com`, `media.printables.com`, `www.thingiverse.com`, `resize.thingiverse.com`, `cdn.thingiverse.com`, `makerworld.com` and `makerworld.bblmw.com` if your network limits it.
+
+**Changes:**
+- **Add Links:** **Add Links** in the Library (next to **Upload**) takes a list of Printables, Thingiverse and MakerWorld links, pasted one per line or mixed with other text, up to 200 at a time. Each model is added as an online model with its name, designer, license and picture from the site, and the link as its source. While you paste, the dialog lists each model and marks the ones already in your library (as an online model, or as a file whose source is that link); those are skipped, and so is the same model pasted twice in another form (`/files`, a language prefix, with or without the name). Then it adds them one by one with a status per link; **Stop** finishes the current one. When a site cannot be reached the model is still added, named from the link, with a note to fill in the details; a model the site does not have is left out. Editors and admins only.
+- The JusttPrint backend asks each site for one model number at fixed addresses (Printables' and MakerWorld's public APIs, the Thingiverse model page) and loads pictures only from those sites' image servers, so pasted text cannot make it load anything else.
+
+**Fixes:**
+- Online models (added from links, or by the old browser extension) no longer show an **Archive** badge on their cards.
+
 ## [7.4.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.

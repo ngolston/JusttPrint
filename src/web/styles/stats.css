@@ -1,4 +1,4 @@
-/* Statistics page (pages/StatsPage.tsx), Upload Models (upload/UploadDialog.tsx), Users (UsersDialog.tsx). */
+/* Statistics page (pages/StatsPage.tsx), Upload Models (upload/UploadDialog.tsx), Add Links (links/LinkImportDialog.tsx), Users (UsersDialog.tsx). */
 
 /*
  * Chart series: categorical slots 1-3, the dark steps of the validated palette, checked against
@@ -98,6 +98,13 @@
 .jp-upload__sent { color: var(--jp-text-3); font-size: var(--jp-text-small); font-variant-numeric: tabular-nums; }
 .jp-upload__message { color: var(--jp-text-2); font-size: var(--jp-text-small); }
 .jp-upload__summary { min-height: 1.4em; margin: var(--jp-space-3) 0 0; color: var(--jp-text-2); font-size: var(--jp-text-meta); }
+.jp-links__text { width: 100%; height: auto; min-height: 120px; margin-top: 6px; padding: var(--jp-space-2) var(--jp-space-3); font-family: var(--jp-font-mono); font-size: var(--jp-text-meta); line-height: 1.5; resize: vertical; }
+.jp-links__hint { margin: var(--jp-space-2) 0 0; }
+.jp-links__item { grid-template-columns: 20px minmax(0, 1fr) auto; }
+.jp-links__unsupported { margin: var(--jp-space-2) 0 0; color: var(--jp-text-3); overflow-wrap: anywhere; }
+.jp-spin { animation: jp-spin 1s linear infinite; }
+@keyframes jp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .jp-spin { animation: none; } }
 .jp-upload-overlay {
   position: fixed;
   inset: 0;

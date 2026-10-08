@@ -57,7 +57,7 @@ export function displayFileName(model: GridModel): string {
   return inner.split(/[/\\]/).pop() || 'Unknown';
 }
 
-const isZipEntry = (model: GridModel) => (model.filePath || '').includes('::');
+const isZipEntry = (model: GridModel) => (model.filePath || '').includes('::') && !(model.filePath || '').startsWith('url::');
 const isZipFile = (model: GridModel) => !isZipEntry(model) && displayFileName(model).toLowerCase().endsWith('.zip');
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 

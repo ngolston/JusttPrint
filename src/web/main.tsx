@@ -53,6 +53,7 @@ import { ServerAccessDialog } from './ServerAccessDialog';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { UsersDialog } from './UsersDialog';
 import { UploadDialog, UploadDropZone } from './upload/UploadDialog';
+import { LinkImportDialog } from './links/LinkImportDialog';
 import { AddToCollectionDialog } from './collections/AddToCollectionDialog';
 import { ShareDialog } from './share/ShareDialog';
 import { ShareLinksDialog } from './share/ShareLinksDialog';
@@ -74,6 +75,7 @@ function Screens() {
       <UsersDialog />
       <UploadDialog />
       <UploadDropZone />
+      <LinkImportDialog />
       <AddToCollectionDialog />
       <ShareDialog />
       <ShareLinksDialog />
