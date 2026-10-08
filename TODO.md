@@ -151,7 +151,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 ## 🔵 7. Cleanup
 
 - [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
-- [ ] **New logo and icons for JusttPrint.** `logo.png`, `favicon.ico`, `apple-touch-icon.png`, `pwa-icon-192.png`, `pwa-icon-512.png` still show the old artwork (the owner is providing new images).
+- [x] **New logo and icons for JusttPrint** (7.3.1): browser tab, home screen (with maskable versions), the sidebar, login and About, and the README logo.
 - [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
 - [x] **Remove unneeded dependencies**: the empty `fs` package, `node-fetch`, and `jszip` (zips are read and written with `fflate`; `openZip()` in `src/core/zip-entries.js`).
 - [x] **Replace the ~500 `console.log` calls with a leveled logger.** Done (6.1.0): [src/core/log.js](src/core/log.js) adds time and level to every line and hides `console.debug` unless `JUSTTPRINT_LOG_LEVEL=debug`; per-request and per-file lines moved to `console.debug`. Before: Settings reads currently log on every call. Container logs should be readable with `docker logs`.

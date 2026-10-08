@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
+import { ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
 import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
@@ -90,7 +90,7 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
         <X size={18} aria-hidden="true" />
       </button>
       <button type="button" className="jp-brand" onClick={() => navigate('home')} title="Home">
-        <span className="jp-brand__logo"><Box size={22} aria-hidden="true" /></span>
+        <span className="jp-brand__logo"><img src="logo.png" alt="" /></span>
         <span className="jp-brand__text">
           <span className="jp-brand__name">JusttPrint</span>
           <span className="jp-brand__tagline">Your 3D Printing Library</span>

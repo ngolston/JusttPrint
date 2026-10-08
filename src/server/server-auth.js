@@ -46,6 +46,8 @@ const PUBLIC_PATHS = new Set([
   '/sw.js',
   '/pwa-icon-192.png',
   '/pwa-icon-512.png',
+  '/pwa-maskable-192.png',
+  '/pwa-maskable-512.png',
   '/apple-touch-icon.png'
 ]);
 
@@ -177,7 +179,7 @@ function loginPageHtml(next, error, username = '') {
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; }
   form { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; }
-  img { display: block; width: 64px; height: 64px; margin: 0 auto 12px; }
+  img { display: block; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 14px; }
   h1 { font-size: 1.25rem; text-align: center; margin: 0 0 20px; }
   label { display: block; font-size: 0.875rem; color: var(--muted); margin: 12px 0 6px; }
   label:first-of-type { margin-top: 0; }
