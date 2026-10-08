@@ -401,3 +401,12 @@ button.jp-tag__label:hover { color: var(--jp-text); }
 .jp-chip__count { color: var(--jp-text-3); font-size: var(--jp-text-small); }
 .jp-chip.is-selected .jp-chip__count { color: var(--jp-text-2); }
 .jp-badge--accent { border-color: var(--jp-accent-border); color: var(--jp-accent); }
+
+/* Undo notice after a metadata or tag edit (library/UndoToast.tsx) */
+.jp-undo-toast-region { position: fixed; left: 50%; bottom: var(--jp-space-6); transform: translateX(-50%); z-index: 1000; max-width: calc(100vw - 32px); pointer-events: none; }
+.jp-undo-toast { display: flex; align-items: center; gap: var(--jp-space-3); padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-4); background: var(--jp-surface-2); color: var(--jp-text); border: 1px solid var(--jp-border-strong); border-radius: var(--jp-radius-md); box-shadow: var(--jp-shadow-pop); font-size: 13px; pointer-events: auto; }
+.jp-undo-toast__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-undo-toast__button { flex: none; padding: 4px 12px; border: 0; border-radius: var(--jp-radius-sm); background: var(--jp-accent); color: var(--jp-on-accent); font: inherit; font-weight: 600; cursor: pointer; }
+.jp-undo-toast__button:hover { background: var(--jp-accent-hover); }
+.jp-undo-toast__close { flex: none; width: 28px; height: 28px; border: 0; border-radius: var(--jp-radius-sm); background: transparent; color: var(--jp-text-2); font-size: 18px; line-height: 1; cursor: pointer; }
+.jp-undo-toast__close:hover { background: var(--jp-surface-hover); color: var(--jp-text); }

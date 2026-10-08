@@ -23,6 +23,7 @@ import { FolderPicker } from './components/FolderPicker';
 import { ListPicker } from './components/ListPicker';
 import { ServerProgressDialog } from './components/ServerProgressDialog';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { UndoToast } from './library/UndoToast';
 import { ManageThumbnailsDialog } from './ManageThumbnailsDialog';
 import { McpServerSettingsDialog } from './McpServerSettingsDialog';
 import { MetadataEditorDialog } from './MetadataEditorDialog';
@@ -85,6 +86,7 @@ function Screens() {
       <BackupRestoreDialog />
       <KeyboardShortcutsDialog />
       <KeyboardShortcuts />
+      <UndoToast />
       <AboutDialog />
       <PerformanceSettingsDialog />
       <McpServerSettingsDialog />

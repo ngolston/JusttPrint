@@ -130,7 +130,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Backup/restore: download and upload a backup file in the browser.
   - [x] "Send to slicer": the helper and `justtprint://` link, documented in GUIDE.md (Slicers).
 - [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
-- [ ] **Make sure multiple browsers can use the server at once**: one user's actions refresh the others, and edits don't conflict. Messages for one browser now reach only that browser (6.0.1): `event.sender.send` in an action answers the browser that called it (`events.toCaller`, [src/server/events.js](src/server/events.js)), and changes every browser must see use `events.broadcast`. Left: edits from two browsers at once are not merged (the last save wins).
+- [x] **Make sure multiple browsers can use the server at once** (7.1.0): changes show up live in the other browsers (`models-changed`, `events.broadcastToOthers`), and saving a field someone else changed meanwhile asks Keep Mine / Keep Theirs (notes: Keep Both); tags merge ([src/core/edit-merge.js](src/core/edit-merge.js)).
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
 - [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
 
@@ -176,7 +176,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Read-only share links and QR codes** for a model or collection. Done in 6.5.0 ([src/core/share-links.js](src/core/share-links.js), public page [src/server/share-pages.js](src/server/share-pages.js), [src/web/share/ShareDialog.tsx](src/web/share/ShareDialog.tsx)). Possible later: a 3D preview on the shared page.
 - [ ] **Geometry-based duplicate detection**: find the same model across different files.
 - [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs** in the web UI (the Chrome extension that added links is removed).
-- [ ] **Undo for metadata and tag edits.**
+- [x] **Undo for metadata and tag edits** (7.2.0): the Undo notice and Ctrl/Cmd+Z ([src/web/library/undo.ts](src/web/library/undo.ts)). Not covered: Tag Manager renames and deletes, the Metadata Editor.
 - [x] **Statistics dashboard**: prints per month, success rate, top designers (filament used was dropped with filament in 7.0). Done in 6.2.0 as the Statistics page ([src/web/pages/StatsPage.tsx](src/web/pages/StatsPage.tsx), [src/core/print-stats.js](src/core/print-stats.js)), drawn in SVG (Chart.js is no longer a dependency). Filament is counted in prints: the print log does not record grams.
 
 ---

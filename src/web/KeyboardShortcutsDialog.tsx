@@ -5,6 +5,7 @@ import { exposeGlobal } from './page';
 import { scanDirectory } from './scan/scan';
 import { SHORTCUT_HELP, shortcutFor, type ShortcutAction } from './shortcuts';
 import { printRoulette } from './library/actions';
+import { undoLast } from './library/undo';
 
 /** What the shortcuts need from the library (multi-edit mode, the details panel, the selection). */
 export interface ShortcutHost {
@@ -47,6 +48,9 @@ function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean
     case 'roulette': printRoulette(); return true;
     case 'toggleMultiEdit': host.toggleMultiEdit(detailsVisible); return true;
     case 'selectAll': host.selectAll(); return true;
+    case 'undo':
+      void undoLast().then((label) => { if (label) window.dispatchEvent(new CustomEvent('jp-undone', { detail: label })); });
+      return true;
   }
 }
 

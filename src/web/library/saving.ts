@@ -8,6 +8,7 @@ import { selection } from '../selection';
 import type { GridModel } from '../grid/layout';
 import { mergeModel, refreshGrid, updateModel } from './models';
 import { currentModelPath } from './details';
+import { recordUndo, revertTags, sameValue, tagNames } from './undo';
 
 type ModelRecord = GridModel & Record<string, unknown>;
 
@@ -18,7 +19,12 @@ export interface SaveConflict {
   yours: string | null;
 }
 
-const FIELD_NAMES: Record<string, string> = { designer: 'designer', parentModel: 'parent model', license: 'license', source: 'source', notes: 'notes' };
+const FIELD_NAMES: Record<string, string> = { designer: 'designer', parentModel: 'parent model', license: 'license', source: 'source', notes: 'notes', tags: 'tags' };
+
+/** Fields whose edits can be undone (rating, favorite and print status are one click to change back). */
+const UNDOABLE = new Set(Object.keys(FIELD_NAMES));
+
+const nameOf = (model: ModelRecord, filePath: string) => String(model.fileName || filePath.split(/[\\/]/).pop() || 'this model');
 
 const shown = (value: string | null) => {
   const text = String(value ?? '').trim();
@@ -45,16 +51,17 @@ export const bothNotes = (theirs: string | null, yours: string | null) =>
  * `base` is the value the person saw when they started editing: when someone else changed the
  * field meanwhile, they choose whose value stays. Resolves false when nothing of theirs was saved.
  */
-export async function saveModelField(field: string, value: unknown, filePath: string, base?: unknown): Promise<boolean> {
+export async function saveModelField(field: string, value: unknown, filePath: string, base?: unknown, options: { undoable?: boolean } = {}): Promise<boolean> {
   try {
     const model = await modelApi.get<ModelRecord>(filePath);
     if (!model) return false;
+    let saved = value;
     const payload: ModelRecord = { ...model, [field]: value };
     if (base !== undefined) payload._base = { [field]: base };
     const result = await callAction<{ success?: boolean; conflicts?: SaveConflict[] } | null>('save-model', payload);
     if (result && Array.isArray(result.conflicts) && result.conflicts.length) {
       const conflict = result.conflicts[0];
-      const choice = await askAboutConflict(conflict, String(model.fileName || filePath.split(/[\\/]/).pop() || 'this model'));
+      const choice = await askAboutConflict(conflict, nameOf(model, filePath));
       if (choice === 'theirs') {
         await updateModel(filePath);
         if (currentModelPath() === filePath) await window.reloadShownModelDetails?.();
@@ -62,9 +69,14 @@ export async function saveModelField(field: string, value: unknown, filePath: st
       }
       const kept = choice === 'both' ? bothNotes(conflict.theirs, conflict.yours) : value;
       await callAction('save-model', { ...model, [field]: kept });
+      saved = kept;
       if (choice === 'both' && currentModelPath() === filePath) await window.reloadShownModelDetails?.();
     }
     await updateModel(filePath);
+    const before = field === 'tags' ? tagNames(model.tags) : model[field];
+    if (options.undoable !== false && UNDOABLE.has(field) && !sameValue(field, before, saved)) {
+      recordUndo(`Changed the ${FIELD_NAMES[field]} of ${nameOf(model, filePath)}`, () => undoModelField(field, filePath, before, saved));
+    }
     if ((field === 'printed' || field === 'printStatus') && currentModelPath() === filePath) {
       const updated = await modelApi.get<ModelRecord>(filePath);
       if (updated) window.detailsPrint?.show(updated as never);
@@ -76,6 +88,21 @@ export async function saveModelField(field: string, value: unknown, filePath: st
   }
 }
 
+/**
+ * Put a field back. It goes through the same check as any edit: if someone else changed the
+ * field since, they are asked whose value stays. Tags only take back this edit's changes.
+ */
+async function undoModelField(field: string, filePath: string, before: unknown, after: unknown) {
+  if (field === 'tags') {
+    const current = await modelApi.get<ModelRecord>(filePath);
+    if (!current) return;
+    await saveModelField('tags', revertTags(current.tags, before, after), filePath, undefined, { undoable: false });
+  } else {
+    await saveModelField(field, before, filePath, after, { undoable: false });
+  }
+  if (currentModelPath() === filePath) await window.reloadShownModelDetails?.();
+}
+
 declare global {
   interface Window {
     /** library/actions.ts: show the details panel's model again from the JusttPrint backend. */
@@ -83,8 +110,7 @@ declare global {
   }
 }
 
-const tagList = (list: unknown): string[] => (Array.isArray(list) ? list : [])
-  .map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '')).filter(Boolean);
+const tagList = tagNames;
 
 /** Save many models at once (one transaction), one by one if that fails; then redraw their cards. */
 async function saveBatch(batch: ModelRecord[]) {
@@ -107,6 +133,7 @@ export async function saveSelectedField(field: string, value: unknown, options: 
   if (!paths.length) return false;
   try {
     const loaded = (await Promise.all(paths.map((p) => modelApi.get<ModelRecord>(p).catch(() => null)))).filter((m): m is ModelRecord => !!m);
+    const before = loaded.map((model) => (field === 'tags' ? tagList(model.tags) : model[field]));
     for (const model of loaded) {
       if (field === 'tags') {
         const next = tagList(value);
@@ -116,6 +143,12 @@ export async function saveSelectedField(field: string, value: unknown, options: 
       }
     }
     if (loaded.length) await saveBatch(loaded);
+    if (UNDOABLE.has(field)) {
+      const changes = loaded.map((model, i) => ({ filePath: model.filePath, before: before[i], after: model[field] }))
+        .filter((c) => !sameValue(field, c.before, c.after));
+      const what = field === 'tags' ? (options.replace ? 'Replaced the tags of' : 'Added tags to') : `Changed the ${FIELD_NAMES[field]} of`;
+      if (changes.length) recordUndo(`${what} ${modelCount(changes.length)}`, () => undoBatch(field, changes));
+    }
     return true;
   } catch (error) {
     console.error(`Error saving ${field} on the selected models:`, error);
@@ -126,6 +159,7 @@ export async function saveSelectedField(field: string, value: unknown, options: 
 /** Remove one tag from every selected model, keeping their others. */
 export async function removeFromSelected(field: 'tags', value: string) {
   const batch: ModelRecord[] = [];
+  const changes: FieldChange[] = [];
   for (const filePath of selection.values()) {
     const model = await modelApi.get<ModelRecord>(filePath).catch(() => null);
     if (!model) continue;
@@ -133,8 +167,43 @@ export async function removeFromSelected(field: 'tags', value: string) {
     if (!tags.includes(String(value))) continue;
     model.tags = tags.filter((t) => t !== value);
     batch.push(model);
+    changes.push({ filePath, before: tags, after: model.tags });
   }
   if (batch.length) await saveBatch(batch);
+  if (changes.length) recordUndo(`Removed the tag "${value}" from ${modelCount(changes.length)}`, () => undoBatch('tags', changes));
+}
+
+const modelCount = (n: number) => (n === 1 ? '1 model' : `${n} models`);
+
+interface FieldChange { filePath: string; before: unknown; after: unknown }
+
+/**
+ * Undo a multi-edit. Tags take back only what the edit added or removed. Other fields go back
+ * only on models nobody changed since; the person is told about the rest.
+ */
+async function undoBatch(field: string, changes: FieldChange[]) {
+  const current = await Promise.all(changes.map((c) => modelApi.get<ModelRecord>(c.filePath).catch(() => null)));
+  const batch: ModelRecord[] = [];
+  let changedSince = 0;
+  changes.forEach((change, i) => {
+    const model = current[i];
+    if (!model) return;
+    if (field === 'tags') {
+      model.tags = revertTags(model.tags, change.before, change.after);
+    } else if (sameValue(field, model[field], change.after)) {
+      model[field] = change.before;
+    } else {
+      changedSince++;
+      return;
+    }
+    batch.push(model);
+  });
+  if (batch.length) await saveBatch(batch);
+  const shownPath = currentModelPath();
+  if (shownPath && batch.some((m) => m.filePath === shownPath)) await window.reloadShownModelDetails?.();
+  if (changedSince) {
+    await showMessage('Not all undone', `${modelCount(changedSince)} kept the ${FIELD_NAMES[field]} someone else gave them after your edit.`);
+  }
 }
 
 /** Rate or favorite several models (a group card). */

@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.2.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **Undo:** after you change a model's designer, parent model, license, source, notes or tags (one model, or the selected models in multi-edit), a notice at the bottom says what changed, with an **Undo** button. **Ctrl/⌘ Z** (when you are not typing in a field) undoes your last 20 edits one by one, newest first. Undo checks for other people's changes like any edit: tags take back only what your edit added or removed, and a field someone else changed since asks whose value stays (in multi-edit, those models keep theirs and you are told how many).
+
 ## [7.1.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.
