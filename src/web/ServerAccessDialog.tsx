@@ -32,7 +32,7 @@ export function ServerAccessDialog() {
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
       serverAccess.info()
         .then((result) => { if (open === openCount) setInfo(result); })
-        .catch((error) => { if (open === openCount) setStatus(`Could not load server access settings: ${errorText(error)}`); });
+        .catch((error) => { if (open === openCount) setStatus(`Could not load the JusttPrint backend access settings: ${errorText(error)}`); });
     });
   }, []);
 
@@ -58,7 +58,7 @@ export function ServerAccessDialog() {
   }
 
   return (
-    <ModalDialog id="server-access-dialog" title="Server Access" dialogRef={dialogRef}
+    <ModalDialog id="server-access-dialog" title="JusttPrint Backend Access" dialogRef={dialogRef}
       footer={<button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>Close</button>}>
       <p className="setting-description">People log in with their own user name and password (Settings → Users). MCP clients and scripts use the API token, which acts as an admin.</p>
       <div className="settings-group">

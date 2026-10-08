@@ -135,7 +135,7 @@ ipcMain.handle('apply-tls-settings', async (_event, payload = {}) => {
       }
       const loaded = serverTls.readPemTlsOptions(certPath, keyPath, payload.tlsCaPath || '');
       if (!loaded) {
-        throw new Error('Certificate or key file was not found. Use an absolute path visible to the server (or container).');
+        throw new Error('Certificate or key file was not found. Use an absolute path inside the JusttPrint backend container.');
       }
     }
 

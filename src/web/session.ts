@@ -19,7 +19,7 @@ export const ROLE_LABELS: Record<Role, string> = { viewer: 'Viewer', editor: 'Ed
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   viewer: 'Browse, preview and download.',
   editor: 'Also edit models, tags and the print log, upload, move and delete files.',
-  admin: 'Also settings, backups, server access and user accounts.'
+  admin: 'Also settings, backups, JusttPrint backend access and user accounts.'
 };
 
 /** True when `role` is at least `required`. An unknown role allows nothing. */

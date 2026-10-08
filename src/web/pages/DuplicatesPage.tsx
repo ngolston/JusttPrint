@@ -450,7 +450,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
         <div id="dedup-preferred-directory" className="dedup-preferred">
           <label className="dedup-scope-label" htmlFor="dedup-preferred-directory-input">Preferred directory</label>
           <div className="dedup-preferred-row">
-            <input type="text" id="dedup-preferred-directory-input" className="jp-input" placeholder="Folder whose copies should be kept (a path on the server)"
+            <input type="text" id="dedup-preferred-directory-input" className="jp-input" placeholder="Folder whose copies should be kept (a path in the JusttPrint backend's container)"
               autoComplete="off" spellCheck={false} value={preferredDir}
               onChange={(event) => setPreferredDir(event.target.value)}
               onBlur={(event) => commitPreferred(event.target.value, true)}

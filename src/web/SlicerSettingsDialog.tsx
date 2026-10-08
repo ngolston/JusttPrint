@@ -141,7 +141,7 @@ export function SlicerSettingsDialog() {
               {isOrcaLink(entry.path) ? (
                 <div className="input-with-icon slicer-orca-row">
                   <p className="setting-description slicer-orca-note" id={`slicer-path-${entry.key}`}>
-                    Opens in OrcaSlicer through its own links: no helper, no path. OrcaSlicer downloads the model from this server.
+                    Opens in OrcaSlicer through its own links: no helper, no path. OrcaSlicer downloads the model from the JusttPrint backend.
                   </p>
                   <button type="button" className="remove-slicer-button icon-button" title="Remove slicer" aria-label="Remove slicer"
                     onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}>×</button>
@@ -169,18 +169,18 @@ export function SlicerSettingsDialog() {
       </div>
       <div id="slicer-helper-install">
         <p className="setting-description">
-          <strong>OrcaSlicer</strong> needs nothing else: Open in Slicer hands it a link, and it downloads the model from this server
+          <strong>OrcaSlicer</strong> needs nothing else: Open in Slicer hands it a link, and it downloads the model from the JusttPrint backend
           (up to 1 GB per file, 10 files at a time). OrcaSlicer must be installed on the computer you click on, and able to reach
-          this server&apos;s address; on Linux, turn on its desktop integration.
+          the JusttPrint backend&apos;s address; on Linux, turn on its desktop integration.
         </p>
-        <p className="setting-description">Other slicers use a helper on each computer. Type the slicer&apos;s full path on that computer above. Download the helper package for this server, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
+        <p className="setting-description">Other slicers use a helper on each computer. Type the slicer&apos;s full path on that computer above. Download the helper package for this JusttPrint backend, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
         {window.location.protocol === 'https:' && (
           <div className="form-group checkbox-container" id="slicer-helper-insecure-row">
             <input type="checkbox" id="slicer-helper-insecure" checked={insecure} onChange={(event) => setInsecure(event.target.checked)} />
-            <label htmlFor="slicer-helper-insecure">This server uses a self-signed certificate</label>
+            <label htmlFor="slicer-helper-insecure">The JusttPrint backend uses a self-signed certificate</label>
           </div>
         )}
-        <button type="button" id="download-slicer-helper" className="full-width-button" onClick={downloadHelper}>Download helper for this server</button>
+        <button type="button" id="download-slicer-helper" className="full-width-button" onClick={downloadHelper}>Download helper for this JusttPrint backend</button>
       </div>
     </ModalDialog>
   );

@@ -139,7 +139,8 @@ export function DetailsNotes() {
     dialogRef.current?.close();
     if (!target) return;
     if (target === model) setNotes(value);
-    await window.detailsHost?.saveField(target.filePath, 'notes', value);
+    // The notes as they were when the editor opened: someone else's changes since then are not lost.
+    await window.detailsHost?.saveField(target.filePath, 'notes', value, target.notes ?? null);
   }
 
   function onEditorKeyDown(event: KeyboardEvent) {

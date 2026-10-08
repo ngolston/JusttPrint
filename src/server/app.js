@@ -56,7 +56,7 @@ function closeDatabaseOnQuit() {
     requestThumbnailJobCancel();
   } catch (_) { /* job state not initialized */ }
   try {
-    closeAllClients(1001, 'Server shutting down');
+    closeAllClients(1001, 'JusttPrint backend shutting down');
     closeHttpServer();
   } catch (error) {
     console.warn('[Quit] Closing connections:', error.message);

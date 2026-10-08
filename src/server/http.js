@@ -363,7 +363,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       
       // Library paths are absolute container paths. A client path (e.g. C:\ from another computer) is not on the server.
       if (!filePath.startsWith('/')) {
-        res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not on server (the path is on another computer).');
+        res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not in the JusttPrint backend (the path is on another computer).');
         return;
       }
       
@@ -735,8 +735,21 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     });
   }
 
+  /** The same, to every browser except `except`. */
+  function broadcastToOthers(except, channel, ...args) {
+    const message = jsonStringifyForWs({ type: 'event', channel, args });
+    wsClients.forEach((client) => {
+      if (client === except || client.readyState !== WebSocket.OPEN) return;
+      try {
+        client.send(message);
+      } catch (error) {
+        console.error('Error broadcasting event:', error);
+      }
+    });
+  }
+
   // Store broadcast function globally for use in IPC handlers
-  events.setBroadcaster(broadcastEvent);
+  events.setBroadcaster(broadcastEvent, broadcastToOthers);
 
   // Bind errors are handled in the Promise above (reject). Server-mode callers should catch and exit.
   return serverPromise;
@@ -767,7 +780,7 @@ function stopHttpServer() {
       wsClients.forEach((ws) => {
         try {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.close(1000, 'Server restarting');
+            ws.close(1000, 'JusttPrint backend restarting');
           }
         } catch (error) {
           console.error('Error closing WebSocket connection:', error);
@@ -868,7 +881,7 @@ function listenWithTimeout(startPromise, ms) {
   return Promise.race([
     startPromise,
     new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`Server did not start listening within ${ms}ms`)), ms);
+      setTimeout(() => reject(new Error(`The JusttPrint backend did not start listening within ${ms}ms`)), ms);
     })
   ]);
 }
@@ -885,7 +898,7 @@ async function restartHttpServerNow() {
     const scheme = resolveAppTls().options ? 'https' : 'http';
     return {
       success: true,
-      message: `Server restarted at ${scheme}://<host>:${port}. Reopen the UI with that scheme.`
+      message: `The JusttPrint backend restarted at ${scheme}://<host>:${port}. Reopen JusttPrint with that address.`
     };
   } catch (error) {
     console.error('[Server] Restart bind failed:', error.message);
@@ -902,14 +915,14 @@ async function restartHttpServerNow() {
         await listenWithTimeout(startHttpServer(port, localhostOnly, { forcePlainHttp: true }), 8000);
         return {
           success: false,
-          message: 'Could not start HTTPS; the server is back on HTTP. ' + error.message
+          message: 'Could not start HTTPS; the JusttPrint backend is back on HTTP. ' + error.message
         };
       } catch (fallbackErr) {
         console.error('[Server] HTTP fallback failed:', fallbackErr.message);
         return { success: false, message: fallbackErr.message };
       }
     }
-    return { success: false, message: error.message || 'Failed to restart server' };
+    return { success: false, message: error.message || 'Failed to restart the JusttPrint backend' };
   }
 }
 
@@ -920,7 +933,7 @@ async function restartHttpServer() {
       console.error('Error during server restart:', error);
     });
   }, 100);
-  return { success: true, message: 'Server restart initiated' };
+  return { success: true, message: 'JusttPrint backend restart started' };
 }
 
 function persistTlsSettingsFromPayload(payload) {

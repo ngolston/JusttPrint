@@ -381,7 +381,7 @@
         // Long calls start with keep-alive spaces; JSON.parse skips them.
         data = text.trim() ? JSON.parse(text) : {};
       } catch (_) {
-        throw new Error('Unexpected response from the server (HTTP ' + response.status + ')');
+        throw new Error('Unexpected response from the JusttPrint backend (HTTP ' + response.status + ')');
       }
       if (!response.ok || Object.prototype.hasOwnProperty.call(data, 'error')) {
         throw new Error(data.error || ('HTTP ' + response.status));

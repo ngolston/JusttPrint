@@ -401,8 +401,8 @@ function printHelp() {
     '  node justtprint-helper.js status',
     '  node justtprint-helper.js uninstall',
     '',
-    'From the JusttPrint web UI, use Slicer Settings to download a helper package for this server.',
-    'Use --insecure when the server certificate is self-signed.',
+    'From the JusttPrint web UI, use Slicer Settings to download a helper package for your JusttPrint backend.',
+    'Use --insecure when the JusttPrint backend\'s certificate is self-signed.',
     'Slicer paths saved in JusttPrint are used unless this computer has a slicer of the same name.'
   ].join('\n'));
 }

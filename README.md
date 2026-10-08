@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 7.0.0**
+**Version 7.1.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -11,8 +11,9 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **A home for your printing**: Home shows your figures, recent prints and printers; the Library has tabs for Printed, Unprinted, Queue and Favorites
 - **Print queue and printers** pages: what is printing and up next, and your printers with their web pages and maintenance reminders
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets
-- **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered on the server
+- **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered by the JusttPrint backend
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
+- **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
 - **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download
 - **Collections**: group models from any folders into projects, gift lists or spare-part sets
 - **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with optional downloads and an expiry date
@@ -70,7 +71,7 @@ You need [Docker](https://www.docker.com/get-started) (Docker Desktop on Windows
    docker compose up -d
    ```
 
-4. Open `http://<server-ip>:5000` (or `http://localhost:5000` on the same computer) and log in with your password.
+4. Open `http://<docker-host-ip>:5000` (or `http://localhost:5000` on the same computer) and log in with your password.
 
 JusttPrint scans `/mnt/models` right away and then every 60 minutes. Thumbnails are made in the background.
 
@@ -127,7 +128,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_AI_SERVICE` | AI tagging service: `openai`, `claude`, `gemini`, `puter` or `custom`. |
 | `JUSTTPRINT_AI_API_KEY` | API key for that service (never written to the log). |
 | `JUSTTPRINT_AI_MODEL` | AI model name, for example `gpt-5-nano`. |
-| `JUSTTPRINT_AI_ENDPOINT` | Server address for `custom`, for example a local Ollama server. |
+| `JUSTTPRINT_AI_ENDPOINT` | Address of the AI service for `custom`, for example a local Ollama server. |
 | `JUSTTPRINT_AUTO_BACKUP` | `true` or `false`: back up the database automatically (off by default). |
 | `JUSTTPRINT_BACKUP_INTERVAL_HOURS` | Hours between automatic backups (default `24`). |
 | `JUSTTPRINT_BACKUP_KEEP` | How many automatic backups to keep (default `7`). |
@@ -138,7 +139,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_GPU` | Thumbnail rendering: `auto` (default), `nvidia` or `swiftshader` (CPU). |
 | `JUSTTPRINT_MAX_OLD_SPACE_MB` | Raise if the log shows `OOM error in V8`. |
 | `JUSTTPRINT_LOG_LEVEL` | How much `docker logs` shows: `error`, `warn`, `info` (default) or `debug` (every query, file and click, for tracking down a problem). |
-| `JUSTTPRINT_TLS_CERT` / `_KEY` / `_CA` | Certificate files for HTTPS. Easier: **Settings → Server → HTTPS / SSL**. |
+| `JUSTTPRINT_TLS_CERT` / `_KEY` / `_CA` | Certificate files for HTTPS. Easier: **Settings → JusttPrint Backend → HTTPS / SSL**. |
 
 `JUSTTPRINT_PASSWORD`, the scan settings, the AI settings and the backup settings win over the app's settings on every start. `STL_HOME`, `STL_HOME_EXCLUDE` and `JUSTTPRINT_PORT` only fill an empty setting, so changes made in the app are kept (set `JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1` to apply them every start).
 
@@ -147,15 +148,15 @@ All are optional. You can change most of these later under **Settings** in the a
 The sidebar holds every page: **Home**, **Library**, **Collections**, **Queue**, **Printers**, **Statistics**, **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging**, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K).
 
 - **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
-- **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload, move and delete files; **Admins** also change settings, backups, server access and accounts. The server checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone.
-- **Upload models**: drop files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files go in 16 MB pieces, so large files (5 or 10 GB, up to `JUSTTPRINT_MAX_UPLOAD_MB`) get through reverse proxies and Cloudflare; a piece that fails is sent again, and after a lost connection, a reload or a server restart, uploading the same file again continues where it stopped. Files are never replaced (a taken name becomes `Name (2).stl`), only types the library scans are accepted (**Settings → Scanning → File Types**), and the folder is scanned afterwards so the models appear with thumbnails. Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless you change it): raise it before uploading bigger models, or they are saved but not added. Editors and admins only.
+- **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload, move and delete files; **Admins** also change settings, backups, JusttPrint backend access and accounts. The JusttPrint backend checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone.
+- **Upload models**: drop files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files go in 16 MB pieces, so large files (5 or 10 GB, up to `JUSTTPRINT_MAX_UPLOAD_MB`) get through reverse proxies and Cloudflare; a piece that fails is sent again, and after a lost connection, a reload or a restart of the JusttPrint backend, uploading the same file again continues where it stopped. Files are never replaced (a taken name becomes `Name (2).stl`), only types the library scans are accepted (**Settings → Scanning → File Types**), and the folder is scanned afterwards so the models appear with thumbnails. Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless you change it): raise it before uploading bigger models, or they are saved but not added. Editors and admins only.
 - **Collections** (sidebar): choose **Add to Collection…** in a model's menu (it works on a selection too) or make one with **New Collection**; a model can be in several. Everyone can browse collections; editors and admins change them.
-- **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; links can expire after 1 to 90 days. Anyone who can reach your server's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
+- **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; links can expire after 1 to 90 days. Anyone who can reach your JusttPrint backend's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
 - **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the designers, models and printers printed most, and how many models were added, for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
-- **HTTPS**: open **Settings → Server → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
-- **Open in Slicer**: for OrcaSlicer, click **Add OrcaSlicer (no helper)** under **Settings → Slicer** and save; Open in Slicer then hands it a link and it downloads the model itself (OrcaSlicer must reach the server's address; with HTTPS it needs a trusted certificate). For other slicers, install the helper on your computer from the same page.
+- **HTTPS**: open **Settings → JusttPrint Backend → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
+- **Open in Slicer**: for OrcaSlicer, click **Add OrcaSlicer (no helper)** under **Settings → Slicer** and save; Open in Slicer then hands it a link and it downloads the model itself (OrcaSlicer must reach the JusttPrint backend's address; with HTTPS it needs a trusted certificate). For other slicers, install the helper on your computer from the same page.
 
 ## AI Tagging
 
@@ -176,9 +177,9 @@ AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search th
 2. Pick your app under **Set up in**: Claude Code, Claude Desktop, Cursor, VS Code, or another MCP client.
 3. Copy the command or config it shows (the address and your API token are filled in) and follow the line above it.
 
-The address is `http://<server-ip>:5000/mcp`. Claude Desktop connects through `mcp-remote`, which needs [Node.js](https://nodejs.org/) on that computer.
+The address is `http://<docker-host-ip>:5000/mcp`. Claude Desktop connects through `mcp-remote`, which needs [Node.js](https://nodejs.org/) on that computer.
 
-This feature is experimental. Anyone with the API token can read and change your library; you can replace the token under **Settings → Authentication → Server Access**.
+This feature is experimental. Anyone with the API token can read and change your library; you can replace the token under **Settings → Authentication → JusttPrint Backend Access**.
 
 ## Network Shares
 
@@ -234,7 +235,7 @@ Run these in the folder with `docker-compose.yml`:
 
 With Docker Run, update by pulling the image (`docker pull ace2123/justtprint:latest`), removing the container (`docker rm -f justtprint-server`) and running the same `docker run` command again. Your library is safe in `./data`.
 
-**Backups:** turn on **Automatic Backups** under **Settings → Backup**: the server copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there (the copy on the server is deleted an hour later), or copy the `./data` folder while the container is stopped.
+**Backups:** turn on **Automatic Backups** under **Settings → Backup**: the JusttPrint backend copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there (the copy in the JusttPrint backend is deleted an hour later), or copy the `./data` folder while the container is stopped.
 
 ## Upgrading to 7.0
 

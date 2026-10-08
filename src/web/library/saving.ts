@@ -11,13 +11,59 @@ import { currentModelPath } from './details';
 
 type ModelRecord = GridModel & Record<string, unknown>;
 
-/** Save one field of one model, then update its card (and the details panel's print status). */
-export async function saveModelField(field: string, value: unknown, filePath: string): Promise<boolean> {
+/** A field someone else changed while this browser was editing it (src/core/edit-merge.js). */
+export interface SaveConflict {
+  field: string;
+  theirs: string | null;
+  yours: string | null;
+}
+
+const FIELD_NAMES: Record<string, string> = { designer: 'designer', parentModel: 'parent model', license: 'license', source: 'source', notes: 'notes' };
+
+const shown = (value: string | null) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '(empty)';
+  return text.length > 400 ? `${text.slice(0, 400)}…` : text;
+};
+
+/** "Keep Mine", "Keep Theirs" or (notes) "Keep Both": what to do about a conflict. */
+export async function askAboutConflict(conflict: SaveConflict, modelName: string): Promise<'mine' | 'theirs' | 'both'> {
+  const what = FIELD_NAMES[conflict.field] || conflict.field;
+  const buttons = conflict.field === 'notes' ? ['Keep Mine', 'Keep Theirs', 'Keep Both'] : ['Keep Mine', 'Keep Theirs'];
+  const answer = await showMessage('Changed by someone else',
+    `While you were editing, someone else changed the ${what} of ${modelName}.\n\nTheirs:\n${shown(conflict.theirs)}\n\nYours:\n${shown(conflict.yours)}`,
+    buttons);
+  return answer === 'Keep Mine' ? 'mine' : answer === 'Keep Both' ? 'both' : 'theirs';
+}
+
+/** Notes kept from both: theirs, then yours. */
+export const bothNotes = (theirs: string | null, yours: string | null) =>
+  [String(theirs ?? '').trim(), String(yours ?? '').trim()].filter(Boolean).join('\n\n');
+
+/**
+ * Save one field of one model, then update its card (and the details panel's print status).
+ * `base` is the value the person saw when they started editing: when someone else changed the
+ * field meanwhile, they choose whose value stays. Resolves false when nothing of theirs was saved.
+ */
+export async function saveModelField(field: string, value: unknown, filePath: string, base?: unknown): Promise<boolean> {
   try {
     const model = await modelApi.get<ModelRecord>(filePath);
     if (!model) return false;
-    model[field] = value;
-    await callAction('save-model', model);
+    const payload: ModelRecord = { ...model, [field]: value };
+    if (base !== undefined) payload._base = { [field]: base };
+    const result = await callAction<{ success?: boolean; conflicts?: SaveConflict[] } | null>('save-model', payload);
+    if (result && Array.isArray(result.conflicts) && result.conflicts.length) {
+      const conflict = result.conflicts[0];
+      const choice = await askAboutConflict(conflict, String(model.fileName || filePath.split(/[\\/]/).pop() || 'this model'));
+      if (choice === 'theirs') {
+        await updateModel(filePath);
+        if (currentModelPath() === filePath) await window.reloadShownModelDetails?.();
+        return false;
+      }
+      const kept = choice === 'both' ? bothNotes(conflict.theirs, conflict.yours) : value;
+      await callAction('save-model', { ...model, [field]: kept });
+      if (choice === 'both' && currentModelPath() === filePath) await window.reloadShownModelDetails?.();
+    }
     await updateModel(filePath);
     if ((field === 'printed' || field === 'printStatus') && currentModelPath() === filePath) {
       const updated = await modelApi.get<ModelRecord>(filePath);
@@ -27,6 +73,13 @@ export async function saveModelField(field: string, value: unknown, filePath: st
   } catch (error) {
     console.error(`Error saving ${field}:`, error);
     return false;
+  }
+}
+
+declare global {
+  interface Window {
+    /** library/actions.ts: show the details panel's model again from the JusttPrint backend. */
+    reloadShownModelDetails?: () => Promise<void>;
   }
 }
 

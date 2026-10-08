@@ -41,7 +41,7 @@ const guidePages = [
     title: "Settings and Tools",
     content: `<strong>Tags</strong>, <strong>Duplicates</strong> and <strong>Organize</strong> help you tidy the library, and
     <strong>AI Tagging</strong> suggests tags for you. <strong>Settings</strong> has everything else in one page: theme, scanning,
-    slicers, AI, server access, backups and more.
+    slicers, AI, JusttPrint backend access, backups and more.
     <p><strong>Help</strong> lists the keyboard shortcuts and links to the documentation. Thank you for using JusttPrint!</p>`,
     image: "guide/guide-settings.png"
   }

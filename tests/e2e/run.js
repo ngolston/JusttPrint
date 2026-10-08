@@ -1271,7 +1271,7 @@ async function browserChecks(base, wsUrl, session) {
           const model = await invoke(base, session, 'get-model', [cube]);
           return model.result && model.result.designer === 'New Designer';
         }, 15000, 'designer rename').catch(() => false);
-        check('designer renamed on the server', renamed === true);
+        check('designer renamed in the JusttPrint backend', renamed === true);
         const listed = await page.waitForSelector('#metadata-editor-dialog .metadata-item:has-text("New Designer")', { timeout: 10000 }).catch(() => null);
         check('Metadata Manager list shows the new name', !!listed && !(await page.isVisible('#metadata-editor-dialog .metadata-item:has-text("Old Designer")')));
         await page.fill('#metadata-editor-search', 'zzz-no-match');
@@ -1578,7 +1578,7 @@ async function browserChecks(base, wsUrl, session) {
     check('the shell replaces the old menu bar, logo and phone layout', await page.evaluate(() => !document.querySelector('#server-menu-bar, #logo, #mobile-app-bar, .sidebar-chrome'))
       && await page.isVisible('.jp-sidebar .jp-brand'));
     await page.click('.jp-account');
-    check('the account menu offers Server Access and Log Out', await page.isVisible('.jp-menu [role="menuitem"]:has-text("Server Access")')
+    check('the account menu offers JusttPrint Backend Access and Log Out', await page.isVisible('.jp-menu [role="menuitem"]:has-text("JusttPrint Backend Access")')
       && await page.isVisible('.jp-menu [role="menuitem"]:has-text("Log Out")'));
     await page.keyboard.press('Escape');
     check('Escape closes the account menu', !(await page.isVisible('.jp-menu')));
@@ -2388,16 +2388,16 @@ async function browserChecks(base, wsUrl, session) {
       && (await page.$$('.file-grid [data-filepath], .file-grid [data-file-path]')).length === 0);
 
     await page.evaluate(() => window.openServerAccess());
-    check('Server Access dialog opens', await page.isVisible('#server-access-dialog'));
+    check('JusttPrint Backend Access dialog opens', await page.isVisible('#server-access-dialog'));
     const shownToken = await page.waitForFunction(() => document.getElementById('server-access-api-token')?.value, null, { timeout: 10000 })
       .then((handle) => handle.jsonValue()).catch(() => '');
     check('API token shown', String(shownToken).startsWith('pv_'), shownToken);
     // The e2e server's password comes from JUSTTPRINT_PASSWORD, so the dialog says where it is set.
-    check('password set by environment: Server Access says so', await page.isVisible('#server-access-dialog :text("JUSTTPRINT_PASSWORD")'));
+    check('password set by environment: JusttPrint Backend Access says so', await page.isVisible('#server-access-dialog :text("JUSTTPRINT_PASSWORD")'));
     await page.click('#close-server-access');
-    check('Close closes Server Access', !(await page.isVisible('#server-access-dialog')));
+    check('Close closes JusttPrint Backend Access', !(await page.isVisible('#server-access-dialog')));
     await page.evaluate(() => window.openServerAccess());
-    check('Server Access reopens', await page.isVisible('#server-access-dialog'));
+    check('JusttPrint Backend Access reopens', await page.isVisible('#server-access-dialog'));
     await page.keyboard.press('Escape');
 
     await page.evaluate(() => window.logOutOfServer());
@@ -2686,6 +2686,39 @@ async function accountChecks(base, wsUrl, admin) {
     check('Settings → Users changes a role', await waitFor(async () => (((await invoke(base, admin, 'list-users')).result || {}).users || [])
       .some((u) => u.username === 'guest-viewer' && u.role === 'editor'), 10000, 'role change').catch(() => false));
     check('the JUSTTPRINT_PASSWORD account cannot be changed here', await adminPage.isDisabled('.users-row[data-username="admin"] select'));
+    // Edits from two browsers at once (src/core/edit-merge.js): live updates, conflicts, tag merges.
+    const cardOf = (fp) => `.file-grid [data-filepath="${fp.replace(/"/g, '\\"')}"] .file-name`;
+    for (const p of [editorPage, adminPage]) {
+      await p.evaluate(() => { window.location.hash = '#/library'; });
+      await p.waitForSelector(cardOf(uploadedPath), { timeout: 15000 }).catch(() => {});
+      await p.click(cardOf(uploadedPath)).catch(() => {});
+      await p.waitForSelector('#model-designer', { timeout: 10000 }).catch(() => {});
+    }
+    await invoke(base, admin, 'save-model', [{ filePath: uploadedPath, designer: 'Live Designer' }]);
+    check('a change made elsewhere shows up in another browser\'s details panel', await editorPage.waitForFunction(
+      () => document.getElementById('model-designer')?.value === 'Live Designer', null, { timeout: 15000 }).then(() => true, () => false));
+    await editorPage.click('#model-notes-preview');
+    await editorPage.waitForSelector('#notes-modal-dialog[open] #notes-richtext', { timeout: 10000 });
+    await invoke(base, admin, 'save-model', [{ filePath: uploadedPath, notes: 'Their note' }]);
+    await editorPage.fill('#notes-richtext', 'My note');
+    await editorPage.click('#save-notes-button');
+    const conflictBox = await editorPage.waitForSelector('dialog[id^="browser-message-"][open]:has-text("Changed by someone else")', { timeout: 10000 }).catch(() => null);
+    check('saving notes someone else changed meanwhile asks which to keep', !!conflictBox
+      && /Their note/.test(await conflictBox.textContent()) && /My note/.test(await conflictBox.textContent()));
+    if (conflictBox) await editorPage.click('dialog[id^="browser-message-"][open] button:text-is("Keep Both")');
+    const keptBoth = await waitFor(async () => {
+      const notes = ((await invoke(base, admin, 'get-model', [uploadedPath])).result || {}).notes || '';
+      return /Their note/.test(notes) && /My note/.test(notes) ? notes : null;
+    }, 10000, 'both notes').catch(() => '');
+    check('Keep Both keeps their notes and mine', !!keptBoth, keptBoth);
+    // Tags: what each edit added or removed is applied to what is stored, so both changes stay.
+    await invoke(base, admin, 'save-model', [{ filePath: uploadedPath, tags: ['red', 'toy'] }]);
+    const merged = await invoke(base, editor, 'save-model', [{ filePath: uploadedPath, tags: ['toy', 'boat'], _base: { tags: ['toy'] } }]);
+    const mergedTags = (((await invoke(base, admin, 'get-model', [uploadedPath])).result || {}).tags || []).map((t) => t.name || t).sort().join(',');
+    check('tags changed in two places keep both changes', merged.status === 200 && mergedTags === 'boat,red,toy', mergedTags);
+    const stale = await invoke(base, editor, 'save-model', [{ filePath: uploadedPath, designer: 'Mine', _base: { designer: 'An old value' } }]);
+    check('a save from an old view reports the conflict and saves nothing', (stale.result?.conflicts || [])[0]?.field === 'designer'
+      && ((await invoke(base, admin, 'get-model', [uploadedPath])).result || {}).designer === 'Live Designer', JSON.stringify(stale));
     check('no page errors for any account', errors.length === 0, errors.slice(0, 5).join(' | '));
   } finally {
     await browser.close();

@@ -147,14 +147,14 @@ export const SETTINGS: SettingsGroup[] = [
   { id: 'ai', label: 'AI', items: [
     { id: 'ai', label: 'AI Tagging', description: 'AI service, model, and how tags are generated.', icon: Sparkles, run: menu('AI Config'), embed: { dialog: 'ai-config-dialog', open: 'openAiConfig' } }
   ] },
-  { id: 'server', label: 'Server', items: [
+  { id: 'server', label: 'JusttPrint Backend', items: [
     { id: 'https', label: 'HTTPS / SSL', description: 'Listen port and certificates.', icon: ShieldCheck, run: menu('HTTPS / SSL'), replaces: ['HTTPS / SSL'], embed: { dialog: 'https-settings-dialog', open: 'openHttpsSettings' } },
-    { id: 'restart', label: 'Restart Server', description: 'Disconnects everyone for a moment.', icon: RefreshCw, run: menu('Restart Server'), replaces: ['Restart Server'] }
+    { id: 'restart', label: 'Restart JusttPrint Backend', description: 'Disconnects everyone for a moment.', icon: RefreshCw, run: menu('Restart JusttPrint Backend'), replaces: ['Restart JusttPrint Backend'] }
   ] },
   { id: 'authentication', label: 'Authentication', items: [
     { id: 'users', label: 'Users', description: 'Who can log in, and what each one may do.', icon: UserCog, run: open('openUsers'), embed: { dialog: 'users-dialog', open: 'openUsers' } },
     { id: 'password', label: 'Change Password', description: 'Change the password you log in with.', icon: KeyRound, run: open('openChangePassword'), role: 'viewer' },
-    { id: 'access', label: 'Server Access', description: 'The API token for MCP clients and scripts.', icon: KeyRound, run: menu('Server Access'), replaces: ['Server Access'], embed: { dialog: 'server-access-dialog', open: 'openServerAccess' } },
+    { id: 'access', label: 'JusttPrint Backend Access', description: 'The API token for MCP clients and scripts.', icon: KeyRound, run: menu('JusttPrint Backend Access'), replaces: ['JusttPrint Backend Access'], embed: { dialog: 'server-access-dialog', open: 'openServerAccess' } },
     { id: 'logout', label: 'Log Out', description: 'Log out of this browser.', icon: LogOut, run: menu('Log Out'), replaces: ['Log Out'], role: 'viewer' }
   ] },
   { id: 'backup', label: 'Backup', items: [
@@ -163,7 +163,7 @@ export const SETTINGS: SettingsGroup[] = [
   { id: 'advanced', label: 'Advanced', items: [
     { id: 'regenerate', label: 'Regenerate Thumbnails', description: 'Render every thumbnail again.', icon: Image, run: menu('Regenerate Thumbnails'), replaces: ['Regenerate Thumbnails'], role: 'editor' },
     { id: 'missing', label: 'Generate Missing Thumbnails', description: 'Render thumbnails for models without one.', icon: Image, run: menu('Generate Missing Thumbnails'), replaces: ['Generate Missing Thumbnails'], role: 'editor' },
-    { id: 'report', label: 'System Report', description: 'Server, GPU and database details for troubleshooting.', icon: ClipboardList, run: menu('System Report'), replaces: ['System Report'] }
+    { id: 'report', label: 'System Report', description: 'JusttPrint backend, GPU and database details for troubleshooting.', icon: ClipboardList, run: menu('System Report'), replaces: ['System Report'] }
   ] },
   { id: 'about', label: 'About', items: [
     { id: 'about', label: 'About JusttPrint', description: 'Version, updates and license.', icon: Info, run: menu('About'), replaces: ['About'], role: 'viewer' }
@@ -183,7 +183,7 @@ export const HELP: SettingsItem[] = [
 export const ACCOUNT: SettingsItem[] = [
   { id: 'password', label: 'Change Password', description: '', icon: KeyRound, run: open('openChangePassword'), role: 'viewer' },
   { id: 'users', label: 'Users', description: '', icon: UserCog, run: () => navigate('settings', 'authentication') },
-  { id: 'access', label: 'Server Access', description: '', icon: KeyRound, run: menu('Server Access') },
+  { id: 'access', label: 'JusttPrint Backend Access', description: '', icon: KeyRound, run: menu('JusttPrint Backend Access') },
   { id: 'logout', label: 'Log Out', description: '', icon: LogOut, run: menu('Log Out'), role: 'viewer' }
 ];
 

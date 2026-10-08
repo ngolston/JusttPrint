@@ -87,7 +87,7 @@ export function SettingsPage({ section }: { section: string }) {
       <header className="jp-page__header">
         <h1 className="jp-page-title">Settings</h1>
         <p className="jp-meta">
-          {user?.role === 'admin' ? 'Library, scanning, printers, AI, server and backup settings.' : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
+          {user?.role === 'admin' ? 'Library, scanning, printers, AI, JusttPrint backend and backup settings.' : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
         </p>
       </header>
       <div className="jp-settings-layout">

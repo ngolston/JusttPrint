@@ -15,13 +15,13 @@ The sidebar on the left holds every page:
 | Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
 | System | **Settings**, **Help** |
 
-The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **Server Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
+The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **JusttPrint Backend Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
 
 On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Library, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
 ## Getting started
 
-1. Start the container, open `http://<server-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
+1. Start the container, open `http://<docker-host-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
 2. Add your models folder under **Settings → Scanning → STL Home** (or upload models, see [Uploading models](#uploading-models)): **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
 4. Optional: pick an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
@@ -108,6 +108,12 @@ Editors and admins can add models from the browser:
 - Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
 - After the upload, the folder is scanned, so the models appear with thumbnails.
 
+## Several people at once
+
+Everyone who has JusttPrint open sees changes as they happen: when someone edits a model, logs a print or changes its status, its card and the details panel update in every other browser (the details panel waits while you are typing in it).
+
+If two people edit the same field of the same model, nobody's work is lost silently. When you save a designer, parent model, license, source or notes that someone else changed after you started, JusttPrint shows both versions: **Keep Mine** or **Keep Theirs** (for notes also **Keep Both**, theirs then yours). Tags never clash: what each person added or removed is kept.
+
 ## Collections
 
 A collection groups models from any folders: a project, a gift list, the spare parts for one printer. A model can be in several collections, and stays where it is on disk.
@@ -124,7 +130,7 @@ Everyone can look at collections; editors and admins make and change them.
 
 - Choose whether the files may be downloaded, and when the link expires (never, or after 1 to 90 days). **Create Link** shows the link and its QR code: **Copy Link**, or **Save QR Code** to print it.
 - The page shows the name, pictures, designer, license, tags and source link of each model, and the collection's description. It never shows notes, file locations or print history. A shared collection also shows the models added to it later.
-- Anyone with the link can open it, as long as they can reach your server; to share outside your network, JusttPrint must be reachable from the internet (use HTTPS).
+- Anyone with the link can open it, as long as they can reach your JusttPrint backend; to share outside your network, JusttPrint must be reachable from the internet (use HTTPS).
 - The Share dialog lists the links to that item; **Settings → Sharing** lists every link with how often it was opened. The bin or **Turn Off** ends a link at once.
 
 ## Users and roles
@@ -137,7 +143,7 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Editor | Also edit models, tags, notes and the print log, upload, move, trash and delete files, scan, find duplicates |
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
-Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel and the color scheme (**Settings → Appearance → Theme**). New users start with the server's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
+Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel and the color scheme (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
 
 ## Managing the library
 
@@ -174,8 +180,8 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | Printers | A link to that page, and the Parts Manager |
 | Integrations | MCP Server: connect an AI app to your library |
 | AI | AI tagging settings |
-| Server | HTTPS / SSL and the listen port, Restart Server |
-| Authentication | Users (admins), Change Password, Server Access (the API token), Log Out |
+| JusttPrint Backend | HTTPS / SSL and the listen port, Restart JusttPrint Backend |
+| Authentication | Users (admins), Change Password, JusttPrint Backend Access (the API token), Log Out |
 | Backup | Automatic backups, download a backup, export the library, restore |
 | Advanced | Regenerate Thumbnails, Generate Missing Thumbnails, System Report |
 | About | Version, update check, license |
@@ -184,14 +190,14 @@ Most forms are shown right on the page: change the values and click **Save**.
 
 ### Send to Slicer
 
-Slicers run on your computer, not on the server. **Open in Slicer** (details panel, model menu) and **Send to Slicer** (3D preview) open the model there.
+Slicers run on your computer, not in the JusttPrint backend. **Open in Slicer** (details panel, model menu) and **Send to Slicer** (3D preview) open the model there.
 
-- **OrcaSlicer, no helper:** under **Settings → Slicer**, click **Add OrcaSlicer (no helper)** and **Save**. Open in Slicer then hands OrcaSlicer a link: it downloads the model from JusttPrint (into its download folder, OrcaSlicer → Preferences) and puts it on the plate, in the window that is already open. Works with OrcaSlicer 2.x on Windows and macOS out of the box; on Linux, turn on OrcaSlicer's desktop integration (AppImage) so the link opens it. Up to 1 GB per file and 10 files at a time (they arrive one after another). The browser may ask once whether to open OrcaSlicer: allow it. The computer must reach the server at the address in the browser, and with HTTPS the certificate must be trusted (OrcaSlicer refuses self-signed ones; use plain HTTP on the home network, or a real certificate). Each download address works for 30 minutes and only for that file.
+- **OrcaSlicer, no helper:** under **Settings → Slicer**, click **Add OrcaSlicer (no helper)** and **Save**. Open in Slicer then hands OrcaSlicer a link: it downloads the model from JusttPrint (into its download folder, OrcaSlicer → Preferences) and puts it on the plate, in the window that is already open. Works with OrcaSlicer 2.x on Windows and macOS out of the box; on Linux, turn on OrcaSlicer's desktop integration (AppImage) so the link opens it. Up to 1 GB per file and 10 files at a time (they arrive one after another). The browser may ask once whether to open OrcaSlicer: allow it. The computer must reach the JusttPrint backend at the address in the browser, and with HTTPS the certificate must be trusted (OrcaSlicer refuses self-signed ones; use plain HTTP on the home network, or a real certificate). Each download address works for 30 minutes and only for that file.
 - **Other slicers (and OrcaSlicer with options of your own):** add each slicer with its path on your computer, then download and run the JusttPrint helper there once. On a Mac the helper opens a new slicer window for each send.
 
 ### MCP server
 
-AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<server-ip>:5000/mcp` to search the library, edit tags and metadata, log prints and set thumbnails. **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
+AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints and set thumbnails. **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
 
 ## Keyboard
 
@@ -200,7 +206,7 @@ AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to
 ## Your data
 
 - The database, thumbnails and settings live in the container's data folder (`/root/.config/justtprint`); mount it as a volume so it survives updates.
-- A backup copy (`backup_justtprint.db`) is written every time the server stops.
+- A backup copy (`backup_justtprint.db`) is written every time the JusttPrint backend stops.
 - **Settings → Backup → Automatic Backups** copies the database on a schedule (every day unless you change it) and keeps the newest copies (7 unless you change it). They go to `backups` in the data folder, or to a folder you choose with **Browse…**; a folder on another disk also protects against a disk failure. Each backup in the list can be downloaded or restored.
 - **Settings → Backup** also downloads a backup by hand or restores one from a file. Keep a backup before removing the container or its data volume.
 

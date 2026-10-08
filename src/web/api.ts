@@ -37,7 +37,7 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   try {
     data = text.trim() ? JSON.parse(text) : {};
   } catch {
-    throw new ApiError(`Unexpected response from the server (HTTP ${response.status})`, response.status);
+    throw new ApiError(`Unexpected response from the JusttPrint backend (HTTP ${response.status})`, response.status);
   }
   if (!response.ok || data.error !== undefined) {
     throw new ApiError(data.error || `HTTP ${response.status}`, response.status);
@@ -152,7 +152,7 @@ function sendPiece(id: string, offset: number, piece: Blob, onProgress: (loaded:
       if (request.status >= 200 && request.status < 300 && !data.error) resolve({ received: Number(data.received) });
       else reject(new UploadError(data.error || `HTTP ${request.status}`, request.status, data.received));
     };
-    request.onerror = () => reject(new UploadError('The connection to the server was lost', 0));
+    request.onerror = () => reject(new UploadError('The connection to the JusttPrint backend was lost', 0));
     request.onabort = () => reject(new UploadError('Cancelled', 0));
     const abort = () => request.abort();
     signal?.addEventListener('abort', abort, { once: true });

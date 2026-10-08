@@ -58,7 +58,7 @@ async function startServerThumbnailJobInternal(mode) {
     return { success: false, error: 'A thumbnail job is already running' };
   }
   if (!thumbnailWorker.ready()) {
-    return { success: false, error: 'Server thumbnail worker is not ready' };
+    return { success: false, error: 'The JusttPrint backend\'s thumbnail worker is not ready' };
   }
 
   const jobMode = mode === 'all' ? 'all' : 'missing';
@@ -70,7 +70,7 @@ async function startServerThumbnailJobInternal(mode) {
     }
     thumbnailWorker.send('run-server-thumbnail-job', { mode: jobMode });
     broadcastThumbnailJobEvent('thumbnail-job-progress', {
-      phase: jobMode === 'all' ? 'Starting regeneration on server...' : 'Starting generation on server...',
+      phase: jobMode === 'all' ? 'Starting regeneration on the JusttPrint backend...' : 'Starting generation on the JusttPrint backend...',
       processed: 0,
       total: 0,
       mode: jobMode
