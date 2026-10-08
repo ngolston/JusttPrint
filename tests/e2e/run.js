@@ -200,6 +200,10 @@ async function apiChecks(base, wsUrl) {
 
   console.log('\n# HTTP and login');
   check('health without login', (await anon.request('/api/health')).status === 200);
+  // Images are in assets/; the login page, share pages and installing need some before logging in.
+  const imageType = async (p) => { const r = await anon.request(p); return r.status === 200 ? r.headers.get('content-type') || '' : `status ${r.status}`; };
+  check('icons load without login, also /favicon.ico', /image\/png/.test(await imageType('/assets/logo.png')) && /image\/png/.test(await imageType('/assets/pwa-maskable-512.png'))
+    && /icon/.test(await imageType('/favicon.ico')) && /icon/.test(await imageType('/assets/favicon.ico')));
   const home = await anon.request('/', { headers: { accept: 'text/html' } });
   check('home redirects to login', home.status === 302 && /\/login/.test(home.headers.get('location') || ''));
   check('API needs login', (await anon.request(file(cube))).status === 401);
@@ -2181,7 +2185,7 @@ async function browserChecks(base, wsUrl, session) {
       const chooser = page.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null);
       await page.evaluate((p) => window.electron.send('add-image-request', p), flagged);
       const fileChooser = await chooser;
-      if (fileChooser) await fileChooser.setFiles(path.join(ROOT, 'logo.png'));
+      if (fileChooser) await fileChooser.setFiles(path.join(ROOT, 'assets', 'logo.png'));
       const added = await waitFor(async () => (((await invoke(base, session, 'get-all-thumbnails', [flagged])).result || []).length > imagesBefore ? true : null), 15000, 'image added').catch(() => false);
       check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true);
     }

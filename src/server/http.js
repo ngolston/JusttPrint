@@ -323,6 +323,12 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   expressApp.get('/', (req, res) => sendIndexHtml(res));
 
+  // The images are in assets/. Two old addresses still answer: browsers ask for /favicon.ico on
+  // their own, and libraries store '3d.png' (the placeholder) as a model's thumbnail.
+  for (const name of ['favicon.ico', '3d.png']) {
+    expressApp.get(`/${name}`, (req, res) => res.sendFile(path.join(appDir, 'assets', name)));
+  }
+
   // Add middleware to set proper MIME types for JavaScript modules
   expressApp.use((req, res, next) => {
     // Module scripts (type="module") need a JavaScript Content-Type.

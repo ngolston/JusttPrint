@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const { createPuterIPCHandler, getAISettings } = require('./ai');
@@ -205,7 +206,7 @@ async function generateTagsHandler(event, filePath) {
       console.debug('No thumbnail found for model, using default image');
       try {
         const fs = require('fs').promises;
-        const defaultImagePath = './logo.png'; // Use a default image that's guaranteed to be in PNG format
+        const defaultImagePath = path.join(__dirname, '..', '..', '..', 'assets', 'logo.png'); // Use a default image that's guaranteed to be in PNG format
         const data = await fs.readFile(defaultImagePath, { encoding: 'base64' });
         const tags = await aitagging.generateTagsForImage(data, settings.aiModel, tagOptions, 2000, 5, filePath);
         return tags;

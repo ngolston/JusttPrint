@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.3.2] - 2026-10-07
+
+**Upgrading:** no changes needed. Browsers keep old icons for a while: reload the page, and on a phone remove and add the home-screen icon again.
+
+**Changes:**
+- **Sharper logo and icons:** the printer-in-a-hexagon is redrawn as a vector ([assets/icon-mark.svg](assets/icon-mark.svg)) with more detail (lit hexagon with depth, rails, print head, a layered print and a glowing bed), and every icon is rendered from it, so it is crisp from the 16 px browser tab to the 512 px home-screen icon. The README logo and the "3D" placeholder for models without a thumbnail are redrawn too. `npm run build:icons` rebuilds them all after an edit.
+- **Images moved to `assets/`:** the logo, icons and placeholder are no longer at the top of the project. `/favicon.ico` and `/3d.png` (the placeholder name stored for models without a thumbnail) still work.
+
 ## [7.3.1] - 2026-10-07
 
 **Upgrading:** no changes needed. Browsers keep old icons for a while: reload the page, and on a phone remove and add the home-screen icon again to see the new one.

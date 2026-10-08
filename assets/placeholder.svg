@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 662 377" width="662" height="377">
+  <!-- The "3D" cube shown for a model without a thumbnail (rendered to assets/3d.png by scripts/build-icons.js). -->
+  <g fill="#525c69" stroke="#525c69" stroke-width="10" stroke-linejoin="round">
+    <polygon points="331,40 467,95 331,150 195,95"/>
+    <polygon points="183,115 320,170 320,333 183,278"/>
+    <polygon points="342,170 479,115 479,278 342,333"/>
+  </g>
+  <g fill="#ffffff" font-family="'Inter JP', Inter, system-ui, sans-serif" font-weight="800" font-size="150" text-anchor="middle">
+    <text transform="translate(252 288) skewY(21.9)">3</text>
+    <text transform="translate(411 288) skewY(-21.9)">D</text>
+  </g>
+</svg>

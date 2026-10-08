@@ -163,7 +163,7 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
 
   const thumbnail = (
     <div className="parent-model-group-thumbnail" style={{ position: 'relative' }}>
-      <img src={images[shownIndex] || '3d.png'} alt="" />
+      <img src={images[shownIndex] || 'assets/3d.png'} alt="" />
       {view !== 'list' && (
         <div className={`parent-model-group-corner-badge ${record.expanded ? 'is-expanded' : 'is-collapsed'}`}
           title={isBundle

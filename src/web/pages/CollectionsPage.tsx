@@ -39,7 +39,7 @@ function Thumb({ filePath }: { filePath: string | null }) {
     fetchPrimaryThumbnail(filePath).then((thumb) => { if (live) setSrc(thumb); }, () => {});
     return () => { live = false; };
   }, [filePath]);
-  return <img src={src || '3d.png'} alt="" loading="lazy" />;
+  return <img src={src || 'assets/3d.png'} alt="" loading="lazy" />;
 }
 
 async function newCollection() {

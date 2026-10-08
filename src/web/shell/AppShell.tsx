@@ -90,7 +90,7 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
         <X size={18} aria-hidden="true" />
       </button>
       <button type="button" className="jp-brand" onClick={() => navigate('home')} title="Home">
-        <span className="jp-brand__logo"><img src="logo.png" alt="" /></span>
+        <span className="jp-brand__logo"><img src="assets/logo.png" alt="" /></span>
         <span className="jp-brand__text">
           <span className="jp-brand__name">JusttPrint</span>
           <span className="jp-brand__tagline">Your 3D Printing Library</span>

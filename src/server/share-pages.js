@@ -91,11 +91,11 @@ function pageHtml(title, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escapeHtml(title)} · JusttPrint</title>
-<link rel="icon" href="/favicon.ico">
+<link rel="icon" href="/assets/favicon.ico">
 <style>${STYLE}</style>
 </head>
 <body><div class="wrap">
-<header class="top"><img src="/logo.png" alt=""><span>Shared from a JusttPrint library</span></header>
+<header class="top"><img src="/assets/logo.png" alt=""><span>Shared from a JusttPrint library</span></header>
 ${body}
 </div></body>
 </html>`;
