@@ -16,7 +16,7 @@ function test(name, fn) {
 }
 
 test('web assets are served', () => {
-  for (const p of ['/page-init.js', '/logo.png', '/web-build/parse-worker.js', '/vendor/occt-import-js.wasm', '/manifest.webmanifest', '/guide/step1.png', '/index.html']) {
+  for (const p of ['/page-init.js', '/assets/logo.png', '/web-build/parse-worker.js', '/vendor/occt-import-js.wasm', '/manifest.webmanifest', '/guide/step1.png', '/index.html']) {
     assert.ok(isServableStaticPath(p), p);
   }
 });

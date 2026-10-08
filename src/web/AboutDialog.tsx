@@ -46,7 +46,7 @@ export function AboutDialog() {
       <form method="dialog" onSubmit={(event) => event.preventDefault()}>
         <div className="about-header">
           <button type="button" className="about-close-x" aria-label="Close" onClick={close}>×</button>
-          <img src="logo.png" alt="JusttPrint Logo" className="about-logo" />
+          <img src="assets/logo.png" alt="JusttPrint Logo" className="about-logo" />
           <h2>JusttPrint</h2>
           <p className="about-version-text" id="about-version">Version: {version}</p>
         </div>

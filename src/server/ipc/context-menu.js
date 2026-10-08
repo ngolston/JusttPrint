@@ -415,7 +415,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
                 console.debug(`No thumbnail found for model ${filePath}, using default image`);
                 try {
                   const fs = require('fs').promises;
-                  const defaultImagePath = './logo.png';
+                  const defaultImagePath = path.join(__dirname, '..', '..', '..', 'assets', 'logo.png');
                   const data = await fs.readFile(defaultImagePath, { encoding: 'base64' });
                   tags = await aitagging.generateTagsForImage(data, settings.aiModel, tagOptions, 2000, 5, filePath);
                   successCount++;

@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- The JusttPrint mark: a 3D printer in a hexagon. Source for every icon (scripts/build-icons.js). -->
+  <defs>
+    <!-- Hexagon band: lit from the top left -->
+    <linearGradient id="jp-band" x1="0.15" y1="0.05" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#a6e8ff"/>
+      <stop offset="0.35" stop-color="#46b6ff"/>
+      <stop offset="0.7" stop-color="#1f86ee"/>
+      <stop offset="1" stop-color="#1160c9"/>
+    </linearGradient>
+    <linearGradient id="jp-depth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d5ac0"/>
+      <stop offset="1" stop-color="#073a85"/>
+    </linearGradient>
+    <linearGradient id="jp-shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="jp-inside" cx="50%" cy="66%" r="70%">
+      <stop offset="0" stop-color="#0f4a86"/>
+      <stop offset="0.45" stop-color="#072648"/>
+      <stop offset="1" stop-color="#020a16"/>
+    </radialGradient>
+    <radialGradient id="jp-pool" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#3fb4ff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#3fb4ff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Metal: rails and rods -->
+    <linearGradient id="jp-rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2fcff"/>
+      <stop offset="0.35" stop-color="#9fdfff"/>
+      <stop offset="0.7" stop-color="#3b9bf0"/>
+      <stop offset="1" stop-color="#1a6ed0"/>
+    </linearGradient>
+    <linearGradient id="jp-rod" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1f78d8"/>
+      <stop offset="0.45" stop-color="#d4f4ff"/>
+      <stop offset="1" stop-color="#1f78d8"/>
+    </linearGradient>
+    <linearGradient id="jp-block" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7cc8ff"/>
+      <stop offset="1" stop-color="#1c66c8"/>
+    </linearGradient>
+    <!-- Print head -->
+    <linearGradient id="jp-head" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e2f7ff"/>
+      <stop offset="0.5" stop-color="#8fd4ff"/>
+      <stop offset="1" stop-color="#3a95ec"/>
+    </linearGradient>
+    <linearGradient id="jp-head-side" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3a95ec"/>
+      <stop offset="1" stop-color="#1a62c2"/>
+    </linearGradient>
+    <linearGradient id="jp-nozzle" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5fb8f6"/>
+      <stop offset="0.5" stop-color="#e8fbff"/>
+      <stop offset="1" stop-color="#3d93e6"/>
+    </linearGradient>
+    <!-- The print -->
+    <linearGradient id="jp-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c6ecff"/>
+    </linearGradient>
+    <linearGradient id="jp-left" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b4e6ff"/>
+      <stop offset="1" stop-color="#78c6fb"/>
+    </linearGradient>
+    <linearGradient id="jp-right" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4ea6f2"/>
+      <stop offset="1" stop-color="#2a7fdc"/>
+    </linearGradient>
+    <filter id="jp-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="jp-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="jp-tiny" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <clipPath id="jp-inner-clip">
+      <polygon points="256,98 399.8,181 399.8,347 256,430 112.2,347 112.2,181"/>
+    </clipPath>
+  </defs>
+
+  <g transform="translate(256 256) scale(0.93) translate(-256 -264)">
+  <!-- Glow around the hexagon -->
+  <polygon points="256,45 445.6,154.7 445.6,373.3 256,483 66.4,373.3 66.4,154.7" fill="none" stroke="#1e9bff" stroke-width="40" stroke-linejoin="round" opacity="0.55" filter="url(#jp-glow)"/>
+
+  <!-- The inside, with a shadowed rim -->
+  <polygon points="256,98 399.8,181 399.8,347 256,430 112.2,347 112.2,181" fill="url(#jp-inside)" stroke="#0a3c7c" stroke-width="5" stroke-linejoin="round"/>
+  <g clip-path="url(#jp-inner-clip)">
+    <polyline points="112.2,347 112.2,181 256,98 399.8,181" fill="none" stroke="#010711" stroke-width="16" stroke-linejoin="round" opacity="0.7" filter="url(#jp-tiny)"/>
+    <!-- Light pool under the bed -->
+    <ellipse cx="256" cy="340" rx="120" ry="52" fill="url(#jp-pool)"/>
+  </g>
+
+  <!-- Depth: the band's lower edge -->
+  <polygon points="256,72 423,168 423,360 256,456 89,360 89,168" fill="none" stroke="url(#jp-depth)" stroke-width="46" stroke-linejoin="round" transform="translate(0 12)"/>
+  <!-- The band -->
+  <polygon points="256,72 423,168 423,360 256,456 89,360 89,168" fill="none" stroke="url(#jp-band)" stroke-width="46" stroke-linejoin="round"/>
+  <!-- Shine along the top left, and a crisp outer edge -->
+  <polyline points="72.4,366 72.4,158 256,52 439.6,158" fill="none" stroke="url(#jp-shine)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+  <polygon points="256,45 445.6,154.7 445.6,373.3 256,483 66.4,373.3 66.4,154.7" fill="none" stroke="#0a3f8a" stroke-width="2" stroke-linejoin="round" opacity="0.5"/>
+
+  <g transform="translate(256 272) scale(1.08) translate(-256 -272)">
+  <!-- Bed: plate with a glowing double outline -->
+  <polygon points="256,300 364,338 256,376 148,338" fill="#0c3a72" fill-opacity="0.75"/>
+  <polygon points="256,300 364,338 256,376 148,338" fill="none" stroke="#3cc0ff" stroke-width="7" stroke-linejoin="round" opacity="0.6" filter="url(#jp-soft)"/>
+  <polygon points="256,300 364,338 256,376 148,338" fill="none" stroke="#5fd0ff" stroke-width="3.5" stroke-linejoin="round"/>
+  <polygon points="256,313 327,338 256,363 185,338" fill="none" stroke="#2a9cf0" stroke-width="2" stroke-linejoin="round" opacity="0.75"/>
+  <polyline points="148,338 256,376 364,338" fill="none" stroke="#0a3168" stroke-width="5" stroke-linejoin="round" transform="translate(0 4)" opacity="0.8"/>
+
+  <!-- The print: four layers on the bed -->
+  <polygon points="200,262 256,281 256,334 200,315" fill="url(#jp-left)"/>
+  <polygon points="256,281 312,262 312,315 256,334" fill="url(#jp-right)"/>
+  <polygon points="256,243 312,262 256,281 200,262" fill="url(#jp-top)"/>
+  <g fill="none" stroke-linejoin="round">
+    <g stroke="#2c6fbd" stroke-width="2.4" opacity="0.65">
+      <polyline points="200,275.25 256,294.25 312,275.25"/>
+      <polyline points="200,288.5 256,307.5 312,288.5"/>
+      <polyline points="200,301.75 256,320.75 312,301.75"/>
+    </g>
+    <g stroke="#e9f8ff" stroke-width="1.2" opacity="0.55">
+      <polyline points="200,277.5 256,296.5 312,277.5"/>
+      <polyline points="200,290.75 256,309.75 312,290.75"/>
+      <polyline points="200,304 256,323 312,304"/>
+    </g>
+  </g>
+  <line x1="256" y1="281" x2="256" y2="334" stroke="#ffffff" stroke-width="1.5" opacity="0.5"/>
+  <polyline points="200,262 256,281 312,262" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
+  <polygon points="256,243 312,262 256,281 200,262" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+
+  <!-- Gantry: feed tube, cross rail and end blocks -->
+  <rect x="249" y="112" width="14" height="48" rx="5" fill="url(#jp-rod)"/>
+  <rect x="246" y="128" width="20" height="6" rx="2" fill="#2c86e4"/>
+  <rect x="140" y="178" width="232" height="22" rx="11" fill="url(#jp-rail)"/>
+  <rect x="146" y="180" width="220" height="5" rx="2.5" fill="#ffffff" opacity="0.7"/>
+  <rect x="140" y="194" width="232" height="6" rx="3" fill="#0d4fa8" opacity="0.45"/>
+  <rect x="128" y="166" width="28" height="46" rx="7" fill="url(#jp-block)"/>
+  <rect x="356" y="166" width="28" height="46" rx="7" fill="url(#jp-block)"/>
+  <rect x="131" y="169" width="22" height="7" rx="3" fill="#ffffff" opacity="0.45"/>
+  <rect x="359" y="169" width="22" height="7" rx="3" fill="#ffffff" opacity="0.45"/>
+
+  <!-- Print head -->
+  <rect x="216" y="152" width="80" height="78" rx="11" fill="url(#jp-head)"/>
+  <rect x="280" y="156" width="14" height="70" rx="6" fill="url(#jp-head-side)" opacity="0.9"/>
+  <rect x="220" y="155" width="58" height="12" rx="6" fill="#ffffff" opacity="0.55"/>
+  <rect x="228" y="214" width="44" height="5" rx="2.5" fill="#1f6fcf" opacity="0.5"/>
+  <circle cx="234" cy="176" r="3" fill="#ffffff" opacity="0.8"/>
+  <!-- Nozzle and the glowing tip -->
+  <polygon points="238,230 274,230 264,246 248,246" fill="url(#jp-nozzle)"/>
+  <polygon points="248,246 264,246 259,255 253,255" fill="#d8f6ff"/>
+  <circle cx="256" cy="257" r="10" fill="#6fdcff" opacity="0.9" filter="url(#jp-soft)"/>
+  <circle cx="256" cy="256" r="3" fill="#ffffff"/>
+  </g>
+  </g>
+</svg>

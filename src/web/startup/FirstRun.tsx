@@ -84,7 +84,7 @@ export function FirstRun() {
       <dialog id="terms-of-service-dialog" className="modal tos-dialog" ref={termsRef} onCancel={(e) => e.preventDefault()}>
         <div className="tos-dialog-content">
           <div className="tos-header">
-            <img src="logo.png" alt="JusttPrint Logo" className="tos-logo" />
+            <img src="assets/logo.png" alt="JusttPrint Logo" className="tos-logo" />
             <h2>Terms of Service</h2>
           </div>
           <div className="tos-body">

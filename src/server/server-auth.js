@@ -40,15 +40,17 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/status',
   '/api/health',
+  // Browsers ask for /favicon.ico on their own (http.js answers it from assets/).
   '/favicon.ico',
-  '/logo.png',
   '/manifest.webmanifest',
   '/sw.js',
-  '/pwa-icon-192.png',
-  '/pwa-icon-512.png',
-  '/pwa-maskable-192.png',
-  '/pwa-maskable-512.png',
-  '/apple-touch-icon.png'
+  '/assets/favicon.ico',
+  '/assets/logo.png',
+  '/assets/pwa-icon-192.png',
+  '/assets/pwa-icon-512.png',
+  '/assets/pwa-maskable-192.png',
+  '/assets/pwa-maskable-512.png',
+  '/assets/apple-touch-icon.png'
 ]);
 
 function randomSecret(bytes = 32) {
@@ -172,7 +174,7 @@ function loginPageHtml(next, error, username = '') {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JusttPrint Login</title>
-<link rel="icon" href="/favicon.ico">
+<link rel="icon" href="/assets/favicon.ico">
 <style>
   :root { color-scheme: light dark; --bg: #f4f5f7; --card: #fff; --text: #1e1e2e; --muted: #5b6070; --accent: #0891b2; --error: #b91c1c; --border: #d6d9e0; }
   @media (prefers-color-scheme: dark) { :root { --bg: #1e1e2e; --card: #2a2a3c; --text: #e6e6ef; --muted: #a3a6b8; --accent: #22d3ee; --error: #f87171; --border: #3d3d52; } }
@@ -191,7 +193,7 @@ function loginPageHtml(next, error, username = '') {
 </head>
 <body>
 <form method="post" action="/api/auth/login">
-  <img src="/logo.png" alt="">
+  <img src="/assets/logo.png" alt="">
   <h1>JusttPrint</h1>
   <label for="username">User name</label>
   <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" value="${escapeHtml(username)}" ${username ? '' : 'autofocus '}required>

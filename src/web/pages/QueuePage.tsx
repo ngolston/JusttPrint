@@ -41,7 +41,7 @@ function Thumb({ filePath }: { filePath: string }) {
     fetchPrimaryThumbnail(filePath).then((thumb) => { if (live) setSrc(thumb); }, () => {});
     return () => { live = false; };
   }, [filePath]);
-  return <span className="jp-queue__thumb">{src ? <img src={src} alt="" loading="lazy" /> : <img src="3d.png" alt="" />}</span>;
+  return <span className="jp-queue__thumb">{src ? <img src={src} alt="" loading="lazy" /> : <img src="assets/3d.png" alt="" />}</span>;
 }
 
 function Row({ filePath, name, meta, lead, status, actions }: {

@@ -389,7 +389,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
         const rect = event.currentTarget.getBoundingClientRect();
         host.showCardMenu(model.filePath, rect.left, rect.bottom);
       }}>...</button>
-      <img src={src || '3d.png'} alt="" style={imageSize} />
+      <img src={src || 'assets/3d.png'} alt="" style={imageSize} />
       {host.isNew(model) && <div className="new-status" title="New model — clears once you edit it">New</div>}
     </div>
   );
@@ -544,7 +544,7 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
     <div className="thumbnail-container jp-model-card__image">
       <div className="thumbnail-render-slot" ref={setRenderSlot} aria-hidden="true"
         style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }} />
-      <img src={src || '3d.png'} alt="" loading="lazy" draggable={false} />
+      <img src={src || 'assets/3d.png'} alt="" loading="lazy" draggable={false} />
     </div>
   );
 

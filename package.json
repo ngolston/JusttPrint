@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "7.3.1",
+  "version": "7.3.2",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
@@ -18,6 +18,7 @@
     "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
     "test": "node scripts/run-unit-tests.js",
     "build:web": "tsc -p src/web && vite build",
+    "build:icons": "node scripts/build-icons.js",
     "dev:web": "vite build --watch --mode development",
     "test:e2e": "npm run build:web && node tests/e2e/run.js",
     "test:docker": "node scripts/docker-smoke.js",

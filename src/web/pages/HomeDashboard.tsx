@@ -308,7 +308,7 @@ function RecentCard({ model }: { model: GridModel }) {
   return (
     <li>
       <button type="button" className="jp-recent-card" data-filepath={model.filePath} onClick={() => openModel(model.filePath)}>
-        <span className="jp-recent-card__image"><img src={src || '3d.png'} alt="" loading="lazy" /></span>
+        <span className="jp-recent-card__image"><img src={src || 'assets/3d.png'} alt="" loading="lazy" /></span>
         <span className="jp-recent-card__body">
           <span className="jp-recent-card__title">{cardTitle(model)}</span>
           <span className="jp-recent-card__byline">{designer || '\u00a0'}</span>
