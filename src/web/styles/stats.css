@@ -18,7 +18,7 @@
 .jp-stats__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--jp-space-4); margin-bottom: var(--jp-space-4); }
 .jp-stats__chart-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--jp-space-2); margin-bottom: var(--jp-space-2); }
 .jp-stats__chart-bar .jp-btn { width: auto; margin: 0; }
-.jp-stats__note, .jp-stats__subtitle, .jp-stats__materials { margin: var(--jp-space-2) 0 0; }
+.jp-stats__note, .jp-stats__subtitle { margin: var(--jp-space-2) 0 0; }
 .jp-stats__subtitle { margin: 0 0 var(--jp-space-3); }
 .jp-stats__empty { margin: var(--jp-space-2) 0; }
 
@@ -64,7 +64,6 @@
 .jp-ranked__bar { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--jp-series-1); }
 .jp-ranked__value { color: var(--jp-text); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .jp-ranked__detail { color: var(--jp-text-3); }
-.jp-ranked__chip { width: 12px; height: 12px; flex: none; border: 1px solid var(--jp-border-strong); border-radius: 50%; }
 
 /* Upload Models */
 .jp-upload { width: min(640px, calc(100vw - 32px)); }

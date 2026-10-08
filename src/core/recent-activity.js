@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The dashboard's Recent Activity and the queue's Completed list: the latest logged prints (model, outcome, printer, filaments)
+ * The dashboard's Recent Activity and the queue's Completed list: the latest logged prints (model, outcome, printer)
  * and the models added to the library, one entry per day. Newest first, read-only.
  */
 
@@ -22,12 +22,6 @@ function recentPrints(db, limit = 8, outcome = null, printerId = null) {
   if (!tableExists(db, 'print_events')) return [];
   const max = Math.max(1, Math.min(200, Number(limit) || 8));
   const hasPrinters = tableExists(db, 'printers');
-  const filaments = tableExists(db, 'print_event_filaments') && tableExists(db, 'filaments')
-    ? db.prepare(`
-        SELECT f.name, f.vendor FROM print_event_filaments pef
-        JOIN filaments f ON f.id = pef.filament_id WHERE pef.event_id = ?
-        ORDER BY f.vendor COLLATE NOCASE, f.name COLLATE NOCASE`)
-    : null;
   const where = [];
   const params = [];
   if (outcome) {
@@ -55,8 +49,7 @@ function recentPrints(db, limit = 8, outcome = null, printerId = null) {
     quantity: Number(row.quantity) || 1,
     filePath: row.filePath,
     fileName: row.fileName,
-    printer: row.printer || null,
-    filaments: filaments ? filaments.all(row.id).map((f) => [f.vendor, f.name].filter(Boolean).join(' ')) : []
+    printer: row.printer || null
   }));
 }
 

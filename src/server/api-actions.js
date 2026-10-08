@@ -106,11 +106,7 @@ const ACTIONS = {
   'organize-library-preview': ['object'],
   'organize-library-run': ['object'],
 
-  // Filament, parts, printers, print history
-  'get-all-filaments': [],
-  'save-filament': ['object'],
-  'delete-filament': ['id'],
-  'get-model-filaments': ['id?'],
+  // Parts, printers, print history
   'get-all-parts': [],
   'save-part': ['object'],
   'delete-part': ['id'],
@@ -208,7 +204,7 @@ const VIEWER_ACTIONS = new Set([
   'get3MFImages', 'getLYSImages', 'getF3DImages', 'getChituboxImages', 'getVoxlImages', 'get3MFSTL', 'read-model-file',
   'parse-3mf-preview', 'cancel-3mf-preview', 'getThumbnail', 'get-all-thumbnails', 'get-server-thumbnail-job-status',
   'get-all-tags', 'get-model-tags', 'get-group-tags', 'get-all-metadata', 'get-duplicates', 'is-generating-hashes',
-  'getModelsWithoutHash', 'show-context-menu', 'execute-context-menu-action', 'get-all-filaments', 'get-model-filaments',
+  'getModelsWithoutHash', 'show-context-menu', 'execute-context-menu-action',
   'get-all-parts', 'get-all-printers', 'get-printer-maintenance-logs', 'get-printer-reminders', 'get-print-events',
   'get-slicers', 'open-file-in-slicer', 'get-upload-info',
   // Each user changes their own password.
@@ -228,7 +224,7 @@ const EDITOR_ACTIONS = new Set([
   'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
   'get-models-without-thumbnails', 'get-models-with-default-thumbnails', 'start-server-thumbnail-job', 'cancel-server-thumbnail-job',
   'save-tag', 'rename-tag', 'delete-tag', 'rename-metadata', 'delete-metadata', 'pull-3mf-metadata', 'generateMissingHashes',
-  'save-filament', 'delete-filament', 'save-part', 'delete-part', 'save-printer', 'delete-printer',
+  'save-part', 'delete-part', 'save-printer', 'delete-printer',
   'save-printer-maintenance-log', 'delete-printer-maintenance-log', 'save-printer-reminder', 'delete-printer-reminder',
   'complete-printer-reminder', 'log-print-event', 'log-print-events-batch', 'delete-print-event', 'set-print-status',
   'set-print-status-batch', 'fetch-thangs-page',

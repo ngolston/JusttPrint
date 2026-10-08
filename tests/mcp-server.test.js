@@ -42,10 +42,6 @@ function mockCtx(overrides) {
     deleteTag: async (args) => ({ ok: true, id: args.id, name: args.name }),
     addModelTags: async (args) => ({ ok: true, tags: args.tags }),
     removeModelTags: async (args) => ({ ok: true, tags: args.tags }),
-    listFilaments: async () => [{ id: 1, name: 'PLA' }],
-    saveFilament: async (filament) => filament,
-    deleteFilament: async (id) => ({ ok: true, id }),
-    setModelFilaments: async (args) => ({ ok: true, filaments: args.filaments }),
     getPrintEvents: async () => ({ events: [] }),
     logPrintEvent: async (args) => ({ eventId: 1, outcome: args.outcome }),
     deletePrintEvent: async (eventId) => ({ deleted: true, eventId }),
@@ -90,7 +86,7 @@ test('lists expected tools', () => {
   assert.ok(names.includes('delete_tag'));
   assert.ok(names.includes('rename_tag'));
   assert.ok(names.includes('add_model_tags'));
-  assert.ok(names.includes('delete_filament'));
+  assert.ok(!names.some((name) => /filament/.test(name)), 'no filament tools since 7.0');
   assert.ok(names.includes('delete_print_event'));
   assert.ok(names.includes('delete_thumbnail'));
   assert.ok(names.includes('find_duplicates'));

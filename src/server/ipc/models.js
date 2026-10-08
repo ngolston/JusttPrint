@@ -2,7 +2,6 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const { getFilamentsForModel } = require('./filaments');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
@@ -11,7 +10,7 @@ const printEvents = require('../../core/print-events');
 const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
-const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable, replaceModelFilaments } = require('../../core/models');
+const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
 const { isMacOsResourceForkEntry } = require('../../core/zip-entries');
 const { getDatabasePath } = require('../../core/db-path');
@@ -62,13 +61,9 @@ ipcMain.handle('get-model', async (event, filePath) => {
       WHERE mt.model_id = ?
     `).all(model.id).map(t => t.name);
 
-    const filaments = getFilamentsForModel(model.id);
-
-    // Parse any JSON fields
     return {
       ...model,
-      tags: tags || [],
-      filaments: filaments || []
+      tags: tags || []
     };
   } catch (error) {
     console.error('Error getting model:', error);
@@ -295,22 +290,6 @@ ipcMain.handle('get-parent-models', async () => {
   }
 });
 
-function normalizeFilamentIds(raw) {
-  if (raw === undefined || raw === null) return null;
-  const list = Array.isArray(raw) ? raw : [raw];
-  const ids = [];
-  const seen = new Set();
-  for (const item of list) {
-    let id = null;
-    if (item && typeof item === 'object') id = Number(item.id);
-    else id = Number(item);
-    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
-    seen.add(id);
-    ids.push(id);
-  }
-  return ids;
-}
-
 // Add error handling to the getSetting handler
 async function getAdditionalFileTypesCatalogHandler() {
   return ADDITIONAL_FILE_TYPES_CATALOG;
@@ -514,8 +493,7 @@ async function updateModelsBatch(modelDataBatch) {
           license,
           rating,
           favorite,
-          tags,
-          filaments
+          tags
         } = modelData;
 
         console.debug(`[Batch ${i}] Processing model: ${filePath}`);
@@ -617,10 +595,6 @@ async function updateModelsBatch(modelDataBatch) {
             }
           }
         }
-
-        if (filaments !== undefined) {
-          replaceModelFilaments(existingModel.id, normalizeFilamentIds(filaments) || []);
-        }
       }
     });
 
@@ -657,7 +631,6 @@ async function saveModel(modelData) {
       rating,
       favorite,
       tags: rawTags,
-      filaments: rawFilaments,
       markAsNew
     } = modelData;
 
@@ -702,7 +675,6 @@ async function saveModel(modelData) {
         rating,
         favorite,
         tags: rawTags,
-        filaments: rawFilaments,
         markAsNew
       };
       for (const entry of toAdd) {
@@ -965,14 +937,6 @@ async function saveModel(modelData) {
       }
     }
 
-    if (modelId && rawFilaments !== undefined) {
-      try {
-        replaceModelFilaments(modelId, normalizeFilamentIds(rawFilaments) || []);
-      } catch (filamentError) {
-        console.error('Error updating filaments:', filamentError);
-      }
-    }
-
     if (insertedNewModel) {
       scheduleBackgroundHashGeneration('save-model');
     }
@@ -984,4 +948,4 @@ async function saveModel(modelData) {
   }
 }
 
-module.exports = { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, getSupportedExtensionsForLibrary, normalizeFilamentIds, normalizePath, saveModel, updateModelsBatch };
+module.exports = { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, getSupportedExtensionsForLibrary, normalizePath, saveModel, updateModelsBatch };

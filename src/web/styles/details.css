@@ -295,68 +295,10 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 #model-details .jp-rating__star.is-filled { color: var(--jp-warning); }
 #model-details .jp-rating__star:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: 2px; }
 
-/* ---- Filament (spec §27): spool, name, chevron to the Filament page; pickers below ---- */
-.filament-chip-open { display: none; }
+/* ---- Editors under a heading (Notes, Print History) ---- */
 #model-details .jp-details__editor .form-group { width: auto; margin: 0; padding: 0; }
 #model-details .jp-details__editor .form-group > label { display: none; }
 #model-details .jp-details__editor .tags-container { display: flex; flex-direction: column; gap: var(--jp-space-2); }
-#model-details #model-filaments {
-  order: -1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--jp-space-2);
-  width: auto;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-#model-details #model-filaments .filament-chip {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto auto;
-  align-items: center;
-  column-gap: var(--jp-space-3);
-  max-width: none;
-  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-md);
-  background: var(--jp-surface-1);
-  color: var(--jp-text);
-  font-size: var(--jp-text-meta);
-}
-#model-details #model-filaments .filament-swatch {
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 7px rgba(0, 0, 0, 0.35), inset 0 0 0 8px rgba(255, 255, 255, 0.15);
-}
-#model-details #model-filaments .filament-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#model-details #model-filaments .filament-chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--jp-radius-sm);
-  color: var(--jp-text-3);
-  cursor: pointer;
-}
-#model-details #model-filaments .filament-chip-remove:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
-#model-details #model-filaments .filament-chip-open {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--jp-radius-sm);
-  color: var(--jp-text-2);
-  font-size: 18px;
-  cursor: pointer;
-}
-#model-details #model-filaments .filament-chip-open:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
-#model-details #model-filaments .filament-chip-open:focus-visible { box-shadow: var(--jp-focus-ring); }
 #model-details .jp-details__editor .tags-input-container { display: flex; gap: 4px; width: 100%; }
 #model-details .jp-details__editor .tags-input-container select {
   flex: 1;
@@ -416,7 +358,6 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 }
 #model-details .outcome-failed .print-history-outcome { background: var(--jp-danger-soft); color: var(--jp-danger); }
 #model-details .outcome-cancelled .print-history-outcome { background: var(--jp-neutral-soft); color: var(--jp-text-2); }
-#model-details .print-history-filaments,
 #model-details .print-history-printer,
 #model-details .print-history-parts,
 #model-details .print-history-notes { color: var(--jp-text-2); font-size: var(--jp-text-small); }
@@ -518,28 +459,3 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 #multi-edit-panel .jp-multi .jp-multi__tool { flex: none; border: 1px solid var(--jp-border); background: var(--jp-surface-2); color: var(--jp-text-2); }
 #multi-edit-panel .jp-multi .jp-multi__tool:hover:not(:disabled) { border-color: var(--jp-border-strong); }
 
-/* Filaments added in this session: spool, name, remove. */
-#multi-edit-panel .jp-multi__filaments { display: flex; flex-direction: column; gap: var(--jp-space-2); }
-#multi-edit-panel .jp-multi__filaments .filament-chip {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: var(--jp-space-3);
-  max-width: none;
-  margin: 0;
-  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-md);
-  background: var(--jp-surface-1);
-  color: var(--jp-text);
-  font-size: var(--jp-text-meta);
-}
-#multi-edit-panel .jp-multi__filaments .filament-swatch {
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 7px rgba(0, 0, 0, 0.35), inset 0 0 0 8px rgba(255, 255, 255, 0.15);
-}
-#multi-edit-panel .jp-multi__filaments .filament-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#multi-edit-panel .jp-multi__filaments .filament-chip-remove { color: var(--jp-text-3); }

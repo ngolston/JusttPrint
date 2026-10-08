@@ -74,9 +74,9 @@ function searchIncludeNotesEnabled(filters) {
 function appendAllFieldsSearchSql(params, term, includeNotes) {
   const notesClause = includeNotes ? "LOWER(COALESCE(notes, '')) LIKE ? OR\n          " : '';
   if (includeNotes) {
-    params.push(term, term, term, term, term, term, term, term, term, term, term);
+    params.push(term, term, term, term, term, term, term, term);
   } else {
-    params.push(term, term, term, term, term, term, term, term, term, term);
+    params.push(term, term, term, term, term, term, term);
   }
   return `(
           LOWER(COALESCE(fileName, '')) LIKE ? OR 
@@ -85,10 +85,7 @@ function appendAllFieldsSearchSql(params, term, includeNotes) {
           ${notesClause}LOWER(COALESCE(filePath, '')) LIKE ? OR
           LOWER(COALESCE(source, '')) LIKE ? OR
           LOWER(COALESCE(license, '')) LIKE ? OR
-          EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?) OR
-          EXISTS (SELECT 1 FROM model_filaments mf INNER JOIN filaments f ON f.id = mf.filament_id WHERE mf.model_id = models.id AND (
-            LOWER(COALESCE(f.name, '')) LIKE ? OR LOWER(COALESCE(f.vendor, '')) LIKE ? OR LOWER(COALESCE(f.material, '')) LIKE ?
-          ))
+          EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?)
         )`;
 }
 
@@ -119,11 +116,6 @@ function pushSearchClauseFragment(field, rawValue, params, filters) {
     case 'tag':
       params.push(term);
       return 'EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?)';
-    case 'filament':
-      params.push(term, term, term);
-      return `EXISTS (SELECT 1 FROM model_filaments mf INNER JOIN filaments f ON f.id = mf.filament_id WHERE mf.model_id = models.id AND (
-        LOWER(COALESCE(f.name, '')) LIKE ? OR LOWER(COALESCE(f.vendor, '')) LIKE ? OR LOWER(COALESCE(f.material, '')) LIKE ?
-      ))`;
     default:
       return appendAllFieldsSearchSql(params, term, searchIncludeNotesEnabled(filters));
   }
@@ -145,7 +137,7 @@ function sanitizeSearchTokensForCompile(raw) {
       out.push({ t: 'not' });
     } else if (x.t === 'filter') {
       const kind = String(x.kind || '').trim();
-      if (!kind || !['designer', 'license', 'parentModel', 'tag', 'filament', 'fileType', 'printed', 'isNew', 'favorite', 'rating', 'ratingMin'].includes(kind)) continue;
+      if (!kind || !['designer', 'license', 'parentModel', 'tag', 'fileType', 'printed', 'isNew', 'favorite', 'rating', 'ratingMin'].includes(kind)) continue;
       const valRaw = String(x.value != null ? x.value : '').trim();
       if (kind === 'printed') {
         const allowed = ['printed', 'not-printed', 'unprinted', 'want', 'queued', 'printing', 'failed', 'ever-printed', 'never-printed', 'in-queue'];
@@ -171,7 +163,7 @@ function sanitizeSearchTokensForCompile(raw) {
       }
     } else if (x.t === 'filterMulti') {
       const kind = String(x.kind || '').trim();
-      if (!kind || !['designer', 'license', 'parentModel', 'tag', 'filament'].includes(kind)) continue;
+      if (!kind || !['designer', 'license', 'parentModel', 'tag'].includes(kind)) continue;
       const vals = Array.isArray(x.values) ? x.values.map((v) => String(v).trim()).filter(Boolean) : [];
       if (vals.length === 0) continue;
       const combine = String(x.combine || 'OR').toUpperCase() === 'AND' ? 'AND' : 'OR';
@@ -222,17 +214,6 @@ function compileSidebarFilterClauseToSQL(tok, filters, params) {
       pushTagListSQL(cond, params, f);
       return cond[0] || '1';
     }
-    if (tok.kind === 'filament') {
-      const ids = tok.values.slice();
-      const f = {
-        filaments: ids,
-        filamentCombine: combine,
-        filamentInverted: !!filters.filamentInverted,
-      };
-      const cond = [];
-      pushFilamentListSQL(cond, params, f);
-      return cond[0] || '1';
-    }
     return null;
   }
   if (tok.t !== 'filter') return null;
@@ -248,12 +229,6 @@ function compileSidebarFilterClauseToSQL(tok, filters, params) {
     const f = { tags: [tok.value], tagCombine: 'OR', tagInverted: !!filters.tagInverted };
     const cond = [];
     pushTagListSQL(cond, params, f);
-    return cond[0] || '1';
-  }
-  if (tok.kind === 'filament') {
-    const f = { filaments: [tok.value], filamentCombine: 'OR', filamentInverted: !!filters.filamentInverted };
-    const cond = [];
-    pushFilamentListSQL(cond, params, f);
     return cond[0] || '1';
   }
   if (tok.kind === 'fileType') {
@@ -430,42 +405,6 @@ function pushTagListSQL(conditions, params, filters) {
       existsParts.push(
         'EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND t.name = ?)'
       );
-    }
-    inner = `(${existsParts.join(' AND ')})`;
-  }
-  if (inverted) {
-    conditions.push(`NOT (${inner})`);
-  } else {
-    conditions.push(inner);
-  }
-  return true;
-}
-
-function normalizeFilamentIdList(filters) {
-  const raw = [];
-  if (Array.isArray(filters?.filaments)) raw.push(...filters.filaments);
-  else if (filters?.filament != null && filters.filament !== '') raw.push(filters.filament);
-  return raw.map((v) => {
-    if (v && typeof v === 'object') return Number(v.id);
-    return Number(v);
-  }).filter((id) => Number.isInteger(id) && id > 0);
-}
-
-function pushFilamentListSQL(conditions, params, filters) {
-  const ids = normalizeFilamentIdList(filters);
-  if (!ids.length) return false;
-  const combine = filters.filamentCombine === 'AND' ? 'AND' : 'OR';
-  const inverted = !!filters.filamentInverted;
-  let inner;
-  if (combine === 'OR') {
-    const ph = ids.map(() => '?').join(', ');
-    inner = `EXISTS (SELECT 1 FROM model_filaments mf WHERE mf.model_id = models.id AND mf.filament_id IN (${ph}))`;
-    params.push(...ids);
-  } else {
-    const existsParts = [];
-    for (const id of ids) {
-      params.push(id);
-      existsParts.push('EXISTS (SELECT 1 FROM model_filaments mf WHERE mf.model_id = models.id AND mf.filament_id = ?)');
     }
     inner = `(${existsParts.join(' AND ')})`;
   }
@@ -667,7 +606,6 @@ function buildModelFilterConditions(filters) {
     }
 
     pushTagListSQL(conditions, params, filters);
-    pushFilamentListSQL(conditions, params, filters);
 
     // Date Added filter (filter by dateAdded >= specified date)
     if (filters.dateAdded) {

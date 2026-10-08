@@ -72,11 +72,11 @@ export const filterActions = {
     userChange({ ...state, [kind]: value ? [value] : [] });
   },
 
-  /** Add a tag or filament to its list (the select resets to "all"). */
-  addValue(kind: 'tags' | 'filaments', value: string) {
+  /** Add a tag to its list (the select resets to "all"). */
+  addValue(kind: 'tags', value: string) {
     const v = value.trim();
     if (!v) return;
-    const consumed = consumeIntoQuery(state, { t: 'filter', kind: kind === 'tags' ? 'tag' : 'filament', value: v });
+    const consumed = consumeIntoQuery(state, { t: 'filter', kind: 'tag', value: v });
     if (consumed) return userChange(consumed);
     if (state[kind].includes(v)) return;
     userChange({ ...state, [kind]: [...state[kind], v] });
@@ -84,7 +84,7 @@ export const filterActions = {
 
   removeValue(kind: MultiKind, value: string) {
     const remaining = state[kind].filter((v) => v !== value);
-    const invertKey = kind === 'tags' ? 'tag' : kind === 'filaments' ? 'filament' : kind;
+    const invertKey = kind === 'tags' ? 'tag' : kind;
     const inverted = remaining.length ? state.inverted : { ...state.inverted, [invertKey]: false };
     userChange({ ...state, [kind]: remaining, inverted });
   },

@@ -2,7 +2,7 @@
 'use strict';
 
 // Run with npm test, or on its own: node tests/model-list-columns.test.js
-// The grid's list query: the card's material badge comes from the model's first filament.
+// The grid's list query runs on the models table alone (no filament join since 7.0).
 
 const assert = require('assert');
 const Database = require('better-sqlite3');
@@ -23,23 +23,17 @@ function createDb() {
   const columns = MODEL_DETAIL_COLUMNS.split(',').map((c) => c.trim()).filter((c) => c !== 'id');
   db.exec(`
     CREATE TABLE models (id INTEGER PRIMARY KEY AUTOINCREMENT, ${columns.map((c) => `${c} TEXT`).join(', ')}, thumbnail TEXT);
-    CREATE TABLE filaments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, vendor TEXT, material TEXT);
-    CREATE TABLE model_filaments (model_id INTEGER, filament_id INTEGER, PRIMARY KEY (model_id, filament_id));
-    INSERT INTO models (filePath, fileName) VALUES ('/m/a.stl', 'a.stl'), ('/m/b.stl', 'b.stl'), ('/m/c.stl', 'c.stl');
-    INSERT INTO filaments (name, vendor, material) VALUES ('Silk Red', 'Zeta', 'PLA'), ('HF Gray', 'Bambu', 'PETG'), ('Mystery', 'Acme', NULL);
-    -- a: PLA (Zeta) and PETG (Bambu): Bambu sorts first, as in the details panel.
-    INSERT INTO model_filaments VALUES (1, 1), (1, 2);
-    -- b: only a filament without a material.
-    INSERT INTO model_filaments VALUES (2, 3);
+    INSERT INTO models (filePath, fileName, thumbnail) VALUES ('/m/a.stl', 'a.stl', 'data:image/png;base64,AA'), ('/m/b.stl', 'b.stl', NULL), ('/m/c.stl', 'c.stl', 'x::y');
   `);
   return db;
 }
 
-test('list rows carry the first filament material, in the details panel order', () => {
+test('list rows need only the models table, and flag thumbnails', () => {
   const db = createDb();
   for (const columns of [MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED]) {
     const rows = db.prepare(`SELECT ${columns} FROM models ORDER BY id`).all();
-    assert.deepStrictEqual(rows.map((row) => row.filamentMaterial), ['PETG', null, null]);
+    assert.deepStrictEqual(rows.map((row) => [row.fileName, row.hasThumbnail, row.hasMultipleThumbnails]), [['a.stl', 1, 0], ['b.stl', 0, 0], ['c.stl', 1, 1]]);
+    assert.ok(rows.every((row) => !('filamentMaterial' in row)));
   }
   db.close();
 });

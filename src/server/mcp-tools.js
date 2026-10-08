@@ -6,20 +6,19 @@ const { ipcMain, shell } = require('./runtime');
 
 // Some MCP tools reuse the IPC handler of the same action.
 const ipcHandlerRegistry = ipcMain._handlers;
-const { deleteFilamentHandler, getAllFilamentsHandler, getFilamentsForModel, saveFilamentHandler } = require('./ipc/filaments');
 const fs = require('fs');
 const path = require('path');
 const printEvents = require('../core/print-events');
 const { isUrlModel, parseZipPath, readStlHomeDirectories, assertContainerPath } = require('../core/library-paths');
 const { applyThumbnailFlags, loadThumbnailForModel, parseThumbnails, readThumbnailColumn } = require('../core/thumbnails');
-const { MODEL_LIST_COLUMNS, deleteModelsByFilePaths, getModelByFilePath, getModelById, replaceModelFilaments } = require('../core/models');
+const { MODEL_LIST_COLUMNS, deleteModelsByFilePaths, getModelByFilePath, getModelById } = require('../core/models');
 const { deleteTagHandler, generateTagsHandler, getAllTagsHandler, renameTagForMcp, resolveTagForMcp, saveTagHandler } = require('./ipc/tags');
 const { countModelsNeedingHash, generateMissingHashesHandler, getDuplicatesHandler, hashGenerationRunning } = require('./ipc/hashes');
 const { assertMcpToolArgs } = require('./server-paths');
 const { openFileInSlicerHandler } = require('./ipc/slicers');
 const { extract3MFMetadata, filter3MFMetadataBySettings } = require('../core/three-mf');
 const { getDatabasePath } = require('../core/db-path');
-const { directoryScanPrefixSqlParam, getModelsFilteredHandler, normalizeFilamentIds, saveModel, updateModelsBatch } = require('./ipc/models');
+const { directoryScanPrefixSqlParam, getModelsFilteredHandler, saveModel, updateModelsBatch } = require('./ipc/models');
 const { buildLibraryExportData } = require('./ipc/backup');
 const { scanDirectoryHandler } = require('./ipc/scan');
 const { saveThumbnail, setDefaultThumbnailIndex } = require('../core/thumbnail-store');
@@ -203,13 +202,12 @@ function getMcpToolContext() {
         JOIN model_tags mt ON mt.tag_id = t.id
         WHERE mt.model_id = ?
       `).all(model.id).map((t) => t.name);
-      const filaments = getFilamentsForModel(model.id);
       if (!includeThumbnails) {
         const stored = readThumbnailColumn(model.filePath);
         applyThumbnailFlags(Object.assign(model, { thumbnail: stored }));
         delete model.thumbnail;
       }
-      return { ...model, tags, filaments: filaments || [] };
+      return { ...model, tags };
     },
     updateModel: async (args) => {
       const existing = resolveModelForMcp(args);
@@ -227,7 +225,7 @@ function getMcpToolContext() {
         rating: existing.rating,
         favorite: existing.favorite
       };
-      for (const key of ['designer', 'source', 'notes', 'license', 'parentModel', 'printStatus', 'rating', 'favorite', 'tags', 'filaments']) {
+      for (const key of ['designer', 'source', 'notes', 'license', 'parentModel', 'printStatus', 'rating', 'favorite', 'tags']) {
         if (args[key] !== undefined) payload[key] = args[key];
       }
       await saveModel(payload);
@@ -277,23 +275,6 @@ function getMcpToolContext() {
       await saveModel({ id: model.id, filePath: model.filePath, fileName: model.fileName, tags: next });
       return { success: true, id: model.id, filePath: model.filePath, tags: next };
     },
-    listFilaments: async () => getAllFilamentsHandler(),
-    saveFilament: async (filament) => saveFilamentHandler(null, filament),
-    deleteFilament: async (filamentId) => {
-      const id = Number(filamentId);
-      if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid filament id');
-      const existing = database.db.prepare('SELECT id, name FROM filaments WHERE id = ?').get(id);
-      if (!existing) throw new Error(`Filament not found for id: ${id}`);
-      await deleteFilamentHandler(null, id);
-      return { success: true, id: existing.id, name: existing.name };
-    },
-    setModelFilaments: async (args) => {
-      const model = resolveModelForMcp(args);
-      const ids = normalizeFilamentIds(args.filaments);
-      if (ids == null) throw new Error('filaments is required');
-      replaceModelFilaments(model.id, ids);
-      return { success: true, id: model.id, filePath: model.filePath, filaments: getFilamentsForModel(model.id) };
-    },
     getPrintEvents: async (args) => {
       const model = resolveModelForMcp(args);
       return { id: model.id, filePath: model.filePath, events: printEvents.getPrintEvents(database.db, model.id) };
@@ -307,7 +288,6 @@ function getMcpToolContext() {
         quantity: args.quantity,
         printedAt: args.printedAt,
         notes: args.notes,
-        filamentIds: args.filamentIds,
         parts: args.parts
       });
     },
@@ -529,7 +509,7 @@ function getMcpToolContext() {
       const batch = models.map((item) => {
         const existing = resolveModelForMcp(item);
         const payload = { filePath: existing.filePath };
-        for (const key of ['designer', 'source', 'notes', 'license', 'parentModel', 'printStatus', 'rating', 'favorite', 'tags', 'filaments']) {
+        for (const key of ['designer', 'source', 'notes', 'license', 'parentModel', 'printStatus', 'rating', 'favorite', 'tags']) {
           if (item[key] !== undefined) payload[key] = item[key];
         }
         return payload;
@@ -549,7 +529,6 @@ function getMcpToolContext() {
         quantity: args.quantity,
         printedAt: args.printedAt,
         notes: args.notes,
-        filamentIds: args.filamentIds,
         parts: args.parts
       });
     },

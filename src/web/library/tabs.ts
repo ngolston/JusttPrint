@@ -43,7 +43,7 @@ export function tabInfo(id: LibraryTab): LibraryTabInfo {
  * number on the Filter button.
  */
 export function extraFilterCount(state: FilterState): number {
-  let count = state.designer.length + state.license.length + state.parentModel.length + state.tags.length + state.filaments.length;
+  let count = state.designer.length + state.license.length + state.parentModel.length + state.tags.length;
   if (state.fileType) count += 1;
   for (const key of ['isNew', 'rating', 'ratingMin'] as const) if (state[key] && state[key] !== 'all') count += 1;
   if (!tabOf(state)) count += (state.printed !== 'all' ? 1 : 0) + (state.favorite !== 'all' ? 1 : 0);

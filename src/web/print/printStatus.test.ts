@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  badgeClassNames, badgeText, bundleSummary, colorCss, detailsHint, effectiveStatus, filamentLabel, filterLabel,
+  badgeClassNames, badgeText, bundleSummary, detailsHint, effectiveStatus, filterLabel,
   friendlyError, modelMatchesPrintFilter, partOptionLabel, printerOptionLabel, toDatetimeLocalValue
 } from './printStatus';
 
@@ -68,18 +68,7 @@ describe('formatting', () => {
   it('writes datetime-local values in local time', () => {
     expect(toDatetimeLocalValue(new Date(2026, 0, 5, 7, 3))).toBe('2026-01-05T07:03');
   });
-  it('reads swatch colors', () => {
-    expect(colorCss('#abc')).toBe('#AABBCC');
-    expect(colorCss('abcd')).toBe('#AABBCC');
-    expect(colorCss('FF000080')).toBe('#FF0000');
-    expect(colorCss('112233,445566')).toBe('#112233');
-    expect(colorCss('nope')).toBe('transparent');
-  });
-  it('labels filaments, parts and printers', () => {
-    expect(filamentLabel({ id: 1, vendor: 'Acme', name: 'Red', material: 'PLA' })).toBe('Acme Red (PLA)');
-    expect(filamentLabel({ id: 1 }, { 1: 'Known' })).toBe('Known');
-    expect(filamentLabel({})).toBe('Filament');
-    expect(filamentLabel({}, undefined, 'Unnamed filament')).toBe('Unnamed filament');
+  it('labels parts and printers', () => {
     expect(partOptionLabel({ name: 'M3 nut', category: 'Hardware', quantity: 12, unit: 'pcs' })).toBe('M3 nut (Hardware) — 12 pcs');
     expect(printerOptionLabel({ nickname: 'Bob', manufacturer: 'Prusa', model: 'MK4', printer_type: 'FDM' })).toBe('[FDM] Bob (Prusa MK4)');
   });

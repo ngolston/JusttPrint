@@ -43,7 +43,6 @@ export function clearDetails() {
   window.detailsFields?.clear();
   window.detailsNotes?.clear();
   window.detailsPrint?.clear();
-  window.detailsFilaments?.clear();
   window.detailsHero?.clear();
 }
 
@@ -58,7 +57,6 @@ export async function showModelDetails(filePath: string) {
     const details = panel('model-details');
     if (!details) return;
     window.detailsFields?.show(model as never);
-    window.detailsFilaments?.show(model as never);
     setDetailsPath(model.filePath || '');
     window.detailsNotes?.show(model as never);
     window.detailsPrint?.show(model as never);

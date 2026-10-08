@@ -9,7 +9,7 @@ import { StatusBadge, printStatusInfo } from '../components/Badge';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { cardTitle, formatOf, materialOf } from '../grid/ModelCard';
+import { cardTitle, formatOf } from '../grid/ModelCard';
 import { effectiveStatus, type PrintModel } from '../print/printStatus';
 import { fetchPrimaryThumbnail } from '../thumbnails/cache';
 import type { GridModel } from '../grid/layout';
@@ -199,7 +199,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
   const outcome = OUTCOME[item.outcome] || OUTCOME.printed;
   const Icon = outcome.icon;
   const name = cardTitle({ filePath: item.filePath, fileName: item.fileName });
-  const meta = [item.printer, item.filaments[0], timeAgo(item.at)].filter(Boolean).join(' • ');
+  const meta = [item.printer, timeAgo(item.at)].filter(Boolean).join(' • ');
   return (
     <li>
       <button type="button" className="jp-activity" onClick={() => openModel(item.filePath)}>
@@ -304,7 +304,6 @@ function RecentCard({ model }: { model: GridModel }) {
   }, [model.filePath]);
   const designer = typeof model.designer === 'string' ? model.designer : '';
   const format = formatOf(model);
-  const material = materialOf(model);
   const status = printStatusInfo(effectiveStatus(model as PrintModel));
   return (
     <li>
@@ -315,7 +314,6 @@ function RecentCard({ model }: { model: GridModel }) {
           <span className="jp-recent-card__byline">{designer || '\u00a0'}</span>
           <span className="jp-model-card__badges">
             {format && <span className="jp-badge">{format}</span>}
-            {material && <span className="jp-badge">{material}</span>}
             <StatusBadge tone={status.tone} icon={status.icon}>{status.label}</StatusBadge>
           </span>
         </span>

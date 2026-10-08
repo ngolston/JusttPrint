@@ -172,13 +172,12 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Clean up hand-made backups and exports.** Done in 6.0.1 ([src/server/download-files.js](src/server/download-files.js)): downloads go into `downloads/` and are deleted after an hour; Settings → Backup offers to delete old ones. Before: **Create Backup** and **Export Library** write `justtprint-backup-*.db` and `justtprint-library-*.json` into the data folder for the browser to download, and nothing deletes them afterwards.
 - [x] **Folder watching**: pick up new or removed files on mounted libraries automatically instead of rescanning by hand. One `fs.watch` per STL Home folder ([src/server/folder-watch.js](src/server/folder-watch.js)), batched rescans of the changed folders ([src/server/stl-home.js](src/server/stl-home.js)); network shares still rely on the timed scan.
 - [x] **Upload models through the web UI** (drag and drop) into a chosen library folder. Done in 6.2.0: `POST /api/upload` ([src/server/uploads.js](src/server/uploads.js)) and the Upload Models dialog ([src/web/upload/UploadDialog.tsx](src/web/upload/UploadDialog.tsx)).
-- [ ] **Cost and time estimates** from G-code or sliced 3MF metadata plus filament prices.
 - [x] **Collections/projects** that group models across folders. Done in 6.5.0 ([src/core/collections.js](src/core/collections.js), [src/web/pages/CollectionsPage.tsx](src/web/pages/CollectionsPage.tsx)).
 - [x] **Read-only share links and QR codes** for a model or collection. Done in 6.5.0 ([src/core/share-links.js](src/core/share-links.js), public page [src/server/share-pages.js](src/server/share-pages.js), [src/web/share/ShareDialog.tsx](src/web/share/ShareDialog.tsx)). Possible later: a 3D preview on the shared page.
 - [ ] **Geometry-based duplicate detection**: find the same model across different files.
 - [ ] **Bulk import from Printables/Thingiverse/MakerWorld URLs** in the web UI (the Chrome extension that added links is removed).
 - [ ] **Undo for metadata and tag edits.**
-- [x] **Statistics dashboard**: prints per month, success rate, filament used, top designers. Done in 6.2.0 as the Statistics page ([src/web/pages/StatsPage.tsx](src/web/pages/StatsPage.tsx), [src/core/print-stats.js](src/core/print-stats.js)), drawn in SVG (Chart.js is no longer a dependency). Filament is counted in prints: the print log does not record grams.
+- [x] **Statistics dashboard**: prints per month, success rate, top designers (filament used was dropped with filament in 7.0). Done in 6.2.0 as the Statistics page ([src/web/pages/StatsPage.tsx](src/web/pages/StatsPage.tsx), [src/core/print-stats.js](src/core/print-stats.js)), drawn in SVG (Chart.js is no longer a dependency). Filament is counted in prints: the print log does not record grams.
 
 ---
 

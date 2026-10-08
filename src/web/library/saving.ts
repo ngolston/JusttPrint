@@ -30,9 +30,6 @@ export async function saveModelField(field: string, value: unknown, filePath: st
   }
 }
 
-const ids = (list: unknown): number[] => (Array.isArray(list) ? list : [])
-  .map((v) => Number(v && typeof v === 'object' ? (v as { id?: unknown }).id : v))
-  .filter((id) => Number.isInteger(id) && id > 0);
 const tagList = (list: unknown): string[] => (Array.isArray(list) ? list : [])
   .map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '')).filter(Boolean);
 
@@ -49,7 +46,7 @@ async function saveBatch(batch: ModelRecord[]) {
 }
 
 /**
- * Set a field on every selected model. Tags and filaments are added to what each model has
+ * Set a field on every selected model. Tags are added to what each model has
  * (replaced with `replace`); an empty designer becomes "Unknown".
  */
 export async function saveSelectedField(field: string, value: unknown, options: { replace?: boolean } = {}): Promise<boolean> {
@@ -61,8 +58,6 @@ export async function saveSelectedField(field: string, value: unknown, options: 
       if (field === 'tags') {
         const next = tagList(value);
         model.tags = (options.replace ? next : [...new Set([...tagList(model.tags), ...next])]).sort();
-      } else if (field === 'filaments') {
-        model.filaments = options.replace ? ids(value) : [...new Set([...ids(model.filaments), ...ids(value)])];
       } else {
         model[field] = field === 'designer' && !value ? 'Unknown' : value;
       }
@@ -75,21 +70,15 @@ export async function saveSelectedField(field: string, value: unknown, options: 
   }
 }
 
-/** Remove one tag or filament from every selected model, keeping their others. */
-export async function removeFromSelected(field: 'tags' | 'filaments', value: string | number) {
+/** Remove one tag from every selected model, keeping their others. */
+export async function removeFromSelected(field: 'tags', value: string) {
   const batch: ModelRecord[] = [];
   for (const filePath of selection.values()) {
     const model = await modelApi.get<ModelRecord>(filePath).catch(() => null);
     if (!model) continue;
-    if (field === 'tags') {
-      const tags = tagList(model.tags);
-      if (!tags.includes(String(value))) continue;
-      model.tags = tags.filter((t) => t !== value);
-    } else {
-      const current = ids(model.filaments);
-      if (!current.includes(Number(value))) continue;
-      model.filaments = current.filter((id) => id !== Number(value));
-    }
+    const tags = tagList(model.tags);
+    if (!tags.includes(String(value))) continue;
+    model.tags = tags.filter((t) => t !== value);
     batch.push(model);
   }
   if (batch.length) await saveBatch(batch);

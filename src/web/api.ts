@@ -262,8 +262,6 @@ export interface PrintStatistics {
   designers: { name: string; printed: number; models: number }[];
   models: { id: number; fileName: string; filePath: string; printed: number }[];
   printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
-  filaments: { id: number; name: string; vendor: string; material: string; colorHex: string; prints: number }[];
-  materials: { material: string; prints: number }[];
 }
 
 export const statistics = {
@@ -320,33 +318,6 @@ export const settings = {
 export const folders = {
   /** The scanned folders as a tree (src/core/folder-tree-lib.js buildFolderForest). */
   tree: () => callAction<import('./folders/tree').FolderForest>('get-folder-tree')
-};
-
-export interface Filament {
-  id: number;
-  name: string;
-  vendor: string | null;
-  material: string | null;
-  color_hex: string | null;
-  diameter: number | null;
-  model_count: number;
-  /** Logged prints with this filament, and when the last one was (null when never). */
-  print_count?: number;
-  last_used_at?: string | null;
-}
-
-export interface FilamentInput {
-  name: string;
-  vendor: string;
-  material: string;
-  color_hex: string;
-  diameter: number;
-}
-
-export const filaments = {
-  list: () => callAction<Filament[]>('get-all-filaments'),
-  save: (filament: FilamentInput) => callAction<Filament>('save-filament', filament),
-  remove: (id: number) => callAction<unknown>('delete-filament', id)
 };
 
 export interface Printer {
@@ -449,7 +420,7 @@ export const library = {
 };
 
 /** Dashboard Recent Activity (src/core/recent-activity.js), newest first. */
-export interface PrintActivity { kind: 'print'; id: number; at: string; outcome: string; quantity: number; filePath: string; fileName: string | null; printer: string | null; filaments: string[] }
+export interface PrintActivity { kind: 'print'; id: number; at: string; outcome: string; quantity: number; filePath: string; fileName: string | null; printer: string | null }
 export type ActivityItem = PrintActivity | { kind: 'added'; at: string; day: string; count: number };
 
 export interface ServerGpuInfo {
@@ -753,7 +724,6 @@ export interface PrintEvent {
   printer_name?: string | null;
   printer_model?: string | null;
   printer_type?: string | null;
-  filaments?: { id: number; vendor?: string | null; name?: string | null; material?: string | null; color_hex?: string | null }[];
   parts?: { id: number; name?: string | null; quantity: number }[];
 }
 
@@ -763,7 +733,6 @@ export interface LogPrintInput {
   quantity: number;
   notes: string;
   printerId: number | null;
-  filamentIds: number[];
   parts: { id: number; quantity: number }[];
 }
 

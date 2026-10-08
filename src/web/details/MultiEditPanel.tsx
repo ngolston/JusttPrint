@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ClipboardPen, ExternalLink, List, ListChecks, Plus, Spool, Tags, X } from 'lucide-react';
-import { filaments as filamentApi, libraryValues, models, tags as tagApi, type Filament } from '../api';
+import { ClipboardPen, ExternalLink, List, ListChecks, Plus, Tags, X } from 'lucide-react';
+import { libraryValues, models, tags as tagApi } from '../api';
 import { askText, exposeGlobal, showMessage } from '../page';
 import { selection } from '../selection';
-import { STATUSES, STATUS_LABELS, colorCss, filamentLabel, type FilamentLike } from '../print/printStatus';
+import { STATUSES, STATUS_LABELS } from '../print/printStatus';
 import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
-import { navigate } from '../shell/routes';
 
-type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags' | 'filaments';
+type Field = 'designer' | 'parentModel' | 'license' | 'source' | 'tags';
 
 /** What the multi-edit panel asks of the library (library/hosts.ts), which owns the selection and the panel's visibility. */
 export interface MultiEditHost {
@@ -19,10 +18,10 @@ export interface MultiEditHost {
   exit(): void;
   selectAllVisible(): Promise<void>;
   clearSelection(): void;
-  /** Set a field on every selected model. Tags and filaments in `value` are added to what each model has. */
-  saveField(field: Field, value: string | string[] | number[]): Promise<boolean>;
-  /** Remove one tag or filament from every selected model, keeping their others. */
-  removeFromSelected(field: 'tags' | 'filaments', value: string | number): Promise<void>;
+  /** Set a field on every selected model. Tags in `value` are added to what each model has. */
+  saveField(field: Field, value: string | string[]): Promise<boolean>;
+  /** Remove one tag from every selected model, keeping their others. */
+  removeFromSelected(field: 'tags', value: string): Promise<void>;
   openSource(url: string): void;
 }
 
@@ -41,7 +40,6 @@ declare global {
   }
 }
 
-const label = (filament: FilamentLike) => filamentLabel(filament, undefined, 'Unnamed filament');
 const sortNames = (names: (string | null | undefined)[]) =>
   [...new Set(names.map((n) => String(n || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
@@ -50,41 +48,35 @@ interface Options {
   parents: string[];
   licenses: string[];
   tags: string[];
-  filaments: Filament[];
 }
 
 interface OnSelected {
   tags: string[];
-  filaments: FilamentLike[];
 }
 
 async function loadOptions(): Promise<Options> {
-  const [designers, parents, licenses, allTags, allFilaments] = await Promise.all([
+  const [designers, parents, licenses, allTags] = await Promise.all([
     libraryValues.designers().catch(() => []),
     libraryValues.parentModels().catch(() => []),
     libraryValues.licenses().catch(() => []),
-    tagApi.list().catch(() => []),
-    filamentApi.list().catch(() => [] as Filament[])
+    tagApi.list().catch(() => [])
   ]);
   return {
     designers: sortNames(designers),
     parents: sortNames(parents),
     licenses: sortNames(licenses),
-    tags: sortNames(allTags.map((t) => t.name)),
-    filaments: allFilaments.slice().sort((a, b) => label(a).localeCompare(label(b)))
+    tags: sortNames(allTags.map((t) => t.name))
   };
 }
 
-/** Tags and filaments that at least one selected model has (for the Remove pickers). */
+/** Tags that at least one selected model has (for the Remove picker). */
 async function loadOnSelected(paths: string[]): Promise<OnSelected> {
-  const loaded = await Promise.all(paths.map((p) => models.get<{ tags?: unknown[]; filaments?: FilamentLike[] }>(p).catch(() => null)));
+  const loaded = await Promise.all(paths.map((p) => models.get<{ tags?: unknown[] }>(p).catch(() => null)));
   const tagNames: string[] = [];
-  const byId = new Map<string, FilamentLike>();
   for (const model of loaded) {
     for (const tag of model?.tags || []) tagNames.push(typeof tag === 'string' ? tag : String((tag as { name?: string })?.name ?? ''));
-    for (const f of model?.filaments || []) if (f?.id != null && !byId.has(String(f.id))) byId.set(String(f.id), f);
   }
-  return { tags: sortNames(tagNames), filaments: [...byId.values()].sort((a, b) => label(a).localeCompare(label(b))) };
+  return { tags: sortNames(tagNames) };
 }
 
 const PROMPTS: Record<'designer' | 'parentModel' | 'license', string> = {
@@ -95,17 +87,16 @@ const PROMPTS: Record<'designer' | 'parentModel' | 'license', string> = {
 
 /**
  * The multi-edit panel's body (#multi-edit-slot), laid out like the JusttPrint 5 details panel: the
- * count and selection buttons, then Printing, Details, Tags and Filament sections whose fields apply to
+ * count and selection buttons, then Printing, Details and Tags sections whose fields apply to
  * every selected model as soon as they change. Registers window.multiEdit.
  */
 export function MultiEditPanel() {
   const [slot] = useState(() => document.getElementById('multi-edit-slot'));
   const [count, setCount] = useState(0);
-  const [options, setOptions] = useState<Options>({ designers: [], parents: [], licenses: [], tags: [], filaments: [] });
-  const [onSelected, setOnSelected] = useState<OnSelected>({ tags: [], filaments: [] });
+  const [options, setOptions] = useState<Options>({ designers: [], parents: [], licenses: [], tags: [] });
+  const [onSelected, setOnSelected] = useState<OnSelected>({ tags: [] });
   const [source, setSource] = useState('');
   const [picked, setPicked] = useState({ designer: '', parentModel: '', license: '' });
-  const [addedFilaments, setAddedFilaments] = useState<FilamentLike[]>([]);
   const sourceTimer = useRef<number | undefined>(undefined);
   const selectionLoad = useRef(0);
   const host = window.multiEditHost;
@@ -117,7 +108,7 @@ export function MultiEditPanel() {
     setCount(paths.length);
     const load = ++selectionLoad.current;
     if (!paths.length || document.getElementById('multi-edit-panel')?.classList.contains('hidden')) {
-      setOnSelected({ tags: [], filaments: [] });
+      setOnSelected({ tags: [] });
       return;
     }
     loadOnSelected(paths).then((next) => { if (load === selectionLoad.current) setOnSelected(next); }).catch(() => {});
@@ -129,7 +120,6 @@ export function MultiEditPanel() {
       window.clearTimeout(sourceTimer.current);
       setSource('');
       setPicked({ designer: '', parentModel: '', license: '' });
-      setAddedFilaments([]);
       reloadOptions();
       selectionChanged();
     },
@@ -137,10 +127,10 @@ export function MultiEditPanel() {
     reloadOptions
   }), []);
 
-  async function save(field: Field, value: string | string[] | number[]) {
+  async function save(field: Field, value: string | string[]) {
     if (!host || !host.selectedPaths().length) return false;
     const ok = await host.saveField(field, value);
-    if (field === 'tags' || field === 'filaments') selectionChanged();
+    if (field === 'tags') selectionChanged();
     return ok;
   }
 
@@ -190,21 +180,6 @@ export function MultiEditPanel() {
     selectionChanged();
   }
 
-  async function addFilament(id: number) {
-    const filament = options.filaments.find((f) => f.id === id);
-    if (!id || !filament) return;
-    if (await save('filaments', [id])) {
-      setAddedFilaments((current) => (current.some((f) => Number(f.id) === id) ? current : [...current, filament]));
-    }
-  }
-
-  async function removeFilament(id: number) {
-    if (!id || !host) return;
-    await host.removeFromSelected('filaments', id);
-    setAddedFilaments((current) => current.filter((f) => Number(f.id) !== id));
-    selectionChanged();
-  }
-
   if (!slot) return null;
 
   const listButton = (title: string, onClick: () => void) => (
@@ -232,8 +207,6 @@ export function MultiEditPanel() {
       </div>
     </div>
   );
-
-  const addableFilaments = options.filaments.filter((f) => !addedFilaments.some((a) => Number(a.id) === f.id));
 
   return createPortal(
     <div className="jp jp-details jp-multi">
@@ -322,47 +295,6 @@ export function MultiEditPanel() {
           </div>
         </div>
         <Button id="multi-edit-tags-button" variant="ghost" size="sm" icon={Tags} className="jp-multi__manage" onClick={() => window.openTagManager?.()}>Manage Tags</Button>
-      </section>
-
-      <section className="jp-details__section">
-        <h3 className="jp-details__heading">Filament</h3>
-        {addedFilaments.length > 0 && (
-          <div id="multi-filaments" className="jp-multi__filaments">
-            {addedFilaments.map((f) => (
-              <div key={String(f.id)} className="filament-chip" data-filament-id={String(f.id)} title={label(f)}>
-                <span className="filament-swatch" style={{ background: colorCss(f.color_hex) }} />
-                <span className="filament-chip-text">{label(f)}</span>
-                <button type="button" className="jp-icon-btn jp-icon-btn--sm filament-chip-remove" title="Remove from selected" aria-label={`Remove ${label(f)} from selected`}
-                  onClick={() => removeFilament(Number(f.id))}>
-                  <X size={14} aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="jp-multi__rows">
-          <div className="jp-multi__row">
-            <label htmlFor="multi-filament-select">Add</label>
-            <div className="jp-multi__control">
-              <select id="multi-filament-select" className="jp-multi__picker" value="" onChange={(e) => addFilament(Number(e.target.value))}>
-                <option value="">Add a filament…</option>
-                {addableFilaments.map((f) => <option key={f.id} value={String(f.id)}>{label(f)}</option>)}
-              </select>
-              {listButton('Search existing filaments', async () => addFilament(Number(await pickFromList('filament'))))}
-            </div>
-          </div>
-          <div className="jp-multi__row">
-            <label htmlFor="multi-filament-remove-select">Remove</label>
-            <div className="jp-multi__control">
-              <select id="multi-filament-remove-select" className="jp-multi__picker" value="" disabled={!onSelected.filaments.length} onChange={(e) => removeFilament(Number(e.target.value))}>
-                <option value="">{onSelected.filaments.length ? 'Remove a filament…' : 'None to remove'}</option>
-                {onSelected.filaments.map((f) => <option key={String(f.id)} value={String(f.id)}>{label(f)}</option>)}
-              </select>
-              {listButton('Search filaments to remove from the selection', async () => removeFilament(Number(await pickFromList('filament', true))))}
-            </div>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" icon={Spool} className="jp-multi__manage" onClick={() => navigate('filament')}>Manage Filament</Button>
       </section>
 
       <div className="jp-details__footer">

@@ -17,7 +17,7 @@ const guidePages = [
   {
     title: "Model Details",
     content: `Click a card to see the model on the right: a large preview (<strong>3D</strong> opens it in 3D), its tags,
-    <strong>Open in Slicer</strong>, <strong>Log Print</strong>, and its details, filament, notes and print history.
+    <strong>Open in Slicer</strong>, <strong>Log Print</strong>, and its details, notes and print history.
     Every field saves as you change it.
     <p>Ctrl/⌘-click or Shift-click several cards to edit them together. Right-click a card, or press the Menu key, for more actions.</p>`,
     image: "guide/guide-details.png"
@@ -25,7 +25,7 @@ const guidePages = [
   {
     title: "Finding Models",
     content: `Search from the box at the top (<strong>Ctrl/⌘ K</strong>). <strong>Filter</strong> narrows the library by folder,
-    designer, parent model, license, tags, print status, filament and more; the active filters show as chips you can remove.
+    designer, parent model, license, tags, print status and more; the active filters show as chips you can remove.
     <p>Switch between <strong>Grid</strong>, <strong>Wall</strong> and <strong>List</strong>, and open the folder panel to browse your folders.</p>`,
     image: "guide/guide-filter.png"
   },
@@ -33,8 +33,7 @@ const guidePages = [
     title: "Printing",
     content: `<strong>Home</strong> shows your figures, recent activity and printers.
     <strong>Queue</strong> lists what is printing, what is up next and what printed lately.
-    <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders, and
-    <strong>Filament</strong> your filament catalog.
+    <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders.
     <p>Log a print from a card's status badge or the details panel; JusttPrint keeps a dated history for each model.</p>`,
     image: "guide/guide-home.png"
   },

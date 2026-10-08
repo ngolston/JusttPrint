@@ -27,8 +27,6 @@ function createDb() {
     );
     CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE);
     CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER);
-    CREATE TABLE filaments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, vendor TEXT, material TEXT);
-    CREATE TABLE model_filaments (model_id INTEGER, filament_id INTEGER);
   `);
   const insert = db.prepare('INSERT INTO models (filePath, fileName, designer) VALUES (?, ?, ?)');
   insert.run('/m/box.3mf', 'box.3mf', null);

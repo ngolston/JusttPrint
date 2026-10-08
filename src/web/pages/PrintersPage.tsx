@@ -222,7 +222,7 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
                     void showModelDetails(event.filePath);
                   }}>
                     <span className="jp-printer-detail__item-title">{cardTitle({ filePath: event.filePath, fileName: event.fileName })}</span>
-                    <span className="jp-printer-detail__item-meta">{[day(event.at), event.filaments[0]].filter(Boolean).join(' • ')}</span>
+                    <span className="jp-printer-detail__item-meta">{day(event.at)}</span>
                   </button>
                   <StatusBadge tone={outcome.tone} icon={outcome.icon}>{outcome.label}</StatusBadge>
                 </li>

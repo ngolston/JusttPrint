@@ -4,8 +4,7 @@
  * The Statistics page: what the print log and the library say over a period. Read-only.
  *
  * Counts are prints (each logged event times its quantity). The success rate is printed out
- * of printed + failed; cancelled prints are counted on their own. "Filament" is how many prints
- * used each filament: the print log records which filaments a print used, not how much.
+ * of printed + failed; cancelled prints are counted on their own.
  * Months are calendar months in UTC, as the print log stores times.
  */
 
@@ -54,7 +53,6 @@ const rate = (printed, failed) => (printed + failed > 0 ? printed / (printed + f
 function printStatistics(db, { months = 12, now = new Date() } = {}) {
   const hasEvents = tableExists(db, 'print_events');
   const hasPrinters = hasEvents && tableExists(db, 'printers') && columnExists(db, 'print_events', 'printer_id');
-  const hasFilaments = hasEvents && tableExists(db, 'print_event_filaments') && tableExists(db, 'filaments');
 
   const firstPrint = hasEvents ? db.prepare('SELECT MIN(substr(printed_at, 1, 7)) AS first FROM print_events').get().first : null;
   const requested = Math.floor(Number(months));
@@ -74,8 +72,6 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
   let designers = [];
   let models = [];
   let printers = [];
-  let filaments = [];
-  let materials = [];
 
   if (hasEvents) {
     for (const row of db.prepare(`
@@ -124,29 +120,6 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
         successRate: rate(Number(row.printed), Number(row.failed))
       })).filter((row) => row.printed + row.failed > 0);
     }
-
-    if (hasFilaments) {
-      filaments = db.prepare(`
-        SELECT f.id, f.name, f.vendor, f.material, f.color_hex, SUM(pe.quantity) AS prints
-        FROM print_event_filaments pef
-        JOIN print_events pe ON pe.id = pef.event_id
-        JOIN filaments f ON f.id = pef.filament_id
-        ${where ? `${where} AND` : 'WHERE'} pe.outcome = 'printed'
-        GROUP BY f.id
-        ORDER BY prints DESC, f.vendor COLLATE NOCASE, f.name COLLATE NOCASE
-        LIMIT ${TOP}`).all(...params).map((row) => ({
-        id: row.id, name: row.name, vendor: row.vendor || '', material: row.material || '', colorHex: row.color_hex || '', prints: Number(row.prints)
-      }));
-      materials = db.prepare(`
-        SELECT UPPER(TRIM(f.material)) AS material, SUM(pe.quantity) AS prints
-        FROM print_event_filaments pef
-        JOIN print_events pe ON pe.id = pef.event_id
-        JOIN filaments f ON f.id = pef.filament_id
-        ${where ? `${where} AND` : 'WHERE'} pe.outcome = 'printed' AND f.material IS NOT NULL AND TRIM(f.material) != ''
-        GROUP BY UPPER(TRIM(f.material))
-        ORDER BY prints DESC, material
-        LIMIT ${TOP}`).all(...params).map((row) => ({ material: row.material, prints: Number(row.prints) }));
-    }
   }
 
   // Library growth: models added per month in the same period.
@@ -169,9 +142,7 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
     byMonth: keys.map((key) => ({ ...byMonth.get(key), added: added.get(key) })),
     designers,
     models,
-    printers,
-    filaments,
-    materials
+    printers
   };
 }
 

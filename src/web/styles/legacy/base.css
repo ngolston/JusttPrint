@@ -669,8 +669,7 @@ button:disabled {
 .model-details #model-designer,
 .model-details #model-parent,
 .model-details #model-license,
-.model-details #tag-select,
-.model-details #filament-select {
+.model-details #tag-select {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
@@ -729,7 +728,6 @@ button:disabled {
 #details-name-slot > .form-group,
 #details-fields-slot > .form-group,
 #details-print-slot > .form-group,
-#details-filaments-slot > .form-group,
 #details-notes-slot > .form-group,
 #bundle-details-slot > .form-group,
 #details-history-slot > .form-group {
@@ -3792,15 +3790,7 @@ dialog:not([open]) {
   color: var(--jp-text);
 }
 
-.filament-swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-  display: inline-block;
-}
-.filament-chip {
+.item-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3811,11 +3801,11 @@ dialog:not([open]) {
   color: var(--jp-text);
   font-size: 12px;
 }
-.filament-chip-remove {
+.item-chip-remove {
   cursor: pointer;
   padding: 0 4px;
 }
-.tags-list .filament-chip {
+.tags-list .item-chip {
   margin: 0;
   font-size: 14px;
 }
@@ -5314,7 +5304,6 @@ dialog:not([open]) {
   border-left-color: rgba(149, 165, 166, 0.9);
 }
 .print-history-item-main,
-.print-history-filaments,
 .print-history-parts,
 .print-history-notes {
   grid-column: 1;
@@ -5332,7 +5321,6 @@ dialog:not([open]) {
   flex-shrink: 0;
 }
 .print-history-when,
-.print-history-filaments,
 .print-history-parts,
 .print-history-notes {
   font-size: 12px;

@@ -6,7 +6,7 @@ import { Button, IconButton } from '../components/Button';
 import { EmptyState, Skeleton } from '../components/Panel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { cardTitle, materialOf } from '../grid/ModelCard';
+import { cardTitle } from '../grid/ModelCard';
 import type { GridModel } from '../grid/layout';
 import { timeAgo } from '../home/format';
 import { showModelDetails } from '../library/details';
@@ -61,7 +61,7 @@ function Row({ filePath, name, meta, lead, status, actions }: {
   );
 }
 
-const modelMeta = (model: GridModel) => [typeof model.designer === 'string' ? model.designer : '', materialOf(model)].filter(Boolean).join(' • ');
+const modelMeta = (model: GridModel) => (typeof model.designer === 'string' ? model.designer : '');
 
 function Section({ id, title, count, children }: { id: string; title: string; count?: number; children: ReactNode }) {
   return (
@@ -165,7 +165,7 @@ export function QueuePage() {
           <ul className="jp-queue__list" aria-label="Completed">
             {completed.map((event: PrintActivity) => (
               <Row key={event.id} filePath={event.filePath} name={cardTitle({ filePath: event.filePath, fileName: event.fileName })}
-                meta={[timeAgo(event.at), event.printer, event.filaments[0]].filter(Boolean).join(' • ')}
+                meta={[timeAgo(event.at), event.printer].filter(Boolean).join(' • ')}
                 status={<StatusBadge tone="success">{event.quantity > 1 ? `Printed ×${event.quantity}` : 'Printed'}</StatusBadge>}
                 actions={<EditOnly><IconButton size="sm" icon={RotateCcw} label="Queue it again" disabled={busy === event.filePath}
                   onClick={() => run(event.filePath, 'queued')} /></EditOnly>} />

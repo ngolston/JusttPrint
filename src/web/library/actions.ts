@@ -1,6 +1,6 @@
 /**
  * Page actions and events that act on the library: what the dialogs call after changing tags,
- * filaments or metadata, Print Roulette, Clear New Flag, and the server's events for thumbnails,
+ * metadata, Print Roulette, Clear New Flag, and the server's events for thumbnails,
  * Add Image, downloads and the like.
  */
 import { callAction } from '../api';
@@ -32,17 +32,16 @@ export async function viewEntireLibrary() {
 
 // ---- After changes in the managers ----
 
-/** Reload every picker and filter that lists tags, filaments, designers, parent models or licenses. */
+/** Reload every picker and filter that lists tags, designers, parent models or licenses. */
 function reloadAllPickers() {
   window.libraryFilters?.reloadOptions();
   window.detailsFields?.reloadOptions();
-  window.detailsFilaments?.reloadOptions();
   window.multiEdit?.reloadOptions();
   window.multiEdit?.selectionChanged();
   window.bundleDetails?.reloadOptions();
 }
 
-/** The details panel's tags and filaments, from the database. */
+/** The details panel's tags, from the database. */
 async function reloadShownModel() {
   const filePath = currentModelPath();
   if (!filePath) return;
@@ -51,7 +50,6 @@ async function reloadShownModel() {
     const tags = await callAction<unknown[]>('get-model-tags', model.id).catch(() => []);
     window.detailsFields?.setTags(tags.map((t) => (typeof t === 'string' ? t : (t as { name?: string })?.name || '')).filter(Boolean));
   }
-  await window.detailsFilaments?.load(filePath);
 }
 
 /** Search again with every card rebuilt (their tags or values changed). */
@@ -200,7 +198,6 @@ declare global {
   interface Window {
     refreshTagRelatedUi?: () => Promise<void>;
     refreshAfterTagManagerClose?: () => Promise<void>;
-    refreshFilamentPickers?: () => Promise<void>;
     refreshAfterMetadataChange?: () => Promise<void>;
     refreshAfterDedupDelete?: () => Promise<void>;
     afterModelsPurged?: () => Promise<void>;
@@ -213,7 +210,6 @@ declare global {
 if (typeof window !== 'undefined') {
   window.refreshTagRelatedUi = refreshTagRelatedUi;
   window.refreshAfterTagManagerClose = refreshAfterTagManagerClose;
-  window.refreshFilamentPickers = async () => reloadAllPickers();
   window.refreshAfterMetadataChange = async () => {
     reloadAllPickers();
     await reloadGrid();

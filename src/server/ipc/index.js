@@ -5,7 +5,6 @@ require('./ai');
 require('./collections');
 require('./backup');
 require('./context-menu');
-require('./filaments');
 require('./files');
 require('./hashes');
 require('./metadata');

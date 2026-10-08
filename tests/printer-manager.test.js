@@ -138,18 +138,6 @@ test('tracks prints logged to a printer', () => {
       printed INTEGER DEFAULT 0
     )
   `).run();
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS filaments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      vendor TEXT,
-      material TEXT,
-      color_hex TEXT,
-      diameter REAL,
-      spoolman_id INTEGER,
-      source TEXT
-    )
-  `).run();
   printEvents.migratePrintLifecycle(db);
   const model = db.prepare('INSERT INTO models (filePath, fileName) VALUES (?, ?)').run('c:/test.stl', 'test.stl');
 

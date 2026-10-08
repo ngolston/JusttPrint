@@ -6,7 +6,7 @@
  * Screens that are still dialogs open as dialogs; later phases turn them into pages.
  */
 import {
-  Archive, BarChart3, BookOpen, Box, FolderHeart, Link2, Brush, Cable, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
+  Archive, BarChart3, BookOpen, Box, FolderHeart, Link2, Brush, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
   ExternalLink, HelpCircle, Home, Image, Info, Keyboard, KeyRound, Library, ListChecks, LogOut, type LucideIcon, Package, Printer,
   RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, UserCog, Wrench
 } from 'lucide-react';
@@ -69,7 +69,6 @@ export const NAV: NavSection[] = [
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
       { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
-      { id: 'filament', label: 'Filament', icon: Cable, page: 'filament' },
       { id: 'stats', label: 'Statistics', icon: BarChart3, page: 'stats' }
     ]
   },
@@ -141,9 +140,6 @@ export const SETTINGS: SettingsGroup[] = [
   { id: 'printers', label: 'Printers', items: [
     { id: 'printers', label: 'Printers', description: 'Your printers, their web pages and maintenance reminders.', icon: Printer, run: () => navigate('printers'), role: 'viewer' },
     { id: 'parts', label: 'Parts Manager', description: 'Spare parts stock for your printers.', icon: Package, run: menu('Parts Manager'), replaces: ['Parts Manager'], role: 'editor' }
-  ] },
-  { id: 'filament', label: 'Filament', items: [
-    { id: 'filament', label: 'Filament', description: 'Your filament catalog.', icon: Cable, run: () => navigate('filament'), role: 'viewer' }
   ] },
   { id: 'integrations', label: 'Integrations', items: [
     { id: 'mcp', label: 'MCP Server', description: 'Connect an AI app (Claude, Cursor, VS Code) to your library.', icon: Cpu, run: open('openMcpServerSettings'), replaces: ['Settings'], embed: { dialog: 'mcp-server-settings-dialog', open: 'openMcpServerSettings' } }

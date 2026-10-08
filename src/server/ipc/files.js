@@ -124,7 +124,7 @@ const purgeModelsHandler = async (event, options = {}) => {
         // Rows that reference models go first (print history too, as when one model is removed),
         // then the models, then the tags no model uses any more. All or nothing.
         database.db.transaction(() => {
-          for (const table of ['print_event_filaments', 'print_event_parts', 'print_events', 'model_tags', 'model_filaments']) {
+          for (const table of ['print_event_parts', 'print_events', 'model_tags']) {
             const exists = database.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table);
             if (exists) database.db.prepare(`DELETE FROM ${table}`).run();
           }

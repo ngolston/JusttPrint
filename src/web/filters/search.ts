@@ -21,8 +21,7 @@ declare global {
 }
 
 export const labels: Labels = {
-  printed: (value) => window.PrintHistory?.filterLabel(value) || value,
-  filament: (id) => window.filamentLabelById?.[String(id)] || String(id)
+  printed: (value) => window.PrintHistory?.filterLabel(value) || value
 };
 
 type SearchListener = (status: { loading: boolean; count: number | null }) => void;
@@ -159,7 +158,6 @@ declare global {
     clearAllLibraryFilters?: () => void;
     getCombinedFilteredModels?: (page?: { limit?: number; offset?: number }) => Promise<Model[]>;
     setTagMultiFilter?: (names: string[]) => void;
-    filamentLabelById?: Record<string, string>;
   }
 }
 
