@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.3.3] - 2026-10-07
+
+**Changes:**
+- Removed `assets/sidebar-bg.jpg`, an old background texture nothing used.
+
 ## [7.3.2] - 2026-10-07
 
 **Upgrading:** no changes needed. Browsers keep old icons for a while: reload the page, and on a phone remove and add the home-screen icon again.
