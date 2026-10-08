@@ -13,12 +13,16 @@ describe('shortcutFor', () => {
     expect(shortcutFor(press('R', { meta: true, shift: true }), ctx())).toBe('roulette');
     expect(shortcutFor(press('e', { ctrl: true }), ctx())).toBe('toggleMultiEdit');
     expect(shortcutFor(press('a', { meta: true }), ctx())).toBe('selectAll');
+    expect(shortcutFor(press('z', { meta: true }), ctx())).toBe('undo');
+    expect(shortcutFor(press('Z', { ctrl: true, shift: true }), ctx())).toBeNull();
   });
 
   it('leaves typing alone, except search focus, the help dialog and leaving multi-edit', () => {
     const typing = ctx({ inInput: true, detailsVisible: true });
     expect(shortcutFor(press('a', { ctrl: true }), typing)).toBeNull();
     expect(shortcutFor(press('j'), typing)).toBeNull();
+    // Ctrl/Cmd+Z in a text field is the browser's own undo.
+    expect(shortcutFor(press('z', { ctrl: true }), typing)).toBeNull();
     expect(shortcutFor(press('/', { ctrl: true }), typing)).toBe('focusSearch');
     expect(shortcutFor(press('?', { meta: true, shift: true }), typing)).toBe('showShortcuts');
     expect(shortcutFor(press('Escape'), ctx({ inInput: true, multiEdit: true }))).toBe('exitMultiEdit');

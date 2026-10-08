@@ -1,6 +1,6 @@
 # JusttPrint
 
-**Version 7.1.0**
+**Version 7.2.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -23,6 +23,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
 - **Search and filters** by name, folder, tag, designer, status and more
 - **Multi-edit** to change many models at once
+- **Undo** for metadata and tag edits: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama
 - **MCP server** so AI agents can search and update your library

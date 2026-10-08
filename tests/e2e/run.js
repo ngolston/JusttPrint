@@ -1891,7 +1891,7 @@ async function browserChecks(base, wsUrl, session) {
     // Keyboard Shortcuts and About (React).
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+?' : 'Control+Shift+?');
     check('Ctrl+Shift+? opens Keyboard Shortcuts', await page.isVisible('#keyboard-shortcuts-dialog')
-      && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 12);
+      && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 13);
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
     // Shortcuts (React, src/web/shortcuts.ts).
@@ -2719,6 +2719,22 @@ async function accountChecks(base, wsUrl, admin) {
     const stale = await invoke(base, editor, 'save-model', [{ filePath: uploadedPath, designer: 'Mine', _base: { designer: 'An old value' } }]);
     check('a save from an old view reports the conflict and saves nothing', (stale.result?.conflicts || [])[0]?.field === 'designer'
       && ((await invoke(base, admin, 'get-model', [uploadedPath])).result || {}).designer === 'Live Designer', JSON.stringify(stale));
+    // Undo (src/web/library/undo.ts): the notice's button, then Ctrl/Cmd+Z.
+    const sourceNow = async () => ((await invoke(base, admin, 'get-model', [uploadedPath])).result || {}).source || '';
+    const sourceBefore = await sourceNow();
+    await editorPage.evaluate(() => window.reloadShownModelDetails?.());
+    for (const [how, typed] of [['the Undo button', 'https://example.com/undo-button'], ['Ctrl/Cmd+Z', 'https://example.com/undo-key']]) {
+      await editorPage.fill('#model-source', typed);
+      await editorPage.press('#model-source', 'Enter');
+      const saved = await waitFor(async () => (await sourceNow()) === typed, 10000, 'source saved').catch(() => false);
+      const toast = await editorPage.waitForSelector('[data-testid="undo-toast"]:has-text("Changed the source")', { timeout: 10000 }).catch(() => null);
+      if (how === 'the Undo button') await editorPage.click('[data-testid="undo-toast"] button:text-is("Undo")').catch(() => {});
+      else await editorPage.keyboard.press('ControlOrMeta+z');
+      const undone = await waitFor(async () => (await sourceNow()) === sourceBefore, 10000, 'source undone').catch(() => false);
+      check(`${how} undoes a details edit`, saved && !!toast && undone, await sourceNow());
+    }
+    check('the details panel shows the undone value', await editorPage.waitForFunction(
+      (v) => document.getElementById('model-source')?.value === v, sourceBefore, { timeout: 10000 }).then(() => true, () => false));
     check('no page errors for any account', errors.length === 0, errors.slice(0, 5).join(' | '));
   } finally {
     await browser.close();

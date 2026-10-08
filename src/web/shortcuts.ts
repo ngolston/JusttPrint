@@ -5,7 +5,7 @@
 
 export type ShortcutAction =
   | 'focusSearch' | 'showShortcuts' | 'exitMultiEdit' | 'next' | 'previous'
-  | 'scan' | 'clearFilters' | 'roulette' | 'toggleMultiEdit' | 'selectAll';
+  | 'scan' | 'clearFilters' | 'roulette' | 'toggleMultiEdit' | 'selectAll' | 'undo';
 
 export interface KeyPress {
   key: string;
@@ -39,6 +39,7 @@ export function shortcutFor(press: KeyPress, ctx: KeyContext): ShortcutAction | 
   if (press.shiftKey && key === 'r') return 'roulette';
   if (key === 'e') return 'toggleMultiEdit';
   if (key === 'a') return 'selectAll';
+  if (key === 'z' && !press.shiftKey) return 'undo';
   return null;
 }
 
@@ -50,6 +51,7 @@ export const SHORTCUT_HELP: [string, string[][]][] = [
   ['Print Roulette', [['Ctrl', 'Shift', 'R']]],
   ['Toggle Multi-Edit mode', [['Ctrl', 'E']]],
   ['Select all (filtered) models', [['Ctrl', 'A']]],
+  ['Undo the last metadata or tag edit', [['Ctrl', 'Z']]],
   ['Next model (detail view)', [['↓'], ['J']]],
   ['Previous model (detail view)', [['↑'], ['K']]],
   ['Exit Multi-Edit mode', [['Escape']]],

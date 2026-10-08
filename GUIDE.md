@@ -108,6 +108,12 @@ Editors and admins can add models from the browser:
 - Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
 - After the upload, the folder is scanned, so the models appear with thumbnails.
 
+## Undo
+
+After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.
+
+Undo respects other people's work: undoing a tag edit takes back only the tags you added or removed, and if someone changed a field after you, you are asked whose value stays.
+
 ## Several people at once
 
 Everyone who has JusttPrint open sees changes as they happen: when someone edits a model, logs a print or changes its status, its card and the details panel update in every other browser (the details panel waits while you are typing in it).
@@ -201,7 +207,7 @@ AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to
 
 ## Keyboard
 
-**Help → Keyboard Shortcuts** lists them all. The main ones: **Ctrl/⌘ K** search, **Tab** moves between cards (each card is one stop), **Enter** or **Space** selects, the arrow keys move the selection, **Ctrl/⌘ A** selects all, **Ctrl/⌘ E** multi-edit, **Escape** closes a dialog, drawer or popover. A **Skip to content** link is the first Tab stop on every page.
+**Help → Keyboard Shortcuts** lists them all. The main ones: **Ctrl/⌘ K** search, **Tab** moves between cards (each card is one stop), **Enter** or **Space** selects, the arrow keys move the selection, **Ctrl/⌘ A** selects all, **Ctrl/⌘ E** multi-edit, **Ctrl/⌘ Z** undoes the last edit, **Escape** closes a dialog, drawer or popover. A **Skip to content** link is the first Tab stop on every page.
 
 ## Your data
 
