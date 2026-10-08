@@ -34,6 +34,10 @@ const ACTIONS = {
   'get-upload-info': [],
   'add-uploaded-files': ['string', 'array?'],
 
+  // Bulk import from Printables, Thingiverse and MakerWorld links (ipc/link-import.js)
+  'check-model-links': ['string'],
+  'import-model-link': ['string'],
+
   // Scanning and library folders
   'load-directory': [],
   'save-directory': ['string'],
@@ -223,6 +227,7 @@ const VIEWER_ACTIONS = new Set([
 /** Actions that change the library: editors and admins. */
 const EDITOR_ACTIONS = new Set([
   'save-model', 'save-model-batch', 'update-models-batch', 'clear-new-model-flags', 'add-uploaded-files',
+  'check-model-links', 'import-model-link',
   'browse-folders', 'scan-directory', 'save-directory', 'trash-file', 'delete-file', 'move-files', 'calculate-file-hash',
   'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
   'get-models-without-thumbnails', 'get-models-with-default-thumbnails', 'start-server-thumbnail-job', 'cancel-server-thumbnail-job',

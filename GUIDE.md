@@ -119,6 +119,16 @@ Editors and admins can add models from the browser:
 - Nothing is replaced: when a name is taken, the upload is saved as `Name (2).stl`.
 - After the upload, the folder is scanned, so the models appear with thumbnails.
 
+## Adding models from links
+
+Keep track of models you have not downloaded yet: editors and admins can add Printables, Thingiverse and MakerWorld models from their links.
+
+1. Click **Add Links** in the Library.
+2. Paste the links, one per line (text around them is fine, up to 200 at a time). The list below shows each model; links already in your library, as an online model or as a file whose source is that link, are marked and skipped.
+3. Click **Add**. Each model is added as an online model with its name, designer, license and picture from the site, and the link as its source (the ↗ button beside **Source** in the details opens the page).
+
+If a site does not answer, the model is still added with a name from the link and a note to fill in the rest; a link to a model the site does not have is left out. **Stop** finishes the model being added and leaves the rest.
+
 ## Undo
 
 After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.
@@ -157,7 +167,7 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Role | Can |
 |------|-----|
 | Viewer | Browse, search, preview, download, open in a slicer, see Statistics |
-| Editor | Also edit models, tags, notes and the print log, upload, move, trash and delete files, scan, find duplicates |
+| Editor | Also edit models, tags, notes and the print log, upload and add links, move, trash and delete files, scan, find duplicates |
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
 Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel and the color scheme (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.

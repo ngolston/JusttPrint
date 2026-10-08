@@ -2536,6 +2536,19 @@ async function accountChecks(base, wsUrl, admin) {
   const viewerSocket = await openEvents(wsUrl, { cookie: viewer.cookie, origin: base });
   check('viewers get the event WebSocket', !!viewerSocket.hello);
 
+  // Add Links: checking finds links already in the library (link-only models, and files whose source is the link).
+  // Nothing here reaches the sites: links already in the library are answered without fetching.
+  check('viewers cannot add links', (await invoke(base, viewer, 'check-model-links', ['https://www.printables.com/model/3161'])).status === 403
+    && (await invoke(base, viewer, 'import-model-link', ['https://www.printables.com/model/3161'])).status === 403);
+  await invoke(base, admin, 'save-model', [{ filePath: 'url::https://www.printables.com/model/3161', fileName: 'E2E Benchy', source: 'https://www.printables.com/model/3161' }]);
+  const linkCheck = (await invoke(base, editor, 'check-model-links', ['Benchy: https://www.printables.com/de/model/3161-3d-benchy/files\nhttps://www.thingiverse.com/thing:42 https://www.thingiverse.com/thing:42\nhttps://example.com/x'])).result || {};
+  check('Add Links finds the links in pasted text, once each', (linkCheck.links || []).map((l) => `${l.site}:${l.id}`).join() === 'printables:3161,thingiverse:42'
+    && (linkCheck.unsupported || []).join() === 'https://example.com/x', JSON.stringify(linkCheck));
+  check('Add Links knows a link already in the library', linkCheck.links?.[0]?.existing?.fileName === 'E2E Benchy' && linkCheck.links?.[1]?.existing === null, JSON.stringify(linkCheck.links));
+  const again = (await invoke(base, editor, 'import-model-link', ['printables.com/model/3161'])).result || {};
+  check('adding a link already in the library adds nothing', again.status === 'exists' && again.filePath === 'url::https://www.printables.com/model/3161', JSON.stringify(again));
+  check('only model links are added', /Not a Printables, Thingiverse or MakerWorld model link/.test((await invoke(base, editor, 'import-model-link', ['http://127.0.0.1:5000/api/health'])).error || ''));
+
   // Display preferences are each user's own; the server-wide value is the default.
   const adminView = (await invoke(base, admin, 'get-setting', ['sortOption'])).result;
   check('a user saves their own sort order', (await invoke(base, viewer, 'save-setting', ['sortOption', 'name-desc'])).result === true
@@ -2707,6 +2720,15 @@ async function accountChecks(base, wsUrl, admin) {
     check('the browser upload went into the chosen folder, whole', path.dirname(uploadedTo) === folder && fs.existsSync(uploadedTo) && fs.readFileSync(uploadedTo).equals(cubeBytes), uploadedTo);
     await editorPage.keyboard.press('Escape');
 
+    // Add Links: pasted links are checked as you type.
+    await editorPage.click('#jp-links-button');
+    await editorPage.fill('#jp-links-text', 'https://www.printables.com/model/3161-3d-benchy\nhttps://makerworld.com/en/models/1000000-lens-cap\nnot a link https://example.com/x');
+    check('Add Links lists each link and what is already there', await editorPage.waitForSelector('#jp-links-list .jp-upload__item.is-exists:has-text("E2E Benchy")', { timeout: 10000 }).then(() => true, () => false)
+      && await editorPage.isVisible('#jp-links-list .jp-upload__item.is-new:has-text("Lens Cap")')
+      && /example\.com\/x/.test(await editorPage.textContent('#jp-links-unsupported')));
+    check('Add Links offers only the new ones', (await editorPage.textContent('#jp-links-start')) === 'Add 1 model');
+    await editorPage.keyboard.press('Escape');
+
     await editorPage.evaluate(() => { window.location.hash = '#/stats'; });
     check('Statistics shows the prints', await editorPage.waitForSelector('#jp-stats-tiles .jp-stat__value:text-is("3")', { timeout: 15000 }).then(() => true, () => false)
       && await editorPage.isVisible('#jp-stats-tiles :text("75%")'));
@@ -2729,7 +2751,7 @@ async function accountChecks(base, wsUrl, admin) {
     const viewerPage = await open('kid', 'kid-password');
     await viewerPage.evaluate(() => { window.location.hash = '#/library'; });
     await viewerPage.waitForTimeout(1500);
-    check('viewers have no Upload button', !(await viewerPage.isVisible('#jp-upload-button')));
+    check('viewers have no Upload or Add Links button', !(await viewerPage.isVisible('#jp-upload-button')) && !(await viewerPage.isVisible('#jp-links-button')));
     // A viewer's details panel shows the model but offers no edits.
     await viewerPage.click('.file-grid [data-filepath] .file-name', { timeout: 10000 }).catch(() => {});
     await viewerPage.waitForSelector('#model-designer', { timeout: 10000 }).catch(() => {});

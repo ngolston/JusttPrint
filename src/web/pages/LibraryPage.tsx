@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { FilterX, Library, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { FilterX, Library, Link2, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
@@ -79,9 +79,10 @@ function LibraryEmpty() {
             <>
               <Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button>
               <Button icon={Upload} onClick={() => window.openUpload?.()}>Upload Models</Button>
+              <Button icon={Link2} onClick={() => window.openLinkImport?.()}>Add Links</Button>
             </>
           ) : undefined}>
-          {canEdit ? 'Scan your model folders (STL Home) or upload models to fill the library.' : 'An editor or admin adds the models.'}
+          {canEdit ? 'Scan your model folders (STL Home), upload models, or add links from Printables, Thingiverse or MakerWorld.' : 'An editor or admin adds the models.'}
         </EmptyState>
       </div>
     );
@@ -138,6 +139,11 @@ export function LibraryHeader() {
             {canUpload && (
               <Button icon={Upload} id="jp-upload-button" onClick={() => window.openUpload?.()} title="Upload model files into a library folder (or drop them on the page)">
                 Upload
+              </Button>
+            )}
+            {canUpload && (
+              <Button icon={Link2} id="jp-links-button" onClick={() => window.openLinkImport?.()} title="Add models from Printables, Thingiverse or MakerWorld links">
+                Add Links
               </Button>
             )}
             <button type="button" ref={setFilterButton} id="jp-filter-button" className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}`}
