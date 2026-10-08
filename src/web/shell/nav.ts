@@ -8,7 +8,7 @@
 import {
   Archive, BarChart3, BookOpen, Box, FolderHeart, Link2, Brush, ClipboardList, Copy, Cpu, Database, FileCog, FolderTree, Gauge, HardDrive,
   ExternalLink, HelpCircle, Home, Image, Info, Keyboard, KeyRound, Library, ListChecks, LogOut, type LucideIcon, Package, Printer,
-  RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Sparkles, Tags, Trash2, UserCog, Wrench
+  RefreshCw, RotateCcw, Scan, ScanSearch, Settings, ShieldCheck, Shuffle, Smartphone, Sparkles, Tags, Trash2, UserCog, Wrench
 } from 'lucide-react';
 import { scanDirectory, scanStlHome } from '../scan/scan';
 import { stlHomeDirectories } from '../scan/stlHome';
@@ -116,7 +116,8 @@ export const SETTINGS: SettingsGroup[] = [
     { id: 'performance', label: 'Performance', description: 'File size limit, memory and worker settings.', icon: Gauge, run: menu('Performance'), replaces: ['Performance'], embed: { dialog: 'performance-settings-dialog', open: 'openPerformanceSettings' } }
   ] },
   { id: 'appearance', label: 'Appearance', items: [
-    { id: 'theme', label: 'Theme', description: 'Your color scheme; for admins also the model color, lighting and background of thumbnails.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' }, role: 'viewer' }
+    { id: 'theme', label: 'Theme', description: 'Your color scheme; for admins also the model color, lighting and background of thumbnails.', icon: Brush, run: menu('Theme'), replaces: ['Theme'], embed: { dialog: 'settings-dialog', open: 'openThemeSettings' }, role: 'viewer' },
+    { id: 'install', label: 'Install App', description: 'Add JusttPrint to your home screen or desktop.', icon: Smartphone, run: open('openInstallApp'), role: 'viewer' }
   ] },
   { id: 'library', label: 'Library', items: [
     { id: 'metadata', label: 'Metadata Manager', description: 'Rename or remove designers, licenses and parent models across the library.', icon: FileCog, run: menu('Metadata Manager'), replaces: ['Metadata Manager'], role: 'editor' },
@@ -172,6 +173,7 @@ export const SETTINGS: SettingsGroup[] = [
 
 export const HELP: SettingsItem[] = [
   { id: 'guide', label: 'Quick Start Guide', description: 'A short tour of JusttPrint.', icon: BookOpen, run: menu('Quick Start Guide'), replaces: ['Quick Start Guide'] },
+  { id: 'install', label: 'Install App', description: 'Add JusttPrint to your home screen or desktop.', icon: Smartphone, run: open('openInstallApp') },
   { id: 'shortcuts', label: 'Keyboard Shortcuts', description: 'Every shortcut in one list.', icon: Keyboard, run: menu('Keyboard Shortcuts'), replaces: ['Keyboard Shortcuts'] },
   { id: 'docs', label: 'Installing and Setup', description: 'The README: Docker, environment variables, network shares.', icon: Info, run: menu('Server Mode Info'), replaces: ['Server Mode Info'] },
   { id: 'github', label: 'GitHub', description: 'Releases, issues and source code.', icon: ExternalLink, run: menu('GitHub'), replaces: ['GitHub'] },

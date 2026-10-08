@@ -1739,11 +1739,17 @@ async function browserChecks(base, wsUrl, session) {
     check('Filter opens the filters as a full-width sheet', !!sheet && Math.round(sheet.width) === 390 && await phone.isVisible('#jp-filter-popover #sort-select'));
     await phone.tap('#jp-filter-popover button[aria-label="Close filters"]');
     if (phoneTile) {
+      // Touch screens (responsive.css): hover-only buttons show, and small controls are finger-sized.
+      const cardAction = await phone.$eval('.file-grid .jp-model-card[data-filepath] .jp-model-card__action', (el) => ({ opacity: getComputedStyle(el).opacity, size: el.getBoundingClientRect().width }));
+      check('on a touch screen card buttons show without hover, finger-sized', cardAction.opacity === '1' && cardAction.size >= 36, JSON.stringify(cardAction));
       await phone.tap('.file-grid .jp-model-card[data-filepath] .file-name');
       const phoneDetails = await phone.waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 }).then(() => true, () => false);
       const drawer = await phone.locator('.sidebar').boundingBox();
       check('tapping a model opens its details full screen with its name', phoneDetails && !!drawer && Math.round(drawer.width) === 390
         && (await phone.textContent('#model-details .jp-details__title')).trim().length > 0);
+      const sizes = await phone.evaluate(() => Object.fromEntries([['tag', '#details-add-tag'], ['slicer', '#model-details .jp-split__more'], ['designer', '#model-designer']]
+        .map(([k, s]) => { const r = document.querySelector(s)?.getBoundingClientRect(); return [k, r ? [Math.round(r.width), Math.round(r.height)] : null]; })));
+      check('the details buttons and fields are finger-sized', sizes.tag?.[0] >= 40 && sizes.tag?.[1] >= 40 && sizes.slicer?.[0] >= 40 && sizes.designer?.[1] >= 40, JSON.stringify(sizes));
       await phone.tap('#jp-details-close');
       check('× closes the details', await phone.waitForFunction(() => !document.body.classList.contains('jp-details-open'), null, { timeout: 5000 }).then(() => true, () => false));
     }
@@ -1961,6 +1967,12 @@ async function browserChecks(base, wsUrl, session) {
       && (await page.locator('#keyboard-shortcuts-dialog .shortcut-row').count()) === 13);
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
+    // Installing (src/web/install.ts, pwa.js): the service worker is there for the browser, and Install App says how.
+    check('the install service worker is active', await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration('/'))?.active, null, { timeout: 15000 }).then(() => true, () => false));
+    await page.evaluate(() => window.openInstallApp());
+    check('Install App shows the steps for this browser', await page.isVisible('#install-app-dialog')
+      && ['prompt', 'browser-menu'].includes(await page.getAttribute('#install-app-steps', 'data-way')), await page.getAttribute('#install-app-steps', 'data-way').catch(() => ''));
+    await page.click('#close-install-app');
     // Shortcuts (React, src/web/shortcuts.ts).
     const modKey = process.platform === 'darwin' ? 'Meta' : 'Control';
     await page.keyboard.press(`${modKey}+/`);

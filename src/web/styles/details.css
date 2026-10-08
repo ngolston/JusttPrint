@@ -172,6 +172,8 @@ body.jp-shell-on #model-details .details-name-field { display: none; }
 /* ---- Actions (spec §25) ---- */
 #model-details .jp-details__actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--jp-space-2); }
 #model-details .jp-details__actions .jp-btn { width: 100%; }
+/* The slicer arrow keeps its width (the full-width rule above would squeeze it). */
+#model-details .jp-details__actions .jp-split__more { width: 40px; min-width: 40px; }
 .jp-split { display: flex; min-width: 0; }
 #model-details .jp-split__main { flex: 1; min-width: 0; border-radius: var(--jp-radius-md) 0 0 var(--jp-radius-md); }
 #model-details .jp-split .jp-menu-anchor,
