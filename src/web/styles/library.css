@@ -531,6 +531,18 @@
   box-shadow: none;
 }
 .jp-jobs .stop-button:hover:not(:disabled) { background: var(--jp-danger); color: var(--jp-text); }
+.jp-jobs .progress-actions { display: flex; gap: var(--jp-space-2); }
+.jp-jobs .jp-job-button {
+  height: 30px;
+  padding: 0 var(--jp-space-3);
+  border: 1px solid var(--jp-accent-border);
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+}
+.jp-jobs .jp-job-button:hover { background: var(--jp-accent); color: var(--jp-on-accent); }
 .jp-jobs .performance-notice { margin: 0; color: var(--jp-text-3); font-size: var(--jp-text-badge); font-style: normal; text-align: left; }
 
 /* The old filter controls in the popover, in the new look (tokens; the old markup is kept). */

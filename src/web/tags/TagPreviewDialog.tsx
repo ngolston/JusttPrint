@@ -6,6 +6,7 @@ import {
   STRATEGY_HELP, canApply, emptyReview, finishBatch, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry,
   type MergeStrategy, type Review, type ReviewEntry
 } from './review';
+import { currentAiTagJob, dismissAiTagJob, getAiTagJob, setReviewing, stopAiTagJob, useAiTagJob } from './aiJob';
 
 interface ModelRecord {
   filePath: string;
@@ -48,9 +49,18 @@ function Thumbnail({ entry }: { entry: ReviewEntry }) {
   );
 }
 
+declare global {
+  interface Window {
+    /** The sidebar's Review: reopen the AI tagging run's review from the JusttPrint backend. */
+    openAiTagReview?: () => Promise<void>;
+  }
+}
+
 /**
  * Review Generated Tags: AI tag suggestions arrive per model (server events from Generate Tags in
  * the model menu); tick the ones to keep and apply them with the merge strategy from AI Config.
+ * Closing it while the run goes on leaves the run in the sidebar, whose Review reopens it (also
+ * after a reload); closing it after the run ends discards the suggestions.
  */
 export function TagPreviewDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -60,11 +70,17 @@ export function TagPreviewDialog() {
   /** Closed by the user: later events of the same run do not reopen it. */
   const closedRun = useRef(false);
   const rateLimitShown = useRef(false);
+  /** The run this review shows (src/server/ai-tag-job.js). */
+  const runId = useRef<number | null>(null);
+  const { job } = useAiTagJob();
+  const runActive = !!job && job.id === runId.current && job.running;
 
   useEffect(() => {
-    const start = (next: Review) => {
+    const start = (next: Review, id: number | null) => {
       closedRun.current = false;
       rateLimitShown.current = false;
+      runId.current = id;
+      setReviewing(id);
       setReview(next);
       settings.get<string | null>('aiTagMergeStrategy').then((s) => setStrategy((s as MergeStrategy) || 'merge'), () => {});
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
@@ -73,20 +89,22 @@ export function TagPreviewDialog() {
       if (closedRun.current) return;
       setReview((review) => (review ? change(review) : review));
     };
+    // Events of another run (another person's, or one this page is not showing) are left alone.
+    const otherRun = (id?: number | null) => id != null && id !== runId.current;
     const offs = [
-      onServerEvent('start-single-tag-generation', (filePath: string, data: { model?: ModelRecord; existingTags?: string[] }) => {
-        start(upsertEntry(emptyReview(false, 1, false), toEntry(filePath, data?.model || null, data?.existingTags)));
+      onServerEvent('start-single-tag-generation', (filePath: string, data: { model?: ModelRecord; existingTags?: string[] }, id?: number) => {
+        start(upsertEntry(emptyReview(false, 1, false), toEntry(filePath, data?.model || null, data?.existingTags)), id ?? null);
       }),
-      onServerEvent('start-batch-tag-generation', async (count: number, filePaths: string[]) => {
-        start(emptyReview(true, count, true));
+      onServerEvent('start-batch-tag-generation', async (count: number, filePaths: string[], id?: number) => {
+        start(emptyReview(true, count, true), id ?? null);
         // List every model at once, each "Generating..." until its tags arrive.
         for (const filePath of [...new Set(filePaths || [])]) {
           const model = await models.get<ModelRecord>(filePath).catch(() => null);
           if (model) update((review) => upsertEntry(review, toEntry(filePath, model)));
         }
       }),
-      onServerEvent('tags-generated', async (filePath: string, tags: string[] | null, error: string | null) => {
-        if (closedRun.current) return;
+      onServerEvent('tags-generated', async (filePath: string, tags: string[] | null, error: string | null, id?: number) => {
+        if (closedRun.current || otherRun(id)) return;
         const model = await models.get<ModelRecord>(filePath).catch(() => null);
         if (!model) return;
         update((review) => upsertEntry(review, toEntry(filePath, model, undefined, { generatedTags: tags || [], error })));
@@ -96,9 +114,26 @@ export function TagPreviewDialog() {
           showMessage('Rate Limit Exceeded', detail);
         }
       }),
-      onServerEvent('batch-tag-generation-complete', () => update(finishBatch))
+      onServerEvent('batch-tag-generation-complete', (id?: number) => { if (!otherRun(id)) update(finishBatch); })
     ];
-    return () => offs.forEach((off) => off());
+    // The run as the JusttPrint backend has it: every model, with the suggestions so far.
+    window.openAiTagReview = async () => {
+      const run = await getAiTagJob();
+      if (!run) return;
+      const results = new Map(run.results.map((r) => [r.filePath, r]));
+      let next = emptyReview(run.batch, run.total, run.batch && run.running);
+      const loaded = await Promise.all(run.filePaths.map((p) => models.get<ModelRecord>(p).catch(() => null)));
+      run.filePaths.forEach((filePath, i) => {
+        const result = results.get(filePath);
+        next = upsertEntry(next, toEntry(filePath, loaded[i], undefined, result ? { generatedTags: result.tags, error: result.error } : {}));
+      });
+      start(next, run.id);
+      rateLimitShown.current = run.results.some((r) => rateLimitDetail(r.error));
+    };
+    return () => {
+      offs.forEach((off) => off());
+      delete window.openAiTagReview;
+    };
   }, []);
 
   const close = () => dialogRef.current?.close();
@@ -158,12 +193,24 @@ export function TagPreviewDialog() {
 
   return (
     <ModalDialog id="tag-preview-dialog" title={title} dialogRef={dialogRef}
-      onClose={() => { closedRun.current = true; setReview(null); }}
+      onClose={() => {
+        closedRun.current = true;
+        setReview(null);
+        setReviewing(null);
+        // A finished run is done with; a running one carries on in the sidebar.
+        const id = runId.current;
+        const run = currentAiTagJob();
+        if (id != null && run?.id === id && !run.running) dismissAiTagJob(id);
+      }}
       footer={(
         <>
           <button type="button" id="tag-preview-apply" disabled={!ready || !!applying} title={ready ? undefined : 'Please wait for tags to finish generating'}
             onClick={apply}>{applying ? `Applying ${applying.done} / ${applying.total}...` : 'Apply Selected Tags'}</button>
-          <button type="button" id="tag-preview-cancel" disabled={!!applying} onClick={close}>Cancel</button>
+          {runActive && (
+            <button type="button" id="tag-preview-stop" disabled={job?.stopping} onClick={() => stopAiTagJob()}>{job?.stopping ? 'Stopping...' : 'Stop'}</button>
+          )}
+          <button type="button" id="tag-preview-cancel" disabled={!!applying} onClick={close}
+            title={runActive ? 'Keeps running; Review in the sidebar opens it again' : undefined}>{runActive ? 'Run in Background' : 'Cancel'}</button>
         </>
       )}>
       {single && (

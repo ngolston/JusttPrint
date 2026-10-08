@@ -1820,6 +1820,69 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForTimeout(500);
       check('a late result does not reopen a closed review', !(await page.isVisible('#tag-preview-dialog')));
       await invoke(base, session, 'update-models-batch', [[{ filePath: ra, tags: tagsBefore }]]);
+
+      // A real run (src/server/ai-tag-job.js) against a stand-in AI service whose answers the test releases one by one.
+      const held = [];
+      const fakeAi = require('http').createServer((req, res) => {
+        req.resume();
+        held.push(() => {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ id: 'e2e', object: 'chat.completion', created: 0, model: 'e2e',
+            choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{"tags":["e2e-real-a","e2e-real-b"]}' } }] }));
+        });
+      });
+      await new Promise((resolve) => fakeAi.listen(0, '127.0.0.1', resolve));
+      const release = async () => {
+        await waitFor(async () => held.length > 0, 15000, 'an AI request').catch(() => {});
+        held.shift()?.();
+      };
+      const runKeys = ['aiService', 'apiEndpoint', 'aiModel', 'aiTagConcurrency', 'aiTagAllowRetagging'];
+      const runSaved = {};
+      for (const key of runKeys) runSaved[key] = (await invoke(base, session, 'get-setting', [key])).result;
+      for (const [key, value] of [['aiService', 'custom'], ['apiEndpoint', `http://127.0.0.1:${fakeAi.address().port}/v1`], ['aiModel', 'e2e'], ['aiTagConcurrency', '1'], ['aiTagAllowRetagging', '1']]) {
+        await invoke(base, session, 'save-setting', [key, value]);
+      }
+      const runTags = async () => {
+        const menu = (await invoke(base, session, 'show-context-menu', [[ra, rb]])).result || {};
+        const item = (menu.items || []).find((i) => i.label === 'Generate Tags');
+        return item ? invoke(base, session, 'execute-context-menu-action', [menu.requestId, item.index]) : null;
+      };
+      const job = async () => (await invoke(base, session, 'get-ai-tag-job')).result;
+      check('Generate Tags starts a run the JusttPrint backend keeps', !!(await runTags()) && await waitFor(async () => (await job())?.running, 10000, 'run').catch(() => false));
+      await page.waitForSelector('#tag-preview-dialog[open]', { timeout: 10000 }).catch(() => {});
+      check('a second run waits for the first', ((await job()) || {}).total === 2 && !!(await runTags()) && ((await job()) || {}).total === 2);
+      for (const dialog of await page.$$('dialog[id^="browser-message-"][open]:has-text("already running") button')) await dialog.click();
+      check('the review offers Stop and Run in Background while the run goes on', await page.isVisible('#tag-preview-stop')
+        && /Run in Background/.test(await page.textContent('#tag-preview-cancel')));
+      await release();
+      await waitFor(async () => ((await job()) || {}).processed === 1, 15000, 'first result').catch(() => {});
+      await page.reload();
+      await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+      check('after a reload the sidebar still shows the run', await page.waitForFunction(
+        () => /AI tagging: 1\/2/.test(document.getElementById('ai-tag-progress-text')?.textContent || ''), null, { timeout: 15000 }).then(() => true, () => false));
+      await page.click('#ai-tag-review').catch(() => {});
+      check('Review reopens it with the tags that came in', await page.waitForSelector(`#tag-preview-dialog[open] input[value="e2e-real-a"]`, { timeout: 10000 }).then(() => true, () => false)
+        && /\(1\/2 processed/.test(await page.textContent('#tag-preview-dialog h3')));
+      await release();
+      check('the rest arrives in the reopened review', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 15000 }).then(() => true, () => false)
+        && (await page.locator('#tag-preview-container input[value="e2e-real-a"]').count()) === 2);
+      await page.click('#tag-preview-cancel');
+      check('closing a finished review forgets the run', await waitFor(async () => (await job()) === null, 10000, 'dismissed').catch(() => false)
+        && await page.waitForSelector('#ai-tag-progress-container', { state: 'detached', timeout: 5000 }).then(() => true, () => false));
+      // Stop: the model not started yet is skipped.
+      await runTags();
+      await page.waitForSelector('#tag-preview-stop', { timeout: 10000 }).catch(() => {});
+      await page.click('#tag-preview-stop').catch(() => {});
+      await waitFor(async () => (await job())?.stopping, 10000, 'stopping').catch(() => {});
+      await release();
+      const stopped = await waitFor(async () => { const j = await job(); return j && !j.running ? j : null; }, 15000, 'stopped').catch(() => null);
+      check('Stop skips the models not started yet', !!stopped && stopped.processed === 2
+        && stopped.results.some((r) => /Stopped before this model/.test(r.error || '')), JSON.stringify(stopped));
+      await page.click('#tag-preview-cancel').catch(() => {});
+      await waitFor(async () => (await job()) === null, 10000, 'dismissed').catch(() => {});
+      for (const key of runKeys) await invoke(base, session, 'save-setting', [key, runSaved[key] ?? null]);
+      held.splice(0).forEach((answer) => answer());
+      fakeAi.close();
     }
 
     // System Report (React): every section finishes, and both benchmarks complete.

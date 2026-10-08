@@ -168,6 +168,8 @@ AI tagging looks at a model's thumbnail, name and folder names and suggests tags
 3. Pick a model and the tagging options (number of tags, replace / merge / append, categories, detail level), then save.
 4. Select models, right-click and choose **Generate Tags**. **Tag from Folder** copies folder names onto the models as tags without asking the AI.
 
+While it runs, the review fills in model by model. **Stop** skips the models not started yet (the tags already suggested can still be applied). **Run in Background** closes the review and keeps going: the sidebar shows the progress in every open browser, and **Review** there opens it again, also after you reload the page. Once you apply or cancel a finished review, its suggestions are gone. One run at a time; with **Puter** the AI runs in your browser, so keep that tab open.
+
 Tips: start with a few models, use **merge** to keep the tags you already have, and review the suggestions before applying them.
 
 ## Settings

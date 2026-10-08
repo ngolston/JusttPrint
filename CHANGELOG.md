@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.3.0] - 2026-10-07
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **AI tagging keeps going when you leave:** the JusttPrint backend keeps a Generate Tags run's progress and suggestions. The sidebar shows the run in every open browser (who started it, and how far it is). Close the review with **Run in Background**, or reload the page, and **Review** in the sidebar opens it again with every suggestion so far. **Stop** (in the review or the sidebar) skips the models not started yet. One run at a time: a second Generate Tags while one runs says so. With Puter, the AI runs in the browser that started the run, so that tab must stay open.
+
 ## [7.2.0] - 2026-10-07
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.

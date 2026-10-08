@@ -129,7 +129,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] Input dialogs: in-page prompts (`askText` in [src/web/page.ts](src/web/page.ts)).
   - [x] Backup/restore: download and upload a backup file in the browser.
   - [x] "Send to slicer": the helper and `justtprint://` link, documented in GUIDE.md (Slicers).
-- [ ] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Done for scans and thumbnail jobs (every page follows a running job, also after a reload); AI tagging is left.
+- [x] **Show scan, thumbnail and AI-tagging progress live in the browser**, and keep it working after a page reload. Scans and thumbnail jobs since 6.0; AI tagging in 7.3.0 ([src/server/ai-tag-job.js](src/server/ai-tag-job.js)): progress in the sidebar, Stop, and a review reopened after a reload.
 - [x] **Make sure multiple browsers can use the server at once** (7.1.0): changes show up live in the other browsers (`models-changed`, `events.broadcastToOthers`), and saving a field someone else changed meanwhile asks Keep Mine / Keep Theirs (notes: Keep Both); tags merge ([src/core/edit-merge.js](src/core/edit-merge.js)).
 - [ ] **Polish the mobile web UI and PWA**: test on phones, and make the PWA installable.
 - [x] **Retire `renderer.js`** (~25k lines at 2.x): replaced screen by screen through the React rewrite above.
