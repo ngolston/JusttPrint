@@ -313,7 +313,7 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
       <div className="form-group">
         <label htmlFor="organize-dest-input">Destination directory</label>
         <div className="organize-path-row">
-          <input type="text" id="organize-dest-input" placeholder="New library root, a path on the server" autoComplete="off" spellCheck={false}
+          <input type="text" id="organize-dest-input" placeholder="New library root, a path in the JusttPrint backend's container" autoComplete="off" spellCheck={false}
             value={dest} onChange={(event) => { setDest(event.target.value); changed(); }} />
           <button type="button" id="organize-dest-browse" onClick={async () => {
             const dir = await pickFolder({ title: 'Destination Directory', initial: dest.trim() || root || undefined });

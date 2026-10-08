@@ -198,7 +198,7 @@ function loginPageHtml(next, error, username = '') {
   <input type="hidden" name="next" value="${escapeHtml(next)}">
   <button type="submit">Log in</button>
   ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ''}
-  <p class="hint">First start: log in as <code>admin</code> with the password from the server log, or the one in <code>JUSTTPRINT_PASSWORD</code>.</p>
+  <p class="hint">First start: log in as <code>admin</code> with the password from the JusttPrint backend's log (<code>docker logs</code>), or the one in <code>JUSTTPRINT_PASSWORD</code>.</p>
 </form>
 </body>
 </html>`;
@@ -316,7 +316,7 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
       users.insert({ username, passwordHash, role: 'admin', now: isoNow() });
       if (legacyHash) {
         setSetting(SETTING_KEYS.passwordHash, '');
-        logger.log(`[Auth] The server password is now the password of the admin account "${username}".`);
+        logger.log(`[Auth] The old JusttPrint password is now the password of the admin account "${username}".`);
       }
       if (generated) {
         logger.warn([

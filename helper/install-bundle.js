@@ -107,7 +107,7 @@ function windowsInstaller() {
     '  pause',
     '  exit /b 1',
     ')',
-    'echo JusttPrint helper installed. It will connect to the server that created this package.',
+    'echo JusttPrint helper installed. It will connect to the JusttPrint backend that created this package.',
     'echo You can close this window.',
     'pause',
     ''
@@ -124,7 +124,7 @@ function unixInstaller() {
     '  if [ "$code" -ne 0 ]; then',
     '    echo "Install failed."',
     '  else',
-    '    echo "JusttPrint helper installed. It will connect to the server that created this package."',
+    '    echo "JusttPrint helper installed. It will connect to the JusttPrint backend that created this package."',
     '  fi',
     '  if [ "$(uname)" = "Darwin" ] || [ "$code" -ne 0 ]; then',
     '    echo "Press Enter to close."',
@@ -177,7 +177,7 @@ function installReadme(origin) {
   return [
     'JusttPrint helper',
     '',
-    'This package was built by ' + origin + ' and will connect only to that server.',
+    'This package was built by ' + origin + ' and will connect only to that JusttPrint backend.',
     '',
     'Windows: double-click install.cmd',
     'macOS: double-click install.command',

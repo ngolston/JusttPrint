@@ -21,7 +21,7 @@ export function PurgeModelsDialog() {
   async function purgeAll() {
     setPurging(true);
     try {
-      if (!await purge.allModels()) throw new Error('The server did not purge the models.');
+      if (!await purge.allModels()) throw new Error('The JusttPrint backend did not purge the models.');
       dialogRef.current?.close();
       await window.afterModelsPurged?.();
       await showMessage('Success', 'All models have been purged from the database.');

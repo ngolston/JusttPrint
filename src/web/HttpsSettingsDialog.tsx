@@ -166,7 +166,7 @@ export function HttpsSettingsDialog() {
             {input('tlsCertPath', 'tls-cert-path', 'Certificate (PEM)', '/certs/fullchain.pem')}
             {input('tlsKeyPath', 'tls-key-path', 'Private key (PEM)', '/certs/privkey.pem')}
             {input('tlsCaPath', 'tls-ca-path', 'Certificate chain (optional)', '/certs/chain.pem')}
-            <p className="setting-description">Use absolute paths the server process can read. In Docker, mount files (for example <code>./certs:/certs:ro</code>) and enter container paths.</p>
+            <p className="setting-description">Use absolute paths the JusttPrint backend can read. In Docker, mount files (for example <code>./certs:/certs:ro</code>) and enter container paths.</p>
           </div>
         )}
         {form.mode === 'letsencrypt' && (

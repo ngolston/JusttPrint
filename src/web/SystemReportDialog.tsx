@@ -43,7 +43,7 @@ function clientGpu(): SectionResult {
 }
 
 function serverGpu(info: ServerGpuInfo | null): SectionResult {
-  if (!info) return { status: '✗ Unavailable', tone: 'bad', details: 'No response from the server.' };
+  if (!info) return { status: '✗ Unavailable', tone: 'bad', details: 'No response from the JusttPrint backend.' };
   if (info.error) return { status: '✗ Error', tone: 'bad', details: info.error };
 
   const backend = info.glBackend || 'unknown';
@@ -174,7 +174,7 @@ export function SystemReportDialog() {
       <div className="system-report-content">
         <Section id="client-gpu" title="Client GPU (this browser)" description="Used for interactive 3D previews in the UI."
           result={client} pending="Checking..." />
-        <Section id="server-gpu" title="Server GPU" description="Used to render thumbnails in the container (headless Chromium)."
+        <Section id="server-gpu" title="JusttPrint Backend GPU" description="Used to render thumbnails in the container (headless Chromium)."
           result={server} pending="Checking..." />
         <Section id="filesystem" title="File System Benchmark" result={filesystem} pending="Running benchmark..." />
         <Section id="database" title="Database Performance" result={db} pending={filesystem ? 'Running benchmark...' : 'Waiting...'} />

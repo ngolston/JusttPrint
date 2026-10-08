@@ -209,7 +209,7 @@ export function StlHomeDialog() {
       )}>
       <div className="form-group" id="stl-home-directories-group">
         <label htmlFor="stl-home-directories-input">Directories</label>
-        <p className="setting-description">Paths on the server. Add more than one to cover separate libraries.</p>
+        <p className="setting-description">Paths inside the JusttPrint backend's container. Add more than one to cover separate libraries.</p>
         <DirList id="stl-home-directories" items={form.homes} empty="No directories selected." placeholder="Enter a directory path" pickTitle="Add STL Home Directory"
           onChange={(homes) => set('homes', homes)} />
       </div>

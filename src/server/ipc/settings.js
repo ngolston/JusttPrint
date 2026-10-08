@@ -100,7 +100,7 @@ const saveSettingHandler = async (event, key, value) => {
   }
   try {
     if (SECRET_SETTING_KEYS.has(key)) {
-      throw new Error(`Setting ${key} can only be changed under Server Access`);
+      throw new Error(`Setting ${key} can only be changed under JusttPrint Backend Access`);
     }
     if (!database.db) {
       console.error('Database not initialized when saving setting');

@@ -79,7 +79,7 @@ export function McpServerSettingsDialog() {
       footer={<button type="button" id="cancel-mcp-server-settings" onClick={() => dialogRef.current?.close()}>Close</button>}>
       <div className="settings-group">
         <p id="mcp-server-status" className="setting-description" role="status">
-          {error || 'Status: the MCP endpoint is always available on this server.'}
+          {error || 'Status: the MCP endpoint is always available on the JusttPrint backend.'}
         </p>
         <div className="form-group">
           <label htmlFor="mcp-server-url">MCP URL</label>
@@ -101,7 +101,7 @@ export function McpServerSettingsDialog() {
           </div>
           {setup.note && <p id="mcp-client-note" className="setting-description">{setup.note}</p>}
           <p className="setting-description">
-            This includes the API token (Settings → Server Access), so keep it private. The agent can search the library, manage tags,
+            This includes the API token (Settings → JusttPrint Backend Access), so keep it private. The agent can search the library, manage tags,
             find duplicates, scan folders, update metadata, log prints, and set thumbnails.
           </p>
           {info && info.tools.length > 0 && <p id="mcp-server-tools" className="setting-description">Tools: {info.tools.join(', ')}</p>}

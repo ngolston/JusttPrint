@@ -30,16 +30,16 @@ const action = (label: string, run: () => void | Promise<void>): MenuItem => ({ 
 const separator: MenuItem = { kind: 'separator' };
 
 async function restartServer() {
-  const answer = await showMessage('Restart Server',
-    'Restart the server? Everyone connected is disconnected for a moment.', ['Restart', 'Cancel']);
+  const answer = await showMessage('Restart JusttPrint Backend',
+    'Restart the JusttPrint backend? Everyone connected is disconnected for a moment.', ['Restart', 'Cancel']);
   if (answer !== 'Restart') return;
   try {
     const result = await callAction<{ success?: boolean; message?: string }>('restart-server');
-    if (result?.success) await showMessage('Restart Server', 'The server restarted.');
-    else await showMessage('Restart Server', `Failed to restart the server: ${result?.message || 'unknown error'}`);
+    if (result?.success) await showMessage('Restart JusttPrint Backend', 'The JusttPrint backend restarted.');
+    else await showMessage('Restart JusttPrint Backend', `Failed to restart the JusttPrint backend: ${result?.message || 'unknown error'}`);
   } catch (error) {
     console.error('Error restarting server:', error);
-    await showMessage('Restart Server', `Failed to restart the server: ${error instanceof Error ? error.message : String(error)}`);
+    await showMessage('Restart JusttPrint Backend', `Failed to restart the JusttPrint backend: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -68,8 +68,8 @@ export const MENU: MenuGroup[] = [
       separator,
       action('Backup/Restore', open('openBackupRestore')),
       separator,
-      action('Restart Server', restartServer),
-      action('Server Access', open('openServerAccess')),
+      action('Restart JusttPrint Backend', restartServer),
+      action('JusttPrint Backend Access', open('openServerAccess')),
       action('Log Out', open('logOutOfServer'))
     ]
   },

@@ -29,7 +29,7 @@ describe('MCP client setups', () => {
   });
 
   it('shows where to find the token when it is not known', () => {
-    expect(setup('cursor', URL, '').text).toContain('<API token from Settings → Server Access>');
+    expect(setup('cursor', URL, '').text).toContain('<API token from Settings → JusttPrint Backend Access>');
   });
 
   it('reads the token from the server client config', () => {

@@ -24,7 +24,7 @@ const json = (value: unknown) => JSON.stringify(value, null, 2);
 
 /** Every client's setup for this address and token (the token may be empty when unknown). */
 export function mcpClientSetups(url: string, token: string): McpClientSetup[] {
-  const auth = token ? `Bearer ${token}` : 'Bearer <API token from Settings → Server Access>';
+  const auth = token ? `Bearer ${token}` : 'Bearer <API token from Settings → JusttPrint Backend Access>';
   const plainHttp = /^http:\/\//i.test(url);
   return [
     {
@@ -50,7 +50,7 @@ export function mcpClientSetups(url: string, token: string): McpClientSetup[] {
           }
         }
       }),
-      note: 'Claude Desktop reaches the server through mcp-remote, which needs Node.js on this computer. If the file already has mcpServers, add only the justtprint entry.'
+      note: 'Claude Desktop reaches the JusttPrint backend through mcp-remote, which needs Node.js on this computer. If the file already has mcpServers, add only the justtprint entry.'
     },
     {
       id: 'cursor',

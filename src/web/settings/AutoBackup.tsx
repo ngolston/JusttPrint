@@ -144,7 +144,7 @@ export function AutoBackup({ opened }: { opened: number }) {
     <section ref={sectionRef} id="auto-backup" className="auto-backup">
       <h4>Automatic Backups</h4>
       <p className="setting-description">
-        The server copies the database on a schedule and keeps the newest copies. For protection against a failed disk, choose a folder on a different disk or volume than the data folder.
+        The JusttPrint backend copies the database on a schedule and keeps the newest copies. For protection against a failed disk, choose a folder on a different disk or volume than the data folder.
       </p>
 
       <label className="auto-backup-toggle" htmlFor="auto-backup-enabled" title={lockTitle('autoBackupEnabled')}>

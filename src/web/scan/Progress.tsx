@@ -32,7 +32,7 @@ export function SidebarProgress() {
       {background && (
         <button id="stop-thumbnail-generation" className="stop-button" disabled={background.stopping} onClick={jobActions.stop}>Stop Processing</button>
       )}
-      <div className="performance-notice">{scan ? 'Scanning may impact performance.' : 'Thumbnails are rendered on the server.'}</div>
+      <div className="performance-notice">{scan ? 'Scanning may impact performance.' : 'Thumbnails are rendered on the JusttPrint backend.'}</div>
     </div>,
     slot
   );

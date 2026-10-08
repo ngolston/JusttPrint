@@ -19,7 +19,7 @@ describe('shell navigation', () => {
       'Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
     ]);
     expect(SETTINGS.map((g) => g.label)).toEqual([
-      'General', 'Appearance', 'Library', 'Sharing', 'Scanning', 'Slicer', 'Printers', 'Integrations', 'AI', 'Server', 'Authentication', 'Backup', 'Advanced', 'About'
+      'General', 'Appearance', 'Library', 'Sharing', 'Scanning', 'Slicer', 'Printers', 'Integrations', 'AI', 'JusttPrint Backend', 'Authentication', 'Backup', 'Advanced', 'About'
     ]);
   });
 

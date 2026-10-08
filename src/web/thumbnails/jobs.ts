@@ -50,7 +50,7 @@ export async function startThumbnailJob(mode: JobMode, options: { background?: b
     if (!options.quiet) await showMessage(TITLES[mode], 'A thumbnail job is already running.');
     return false;
   }
-  set({ mode, title: TITLES[mode], phase: 'Starting on server...', processed: 0, total: 0, background: !!options.background, ours: true, stopping: false });
+  set({ mode, title: TITLES[mode], phase: 'Starting on the JusttPrint backend...', processed: 0, total: 0, background: !!options.background, ours: true, stopping: false });
   setBulkJobActive(true);
   const start = await callAction<{ success?: boolean; error?: string }>('start-server-thumbnail-job', { mode })
     .catch((error) => ({ success: false, error: error instanceof Error ? error.message : String(error) }));
@@ -108,7 +108,7 @@ function onError(payload: { error?: string } | null) {
   const ours = job?.ours;
   setBulkJobActive(false);
   set(null);
-  if (ours) showMessage('Error', payload?.error || 'Server thumbnail job failed');
+  if (ours) showMessage('Error', payload?.error || 'The thumbnail job on the JusttPrint backend failed');
 }
 
 declare global {
@@ -150,6 +150,6 @@ if (typeof window !== 'undefined' && !isWorkerPage) {
   window.regenerateAllThumbnails = async () => { await startThumbnailJob('all'); };
   // A job already running (started before this page loaded): follow it.
   callAction<{ status?: string; mode?: JobMode }>('get-server-thumbnail-job-status').then((status) => {
-    if (status?.status === 'running' && !job) onProgress({ mode: status.mode, phase: 'Generating thumbnails on the server...' });
+    if (status?.status === 'running' && !job) onProgress({ mode: status.mode, phase: 'Generating thumbnails on the JusttPrint backend...' });
   }, () => {});
 }
