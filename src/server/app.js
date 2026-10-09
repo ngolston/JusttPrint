@@ -26,7 +26,8 @@ const {
   stopPort80Server
 } = require('./http');
 const thumbnailWorker = require('./thumbnail-worker');
-const { scheduleBackgroundThumbnailCompression } = require('./thumbnail-compression');
+const { purgeOversizedThumbnails } = require('./thumbnail-cleanup');
+const gridThumbnails = require('./grid-thumbnails');
 const { startServerStlHomeScans, startWatching, stopWatching } = require('./stl-home');
 const autoBackup = require('./auto-backup');
 const downloadFiles = require('./download-files');
@@ -47,6 +48,7 @@ function closeDatabaseOnQuit() {
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();
+  gridThumbnails.stop();
   try {
     requestThumbnailJobCancel();
   } catch (_) {
@@ -159,7 +161,8 @@ async function start() {
   autoBackup.schedule({ startup: true });
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');
-  scheduleBackgroundThumbnailCompression('startup');
+  purgeOversizedThumbnails();
+  gridThumbnails.scheduleAtStartup();
   setTimeout(() => {
     try {
       verifyDatabaseIntegrity();

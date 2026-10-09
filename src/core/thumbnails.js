@@ -1,7 +1,13 @@
 'use strict';
 
 const database = require('./database');
-const { compressThumbnailBlob, THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS } = require('./thumbnail-compress');
+
+/**
+ * Thumbnails are stored as they come (the grid gets small copies of large ones, see
+ * src/server/grid-thumbnails.js). A stored value longer than this is not loaded: a crash guard
+ * for the V8/SQLite bridge, not a quality limit.
+ */
+const THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS = 8_000_000;
 
 function getThumbnailStoredLength(filePath) {
   if (!database.db || !filePath) return 0;
@@ -25,24 +31,9 @@ function readThumbnailColumn(filePath, { allowOversized = false } = {}) {
   }
 }
 
-function ensureThumbnailCompressedOnLoad(filePath, thumbnailString) {
-  try {
-    const { value, changed } = compressThumbnailBlob(thumbnailString);
-    if (changed) {
-      database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(value, filePath);
-    }
-    return value;
-  } catch (error) {
-    console.error(`Failed to compress thumbnail for ${filePath}:`, error);
-    return thumbnailString;
-  }
-}
-
 function loadThumbnailForModel(filePath) {
   try {
-    const thumbnail = readThumbnailColumn(filePath);
-    if (!thumbnail) return null;
-    return ensureThumbnailCompressedOnLoad(filePath, thumbnail);
+    return readThumbnailColumn(filePath) || null;
   } catch (error) {
     console.error(`Failed to load thumbnail for ${filePath}:`, error);
     return null;
@@ -90,4 +81,12 @@ function getThumbnailImagePayload(thumbnailString) {
   };
 }
 
-module.exports = { applyThumbnailFlags, getDefaultThumbnail, getThumbnailImagePayload, loadThumbnailForModel, parseThumbnails, readThumbnailColumn };
+module.exports = {
+  THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS,
+  applyThumbnailFlags,
+  getDefaultThumbnail,
+  getThumbnailImagePayload,
+  loadThumbnailForModel,
+  parseThumbnails,
+  readThumbnailColumn
+};

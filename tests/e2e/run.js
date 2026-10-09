@@ -65,6 +65,58 @@ function freePort() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** A PNG of noise (it does not compress), as a data URL: a large stored thumbnail. */
+function noisePng(width, height) {
+  const zlib = require('zlib');
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  let seed = 7;
+  for (let i = 0; i < raw.length; i++) raw[i] = i % (width * 3 + 1) === 0 ? 0 : (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) >>> 24;
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc(body), body.length + 4);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bit depth
+  header[9] = 2; // RGB
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+  return `data:image/png;base64,${png.toString('base64')}`;
+}
+
+/** Width and height of a WebP data URL (lossy, lossless or extended), or null. */
+function webpSize(dataUrl) {
+  const buf = Buffer.from(String(dataUrl).split(',')[1] || '', 'base64');
+  if (buf.length < 30 || buf.toString('ascii', 8, 12) !== 'WEBP') return null;
+  const kind = buf.toString('ascii', 12, 16);
+  if (kind === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+  if (kind === 'VP8L') {
+    const bits = buf.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  if (kind === 'VP8X') return { width: buf.readUIntLE(24, 3) + 1, height: buf.readUIntLE(27, 3) + 1 };
+  return null;
+}
+
 async function waitFor(fn, timeoutMs, label) {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -603,6 +655,28 @@ async function apiChecks(base, wsUrl) {
   // The GPU the thumbnail renderer (headless Chromium) uses, read from its WebGL.
   const rendererGpu = await waitFor(async () => (await ask('get-gpu-info')).result?.activeRenderer, 30000, 'the renderer GPU').catch(() => null);
   check("System Report names the thumbnail renderer's GPU", typeof rendererGpu === 'string' && rendererGpu.length > 0, String(rendererGpu));
+
+  // A large thumbnail: the grid gets a small copy (made by the renderer's Chromium), the original stays.
+  const cubeStored = String((await ask('get-model', [cube])).result?.thumbnail || '');
+  const largeThumb = noisePng(1200, 900);
+  await ask('save-thumbnail', [cube, largeThumb]);
+  check('the grid gets a large thumbnail as it is until its copy is made', (await ask('getThumbnail', [cube])).result === largeThumb);
+  const gridCopy = await waitFor(
+    async () => {
+      const image = (await ask('getThumbnail', [cube])).result;
+      return typeof image === 'string' && image.startsWith('data:image/webp') ? image : null;
+    },
+    30000,
+    'the grid copy'
+  ).catch(() => null);
+  const copySize = gridCopy ? webpSize(gridCopy) : null;
+  check(
+    'the grid gets a small copy of a large thumbnail (512 px, WebP)',
+    !!copySize && copySize.width === 512 && copySize.height === 384 && gridCopy.length < largeThumb.length / 4,
+    JSON.stringify({ copySize, chars: gridCopy && gridCopy.length, original: largeThumb.length })
+  );
+  check('the large original stays stored', ((await ask('get-all-thumbnails', [cube])).result || [])[0] === largeThumb);
+  await ask('save-thumbnail', [cube, cubeStored || '3d.png']);
   const dbBench = await ask('benchmark-database');
   check('System Report database benchmark', !dbBench.error && !!dbBench.result, dbBench.error);
 
