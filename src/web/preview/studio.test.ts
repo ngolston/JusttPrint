@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  STUDIO_DEFAULTS, applyOptionsFor, backdropHex, exportBasename, friendlyPreviewError, isImageOnlyExtension,
-  isPreviewablePath, loadStudioSettings, normalizeStudioSettings, previewExtension
+  STUDIO_DEFAULTS,
+  applyOptionsFor,
+  backdropHex,
+  exportBasename,
+  friendlyPreviewError,
+  isImageOnlyExtension,
+  isPreviewablePath,
+  loadStudioSettings,
+  normalizeStudioSettings,
+  previewExtension
 } from './studio';
 
 describe('studio settings', () => {

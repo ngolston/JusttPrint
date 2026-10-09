@@ -41,13 +41,24 @@ async function main() {
     if (u.hostname === 'api.printables.com') {
       const { query, variables } = JSON.parse(options.body);
       if (/print\(id/.test(query) && /stls/.test(query)) {
-        return json({ data: { print: {
-          stls: [{ id: '1', name: 'Main Parts.stl', fileSize: 300 }, { id: '2', name: 'Stand.shapr', fileSize: 100 }],
-          gcodes: [{ id: '3', name: 'MK4 0.2mm.gcode', fileSize: 900 }], slas: [], otherFiles: [{ id: '4', name: 'Pins.step', fileSize: 50 }]
-        } } });
+        return json({
+          data: {
+            print: {
+              stls: [
+                { id: '1', name: 'Main Parts.stl', fileSize: 300 },
+                { id: '2', name: 'Stand.shapr', fileSize: 100 }
+              ],
+              gcodes: [{ id: '3', name: 'MK4 0.2mm.gcode', fileSize: 900 }],
+              slas: [],
+              otherFiles: [{ id: '4', name: 'Pins.step', fileSize: 50 }]
+            }
+          }
+        });
       }
       if (/print\(id/.test(query)) {
-        return json({ data: { print: { id: '1839122', name: 'Parametric Laptop Stand', user: { publicUsername: 'Shapr3D' }, image: null, license: { name: 'CC BY' } } } });
+        return json({
+          data: { print: { id: '1839122', name: 'Parametric Laptop Stand', user: { publicUsername: 'Shapr3D' }, image: null, license: { name: 'CC BY' } } }
+        });
       }
       if (/getDownloadLink/.test(query)) {
         if (variables.id === '9') return json({ data: { getDownloadLink: { ok: false, errors: [{ messages: ['files_cannot_be_downloaded'] }] } } });
@@ -55,11 +66,18 @@ async function main() {
       }
     }
     if (u.hostname === 'files.printables.com') return new Response(`solid file ${u.pathname}\nendsolid`);
-    if (u.hostname === 'www.thingiverse.com') return new Response('<meta property="og:url" content="https://www.thingiverse.com/thing:7418273"><meta property="og:title" content="Prowling Bear by LennyFace">');
+    if (u.hostname === 'www.thingiverse.com')
+      return new Response(
+        '<meta property="og:url" content="https://www.thingiverse.com/thing:7418273"><meta property="og:title" content="Prowling Bear by LennyFace">'
+      );
     if (u.hostname === 'api.thingiverse.com') {
       if (options.headers.authorization !== 'Bearer good-token-1234567890') return new Response('{}', { status: 401 });
       if (u.pathname === '/users/me') return json({ name: 'me' });
-      if (u.pathname === '/things/7418273/files') return json([{ id: 11, name: 'bear.stl', size: 1000 }, { id: 12, name: 'readme.txt', size: 10 }]);
+      if (u.pathname === '/things/7418273/files')
+        return json([
+          { id: 11, name: 'bear.stl', size: 1000 },
+          { id: 12, name: 'readme.txt', size: 10 }
+        ]);
       if (u.pathname === '/files/11/download') return new Response(null, { status: 302, headers: { location: 'https://cdn.thingiverse.com/assets/bear.stl' } });
     }
     if (u.hostname === 'cdn.thingiverse.com') return new Response('solid bear\nendsolid');
@@ -68,11 +86,22 @@ async function main() {
 
   // --- Printables: listing, ticks, download ---
   const files = await siteFiles.listFiles(PRINTABLES, web);
-  assert.deepStrictEqual(files.map((f) => [f.name, f.kind, f.model]), [
-    ['Main Parts.stl', 'stl', true], ['Stand.shapr', 'stl', false], ['Pins.step', 'other', true], ['MK4 0.2mm.gcode', 'gcode', false]
-  ], 'model files are ticked; project files and G-code are not');
+  assert.deepStrictEqual(
+    files.map((f) => [f.name, f.kind, f.model]),
+    [
+      ['Main Parts.stl', 'stl', true],
+      ['Stand.shapr', 'stl', false],
+      ['Pins.step', 'other', true],
+      ['MK4 0.2mm.gcode', 'gcode', false]
+    ],
+    'model files are ticked; project files and G-code are not'
+  );
 
-  const online = database.db.prepare("INSERT INTO models (filePath, fileName, source, notes) VALUES ('url::https://www.printables.com/model/1839122', 'Parametric Laptop Stand', 'https://www.printables.com/model/1839122', 'my notes')").run().lastInsertRowid;
+  const online = database.db
+    .prepare(
+      "INSERT INTO models (filePath, fileName, source, notes) VALUES ('url::https://www.printables.com/model/1839122', 'Parametric Laptop Stand', 'https://www.printables.com/model/1839122', 'my notes')"
+    )
+    .run().lastInsertRowid;
   const result = await siteFiles.downloadFiles({ url: PRINTABLES, folder: library }, { fetchImpl: web });
   const folder = path.join(library, 'Parametric Laptop Stand');
   assert.strictEqual(result.folder, folder);
@@ -94,7 +123,10 @@ async function main() {
 
   database.db.prepare('DELETE FROM site_files').run();
   fileHost = 'evil.example';
-  await assert.rejects(siteFiles.downloadFiles({ url: PRINTABLES, folder: library, fileIds: ['1'] }, { fetchImpl: web }), /does not download from \(evil\.example\)/);
+  await assert.rejects(
+    siteFiles.downloadFiles({ url: PRINTABLES, folder: library, fileIds: ['1'] }, { fetchImpl: web }),
+    /does not download from \(evil\.example\)/
+  );
   assert.ok(!fs.existsSync(path.join(library, 'Parametric Laptop Stand (3)')), 'a failed download leaves no empty folder');
   fileHost = 'files.printables.com';
   await assert.rejects(siteFiles.downloadFiles({ url: PRINTABLES, folder: '/etc' }, { fetchImpl: web }), /outside|cannot|library/i);
@@ -107,7 +139,13 @@ async function main() {
   assert.deepStrictEqual(await siteFiles.setToken('good-token-1234567890', web), { hasToken: true });
   assert.ok(!JSON.stringify(siteFiles.tokenStatus()).includes('good-token'), 'the status never carries the token');
   const tv = await siteFiles.listFiles(THINGIVERSE, web);
-  assert.deepStrictEqual(tv.map((f) => [f.name, f.model]), [['bear.stl', true], ['readme.txt', false]]);
+  assert.deepStrictEqual(
+    tv.map((f) => [f.name, f.model]),
+    [
+      ['bear.stl', true],
+      ['readme.txt', false]
+    ]
+  );
   const bear = await siteFiles.downloadFiles({ url: THINGIVERSE, folder: library }, { fetchImpl: web });
   assert.deepStrictEqual(bear.saved, ['Prowling Bear.stl'], 'downloaded through the redirect to its file server');
   assert.strictEqual(fs.readFileSync(path.join(bear.folder, 'Prowling Bear.stl'), 'utf8'), 'solid bear\nendsolid');
@@ -115,9 +153,16 @@ async function main() {
   // --- Add Links: online models get their files; failures keep the online model ---
   database.db.prepare('DELETE FROM models').run();
   database.db.prepare('DELETE FROM site_files').run();
-  const deps = { db: database.db, fetchImpl: web, downloadFiles: (request, options) => siteFiles.downloadFiles(request, { ...options, fetchImpl: web }),
-    saveModel: async (model) => database.db.prepare('INSERT INTO models (filePath, fileName, designer, source) VALUES (?, ?, ?, ?)').run(model.filePath, model.fileName, model.designer || null, model.source),
-    saveThumbnail: async () => {} };
+  const deps = {
+    db: database.db,
+    fetchImpl: web,
+    downloadFiles: (request, options) => siteFiles.downloadFiles(request, { ...options, fetchImpl: web }),
+    saveModel: async (model) =>
+      database.db
+        .prepare('INSERT INTO models (filePath, fileName, designer, source) VALUES (?, ?, ?, ?)')
+        .run(model.filePath, model.fileName, model.designer || null, model.source),
+    saveThumbnail: async () => {}
+  };
   assert.strictEqual((await importLink(PRINTABLES, deps)).status, 'added', 'without a folder: an online model');
   const again = await importLink(PRINTABLES, deps, { downloadFolder: library, fileIds: ['1'] });
   assert.strictEqual(again.status, 'downloaded', 'an online model in the library still gets its files');
@@ -134,7 +179,12 @@ async function main() {
   assert.match(stillNoToken.warning, /The online model stays/);
   assert.strictEqual((await importLink(THINGIVERSE, deps, { downloadFolder: library, fileIds: [] })).status, 'exists', 'none ticked: nothing downloaded');
 
-  assert.ok(calls.every((c) => /^(api\.printables\.com|files\.printables\.com|www\.thingiverse\.com|api\.thingiverse\.com|cdn\.thingiverse\.com|evil\.example)\//.test(c)), calls.join('\n'));
+  assert.ok(
+    calls.every((c) =>
+      /^(api\.printables\.com|files\.printables\.com|www\.thingiverse\.com|api\.thingiverse\.com|cdn\.thingiverse\.com|evil\.example)\//.test(c)
+    ),
+    calls.join('\n')
+  );
   assert.strictEqual(siteFiles.plainName('../../etc/passwd', 'x'), 'passwd');
 
   database.db.close();

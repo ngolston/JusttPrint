@@ -8,9 +8,9 @@ const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacO
 // Helper function to clean HTML entities and special characters from description text
 function cleanDescriptionText(text) {
   if (!text) return text;
-  
+
   let cleaned = text;
-  
+
   // First, decode double-encoded HTML entities (e.g., &amp;lt; becomes &lt;, &amp;#34; becomes &#34;)
   // This handles cases where entities are encoded multiple times
   let previousCleaned = '';
@@ -18,7 +18,7 @@ function cleanDescriptionText(text) {
     previousCleaned = cleaned;
     cleaned = cleaned.replace(/&amp;(#?\w+;)/g, '&$1');
   }
-  
+
   // Decode common HTML entities
   cleaned = cleaned.replace(/&lt;/g, '<');
   cleaned = cleaned.replace(/&gt;/g, '>');
@@ -29,20 +29,20 @@ function cleanDescriptionText(text) {
   cleaned = cleaned.replace(/&nbsp;/g, ' ');
   cleaned = cleaned.replace(/&#160;/g, ' ');
   cleaned = cleaned.replace(/&amp;/g, '&');
-  
+
   // Remove HTML tags (including nested tags and multiline)
   cleaned = cleaned.replace(/<[^>]*>/g, '');
-  
+
   // Decode any remaining numeric entities (decimal and hexadecimal)
   cleaned = cleaned.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)));
   cleaned = cleaned.replace(/&#x([0-9a-fA-F]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
-  
+
   // Clean up whitespace - replace multiple spaces/newlines/tabs with single space
   cleaned = cleaned.replace(/\s+/g, ' ');
-  
+
   // Trim leading/trailing whitespace
   cleaned = cleaned.trim();
-  
+
   return cleaned;
 }
 
@@ -66,7 +66,7 @@ function parse3MFModelXML(xmlContent) {
       if (!nameMatch) continue;
       const fieldName = nameMatch[1].trim();
       let fieldValue = match[2].trim();
-      
+
       // If the value is in a CDATA section, it's already extracted by the regex
       // Otherwise, handle any remaining encoding
 
@@ -96,14 +96,14 @@ function filter3MFMetadataBySettings(metadata) {
     notes: null,
     license: null
   };
-  
+
   try {
     // Get settings from database (default to '1' if not set)
     const enableDesigner = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enable3MFDesigner');
     const enableParentModel = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enable3MFParentModel');
     const enableLicense = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enable3MFLicense');
     const enableNotes = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enable3MFNotes');
-    
+
     // Include field if setting is '1' or not set (default enabled)
     if (metadata.designer && (enableDesigner?.value === '1' || !enableDesigner)) {
       filtered.designer = metadata.designer;
@@ -122,7 +122,7 @@ function filter3MFMetadataBySettings(metadata) {
     // On error, return original metadata (fail open)
     return metadata;
   }
-  
+
   return filtered;
 }
 
@@ -133,11 +133,11 @@ async function extract3MFMetadata(filePath) {
     const pathInfo = parseZipPath(filePath);
     let actualFilePath = filePath;
     let shouldCleanup = false;
-    
+
     if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
       return null;
     }
-    
+
     if (pathInfo.isZipEntry) {
       // Extract to temp file first
       try {
@@ -148,18 +148,18 @@ async function extract3MFMetadata(filePath) {
         return null;
       }
     }
-    
+
     // Check if file exists
     if (!fs.existsSync(actualFilePath)) {
       console.error('File does not exist:', actualFilePath);
       return null;
     }
-    
+
     const data = await fs.promises.readFile(actualFilePath);
     if (!isLikelyValidZipBuffer(data)) {
       return null;
     }
-    
+
     // A 3MF file is a zip
     let contents;
     try {
@@ -167,13 +167,13 @@ async function extract3MFMetadata(filePath) {
     } catch (zipError) {
       return null;
     }
-    
+
     const modelXmlFile = find3dModelZipEntry(contents);
-    
+
     if (modelXmlFile && !modelXmlFile.dir) {
       const xmlContent = modelXmlFile.read('string');
       const parsedMetadata = parse3MFModelXML(xmlContent);
-      
+
       // Clean up temp file if needed
       if (shouldCleanup && actualFilePath !== filePath) {
         try {
@@ -182,7 +182,7 @@ async function extract3MFMetadata(filePath) {
           console.error('Error cleaning up temp file:', cleanupError);
         }
       }
-      
+
       return parsedMetadata;
     } else {
       // Clean up temp file if needed

@@ -16,19 +16,41 @@ function test(name, fn) {
 }
 
 test('web assets are served', () => {
-  for (const p of ['/page-init.js', '/assets/logo.png', '/web-build/parse-worker.js', '/vendor/occt-import-js.wasm', '/manifest.webmanifest', '/guide/step1.png', '/index.html']) {
+  for (const p of [
+    '/page-init.js',
+    '/assets/logo.png',
+    '/web-build/parse-worker.js',
+    '/vendor/occt-import-js.wasm',
+    '/manifest.webmanifest',
+    '/guide/step1.png',
+    '/index.html'
+  ]) {
     assert.ok(isServableStaticPath(p), p);
   }
 });
 
 test('secrets, server code and dependencies are not served', () => {
   for (const p of [
-    '/secrets.json', '/package.json', '/package-lock.json', '/.env', '/.git/config',
-    '/main.js', '/server-auth.js', '/mcp-server.js', '/justtprint.db',
-    '/node_modules/express/index.js', '/scripts/docker-hub-push.js', '/tests/test-utils.js',
-    '/helper/justtprint-helper.js', '/data/justtprint.db', '/server-auth.test.js',
-    '/src/server/index.js', '/src/server/runtime.js',
-    '/vendor/..%2Fmain.js', '/%2e%2e/etc/passwd', '/vendor/%5c..%5cmain.js'
+    '/secrets.json',
+    '/package.json',
+    '/package-lock.json',
+    '/.env',
+    '/.git/config',
+    '/main.js',
+    '/server-auth.js',
+    '/mcp-server.js',
+    '/justtprint.db',
+    '/node_modules/express/index.js',
+    '/scripts/docker-hub-push.js',
+    '/tests/test-utils.js',
+    '/helper/justtprint-helper.js',
+    '/data/justtprint.db',
+    '/server-auth.test.js',
+    '/src/server/index.js',
+    '/src/server/runtime.js',
+    '/vendor/..%2Fmain.js',
+    '/%2e%2e/etc/passwd',
+    '/vendor/%5c..%5cmain.js'
   ]) {
     assert.ok(!isServableStaticPath(p), p);
   }

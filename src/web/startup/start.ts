@@ -45,8 +45,8 @@ async function start() {
     document.body.classList.add('server-thumbnail-worker');
     return;
   }
-  if (!await checkTerms()) return;
-  if (!await settings.get<string | null>('hasRunBefore').catch(() => 'true')) {
+  if (!(await checkTerms())) return;
+  if (!(await settings.get<string | null>('hasRunBefore').catch(() => 'true'))) {
     window.showWelcome?.();
     settings.save('hasRunBefore', 'true').catch(() => {});
   }
@@ -54,10 +54,15 @@ async function start() {
   await Promise.all([loadRenderSettings(), loadSavedFilterSettings()]);
   await runSearch();
   // After the library is up, so the page paints first.
-  setTimeout(() => { checkForUpdatesOnStartup(); }, 2000);
+  setTimeout(() => {
+    checkForUpdatesOnStartup();
+  }, 2000);
 }
 
 if (typeof window !== 'undefined') {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { start(); });
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', () => {
+      start();
+    });
   else start();
 }

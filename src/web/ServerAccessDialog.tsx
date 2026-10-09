@@ -30,9 +30,14 @@ export function ServerAccessDialog() {
       const open = ++openCount;
       setStatus('');
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
-      serverAccess.info()
-        .then((result) => { if (open === openCount) setInfo(result); })
-        .catch((error) => { if (open === openCount) setStatus(`Could not load the JusttPrint backend access settings: ${errorText(error)}`); });
+      serverAccess
+        .info()
+        .then((result) => {
+          if (open === openCount) setInfo(result);
+        })
+        .catch((error) => {
+          if (open === openCount) setStatus(`Could not load the JusttPrint backend access settings: ${errorText(error)}`);
+        });
     });
   }, []);
 
@@ -58,26 +63,43 @@ export function ServerAccessDialog() {
   }
 
   return (
-    <ModalDialog id="server-access-dialog" title="JusttPrint Backend Access" dialogRef={dialogRef}
-      footer={<button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>Close</button>}>
-      <p className="setting-description">People log in with their own user name and password (Settings → Users). MCP clients and scripts use the API token, which acts as an admin.</p>
+    <ModalDialog
+      id="server-access-dialog"
+      title="JusttPrint Backend Access"
+      dialogRef={dialogRef}
+      footer={
+        <button type="button" id="close-server-access" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
+      <p className="setting-description">
+        People log in with their own user name and password (Settings → Users). MCP clients and scripts use the API token, which acts as an admin.
+      </p>
       <div className="settings-group">
         {info?.passwordFromEnv && (
           <p className="setting-description">
-            The password of <strong>{info.envUsername}</strong> is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart the container.
+            The password of <strong>{info.envUsername}</strong> is set by the <code>JUSTTPRINT_PASSWORD</code> environment variable. Change it there and restart
+            the container.
           </p>
         )}
-        <p id="server-access-status" className="setting-description" role="status">{status}</p>
+        <p id="server-access-status" className="setting-description" role="status">
+          {status}
+        </p>
         <div className="form-group">
           <label htmlFor="server-access-api-token">API token</label>
           <input type="text" id="server-access-api-token" readOnly ref={tokenRef} value={info?.apiToken ?? ''} />
           <div className="dialog-buttons mcp-inline-actions">
-            <button type="button" id="server-access-copy-token" onClick={copyToken}>Copy token</button>
-            <button type="button" id="server-access-regenerate-token" onClick={regenerateToken}>Regenerate</button>
+            <button type="button" id="server-access-copy-token" onClick={copyToken}>
+              Copy token
+            </button>
+            <button type="button" id="server-access-regenerate-token" onClick={regenerateToken}>
+              Regenerate
+            </button>
           </div>
           <p className="setting-description">
-            Send as <code>Authorization: Bearer &lt;token&gt;</code>. The MCP client config already includes it.
-            Regenerating disconnects clients that use the old token.
+            Send as <code>Authorization: Bearer &lt;token&gt;</code>. The MCP client config already includes it. Regenerating disconnects clients that use the
+            old token.
           </p>
         </div>
       </div>

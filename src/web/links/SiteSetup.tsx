@@ -10,7 +10,8 @@ import { navigate } from '../shell/routes';
 function Site({ href, children }: { href: string; children: string }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="jp-site-setup__link">
-      {children}<ExternalLink size={12} aria-hidden="true" />
+      {children}
+      <ExternalLink size={12} aria-hidden="true" />
     </a>
   );
 }
@@ -23,7 +24,9 @@ export function MakerWorldSteps() {
         You need a Bambu Lab account: it is the account you use on MakerWorld. No account yet? Sign up free at{' '}
         <Site href="https://makerworld.com/en">makerworld.com</Site> (Sign In, then Sign Up).
       </li>
-      <li>In JusttPrint, open <strong>Settings → Integrations → MakerWorld</strong> and click <strong>Sign In…</strong></li>
+      <li>
+        In JusttPrint, open <strong>Settings → Integrations → MakerWorld</strong> and click <strong>Sign In…</strong>
+      </li>
       <li>Enter the email and password of that account.</li>
       <li>If Bambu Lab emails you a code, enter it. That is all: JusttPrint keeps the sign-in for everyone and does not keep your password.</li>
     </ol>
@@ -39,11 +42,15 @@ export function ThingiverseSteps() {
       </li>
       <li>
         Create an app at <Site href="https://www.thingiverse.com/apps/create">thingiverse.com/apps/create</Site> (more about it on{' '}
-        <Site href="https://www.thingiverse.com/developers">thingiverse.com/developers</Site>). Any name works, for example <em>JusttPrint</em>;
-        a <strong>Desktop app</strong> is enough.
+        <Site href="https://www.thingiverse.com/developers">thingiverse.com/developers</Site>). Any name works, for example <em>JusttPrint</em>; a{' '}
+        <strong>Desktop app</strong> is enough.
       </li>
-      <li>Open the app and copy its <strong>App Token</strong>.</li>
-      <li>In JusttPrint, open <strong>Settings → Integrations → Thingiverse</strong>, paste the token and click <strong>Save Token</strong>.</li>
+      <li>
+        Open the app and copy its <strong>App Token</strong>.
+      </li>
+      <li>
+        In JusttPrint, open <strong>Settings → Integrations → Thingiverse</strong>, paste the token and click <strong>Save Token</strong>.
+      </li>
     </ol>
   );
 }
@@ -68,8 +75,16 @@ export function SiteSetupNotice({ sites, onLeave }: { sites: string[]; onLeave: 
   const wantsThingiverse = sites.includes('thingiverse');
 
   useEffect(() => {
-    if (wantsMakerWorld) accountStatus().then((s) => setMakerWorldReady(s.signedIn), () => setMakerWorldReady(null));
-    if (wantsThingiverse) callAction<{ hasToken: boolean }>('thingiverse-token-status').then((s) => setThingiverseReady(s.hasToken), () => setThingiverseReady(null));
+    if (wantsMakerWorld)
+      accountStatus().then(
+        (s) => setMakerWorldReady(s.signedIn),
+        () => setMakerWorldReady(null)
+      );
+    if (wantsThingiverse)
+      callAction<{ hasToken: boolean }>('thingiverse-token-status').then(
+        (s) => setThingiverseReady(s.hasToken),
+        () => setThingiverseReady(null)
+      );
   }, [wantsMakerWorld, wantsThingiverse]);
 
   const needMakerWorld = wantsMakerWorld && makerWorldReady === false;
@@ -79,26 +94,39 @@ export function SiteSetupNotice({ sites, onLeave }: { sites: string[]; onLeave: 
 
   return (
     <div className="jp-site-setup" role="note" id="jp-site-setup">
-      <p className="jp-site-setup__title">To download models from {which}, you need to sign in{needMakerWorld && needThingiverse ? ' to each' : ''} first.</p>
+      <p className="jp-site-setup__title">
+        To download models from {which}, you need to sign in{needMakerWorld && needThingiverse ? ' to each' : ''} first.
+      </p>
       <p className="jp-meta">
-        Until then, those links are added as online models (name, designer, license, picture and link), and you can download the files later
-        by adding the same links again.
+        Until then, those links are added as online models (name, designer, license, picture and link), and you can download the files later by adding the same
+        links again.
       </p>
       {needMakerWorld && (
         <section className="jp-site-setup__site" aria-labelledby="jp-site-setup-makerworld">
           <h4 id="jp-site-setup-makerworld">MakerWorld</h4>
           <MakerWorldSteps />
-          {isAdmin && <Button size="sm" icon={LogIn} id="jp-site-setup-open-makerworld" onClick={() => openSetting('makerworld', onLeave)}>Open MakerWorld Settings</Button>}
-          <span className="jp-meta">{isAdmin ? ' or ' : ''}{isAdmin ? 'sign in' : 'Sign in'} when JusttPrint asks, after you click Add.</span>
+          {isAdmin && (
+            <Button size="sm" icon={LogIn} id="jp-site-setup-open-makerworld" onClick={() => openSetting('makerworld', onLeave)}>
+              Open MakerWorld Settings
+            </Button>
+          )}
+          <span className="jp-meta">
+            {isAdmin ? ' or ' : ''}
+            {isAdmin ? 'sign in' : 'Sign in'} when JusttPrint asks, after you click Add.
+          </span>
         </section>
       )}
       {needThingiverse && (
         <section className="jp-site-setup__site" aria-labelledby="jp-site-setup-thingiverse">
           <h4 id="jp-site-setup-thingiverse">Thingiverse</h4>
           <ThingiverseSteps />
-          {isAdmin
-            ? <Button size="sm" icon={KeyRound} id="jp-site-setup-open-thingiverse" onClick={() => openSetting('thingiverse', onLeave)}>Open Thingiverse Settings</Button>
-            : <p className="jp-meta">Only an admin can add the token: ask yours to do step 4 (or all of them).</p>}
+          {isAdmin ? (
+            <Button size="sm" icon={KeyRound} id="jp-site-setup-open-thingiverse" onClick={() => openSetting('thingiverse', onLeave)}>
+              Open Thingiverse Settings
+            </Button>
+          ) : (
+            <p className="jp-meta">Only an admin can add the token: ask yours to do step 4 (or all of them).</p>
+          )}
         </section>
       )}
     </div>

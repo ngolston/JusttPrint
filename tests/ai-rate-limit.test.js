@@ -25,7 +25,7 @@ test('honors Retry-After seconds and HTTP dates', () => {
   assert.strictEqual(parseRetryAfterMs({ headers: { 'retry-after': '12' } }), 12000);
   const now = Date.parse('2026-10-01T14:00:00Z');
   const later = new Date(now + 30000).toUTCString();
-  assert.strictEqual(parseRetryAfterMs({ headers: { get: (name) => name === 'retry-after' ? later : null } }, now), 30000);
+  assert.strictEqual(parseRetryAfterMs({ headers: { get: (name) => (name === 'retry-after' ? later : null) } }, now), 30000);
 });
 
 test('caps a long Retry-After and backs off when the header is missing', () => {

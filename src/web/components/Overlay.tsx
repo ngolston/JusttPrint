@@ -26,7 +26,10 @@ function useDialog(open: boolean, onClose: () => void) {
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return undefined;
-    const onCancel = (event: Event) => { event.preventDefault(); onClose(); };
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      onClose();
+    };
     dialog.addEventListener('cancel', onCancel);
     return () => dialog.removeEventListener('cancel', onCancel);
   }, [onClose]);

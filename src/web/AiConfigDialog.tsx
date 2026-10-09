@@ -53,14 +53,23 @@ const TEXT_SETTINGS: [keyof Form, string, string][] = [
 ];
 
 const DEFAULT_FORM: Form = {
-  service: 'puter', apiKey: '', ...SERVICE_DEFAULTS.puter,
-  maxTags: '10', detailLevel: 'medium', folderLevels: '2', mergeStrategy: 'merge',
-  useCategories: false, allowRetagging: false, concurrency: '3'
+  service: 'puter',
+  apiKey: '',
+  ...SERVICE_DEFAULTS.puter,
+  maxTags: '10',
+  detailLevel: 'medium',
+  folderLevels: '2',
+  mergeStrategy: 'merge',
+  useCategories: false,
+  allowRetagging: false,
+  concurrency: '3'
 };
 
 async function loadForm(): Promise<Form> {
   const get = (key: string) => settings.get<string | null>(key).catch(() => null);
-  const stored = await Promise.all(['aiService', 'apiKey', 'apiEndpoint', 'aiModel', 'aiTagUseCategories', 'aiTagAllowRetagging', ...TEXT_SETTINGS.map(([, key]) => key)].map(get));
+  const stored = await Promise.all(
+    ['aiService', 'apiKey', 'apiEndpoint', 'aiModel', 'aiTagUseCategories', 'aiTagAllowRetagging', ...TEXT_SETTINGS.map(([, key]) => key)].map(get)
+  );
   const [service, apiKey, endpoint, model, useCategories, allowRetagging, ...text] = stored;
   const selected = (service && service in SERVICE_DEFAULTS ? service : 'puter') as Service;
   const defaults = SERVICE_DEFAULTS[selected];
@@ -74,7 +83,9 @@ async function loadForm(): Promise<Form> {
     useCategories: useCategories === '1',
     allowRetagging: allowRetagging === '1'
   };
-  TEXT_SETTINGS.forEach(([field, , fallback], index) => { (form[field] as string) = text[index] || fallback; });
+  TEXT_SETTINGS.forEach(([field, , fallback], index) => {
+    (form[field] as string) = text[index] || fallback;
+  });
   return form;
 }
 
@@ -95,12 +106,18 @@ export function AiConfigDialog() {
 
   useEffect(() => onPuterLoginChange(() => setPuterSignedIn(!!currentToken())), []);
 
-  useEffect(() => exposeGlobal('openAiConfig', () => {
-    setResult('');
-    loadForm()
-      .then(setForm)
-      .finally(() => { if (!dialogRef.current?.open) dialogRef.current?.showModal(); });
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openAiConfig', () => {
+        setResult('');
+        loadForm()
+          .then(setForm)
+          .finally(() => {
+            if (!dialogRef.current?.open) dialogRef.current?.showModal();
+          });
+      }),
+    []
+  );
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((previous) => ({ ...previous, [key]: value }));
 
@@ -173,25 +190,36 @@ export function AiConfigDialog() {
 
   const keyRequired = apiKeyRequired(form.service, form.endpoint);
   const textInput = (key: keyof Form, id: string, type = 'text', extra: Record<string, string | number> = {}) => (
-    <input type={type} id={id} value={String(form[key])} {...extra}
-      onChange={(event) => set(key, event.target.value as never)} />
+    <input type={type} id={id} value={String(form[key])} {...extra} onChange={(event) => set(key, event.target.value as never)} />
   );
 
   return (
     <>
-      <ModalDialog id="ai-config-dialog" title="AI Configuration" dialogRef={dialogRef}
-        description={(
+      <ModalDialog
+        id="ai-config-dialog"
+        title="AI Configuration"
+        dialogRef={dialogRef}
+        description={
           <p className="setting-description">
-            This feature uses your own AI service that supports the OpenAI API. You can configure it to work with services such as OpenAI, Claude, Deepseek, Gemini, Puter.com, or a local server (Ollama, LM Studio, and similar). The selected model must support image analysis (e.g., gpt-4o). Puter.com and local OpenAI-compatible servers do not require an API key. You can use the Test button to check that your AI is properly configured.
+            This feature uses your own AI service that supports the OpenAI API. You can configure it to work with services such as OpenAI, Claude, Deepseek,
+            Gemini, Puter.com, or a local server (Ollama, LM Studio, and similar). The selected model must support image analysis (e.g., gpt-4o). Puter.com and
+            local OpenAI-compatible servers do not require an API key. You can use the Test button to check that your AI is properly configured.
           </p>
-        )}
-        footer={(
+        }
+        footer={
           <>
-            <button type="button" id="test-ai-config" disabled={testing} onClick={test}>Test</button>
-            <button type="button" id="save-ai-config" className="is-primary" disabled={saving} onClick={save}>Save</button>
-            <button type="button" id="cancel-ai-config" onClick={() => dialogRef.current?.close()}>Cancel</button>
+            <button type="button" id="test-ai-config" disabled={testing} onClick={test}>
+              Test
+            </button>
+            <button type="button" id="save-ai-config" className="is-primary" disabled={saving} onClick={save}>
+              Save
+            </button>
+            <button type="button" id="cancel-ai-config" onClick={() => dialogRef.current?.close()}>
+              Cancel
+            </button>
           </>
-        )}>
+        }
+      >
         <div className="form-group">
           <label htmlFor="ai-service-select">AI Service:</label>
           <select id="ai-service-select" value={form.service} onChange={(event) => changeService(event.target.value as Service)}>
@@ -207,18 +235,39 @@ export function AiConfigDialog() {
             <label>Puter account:</label>
             <div className="dialog-buttons ai-prompt-actions">
               <span id="puter-account-status">{puterSignedIn ? 'Signed in' : 'Not signed in'}</span>
-              {puterSignedIn
-                ? <button type="button" id="puter-sign-out" onClick={() => signOut()}>Sign Out</button>
-                : <button type="button" id="puter-sign-in" onClick={() => { ensureToken().catch(() => {}); }}>Sign In</button>}
+              {puterSignedIn ? (
+                <button type="button" id="puter-sign-out" onClick={() => signOut()}>
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  id="puter-sign-in"
+                  onClick={() => {
+                    ensureToken().catch(() => {});
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
             </div>
-            <small>Puter.com needs no API key: sign in with your Puter account in a popup window. Usage counts against your Puter account, and the login is kept in this browser.</small>
+            <small>
+              Puter.com needs no API key: sign in with your Puter account in a popup window. Usage counts against your Puter account, and the login is kept in
+              this browser.
+            </small>
           </div>
         )}
         {form.service !== 'puter' && (
           <div className="form-group">
             <label htmlFor="ai-api-key">{keyRequired ? 'API Key:' : 'API Key (optional):'}</label>
-            <input type="password" id="ai-api-key" autoComplete="off" required={keyRequired} value={form.apiKey}
-              onChange={(event) => set('apiKey', event.target.value)} />
+            <input
+              type="password"
+              id="ai-api-key"
+              autoComplete="off"
+              required={keyRequired}
+              value={form.apiKey}
+              onChange={(event) => set('apiKey', event.target.value)}
+            />
             <small id="ai-api-key-hint">
               {keyRequired ? 'Required for this cloud service.' : 'Optional for local OpenAI-compatible servers (Ollama, LM Studio, and similar).'}
             </small>
@@ -251,7 +300,10 @@ export function AiConfigDialog() {
         <div className="form-group">
           <label htmlFor="ai-tag-folder-levels">Folder levels:</label>
           {textInput('folderLevels', 'ai-tag-folder-levels', 'number', { min: 0, max: 6 })}
-          <small>How many parent folders to send with the thumbnail, and to use for Tag from Folder and for tagging newly scanned files. 0 omits folders from the AI prompt and adds no folder tags on scan. For Kitchen/Bagel Slicer/model.3mf, 2 levels include Kitchen and Bagel Slicer.</small>
+          <small>
+            How many parent folders to send with the thumbnail, and to use for Tag from Folder and for tagging newly scanned files. 0 omits folders from the AI
+            prompt and adds no folder tags on scan. For Kitchen/Bagel Slicer/model.3mf, 2 levels include Kitchen and Bagel Slicer.
+          </small>
         </div>
         <div className="form-group">
           <label htmlFor="ai-tag-merge-strategy">Tag Merge Strategy:</label>
@@ -271,7 +323,12 @@ export function AiConfigDialog() {
         </div>
         <div className="form-group">
           <div className="checkbox-container ai-config-checkbox">
-            <input type="checkbox" id="ai-tag-allow-retagging" checked={form.allowRetagging} onChange={(event) => set('allowRetagging', event.target.checked)} />
+            <input
+              type="checkbox"
+              id="ai-tag-allow-retagging"
+              checked={form.allowRetagging}
+              onChange={(event) => set('allowRetagging', event.target.checked)}
+            />
             <label htmlFor="ai-tag-allow-retagging">Allow Re-tagging</label>
           </div>
           <small>Allow re-tagging models that already have "AI Tagged" tag</small>
@@ -284,22 +341,41 @@ export function AiConfigDialog() {
         <div className="form-group">
           <label>AI Prompt:</label>
           <div className="dialog-buttons ai-prompt-actions">
-            <button type="button" id="edit-ai-prompt" onClick={editPrompt}>Edit Prompt</button>
-            <button type="button" id="reset-ai-prompt" onClick={resetPrompt}>Reset Prompt</button>
+            <button type="button" id="edit-ai-prompt" onClick={editPrompt}>
+              Edit Prompt
+            </button>
+            <button type="button" id="reset-ai-prompt" onClick={resetPrompt}>
+              Reset Prompt
+            </button>
           </div>
           <small>Customize the system prompt used for tag generation. Reset restores the built-in default.</small>
         </div>
-        <div id="ai-config-result" className="result-message" role="status">{result}</div>
+        <div id="ai-config-result" className="result-message" role="status">
+          {result}
+        </div>
       </ModalDialog>
 
-      <ModalDialog id="ai-prompt-edit-dialog" title="Edit AI Prompt" dialogRef={promptDialogRef}
-        description={<p className="setting-description">This prompt is sent to the AI when generating tags. Leave empty to use the built-in default. Filename, folder, and description context is appended automatically when available.</p>}
-        footer={(
+      <ModalDialog
+        id="ai-prompt-edit-dialog"
+        title="Edit AI Prompt"
+        dialogRef={promptDialogRef}
+        description={
+          <p className="setting-description">
+            This prompt is sent to the AI when generating tags. Leave empty to use the built-in default. Filename, folder, and description context is appended
+            automatically when available.
+          </p>
+        }
+        footer={
           <>
-            <button type="button" id="save-ai-prompt-edit" className="is-primary" onClick={savePrompt}>Save</button>
-            <button type="button" id="cancel-ai-prompt-edit" onClick={() => promptDialogRef.current?.close()}>Cancel</button>
+            <button type="button" id="save-ai-prompt-edit" className="is-primary" onClick={savePrompt}>
+              Save
+            </button>
+            <button type="button" id="cancel-ai-prompt-edit" onClick={() => promptDialogRef.current?.close()}>
+              Cancel
+            </button>
           </>
-        )}>
+        }
+      >
         <div className="form-group">
           <label htmlFor="ai-prompt-textarea">Prompt:</label>
           <textarea id="ai-prompt-textarea" className="ai-prompt-textarea" rows={16} value={prompt} onChange={(event) => setPrompt(event.target.value)} />

@@ -9,9 +9,7 @@ import { scanDirectory } from '../scan/scan';
 import { clearNewFlags, printRoulette, viewEntireLibrary } from '../library/actions';
 
 export type MenuItem =
-  | { kind: 'action'; label: string; run: () => void | Promise<void> }
-  | { kind: 'submenu'; label: string; items: MenuItem[] }
-  | { kind: 'separator' };
+  { kind: 'action'; label: string; run: () => void | Promise<void> } | { kind: 'submenu'; label: string; items: MenuItem[] } | { kind: 'separator' };
 
 export interface MenuGroup {
   label: 'Tools' | 'Settings' | 'Help';
@@ -30,8 +28,10 @@ const action = (label: string, run: () => void | Promise<void>): MenuItem => ({ 
 const separator: MenuItem = { kind: 'separator' };
 
 async function restartServer() {
-  const answer = await showMessage('Restart JusttPrint Backend',
-    'Restart the JusttPrint backend? Everyone connected is disconnected for a moment.', ['Restart', 'Cancel']);
+  const answer = await showMessage('Restart JusttPrint Backend', 'Restart the JusttPrint backend? Everyone connected is disconnected for a moment.', [
+    'Restart',
+    'Cancel'
+  ]);
   if (answer !== 'Restart') return;
   try {
     const result = await callAction<{ success?: boolean; message?: string }>('restart-server');
@@ -91,11 +91,15 @@ export const MENU: MenuGroup[] = [
       action('Keyboard Shortcuts', open('openKeyboardShortcuts')),
       action('About', open('openAbout')),
       separator,
-      action('GitHub', () => { window.electron?.openExternal?.('https://github.com/ngolston/JusttPrint'); }),
+      action('GitHub', () => {
+        window.electron?.openExternal?.('https://github.com/ngolston/JusttPrint');
+      }),
       separator,
       action('Library Stats', open('openStats')),
       action('System Report', open('openSystemReport')),
-      action('Server Mode Info', () => { window.electron?.openExternal?.('https://github.com/ngolston/JusttPrint?tab=readme-ov-file#server-mode'); })
+      action('Server Mode Info', () => {
+        window.electron?.openExternal?.('https://github.com/ngolston/JusttPrint?tab=readme-ov-file#server-mode');
+      })
     ]
   }
 ];

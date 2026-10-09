@@ -67,7 +67,7 @@ async function call(path, body, fetchImpl, { base = API, token } = {}) {
 async function accountName(token, fetchImpl) {
   try {
     const { ok, json } = await call('/v1/design-user-service/my/preference', undefined, fetchImpl, { token });
-    return ok ? (json.name || json.handle || null) : null;
+    return ok ? json.name || json.handle || null : null;
   } catch (_) {
     return null;
   }
@@ -94,14 +94,22 @@ const loginError = (json, status) => new Error(json.error || json.message || (st
  * `{ next: 'tfa', tfaKey }`, send `{ account, tfaKey, tfaCode }`). Ends with `{ done: true, … }`.
  */
 async function signIn(input, fetchImpl = httpsFetch) {
-  const account = String(input && input.account || '').trim();
+  const account = String((input && input.account) || '').trim();
   if (!account) throw new Error('Enter the email of your Bambu Lab account');
 
   if (input.tfaKey) {
-    const { ok, status: code, json, cookieToken } = await call('/api/sign-in/tfa', { tfaKey: String(input.tfaKey), tfaCode: String(input.tfaCode || '').trim() }, fetchImpl, { base: 'https://bambulab.com' });
+    const {
+      ok,
+      status: code,
+      json,
+      cookieToken
+    } = await call('/api/sign-in/tfa', { tfaKey: String(input.tfaKey), tfaCode: String(input.tfaCode || '').trim() }, fetchImpl, {
+      base: 'https://bambulab.com'
+    });
     const accessToken = json.accessToken || json.token || cookieToken;
     if (!ok || !accessToken) {
-      if (/csrf/i.test(json.error || '')) throw new Error('Bambu Lab does not let JusttPrint finish two-factor sign-in. Turn on sign-in with an email code for your account instead');
+      if (/csrf/i.test(json.error || ''))
+        throw new Error('Bambu Lab does not let JusttPrint finish two-factor sign-in. Turn on sign-in with an email code for your account instead');
       throw loginError(json, code);
     }
     return keep(account, { accessToken, refreshToken: json.refreshToken, expiresIn: json.expiresIn }, fetchImpl);

@@ -25,45 +25,77 @@ function accumulator() {
 }
 
 function addTriangle(acc, ax, ay, az, bx, by, bz, cx, cy, cz) {
-  const ux = bx - ax; const uy = by - ay; const uz = bz - az;
-  const vx = cx - ax; const vy = cy - ay; const vz = cz - az;
-  const nx = uy * vz - uz * vy; const ny = uz * vx - ux * vz; const nz = ux * vy - uy * vx;
+  const ux = bx - ax;
+  const uy = by - ay;
+  const uz = bz - az;
+  const vx = cx - ax;
+  const vy = cy - ay;
+  const vz = cz - az;
+  const nx = uy * vz - uz * vy;
+  const ny = uz * vx - ux * vz;
+  const nz = ux * vy - uy * vx;
   const area = Math.sqrt(nx * nx + ny * ny + nz * nz) / 2;
   acc.tris++;
   acc.area += area;
   acc.volume += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
   if (!area) return;
-  const px = (ax + bx + cx) / 3; const py = (ay + by + cy) / 3; const pz = (az + bz + cz) / 3;
-  acc.m[0] += area * px; acc.m[1] += area * py; acc.m[2] += area * pz;
-  acc.mm[0] += area * px * px; acc.mm[1] += area * py * py; acc.mm[2] += area * pz * pz;
-  acc.mm[3] += area * px * py; acc.mm[4] += area * px * pz; acc.mm[5] += area * py * pz;
+  const px = (ax + bx + cx) / 3;
+  const py = (ay + by + cy) / 3;
+  const pz = (az + bz + cz) / 3;
+  acc.m[0] += area * px;
+  acc.m[1] += area * py;
+  acc.m[2] += area * pz;
+  acc.mm[0] += area * px * px;
+  acc.mm[1] += area * py * py;
+  acc.mm[2] += area * pz * pz;
+  acc.mm[3] += area * px * py;
+  acc.mm[4] += area * px * pz;
+  acc.mm[5] += area * py * pz;
   acc.points.push(px, py, pz, area);
 }
 
 /** Eigenvalues and eigenvectors of a symmetric 3×3 matrix (Jacobi rotations). */
 function eigenSymmetric(a) {
-  const m = [[a[0][0], a[0][1], a[0][2]], [a[1][0], a[1][1], a[1][2]], [a[2][0], a[2][1], a[2][2]]];
-  const v = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const m = [
+    [a[0][0], a[0][1], a[0][2]],
+    [a[1][0], a[1][1], a[1][2]],
+    [a[2][0], a[2][1], a[2][2]]
+  ];
+  const v = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+  ];
   for (let sweep = 0; sweep < 50; sweep++) {
     const off = Math.abs(m[0][1]) + Math.abs(m[0][2]) + Math.abs(m[1][2]);
     if (off < 1e-14 * (Math.abs(m[0][0]) + Math.abs(m[1][1]) + Math.abs(m[2][2]) + 1e-300)) break;
-    for (const [p, q] of [[0, 1], [0, 2], [1, 2]]) {
+    for (const [p, q] of [
+      [0, 1],
+      [0, 2],
+      [1, 2]
+    ]) {
       if (Math.abs(m[p][q]) < 1e-300) continue;
       const theta = (m[q][q] - m[p][p]) / (2 * m[p][q]);
       const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
       const c = 1 / Math.sqrt(t * t + 1);
       const s = t * c;
       for (let k = 0; k < 3; k++) {
-        const mkp = m[k][p]; const mkq = m[k][q];
-        m[k][p] = c * mkp - s * mkq; m[k][q] = s * mkp + c * mkq;
+        const mkp = m[k][p];
+        const mkq = m[k][q];
+        m[k][p] = c * mkp - s * mkq;
+        m[k][q] = s * mkp + c * mkq;
       }
       for (let k = 0; k < 3; k++) {
-        const mpk = m[p][k]; const mqk = m[q][k];
-        m[p][k] = c * mpk - s * mqk; m[q][k] = s * mpk + c * mqk;
+        const mpk = m[p][k];
+        const mqk = m[q][k];
+        m[p][k] = c * mpk - s * mqk;
+        m[q][k] = s * mpk + c * mqk;
       }
       for (let k = 0; k < 3; k++) {
-        const vkp = v[k][p]; const vkq = v[k][q];
-        v[k][p] = c * vkp - s * vkq; v[k][q] = s * vkp + c * vkq;
+        const vkp = v[k][p];
+        const vkq = v[k][q];
+        v[k][p] = c * vkp - s * vkq;
+        v[k][q] = s * vkp + c * vkq;
       }
     }
   }
@@ -99,10 +131,14 @@ function finish(acc) {
   let hand = 0;
   if (leaning >= 2) {
     const e = axes.map((axis, i) => (skews[i] < 0 ? axis.vector.map((x) => -x) : axis.vector));
-    if (Math.abs(skews[2]) <= SKEW_MIN) e[2] = [e[0][1] * e[1][2] - e[0][2] * e[1][1], e[0][2] * e[1][0] - e[0][0] * e[1][2], e[0][0] * e[1][1] - e[0][1] * e[1][0]];
-    else if (Math.abs(skews[1]) <= SKEW_MIN) e[1] = [e[2][1] * e[0][2] - e[2][2] * e[0][1], e[2][2] * e[0][0] - e[2][0] * e[0][2], e[2][0] * e[0][1] - e[2][1] * e[0][0]];
-    else if (Math.abs(skews[0]) <= SKEW_MIN) e[0] = [e[1][1] * e[2][2] - e[1][2] * e[2][1], e[1][2] * e[2][0] - e[1][0] * e[2][2], e[1][0] * e[2][1] - e[1][1] * e[2][0]];
-    const det = e[0][0] * (e[1][1] * e[2][2] - e[1][2] * e[2][1]) - e[0][1] * (e[1][0] * e[2][2] - e[1][2] * e[2][0]) + e[0][2] * (e[1][0] * e[2][1] - e[1][1] * e[2][0]);
+    if (Math.abs(skews[2]) <= SKEW_MIN)
+      e[2] = [e[0][1] * e[1][2] - e[0][2] * e[1][1], e[0][2] * e[1][0] - e[0][0] * e[1][2], e[0][0] * e[1][1] - e[0][1] * e[1][0]];
+    else if (Math.abs(skews[1]) <= SKEW_MIN)
+      e[1] = [e[2][1] * e[0][2] - e[2][2] * e[0][1], e[2][2] * e[0][0] - e[2][0] * e[0][2], e[2][0] * e[0][1] - e[2][1] * e[0][0]];
+    else if (Math.abs(skews[0]) <= SKEW_MIN)
+      e[0] = [e[1][1] * e[2][2] - e[1][2] * e[2][1], e[1][2] * e[2][0] - e[1][0] * e[2][2], e[1][0] * e[2][1] - e[1][1] * e[2][0]];
+    const det =
+      e[0][0] * (e[1][1] * e[2][2] - e[1][2] * e[2][1]) - e[0][1] * (e[1][0] * e[2][2] - e[1][2] * e[2][0]) + e[0][2] * (e[1][0] * e[2][1] - e[1][1] * e[2][0]);
     hand = det > 0 ? 1 : -1;
   }
   const volume = Math.abs(acc.volume);
@@ -151,8 +187,21 @@ function threeMfSignature(buffer) {
   for (const name of Object.keys(unzipped).sort()) {
     const { positions, indices } = extractMeshFromXml(decoder.decode(unzipped[name]));
     for (let i = 0; i + 2 < indices.length; i += 3) {
-      const a = indices[i] * 3; const b = indices[i + 1] * 3; const c = indices[i + 2] * 3;
-      addTriangle(acc, positions[a], positions[a + 1], positions[a + 2], positions[b], positions[b + 1], positions[b + 2], positions[c], positions[c + 1], positions[c + 2]);
+      const a = indices[i] * 3;
+      const b = indices[i + 1] * 3;
+      const c = indices[i + 2] * 3;
+      addTriangle(
+        acc,
+        positions[a],
+        positions[a + 1],
+        positions[a + 2],
+        positions[b],
+        positions[b + 1],
+        positions[b + 2],
+        positions[c],
+        positions[c + 1],
+        positions[c + 2]
+      );
     }
   }
   return finish(acc);

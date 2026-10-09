@@ -5,7 +5,9 @@
  * screens.
  */
 /* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
-html:has(body.jp-shell-on) { scroll-padding-top: calc(var(--jp-topbar-height) + 8px); }
+html:has(body.jp-shell-on) {
+  scroll-padding-top: calc(var(--jp-topbar-height) + 8px);
+}
 
 body.jp-shell-on {
   --jp-legacy-left: var(--jp-sidebar-width);
@@ -27,7 +29,9 @@ body.server-mode.jp-shell-on .sidebar {
   background: var(--jp-bg-2);
   scrollbar-gutter: auto;
 }
-body.jp-shell-on .sidebar::after { flex-basis: var(--jp-space-4); }
+body.jp-shell-on .sidebar::after {
+  flex-basis: var(--jp-space-4);
+}
 
 /* The grid and the details column scroll on their own: thin bars in the theme's colours. */
 body.jp-shell-on .sidebar,
@@ -54,7 +58,9 @@ body.jp-shell-on .file-grid.preview-wall {
 }
 
 /* legacy/base.css positions the `main` element this replaced. */
-.library-main { position: relative; }
+.library-main {
+  position: relative;
+}
 
 body.jp-shell-on .grid-view-selector {
   display: block;

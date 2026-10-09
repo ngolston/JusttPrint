@@ -34,27 +34,43 @@ function FileTypePie({ slices }: { slices: Slice[] }) {
   return (
     <div className="chart-container-small stats-pie">
       <svg viewBox="0 0 100 100" role="img" aria-label="Models by file type">
-        {total === 0 ? <circle cx="50" cy="50" r="48" fill="rgba(255, 255, 255, 0.08)" /> : slices.map((slice, index) => {
-          const share = slice.count / total;
-          const title = `${slice.label}: ${slice.count.toLocaleString()} (${(share * 100).toFixed(1)}%) · ${formatFileSize(slice.bytes)}`;
-          if (share >= 1) {
-            return <circle key={slice.label} cx="50" cy="50" r="48" fill={SLICE_COLORS[index]}><title>{title}</title></circle>;
-          }
-          const start = angle;
-          angle += share * 2 * Math.PI;
-          if (share === 0) return null;
-          const largeArc = share > 0.5 ? 1 : 0;
-          return (
-            <path key={slice.label} d={`M50 50 L${point(start)} A48 48 0 ${largeArc} 1 ${point(angle)} Z`}
-              fill={SLICE_COLORS[index]} stroke="rgba(0, 0, 0, 0.25)" strokeWidth="0.5">
-              <title>{title}</title>
-            </path>
-          );
-        })}
+        {total === 0 ? (
+          <circle cx="50" cy="50" r="48" fill="rgba(255, 255, 255, 0.08)" />
+        ) : (
+          slices.map((slice, index) => {
+            const share = slice.count / total;
+            const title = `${slice.label}: ${slice.count.toLocaleString()} (${(share * 100).toFixed(1)}%) · ${formatFileSize(slice.bytes)}`;
+            if (share >= 1) {
+              return (
+                <circle key={slice.label} cx="50" cy="50" r="48" fill={SLICE_COLORS[index]}>
+                  <title>{title}</title>
+                </circle>
+              );
+            }
+            const start = angle;
+            angle += share * 2 * Math.PI;
+            if (share === 0) return null;
+            const largeArc = share > 0.5 ? 1 : 0;
+            return (
+              <path
+                key={slice.label}
+                d={`M50 50 L${point(start)} A48 48 0 ${largeArc} 1 ${point(angle)} Z`}
+                fill={SLICE_COLORS[index]}
+                stroke="rgba(0, 0, 0, 0.25)"
+                strokeWidth="0.5"
+              >
+                <title>{title}</title>
+              </path>
+            );
+          })
+        )}
       </svg>
       <ul className="stats-legend">
         {slices.map((slice, index) => (
-          <li key={slice.label}><span className="stats-legend-swatch" style={{ background: SLICE_COLORS[index] }} />{slice.label}</li>
+          <li key={slice.label}>
+            <span className="stats-legend-swatch" style={{ background: SLICE_COLORS[index] }} />
+            {slice.label}
+          </li>
         ))}
       </ul>
     </div>
@@ -92,18 +108,25 @@ export function StatsDialog() {
       const open = ++openCount;
       setError('');
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
-      library.stats()
-        .then((result) => { if (open === openCount) setStats(result); })
-        .catch((reason) => { if (open === openCount) setError(`Could not load the statistics: ${reason instanceof Error ? reason.message : String(reason)}`); });
+      library
+        .stats()
+        .then((result) => {
+          if (open === openCount) setStats(result);
+        })
+        .catch((reason) => {
+          if (open === openCount) setError(`Could not load the statistics: ${reason instanceof Error ? reason.message : String(reason)}`);
+        });
     });
   }, []);
 
   const types = stats?.fileTypes;
-  const slices: Slice[] = types ? [
-    { label: '3MF', count: types.threeMf, bytes: types.threeMfBytes || 0 },
-    { label: 'STL', count: types.stl, bytes: types.stlBytes || 0 },
-    ...(types.other > 0 ? [{ label: 'Other', count: types.other, bytes: types.otherBytes || 0 }] : [])
-  ] : [];
+  const slices: Slice[] = types
+    ? [
+        { label: '3MF', count: types.threeMf, bytes: types.threeMfBytes || 0 },
+        { label: 'STL', count: types.stl, bytes: types.stlBytes || 0 },
+        ...(types.other > 0 ? [{ label: 'Other', count: types.other, bytes: types.otherBytes || 0 }] : [])
+      ]
+    : [];
   const percent = (value: string | number | undefined) => Number(value) || 0;
   const completion = [
     { label: 'Designer', percent: percent(stats?.percentages.withDesigner) },
@@ -115,27 +138,41 @@ export function StatsDialog() {
   const typeRow = (label: string, id: string, value: number | undefined, bytes: number | undefined) => (
     <div className="stats-row-compact">
       <span className="stats-label-small">{label}:</span>
-      <span className="stats-value-small"><span id={`stats-type-${id}`}>{count(value)}</span>{' '}
-        <span className="stats-bytes" id={`stats-type-${id}-bytes`}>({formatFileSize(bytes || 0)})</span></span>
+      <span className="stats-value-small">
+        <span id={`stats-type-${id}`}>{count(value)}</span>{' '}
+        <span className="stats-bytes" id={`stats-type-${id}-bytes`}>
+          ({formatFileSize(bytes || 0)})
+        </span>
+      </span>
     </div>
   );
 
   return (
     <ModalDialog id="stats-dialog" title="Library Statistics" dialogRef={dialogRef}>
-      {error && <p className="setting-description" role="status">{error}</p>}
+      {error && (
+        <p className="setting-description" role="status">
+          {error}
+        </p>
+      )}
       <div className="stats-content">
         <div className="stats-grid">
           <div className="stats-section stats-summary">
             <h3>Total Models</h3>
-            <div className="stats-value-large" id="stats-total-models">{count(stats?.totalModels)}</div>
+            <div className="stats-value-large" id="stats-total-models">
+              {count(stats?.totalModels)}
+            </div>
             <div className="stats-subsection">
               <div className="stats-row-compact">
                 <span className="stats-label-small">Archived:</span>
-                <span className="stats-value-small" id="stats-archived">{count(stats?.archivedModels)}</span>
+                <span className="stats-value-small" id="stats-archived">
+                  {count(stats?.archivedModels)}
+                </span>
               </div>
               <div className="stats-row-compact">
                 <span className="stats-label-small">Disk Usage:</span>
-                <span className="stats-value-small" id="stats-total-bytes">{formatFileSize(stats?.totalBytes || 0)}</span>
+                <span className="stats-value-small" id="stats-total-bytes">
+                  {formatFileSize(stats?.totalBytes || 0)}
+                </span>
               </div>
             </div>
           </div>
@@ -155,7 +192,9 @@ export function StatsDialog() {
               {completion.map((row) => (
                 <div key={row.label} className="stats-row-compact">
                   <span className="stats-label-tiny">{row.label}:</span>
-                  <span className="stats-value-tiny" id={`stats-percent-${row.label.toLowerCase()}`}>{stats ? `${percent(row.percent)}%` : '0%'}</span>
+                  <span className="stats-value-tiny" id={`stats-percent-${row.label.toLowerCase()}`}>
+                    {stats ? `${percent(row.percent)}%` : '0%'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -165,7 +204,9 @@ export function StatsDialog() {
             <h3>Tags</h3>
             <div className="stats-row-compact">
               <span className="stats-label-small">Total:</span>
-              <span className="stats-value-small" id="stats-total-tags">{count(stats?.tags.total)}</span>
+              <span className="stats-value-small" id="stats-total-tags">
+                {count(stats?.tags.total)}
+              </span>
             </div>
             <div className="stats-row-compact">
               <span className="stats-label-small">Most Used:</span>

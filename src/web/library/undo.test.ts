@@ -6,8 +6,12 @@ describe('undo list', () => {
 
   it('undoes the newest edit first, each once', async () => {
     const done: string[] = [];
-    recordUndo('first', async () => { done.push('first'); });
-    recordUndo('second', async () => { done.push('second'); });
+    recordUndo('first', async () => {
+      done.push('first');
+    });
+    recordUndo('second', async () => {
+      done.push('second');
+    });
     expect(await undoLast()).toBe('second');
     expect(await undoLast()).toBe('first');
     expect(await undoLast()).toBeNull();
@@ -33,7 +37,9 @@ describe('undo list', () => {
   });
 
   it('a failed undo resolves null and is not retried', async () => {
-    recordUndo('broken', async () => { throw new Error('offline'); });
+    recordUndo('broken', async () => {
+      throw new Error('offline');
+    });
     const original = console.error;
     console.error = () => {};
     try {

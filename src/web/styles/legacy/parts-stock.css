@@ -5,7 +5,9 @@
   width: 92%;
   border-radius: 20px;
   background: rgba(14, 24, 33, 0.96);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
   color: var(--jp-text);
   padding: 24px 28px;
 }
@@ -154,8 +156,8 @@
 
 /* Strip select arrows, paddings, and styles inherited from styles.css */
 #parts-stock-dialog .form-group input,
-#parts-stock-dialog input[type="text"],
-#parts-stock-dialog input[type="number"] {
+#parts-stock-dialog input[type='text'],
+#parts-stock-dialog input[type='number'] {
   background-image: none !important;
   appearance: none !important;
   -webkit-appearance: none !important;
@@ -169,12 +171,15 @@
   color: var(--jp-text) !important;
   font-size: 13.5px !important;
   line-height: 1.4 !important;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s !important;
 }
 
 #parts-stock-dialog .form-group input:focus,
-#parts-stock-dialog input[type="text"]:focus,
-#parts-stock-dialog input[type="number"]:focus {
+#parts-stock-dialog input[type='text']:focus,
+#parts-stock-dialog input[type='number']:focus {
   outline: none !important;
   border-color: var(--primary-accent, var(--jp-accent)) !important;
   background: rgba(255, 255, 255, 0.08) !important;
@@ -196,12 +201,12 @@
   opacity: 0.9;
 }
 
-#parts-stock-dialog input[type="number"]::-webkit-inner-spin-button,
-#parts-stock-dialog input[type="number"]::-webkit-outer-spin-button {
+#parts-stock-dialog input[type='number']::-webkit-inner-spin-button,
+#parts-stock-dialog input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-#parts-stock-dialog input[type="number"] {
+#parts-stock-dialog input[type='number'] {
   -moz-appearance: textfield;
 }
 
@@ -658,7 +663,7 @@
   min-width: 0;
 }
 
-.form-group .log-print-parts-add input[type="number"] {
+.form-group .log-print-parts-add input[type='number'] {
   width: 76px;
   flex: 0 0 76px;
   background-image: none;

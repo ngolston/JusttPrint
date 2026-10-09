@@ -46,10 +46,11 @@ declare global {
   }
 }
 
-const tagNames = (list: unknown[] | null | undefined) => (list || [])
-  .map((tag) => (typeof tag === 'string' ? tag : String((tag as { name?: string })?.name ?? '')).trim())
-  .filter(Boolean)
-  .sort((a, b) => a.localeCompare(b));
+const tagNames = (list: unknown[] | null | undefined) =>
+  (list || [])
+    .map((tag) => (typeof tag === 'string' ? tag : String((tag as { name?: string })?.name ?? '')).trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
 interface Options {
   designers: string[];
@@ -100,7 +101,11 @@ export function DetailsFields() {
   const [options, setOptions] = useState<Options>(EMPTY_OPTIONS);
   const host = window.detailsHost;
 
-  const reloadOptions = () => { loadOptions().then(setOptions).catch(() => {}); };
+  const reloadOptions = () => {
+    loadOptions()
+      .then(setOptions)
+      .catch(() => {});
+  };
 
   // window.detailsFields is read from the latest render, so it always sees the shown model.
   const api = {
@@ -116,7 +121,9 @@ export function DetailsFields() {
       setTags([]);
     },
     reloadOptions,
-    addTag: async (name: string) => { await addTag(name); },
+    addTag: async (name: string) => {
+      await addTag(name);
+    },
     setTags: (names: string[]) => setTags(tagNames(names))
   };
   useEffect(() => exposeGlobal('detailsFields', api));
@@ -183,17 +190,43 @@ export function DetailsFields() {
       <div className="form-group" key={field}>
         <label htmlFor={IDS[field]}>{LABELS[field].label}</label>
         <div className="designer-input-container">
-          <select id={IDS[field]} className={field === 'license' ? 'form-control' : undefined} value={value} disabled={!model || !canEdit}
-            onChange={(event) => save(field, event.target.value)}>
+          <select
+            id={IDS[field]}
+            className={field === 'license' ? 'form-control' : undefined}
+            value={value}
+            disabled={!model || !canEdit}
+            onChange={(event) => save(field, event.target.value)}
+          >
             <option value="">{canEdit ? LABELS[field].empty : '—'}</option>
-            {values.map((option) => <option key={option} value={option}>{option}</option>)}
+            {values.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
-          {canEdit && (<>
-          <button type="button" className="list-button icon-button" title={`Search existing ${LABELS[field].list === 'parent' ? 'parent models' : `${LABELS[field].list}s`}`}
-            disabled={!model} onClick={() => pick(field)}>☰</button>
-          <button type="button" className="icon-button" id={`details-add-${LABELS[field].list}`} title={LABELS[field].prompt}
-            disabled={!model} onClick={() => addNew(field)}>+</button>
-          </>)}
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                className="list-button icon-button"
+                title={`Search existing ${LABELS[field].list === 'parent' ? 'parent models' : `${LABELS[field].list}s`}`}
+                disabled={!model}
+                onClick={() => pick(field)}
+              >
+                ☰
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                id={`details-add-${LABELS[field].list}`}
+                title={LABELS[field].prompt}
+                disabled={!model}
+                onClick={() => addNew(field)}
+              >
+                +
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -211,12 +244,35 @@ export function DetailsFields() {
       <div className="form-group">
         <label htmlFor="model-source">Source</label>
         <div className="input-with-icon">
-          <input type="text" id="model-source" placeholder={canEdit ? 'Enter source...' : ''} spellCheck={false} value={source} disabled={!model} readOnly={!canEdit}
+          <input
+            type="text"
+            id="model-source"
+            placeholder={canEdit ? 'Enter source...' : ''}
+            spellCheck={false}
+            value={source}
+            disabled={!model}
+            readOnly={!canEdit}
             onChange={(event) => setSource(event.target.value)}
-            onBlur={() => { if (model && source !== (model.source || '')) { save('source', source); setModel({ ...model, source }); } }}
-            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
-          <button type="button" id="details-open-source" className="icon-button" title="Open in browser" disabled={!model}
-            onClick={() => host?.openSource(source.trim())}>↗</button>
+            onBlur={() => {
+              if (model && source !== (model.source || '')) {
+                save('source', source);
+                setModel({ ...model, source });
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+          />
+          <button
+            type="button"
+            id="details-open-source"
+            className="icon-button"
+            title="Open in browser"
+            disabled={!model}
+            onClick={() => host?.openSource(source.trim())}
+          >
+            ↗
+          </button>
         </div>
       </div>
       {picker('designer')}
@@ -230,20 +286,52 @@ export function DetailsFields() {
       <div className="form-group details-tags-group">
         <label>Tags:</label>
         <div className="tags-container">
-          {canEdit && <div className="tags-input-container">
-            <select id="tag-select" aria-label="Add a tag" value="" disabled={!model} onChange={(event) => { if (event.target.value) addTag(event.target.value); }}>
-              <option value="">Select a tag...</option>
-              {options.tags.filter((tag) => !tags.includes(tag)).map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-            </select>
-            <button type="button" className="list-button icon-button" title="Search existing tags" disabled={!model}
-              onClick={async () => { const picked = await pickFromList('tag'); if (picked) await addTag(picked); }}>☰</button>
-            <button type="button" id="details-add-tag" className="icon-button" title="New tag" disabled={!model} onClick={newTag}>+</button>
-          </div>}
+          {canEdit && (
+            <div className="tags-input-container">
+              <select
+                id="tag-select"
+                aria-label="Add a tag"
+                value=""
+                disabled={!model}
+                onChange={(event) => {
+                  if (event.target.value) addTag(event.target.value);
+                }}
+              >
+                <option value="">Select a tag...</option>
+                {options.tags
+                  .filter((tag) => !tags.includes(tag))
+                  .map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="list-button icon-button"
+                title="Search existing tags"
+                disabled={!model}
+                onClick={async () => {
+                  const picked = await pickFromList('tag');
+                  if (picked) await addTag(picked);
+                }}
+              >
+                ☰
+              </button>
+              <button type="button" id="details-add-tag" className="icon-button" title="New tag" disabled={!model} onClick={newTag}>
+                +
+              </button>
+            </div>
+          )}
           <div id="model-tags" className="tags-list">
             {tags.map((tag) => (
               <div key={tag} className="tag" data-tag-name={tag} title={tag}>
                 <span className="tag-text">{tag}</span>
-                {canEdit && <span className="tag-remove" role="button" aria-label={`Remove tag ${tag}`} onClick={() => removeTag(tag)}>×</span>}
+                {canEdit && (
+                  <span className="tag-remove" role="button" aria-label={`Remove tag ${tag}`} onClick={() => removeTag(tag)}>
+                    ×
+                  </span>
+                )}
               </div>
             ))}
           </div>

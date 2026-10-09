@@ -15,7 +15,9 @@ const LABELS = { error: 'ERROR', warn: 'WARN ', info: 'INFO ', debug: 'DEBUG' };
 
 /** "debug", " INFO " … → a known level name; anything else → "info". */
 function parseLevel(value) {
-  const name = String(value || '').trim().toLowerCase();
+  const name = String(value || '')
+    .trim()
+    .toLowerCase();
   if (name === 'warning') return 'warn';
   return Object.prototype.hasOwnProperty.call(LEVELS, name) ? name : 'info';
 }
@@ -37,11 +39,13 @@ function install(target = console, { level = process.env.JUSTTPRINT_LOG_LEVEL, t
     log: target.log.bind(target),
     error: target.error.bind(target)
   };
-  const writer = (name, write) => (...args) => {
-    if (LEVELS[name] > LEVELS[state.level]) return;
-    const prefix = timestamps ? `${new Date().toISOString()} ${LABELS[name]}` : LABELS[name].trim();
-    write(`${prefix} ${util.format(...args)}`);
-  };
+  const writer =
+    (name, write) =>
+    (...args) => {
+      if (LEVELS[name] > LEVELS[state.level]) return;
+      const prefix = timestamps ? `${new Date().toISOString()} ${LABELS[name]}` : LABELS[name].trim();
+      write(`${prefix} ${util.format(...args)}`);
+    };
   target.error = writer('error', original.error);
   target.warn = writer('warn', original.error);
   target.info = writer('info', original.log);

@@ -19,41 +19,47 @@ async function checkForUpdates(isBeta = false) {
       const versionUrl = releasesApiUrl(isBeta);
       console.debug('Main Process - Checking GitHub releases:', versionUrl);
 
-      https.get(versionUrl, {
-        // GitHub's API requires a User-Agent.
-        headers: { 'User-Agent': 'JusttPrint', Accept: 'application/vnd.github+json' }
-      }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => {
-          let version = null;
-          try {
-            version = latestVersionFromReleases(JSON.parse(data), isBeta);
-          } catch (_) {
-            version = null;
+      https
+        .get(
+          versionUrl,
+          {
+            // GitHub's API requires a User-Agent.
+            headers: { 'User-Agent': 'JusttPrint', Accept: 'application/vnd.github+json' }
+          },
+          (res) => {
+            let data = '';
+            res.on('data', (chunk) => (data += chunk));
+            res.on('end', () => {
+              let version = null;
+              try {
+                version = latestVersionFromReleases(JSON.parse(data), isBeta);
+              } catch (_) {
+                version = null;
+              }
+              console.log('Main Process - Latest release:', version, `(HTTP ${res.statusCode})`);
+              if (version) {
+                console.debug('Main Process - Valid version format received:', version);
+                // Update the database with the latest version
+                try {
+                  database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(version, 'latestVersion');
+                  database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(new Date().toISOString(), 'lastUpdateCheck');
+                  // Mark that we've performed the version check
+                  database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('true', 'versionCheckPerformedOnStartup');
+                  console.debug('Database updated with latest version:', version);
+                } catch (dbError) {
+                  console.error('Error updating version in database:', dbError);
+                }
+                resolve(version);
+              } else {
+                reject(new Error(`No release found (HTTP ${res.statusCode})`));
+              }
+            });
           }
-          console.log('Main Process - Latest release:', version, `(HTTP ${res.statusCode})`);
-          if (version) {
-            console.debug('Main Process - Valid version format received:', version);
-            // Update the database with the latest version
-            try {
-              database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(version, 'latestVersion');
-              database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(new Date().toISOString(), 'lastUpdateCheck');
-              // Mark that we've performed the version check
-              database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('true', 'versionCheckPerformedOnStartup');
-              console.debug('Database updated with latest version:', version);
-            } catch (dbError) {
-              console.error('Error updating version in database:', dbError);
-            }
-            resolve(version);
-          } else {
-            reject(new Error(`No release found (HTTP ${res.statusCode})`));
-          }
+        )
+        .on('error', (err) => {
+          console.error('Error checking for updates:', err);
+          reject(err);
         });
-      }).on('error', (err) => {
-        console.error('Error checking for updates:', err);
-        reject(err);
-      });
     });
   } catch (error) {
     console.error('Error in checkForUpdates:', error);
@@ -69,10 +75,10 @@ ipcMain.handle('check-for-updates', async (event, isBeta) => {
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Version check timed out')), 5000);
     });
-    
+
     const versionPromise = checkForUpdates(isBeta);
     const latestVersion = await Promise.race([versionPromise, timeoutPromise]);
-    
+
     console.debug('Main Process - Latest version found:', latestVersion);
     return latestVersion;
   } catch (error) {

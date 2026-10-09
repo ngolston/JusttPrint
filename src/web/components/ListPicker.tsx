@@ -18,7 +18,9 @@ interface Request {
 }
 
 const TITLES: Record<ListField, [string, string?]> = {
-  designer: ['Select Designer'], parent: ['Select Parent Model'], license: ['Select License'],
+  designer: ['Select Designer'],
+  parent: ['Select Parent Model'],
+  license: ['Select License'],
   tag: ['Select Tag', 'Remove Tag']
 };
 
@@ -32,10 +34,14 @@ async function loadItems(field: ListField, remove: boolean): Promise<Item[]> {
     return named(selected.flatMap((m) => (Array.isArray(m?.tags) ? m!.tags : [])));
   }
   switch (field) {
-    case 'designer': return named(await libraryValues.designers());
-    case 'parent': return named(await libraryValues.parentModels());
-    case 'license': return named(await libraryValues.licenses());
-    case 'tag': return named((await tagApi.list()).map((t) => t.name));
+    case 'designer':
+      return named(await libraryValues.designers());
+    case 'parent':
+      return named(await libraryValues.parentModels());
+    case 'license':
+      return named(await libraryValues.licenses());
+    case 'tag':
+      return named((await tagApi.list()).map((t) => t.name));
   }
 }
 
@@ -70,13 +76,17 @@ export function ListPicker() {
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
       requestAnimationFrame(() => inputRef.current?.focus());
       loadItems(next.field, next.remove)
-        .then((list) => { if (pending.current === next) setItems(list.sort((a, b) => a.label.localeCompare(b.label))); })
+        .then((list) => {
+          if (pending.current === next) setItems(list.sort((a, b) => a.label.localeCompare(b.label)));
+        })
         .catch((err) => {
           console.error('Error loading items for the list:', err);
           if (pending.current === next) setError(true);
         });
     };
-    return () => { open = null; };
+    return () => {
+      open = null;
+    };
   }, []);
 
   const finish = (value: string | null) => {
@@ -94,18 +104,31 @@ export function ListPicker() {
       <form method="dialog" onSubmit={(e) => e.preventDefault()}>
         <h3 id="searchable-list-title">{request?.remove && removeTitle ? removeTitle : title}</h3>
         <div className="form-group">
-          <input type="text" id="searchable-list-search" placeholder="Search..." autoComplete="off" ref={inputRef} value={query}
-            onChange={(e) => setQuery(e.target.value)} />
+          <input
+            type="text"
+            id="searchable-list-search"
+            placeholder="Search..."
+            autoComplete="off"
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         </div>
         <div className="searchable-list-container">
           <ul id="searchable-list-items" className="searchable-list">
             {error && <li style={{ color: '#ff4444', cursor: 'default' }}>Error loading items</li>}
             {!error && items && !shown.length && <li style={{ color: '#888', cursor: 'default' }}>No items found</li>}
-            {shown.map((item) => <li key={item.value} onClick={() => finish(item.value)}>{item.label}</li>)}
+            {shown.map((item) => (
+              <li key={item.value} onClick={() => finish(item.value)}>
+                {item.label}
+              </li>
+            ))}
           </ul>
         </div>
         <div className="dialog-buttons">
-          <button type="button" id="searchable-list-cancel" onClick={() => finish(null)}>Cancel</button>
+          <button type="button" id="searchable-list-cancel" onClick={() => finish(null)}>
+            Cancel
+          </button>
         </div>
       </form>
     </dialog>

@@ -29,8 +29,17 @@ const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'pars
 export default [
   {
     ignores: [
-      'node_modules/**', 'web-build/**', 'dist/**', 'vendor/**', 'docs/**', 'guide/**', 'assets/**',
-      'tests/e2e/.work/**', 'tests/fixtures/**', 'test-results/**', 'playwright-report/**',
+      'node_modules/**',
+      'web-build/**',
+      'dist/**',
+      'vendor/**',
+      'docs/**',
+      'guide/**',
+      'assets/**',
+      'tests/e2e/.work/**',
+      'tests/fixtures/**',
+      'test-results/**',
+      'playwright-report/**',
       // TypeScript: checked by tsc (see above).
       'src/web/**'
     ]

@@ -59,7 +59,11 @@ let letsEncryptRenewInFlight = false;
 function closeAllClients(code, reason) {
   if (!wsClients) return;
   wsClients.forEach((client) => {
-    try { client.close(code, reason); } catch (_) { /* ignore */ }
+    try {
+      client.close(code, reason);
+    } catch (_) {
+      /* ignore */
+    }
   });
 }
 
@@ -68,7 +72,11 @@ function closeClientsOfUser(userId, code, reason) {
   if (!wsClients || !userId) return;
   wsClients.forEach((client) => {
     if (!client.user || client.user.id !== userId) return;
-    try { client.close(code, reason); } catch (_) { /* ignore */ }
+    try {
+      client.close(code, reason);
+    } catch (_) {
+      /* ignore */
+    }
   });
 }
 
@@ -106,7 +114,7 @@ function loadOptionalServerTlsOptions() {
 function formatPort80BindError(err) {
   if (!err) return 'Failed to bind port 80.';
   if (err.code === 'EACCES') {
-    return 'Could not bind port 80 (permission denied). Let\'s Encrypt HTTP-01 and HTTP redirect need port 80. Run as administrator/root, or in Docker publish 80:80.';
+    return "Could not bind port 80 (permission denied). Let's Encrypt HTTP-01 and HTTP redirect need port 80. Run as administrator/root, or in Docker publish 80:80.";
   }
   if (err.code === 'EADDRINUSE') {
     return 'Port 80 is already in use. Stop the other listener or disable HTTP-01 / redirect.';
@@ -217,8 +225,8 @@ function registerPuterAiProxyRoute(expressApp) {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;actually=json',
-          'Origin': 'https://puter.com',
-          'Referer': 'https://puter.com/'
+          Origin: 'https://puter.com',
+          Referer: 'https://puter.com/'
         },
         body: puterBody
       });
@@ -280,9 +288,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     // JS eval); the STEP library is built without dynamic JS (vendor/occt-import-js/BUILD.md).
     // Puter.js runs only on its own sign-in popup (puter-signin.html), which hands the login token
     // back to the page.
-    const scriptSrc = req.path === '/puter-signin.html'
-      ? "script-src 'self' https://js.puter.com"
-      : "script-src 'self' 'wasm-unsafe-eval'";
+    const scriptSrc = req.path === '/puter-signin.html' ? "script-src 'self' https://js.puter.com" : "script-src 'self' 'wasm-unsafe-eval'";
     res.setHeader('Content-Security-Policy', `${scriptSrc}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -338,24 +344,28 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Now register static file serving AFTER the route handler
   // This ensures the route handler takes precedence for the root path
-  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
-        res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-      }
-      if (filePath.endsWith('.wasm')) {
-        res.setHeader('Content-Type', 'application/wasm');
-      }
-      if (filePath.endsWith(`${path.sep}sw.js`) || filePath.endsWith('/sw.js') || filePath.endsWith('sw.js')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        res.setHeader('Service-Worker-Allowed', '/');
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-      if (/\.(js|css|html|webmanifest)$/i.test(filePath)) {
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-    }
-  })));
+  expressApp.use(
+    staticWebAssetsOnly(
+      express.static(appDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
+            res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+          }
+          if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+          }
+          if (filePath.endsWith(`${path.sep}sw.js`) || filePath.endsWith('/sw.js') || filePath.endsWith('sw.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+            res.setHeader('Service-Worker-Allowed', '/');
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+          if (/\.(js|css|html|webmanifest)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+        }
+      })
+    )
+  );
 
   // Serve files via HTTP for server mode (UNC paths or Docker-mounted paths)
   expressApp.get('/api/file/*', (req, res) => {
@@ -366,19 +376,19 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         res.status(403).send('File is outside the library folders');
         return;
       }
-      
+
       // Library paths are absolute container paths. A client path (e.g. C:\ from another computer) is not on the server.
       if (!filePath.startsWith('/')) {
         res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not in the JusttPrint backend (the path is on another computer).');
         return;
       }
-      
+
       // Check if file exists
       if (!fs.existsSync(filePath)) {
         res.status(404).send('File not found');
         return;
       }
-      
+
       // Set appropriate content type
       const ext = path.extname(filePath).toLowerCase();
       const mimeTypes = {
@@ -411,15 +421,15 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         '.lys': 'application/octet-stream',
         '.lyt': 'application/octet-stream'
       };
-      
+
       if (mimeTypes[ext]) {
         res.setHeader('Content-Type', mimeTypes[ext]);
       }
-      
+
       // Stream the file
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
-      
+
       fileStream.on('error', (error) => {
         console.error('Error serving file:', error);
         if (!res.headersSent) {
@@ -439,7 +449,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     try {
       // Extract file path from URL (everything after /api/download/)
       const filePath = decodeURIComponent(req.path.replace('/api/download/', ''));
-      
+
       // Check if this is a zip entry
       const pathInfo = parseZipPath(filePath);
       if (!libraryPathAllowed(pathInfo.isZipEntry ? pathInfo.zipPath : filePath)) {
@@ -449,7 +459,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       let actualFilePath = filePath;
       let fileName = path.basename(filePath);
       let fileData = null;
-      
+
       if (pathInfo.isZipEntry) {
         // Extract zip entry to temp file and stream it
         try {
@@ -462,7 +472,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
           return;
         }
       }
-      
+
       // Library, backup and extract-temp paths are all absolute container paths.
       if (!actualFilePath.startsWith('/')) {
         res.status(400).send('Invalid path: expected an absolute path');
@@ -474,7 +484,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         res.status(404).send('File not found');
         return;
       }
-      
+
       // Set appropriate content type
       const ext = path.extname(fileName).toLowerCase();
       const mimeTypes = {
@@ -507,25 +517,25 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
         '.lys': 'application/octet-stream',
         '.lyt': 'application/octet-stream'
       };
-      
+
       if (mimeTypes[ext]) {
         res.setHeader('Content-Type', mimeTypes[ext]);
       }
-      
+
       // Set Content-Disposition header to trigger download with proper filename
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-      
+
       // Stream the file
       const fileStream = fs.createReadStream(actualFilePath);
       fileStream.pipe(res);
-      
+
       fileStream.on('error', (error) => {
         console.error('Error serving download:', error);
         if (!res.headersSent) {
           res.status(500).send('Error reading file');
         }
       });
-      
+
       // Clean up temp file after streaming (for zip entries)
       if (pathInfo.isZipEntry) {
         fileStream.on('end', () => {
@@ -541,38 +551,42 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   });
 
   // Serve static assets
-  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
-    setHeaders: (res, filePath) => {
-      // Set proper MIME types
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        '.html': 'text/html',
-        '.css': 'text/css',
-        '.js': 'application/javascript',
-        '.json': 'application/json',
-        '.webmanifest': 'application/manifest+json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-        '.bmp': 'image/bmp',
-        '.webp': 'image/webp',
-        '.wasm': 'application/wasm'
-      };
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
-      if (path.basename(filePath) === 'sw.js') {
-        res.setHeader('Service-Worker-Allowed', '/');
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-      if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-    }
-  })));
+  expressApp.use(
+    staticWebAssetsOnly(
+      express.static(appDir, {
+        setHeaders: (res, filePath) => {
+          // Set proper MIME types
+          const ext = path.extname(filePath).toLowerCase();
+          const mimeTypes = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.json': 'application/json',
+            '.webmanifest': 'application/manifest+json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.bmp': 'image/bmp',
+            '.webp': 'image/webp',
+            '.wasm': 'application/wasm'
+          };
+          if (mimeTypes[ext]) {
+            res.setHeader('Content-Type', mimeTypes[ext]);
+          }
+          if (path.basename(filePath) === 'sw.js') {
+            res.setHeader('Service-Worker-Allowed', '/');
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+          if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+        }
+      })
+    )
+  );
 
   // Other page paths get the page too (SPA routing).
   expressApp.get('*', (req, res) => {
@@ -581,7 +595,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       res.status(404).type('text/plain').send('Not Found');
       return;
     }
-    
+
     sendIndexHtml(res);
   });
 
@@ -730,7 +744,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       channel,
       args
     });
-    wsClients.forEach(client => {
+    wsClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
@@ -765,7 +779,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
  * Serve the Electron desktop UI over http://127.0.0.1 so third-party scripts (e.g. Puter.js)
  * are not loaded from file://, which they reject and replace with an intrusive error page.
  */
-
 
 // Stop HTTP server function
 function stopHttpServer() {
@@ -808,7 +821,11 @@ function stopHttpServer() {
     }
 
     if (typeof server.closeAllConnections === 'function') {
-      try { server.closeAllConnections(); } catch (_) { /* ignore */ }
+      try {
+        server.closeAllConnections();
+      } catch (_) {
+        /* ignore */
+      }
     }
 
     // Close HTTP server
@@ -879,7 +896,9 @@ function getHttpServerListenPort() {
   try {
     const addr = httpServer.address();
     if (addr && typeof addr === 'object' && addr.port) return addr.port;
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return null;
 }
 
@@ -912,7 +931,9 @@ async function restartHttpServerNow() {
       try {
         if (typeof httpServer.closeAllConnections === 'function') httpServer.closeAllConnections();
         httpServer.close();
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
       httpServer = null;
     }
     if (resolveAppTls().options) {
@@ -1020,7 +1041,7 @@ async function maybeRenewLetsEncryptCertificate() {
       serverTls.setLastTlsError(port80.message);
       return;
     }
-    console.log('[TLS] Renewing Let\'s Encrypt certificate...');
+    console.log("[TLS] Renewing Let's Encrypt certificate...");
     await serverTls.obtainLetsEncryptCertificate({
       certsDir: getTlsCertsDir(),
       domain: getSettingValueOr('tlsDomain', ''),
@@ -1030,11 +1051,32 @@ async function maybeRenewLetsEncryptCertificate() {
     });
     await reloadTlsHttpListener();
   } catch (err) {
-    serverTls.setLastTlsError(err.message || 'Let\'s Encrypt renewal failed');
+    serverTls.setLastTlsError(err.message || "Let's Encrypt renewal failed");
     console.warn('[TLS] Renewal failed:', err.message);
   } finally {
     letsEncryptRenewInFlight = false;
   }
 }
 
-module.exports = { closeAllClients, closeClientsOfUser, closeHttpServer, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, maybeRenewLetsEncryptCertificate, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, startHttpServer, stopPort80Server, syncPort80Server };
+module.exports = {
+  closeAllClients,
+  closeClientsOfUser,
+  closeHttpServer,
+  ensurePort80ForAcme,
+  getAppListenPort,
+  getConfiguredHttpPort,
+  getHttpServerListenPort,
+  getServerListenPort,
+  getTlsCertsDir,
+  getTlsStatusForUi,
+  httpServerRunning,
+  maybeRenewLetsEncryptCertificate,
+  parseListenPort,
+  persistTlsSettingsFromPayload,
+  reloadTlsHttpListener,
+  resolveAppTls,
+  restartHttpServer,
+  startHttpServer,
+  stopPort80Server,
+  syncPort80Server
+};

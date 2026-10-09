@@ -82,7 +82,9 @@ function allowedUploadExtensions() {
 
 /** The name to save under, or throws: a plain file name (no folders), not hidden, of an allowed type. */
 function checkUploadName(name, extensions) {
-  const text = String(name || '').normalize('NFC').trim();
+  const text = String(name || '')
+    .normalize('NFC')
+    .trim();
   if (!text) throw new Error('The file has no name');
   if (/[/\\\0]/.test(text) || text === '.' || text === '..') throw new Error(`Not a plain file name: ${text}`);
   if (text.startsWith('.')) throw new Error(`Hidden files are not uploaded: ${text}`);
@@ -91,7 +93,9 @@ function checkUploadName(name, extensions) {
   if (text.length > MAX_NAME_LENGTH) throw new Error('The file name is too long');
   const ext = path.extname(text).toLowerCase();
   if (!extensions.includes(ext)) {
-    throw new Error(`${text}: the library does not scan ${ext ? `${ext} files` : 'files without an extension'}. Settings → File Types lists the types it can scan.`);
+    throw new Error(
+      `${text}: the library does not scan ${ext ? `${ext} files` : 'files without an extension'}. Settings → File Types lists the types it can scan.`
+    );
   }
   return text;
 }
@@ -150,7 +154,9 @@ function writeBody(req, tempPath, maxBytes) {
     req.on('aborted', () => fail(new Error('The upload was cancelled')));
     req.on('error', fail);
     out.on('error', fail);
-    out.on('finish', () => { if (!failed) resolve(size); });
+    out.on('finish', () => {
+      if (!failed) resolve(size);
+    });
     req.pipe(out);
   });
 }
@@ -184,7 +190,9 @@ function checkWritableFolder(folder, ctx) {
     fs.accessSync(dir, fs.constants.W_OK);
   } catch (error) {
     if (error.code === 'EROFS') {
-      throw new Error(`${dir} is read-only inside the container, so JusttPrint cannot save files there. Remove ":ro" from its volume in docker-compose.yml (or docker run -v) and restart the container, or choose a folder that is mounted read-write.`);
+      throw new Error(
+        `${dir} is read-only inside the container, so JusttPrint cannot save files there. Remove ":ro" from its volume in docker-compose.yml (or docker run -v) and restart the container, or choose a folder that is mounted read-write.`
+      );
     }
     if (error.code === 'EACCES' || error.code === 'EPERM') {
       throw new Error(`JusttPrint may not write to ${dir}. Set PUID and PGID to the owner of the folder (see the README), or choose another folder.`);
@@ -241,49 +249,73 @@ function registerUploadRoutes(expressApp, { requireRole }) {
   const json = express.json({ limit: '10kb' });
   /** Run a session step; errors answer with their status and, for a wrong offset, where the upload stands. */
   const step = (fn) => (req, res) => {
-    Promise.resolve().then(() => fn(req, res)).then((body) => {
-      if (body !== undefined && !res.headersSent) res.json(body);
-    }).catch((error) => {
-      if (error.status !== 409 && error.status !== 404) console.warn(`[Upload] ${req.method} ${req.path}: ${error.message}`);
-      if (res.headersSent) return;
-      const body = { error: error.message };
-      if (error.received !== undefined) body.received = error.received;
-      // A refused piece may still be arriving: read it to the end, so the answer gets through.
-      if (req.readable && !req.readableEnded) req.resume();
-      res.status(error.status && error.status >= 400 && error.status < 600 && error.status !== 499 ? error.status : 500).json(body);
-    });
+    Promise.resolve()
+      .then(() => fn(req, res))
+      .then((body) => {
+        if (body !== undefined && !res.headersSent) res.json(body);
+      })
+      .catch((error) => {
+        if (error.status !== 409 && error.status !== 404) console.warn(`[Upload] ${req.method} ${req.path}: ${error.message}`);
+        if (res.headersSent) return;
+        const body = { error: error.message };
+        if (error.received !== undefined) body.received = error.received;
+        // A refused piece may still be arriving: read it to the end, so the answer gets through.
+        if (req.readable && !req.readableEnded) req.resume();
+        res.status(error.status && error.status >= 400 && error.status < 600 && error.status !== 499 ? error.status : 500).json(body);
+      });
   };
 
-  expressApp.post('/api/upload/sessions', editor, json, step((req) => {
-    const body = req.body || {};
-    const ctx = networkPathContext();
-    let folder;
-    let name;
-    try {
-      folder = checkWritableFolder(body.folder, ctx);
-      name = checkUploadName(body.name, allowedUploadExtensions());
-    } catch (error) {
-      error.status = /outside the library/.test(error.message) ? 403 : 400;
-      throw error;
-    }
-    const session = uploadSessions().start({ user: req.user, folder, name, size: Number(body.size), maxBytes: maxUploadBytes() });
-    console.log(`[Upload] ${req.user.username} started ${path.join(folder, name)} (${session.size} bytes)`);
-    return { ...session, chunkBytes: uploadChunkBytes() };
-  }));
+  expressApp.post(
+    '/api/upload/sessions',
+    editor,
+    json,
+    step((req) => {
+      const body = req.body || {};
+      const ctx = networkPathContext();
+      let folder;
+      let name;
+      try {
+        folder = checkWritableFolder(body.folder, ctx);
+        name = checkUploadName(body.name, allowedUploadExtensions());
+      } catch (error) {
+        error.status = /outside the library/.test(error.message) ? 403 : 400;
+        throw error;
+      }
+      const session = uploadSessions().start({ user: req.user, folder, name, size: Number(body.size), maxBytes: maxUploadBytes() });
+      console.log(`[Upload] ${req.user.username} started ${path.join(folder, name)} (${session.size} bytes)`);
+      return { ...session, chunkBytes: uploadChunkBytes() };
+    })
+  );
 
-  expressApp.get('/api/upload/sessions/:id', editor, step((req) => uploadSessions().status(req.params.id, req.user)));
+  expressApp.get(
+    '/api/upload/sessions/:id',
+    editor,
+    step((req) => uploadSessions().status(req.params.id, req.user))
+  );
 
-  expressApp.put('/api/upload/sessions/:id', editor, step((req) => uploadSessions().writePiece(
-    req.params.id, req.user, Number(req.query.offset), req, { maxPieceBytes: Math.max(MAX_PIECE_BYTES, uploadChunkBytes()) }
-  )));
+  expressApp.put(
+    '/api/upload/sessions/:id',
+    editor,
+    step((req) =>
+      uploadSessions().writePiece(req.params.id, req.user, Number(req.query.offset), req, { maxPieceBytes: Math.max(MAX_PIECE_BYTES, uploadChunkBytes()) })
+    )
+  );
 
-  expressApp.post('/api/upload/sessions/:id/finish', editor, step((req) => {
-    const result = uploadSessions().finish(req.params.id, req.user);
-    console.log(`[Upload] ${req.user.username} uploaded ${result.filePath} (${result.size} bytes)`);
-    return { success: true, ...result };
-  }));
+  expressApp.post(
+    '/api/upload/sessions/:id/finish',
+    editor,
+    step((req) => {
+      const result = uploadSessions().finish(req.params.id, req.user);
+      console.log(`[Upload] ${req.user.username} uploaded ${result.filePath} (${result.size} bytes)`);
+      return { success: true, ...result };
+    })
+  );
 
-  expressApp.delete('/api/upload/sessions/:id', editor, step((req) => uploadSessions().abort(req.params.id, req.user)));
+  expressApp.delete(
+    '/api/upload/sessions/:id',
+    editor,
+    step((req) => uploadSessions().abort(req.params.id, req.user))
+  );
 
   expressApp.post('/api/upload', editor, (req, res) => {
     handleUpload(req, res).catch((error) => {

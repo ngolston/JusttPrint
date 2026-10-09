@@ -92,42 +92,43 @@ export function FirstRun() {
               <h3>MIT License</h3>
               <p className="tos-copyright">Copyright (c) 2025 JusttPrint</p>
               <p>
-                Permission is hereby granted, free of charge, to any person obtaining a copy
-                of this software and associated documentation files (the "Software"), to deal
-                in the Software without restriction, including without limitation the rights
-                to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-                copies of the Software, and to permit persons to whom the Software is
-                furnished to do so, subject to the following conditions:
+                Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the
+                "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish,
+                distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+                following conditions:
               </p>
-              <p>
-                The above copyright notice and this permission notice shall be included in all
-                copies or substantial portions of the Software.
-              </p>
+              <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
               <p className="tos-warning">
-                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-                IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-                FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-                AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-                LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-                OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-                SOFTWARE.
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+                MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+                CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+                OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
               </p>
               <p>By using this software, you agree to abide by the terms of this license.</p>
             </div>
           </div>
           <div className="tos-footer">
-            <button id="decline-terms" className="tos-button tos-button-decline" onClick={() => answer(false)}>I Decline</button>
-            <button id="accept-terms" className="tos-button tos-button-accept" onClick={() => answer(true)}>I Accept</button>
+            <button id="decline-terms" className="tos-button tos-button-decline" onClick={() => answer(false)}>
+              I Decline
+            </button>
+            <button id="accept-terms" className="tos-button tos-button-accept" onClick={() => answer(true)}>
+              I Accept
+            </button>
           </div>
         </div>
       </dialog>
       <dialog id="welcome-message" className="welcome-dialog" ref={welcomeRef} onClose={() => set({ welcome: false })}>
         <div className="welcome-content">
           <h2>Welcome to JusttPrint!</h2>
-          <button id="dismiss-welcome" onClick={() => {
-            set({ welcome: false });
-            setTimeout(() => window.showGuide?.(), 500);
-          }}>Get Started!</button>
+          <button
+            id="dismiss-welcome"
+            onClick={() => {
+              set({ welcome: false });
+              setTimeout(() => window.showGuide?.(), 500);
+            }}
+          >
+            Get Started!
+          </button>
         </div>
       </dialog>
     </>

@@ -27,10 +27,11 @@ function redrawSoon() {
 }
 
 export const thumbnailQueue = new RenderQueue<Made>({
-  render: (task) => makeThumbnail(task.filePath, {
-    stillWanted: () => !task.element || task.element.isConnected,
-    fewImages: !!task.element
-  }),
+  render: (task) =>
+    makeThumbnail(task.filePath, {
+      stillWanted: () => !task.element || task.element.isConnected,
+      fewImages: !!task.element
+    }),
   wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   onDrop: redrawSoon
 });
@@ -46,7 +47,9 @@ export async function tuneForServerGpu() {
   let backend = 'unknown';
   try {
     backend = (await callAction<{ glBackend?: string } | null>('get-gpu-info'))?.glBackend || 'unknown';
-  } catch { /* defaults below */ }
+  } catch {
+    /* defaults below */
+  }
   const nvidia = backend === 'nvidia';
   thumbnailQueue.max = nvidia ? 1 : 3;
   thumbnailQueue.backgroundMax = 1;
@@ -63,7 +66,7 @@ type CardModel = GridModel & { thumbnail?: string; hasThumbnail?: boolean; hasMu
 /** After a render for a card: keep images saved meanwhile, else save ours; failure art only shows. */
 async function cardRendered(model: CardModel, { image: thumbnail }: Made) {
   const filePath = model.filePath;
-  if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholder(thumbnail) || await isMostlyEmpty(thumbnail)) {
+  if (!thumbnail || thumbnail === '3d.png' || isFailurePlaceholder(thumbnail) || (await isMostlyEmpty(thumbnail))) {
     if (!thumbnail) return redrawSoon(); // no longer wanted
     if (!isImageOnlyMiss(filePath)) {
       // Shown in this card only and never saved, so a reload tries again.
@@ -74,7 +77,9 @@ async function cardRendered(model: CardModel, { image: thumbnail }: Made) {
   let existing = '';
   try {
     existing = (await callAction<{ thumbnail?: string } | null>('get-model', filePath))?.thumbnail || '';
-  } catch { /* save ours */ }
+  } catch {
+    /* save ours */
+  }
   const kept = imagesIn(existing);
   if (kept.length) {
     // 3MF embeds or images added meanwhile: never overwrite them.
@@ -106,7 +111,9 @@ export function queueCardThumbnail(model: CardModel, slot: HTMLElement, priority
     filePath: model.filePath,
     element: slot,
     priority,
-    resolve: (thumbnail) => { cardRendered(model, thumbnail).catch((error) => console.error('Error saving thumbnail:', error)); },
+    resolve: (thumbnail) => {
+      cardRendered(model, thumbnail).catch((error) => console.error('Error saving thumbnail:', error));
+    },
     reject: (error) => {
       if (!(error instanceof DroppedError)) console.error(`Failed to generate thumbnail for ${model.filePath}`, error);
       redrawSoon();
@@ -137,14 +144,16 @@ export function afterGridPaint() {
 /** Load every image of a model that has several (the card's carousel). */
 export async function loadAllThumbnails(model: CardModel) {
   try {
-    const all = imagesIn((await callAction<string[] | null>('get-all-thumbnails', model.filePath) || []).join('::'));
+    const all = imagesIn(((await callAction<string[] | null>('get-all-thumbnails', model.filePath)) || []).join('::'));
     if (all.length < 2) return;
     model.thumbnail = all.join('::');
     model.hasMultipleThumbnails = true;
     model.hasThumbnail = true;
     syncThumbnailFromField(model.filePath, model.thumbnail);
     window.libraryGrid?.refresh();
-  } catch { /* the primary image stays */ }
+  } catch {
+    /* the primary image stays */
+  }
 }
 
 /** Make image `index` the model's default (first) image. */

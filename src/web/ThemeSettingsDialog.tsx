@@ -63,28 +63,31 @@ export function ThemeSettingsDialog() {
   // The UI theme is each user's own; the thumbnail colors and lighting are the server's (admins).
   const isAdmin = useCan('admin');
 
-  useEffect(() => exposeGlobal('openThemeSettings', () => {
-    (async () => {
-      const get = (key: string) => settings.get<string | null>(key).catch(() => null);
-      const [uiTheme, background, modelColor, lighting] = await Promise.all(
-        ['uiTheme', 'modelBackgroundColor', 'renderColor', 'renderLighting'].map(get));
-      setTheme({
-        uiTheme: uiTheme || DEFAULT_THEME.uiTheme,
-        background: background || DEFAULT_THEME.background,
-        modelColor: modelColor || DEFAULT_THEME.modelColor,
-        lighting: lighting == null ? true : lighting === 'true'
-      });
-      if (!dialogRef.current?.open) dialogRef.current?.showModal();
-    })();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openThemeSettings', () => {
+        (async () => {
+          const get = (key: string) => settings.get<string | null>(key).catch(() => null);
+          const [uiTheme, background, modelColor, lighting] = await Promise.all(['uiTheme', 'modelBackgroundColor', 'renderColor', 'renderLighting'].map(get));
+          setTheme({
+            uiTheme: uiTheme || DEFAULT_THEME.uiTheme,
+            background: background || DEFAULT_THEME.background,
+            modelColor: modelColor || DEFAULT_THEME.modelColor,
+            lighting: lighting == null ? true : lighting === 'true'
+          });
+          if (!dialogRef.current?.open) dialogRef.current?.showModal();
+        })();
+      }),
+    []
+  );
 
   const set = <K extends keyof Theme>(key: K, value: Theme[K]) => setTheme((previous) => ({ ...previous, [key]: value }));
 
   async function save() {
     setSaving(true);
     try {
-      const renderChanged = isAdmin && ((window.currentRenderColor || DEFAULT_THEME.modelColor) !== theme.modelColor
-        || (window.currentRenderLighting ?? true) !== theme.lighting);
+      const renderChanged =
+        isAdmin && ((window.currentRenderColor || DEFAULT_THEME.modelColor) !== theme.modelColor || (window.currentRenderLighting ?? true) !== theme.lighting);
       if (isAdmin) {
         await settings.save('modelBackgroundColor', theme.background);
         await settings.save('renderColor', theme.modelColor);
@@ -101,8 +104,14 @@ export function ThemeSettingsDialog() {
       }
       dialogRef.current?.close();
 
-      if (renderChanged && await showMessage('Regenerate Thumbnails?',
-        'You have changed model rendering settings. Would you like to regenerate all thumbnails to apply this change?', ['Yes', 'No']) === 'Yes') {
+      if (
+        renderChanged &&
+        (await showMessage(
+          'Regenerate Thumbnails?',
+          'You have changed model rendering settings. Would you like to regenerate all thumbnails to apply this change?',
+          ['Yes', 'No']
+        )) === 'Yes'
+      ) {
         await window.regenerateAllThumbnails?.();
       }
     } catch (error) {
@@ -116,20 +125,32 @@ export function ThemeSettingsDialog() {
     <div className="form-group">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={theme[key]} disabled={key !== 'uiTheme' && !isAdmin} onChange={(event) => set(key, event.target.value)}>
-        {options.map(([value, name]) => <option key={value} value={value}>{name}</option>)}
+        {options.map(([value, name]) => (
+          <option key={value} value={value}>
+            {name}
+          </option>
+        ))}
       </select>
       <div className="setting-description">{help}</div>
     </div>
   );
 
   return (
-    <ModalDialog id="settings-dialog" title="Theme Settings" dialogRef={dialogRef}
-      footer={(
+    <ModalDialog
+      id="settings-dialog"
+      title="Theme Settings"
+      dialogRef={dialogRef}
+      footer={
         <>
-          <button type="button" id="save-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
-          <button type="button" id="cancel-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          <button type="button" id="save-settings" className="is-primary" disabled={saving} onClick={save}>
+            Save
+          </button>
+          <button type="button" id="cancel-settings" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </>
-      )}>
+      }
+    >
       {select('uiTheme', 'ui-theme', 'UI Theme:', THEMES, 'The color scheme of the app, for your account only')}
       {!isAdmin && <p className="setting-description">The thumbnail colors below are the same for everyone; an admin changes them.</p>}
       {select('background', 'model-background-color', 'Model Background Color:', BACKGROUNDS, 'Background color for 3D model thumbnails')}
@@ -138,8 +159,12 @@ export function ThemeSettingsDialog() {
       <div className="form-group checkbox-container theme-lighting">
         <input type="checkbox" id="render-lighting" checked={theme.lighting} disabled={!isAdmin} onChange={(event) => set('lighting', event.target.checked)} />
         <div>
-          <label htmlFor="render-lighting" className="theme-lighting-label">Enable Advanced Lighting</label>
-          <div className="setting-description theme-lighting-help">Adds ambient and directional lighting for better depth. Disabling may improve performance on lower-end devices.</div>
+          <label htmlFor="render-lighting" className="theme-lighting-label">
+            Enable Advanced Lighting
+          </label>
+          <div className="setting-description theme-lighting-help">
+            Adds ambient and directional lighting for better depth. Disabling may improve performance on lower-end devices.
+          </div>
         </div>
       </div>
     </ModalDialog>

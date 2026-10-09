@@ -1,6 +1,16 @@
 import { useCallback, type ReactNode } from 'react';
 import {
-  CalendarClock, CheckCircle2, CircleSlash, ExternalLink, Package, Pencil, Plus, Printer as PrinterIcon, Trash2, Wrench, XCircle,
+  CalendarClock,
+  CheckCircle2,
+  CircleSlash,
+  ExternalLink,
+  Package,
+  Pencil,
+  Plus,
+  Printer as PrinterIcon,
+  Trash2,
+  Wrench,
+  XCircle,
   type LucideIcon
 } from 'lucide-react';
 import { library, printers as printerApi, type MaintenanceLog, type PrintActivity, type Printer, type PrinterReminder } from '../api';
@@ -47,7 +57,9 @@ function PrinterCard({ printer, selected, onSelect }: { printer: Printer; select
   return (
     <li>
       <button type="button" className={cx('jp-printer-card', selected && 'is-selected')} aria-pressed={selected} onClick={onSelect}>
-        <span className="jp-printer-card__icon"><PrinterIcon size={26} aria-hidden="true" /></span>
+        <span className="jp-printer-card__icon">
+          <PrinterIcon size={26} aria-hidden="true" />
+        </span>
         <span className="jp-printer-card__text">
           <span className="jp-printer-card__name">{printer.nickname}</span>
           <span className="jp-printer-card__meta">{makeModel(printer) || printer.printer_type || 'Printer'}</span>
@@ -58,8 +70,14 @@ function PrinterCard({ printer, selected, onSelect }: { printer: Printer; select
           </span>
         </span>
         <span className="jp-printer-card__side">
-          {due > 0 && <StatusBadge tone="warning" icon={Wrench}>Maintenance due</StatusBadge>}
-          <span className="jp-printer-card__prints">{prints.toLocaleString()} {prints === 1 ? 'print' : 'prints'}</span>
+          {due > 0 && (
+            <StatusBadge tone="warning" icon={Wrench}>
+              Maintenance due
+            </StatusBadge>
+          )}
+          <span className="jp-printer-card__prints">
+            {prints.toLocaleString()} {prints === 1 ? 'print' : 'prints'}
+          </span>
           {printer.last_printed_at && <span className="jp-printer-card__prints">Last {timeAgo(printer.last_printed_at)}</span>}
         </span>
       </button>
@@ -131,7 +149,9 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
   return (
     <div className="jp-printer-detail" aria-label={`${printer.nickname} details`}>
       <header className="jp-printer-detail__header">
-        <span className="jp-printer-detail__icon"><PrinterIcon size={32} aria-hidden="true" /></span>
+        <span className="jp-printer-detail__icon">
+          <PrinterIcon size={32} aria-hidden="true" />
+        </span>
         <div className="jp-printer-detail__identity">
           <h2 className="jp-printer-detail__name">{printer.nickname}</h2>
           <p className="jp-meta">{makeModel(printer) || 'No make or model set'}</p>
@@ -140,13 +160,20 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
       <div className="jp-printer-detail__actions">
         {link && (
           <a className="jp-btn jp-btn--primary jp-btn--md" href={link} target="_blank" rel="noopener noreferrer" id="jp-printer-open-web">
-            <ExternalLink size={16} aria-hidden="true" /><span>Open Web UI</span>
+            <ExternalLink size={16} aria-hidden="true" />
+            <span>Open Web UI</span>
           </a>
         )}
         <EditOnly>
-        <Button icon={Pencil} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, action: 'edit' })}>Edit</Button>
-        <Button icon={Wrench} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>Maintenance</Button>
-        <Button variant="ghost" icon={Trash2} onClick={remove} aria-label={`Delete ${printer.nickname}`}>Delete</Button>
+          <Button icon={Pencil} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, action: 'edit' })}>
+            Edit
+          </Button>
+          <Button icon={Wrench} onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>
+            Maintenance
+          </Button>
+          <Button variant="ghost" icon={Trash2} onClick={remove} aria-label={`Delete ${printer.nickname}`}>
+            Delete
+          </Button>
         </EditOnly>
       </div>
 
@@ -154,20 +181,42 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
         <h3 className="jp-details__heading">Details</h3>
         <div className="jp-props">
           <Prop label="Type">{printer.printer_type || '—'}</Prop>
-          <Prop label="Firmware">{printer.firmware_type || '—'}{klipperExtra(printer) ? ' (Klipper)' : ''}</Prop>
-          <Prop label="Web page">{link ? <a className="jp-link" href={link} target="_blank" rel="noopener noreferrer">{printer.web_url}</a> : '—'}</Prop>
-          <Prop label="Prints">{(Number(printer.total_prints) || 0).toLocaleString()}{printer.last_printed_at ? `, last ${timeAgo(printer.last_printed_at)}` : ''}</Prop>
+          <Prop label="Firmware">
+            {printer.firmware_type || '—'}
+            {klipperExtra(printer) ? ' (Klipper)' : ''}
+          </Prop>
+          <Prop label="Web page">
+            {link ? (
+              <a className="jp-link" href={link} target="_blank" rel="noopener noreferrer">
+                {printer.web_url}
+              </a>
+            ) : (
+              '—'
+            )}
+          </Prop>
+          <Prop label="Prints">
+            {(Number(printer.total_prints) || 0).toLocaleString()}
+            {printer.last_printed_at ? `, last ${timeAgo(printer.last_printed_at)}` : ''}
+          </Prop>
           {printer.created_at && <Prop label="Added">{day(printer.created_at)}</Prop>}
-          {printer.notes && <Prop label="Notes"><span className="jp-printer-detail__notes">{printer.notes}</span></Prop>}
+          {printer.notes && (
+            <Prop label="Notes">
+              <span className="jp-printer-detail__notes">{printer.notes}</span>
+            </Prop>
+          )}
         </div>
       </section>
 
       <section className="jp-printer-detail__section">
         <div className="jp-printer-detail__section-head">
           <h3 className="jp-details__heading">Maintenance</h3>
-          <button type="button" className="jp-link" onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>Schedule or log</button>
+          <button type="button" className="jp-link" onClick={() => window.openPrinterManagement?.({ printerId: printer.id, tab: 'maintenance' })}>
+            Schedule or log
+          </button>
         </div>
-        {!detail ? <Skeleton height={36} /> : (
+        {!detail ? (
+          <Skeleton height={36} />
+        ) : (
           <>
             {pending.length ? (
               <ul className="jp-printer-detail__list" aria-label="Reminders">
@@ -179,16 +228,23 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
                       <span className="jp-printer-detail__item-text">
                         <span className="jp-printer-detail__item-title">{reminder.title}</span>
                         <span className="jp-printer-detail__item-meta">
-                          Due {day(reminder.due_date)}{reminder.interval_days ? ` • every ${reminder.interval_days} days` : ''}
+                          Due {day(reminder.due_date)}
+                          {reminder.interval_days ? ` • every ${reminder.interval_days} days` : ''}
                         </span>
                       </span>
                       {overdue && <StatusBadge tone="warning">Due</StatusBadge>}
-                      <EditOnly><Button size="sm" icon={CheckCircle2} onClick={() => complete(reminder)}>Done</Button></EditOnly>
+                      <EditOnly>
+                        <Button size="sm" icon={CheckCircle2} onClick={() => complete(reminder)}>
+                          Done
+                        </Button>
+                      </EditOnly>
                     </li>
                   );
                 })}
               </ul>
-            ) : <p className="jp-printer-detail__empty">No maintenance scheduled.</p>}
+            ) : (
+              <p className="jp-printer-detail__empty">No maintenance scheduled.</p>
+            )}
             {detail.logs.length > 0 && (
               <ul className="jp-printer-detail__list jp-printer-detail__list--log" aria-label="Maintenance log">
                 {detail.logs.slice(0, 5).map((log) => (
@@ -196,7 +252,10 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
                     <Wrench size={16} aria-hidden="true" />
                     <span className="jp-printer-detail__item-text">
                       <span className="jp-printer-detail__item-title">{log.title || log.maintenance_type}</span>
-                      <span className="jp-printer-detail__item-meta">{day(log.performed_at)}{log.description ? ` • ${log.description}` : ''}</span>
+                      <span className="jp-printer-detail__item-meta">
+                        {day(log.performed_at)}
+                        {log.description ? ` • ${log.description}` : ''}
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -208,7 +267,9 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
 
       <section className="jp-printer-detail__section">
         <h3 className="jp-details__heading">Recent prints</h3>
-        {!detail ? <Skeleton height={36} /> : !detail.prints.length ? (
+        {!detail ? (
+          <Skeleton height={36} />
+        ) : !detail.prints.length ? (
           <p className="jp-printer-detail__empty">No prints logged on this printer yet. Pick it when you log a print.</p>
         ) : (
           <ul className="jp-printer-detail__list" aria-label="Recent prints">
@@ -216,15 +277,21 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
               const outcome = OUTCOMES[event.outcome] || OUTCOMES.printed;
               return (
                 <li key={event.id} className="jp-printer-detail__item">
-                  <button type="button" className="jp-printer-detail__item-text jp-printer-detail__model" onClick={() => {
-                    navigate('library');
-                    selection.set([event.filePath]);
-                    void showModelDetails(event.filePath);
-                  }}>
+                  <button
+                    type="button"
+                    className="jp-printer-detail__item-text jp-printer-detail__model"
+                    onClick={() => {
+                      navigate('library');
+                      selection.set([event.filePath]);
+                      void showModelDetails(event.filePath);
+                    }}
+                  >
                     <span className="jp-printer-detail__item-title">{cardTitle({ filePath: event.filePath, fileName: event.fileName })}</span>
                     <span className="jp-printer-detail__item-meta">{day(event.at)}</span>
                   </button>
-                  <StatusBadge tone={outcome.tone} icon={outcome.icon}>{outcome.label}</StatusBadge>
+                  <StatusBadge tone={outcome.tone} icon={outcome.icon}>
+                    {outcome.label}
+                  </StatusBadge>
                 </li>
               );
             })}
@@ -256,21 +323,40 @@ export function PrintersPage({ section }: { section: string }) {
         <div>
           <h1 className="jp-page-title">Printers</h1>
           <p className="jp-meta">
-            {list ? `${list.length} ${list.length === 1 ? 'printer' : 'printers'}${due ? ` • ${due} with maintenance due` : ''}` : 'Your printers, their web pages and maintenance.'}
+            {list
+              ? `${list.length} ${list.length === 1 ? 'printer' : 'printers'}${due ? ` • ${due} with maintenance due` : ''}`
+              : 'Your printers, their web pages and maintenance.'}
           </p>
         </div>
         <div className="jp-printers__header-actions">
           <EditOnly>
-          <Button icon={Package} onClick={() => window.openPartsStock?.()}>Parts</Button>
-          <Button variant="primary" icon={Plus} onClick={add} id="jp-add-printer">Add Printer</Button>
+            <Button icon={Package} onClick={() => window.openPartsStock?.()}>
+              Parts
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={add} id="jp-add-printer">
+              Add Printer
+            </Button>
           </EditOnly>
         </div>
       </header>
       {!list ? (
-        <div className="jp-home__skeleton"><Skeleton height={88} /><Skeleton height={88} /></div>
+        <div className="jp-home__skeleton">
+          <Skeleton height={88} />
+          <Skeleton height={88} />
+        </div>
       ) : !list.length ? (
         <Panel>
-          <EmptyState icon={PrinterIcon} title="No printers yet" action={<EditOnly><Button variant="primary" icon={Plus} onClick={add}>Add Printer</Button></EditOnly>}>
+          <EmptyState
+            icon={PrinterIcon}
+            title="No printers yet"
+            action={
+              <EditOnly>
+                <Button variant="primary" icon={Plus} onClick={add}>
+                  Add Printer
+                </Button>
+              </EditOnly>
+            }
+          >
             Add your printers to keep their web pages, maintenance reminders and print history together.
           </EmptyState>
         </Panel>
@@ -278,8 +364,12 @@ export function PrintersPage({ section }: { section: string }) {
         <div className="jp-printers__layout">
           <ul className="jp-printers__list" aria-label="Printers">
             {list.map((printer) => (
-              <PrinterCard key={printer.id} printer={printer} selected={printer.id === selected?.id}
-                onSelect={() => navigate('printers', String(printer.id))} />
+              <PrinterCard
+                key={printer.id}
+                printer={printer}
+                selected={printer.id === selected?.id}
+                onSelect={() => navigate('printers', String(printer.id))}
+              />
             ))}
           </ul>
           {selected && (

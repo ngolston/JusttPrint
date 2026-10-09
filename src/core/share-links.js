@@ -20,7 +20,8 @@ function httpError(status, message) {
 }
 
 function ensureShareSchema(db) {
-  db.prepare(`CREATE TABLE IF NOT EXISTS share_links (
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS share_links (
     token TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
     target_id INTEGER NOT NULL,
@@ -30,7 +31,8 @@ function ensureShareSchema(db) {
     expires_at TEXT,
     last_viewed_at TEXT,
     views INTEGER NOT NULL DEFAULT 0
-  )`).run();
+  )`
+  ).run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_share_links_target ON share_links(kind, target_id)').run();
   ensureCollectionsSchema(db);
 }
@@ -85,8 +87,10 @@ function createShareLink(db, { kind, targetId, filePath, allowDownload, expiresI
   const days = Number(expiresInDays);
   const expiresAt = Number.isFinite(days) && days > 0 ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString() : null;
   const token = crypto.randomBytes(18).toString('base64url');
-  db.prepare(`INSERT INTO share_links (token, kind, target_id, allow_download, created_by, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(token, kind, id, allowDownload ? 1 : 0, createdBy || null, now.toISOString(), expiresAt);
+  db.prepare(
+    `INSERT INTO share_links (token, kind, target_id, allow_download, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(token, kind, id, allowDownload ? 1 : 0, createdBy || null, now.toISOString(), expiresAt);
   return present(db, db.prepare('SELECT * FROM share_links WHERE token = ?').get(token), now);
 }
 
@@ -137,8 +141,12 @@ function resolveShareLink(db, token, now = new Date()) {
     if (!collection) return null;
     title = collection.name;
     description = collection.description || '';
-    models = db.prepare(`SELECT ${columns} FROM collection_models cm JOIN models m ON m.id = cm.model_id
-      WHERE cm.collection_id = ? ORDER BY cm.added_at DESC, m.id DESC`).all(row.target_id);
+    models = db
+      .prepare(
+        `SELECT ${columns} FROM collection_models cm JOIN models m ON m.id = cm.model_id
+      WHERE cm.collection_id = ? ORDER BY cm.added_at DESC, m.id DESC`
+      )
+      .all(row.target_id);
   }
   const tagsOf = db.prepare('SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ? ORDER BY t.name COLLATE NOCASE');
   return {
@@ -156,7 +164,9 @@ function resolveShareLink(db, token, now = new Date()) {
 function recordShareView(db, token, now = new Date()) {
   try {
     db.prepare('UPDATE share_links SET views = views + 1, last_viewed_at = ? WHERE token = ?').run(now.toISOString(), token);
-  } catch (_) { /* best effort */ }
+  } catch (_) {
+    /* best effort */
+  }
 }
 
 module.exports = {

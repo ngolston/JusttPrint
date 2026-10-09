@@ -10,7 +10,13 @@ export interface GroupCardHost {
   /** Load a group's images (one per child, the preferred one first); calls back as more arrive. Returns a cancel function. */
   loadGroupThumbnails(record: GroupRecord, onImages: (images: string[]) => void): () => void;
   groupListColumns(record: GroupRecord): {
-    size: string; dateAdded: string; dateAddedTitle: string; directory: string; directoryFull: string; designer: string; parentModel: string;
+    size: string;
+    dateAdded: string;
+    dateAddedTitle: string;
+    directory: string;
+    directoryFull: string;
+    designer: string;
+    parentModel: string;
   };
   groupPrintSummary(children: GridModel[]): { printedCount: number; label: string };
   groupTagNames(record: GroupRecord): Promise<string[]>;
@@ -45,19 +51,34 @@ function GroupEngagement({ host, record, className }: { host: GroupCardHost; rec
   }
 
   return (
-    <div className={['model-engagement-bar is-group', className, rating > 0 && 'is-rated'].filter(Boolean).join(' ')} data-rating={rating} data-favorite={favorite ? '1' : '0'}>
+    <div
+      className={['model-engagement-bar is-group', className, rating > 0 && 'is-rated'].filter(Boolean).join(' ')}
+      data-rating={rating}
+      data-favorite={favorite ? '1' : '0'}
+    >
       <div className="model-rating" role="radiogroup" aria-label="Group rating">
         {[1, 2, 3, 4, 5].map((star) => (
-          <button key={star} type="button" className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
+          <button
+            key={star}
+            type="button"
+            className={`model-star${star <= shown ? ' is-filled' : ''}`}
+            data-star={star}
             aria-label={`${star} star${star === 1 ? '' : 's'}`}
-            onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
-            onClick={(event) => save('rating', rating === star ? 0 : star, event)}>
+            onMouseEnter={() => setHover(star)}
+            onMouseLeave={() => setHover(null)}
+            onClick={(event) => save('rating', rating === star ? 0 : star, event)}
+          >
             {star <= shown ? '★' : '☆'}
           </button>
         ))}
       </div>
-      <button type="button" className={`model-favorite-btn${favorite ? ' is-favorited' : ''}`} aria-pressed={favorite}
-        title="Favorite all models in group" onClick={(event) => save('favorite', !favorite, event)}>
+      <button
+        type="button"
+        className={`model-favorite-btn${favorite ? ' is-favorited' : ''}`}
+        aria-pressed={favorite}
+        title="Favorite all models in group"
+        onClick={(event) => save('favorite', !favorite, event)}
+      >
         {favorite ? '♥' : '♡'}
       </button>
     </div>
@@ -68,17 +89,32 @@ function GroupTags({ host, record }: { host: GroupCardHost; record: GroupRecord 
   const [names, setNames] = useState<string[]>([]);
   useEffect(() => {
     let live = true;
-    host.groupTagNames(record).then((loaded) => { if (live) setNames(loaded); })
+    host
+      .groupTagNames(record)
+      .then((loaded) => {
+        if (live) setNames(loaded);
+      })
       .catch((error) => console.error('Error loading group tags:', error));
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record.groupKey, record.children.length]);
   return (
     <div className="parent-model-group-tags tags-info" style={names.length ? undefined : { display: 'none' }} title={names.join(', ')}>
       {names.map((name, index) => (
         <span key={name}>
-          <span className="tag-filter-link" title={`Filter by tag: ${name}`}
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.filterByTag(name); }}>{name}</span>
+          <span
+            className="tag-filter-link"
+            title={`Filter by tag: ${name}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              host.filterByTag(name);
+            }}
+          >
+            {name}
+          </span>
           {index < names.length - 1 ? ', ' : ''}
         </span>
       ))}
@@ -127,11 +163,23 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
     if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
-  const classes = ['parent-model-group', `parent-model-group-${view}`, view !== 'list' && 'file-item', view !== 'list' && `file-item-${view}`,
-    tile && 'jp-model-card jp-group-card', record.expanded && 'expanded', host.isBundleDetailsGroup(record.groupKey) && 'bundle-details-active'].filter(Boolean).join(' ');
+  const classes = [
+    'parent-model-group',
+    `parent-model-group-${view}`,
+    view !== 'list' && 'file-item',
+    view !== 'list' && `file-item-${view}`,
+    tile && 'jp-model-card jp-group-card',
+    record.expanded && 'expanded',
+    host.isBundleDetailsGroup(record.groupKey) && 'bundle-details-active'
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const style: CSSProperties = {
-    position: 'absolute', top: position.top, left: position.left, pointerEvents: 'auto',
+    position: 'absolute',
+    top: position.top,
+    left: position.left,
+    pointerEvents: 'auto',
     width: view === 'list' ? `calc(100% - ${position.left * 2}px)` : position.width
   };
   if (fixedHeight || view === 'list') style.height = position.height;
@@ -146,16 +194,33 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   };
 
   const chevron = (
-    <span className="parent-model-group-chevron"
-      onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.toggleGroup(record); }}>
+    <span
+      className="parent-model-group-chevron"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        host.toggleGroup(record);
+      }}
+    >
       {record.expanded ? '▾' : '▸'}
     </span>
   );
   const titleRow = (
     <div className="parent-model-group-title-row">
       {chevron}
-      <span className={`parent-model-group-title${kind === 'parentModel' ? ' parent-model-filter-link' : ''}`} title={label}
-        onClick={kind === 'parentModel' ? (event) => { event.preventDefault(); event.stopPropagation(); host.filterBySelect('parent-select', label); } : undefined}>
+      <span
+        className={`parent-model-group-title${kind === 'parentModel' ? ' parent-model-filter-link' : ''}`}
+        title={label}
+        onClick={
+          kind === 'parentModel'
+            ? (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                host.filterBySelect('parent-select', label);
+              }
+            : undefined
+        }
+      >
         {label}
       </span>
     </div>
@@ -165,22 +230,51 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
     <div className="parent-model-group-thumbnail" style={{ position: 'relative' }}>
       <img src={images[shownIndex] || 'assets/3d.png'} alt="" />
       {view !== 'list' && (
-        <div className={`parent-model-group-corner-badge ${record.expanded ? 'is-expanded' : 'is-collapsed'}`}
-          title={isBundle
-            ? `${bundleKind === 'zip' ? 'ZIP bundle' : 'Folder bundle'} (${record.expanded ? 'expanded' : 'collapsed'})`
-            : `Parent model group (${record.expanded ? 'expanded' : 'collapsed'})`}>
-          <span /><span /><span />
+        <div
+          className={`parent-model-group-corner-badge ${record.expanded ? 'is-expanded' : 'is-collapsed'}`}
+          title={
+            isBundle
+              ? `${bundleKind === 'zip' ? 'ZIP bundle' : 'Folder bundle'} (${record.expanded ? 'expanded' : 'collapsed'})`
+              : `Parent model group (${record.expanded ? 'expanded' : 'collapsed'})`
+          }
+        >
+          <span />
+          <span />
+          <span />
         </div>
       )}
       {images.length > 1 && (
         <>
-          <div className="thumbnail-nav-left" title="Previous group thumbnail" onClick={step(-1)}
-            style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }} />
-          <div className="thumbnail-nav-right" title="Next group thumbnail" onClick={step(1)}
-            style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }} />
+          <div
+            className="thumbnail-nav-left"
+            title="Previous group thumbnail"
+            onClick={step(-1)}
+            style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+          />
+          <div
+            className="thumbnail-nav-right"
+            title="Next group thumbnail"
+            onClick={step(1)}
+            style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+          />
           {view !== 'list' && (
-            <div className="thumbnail-count-badge" title={`Group thumbnail ${shownIndex + 1} of ${images.length}`}
-              style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 'bold', zIndex: 11, pointerEvents: 'none' }}>
+            <div
+              className="thumbnail-count-badge"
+              title={`Group thumbnail ${shownIndex + 1} of ${images.length}`}
+              style={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                background: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                padding: '4px 8px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 'bold',
+                zIndex: 11,
+                pointerEvents: 'none'
+              }}
+            >
               {shownIndex + 1}/{images.length}
             </div>
           )}
@@ -191,7 +285,12 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
 
   const onClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    if (target.closest('.parent-model-group-chevron, .model-engagement-bar, .tag-filter-link, .preview-tile-open-btn, .thumbnail-nav-left, .thumbnail-nav-right, .thumbnail-menu-button')) return;
+    if (
+      target.closest(
+        '.parent-model-group-chevron, .model-engagement-bar, .tag-filter-link, .preview-tile-open-btn, .thumbnail-nav-left, .thumbnail-nav-right, .thumbnail-menu-button'
+      )
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
     host.groupClick(record, view, event.currentTarget);
@@ -218,7 +317,9 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
             {isBundle ? `${count} part${count === 1 ? '' : 's'}` : `${count} model${count === 1 ? '' : 's'}`}
           </div>
           <div className="jp-model-card__badges">
-            <span className="jp-badge" title={isBundle ? `${kindLabel || 'folder'} bundle` : 'Models with the same parent model'}>{kindBadge}</span>
+            <span className="jp-badge" title={isBundle ? `${kindLabel || 'folder'} bundle` : 'Models with the same parent model'}>
+              {kindBadge}
+            </span>
             <span className={`jp-status jp-status--${print.printedCount > 0 ? 'success' : 'neutral'}`}>{print.label}</span>
           </div>
         </div>
@@ -231,7 +332,9 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
       <>
         {thumbnail}
         <div className="file-info" ref={fileInfoRef} style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <div className="file-name" data-list-col="name" style={{ alignItems: 'center', gap: 8 }}>{titleRow}</div>
+          <div className="file-name" data-list-col="name" style={{ alignItems: 'center', gap: 8 }}>
+            {titleRow}
+          </div>
           {cell('size', 'file-size-column', cols.size || '—')}
           {cell('dateadded', 'date-added-column', cols.dateAdded || '—', cols.dateAddedTitle || undefined)}
           {cell('directory', 'directory-info-column', cols.directory || '—', cols.directoryFull || cols.directory || undefined)}
@@ -240,7 +343,9 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
           <div className="print-status-column" data-list-col="printed">
             <span className={print.printedCount > 0 ? 'print-status printed' : 'print-status'}>{print.label}</span>
           </div>
-          <div className="tags-info-column" data-list-col="tags"><GroupTags host={host} record={record} /></div>
+          <div className="tags-info-column" data-list-col="tags">
+            <GroupTags host={host} record={record} />
+          </div>
           {cell('archive', 'archive-status-column', archiveText, isBundle ? 'Right-click for Preview and more options' : archiveText)}
         </div>
       </>
@@ -262,8 +367,18 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
             <div className="preview-tile-name">{label}</div>
             {isBundle && (
               <div className="preview-tile-actions">
-                <button type="button" className="preview-tile-open-btn" title="Open preview"
-                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.openBundlePreview(record); }}>Preview</button>
+                <button
+                  type="button"
+                  className="preview-tile-open-btn"
+                  title="Open preview"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    host.openBundlePreview(record);
+                  }}
+                >
+                  Preview
+                </button>
               </div>
             )}
           </div>
@@ -273,17 +388,28 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   }
 
   return (
-    <div ref={cardRef} className={classes} style={style} tabIndex={0} role="button" aria-expanded={record.expanded}
+    <div
+      ref={cardRef}
+      className={classes}
+      style={style}
+      tabIndex={0}
+      role="button"
+      aria-expanded={record.expanded}
       title={`${record.expanded ? 'Collapse' : 'Expand'} ${label}`}
-      data-group-key={record.groupKey} data-group-kind={kind} data-child-count={count} data-expanded={record.expanded ? '1' : '0'}
-      data-index={index} data-layout-key={record.key}
+      data-group-key={record.groupKey}
+      data-group-kind={kind}
+      data-child-count={count}
+      data-expanded={record.expanded ? '1' : '0'}
+      data-index={index}
+      data-layout-key={record.key}
       onClick={onClick}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           host.groupClick(record, view, event.currentTarget);
         }
-      }}>
+      }}
+    >
       {body}
     </div>
   );

@@ -10,7 +10,9 @@
   background: rgba(14, 24, 33, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
   color: var(--jp-text);
   padding: 24px 28px;
   border: none;
@@ -265,8 +267,8 @@
 }
 
 /* Inputs & selects inside dialog */
-#printer-management-dialog input[type="text"],
-#printer-management-dialog input[type="datetime-local"],
+#printer-management-dialog input[type='text'],
+#printer-management-dialog input[type='datetime-local'],
 #printer-management-dialog select,
 #printer-management-dialog textarea {
   width: 100% !important;
@@ -279,7 +281,10 @@
   font-size: 13.5px !important;
   line-height: 1.4 !important;
   font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s !important;
 }
 
 #printer-management-dialog textarea {
@@ -316,7 +321,7 @@
   width: 100% !important;
 }
 
-#printer-management-dialog .printer-url-group input[type="text"] {
+#printer-management-dialog .printer-url-group input[type='text'] {
   flex: 1 1 auto !important;
   width: auto !important;
   min-width: 0 !important;
@@ -364,7 +369,7 @@
   cursor: pointer;
 }
 
-.printer-klipper-toggle-row input[type="checkbox"] {
+.printer-klipper-toggle-row input[type='checkbox'] {
   width: 17px;
   height: 17px;
   accent-color: var(--primary-accent, var(--jp-accent));
@@ -590,8 +595,13 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .printer-card-actions {

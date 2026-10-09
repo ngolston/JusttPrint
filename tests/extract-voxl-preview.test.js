@@ -5,10 +5,7 @@ const assert = require('node:assert/strict');
 const zlib = require('zlib');
 const { extractVoxlPreview, extractVoxlPreviewEntry } = require('../src/core/extract-voxl-preview');
 
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64'
-);
+const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 function writeU16(buf, off, value) {
   buf[off] = value & 0xff;

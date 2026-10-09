@@ -21,21 +21,29 @@ function TreeNode({ node, query, selected }: { node: FolderNode; query: string; 
   const open = !kids.length || !!query || expanded.has(node.path);
   return (
     <div className="folder-tree-node" data-path={node.path}>
-      <button type="button" className={`folder-tree-row${selected && nodeIs(node, selected) ? ' is-selected' : ''}`}
-        data-path={node.path} title={node.tooltip || node.path}
+      <button
+        type="button"
+        className={`folder-tree-row${selected && nodeIs(node, selected) ? ' is-selected' : ''}`}
+        data-path={node.path}
+        title={node.tooltip || node.path}
         onClick={(event) => {
           event.preventDefault();
           if (kids.length && (event.target as HTMLElement).closest('[data-twist]')) folderTreeActions.toggleExpanded(node.path);
           else folderTreeActions.pick(node);
-        }}>
-        <span className={`folder-tree-twist${kids.length ? '' : ' is-empty'}`} data-twist="1">{kids.length ? (open ? '▾' : '▸') : '•'}</span>
+        }}
+      >
+        <span className={`folder-tree-twist${kids.length ? '' : ' is-empty'}`} data-twist="1">
+          {kids.length ? (open ? '▾' : '▸') : '•'}
+        </span>
         <span className={`folder-tree-icon${node.isBundle ? ' is-bundle' : ''}`} aria-hidden="true" />
         <span className="folder-tree-label">{node.label}</span>
         <span className="folder-tree-count">{Number(node.count) || 0}</span>
       </button>
       {kids.length > 0 && open && (
         <div className="folder-tree-children">
-          {kids.map((child) => <TreeNode key={child.path} node={child} query={query} selected={selected} />)}
+          {kids.map((child) => (
+            <TreeNode key={child.path} node={child} query={query} selected={selected} />
+          ))}
         </div>
       )}
     </div>
@@ -55,16 +63,33 @@ function TreeView({ id, searchId, wrapSearch, autoFocus }: { id: string; searchI
   }, [revealSeq]);
 
   const search = (
-    <input type="search" id={searchId} placeholder="Find folder..." autoComplete="off" value={query} autoFocus={autoFocus}
-      onChange={(e) => setQuery(e.target.value)} />
+    <input
+      type="search"
+      id={searchId}
+      placeholder="Find folder..."
+      autoComplete="off"
+      value={query}
+      autoFocus={autoFocus}
+      onChange={(e) => setQuery(e.target.value)}
+    />
   );
   return (
     <>
-      {wrapSearch ? <div id={`${searchId}-wrap`} className="folder-tree-search-wrap">{search}</div> : search}
+      {wrapSearch ? (
+        <div id={`${searchId}-wrap`} className="folder-tree-search-wrap">
+          {search}
+        </div>
+      ) : (
+        search
+      )}
       <div id={id} className="folder-tree" ref={treeRef}>
-        {forest.roots.length
-          ? forest.roots.map((root) => <TreeNode key={root.path} node={root} query={query} selected={selected} />)
-          : <div className="folder-tree-row" style={{ opacity: 0.6 }}>No scanned folders yet</div>}
+        {forest.roots.length ? (
+          forest.roots.map((root) => <TreeNode key={root.path} node={root} query={query} selected={selected} />)
+        ) : (
+          <div className="folder-tree-row" style={{ opacity: 0.6 }}>
+            No scanned folders yet
+          </div>
+        )}
       </div>
     </>
   );
@@ -80,26 +105,48 @@ function FolderSelect({ container, buttonRef }: { container: HTMLElement; button
     <div className="form-group">
       <label htmlFor="folder-select">Folders:</label>
       <div className="dropdown-with-list">
-        <select id="folder-select" value={current}
+        <select
+          id="folder-select"
+          value={current}
           onChange={(e) => {
             const value = e.target.value;
             showFolder(value, value ? findNode(forest.roots, value) || recent.find((item) => pathsEqual(toDirectoryFilter(item), value)) : null);
-          }}>
+          }}
+        >
           <option value="">All folders</option>
           {forest.roots.length > 0 && (
             <optgroup label="Library roots">
-              {forest.roots.map((root) => <option key={root.path} value={toDirectoryFilter(root)}>{root.label}</option>)}
+              {forest.roots.map((root) => (
+                <option key={root.path} value={toDirectoryFilter(root)}>
+                  {root.label}
+                </option>
+              ))}
             </optgroup>
           )}
           {recent.length > 0 && (
             <optgroup label="Recent">
-              {recent.map((item) => <option key={item.path} value={toDirectoryFilter(item)}>{item.label || item.path}</option>)}
+              {recent.map((item) => (
+                <option key={item.path} value={toDirectoryFilter(item)}>
+                  {item.label || item.path}
+                </option>
+              ))}
             </optgroup>
           )}
           {current && !options.includes(current) && <option value={current}>{folderName(current)}</option>}
         </select>
-        <button type="button" id="folder-tree-button" ref={buttonRef} className="list-button icon-button folder-tree-button" title="Browse folder tree"
-          onClick={(e) => { e.preventDefault(); folderTreeActions.setPopoverOpen(!popoverOpen); }}>☰</button>
+        <button
+          type="button"
+          id="folder-tree-button"
+          ref={buttonRef}
+          className="list-button icon-button folder-tree-button"
+          title="Browse folder tree"
+          onClick={(e) => {
+            e.preventDefault();
+            folderTreeActions.setPopoverOpen(!popoverOpen);
+          }}
+        >
+          ☰
+        </button>
       </div>
     </div>,
     container
@@ -138,7 +185,9 @@ function FolderPopover({ anchor }: { anchor: RefObject<HTMLButtonElement | null>
       const target = event.target as Node;
       if (!ref.current?.contains(target) && !anchor.current?.contains(target)) folderTreeActions.setPopoverOpen(false);
     };
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') folderTreeActions.setPopoverOpen(false); };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') folderTreeActions.setPopoverOpen(false);
+    };
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKeyDown);
     return () => {
@@ -153,11 +202,24 @@ function FolderPopover({ anchor }: { anchor: RefObject<HTMLButtonElement | null>
     return Math.min(FOLDERS.max, Math.max(FOLDERS.min, window.innerWidth - left - 8));
   };
   return createPortal(
-    <div id="folder-tree-popover" className="folder-tree-popover" role="dialog" aria-label="Folder tree" ref={ref}
-      style={position ? { left: position.left, top: position.top, maxHeight: position.maxHeight } : { visibility: 'hidden' }}>
+    <div
+      id="folder-tree-popover"
+      className="folder-tree-popover"
+      role="dialog"
+      aria-label="Folder tree"
+      ref={ref}
+      style={position ? { left: position.left, top: position.top, maxHeight: position.maxHeight } : { visibility: 'hidden' }}
+    >
       <TreeView id="folder-tree-popover-tree" searchId="folder-tree-search" wrapSearch={false} autoFocus />
-      <div id="folder-tree-resize-handle" className="panel-resize-handle" role="separator" aria-orientation="vertical"
-        aria-label="Resize folders panel" title="Drag to resize folders panel" onMouseDown={startResize(FOLDERS, maxWidth)} />
+      <div
+        id="folder-tree-resize-handle"
+        className="panel-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize folders panel"
+        title="Drag to resize folders panel"
+        onMouseDown={startResize(FOLDERS, maxWidth)}
+      />
     </div>,
     document.body
   );
@@ -177,23 +239,38 @@ function FolderRail({ rail, toggleSlot }: { rail: HTMLElement; toggleSlot: HTMLE
         <>
           <div className="folder-rail-header">
             <span>Folders</span>
-            <button type="button" id="folder-rail-close" className="icon-button" title="Hide folder tree"
-              onClick={() => folderTreeActions.setRailOpen(false)}>×</button>
+            <button type="button" id="folder-rail-close" className="icon-button" title="Hide folder tree" onClick={() => folderTreeActions.setRailOpen(false)}>
+              ×
+            </button>
           </div>
           <TreeView id="folder-rail-tree" searchId="folder-rail-search" wrapSearch />
-          <div id="folder-rail-resize-handle" className="panel-resize-handle" role="separator" aria-orientation="vertical"
-            aria-label="Resize folders panel" title="Drag to resize folders panel" onMouseDown={startResize(FOLDERS)} />
+          <div
+            id="folder-rail-resize-handle"
+            className="panel-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize folders panel"
+            title="Drag to resize folders panel"
+            onMouseDown={startResize(FOLDERS)}
+          />
         </>,
         rail
       )}
-      {toggleSlot && createPortal(
-        <button type="button" id="folder-rail-toggle" className={`folder-rail-toggle${railOpen ? ' active' : ''}`} title="Show folder tree beside the grid"
-          aria-pressed={railOpen} onClick={() => folderTreeActions.setRailOpen(!railOpen)}>
-          <FolderTreeIcon className="folder-rail-toggle__icon" size={16} aria-hidden="true" />
-          <span>Folders</span>
-        </button>,
-        toggleSlot
-      )}
+      {toggleSlot &&
+        createPortal(
+          <button
+            type="button"
+            id="folder-rail-toggle"
+            className={`folder-rail-toggle${railOpen ? ' active' : ''}`}
+            title="Show folder tree beside the grid"
+            aria-pressed={railOpen}
+            onClick={() => folderTreeActions.setRailOpen(!railOpen)}
+          >
+            <FolderTreeIcon className="folder-rail-toggle__icon" size={16} aria-hidden="true" />
+            <span>Folders</span>
+          </button>,
+          toggleSlot
+        )}
     </>
   );
 }

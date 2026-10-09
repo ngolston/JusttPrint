@@ -4,8 +4,7 @@
  */
 
 export type ShortcutAction =
-  | 'focusSearch' | 'showShortcuts' | 'exitMultiEdit' | 'next' | 'previous'
-  | 'scan' | 'clearFilters' | 'roulette' | 'toggleMultiEdit' | 'selectAll' | 'undo';
+  'focusSearch' | 'showShortcuts' | 'exitMultiEdit' | 'next' | 'previous' | 'scan' | 'clearFilters' | 'roulette' | 'toggleMultiEdit' | 'selectAll' | 'undo';
 
 export interface KeyPress {
   key: string;

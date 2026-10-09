@@ -37,10 +37,17 @@ function isOrcaLinkSlicer(slicer) {
 function linkFileName(filePath) {
   const info = parseZipPath(filePath);
   const base = path.basename(info.isZipEntry ? info.entryPath : filePath);
-  const ext = path.extname(base).toLowerCase().replace(/[^a-z0-9.]/g, '');
-  const stem = base.slice(0, base.length - path.extname(base).length)
-    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^[._]+|[._]+$/g, '');
+  const ext = path
+    .extname(base)
+    .toLowerCase()
+    .replace(/[^a-z0-9.]/g, '');
+  const stem = base
+    .slice(0, base.length - path.extname(base).length)
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[._]+|[._]+$/g, '');
   return `${(stem || 'model').slice(0, 120)}${ext}`;
 }
 

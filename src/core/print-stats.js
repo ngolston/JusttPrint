@@ -17,7 +17,10 @@ function tableExists(db, name) {
 
 function columnExists(db, table, column) {
   try {
-    return db.prepare(`PRAGMA table_info(${table})`).all().some((col) => col.name === column);
+    return db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .some((col) => col.name === column);
   } catch (_) {
     return false;
   }
@@ -57,9 +60,7 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
   const firstPrint = hasEvents ? db.prepare('SELECT MIN(substr(printed_at, 1, 7)) AS first FROM print_events').get().first : null;
   const requested = Math.floor(Number(months));
   const allTime = requested === 0;
-  const span = allTime
-    ? (firstPrint ? monthsSince(firstPrint, now) : 12)
-    : Math.max(1, Math.min(MAX_MONTHS, Number.isFinite(requested) ? requested : 12));
+  const span = allTime ? (firstPrint ? monthsSince(firstPrint, now) : 12) : Math.max(1, Math.min(MAX_MONTHS, Number.isFinite(requested) ? requested : 12));
   const keys = monthRange(now, span);
   const from = allTime ? null : `${keys[0]}-01`;
 
@@ -74,10 +75,14 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
   let printers = [];
 
   if (hasEvents) {
-    for (const row of db.prepare(`
+    for (const row of db
+      .prepare(
+        `
       SELECT substr(pe.printed_at, 1, 7) AS month, pe.outcome, SUM(pe.quantity) AS n
       FROM print_events pe ${where}
-      GROUP BY month, pe.outcome`).all(...params)) {
+      GROUP BY month, pe.outcome`
+      )
+      .all(...params)) {
       const n = Number(row.n) || 0;
       if (!(row.outcome in totals)) continue;
       totals[row.outcome] += n;
@@ -85,7 +90,9 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
       if (bucket) bucket[row.outcome] += n;
     }
 
-    designers = db.prepare(`
+    designers = db
+      .prepare(
+        `
       SELECT TRIM(m.designer) AS name,
              SUM(CASE WHEN pe.outcome = 'printed' THEN pe.quantity ELSE 0 END) AS printed,
              COUNT(DISTINCT m.id) AS models
@@ -94,41 +101,59 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
       GROUP BY TRIM(m.designer) COLLATE NOCASE
       HAVING printed > 0
       ORDER BY printed DESC, name COLLATE NOCASE
-      LIMIT ${TOP}`).all(...params).map((row) => ({ name: row.name, printed: Number(row.printed), models: Number(row.models) }));
+      LIMIT ${TOP}`
+      )
+      .all(...params)
+      .map((row) => ({ name: row.name, printed: Number(row.printed), models: Number(row.models) }));
 
-    models = db.prepare(`
+    models = db
+      .prepare(
+        `
       SELECT m.id, m.fileName, m.filePath, SUM(pe.quantity) AS printed
       FROM print_events pe JOIN models m ON m.id = pe.model_id
       ${where ? `${where} AND` : 'WHERE'} pe.outcome = 'printed'
       GROUP BY m.id
       ORDER BY printed DESC, m.fileName COLLATE NOCASE
-      LIMIT ${TOP}`).all(...params).map((row) => ({ id: row.id, fileName: row.fileName, filePath: row.filePath, printed: Number(row.printed) }));
+      LIMIT ${TOP}`
+      )
+      .all(...params)
+      .map((row) => ({ id: row.id, fileName: row.fileName, filePath: row.filePath, printed: Number(row.printed) }));
 
     if (hasPrinters) {
-      printers = db.prepare(`
+      printers = db
+        .prepare(
+          `
         SELECT COALESCE(p.nickname, '') AS name, pe.printer_id AS id,
                SUM(CASE WHEN pe.outcome = 'printed' THEN pe.quantity ELSE 0 END) AS printed,
                SUM(CASE WHEN pe.outcome = 'failed' THEN pe.quantity ELSE 0 END) AS failed
         FROM print_events pe LEFT JOIN printers p ON p.id = pe.printer_id
         ${where}
         GROUP BY pe.printer_id
-        ORDER BY printed DESC, failed DESC`).all(...params).map((row) => ({
-        id: row.id == null ? null : Number(row.id),
-        name: row.id == null ? '' : row.name,
-        printed: Number(row.printed),
-        failed: Number(row.failed),
-        successRate: rate(Number(row.printed), Number(row.failed))
-      })).filter((row) => row.printed + row.failed > 0);
+        ORDER BY printed DESC, failed DESC`
+        )
+        .all(...params)
+        .map((row) => ({
+          id: row.id == null ? null : Number(row.id),
+          name: row.id == null ? '' : row.name,
+          printed: Number(row.printed),
+          failed: Number(row.failed),
+          successRate: rate(Number(row.printed), Number(row.failed))
+        }))
+        .filter((row) => row.printed + row.failed > 0);
     }
   }
 
   // Library growth: models added per month in the same period.
   const added = new Map(keys.map((key) => [key, 0]));
   if (columnExists(db, 'models', 'dateAdded')) {
-    for (const row of db.prepare(`
+    for (const row of db
+      .prepare(
+        `
       SELECT substr(dateAdded, 1, 7) AS month, COUNT(*) AS n FROM models
       WHERE dateAdded IS NOT NULL ${from ? 'AND dateAdded >= ?' : ''}
-      GROUP BY month`).all(...params)) {
+      GROUP BY month`
+      )
+      .all(...params)) {
       if (added.has(row.month)) added.set(row.month, Number(row.n) || 0);
     }
   }

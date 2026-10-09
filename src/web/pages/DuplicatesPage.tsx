@@ -30,7 +30,7 @@ export function splitPath(filePath: string): { name: string; folder: string } {
   const target = inner ? inner[1] || '' : filePath;
   const cut = Math.max(target.lastIndexOf('/'), target.lastIndexOf('\\'));
   const name = cut >= 0 ? target.slice(cut + 1) : target;
-  const folder = inner ? `${inner[0]}${cut > 0 ? ` → ${target.slice(0, cut)}` : ''}` : (cut > 0 ? target.slice(0, cut) : '');
+  const folder = inner ? `${inner[0]}${cut > 0 ? ` → ${target.slice(0, cut)}` : ''}` : cut > 0 ? target.slice(0, cut) : '';
   return { name: name || filePath, folder };
 }
 
@@ -80,18 +80,35 @@ function Preview({ filePath }: { filePath: string }) {
       const result = await loadPreview(filePath);
       if (live) setImage(result);
     });
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [filePath]);
   return (
     <div className="jp-dup-copy__preview">
-      {image === undefined ? <div className="dedup-preview-loading">Loading preview…</div>
-        : image ? <img src={image} alt="" /> : <div className="error-message">No preview</div>}
+      {image === undefined ? (
+        <div className="dedup-preview-loading">Loading preview…</div>
+      ) : image ? (
+        <img src={image} alt="" />
+      ) : (
+        <div className="error-message">No preview</div>
+      )}
     </div>
   );
 }
 
-function CopyCard({ file, selected, preferred, onToggle, onKeep }: {
-  file: DuplicateFile; selected: boolean; preferred: boolean; onToggle: (checked: boolean) => void; onKeep: () => void;
+function CopyCard({
+  file,
+  selected,
+  preferred,
+  onToggle,
+  onKeep
+}: {
+  file: DuplicateFile;
+  selected: boolean;
+  preferred: boolean;
+  onToggle: (checked: boolean) => void;
+  onKeep: () => void;
 }) {
   const zip = isZipEntry(file.filePath);
   const { name, folder } = splitPath(file.filePath);
@@ -99,20 +116,46 @@ function CopyCard({ file, selected, preferred, onToggle, onKeep }: {
     <div className={cx('jp-dup-copy', selected && 'is-removed', zip && 'zip-entry', preferred && 'preferred-directory')}>
       <Preview filePath={file.filePath} />
       <div className="jp-dup-copy__body">
-        <div className="jp-dup-copy__name" title={file.filePath}>{name}</div>
-        <div className="jp-dup-copy__folder" title={folder}><FolderOpen size={13} aria-hidden="true" /><span>{folder || '—'}</span></div>
+        <div className="jp-dup-copy__name" title={file.filePath}>
+          {name}
+        </div>
+        <div className="jp-dup-copy__folder" title={folder}>
+          <FolderOpen size={13} aria-hidden="true" />
+          <span>{folder || '—'}</span>
+        </div>
         <div className="jp-dup-copy__meta">
           <span className="jp-dup-copy__size">{formatFileSize(file.size || 0)}</span>
-          {preferred && <span className="preferred-directory-badge jp-badge jp-badge--accent" title="This copy is inside the preferred directory. Easy keeps one copy from that folder.">Preferred</span>}
-          {zip && <span className="zip-entry-badge jp-badge" title="Model in ZIP archive (cannot be deleted)">ZIP</span>}
+          {preferred && (
+            <span
+              className="preferred-directory-badge jp-badge jp-badge--accent"
+              title="This copy is inside the preferred directory. Easy keeps one copy from that folder."
+            >
+              Preferred
+            </span>
+          )}
+          {zip && (
+            <span className="zip-entry-badge jp-badge" title="Model in ZIP archive (cannot be deleted)">
+              ZIP
+            </span>
+          )}
         </div>
         <div className="jp-dup-copy__actions">
-          <label className={cx('jp-dup-copy__remove', zip && 'is-disabled')} title={zip ? 'Cannot delete files inside ZIP archives' : 'Delete this copy with Delete Selected'}>
-            <input type="checkbox" data-filepath={file.filePath} disabled={zip} checked={!zip && selected}
-              onChange={(event) => onToggle(event.target.checked)} />
+          <label
+            className={cx('jp-dup-copy__remove', zip && 'is-disabled')}
+            title={zip ? 'Cannot delete files inside ZIP archives' : 'Delete this copy with Delete Selected'}
+          >
+            <input
+              type="checkbox"
+              data-filepath={file.filePath}
+              disabled={zip}
+              checked={!zip && selected}
+              onChange={(event) => onToggle(event.target.checked)}
+            />
             <span>{selected ? 'Will be deleted' : 'Delete'}</span>
           </label>
-          <button type="button" className="jp-btn jp-btn--secondary jp-btn--sm" onClick={onKeep} title="Keep this copy and select the others for deletion">Keep this</button>
+          <button type="button" className="jp-btn jp-btn--secondary jp-btn--sm" onClick={onKeep} title="Keep this copy and select the others for deletion">
+            Keep this
+          </button>
         </div>
       </div>
     </div>
@@ -120,9 +163,18 @@ function CopyCard({ file, selected, preferred, onToggle, onKeep }: {
 }
 
 /** One group of identical files side by side (spec §46): Keep this on any copy, or Keep all. */
-function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
-  group: DuplicateGroup; selected: Set<string>; preferredDir: string;
-  onToggle: (filePath: string, checked: boolean) => void; onSelect: (next: Set<string>) => void;
+function GroupRow({
+  group,
+  selected,
+  preferredDir,
+  onToggle,
+  onSelect
+}: {
+  group: DuplicateGroup;
+  selected: Set<string>;
+  preferredDir: string;
+  onToggle: (filePath: string, checked: boolean) => void;
+  onSelect: (next: Set<string>) => void;
 }) {
   const size = group.files[0]?.size || 0;
   const removing = group.files.filter((file) => selected.has(file.filePath)).length;
@@ -131,22 +183,37 @@ function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
   const triangles = geometry ? Number(String(group.hash).split(':')[1]) : 0;
   const title = geometry ? `${group.files.length} files with the same geometry` : `${group.files.length} identical copies`;
   return (
-    <div className="jp-dup-group" role="group" data-hash={group.hash} style={{ height: ROW_HEIGHT - 12, boxSizing: 'border-box' }}
-      aria-label={`${title}: ${splitPath(group.files[0]?.filePath || '').name}`}>
+    <div
+      className="jp-dup-group"
+      role="group"
+      data-hash={group.hash}
+      style={{ height: ROW_HEIGHT - 12, boxSizing: 'border-box' }}
+      aria-label={`${title}: ${splitPath(group.files[0]?.filePath || '').name}`}
+    >
       <header className="jp-dup-group__header">
         <span className="jp-dup-group__title">{title}</span>
-        {geometry
-          ? <span className="jp-dup-group__meta">{triangles.toLocaleString()} triangles • different files, same shape</span>
-          : <span className="jp-dup-group__meta">{formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code></span>}
+        {geometry ? (
+          <span className="jp-dup-group__meta">{triangles.toLocaleString()} triangles • different files, same shape</span>
+        ) : (
+          <span className="jp-dup-group__meta">
+            {formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code>
+          </span>
+        )}
         {removing > 0 && <span className="jp-dup-group__removing">{removing} to delete</span>}
-        <button type="button" className="jp-link jp-dup-group__keep-all" onClick={() => onSelect(keepOnly(selected, group, null))} disabled={!removing}>Keep all</button>
+        <button type="button" className="jp-link jp-dup-group__keep-all" onClick={() => onSelect(keepOnly(selected, group, null))} disabled={!removing}>
+          Keep all
+        </button>
       </header>
       <div className="jp-dup-group__copies">
         {group.files.slice(0, SHOWN_COPIES).map((file) => (
-          <CopyCard key={file.filePath} file={file} selected={selected.has(file.filePath)}
+          <CopyCard
+            key={file.filePath}
+            file={file}
+            selected={selected.has(file.filePath)}
             preferred={!!preferredDir && fileIsUnderPreferredDirectory(file.filePath, preferredDir)}
             onToggle={(checked) => onToggle(file.filePath, checked)}
-            onKeep={() => onSelect(keepOnly(selected, group, file.filePath))} />
+            onKeep={() => onSelect(keepOnly(selected, group, file.filePath))}
+          />
         ))}
         {group.files.length > SHOWN_COPIES && (
           <div className="jp-dup-more">
@@ -160,9 +227,20 @@ function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
 }
 
 /** Only the groups in view (plus a few) are rendered; the spacer keeps the scroll height. */
-function GroupList({ groups, selected, preferredDir, onToggle, onSelect, note }: {
-  groups: DuplicateGroup[]; selected: Set<string>; preferredDir: string;
-  onToggle: (filePath: string, checked: boolean) => void; onSelect: (next: Set<string>) => void; note: string;
+function GroupList({
+  groups,
+  selected,
+  preferredDir,
+  onToggle,
+  onSelect,
+  note
+}: {
+  groups: DuplicateGroup[];
+  selected: Set<string>;
+  preferredDir: string;
+  onToggle: (filePath: string, checked: boolean) => void;
+  onSelect: (next: Set<string>) => void;
+  note: string;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -183,23 +261,35 @@ function GroupList({ groups, selected, preferredDir, onToggle, onSelect, note }:
   const end = Math.min(groups.length, Math.ceil((scrollTop + height) / ROW_HEIGHT) + OVERSCAN);
 
   return (
-    <div className="duplicate-groups jp-dup-list" ref={listRef} onScroll={() => {
-      if (frame.current) return;
-      frame.current = requestAnimationFrame(() => {
-        frame.current = 0;
-        setScrollTop(listRef.current?.scrollTop ?? 0);
-      });
-    }}>
+    <div
+      className="duplicate-groups jp-dup-list"
+      ref={listRef}
+      onScroll={() => {
+        if (frame.current) return;
+        frame.current = requestAnimationFrame(() => {
+          frame.current = 0;
+          setScrollTop(listRef.current?.scrollTop ?? 0);
+        });
+      }}
+    >
       <div className="dedup-virtual-summary">
-        <span className="dedup-group-count">{groups.length.toLocaleString()} duplicate group{groups.length === 1 ? '' : 's'}</span>
+        <span className="dedup-group-count">
+          {groups.length.toLocaleString()} duplicate group{groups.length === 1 ? '' : 's'}
+        </span>
         <span className="dedup-selection-count">{selected.size > 0 ? ` · ${selected.size} selected` : ''}</span>
       </div>
       {note && <div className="hash-generation-warning">{note}</div>}
       <div className="dedup-virtual-spacer" style={{ height: groups.length * ROW_HEIGHT, position: 'relative' }}>
         <div className="dedup-virtual-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${start * ROW_HEIGHT}px)` }}>
           {groups.slice(start, end).map((group) => (
-            <GroupRow key={group.hash || group.files[0].filePath} group={group} selected={selected} preferredDir={preferredDir}
-              onToggle={onToggle} onSelect={onSelect} />
+            <GroupRow
+              key={group.hash || group.files[0].filePath}
+              group={group}
+              selected={selected}
+              preferredDir={preferredDir}
+              onToggle={onToggle}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       </div>
@@ -255,84 +345,91 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   }, []);
 
   /** Loads the duplicate groups; with checkHashes, first offers to hash models that have none. */
-  const load = useCallback(async (options: { checkHashes: boolean; scopeFilters: LibraryFilters | null; zip: boolean }) => {
-    const id = ++loadId.current;
-    const current = () => id === loadId.current && mounted.current;
-    try {
-      // Same geometry: fingerprints first (asked for, like hashes), then the groups.
-      if (modeRef.current === 'geometry') {
-        setView({ kind: 'loading', text: 'Comparing geometry...' });
-        const zipOn = (await settings.get<string | null>('enableZipArchives').catch(() => null)) === '1';
-        setZipEnabled(zipOn);
-        const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip);
-        if (!current()) return;
-        if (found.running) {
-          setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
+  const load = useCallback(
+    async (options: { checkHashes: boolean; scopeFilters: LibraryFilters | null; zip: boolean }) => {
+      const id = ++loadId.current;
+      const current = () => id === loadId.current && mounted.current;
+      try {
+        // Same geometry: fingerprints first (asked for, like hashes), then the groups.
+        if (modeRef.current === 'geometry') {
+          setView({ kind: 'loading', text: 'Comparing geometry...' });
+          const zipOn = (await settings.get<string | null>('enableZipArchives').catch(() => null)) === '1';
+          setZipEnabled(zipOn);
+          const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip);
+          if (!current()) return;
+          if (found.running) {
+            setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
+            return;
+          }
+          if (found.missing > 0 && options.checkHashes) {
+            const answer = await showMessage(
+              'Compare Geometry',
+              `${found.missing} STL and 3MF models${options.scopeFilters ? ' in the current view' : ''} have not been compared by geometry yet. Read their shapes now? This takes a while for large files; you can leave the page meanwhile.`,
+              ['Yes', 'No']
+            );
+            if (!current()) return;
+            if (answer === 'Yes') {
+              const started = await dedup.startGeometry(options.scopeFilters);
+              setView({ kind: 'geometry', progress: { processed: 0, total: started.total } });
+              return;
+            }
+          }
+          setSelected(new Set());
+          setView({ kind: 'ready', groups: found.groups, generating: false });
           return;
         }
-        if (found.missing > 0 && options.checkHashes) {
-          const answer = await showMessage('Compare Geometry',
-            `${found.missing} STL and 3MF models${options.scopeFilters ? ' in the current view' : ''} have not been compared by geometry yet. Read their shapes now? This takes a while for large files; you can leave the page meanwhile.`,
-            ['Yes', 'No']);
+        if (options.checkHashes) {
+          setView({ kind: 'loading', text: 'Checking file hashes...' });
+          const missing = await dedup.modelsWithoutHash(options.scopeFilters);
           if (!current()) return;
-          if (answer === 'Yes') {
-            const started = await dedup.startGeometry(options.scopeFilters);
-            setView({ kind: 'geometry', progress: { processed: 0, total: started.total } });
-            return;
+          if (missing > 0) {
+            if (await dedup.isGeneratingHashes()) {
+              waitingForHashes.current = true;
+              setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: true });
+              return;
+            }
+            const answer = await showMessage(
+              'Generate File Hashes',
+              `${missing} models${options.scopeFilters ? ' in the current view' : ''} don't have file hashes which are needed for de-duplication. Would you like to generate the hashes now?`,
+              ['Yes', 'No']
+            );
+            if (!current()) return;
+            if (answer === 'Yes') {
+              waitingForHashes.current = true;
+              setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: false });
+              const result = await dedup.generateHashes(options.scopeFilters);
+              if (result?.alreadyRunning) setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: true });
+              if (result?.started || result?.alreadyRunning) return; // The progress events reload the list when hashing is done.
+              waitingForHashes.current = false;
+            }
           }
         }
-        setSelected(new Set());
-        setView({ kind: 'ready', groups: found.groups, generating: false });
-        return;
-      }
-      if (options.checkHashes) {
-        setView({ kind: 'loading', text: 'Checking file hashes...' });
-        const missing = await dedup.modelsWithoutHash(options.scopeFilters);
+        setView({ kind: 'loading', text: 'Analyzing duplicates...' });
+        const zipSetting = await settings.get<string | null>('enableZipArchives').catch(() => null);
+        const zip = zipSetting === '1' && options.zip;
+        setZipEnabled(zipSetting === '1');
+        const [groups, generating] = await Promise.all([
+          dedup.groups({ includeZip: zip, filters: options.scopeFilters || undefined }),
+          dedup.isGeneratingHashes().catch(() => false)
+        ]);
         if (!current()) return;
-        if (missing > 0) {
-          if (await dedup.isGeneratingHashes()) {
-            waitingForHashes.current = true;
-            setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: true });
-            return;
+        setSelected((previous) => {
+          if (easyOnLoad.current && preferredRef.current) {
+            easyOnLoad.current = false;
+            return easySelection(groups, preferredRef.current);
           }
-          const answer = await showMessage('Generate File Hashes',
-            `${missing} models${options.scopeFilters ? ' in the current view' : ''} don't have file hashes which are needed for de-duplication. Would you like to generate the hashes now?`,
-            ['Yes', 'No']);
-          if (!current()) return;
-          if (answer === 'Yes') {
-            waitingForHashes.current = true;
-            setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: false });
-            const result = await dedup.generateHashes(options.scopeFilters);
-            if (result?.alreadyRunning) setView({ kind: 'hashes', progress: { processed: 0, total: missing }, joined: true });
-            if (result?.started || result?.alreadyRunning) return; // The progress events reload the list when hashing is done.
-            waitingForHashes.current = false;
-          }
-        }
+          // Keep selections that still exist after a reload.
+          const present = new Set(groups.flatMap((group) => group.files.map((file) => file.filePath)));
+          return new Set([...previous].filter((filePath) => present.has(filePath)));
+        });
+        setView({ kind: 'ready', groups, generating });
+      } catch (error) {
+        console.error('Error loading duplicates:', error);
+        if (current()) setView({ kind: 'error', text: 'Failed to load duplicate files' });
       }
-      setView({ kind: 'loading', text: 'Analyzing duplicates...' });
-      const zipSetting = await settings.get<string | null>('enableZipArchives').catch(() => null);
-      const zip = zipSetting === '1' && options.zip;
-      setZipEnabled(zipSetting === '1');
-      const [groups, generating] = await Promise.all([
-        dedup.groups({ includeZip: zip, filters: options.scopeFilters || undefined }),
-        dedup.isGeneratingHashes().catch(() => false)
-      ]);
-      if (!current()) return;
-      setSelected((previous) => {
-        if (easyOnLoad.current && preferredRef.current) {
-          easyOnLoad.current = false;
-          return easySelection(groups, preferredRef.current);
-        }
-        // Keep selections that still exist after a reload.
-        const present = new Set(groups.flatMap((group) => group.files.map((file) => file.filePath)));
-        return new Set([...previous].filter((filePath) => present.has(filePath)));
-      });
-      setView({ kind: 'ready', groups, generating });
-    } catch (error) {
-      console.error('Error loading duplicates:', error);
-      if (current()) setView({ kind: 'error', text: 'Failed to load duplicate files' });
-    }
-  }, [easySelection]);
+    },
+    [easySelection]
+  );
 
   const scopeFilters = scope === 'current' ? filters : null;
   const optionsRef = useRef({ scopeFilters, zip: includeZip });
@@ -345,7 +442,8 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     const active = !!window.libraryFiltersAreActive?.(current);
     setFilters(active ? current : null);
     setScope(active ? 'current' : 'entire');
-    settings.get<string | null>('dedupPreferredDirectory')
+    settings
+      .get<string | null>('dedupPreferredDirectory')
       .then((saved) => {
         savedPreferred.current = typeof saved === 'string' ? saved : '';
         setPreferredDir(savedPreferred.current);
@@ -373,7 +471,10 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     });
     const stopComplete = onServerEvent('hash-generation-complete', (result: { failed?: number; total?: number; firstError?: string } = {}) => {
       if (result.failed && result.failed === result.total) {
-        showMessage('Warning', `All file hashes failed to generate.${result.firstError ? ` ${result.firstError}` : ' This may be due to network issues or file access problems.'}`);
+        showMessage(
+          'Warning',
+          `All file hashes failed to generate.${result.firstError ? ` ${result.firstError}` : ' This may be due to network issues or file access problems.'}`
+        );
       }
       finish();
     });
@@ -385,7 +486,12 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     const stopGeometryDone = onServerEvent('geometry-complete', () => {
       if (modeRef.current === 'geometry') setTimeout(() => load({ checkHashes: false, ...optionsRef.current }), 300);
     });
-    return () => { stopProgress(); stopComplete(); stopGeometry(); stopGeometryDone(); };
+    return () => {
+      stopProgress();
+      stopComplete();
+      stopGeometry();
+      stopGeometryDone();
+    };
   }, [load]);
 
   function changeMode(next: 'files' | 'geometry') {
@@ -435,15 +541,23 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       await showMessage('No Selection', 'Please select files to delete');
       return;
     }
-    const names = files.slice(0, 5).map((filePath) => filePath.split(/[/\\]/).pop()).join('\n');
+    const names = files
+      .slice(0, 5)
+      .map((filePath) => filePath.split(/[/\\]/).pop())
+      .join('\n');
     const more = files.length > 5 ? `\n... and ${files.length - 5} more` : '';
-    if (await showMessage('Confirm Delete',
-      `Are you sure you want to DELETE ${files.length} files?\nThis cannot be undone!\n\nFiles:\n${names}${more}`, ['Yes', 'No']) !== 'Yes') return;
+    if (
+      (await showMessage('Confirm Delete', `Are you sure you want to DELETE ${files.length} files?\nThis cannot be undone!\n\nFiles:\n${names}${more}`, [
+        'Yes',
+        'No'
+      ])) !== 'Yes'
+    )
+      return;
     setDeleting(true);
     try {
       const failed: string[] = [];
       for (const filePath of files) {
-        if (!await dedup.deleteFile(filePath).catch(() => false)) failed.push(filePath);
+        if (!(await dedup.deleteFile(filePath).catch(() => false))) failed.push(filePath);
       }
       if (failed.length) {
         await showMessage('Error', `Failed to delete ${failed.length} file${failed.length === 1 ? '' : 's'}:\n${failed.slice(0, 5).join('\n')}`);
@@ -462,20 +576,40 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     ? 'Apply a library filter (designer, tags, search, …) to de-dup only that subset.'
     : scope === 'current'
       ? (() => {
-        const label = window.describeLibraryFilters?.(filters) || '';
-        return label ? `De-dupping models matching: ${label}` : 'De-dupping the current library view.';
-      })()
+          const label = window.describeLibraryFilters?.(filters) || '';
+          return label ? `De-dupping models matching: ${label}` : 'De-dupping the current library view.';
+        })()
       : 'De-dupping the entire library.';
 
   const actions = (
     <>
-      <button type="button" id="dedup-easy-button" className="easy-button jp-btn jp-btn--secondary jp-btn--md" disabled={!groups.length}
+      <button
+        type="button"
+        id="dedup-easy-button"
+        className="easy-button jp-btn jp-btn--secondary jp-btn--md"
+        disabled={!groups.length}
         title="Select all but one per group. Keeps a copy in the preferred directory when one exists, otherwise an archived/ZIP copy."
-        onClick={() => setSelected(easySelection(groups, preferredDir.trim()))}>Easy</button>
-      <button type="button" id="dedup-clear-button" className="jp-btn jp-btn--ghost jp-btn--md" title="Clear all selections"
-        onClick={() => setSelected(new Set())}>Clear</button>
+        onClick={() => setSelected(easySelection(groups, preferredDir.trim()))}
+      >
+        Easy
+      </button>
+      <button
+        type="button"
+        id="dedup-clear-button"
+        className="jp-btn jp-btn--ghost jp-btn--md"
+        title="Clear all selections"
+        onClick={() => setSelected(new Set())}
+      >
+        Clear
+      </button>
       {groups.length > 0 && (
-        <button type="button" id="delete-selected" className="danger-button jp-btn jp-btn--danger jp-btn--md" disabled={deleting || !selected.size} onClick={deleteSelected}>
+        <button
+          type="button"
+          id="delete-selected"
+          className="danger-button jp-btn jp-btn--danger jp-btn--md"
+          disabled={deleting || !selected.size}
+          onClick={deleteSelected}
+        >
           <Trash2 size={16} aria-hidden="true" />
           <span>{deleting ? 'Deleting...' : `Delete Selected${selected.size ? ` (${selected.size})` : ''}`}</span>
         </button>
@@ -497,42 +631,75 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
             <span>Same geometry</span>
           </label>
           <p className="dedup-scope-summary">
-            {mode === 'files' ? 'Byte-for-byte copies of a file.'
+            {mode === 'files'
+              ? 'Byte-for-byte copies of a file.'
               : 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF, also inside ZIP files.'}
           </p>
         </div>
         <div id="dedup-scope-container" className="dedup-scope">
           <span className="dedup-scope-label">Scope</span>
           <label className={`dedup-scope-option${hasFilters ? '' : ' disabled'}`} htmlFor="dedup-scope-current">
-            <input type="radio" name="dedup-scope" id="dedup-scope-current" value="current" disabled={!hasFilters}
-              checked={scope === 'current'} onChange={() => changeScope('current')} />
+            <input
+              type="radio"
+              name="dedup-scope"
+              id="dedup-scope-current"
+              value="current"
+              disabled={!hasFilters}
+              checked={scope === 'current'}
+              onChange={() => changeScope('current')}
+            />
             <span>Current view</span>
           </label>
           <label className="dedup-scope-option" htmlFor="dedup-scope-entire">
             <input type="radio" name="dedup-scope" id="dedup-scope-entire" value="entire" checked={scope === 'entire'} onChange={() => changeScope('entire')} />
             <span>Entire library</span>
           </label>
-          <p id="dedup-scope-summary" className="dedup-scope-summary">{scopeSummary}</p>
+          <p id="dedup-scope-summary" className="dedup-scope-summary">
+            {scopeSummary}
+          </p>
         </div>
         <div id="dedup-preferred-directory" className="dedup-preferred">
-          <label className="dedup-scope-label" htmlFor="dedup-preferred-directory-input">Preferred directory</label>
+          <label className="dedup-scope-label" htmlFor="dedup-preferred-directory-input">
+            Preferred directory
+          </label>
           <div className="dedup-preferred-row">
-            <input type="text" id="dedup-preferred-directory-input" className="jp-input" placeholder="Folder whose copies should be kept (a path in the JusttPrint backend's container)"
-              autoComplete="off" spellCheck={false} value={preferredDir}
+            <input
+              type="text"
+              id="dedup-preferred-directory-input"
+              className="jp-input"
+              placeholder="Folder whose copies should be kept (a path in the JusttPrint backend's container)"
+              autoComplete="off"
+              spellCheck={false}
+              value={preferredDir}
               onChange={(event) => setPreferredDir(event.target.value)}
               onBlur={(event) => commitPreferred(event.target.value, true)}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
                 commitPreferred(event.currentTarget.value, true, true);
-              }} />
-            <button type="button" id="dedup-preferred-browse" className="jp-btn jp-btn--secondary jp-btn--md" title="Choose the preferred directory"
+              }}
+            />
+            <button
+              type="button"
+              id="dedup-preferred-browse"
+              className="jp-btn jp-btn--secondary jp-btn--md"
+              title="Choose the preferred directory"
               onClick={async () => {
                 const dir = await pickFolder({ title: 'Preferred Directory', initial: preferredDir.trim() || undefined });
                 if (dir) commitPreferred(dir, true, true);
-              }}>Browse…</button>
-            <button type="button" id="dedup-preferred-clear" className="jp-btn jp-btn--ghost jp-btn--md" title="Clear the preferred directory"
-              onClick={() => commitPreferred('', false)}>Clear path</button>
+              }}
+            >
+              Browse…
+            </button>
+            <button
+              type="button"
+              id="dedup-preferred-clear"
+              className="jp-btn jp-btn--ghost jp-btn--md"
+              title="Clear the preferred directory"
+              onClick={() => commitPreferred('', false)}
+            >
+              Clear path
+            </button>
           </div>
           <p className="dedup-scope-summary">Easy keeps one copy from this folder, including subfolders, and selects the other duplicates.</p>
         </div>
@@ -547,11 +714,22 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       </div>
       {footer(actions)}
       {view.kind === 'ready' && groups.length > 0 ? (
-        <GroupList groups={groups} selected={selected} preferredDir={preferredDir.trim()} onToggle={toggle} onSelect={setSelected}
-          note={view.generating ? RUNNING_NOTE : ''} />
+        <GroupList
+          groups={groups}
+          selected={selected}
+          preferredDir={preferredDir.trim()}
+          onToggle={toggle}
+          onSelect={setSelected}
+          note={view.generating ? RUNNING_NOTE : ''}
+        />
       ) : (
         <div className="duplicate-groups jp-dup-list">
-          {view.kind === 'loading' && <div className="dedup-status"><div className="dedup-spinner" />{view.text}</div>}
+          {view.kind === 'loading' && (
+            <div className="dedup-status">
+              <div className="dedup-spinner" />
+              {view.text}
+            </div>
+          )}
           {view.kind === 'hashes' && (
             <div className="dedup-status" id="dedup-hash-progress">
               <div>Generating File Hashes</div>
@@ -559,10 +737,12 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
               <div>
                 {view.progress.processed}/{view.progress.total}
                 {view.progress.success !== undefined && view.progress.failed !== undefined
-                  ? ` (${view.progress.success} succeeded, ${view.progress.failed} failed)` : ''}
+                  ? ` (${view.progress.success} succeeded, ${view.progress.failed} failed)`
+                  : ''}
               </div>
               <p className="setting-description">
-                {view.joined ? 'Hash generation is already running in the background. Progress will be shown here.'
+                {view.joined
+                  ? 'Hash generation is already running in the background. Progress will be shown here.'
                   : 'File hashes are needed for de-duplication. This may take some time for large files.'}
               </p>
             </div>
@@ -571,8 +751,13 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
             <div className="dedup-status" id="dedup-geometry-progress">
               <div>Reading model shapes</div>
               <progress value={view.progress.total ? view.progress.processed : 0} max={view.progress.total || 1} />
-              <div>{view.progress.processed}/{view.progress.total}{view.progress.failed ? ` (${view.progress.failed} could not be read)` : ''}</div>
-              <p className="setting-description">Each STL and 3MF is read once and remembered until the file changes. You can leave this page; it keeps going.</p>
+              <div>
+                {view.progress.processed}/{view.progress.total}
+                {view.progress.failed ? ` (${view.progress.failed} could not be read)` : ''}
+              </div>
+              <p className="setting-description">
+                Each STL and 3MF is read once and remembered until the file changes. You can leave this page; it keeps going.
+              </p>
             </div>
           )}
           {view.kind === 'error' && <div className="error-message">{view.text}</div>}
@@ -591,14 +776,18 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   );
 }
 
-const INTRO = 'Identical files are found by their file hash; Same geometry finds the same model saved as different files. Limit the scan to your current library filters so a large collection does not have to be processed all at once. Nothing is deleted until you confirm.';
+const INTRO =
+  'Identical files are found by their file hash; Same geometry finds the same model saved as different files. Limit the scan to your current library filters so a large collection does not have to be processed all at once. Nothing is deleted until you confirm.';
 
 /** Duplicates as a page of the JusttPrint 5 shell (#/duplicates). */
 export function DuplicatesPage() {
   return (
     <div className="jp-page__inner jp-dup" id="dedup-page">
       <header className="jp-page__header">
-        <h1 className="jp-page-title"><Copy size={24} aria-hidden="true" className="jp-dup__title-icon" />Duplicates</h1>
+        <h1 className="jp-page-title">
+          <Copy size={24} aria-hidden="true" className="jp-dup__title-icon" />
+          Duplicates
+        </h1>
         <p className="jp-meta dedup-intro">{INTRO}</p>
       </header>
       <Duplicates footer={(actions) => <div className="jp-dup-actions dedup-actions">{actions}</div>} />

@@ -38,7 +38,11 @@ function selectRange(range: Range) {
 /** Apply a toolbar format to the selection in the rich-text editor. */
 async function applyFormat(rich: HTMLElement, kind: Format) {
   rich.focus();
-  try { document.execCommand('styleWithCSS', false, 'false'); } catch { /* ignore */ }
+  try {
+    document.execCommand('styleWithCSS', false, 'false');
+  } catch {
+    /* ignore */
+  }
   const selection = window.getSelection();
   if (kind === 'bold') document.execCommand('bold');
   else if (kind === 'italic') document.execCommand('italic');
@@ -111,16 +115,20 @@ export function DetailsNotes() {
   const richRef = useRef<HTMLDivElement>(null);
   const editing = useRef<NotesModel | null>(null);
 
-  useEffect(() => exposeGlobal('detailsNotes', {
-    show: (next: NotesModel) => {
-      setModel(next);
-      setNotes(next.notes || '');
-    },
-    clear: () => {
-      setModel(null);
-      setNotes('');
-    }
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('detailsNotes', {
+        show: (next: NotesModel) => {
+          setModel(next);
+          setNotes(next.notes || '');
+        },
+        clear: () => {
+          setModel(null);
+          setNotes('');
+        }
+      }),
+    []
+  );
 
   function openEditor() {
     if (!canEdit) return;
@@ -156,39 +164,93 @@ export function DetailsNotes() {
 
   return (
     <>
-      {slot && createPortal(
-        <div className="form-group">
-          <label>Notes:</label>
-          <div className="notes-input-container">
-            <div id="model-notes-preview" className="notes-preview notes-sidebar-preview" aria-label="Notes"
-              dangerouslySetInnerHTML={{ __html: html }}
-              onClick={(event) => { if (!openLink(event)) openEditor(); }} />
-            {canEdit && <button type="button" id="open-notes-modal-button" className="icon-button" title="Edit notes"
-              aria-label="Edit notes" onClick={(event) => { event.preventDefault(); openEditor(); }}><Pencil size={14} aria-hidden="true" /></button>}
-          </div>
-        </div>,
-        slot
-      )}
-      <dialog id="notes-modal-dialog" className="modal notes-modal" ref={dialogRef}
-        onClick={(event) => { if (event.target === dialogRef.current) dialogRef.current?.close(); }}>
-        <form method="dialog" onSubmit={(event) => { event.preventDefault(); save(); }}>
+      {slot &&
+        createPortal(
+          <div className="form-group">
+            <label>Notes:</label>
+            <div className="notes-input-container">
+              <div
+                id="model-notes-preview"
+                className="notes-preview notes-sidebar-preview"
+                aria-label="Notes"
+                dangerouslySetInnerHTML={{ __html: html }}
+                onClick={(event) => {
+                  if (!openLink(event)) openEditor();
+                }}
+              />
+              {canEdit && (
+                <button
+                  type="button"
+                  id="open-notes-modal-button"
+                  className="icon-button"
+                  title="Edit notes"
+                  aria-label="Edit notes"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openEditor();
+                  }}
+                >
+                  <Pencil size={14} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>,
+          slot
+        )}
+      <dialog
+        id="notes-modal-dialog"
+        className="modal notes-modal"
+        ref={dialogRef}
+        onClick={(event) => {
+          if (event.target === dialogRef.current) dialogRef.current?.close();
+        }}
+      >
+        <form
+          method="dialog"
+          onSubmit={(event) => {
+            event.preventDefault();
+            save();
+          }}
+        >
           <h3>Edit Notes</h3>
           <div className="form-group">
             <div className="notes-editor" data-notes-editor="modal">
               <div className="notes-toolbar" role="toolbar" aria-label="Notes formatting">
                 {TOOLBAR.map(({ kind, title, label }) => (
-                  <button key={kind} type="button" data-md={kind} title={title}
+                  <button
+                    key={kind}
+                    type="button"
+                    data-md={kind}
+                    title={title}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => { if (richRef.current) applyFormat(richRef.current, kind); }}>{label}</button>
+                    onClick={() => {
+                      if (richRef.current) applyFormat(richRef.current, kind);
+                    }}
+                  >
+                    {label}
+                  </button>
                 ))}
               </div>
-              <div id="notes-richtext" className="notes-richtext" contentEditable suppressContentEditableWarning role="textbox"
-                aria-multiline="true" aria-label="Notes" ref={richRef} onKeyDown={onEditorKeyDown} />
+              <div
+                id="notes-richtext"
+                className="notes-richtext"
+                contentEditable
+                suppressContentEditableWarning
+                role="textbox"
+                aria-multiline="true"
+                aria-label="Notes"
+                ref={richRef}
+                onKeyDown={onEditorKeyDown}
+              />
             </div>
           </div>
           <div className="dialog-buttons">
-            <button type="submit" id="save-notes-button">Save</button>
-            <button type="button" id="cancel-notes-button" onClick={() => dialogRef.current?.close()}>Cancel</button>
+            <button type="submit" id="save-notes-button">
+              Save
+            </button>
+            <button type="button" id="cancel-notes-button" onClick={() => dialogRef.current?.close()}>
+              Cancel
+            </button>
           </div>
         </form>
       </dialog>

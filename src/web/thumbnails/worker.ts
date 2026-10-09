@@ -61,6 +61,10 @@ async function runJob(mode: JobMode) {
 }
 
 if (new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1') {
-  handlePageEvent('run-server-thumbnail-job', (payload?: { mode?: JobMode }) => { runJob(payload?.mode === 'all' ? 'all' : 'missing'); });
-  handlePageEvent('cancel-server-thumbnail-job', () => { cancelled = true; });
+  handlePageEvent('run-server-thumbnail-job', (payload?: { mode?: JobMode }) => {
+    runJob(payload?.mode === 'all' ? 'all' : 'missing');
+  });
+  handlePageEvent('cancel-server-thumbnail-job', () => {
+    cancelled = true;
+  });
 }

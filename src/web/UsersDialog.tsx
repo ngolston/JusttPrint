@@ -17,17 +17,43 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function RoleSelect({ id, value, disabled, label, onChange }: { id: string; value: UserRole; disabled?: boolean; label?: string; onChange: (role: UserRole) => void }) {
+function RoleSelect({
+  id,
+  value,
+  disabled,
+  label,
+  onChange
+}: {
+  id: string;
+  value: UserRole;
+  disabled?: boolean;
+  label?: string;
+  onChange: (role: UserRole) => void;
+}) {
   return (
     <select id={id} value={value} disabled={disabled} aria-label={label} onChange={(event) => onChange(event.target.value as UserRole)}>
-      {ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+      {ROLES.map((role) => (
+        <option key={role} value={role}>
+          {ROLE_LABELS[role]}
+        </option>
+      ))}
     </select>
   );
 }
 
 /** One account: its role, a new password, delete. */
-function UserRow({ user, isMe, minLength, onChanged, setStatus }: {
-  user: UserAccount; isMe: boolean; minLength: number; onChanged: () => void; setStatus: (text: string) => void;
+function UserRow({
+  user,
+  isMe,
+  minLength,
+  onChanged,
+  setStatus
+}: {
+  user: UserAccount;
+  isMe: boolean;
+  minLength: number;
+  onChanged: () => void;
+  setStatus: (text: string) => void;
 }) {
   const [password, setPassword] = useState('');
   const [settingPassword, setSettingPassword] = useState(false);
@@ -59,7 +85,10 @@ function UserRow({ user, isMe, minLength, onChanged, setStatus }: {
   }
 
   async function remove() {
-    const answer = await showMessage('Delete User', `Delete ${user.username}? They are logged out and can no longer log in. Their library edits stay.`, ['Delete', 'Cancel']);
+    const answer = await showMessage('Delete User', `Delete ${user.username}? They are logged out and can no longer log in. Their library edits stay.`, [
+      'Delete',
+      'Cancel'
+    ]);
     if (answer !== 'Delete') return;
     try {
       await usersApi.remove(user.id);
@@ -76,22 +105,49 @@ function UserRow({ user, isMe, minLength, onChanged, setStatus }: {
         <span className="users-row__name">
           {user.username}
           {isMe && <span className="users-row__tag">you</span>}
-          {user.fromEnv && <span className="users-row__tag" title="Its password is set by JUSTTPRINT_PASSWORD">JUSTTPRINT_PASSWORD</span>}
+          {user.fromEnv && (
+            <span className="users-row__tag" title="Its password is set by JUSTTPRINT_PASSWORD">
+              JUSTTPRINT_PASSWORD
+            </span>
+          )}
         </span>
         <span className="users-row__meta">{user.lastLoginAt ? `Last login ${timeAgo(user.lastLoginAt)}` : 'Never logged in'}</span>
       </div>
       <RoleSelect id={`user-role-${user.id}`} label={`Role of ${user.username}`} value={user.role} disabled={user.fromEnv} onChange={changeRole} />
       <div className="users-row__actions">
-        {!user.fromEnv && !settingPassword && <button type="button" onClick={() => setSettingPassword(true)}>Set Password</button>}
-        {!user.fromEnv && !isMe && <button type="button" className="danger-button" onClick={remove}>Delete</button>}
+        {!user.fromEnv && !settingPassword && (
+          <button type="button" onClick={() => setSettingPassword(true)}>
+            Set Password
+          </button>
+        )}
+        {!user.fromEnv && !isMe && (
+          <button type="button" className="danger-button" onClick={remove}>
+            Delete
+          </button>
+        )}
       </div>
       {settingPassword && (
         <div className="users-row__password">
           <label htmlFor={`user-password-${user.id}`}>New password for {user.username}</label>
-          <input type="password" id={`user-password-${user.id}`} autoComplete="new-password" value={password}
-            onChange={(event) => setPassword(event.target.value)} />
-          <button type="button" onClick={savePassword}>Save</button>
-          <button type="button" onClick={() => { setSettingPassword(false); setPassword(''); }}>Cancel</button>
+          <input
+            type="password"
+            id={`user-password-${user.id}`}
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <button type="button" onClick={savePassword}>
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSettingPassword(false);
+              setPassword('');
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
     </li>
@@ -126,11 +182,15 @@ export function UsersDialog() {
     }
   }
 
-  useEffect(() => exposeGlobal('openUsers', () => {
-    setStatus('');
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-    void refresh();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openUsers', () => {
+        setStatus('');
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+        void refresh();
+      }),
+    []
+  );
 
   async function addUser() {
     const name = username.trim();
@@ -155,29 +215,53 @@ export function UsersDialog() {
   }
 
   return (
-    <ModalDialog id="users-dialog" title="Users" dialogRef={dialogRef}
-      footer={<button type="button" id="close-users" onClick={() => dialogRef.current?.close()}>Close</button>}>
+    <ModalDialog
+      id="users-dialog"
+      title="Users"
+      dialogRef={dialogRef}
+      footer={
+        <button type="button" id="close-users" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
       <ul className="users-roles setting-description">
-        {ROLES.map((r) => <li key={r}><strong>{ROLE_LABELS[r]}</strong>: {ROLE_DESCRIPTIONS[r]}</li>)}
-      </ul>
-      <ul className="users-list" id="users-list" aria-label="Users">
-        {list === null ? <li className="setting-description">Loading…</li> : list.map((user) => (
-          <UserRow key={user.id} user={user} isMe={!!me && me.id === user.id} minLength={minLength} onChanged={refresh} setStatus={setStatus} />
+        {ROLES.map((r) => (
+          <li key={r}>
+            <strong>{ROLE_LABELS[r]}</strong>: {ROLE_DESCRIPTIONS[r]}
+          </li>
         ))}
       </ul>
-      <p id="users-status" className="setting-description" role="status">{status}</p>
+      <ul className="users-list" id="users-list" aria-label="Users">
+        {list === null ? (
+          <li className="setting-description">Loading…</li>
+        ) : (
+          list.map((user) => (
+            <UserRow key={user.id} user={user} isMe={!!me && me.id === user.id} minLength={minLength} onChanged={refresh} setStatus={setStatus} />
+          ))
+        )}
+      </ul>
+      <p id="users-status" className="setting-description" role="status">
+        {status}
+      </p>
       <fieldset className="users-add">
         <legend>Add a user</legend>
         <div className="users-add__fields">
           <div className="form-group">
             <label htmlFor="users-new-name">User name</label>
-            <input type="text" id="users-new-name" autoComplete="off" autoCapitalize="none" spellCheck={false}
-              value={username} onChange={(event) => setUsername(event.target.value)} />
+            <input
+              type="text"
+              id="users-new-name"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="users-new-password">Password</label>
-            <input type="password" id="users-new-password" autoComplete="new-password"
-              value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input type="password" id="users-new-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
           <div className="form-group">
             <label htmlFor="users-new-role">Role</label>
@@ -185,7 +269,9 @@ export function UsersDialog() {
           </div>
         </div>
         <div className="dialog-buttons mcp-inline-actions">
-          <button type="button" id="users-add" onClick={addUser}>Add User</button>
+          <button type="button" id="users-add" onClick={addUser}>
+            Add User
+          </button>
         </div>
       </fieldset>
     </ModalDialog>

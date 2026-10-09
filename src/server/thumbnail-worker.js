@@ -28,8 +28,7 @@ let stopped = false;
 /** True for the WebSocket upgrade request that carries the worker's cookie. */
 function isWorkerRequest(req) {
   const value = parseCookies(req && req.headers && req.headers.cookie)[COOKIE];
-  return !!value && value.length === secret.length
-    && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(secret));
+  return !!value && value.length === secret.length && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(secret));
 }
 
 /** The WebSocket server calls these when the worker connects and when any socket closes. */
@@ -52,11 +51,15 @@ function send(channel, ...args) {
 /** Chromium flags: software WebGL (SwiftShader) unless JUSTTPRINT_CHROMIUM_ARGS replaces them. */
 function chromiumArgs() {
   const custom = String(process.env.JUSTTPRINT_CHROMIUM_ARGS || '').trim();
-  const gpu = custom
-    ? custom.split(/\s+/)
-    : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', '--disable-crash-reporter',
-    `--crash-dumps-dir=${path.join(chromiumHome(), 'crashes')}`, ...gpu];
+  const gpu = custom ? custom.split(/\s+/) : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+  return [
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--mute-audio',
+    '--disable-crash-reporter',
+    `--crash-dumps-dir=${path.join(chromiumHome(), 'crashes')}`,
+    ...gpu
+  ];
 }
 
 /**
@@ -69,7 +72,9 @@ function chromiumHome() {
   for (const sub of ['config', 'cache', 'crashes']) {
     try {
       fs.mkdirSync(path.join(dir, sub), { recursive: true });
-    } catch (_) { /* reported by the launch */ }
+    } catch (_) {
+      /* reported by the launch */
+    }
   }
   return dir;
 }
@@ -151,7 +156,9 @@ function stop() {
     try {
       const child = current.process();
       if (child) child.kill('SIGKILL');
-    } catch (_) { /* already gone */ }
+    } catch (_) {
+      /* already gone */
+    }
   }
 }
 

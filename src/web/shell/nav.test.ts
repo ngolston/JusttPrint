@@ -3,8 +3,8 @@ import { MENU, type MenuItem } from './menu';
 import { ACCOUNT, HELP, NAV, SETTINGS, itemsFor, navFor, replacedMenuLabels, settingsFor } from './nav';
 import { formatRoute, parseRoute } from './routes';
 
-const actionLabels = (items: MenuItem[]): string[] => items.flatMap((item) =>
-  item.kind === 'action' ? [item.label] : item.kind === 'submenu' ? actionLabels(item.items) : []);
+const actionLabels = (items: MenuItem[]): string[] =>
+  items.flatMap((item) => (item.kind === 'action' ? [item.label] : item.kind === 'submenu' ? actionLabels(item.items) : []));
 
 describe('shell navigation', () => {
   it('gives every old menu action a place (spec §53)', () => {
@@ -16,10 +16,35 @@ describe('shell navigation', () => {
   it('follows the spec navigation order', () => {
     expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'System']);
     expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
-      'Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Tags', 'Duplicates', 'Organize', 'Scan Library', 'AI Tagging', 'Settings', 'Help'
+      'Home',
+      'Library',
+      'Collections',
+      'Queue',
+      'Printers',
+      'Statistics',
+      'Tags',
+      'Duplicates',
+      'Organize',
+      'Scan Library',
+      'AI Tagging',
+      'Settings',
+      'Help'
     ]);
     expect(SETTINGS.map((g) => g.label)).toEqual([
-      'General', 'Appearance', 'Library', 'Sharing', 'Scanning', 'Slicer', 'Printers', 'Integrations', 'AI', 'JusttPrint Backend', 'Authentication', 'Backup', 'Advanced', 'About'
+      'General',
+      'Appearance',
+      'Library',
+      'Sharing',
+      'Scanning',
+      'Slicer',
+      'Printers',
+      'Integrations',
+      'AI',
+      'JusttPrint Backend',
+      'Authentication',
+      'Backup',
+      'Advanced',
+      'About'
     ]);
   });
 
@@ -38,7 +63,19 @@ describe('roles', () => {
 
   it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
     expect(labels('viewer')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Settings', 'Help']);
-    expect(labels('editor')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Tags', 'Duplicates', 'Scan Library', 'Settings', 'Help']);
+    expect(labels('editor')).toEqual([
+      'Home',
+      'Library',
+      'Collections',
+      'Queue',
+      'Printers',
+      'Statistics',
+      'Tags',
+      'Duplicates',
+      'Scan Library',
+      'Settings',
+      'Help'
+    ]);
     expect(labels('admin')).toEqual(NAV.flatMap((s) => s.items.map((i) => i.label)));
     expect(navFor(null)).toEqual([]);
   });
@@ -72,8 +109,20 @@ describe('library change signal', () => {
     for (const name of ['save-model', 'set-print-status', 'log-print-event', 'scan-directory', 'delete-file', 'save-printer', 'restore-database']) {
       expect(changesData(name)).toBe(true);
     }
-    for (const name of ['get-library-counts', 'getThumbnail', 'getTotalModelCount', 'read-model-file', 'save-thumbnail', 'add-thumbnail',
-      'parse-3mf-preview', 'show-context-menu', 'calculate-file-hash', 'report-server-thumbnail-progress', 'delete-temp-file', 'start-server-thumbnail-job']) {
+    for (const name of [
+      'get-library-counts',
+      'getThumbnail',
+      'getTotalModelCount',
+      'read-model-file',
+      'save-thumbnail',
+      'add-thumbnail',
+      'parse-3mf-preview',
+      'show-context-menu',
+      'calculate-file-hash',
+      'report-server-thumbnail-progress',
+      'delete-temp-file',
+      'start-server-thumbnail-job'
+    ]) {
       expect(changesData(name)).toBe(false);
     }
   });

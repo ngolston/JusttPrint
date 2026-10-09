@@ -66,9 +66,15 @@ export function finishBatch(review: Review): Review {
   return {
     ...review,
     running: false,
-    entries: review.entries.map((e) => (e.generatedTags !== undefined ? e : {
-      ...e, generatedTags: [], error: e.error || 'Tag generation stopped before this model finished. Tags already generated can still be applied.'
-    }))
+    entries: review.entries.map((e) =>
+      e.generatedTags !== undefined
+        ? e
+        : {
+            ...e,
+            generatedTags: [],
+            error: e.error || 'Tag generation stopped before this model finished. Tags already generated can still be applied.'
+          }
+    )
   };
 }
 
@@ -113,5 +119,7 @@ export const STRATEGY_HELP: Record<MergeStrategy, string> = {
 /** "Rate limit exceeded: <detail>" → the detail; other errors as they are. */
 export function rateLimitDetail(error: string | null | undefined): string | null {
   if (!error || !error.includes('Rate limit')) return null;
-  return error.includes('Rate limit exceeded: ') ? error.split('Rate limit exceeded: ')[1] : 'API rate limit has been exceeded. Tags already generated can still be applied.';
+  return error.includes('Rate limit exceeded: ')
+    ? error.split('Rate limit exceeded: ')[1]
+    : 'API rate limit has been exceeded. Tags already generated can still be applied.';
 }

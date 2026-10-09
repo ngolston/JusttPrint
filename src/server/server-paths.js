@@ -11,19 +11,45 @@
 const path = require('path');
 
 const STATIC_EXTENSIONS = new Set([
-  '.html', '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico',
-  '.webmanifest', '.wasm', '.woff', '.woff2', '.ttf'
+  '.html',
+  '.js',
+  '.css',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.webmanifest',
+  '.wasm',
+  '.woff',
+  '.woff2',
+  '.ttf'
 ]);
 
 /** Top-level folders and files that are never served, even with an allowed extension. */
 const STATIC_BLOCKED_TOP = new Set([
-  'node_modules', 'scripts', 'tests', 'build', 'dist', 'helper', 'src',
-  'data', 'certs', 'test-results', 'playwright-report'
+  'node_modules',
+  'scripts',
+  'tests',
+  'build',
+  'dist',
+  'helper',
+  'src',
+  'data',
+  'certs',
+  'test-results',
+  'playwright-report'
 ]);
 
 const STATIC_BLOCKED_FILES = new Set([
-  'main.js', 'db-repair.js', 'server-auth.js',
-  'server-paths.js', 'server-tls.js', 'mcp-server.js', 'scan-worker.js',
+  'main.js',
+  'db-repair.js',
+  'server-auth.js',
+  'server-paths.js',
+  'server-tls.js',
+  'mcp-server.js',
+  'scan-worker.js',
   'playwright.config.js'
 ]);
 
@@ -105,7 +131,10 @@ function isInsideRoots(filePath, roots, realpath) {
  * @param {(filePath: string) => boolean} [ctx.isExtractTemp] The app's own zip-extract temp files.
  * @param {(filePath: string) => string} [ctx.realpath] Follows symlinks (fs.realpathSync). Without it, paths are compared as written.
  */
-function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false, generatedDir = '', autoBackupDir = '', downloadsDir = '', isExtractTemp = () => false, realpath = null } = {}) {
+function isLibraryPathAllowed(
+  filePath,
+  { roots = [], isKnownModel = () => false, generatedDir = '', autoBackupDir = '', downloadsDir = '', isExtractTemp = () => false, realpath = null } = {}
+) {
   const raw = String(filePath || '');
   if (!raw || raw.includes('\0')) return false;
   if (isInsideRoots(raw, roots, realpath)) return true;
@@ -128,9 +157,28 @@ function isLibraryPathAllowed(filePath, { roots = [], isKnownModel = () => false
 
 /** Folders that may never become a library root or a move/extract destination. */
 const SYSTEM_DIRECTORIES = [
-  '/', '/bin', '/boot', '/dev', '/etc', '/lib', '/lib32', '/lib64', '/libx32', '/proc', '/root',
-  '/run', '/sbin', '/sys', '/usr', '/var', '/app',
-  'C:\\', 'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)', 'C:\\ProgramData'
+  '/',
+  '/bin',
+  '/boot',
+  '/dev',
+  '/etc',
+  '/lib',
+  '/lib32',
+  '/lib64',
+  '/libx32',
+  '/proc',
+  '/root',
+  '/run',
+  '/sbin',
+  '/sys',
+  '/usr',
+  '/var',
+  '/app',
+  'C:\\',
+  'C:\\Windows',
+  'C:\\Program Files',
+  'C:\\Program Files (x86)',
+  'C:\\ProgramData'
 ];
 
 /**
@@ -164,7 +212,10 @@ const NETWORK_IPC_PATH_RULES = {
   'set-default-thumbnail': [[0, 'file']],
   'delete-thumbnail': [[0, 'file']],
   'get-file-stats': [[0, 'file']],
-  'move-files': [[0, 'files'], [1, 'dir']],
+  'move-files': [
+    [0, 'files'],
+    [1, 'dir']
+  ],
   'add-uploaded-files': [[0, 'dir']],
   'add-to-collection': [[1, 'files']],
   'organize-library-preview': [[0, 'organize']],
@@ -176,17 +227,32 @@ const NETWORK_IPC_PATH_RULES = {
 /** Same idea for MCP tools, keyed by argument name. `dest` is a file the tool writes. */
 const MCP_TOOL_PATH_RULES = {
   check_files_exist: [['filePaths', 'files']],
-  pull_3mf_metadata: [['filePath', 'file'], ['filePaths', 'files']],
+  pull_3mf_metadata: [
+    ['filePath', 'file'],
+    ['filePaths', 'files']
+  ],
   generate_tags: [['filePath', 'file']],
   set_thumbnail: [['filePath', 'file']],
   add_thumbnail: [['filePath', 'file']],
   set_default_thumbnail: [['filePath', 'file']],
   delete_thumbnail: [['filePath', 'file']],
   scan_directory: [['directory', 'scanDir']],
-  remove_model: [['filePath', 'file'], ['filePaths', 'files']],
-  trash_file: [['filePath', 'file'], ['filePaths', 'files']],
-  open_in_slicer: [['filePath', 'file'], ['filePaths', 'files']],
-  move_files: [['filePaths', 'files'], ['destinationFolder', 'dir']],
+  remove_model: [
+    ['filePath', 'file'],
+    ['filePaths', 'files']
+  ],
+  trash_file: [
+    ['filePath', 'file'],
+    ['filePaths', 'files']
+  ],
+  open_in_slicer: [
+    ['filePath', 'file'],
+    ['filePaths', 'files']
+  ],
+  move_files: [
+    ['filePaths', 'files'],
+    ['destinationFolder', 'dir']
+  ],
   export_library: [['destPath', 'dest']],
   backup_database: [['destPath', 'dest']]
 };
@@ -217,9 +283,11 @@ function assertNetworkPathAllowed(kind, value, ctx) {
       throw new Error(`Path is outside the library folders: ${text}`);
     }
   };
-  const blockedRoot = (dir) => [dir, realLocation(dir, ctx.realpath)].some((candidate) => isSystemDirectory(candidate)
-    || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir))
-    || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir)));
+  const blockedRoot = (dir) =>
+    [dir, realLocation(dir, ctx.realpath)].some(
+      (candidate) =>
+        isSystemDirectory(candidate) || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir)) || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir))
+    );
 
   switch (kind) {
     case 'file':
@@ -229,9 +297,7 @@ function assertNetworkPathAllowed(kind, value, ctx) {
       (Array.isArray(value) ? value : [value]).forEach(libraryFile);
       return;
     case 'contextFiles': {
-      const list = value && typeof value === 'object' && !Array.isArray(value) && Array.isArray(value.filePaths)
-        ? value.filePaths
-        : value;
+      const list = value && typeof value === 'object' && !Array.isArray(value) && Array.isArray(value.filePaths) ? value.filePaths : value;
       (Array.isArray(list) ? list : [list]).forEach(libraryFile);
       return;
     }

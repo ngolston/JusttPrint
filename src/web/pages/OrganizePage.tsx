@@ -85,7 +85,9 @@ function summaryLines(preview: OrganizePreview): string[] {
     lines.push(`${plural(copy, 'file')} will be copied (${formatBytes(preview.copyBytes)}).`);
     if (resume) lines.push(`${plural(resume, 'matching file')} already at the destination will be finished and the original removed.`);
     if (preview.zipCount) {
-      lines.push(`${preview.zipCount} of those ${preview.zipCount === 1 ? 'is a zip file' : 'are zip files'} (${preview.zipEntryCount} models inside, not extracted).`);
+      lines.push(
+        `${preview.zipCount} of those ${preview.zipCount === 1 ? 'is a zip file' : 'are zip files'} (${preview.zipEntryCount} models inside, not extracted).`
+      );
     }
   } else if (preview.ok) {
     lines.push('Nothing in that folder needs to be moved.');
@@ -137,15 +139,34 @@ function SourcePicker({ sources, value, onChange }: { sources: string[]; value: 
 
   return (
     <div className="organize-source-picker" ref={pickerRef}>
-      <button type="button" id="organize-source-button" ref={buttonRef} className="organize-source-button" aria-haspopup="listbox"
-        aria-expanded={open} aria-controls="organize-source-menu" disabled={!sources.length}
-        onClick={() => { setQuery(''); setOpen(!open); }}>
+      <button
+        type="button"
+        id="organize-source-button"
+        ref={buttonRef}
+        className="organize-source-button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls="organize-source-menu"
+        disabled={!sources.length}
+        onClick={() => {
+          setQuery('');
+          setOpen(!open);
+        }}
+      >
         <span id="organize-source-label">{value || 'No scanned directories yet'}</span>
       </button>
       {open && (
         <div id="organize-source-menu" className="organize-source-menu">
-          <input type="text" id="organize-source-search" className="organize-source-search" placeholder="Search folders" autoComplete="off"
-            spellCheck={false} aria-label="Search scanned directories" autoFocus value={query}
+          <input
+            type="text"
+            id="organize-source-search"
+            className="organize-source-search"
+            placeholder="Search folders"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="Search scanned directories"
+            autoFocus
+            value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -157,24 +178,27 @@ function SourcePicker({ sources, value, onChange }: { sources: string[]; value: 
                 event.preventDefault();
                 if (matches[0]) choose(matches[0]);
               }
-            }} />
+            }}
+          />
           <div id="organize-source-options" className="organize-source-options" role="listbox">
             {matches.map((dir) => (
-              <button key={dir} type="button" role="option" title={dir} data-path={dir} aria-selected={dir === value} onClick={() => choose(dir)}>{dir}</button>
+              <button key={dir} type="button" role="option" title={dir} data-path={dir} aria-selected={dir === value} onClick={() => choose(dir)}>
+                {dir}
+              </button>
             ))}
           </div>
-          {matches.length === 0 && <p id="organize-source-empty" className="organize-source-empty">No matching folders</p>}
+          {matches.length === 0 && (
+            <p id="organize-source-empty" className="organize-source-empty">
+              No matching folders
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-type PreviewState =
-  | { kind: 'none' }
-  | { kind: 'stale' }
-  | { kind: 'preview'; preview: OrganizePreview }
-  | { kind: 'done'; ok: boolean; message: string };
+type PreviewState = { kind: 'none' } | { kind: 'stale' } | { kind: 'preview'; preview: OrganizePreview } | { kind: 'done'; ok: boolean; message: string };
 
 /**
  * Settings → Organize Library: copy the models in a scanned folder into a new folder structure
@@ -217,7 +241,9 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
       setRoot((previous) => dirs.find((dir) => folderKey(dir) === folderKey(previous)) ?? dirs[0] ?? '');
       setState((previous) => (previous.kind === 'none' ? previous : { kind: 'stale' }));
     })();
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, []);
 
   /** Any change to the job: the shown preview no longer applies. */
@@ -244,7 +270,12 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
     changed();
   }
 
-  const job = (): OrganizeJob => ({ sourceDir: resolveSource(root, sub), destDir: dest.trim(), includeZips: zipEnabled && includeZips, layers: layers.slice() });
+  const job = (): OrganizeJob => ({
+    sourceDir: resolveSource(root, sub),
+    destDir: dest.trim(),
+    includeZips: zipEnabled && includeZips,
+    layers: layers.slice()
+  });
 
   async function runPreview() {
     const token = ++runToken.current;
@@ -283,12 +314,14 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
   const moveCount = preview ? (Number(preview.copyCount) || 0) + (Number(preview.resumeCount) || 0) : 0;
   const canConfirm = !!preview?.ok && !!preview.enoughSpace && moveCount > 0 && !busy;
   const problems = preview ? [preview.error, preview.spaceError].filter(Boolean).join(' ') : '';
-  const skipped = preview ? (() => {
-    const counts = preview.reasonCounts || {};
-    const parts = Object.keys(counts).map((reason) => `${counts[reason]} ${reason}`);
-    if (!parts.length && preview.skippedCount) parts.push(`${preview.skippedCount} skipped`);
-    return parts.join('. ');
-  })() : '';
+  const skipped = preview
+    ? (() => {
+        const counts = preview.reasonCounts || {};
+        const parts = Object.keys(counts).map((reason) => `${counts[reason]} ${reason}`);
+        if (!parts.length && preview.skippedCount) parts.push(`${preview.skippedCount} skipped`);
+        return parts.join('. ');
+      })()
+    : '';
 
   return (
     <>
@@ -299,26 +332,65 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
       <div className="form-group">
         <label htmlFor="organize-source-subfolder">Folder inside it</label>
         <div className="organize-path-row">
-          <input type="text" id="organize-source-subfolder" placeholder="Entire scanned folder" autoComplete="off" spellCheck={false}
-            value={sub} onChange={(event) => { setSub(event.target.value); changed(); }} />
-          <button type="button" id="organize-source-subfolder-browse" disabled={!root} onClick={async () => {
-            const typed = sub.trim();
-            const start = !typed ? root : typed.startsWith('/') ? typed : `${root.replace(/\/+$/, '')}/${typed}`;
-            const dir = await pickFolder({ title: 'Folder to Organize', initial: start });
-            if (dir) { setSub(dir); changed(); }
-          }}>Browse…</button>
+          <input
+            type="text"
+            id="organize-source-subfolder"
+            placeholder="Entire scanned folder"
+            autoComplete="off"
+            spellCheck={false}
+            value={sub}
+            onChange={(event) => {
+              setSub(event.target.value);
+              changed();
+            }}
+          />
+          <button
+            type="button"
+            id="organize-source-subfolder-browse"
+            disabled={!root}
+            onClick={async () => {
+              const typed = sub.trim();
+              const start = !typed ? root : typed.startsWith('/') ? typed : `${root.replace(/\/+$/, '')}/${typed}`;
+              const dir = await pickFolder({ title: 'Folder to Organize', initial: start });
+              if (dir) {
+                setSub(dir);
+                changed();
+              }
+            }}
+          >
+            Browse…
+          </button>
         </div>
         <p className="setting-description">Leave this blank to use the whole scanned folder, or type a folder inside it (relative to it, or a full path).</p>
       </div>
       <div className="form-group">
         <label htmlFor="organize-dest-input">Destination directory</label>
         <div className="organize-path-row">
-          <input type="text" id="organize-dest-input" placeholder="New library root, a path in the JusttPrint backend's container" autoComplete="off" spellCheck={false}
-            value={dest} onChange={(event) => { setDest(event.target.value); changed(); }} />
-          <button type="button" id="organize-dest-browse" onClick={async () => {
-            const dir = await pickFolder({ title: 'Destination Directory', initial: dest.trim() || root || undefined });
-            if (dir) { setDest(dir); changed(); }
-          }}>Browse…</button>
+          <input
+            type="text"
+            id="organize-dest-input"
+            placeholder="New library root, a path in the JusttPrint backend's container"
+            autoComplete="off"
+            spellCheck={false}
+            value={dest}
+            onChange={(event) => {
+              setDest(event.target.value);
+              changed();
+            }}
+          />
+          <button
+            type="button"
+            id="organize-dest-browse"
+            onClick={async () => {
+              const dir = await pickFolder({ title: 'Destination Directory', initial: dest.trim() || root || undefined });
+              if (dir) {
+                setDest(dir);
+                changed();
+              }
+            }}
+          >
+            Browse…
+          </button>
         </div>
       </div>
       <div className="organize-structure">
@@ -326,31 +398,56 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
         <div id="organize-structure-rows">
           {layers.map((current, index) => (
             <div key={current} className="organize-structure-row">
-              <select aria-label={`Folder ${index + 1}`} value={current}
-                onChange={(event) => updateLayers(layers.map((id, other) => (other === index ? event.target.value : id)))}>
+              <select
+                aria-label={`Folder ${index + 1}`}
+                value={current}
+                onChange={(event) => updateLayers(layers.map((id, other) => (other === index ? event.target.value : id)))}
+              >
                 {FIELDS.filter((field) => field.id === current || !layers.includes(field.id)).map((field) => (
-                  <option key={field.id} value={field.id}>{field.label}</option>
+                  <option key={field.id} value={field.id}>
+                    {field.label}
+                  </option>
                 ))}
               </select>
-              <button type="button" disabled={index === 0} onClick={() => moveLayer(index, -1)}>Up</button>
-              <button type="button" disabled={index === layers.length - 1} onClick={() => moveLayer(index, 1)}>Down</button>
-              <button type="button" onClick={() => updateLayers(layers.filter((_, other) => other !== index))}>Remove</button>
+              <button type="button" disabled={index === 0} onClick={() => moveLayer(index, -1)}>
+                Up
+              </button>
+              <button type="button" disabled={index === layers.length - 1} onClick={() => moveLayer(index, 1)}>
+                Down
+              </button>
+              <button type="button" onClick={() => updateLayers(layers.filter((_, other) => other !== index))}>
+                Remove
+              </button>
             </div>
           ))}
         </div>
         <p id="organize-structure-preview" className="setting-description">
           Root / {layers.length ? `${layers.map(fieldLabel).join(' / ')} / ` : ''}file
         </p>
-        <button type="button" id="organize-structure-add" disabled={layers.length >= MAX_LAYERS || FIELDS.every((field) => layers.includes(field.id))}
+        <button
+          type="button"
+          id="organize-structure-add"
+          disabled={layers.length >= MAX_LAYERS || FIELDS.every((field) => layers.includes(field.id))}
           onClick={() => {
             const next = FIELDS.find((field) => !layers.includes(field.id));
             if (next) updateLayers([...layers, next.id]);
-          }}>Add folder</button>
+          }}
+        >
+          Add folder
+        </button>
       </div>
       {zipEnabled && (
         <div id="organize-include-zip" className="organize-include-zip">
           <label htmlFor="organize-include-zip-input">
-            <input type="checkbox" id="organize-include-zip-input" checked={includeZips} onChange={(event) => { setIncludeZips(event.target.checked); changed(); }} />
+            <input
+              type="checkbox"
+              id="organize-include-zip-input"
+              checked={includeZips}
+              onChange={(event) => {
+                setIncludeZips(event.target.checked);
+                changed();
+              }}
+            />
             Include zip files
           </label>
           <p className="setting-description">Moves each zip archive into the library. Files inside the zip stay packed.</p>
@@ -359,40 +456,62 @@ function OrganizeLibrary({ actions }: { actions: (buttons: ReactNode) => ReactNo
       {state.kind !== 'none' && (
         <div id="organize-preview" className="organize-preview">
           {state.kind === 'stale' && <p id="organize-preview-summary">Choices changed. Preview again before copying.</p>}
-          {state.kind === 'done' && (state.ok
-            ? <p id="organize-preview-summary" className="organize-result">{state.message}</p>
-            : <p id="organize-preview-error" className="organize-preview-error organize-result">{state.message}</p>)}
+          {state.kind === 'done' &&
+            (state.ok ? (
+              <p id="organize-preview-summary" className="organize-result">
+                {state.message}
+              </p>
+            ) : (
+              <p id="organize-preview-error" className="organize-preview-error organize-result">
+                {state.message}
+              </p>
+            ))}
           {preview && (
             <>
               <p id="organize-preview-summary">{summaryLines(preview).join(' ')}</p>
               <p id="organize-preview-space">
-                {[preview.freeBytes != null ? `Free space: ${formatBytes(preview.freeBytes)}.` : '',
-                  (Number(preview.copyBytes) || 0) > 0 ? `Required: ${formatBytes(preview.copyBytes)} plus ${formatBytes(preview.marginBytes)}.` : '']
-                  .filter(Boolean).join(' ')}
+                {[
+                  preview.freeBytes != null ? `Free space: ${formatBytes(preview.freeBytes)}.` : '',
+                  (Number(preview.copyBytes) || 0) > 0 ? `Required: ${formatBytes(preview.copyBytes)} plus ${formatBytes(preview.marginBytes)}.` : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               </p>
               <ul id="organize-preview-list">
                 {(preview.sample || []).map((move) => (
-                  <li key={`${move.from}→${move.to}`}>{move.from} → {move.to}{move.zipEntryCount ? ` (${move.zipEntryCount} models inside)` : ''}</li>
+                  <li key={`${move.from}→${move.to}`}>
+                    {move.from} → {move.to}
+                    {move.zipEntryCount ? ` (${move.zipEntryCount} models inside)` : ''}
+                  </li>
                 ))}
                 {moveCount > (preview.sample || []).length && <li>…</li>}
               </ul>
               {skipped && <p id="organize-preview-skipped">Skipped: {skipped}.</p>}
-              {problems && <p id="organize-preview-error" className="organize-preview-error">{problems}</p>}
+              {problems && (
+                <p id="organize-preview-error" className="organize-preview-error">
+                  {problems}
+                </p>
+              )}
             </>
           )}
         </div>
       )}
       {actions(
         <>
-          <button type="button" id="organize-preview-button" className="jp-btn jp-btn--secondary jp-btn--md" disabled={busy} onClick={runPreview}>Preview</button>
-          <button type="button" id="organize-confirm-button" className="jp-btn jp-btn--primary jp-btn--md" disabled={!canConfirm} onClick={runOrganize}>Copy and remove originals</button>
+          <button type="button" id="organize-preview-button" className="jp-btn jp-btn--secondary jp-btn--md" disabled={busy} onClick={runPreview}>
+            Preview
+          </button>
+          <button type="button" id="organize-confirm-button" className="jp-btn jp-btn--primary jp-btn--md" disabled={!canConfirm} onClick={runOrganize}>
+            Copy and remove originals
+          </button>
         </>
       )}
     </>
   );
 }
 
-const INTRO = 'Copy models from a scanned folder into the folders you choose. Each original is removed only after its copy is checked. Files that are not in the library stay where they are.';
+const INTRO =
+  'Copy models from a scanned folder into the folders you choose. Each original is removed only after its copy is checked. Files that are not in the library stay where they are.';
 
 /** Organize Library as a page of the JusttPrint 5 shell (#/organize). */
 export function OrganizePage() {

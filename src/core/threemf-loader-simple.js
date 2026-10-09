@@ -27,13 +27,12 @@ const SKIP_PART_SUBTYPES = new Set([
   'fuzzy_skin_block'
 ]);
 
-const SKIP_OBJECT_TYPES = new Set([
-  'solidsupport',
-  'support'
-]);
+const SKIP_OBJECT_TYPES = new Set(['solidsupport', 'support']);
 
 function normalizeSubtype(value) {
-  return String(value || '').toLowerCase().replace(/[\s_-]+/g, '');
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
 }
 
 function isSkippedSubtype(value) {
@@ -46,7 +45,9 @@ function isNegativeObjectName(name) {
 }
 
 function normalizeModelPath(value) {
-  return String(value || '').replace(/\\/g, '/').replace(/^\//, '');
+  return String(value || '')
+    .replace(/\\/g, '/')
+    .replace(/^\//, '');
 }
 
 function collectSlicerSkipIds(unzipped) {
@@ -67,14 +68,13 @@ function collectSlicerSkipIds(unzipped) {
       const tag = match[0];
       const id = /\bid\s*=\s*"([^"]+)"/i.exec(tag);
       const subtype = /\bsubtype\s*=\s*"([^"]+)"/i.exec(tag);
-      const volumeType = /\b(?:volume_type|volume-type)\s*=\s*"([^"]+)"/i.exec(tag)
-        || /\bkey\s*=\s*"volume_type"[^>]*\bvalue\s*=\s*"([^"]+)"/i.exec(tag)
-        || /\bvalue\s*=\s*"([^"]+)"[^>]*\bkey\s*=\s*"volume_type"/i.exec(tag);
-      const name = /\b(?:name|key)\s*=\s*"name"[^>]*\bvalue\s*=\s*"([^"]+)"/i.exec(tag)
-        || /\bname\s*=\s*"([^"]+)"/i.exec(tag);
-      const shouldSkip = (subtype && isSkippedSubtype(subtype[1]))
-        || (volumeType && isSkippedSubtype(volumeType[1]))
-        || (name && isNegativeObjectName(name[1]));
+      const volumeType =
+        /\b(?:volume_type|volume-type)\s*=\s*"([^"]+)"/i.exec(tag) ||
+        /\bkey\s*=\s*"volume_type"[^>]*\bvalue\s*=\s*"([^"]+)"/i.exec(tag) ||
+        /\bvalue\s*=\s*"([^"]+)"[^>]*\bkey\s*=\s*"volume_type"/i.exec(tag);
+      const name = /\b(?:name|key)\s*=\s*"name"[^>]*\bvalue\s*=\s*"([^"]+)"/i.exec(tag) || /\bname\s*=\s*"([^"]+)"/i.exec(tag);
+      const shouldSkip =
+        (subtype && isSkippedSubtype(subtype[1])) || (volumeType && isSkippedSubtype(volumeType[1])) || (name && isNegativeObjectName(name[1]));
       if (shouldSkip && id) skip.add(String(id[1]));
     }
   }
@@ -94,12 +94,7 @@ function objectTypeOf(node) {
 
 /** Identity 4x4 matrix, column-major (THREE.Matrix4 layout). */
 function mat4Identity() {
-  return new Float32Array([
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1
-  ]);
+  return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
 
 /**
@@ -109,14 +104,9 @@ function mat4Identity() {
 function parseTransformAttr(transform) {
   if (!transform || typeof transform !== 'string') return null;
   const t = transform.trim().split(/\s+/).map(parseFloat);
-  if (t.length < 12 || t.some(n => Number.isNaN(n))) return null;
+  if (t.length < 12 || t.some((n) => Number.isNaN(n))) return null;
   // THREE.Matrix4.set(n11,n12,n13,n14, n21,...) then .elements is column-major
-  return new Float32Array([
-    t[0], t[1], t[2], 0,
-    t[3], t[4], t[5], 0,
-    t[6], t[7], t[8], 0,
-    t[9], t[10], t[11], 1
-  ]);
+  return new Float32Array([t[0], t[1], t[2], 0, t[3], t[4], t[5], 0, t[6], t[7], t[8], 0, t[9], t[10], t[11], 1]);
 }
 
 function mat4Multiply(a, b) {
@@ -124,10 +114,7 @@ function mat4Multiply(a, b) {
   for (let col = 0; col < 4; col++) {
     for (let row = 0; row < 4; row++) {
       out[col * 4 + row] =
-        a[0 * 4 + row] * b[col * 4 + 0] +
-        a[1 * 4 + row] * b[col * 4 + 1] +
-        a[2 * 4 + row] * b[col * 4 + 2] +
-        a[3 * 4 + row] * b[col * 4 + 3];
+        a[0 * 4 + row] * b[col * 4 + 0] + a[1 * 4 + row] * b[col * 4 + 1] + a[2 * 4 + row] * b[col * 4 + 2] + a[3 * 4 + row] * b[col * 4 + 3];
     }
   }
   return out;
@@ -215,13 +202,13 @@ class Simple3MFLoader {
       const zipKeys = Object.keys(unzipped);
       console.debug('3MF zip entries:', zipKeys.length);
 
-      const modelEntries = zipKeys.filter(k => k.toLowerCase().endsWith('.model'));
+      const modelEntries = zipKeys.filter((k) => k.toLowerCase().endsWith('.model'));
       if (modelEntries.length === 0) {
         throw new Error('No .model parts found in 3MF file');
       }
 
       const textDecoder = new TextDecoder();
-      const modelXmlParts = modelEntries.map(path => textDecoder.decode(unzipped[path]));
+      const modelXmlParts = modelEntries.map((path) => textDecoder.decode(unzipped[path]));
 
       // Fast path skips build/item transforms and object types — only safe for a
       // single dense mesh (HueForge). Multi-part plates and negative volumes
@@ -233,8 +220,7 @@ class Simple3MFLoader {
         const fast = extractAllMeshesFast(modelXmlParts, this.targetTriangles);
         if (fast.simplified) {
           this.postStatus(
-            `Simplified preview: ${fast.keptTriangles.toLocaleString('en-US')} of ` +
-            `${fast.sourceTriangles.toLocaleString('en-US')} triangles`
+            `Simplified preview: ${fast.keptTriangles.toLocaleString('en-US')} of ` + `${fast.sourceTriangles.toLocaleString('en-US')} triangles`
           );
         }
         return this.buildThreeObject(fast.positions, fast.indices, {
@@ -250,11 +236,7 @@ class Simple3MFLoader {
 
       return this.parseWithDom(modelXmlParts, modelEntries, unzipped);
     } catch (error) {
-      if (error && error.message && (
-        error.message.includes('No geometry') ||
-        error.message.includes('No mesh') ||
-        error.message.includes('No .model')
-      )) {
+      if (error && error.message && (error.message.includes('No geometry') || error.message.includes('No mesh') || error.message.includes('No .model'))) {
         throw error;
       }
       throw new Error(`Failed to parse 3MF: ${error.message}`);
@@ -466,9 +448,7 @@ class Simple3MFLoader {
 
     const needsSimplify = totalSourceTriangles > this.targetTriangles;
     if (needsSimplify) {
-      this.postStatus(
-        `Simplifying preview: ${totalSourceTriangles.toLocaleString('en-US')} triangles → solid LOD`
-      );
+      this.postStatus(`Simplifying preview: ${totalSourceTriangles.toLocaleString('en-US')} triangles → solid LOD`);
     }
 
     const partBuffers = new Map();
@@ -490,18 +470,10 @@ class Simple3MFLoader {
       if (!part.name && name) part.name = name;
       const offset = part.vertices;
       for (let i = 0; i < extracted.positions.length; i += 3) {
-        part.positions.push3(
-          extracted.positions[i],
-          extracted.positions[i + 1],
-          extracted.positions[i + 2]
-        );
+        part.positions.push3(extracted.positions[i], extracted.positions[i + 1], extracted.positions[i + 2]);
       }
       for (let i = 0; i < extracted.indices.length; i += 3) {
-        part.indices.push3(
-          extracted.indices[i] + offset,
-          extracted.indices[i + 1] + offset,
-          extracted.indices[i + 2] + offset
-        );
+        part.indices.push3(extracted.indices[i] + offset, extracted.indices[i + 1] + offset, extracted.indices[i + 2] + offset);
       }
       part.vertices += extracted.positions.length / 3;
     }
@@ -512,11 +484,7 @@ class Simple3MFLoader {
     for (const part of partBuffers.values()) {
       if (part.positions.length === 0 || part.indices.length === 0) continue;
       partIndex += 1;
-      const simplified = simplifyForPreview(
-        part.positions.toArray(),
-        part.indices.toArray(),
-        this.targetTriangles
-      );
+      const simplified = simplifyForPreview(part.positions.toArray(), part.indices.toArray(), this.targetTriangles);
       let name = part.name || `Part ${partIndex}`;
       const seen = (usedNames.get(name) || 0) + 1;
       usedNames.set(name, seen);
@@ -540,10 +508,7 @@ class Simple3MFLoader {
     const keptTriangles = parts.reduce((sum, part) => sum + (part.keptTriangles || 0), 0);
     const simplified = parts.some((part) => part.simplified);
     if (simplified) {
-      this.postStatus(
-        `Simplified preview: ${keptTriangles.toLocaleString('en-US')} of ` +
-        `${sourceTriangles.toLocaleString('en-US')} triangles`
-      );
+      this.postStatus(`Simplified preview: ${keptTriangles.toLocaleString('en-US')} of ` + `${sourceTriangles.toLocaleString('en-US')} triangles`);
     }
 
     return this.buildFromParts(parts, {
@@ -635,11 +600,7 @@ class Simple3MFLoader {
     }
     for (let i = 0; i < vertexCount; i++) {
       const idx = i * 3;
-      const length = Math.sqrt(
-        normals[idx] * normals[idx] +
-        normals[idx + 1] * normals[idx + 1] +
-        normals[idx + 2] * normals[idx + 2]
-      );
+      const length = Math.sqrt(normals[idx] * normals[idx] + normals[idx + 1] * normals[idx + 1] + normals[idx + 2] * normals[idx + 2]);
       if (length > 0) {
         normals[idx] /= length;
         normals[idx + 1] /= length;
@@ -704,14 +665,16 @@ class Simple3MFLoader {
         previewPartCount: parts.length
       },
       geometries,
-      materials: [{
-        uuid: matUuid,
-        type: 'MeshStandardMaterial',
-        color: 0xcccccc,
-        metalness: 0.2,
-        roughness: 0.7,
-        side: 2
-      }],
+      materials: [
+        {
+          uuid: matUuid,
+          type: 'MeshStandardMaterial',
+          color: 0xcccccc,
+          metalness: 0.2,
+          roughness: 0.7,
+          side: 2
+        }
+      ],
       object: {
         uuid: this.generateUUID(),
         type: 'Group',
@@ -793,25 +756,29 @@ class Simple3MFLoader {
         sourceTriangles: previewMeta.sourceTriangles || triangleCount,
         keptTriangles: previewMeta.keptTriangles || triangleCount
       },
-      geometries: [{
-        uuid: geomUuid,
-        type: 'BufferGeometry',
-        data: {
-          attributes: {
-            position: { itemSize: 3, type: 'Float32Array', array: positions },
-            normal: { itemSize: 3, type: 'Float32Array', array: normals }
-          },
-          index: { type: 'Uint32Array', array: indices }
+      geometries: [
+        {
+          uuid: geomUuid,
+          type: 'BufferGeometry',
+          data: {
+            attributes: {
+              position: { itemSize: 3, type: 'Float32Array', array: positions },
+              normal: { itemSize: 3, type: 'Float32Array', array: normals }
+            },
+            index: { type: 'Uint32Array', array: indices }
+          }
         }
-      }],
-      materials: [{
-        uuid: matUuid,
-        type: 'MeshStandardMaterial',
-        color: 0xcccccc,
-        metalness: 0.2,
-        roughness: 0.7,
-        side: 2
-      }],
+      ],
+      materials: [
+        {
+          uuid: matUuid,
+          type: 'MeshStandardMaterial',
+          color: 0xcccccc,
+          metalness: 0.2,
+          roughness: 0.7,
+          side: 2
+        }
+      ],
       object: {
         uuid: objUuid,
         type: 'Mesh',
@@ -822,9 +789,9 @@ class Simple3MFLoader {
   }
 
   generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
   }

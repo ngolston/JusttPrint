@@ -19,19 +19,13 @@ test('open URL round-trips files, origin, and slicer path', () => {
     origin: 'https://nas.local:8443/library',
     slicerName: 'OrcaSlicer',
     slicerPath: 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe',
-    filePaths: [
-      '\\\\server\\library\\benchy.stl',
-      '/data/models/box.zip::parts/lid.3mf'
-    ]
+    filePaths: ['\\\\server\\library\\benchy.stl', '/data/models/box.zip::parts/lid.3mf']
   });
   const parsed = protocol.parseJusttPrintProtocolUrl(href);
   assert.strictEqual(parsed.origin, 'https://nas.local:8443');
   assert.strictEqual(parsed.slicerName, 'OrcaSlicer');
   assert.strictEqual(parsed.slicerPath, 'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe');
-  assert.deepStrictEqual(parsed.filePaths, [
-    '\\\\server\\library\\benchy.stl',
-    '/data/models/box.zip::parts/lid.3mf'
-  ]);
+  assert.deepStrictEqual(parsed.filePaths, ['\\\\server\\library\\benchy.stl', '/data/models/box.zip::parts/lid.3mf']);
 });
 
 test('quoted protocol arguments still parse', () => {
@@ -66,30 +60,18 @@ test('download token travels in the link and onto each download URL', () => {
 });
 
 test('unknown servers are rejected', () => {
-  assert.throws(
-    () => protocol.assertOriginAllowed(['http://nas.local:5000'], 'http://evil.example'),
-    /not allowed/
-  );
-  assert.strictEqual(
-    protocol.assertOriginAllowed(['https://nas.local:8443/app'], 'https://nas.local:8443'),
-    'https://nas.local:8443'
-  );
+  assert.throws(() => protocol.assertOriginAllowed(['http://nas.local:5000'], 'http://evil.example'), /not allowed/);
+  assert.strictEqual(protocol.assertOriginAllowed(['https://nas.local:8443/app'], 'https://nas.local:8443'), 'https://nas.local:8443');
 });
 
 test('shell syntax in a slicer path is rejected', () => {
   assert.throws(() => protocol.assertSafeSlicerPath('/usr/bin/orca;rm -rf /', 'linux'), /shell syntax/);
-  assert.strictEqual(
-    protocol.assertSafeSlicerPath('flatpak run com.prusa3d.PrusaSlicer', 'linux'),
-    'flatpak run com.prusa3d.PrusaSlicer'
-  );
+  assert.strictEqual(protocol.assertSafeSlicerPath('flatpak run com.prusa3d.PrusaSlicer', 'linux'), 'flatpak run com.prusa3d.PrusaSlicer');
   assert.strictEqual(
     protocol.assertSafeSlicerPath('C:\\Program Files\\OrcaSlicer\\orca-slicer.exe', 'win32'),
     'C:\\Program Files\\OrcaSlicer\\orca-slicer.exe'
   );
-  assert.throws(
-    () => protocol.assertSafeSlicerPath('C:\\Program Files\\OrcaSlicer\\orca-slicer.exe', 'linux'),
-    /Windows slicer path/
-  );
+  assert.throws(() => protocol.assertSafeSlicerPath('C:\\Program Files\\OrcaSlicer\\orca-slicer.exe', 'linux'), /Windows slicer path/);
 });
 
 test('a local slicer with the same name overrides the server path', () => {
@@ -103,11 +85,7 @@ test('a local slicer with the same name overrides the server path', () => {
 });
 
 test('server slicer path is used when this computer has no local match', () => {
-  const resolved = protocol.resolveHelperSlicer(
-    [],
-    { slicerName: 'Bambu Studio', slicerPath: '/Applications/BambuStudio.app' },
-    'darwin'
-  );
+  const resolved = protocol.resolveHelperSlicer([], { slicerName: 'Bambu Studio', slicerPath: '/Applications/BambuStudio.app' }, 'darwin');
   assert.strictEqual(resolved.path, '/Applications/BambuStudio.app');
   assert.strictEqual(resolved.source, 'server');
 });

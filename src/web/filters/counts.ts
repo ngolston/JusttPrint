@@ -19,7 +19,10 @@ function refreshTotal() {
   if (totalTimer) clearTimeout(totalTimer);
   totalTimer = setTimeout(() => {
     totalTimer = null;
-    callAction<number>('getTotalModelCount').then((n) => set({ total: Number(n) || 0 }), (error) => console.error('Error updating total model count:', error));
+    callAction<number>('getTotalModelCount').then(
+      (n) => set({ total: Number(n) || 0 }),
+      (error) => console.error('Error updating total model count:', error)
+    );
   }, 350);
 }
 
@@ -29,9 +32,11 @@ export function setViewCount(view: number) {
 }
 
 export function useModelCounts() {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }, () => counts);
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => counts
+  );
 }
-

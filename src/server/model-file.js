@@ -23,8 +23,14 @@ async function sendModelFile(res, filePath) {
   res.setHeader('Content-Length', String(fs.statSync(actual).size));
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
   const stream = fs.createReadStream(actual);
-  stream.on('error', () => { if (!res.headersSent) res.status(500).end(); else res.end(); });
-  if (info.isZipEntry) stream.on('close', () => { setTimeout(() => cleanupExtractTempFile(actual).catch(() => {}), 1000); });
+  stream.on('error', () => {
+    if (!res.headersSent) res.status(500).end();
+    else res.end();
+  });
+  if (info.isZipEntry)
+    stream.on('close', () => {
+      setTimeout(() => cleanupExtractTempFile(actual).catch(() => {}), 1000);
+    });
   stream.pipe(res);
 }
 

@@ -17,23 +17,25 @@ function initializeDatabase() {
   try {
     const dbPath = getDatabasePath();
     console.log(`Initializing database at ${dbPath}`);
-    
+
     // Create database directory if it doesn't exist
     const dbDir = path.dirname(dbPath);
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }
-    
+
     // Initialize database
     database.db = new Database(dbPath);
-    
+
     // Enable foreign keys
     database.db.pragma('foreign_keys = ON');
-    
+
     // Create tables in sequence
     database.db.transaction(() => {
       // Create models table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS models (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS models (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           filePath TEXT UNIQUE,
           fileName TEXT,
@@ -57,36 +59,54 @@ function initializeDatabase() {
           bundleKey TEXT,
           bundleLabel TEXT,
           bundleKind TEXT
-      )`).run();
+      )`
+        )
+        .run();
 
       // Create tags table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS tags (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS tags (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE
-      )`).run();
+      )`
+        )
+        .run();
 
       // Create model_tags table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS model_tags (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS model_tags (
           model_id INTEGER,
           tag_id INTEGER,
           FOREIGN KEY(model_id) REFERENCES models(id),
           FOREIGN KEY(tag_id) REFERENCES tags(id),
           PRIMARY KEY(model_id, tag_id)
-      )`).run();
-      
+      )`
+        )
+        .run();
+
       // Create settings table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS settings (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS settings (
           key TEXT PRIMARY KEY,
           value TEXT
-      )`).run();
-      
+      )`
+        )
+        .run();
+
       // Create slicers table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS slicers (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS slicers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           path TEXT NOT NULL
-      )`).run();
-      
+      )`
+        )
+        .run();
+
       // Create indexes for better performance
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_filepath ON models(filePath)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_filename ON models(fileName)').run();
@@ -103,14 +123,14 @@ function initializeDatabase() {
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_printed ON models(printed)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_hash ON models(hash)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_thumbnail ON models(thumbnail)').run();
-      
+
       // Composite indexes for common query patterns
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_designer_filename ON models(designer, fileName)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_license_modifieddate ON models(license, modifiedDate)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_printed_modifieddate ON models(printed, modifiedDate)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_parentmodel_modifieddate ON models(parentModel, modifiedDate)').run();
     })();
-    
+
     // Migrate existing database: add dateAdded column if it doesn't exist
     // This must run before creating indexes on dateAdded
     migrateDateAddedColumn();
@@ -119,24 +139,24 @@ function initializeDatabase() {
     migrateBundleColumns();
     migratePrintLifecycleColumns();
     clearFailurePlaceholderThumbnails();
-    
+
     // Create index for dateAdded after migration (in case it was just added)
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_dateadded ON models(dateAdded)').run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_isnew ON models(isNew)').run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_rating ON models(rating)').run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_favorite ON models(favorite)').run();
-    
+
     // Clean up any database objects that reference models_old (from old migrations)
     cleanupModelsOldReferences();
-    
+
     // Repair model_tags table to fix any foreign key issues
     repairModelTagsTable();
-    
+
     // Check and create slicers table if it doesn't exist
     ensureSlicersTableExists();
     removeFilamentData();
     ensurePartsTablesExist();
-    
+
     // Initialize default settings
     initializeDefaultSettings();
 
@@ -145,7 +165,9 @@ function initializeDatabase() {
     return true;
   } catch (err) {
     console.error('Error initializing database:', err);
-    console.error(`Database Error: failed to initialize the database at ${getDatabasePath()}: ${err.message}. Check that the data folder is writable (PUID/PGID).`);
+    console.error(
+      `Database Error: failed to initialize the database at ${getDatabasePath()}: ${err.message}. Check that the data folder is writable (PUID/PGID).`
+    );
     return false;
   }
 }
@@ -154,29 +176,33 @@ function initializeDatabase() {
 function migrateDateAddedColumn() {
   try {
     console.debug('Checking for dateAdded column migration...');
-    
+
     // Check if dateAdded column exists
-    const tableInfo = database.db.prepare("PRAGMA table_info(models)").all();
-    const hasDateAdded = tableInfo.some(col => col.name === 'dateAdded');
-    
+    const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
+    const hasDateAdded = tableInfo.some((col) => col.name === 'dateAdded');
+
     if (!hasDateAdded) {
       console.log('dateAdded column not found. Adding it...');
-      
+
       // Add the column
       database.db.prepare('ALTER TABLE models ADD COLUMN dateAdded DATETIME').run();
-      
+
       // For existing records, set dateAdded = modifiedDate as fallback, or current timestamp if modifiedDate is null
-      database.db.prepare(`
+      database.db
+        .prepare(
+          `
         UPDATE models 
         SET dateAdded = COALESCE(modifiedDate, datetime('now'))
         WHERE dateAdded IS NULL
-      `).run();
-      
+      `
+        )
+        .run();
+
       console.log('dateAdded column added and existing records updated');
     } else {
       console.debug('dateAdded column already exists');
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error migrating dateAdded column:', error);
@@ -189,7 +215,7 @@ function migrateIsNewColumn() {
   try {
     console.debug('Checking for isNew column migration...');
     const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
-    const hasIsNew = tableInfo.some(col => col.name === 'isNew');
+    const hasIsNew = tableInfo.some((col) => col.name === 'isNew');
     if (!hasIsNew) {
       console.log('isNew column not found. Adding it...');
       database.db.prepare('ALTER TABLE models ADD COLUMN isNew INTEGER DEFAULT 1').run();
@@ -210,8 +236,8 @@ function migrateRatingFavoriteColumns() {
   try {
     console.debug('Checking for rating/favorite column migration...');
     const tableInfo = database.db.prepare('PRAGMA table_info(models)').all();
-    const hasRating = tableInfo.some(col => col.name === 'rating');
-    const hasFavorite = tableInfo.some(col => col.name === 'favorite');
+    const hasRating = tableInfo.some((col) => col.name === 'rating');
+    const hasFavorite = tableInfo.some((col) => col.name === 'favorite');
     if (!hasRating) {
       console.log('rating column not found. Adding it...');
       database.db.prepare('ALTER TABLE models ADD COLUMN rating INTEGER DEFAULT 0').run();
@@ -249,7 +275,7 @@ function migrateBundleColumns() {
     const additions = [
       ['bundleKey', 'TEXT'],
       ['bundleLabel', 'TEXT'],
-      ['bundleKind', 'TEXT'],
+      ['bundleKind', 'TEXT']
     ];
     for (const [col, ddl] of additions) {
       if (!names.has(col)) {
@@ -261,36 +287,40 @@ function migrateBundleColumns() {
 
     // After the one-shot zip-only migration, skip the heavy folder-clear + backfill work.
     // New scans/saves already persist bundle fields; remaining NULL keys are intentional for non-zips.
-    const migrationDone = database.db.prepare(
-      'SELECT value FROM settings WHERE key = ?'
-    ).get('bundleMigrationZipOnlyComplete')?.value;
+    const migrationDone = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('bundleMigrationZipOnlyComplete')?.value;
     if (migrationDone === '1') {
       return true;
     }
 
     // Clear legacy folder bundles — only ZIP archives should group via bundle fields.
-    const cleared = database.db.prepare(`
+    const cleared = database.db
+      .prepare(
+        `
       UPDATE models
       SET bundleKey = NULL, bundleLabel = NULL, bundleKind = NULL
       WHERE bundleKind = 'folder'
          OR (bundleKey IS NOT NULL AND lower(bundleKey) LIKE 'folder:%')
-    `).run();
+    `
+      )
+      .run();
     if (cleared.changes > 0) {
       console.log(`Cleared folder bundle fields for ${cleared.changes} model(s)`);
     }
 
     // Only backfill zip entries still missing keys. Non-zip models correctly stay NULL;
     // selecting all NULL rows re-wrote the whole library on every cold start.
-    const rows = database.db.prepare(`
+    const rows = database.db
+      .prepare(
+        `
       SELECT id, filePath FROM models
       WHERE (bundleKey IS NULL OR bundleKey = '')
         AND instr(filePath, '::') > 0
         AND filePath NOT LIKE 'url::%'
-    `).all();
+    `
+      )
+      .all();
     if (rows.length > 0) {
-      const update = database.db.prepare(
-        'UPDATE models SET bundleKey = ?, bundleLabel = ?, bundleKind = ? WHERE id = ?'
-      );
+      const update = database.db.prepare('UPDATE models SET bundleKey = ?, bundleLabel = ?, bundleKind = ? WHERE id = ?');
       const backfill = database.db.transaction(() => {
         for (const row of rows) {
           const bundle = deriveBundleFromFilePath(row.filePath);
@@ -302,10 +332,12 @@ function migrateBundleColumns() {
       console.log(`Backfilled bundle fields for ${rows.length} zip model(s)`);
     }
 
-    database.db.prepare(
-      `INSERT INTO settings (key, value) VALUES ('bundleMigrationZipOnlyComplete', '1')
+    database.db
+      .prepare(
+        `INSERT INTO settings (key, value) VALUES ('bundleMigrationZipOnlyComplete', '1')
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-    ).run();
+      )
+      .run();
     return true;
   } catch (error) {
     console.error('Error migrating bundle columns:', error);
@@ -321,27 +353,31 @@ function migrateBundleColumns() {
  */
 function clearFailurePlaceholderThumbnails() {
   try {
-    const done = database.db.prepare(
-      'SELECT value FROM settings WHERE key = ?'
-    ).get('failurePlaceholderThumbCleanupComplete')?.value;
+    const done = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('failurePlaceholderThumbCleanupComplete')?.value;
     if (done === '1') return true;
 
     console.debug('Clearing likely failure-placeholder thumbnails (one-shot)...');
-    const cleared = database.db.prepare(`
+    const cleared = database.db
+      .prepare(
+        `
       UPDATE models
       SET thumbnail = '3d.png'
       WHERE thumbnail IS NOT NULL
         AND thumbnail LIKE 'data:image%'
         AND length(thumbnail) < 12000
-    `).run();
+    `
+      )
+      .run();
     if (cleared.changes > 0) {
       console.log(`Reset ${cleared.changes} small data-URL thumbnail(s) to 3d.png for regeneration`);
     }
 
-    database.db.prepare(
-      `INSERT INTO settings (key, value) VALUES ('failurePlaceholderThumbCleanupComplete', '1')
+    database.db
+      .prepare(
+        `INSERT INTO settings (key, value) VALUES ('failurePlaceholderThumbCleanupComplete', '1')
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-    ).run();
+      )
+      .run();
     return true;
   } catch (error) {
     console.error('Error clearing failure-placeholder thumbnails:', error);
@@ -353,15 +389,19 @@ function clearFailurePlaceholderThumbnails() {
 function cleanupModelsOldReferences() {
   try {
     console.debug('Checking for database objects referencing models_old...');
-    
+
     // Check for triggers that reference models_old
-    const triggers = database.db.prepare(`
+    const triggers = database.db
+      .prepare(
+        `
       SELECT name, sql 
       FROM sqlite_master 
       WHERE type='trigger' 
       AND (sql LIKE '%models_old%' OR sql LIKE '%modelsOld%')
-    `).all();
-    
+    `
+      )
+      .all();
+
     if (triggers.length > 0) {
       console.log(`Found ${triggers.length} trigger(s) referencing models_old. Removing them...`);
       for (const trigger of triggers) {
@@ -373,15 +413,19 @@ function cleanupModelsOldReferences() {
         }
       }
     }
-    
+
     // Check for views that reference models_old
-    const views = database.db.prepare(`
+    const views = database.db
+      .prepare(
+        `
       SELECT name, sql 
       FROM sqlite_master 
       WHERE type='view' 
       AND (sql LIKE '%models_old%' OR sql LIKE '%modelsOld%')
-    `).all();
-    
+    `
+      )
+      .all();
+
     if (views.length > 0) {
       console.log(`Found ${views.length} view(s) referencing models_old. Removing them...`);
       for (const view of views) {
@@ -393,15 +437,19 @@ function cleanupModelsOldReferences() {
         }
       }
     }
-    
+
     // Check for indexes that reference models_old (unlikely but possible)
-    const indexes = database.db.prepare(`
+    const indexes = database.db
+      .prepare(
+        `
       SELECT name 
       FROM sqlite_master 
       WHERE type='index' 
       AND name LIKE '%models_old%'
-    `).all();
-    
+    `
+      )
+      .all();
+
     if (indexes.length > 0) {
       console.log(`Found ${indexes.length} index(es) referencing models_old. Removing them...`);
       for (const index of indexes) {
@@ -413,7 +461,7 @@ function cleanupModelsOldReferences() {
         }
       }
     }
-    
+
     console.debug('Finished cleaning up models_old references');
     return true;
   } catch (error) {
@@ -426,7 +474,7 @@ function cleanupModelsOldReferences() {
 function initializeDefaultSettings() {
   try {
     console.debug('Initializing default settings...');
-    
+
     // Check if settings table exists
     const tableExists = database.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'").get();
     if (!tableExists) {
@@ -467,12 +515,12 @@ function initializeDefaultSettings() {
       { key: 'tlsEmail', value: '' },
       { key: 'tlsAgreeTos', value: '0' },
       { key: 'tlsUseStaging', value: '0' },
-      { key: 'tlsRedirectHttp', value: '0' },
+      { key: 'tlsRedirectHttp', value: '0' }
     ];
-    
+
     // Insert default settings if they don't exist
     const insertStmt = database.db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
-    
+
     for (const setting of defaultSettings) {
       insertStmt.run(setting.key, setting.value);
     }
@@ -506,8 +554,9 @@ function ensurePartsTablesExist() {
 function removeFilamentData() {
   try {
     const db = database.db;
-    const tables = ['print_event_filaments', 'model_filaments', 'filaments']
-      .filter((name) => db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
+    const tables = ['print_event_filaments', 'model_filaments', 'filaments'].filter((name) =>
+      db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name)
+    );
     const settings = db.prepare("DELETE FROM settings WHERE key IN ('spoolmanUrl', 'spoolmanApiToken', 'filamentFilters', 'selectedFilaments')").run().changes;
     if (!tables.length && !settings) return;
     const filaments = tables.includes('filaments') ? db.prepare('SELECT COUNT(*) AS n FROM filaments').get().n : 0;
@@ -523,17 +572,17 @@ function removeFilamentData() {
 function verifyDatabaseIntegrity() {
   try {
     console.debug('Verifying database integrity...');
-    
+
     // Check if foreign keys are enabled
     const foreignKeysEnabled = database.db.pragma('foreign_keys');
     console.debug(`Foreign keys enabled: ${foreignKeysEnabled}`);
-    
+
     // Run integrity check
     const integrityCheck = database.db.pragma('integrity_check');
     console.debug(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
-    
+
     repairModelTagsTable();
-    
+
     return true;
   } catch (error) {
     console.error('Database integrity check failed:', error);

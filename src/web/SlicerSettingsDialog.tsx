@@ -25,11 +25,19 @@ export const isOrcaLink = (slicerPath: string) => /^orcaslicer:\/\//i.test(slice
 /** "C:\...\orca-slicer.exe" → "Orca Slicer". */
 export function suggestSlicerName(slicerPath: string): string {
   const base = slicerPath.split(/[/\\]/).pop() || '';
-  const spaced = base.replace(/\.(exe|app|appimage|dmg)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const spaced = base
+    .replace(/\.(exe|app|appimage|dmg)$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return spaced.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
-const pathKey = (slicerPath: string) => slicerPath.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+const pathKey = (slicerPath: string) =>
+  slicerPath
+    .replace(/[\\/]+/g, '/')
+    .replace(/\/+$/, '')
+    .toLowerCase();
 
 /** The first problem with the list, or '' when it can be saved. */
 function listProblem(list: { name: string; path: string }[]): string {
@@ -65,13 +73,18 @@ export function SlicerSettingsDialog() {
   const [insecure, setInsecure] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => exposeGlobal('openSlicerSettings', () => {
-    setRows([]);
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-    slicerApi.list()
-      .then((list) => setRows((list || []).map((slicer) => row(slicer.name, slicer.path))))
-      .catch((error) => console.error('Error loading slicers:', error));
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openSlicerSettings', () => {
+        setRows([]);
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+        slicerApi
+          .list()
+          .then((list) => setRows((list || []).map((slicer) => row(slicer.name, slicer.path))))
+          .catch((error) => console.error('Error loading slicers:', error));
+      }),
+    []
+  );
 
   const update = (key: number, change: Partial<Row>) =>
     setRows((previous) => previous.map((existing) => (existing.key === key ? { ...existing, ...change } : existing)));
@@ -118,69 +131,121 @@ export function SlicerSettingsDialog() {
   }
 
   return (
-    <ModalDialog id="slicer-dialog" title="Slicer Settings" dialogRef={dialogRef}
-      footer={(
+    <ModalDialog
+      id="slicer-dialog"
+      title="Slicer Settings"
+      dialogRef={dialogRef}
+      footer={
         <>
-          <button type="button" id="save-slicer-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
-          <button type="button" id="cancel-slicer-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          <button type="button" id="save-slicer-settings" className="is-primary" disabled={saving} onClick={save}>
+            Save
+          </button>
+          <button type="button" id="cancel-slicer-settings" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </>
-      )}>
+      }
+    >
       <div id="slicer-list">
         {rows.map((entry) => (
           <div key={entry.key} className="slicer-entry">
             <div className="form-group slicer-entry-fields">
-              <label className="slicer-field-label" htmlFor={`slicer-name-${entry.key}`}>Name</label>
-              <input type="text" id={`slicer-name-${entry.key}`} className="slicer-name" placeholder="e.g. Orca Slicer" autoComplete="off"
-                value={entry.name} onChange={(event) => update(entry.key, { name: event.target.value })}
+              <label className="slicer-field-label" htmlFor={`slicer-name-${entry.key}`}>
+                Name
+              </label>
+              <input
+                type="text"
+                id={`slicer-name-${entry.key}`}
+                className="slicer-name"
+                placeholder="e.g. Orca Slicer"
+                autoComplete="off"
+                value={entry.name}
+                onChange={(event) => update(entry.key, { name: event.target.value })}
                 ref={(input) => {
                   if (input && focusKeyRef.current === entry.key) {
                     focusKeyRef.current = null;
                     input.focus();
                   }
-                }} />
+                }}
+              />
               {isOrcaLink(entry.path) ? (
                 <div className="input-with-icon slicer-orca-row">
                   <p className="setting-description slicer-orca-note" id={`slicer-path-${entry.key}`}>
                     Opens in OrcaSlicer through its own links: no helper, no path. OrcaSlicer downloads the model from the JusttPrint backend.
                   </p>
-                  <button type="button" className="remove-slicer-button icon-button" title="Remove slicer" aria-label="Remove slicer"
-                    onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}>×</button>
+                  <button
+                    type="button"
+                    className="remove-slicer-button icon-button"
+                    title="Remove slicer"
+                    aria-label="Remove slicer"
+                    onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}
+                  >
+                    ×
+                  </button>
                 </div>
-              ) : (<>
-              <label className="slicer-field-label" htmlFor={`slicer-path-${entry.key}`}>Path</label>
-              <div className="input-with-icon">
-                <input type="text" id={`slicer-path-${entry.key}`} className="slicer-path" autoComplete="off"
-                  placeholder="Path on your computer, e.g. C:\Program Files\OrcaSlicer\orca-slicer.exe"
-                  value={entry.path} onChange={(event) => update(entry.key, { path: event.target.value })}
-                  onBlur={() => { if (!entry.name.trim() && entry.path.trim()) update(entry.key, { name: suggestSlicerName(entry.path.trim()) }); }} />
-                <button type="button" className="remove-slicer-button icon-button" title="Remove slicer" aria-label="Remove slicer"
-                  onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}>×</button>
-              </div>
-              </>)}
+              ) : (
+                <>
+                  <label className="slicer-field-label" htmlFor={`slicer-path-${entry.key}`}>
+                    Path
+                  </label>
+                  <div className="input-with-icon">
+                    <input
+                      type="text"
+                      id={`slicer-path-${entry.key}`}
+                      className="slicer-path"
+                      autoComplete="off"
+                      placeholder="Path on your computer, e.g. C:\Program Files\OrcaSlicer\orca-slicer.exe"
+                      value={entry.path}
+                      onChange={(event) => update(entry.key, { path: event.target.value })}
+                      onBlur={() => {
+                        if (!entry.name.trim() && entry.path.trim()) update(entry.key, { name: suggestSlicerName(entry.path.trim()) });
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="remove-slicer-button icon-button"
+                      title="Remove slicer"
+                      aria-label="Remove slicer"
+                      onClick={() => setRows((previous) => previous.filter((existing) => existing.key !== entry.key))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ))}
       </div>
       <div className="slicer-list-actions">
         {!rows.some((existing) => isOrcaLink(existing.path)) && (
-          <button type="button" id="add-orcaslicer-button" className="full-width-button is-primary" onClick={addOrca}>Add OrcaSlicer (no helper)</button>
+          <button type="button" id="add-orcaslicer-button" className="full-width-button is-primary" onClick={addOrca}>
+            Add OrcaSlicer (no helper)
+          </button>
         )}
-        <button type="button" id="add-slicer-button" className="full-width-button" onClick={addRow}>Add Other Slicer (with helper)</button>
+        <button type="button" id="add-slicer-button" className="full-width-button" onClick={addRow}>
+          Add Other Slicer (with helper)
+        </button>
       </div>
       <div id="slicer-helper-install">
         <p className="setting-description">
-          <strong>OrcaSlicer</strong> needs nothing else: Open in Slicer hands it a link, and it downloads the model from the JusttPrint backend
-          (up to 1 GB per file, 10 files at a time). OrcaSlicer must be installed on the computer you click on, and able to reach
-          the JusttPrint backend&apos;s address; on Linux, turn on its desktop integration.
+          <strong>OrcaSlicer</strong> needs nothing else: Open in Slicer hands it a link, and it downloads the model from the JusttPrint backend (up to 1 GB per
+          file, 10 files at a time). OrcaSlicer must be installed on the computer you click on, and able to reach the JusttPrint backend&apos;s address; on
+          Linux, turn on its desktop integration.
         </p>
-        <p className="setting-description">Other slicers use a helper on each computer. Type the slicer&apos;s full path on that computer above. Download the helper package for this JusttPrint backend, unzip it, and run the installer. If Node.js is missing, the installer downloads it.</p>
+        <p className="setting-description">
+          Other slicers use a helper on each computer. Type the slicer&apos;s full path on that computer above. Download the helper package for this JusttPrint
+          backend, unzip it, and run the installer. If Node.js is missing, the installer downloads it.
+        </p>
         {window.location.protocol === 'https:' && (
           <div className="form-group checkbox-container" id="slicer-helper-insecure-row">
             <input type="checkbox" id="slicer-helper-insecure" checked={insecure} onChange={(event) => setInsecure(event.target.checked)} />
             <label htmlFor="slicer-helper-insecure">The JusttPrint backend uses a self-signed certificate</label>
           </div>
         )}
-        <button type="button" id="download-slicer-helper" className="full-width-button" onClick={downloadHelper}>Download helper for this JusttPrint backend</button>
+        <button type="button" id="download-slicer-helper" className="full-width-button" onClick={downloadHelper}>
+          Download helper for this JusttPrint backend
+        </button>
       </div>
     </ModalDialog>
   );

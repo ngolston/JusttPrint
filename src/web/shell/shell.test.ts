@@ -4,8 +4,10 @@ import { MENU, findMenuAction, tidySeparators, type MenuItem } from './menu';
 describe('menu', () => {
   it('has Tools, Settings and Help, with no empty labels', () => {
     expect(MENU.map((group) => group.label)).toEqual(['Tools', 'Settings', 'Help']);
-    const labels = MENU.flatMap((group) => group.items).flatMap((item) => (item.kind === 'submenu' ? item.items : [item]))
-      .filter((item) => item.kind === 'action').map((item) => (item as { label: string }).label);
+    const labels = MENU.flatMap((group) => group.items)
+      .flatMap((item) => (item.kind === 'submenu' ? item.items : [item]))
+      .filter((item) => item.kind === 'action')
+      .map((item) => (item as { label: string }).label);
     expect(labels.every(Boolean)).toBe(true);
     expect(new Set(labels.filter((l) => l !== 'Settings')).size).toBe(labels.filter((l) => l !== 'Settings').length);
   });

@@ -86,9 +86,8 @@ function createClientDialogs({ timeoutMs = 10 * 60 * 1000, logger = console } = 
     const opts = messageOptions(options);
     const fallback = { response: opts.cancelId, checkboxChecked: false };
     const answer = await ask(event, 'message', opts, fallback);
-    const response = answer && Number.isInteger(answer.response) && answer.response >= 0 && answer.response < opts.buttons.length
-      ? answer.response
-      : opts.cancelId;
+    const response =
+      answer && Number.isInteger(answer.response) && answer.response >= 0 && answer.response < opts.buttons.length ? answer.response : opts.cancelId;
     return { response, checkboxChecked: !!(answer && answer.checkboxChecked) };
   }
 

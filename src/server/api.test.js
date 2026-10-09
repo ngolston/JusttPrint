@@ -10,11 +10,22 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let seenEvent = null;
 
 // Stand-in handlers under real action names that have no path rules.
-ipcMain.handle('get-stats', async (event, ...args) => { seenEvent = event; return { totalModels: 4, args, mesh: new Float32Array([1.5, 2]) }; });
+ipcMain.handle('get-stats', async (event, ...args) => {
+  seenEvent = event;
+  return { totalModels: 4, args, mesh: new Float32Array([1.5, 2]) };
+});
 ipcMain.handle('get-default-ai-prompt', async () => Buffer.from([0, 1, 2, 255]));
-ipcMain.handle('get-gpu-info', async () => { throw new Error('no GPU here'); });
-ipcMain.handle('benchmark-filesystem', async () => { await wait(160); return Buffer.from('slow bytes'); });
-ipcMain.handle('benchmark-database', async () => { await wait(160); throw new Error('slow failure'); });
+ipcMain.handle('get-gpu-info', async () => {
+  throw new Error('no GPU here');
+});
+ipcMain.handle('benchmark-filesystem', async () => {
+  await wait(160);
+  return Buffer.from('slow bytes');
+});
+ipcMain.handle('benchmark-database', async () => {
+  await wait(160);
+  throw new Error('slow failure');
+});
 ipcMain.handle('internal-only', async () => 1); // a handler that is not an action
 
 async function main() {
@@ -26,13 +37,16 @@ async function main() {
     next();
   });
   registerApiRoutes(app, { keepaliveMs: 50 });
-  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
-  const base = `http://127.0.0.1:${server.address().port}`;
-  const call = (name, body, headers = {}) => fetch(`${base}/api/actions/${name}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: typeof body === 'string' ? body : JSON.stringify(body)
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const call = (name, body, headers = {}) =>
+    fetch(`${base}/api/actions/${name}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body)
+    });
 
   try {
     const fakeSocket = { readyState: 1 };
@@ -42,7 +56,7 @@ async function main() {
     assert.deepStrictEqual(await res.json(), { result: { totalModels: 4, args: [], mesh: [1.5, 2] } });
     assert.strictEqual(seenEvent.fromNetwork, true, 'handlers see fromNetwork');
     assert.deepStrictEqual(seenEvent.user, { id: 7, username: 'test-admin', role: 'admin' }, 'handlers see the caller');
-    assert.strictEqual(seenEvent.wsClient, fakeSocket, 'the client header picks the caller\'s WebSocket');
+    assert.strictEqual(seenEvent.wsClient, fakeSocket, "the client header picks the caller's WebSocket");
     unregisterClient(clientId);
     await call('get-stats', {}, { [CLIENT_HEADER]: clientId });
     assert.strictEqual(seenEvent.wsClient, null, 'unknown client ids give no WebSocket');

@@ -16,16 +16,12 @@ function normalizePreview3mfTypedArrays(json) {
       for (const key of Object.keys(data.attributes)) {
         const attr = data.attributes[key];
         if (attr && attr.array != null && !Array.isArray(attr.array)) {
-          attr.array = ArrayBuffer.isView(attr.array)
-            ? Array.from(attr.array)
-            : Object.values(attr.array);
+          attr.array = ArrayBuffer.isView(attr.array) ? Array.from(attr.array) : Object.values(attr.array);
         }
       }
     }
     if (data.index && data.index.array != null && !Array.isArray(data.index.array)) {
-      data.index.array = ArrayBuffer.isView(data.index.array)
-        ? Array.from(data.index.array)
-        : Object.values(data.index.array);
+      data.index.array = ArrayBuffer.isView(data.index.array) ? Array.from(data.index.array) : Object.values(data.index.array);
     }
   }
   return json;
@@ -43,25 +39,27 @@ function jsonStringifyForWs(payload) {
 function samplePreviewJson() {
   return {
     metadata: { type: 'Object', generator: 'Simple3MFLoader' },
-    geometries: [{
-      uuid: 'g1',
-      type: 'BufferGeometry',
-      data: {
-        attributes: {
-          position: {
-            itemSize: 3,
-            type: 'Float32Array',
-            array: new Float32Array([-1.8477, 279.9078, 0.5, 1, 2, 3])
+    geometries: [
+      {
+        uuid: 'g1',
+        type: 'BufferGeometry',
+        data: {
+          attributes: {
+            position: {
+              itemSize: 3,
+              type: 'Float32Array',
+              array: new Float32Array([-1.8477, 279.9078, 0.5, 1, 2, 3])
+            },
+            normal: {
+              itemSize: 3,
+              type: 'Float32Array',
+              array: new Float32Array([0, 1, 0, 0, 1, 0])
+            }
           },
-          normal: {
-            itemSize: 3,
-            type: 'Float32Array',
-            array: new Float32Array([0, 1, 0, 0, 1, 0])
-          }
-        },
-        index: { type: 'Uint32Array', array: new Uint32Array([0, 1, 2]) }
+          index: { type: 'Uint32Array', array: new Uint32Array([0, 1, 2]) }
+        }
       }
-    }]
+    ]
   };
 }
 
@@ -75,10 +73,12 @@ describe('3MF preview typed-array JSON transport (#72)', () => {
   });
 
   test('jsonStringifyForWs preserves geometry arrays as real arrays', () => {
-    const roundTripped = JSON.parse(jsonStringifyForWs({
-      type: 'result',
-      result: samplePreviewJson()
-    }));
+    const roundTripped = JSON.parse(
+      jsonStringifyForWs({
+        type: 'result',
+        result: samplePreviewJson()
+      })
+    );
     const position = roundTripped.result.geometries[0].data.attributes.position.array;
     const index = roundTripped.result.geometries[0].data.index.array;
 

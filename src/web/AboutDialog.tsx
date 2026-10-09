@@ -19,17 +19,22 @@ export function AboutDialog() {
   const [version, setVersion] = useState('Loading...');
   const [checkUpdates, setCheckUpdates] = useState(true);
 
-  useEffect(() => exposeGlobal('openAbout', () => {
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-    (async () => {
-      const current = await settings.get<string | null>('currentVersion').catch(() => null)
-        || await callAction<string>('get-app-version').catch(() => null);
-      setVersion(current || 'Unknown');
-    })();
-    settings.get<string | null>('autoUpdateCheck')
-      .then((value) => setCheckUpdates(value !== '0'))
-      .catch(() => {});
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openAbout', () => {
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+        (async () => {
+          const current =
+            (await settings.get<string | null>('currentVersion').catch(() => null)) || (await callAction<string>('get-app-version').catch(() => null));
+          setVersion(current || 'Unknown');
+        })();
+        settings
+          .get<string | null>('autoUpdateCheck')
+          .then((value) => setCheckUpdates(value !== '0'))
+          .catch(() => {});
+      }),
+    []
+  );
 
   function changeCheckUpdates(checked: boolean) {
     setCheckUpdates(checked);
@@ -45,17 +50,23 @@ export function AboutDialog() {
     <dialog id="about-dialog" className="modal" ref={dialogRef}>
       <form method="dialog" onSubmit={(event) => event.preventDefault()}>
         <div className="about-header">
-          <button type="button" className="about-close-x" aria-label="Close" onClick={close}>×</button>
+          <button type="button" className="about-close-x" aria-label="Close" onClick={close}>
+            ×
+          </button>
           <img src="assets/logo.png" alt="JusttPrint Logo" className="about-logo" />
           <h2>JusttPrint</h2>
-          <p className="about-version-text" id="about-version">Version: {version}</p>
+          <p className="about-version-text" id="about-version">
+            Version: {version}
+          </p>
         </div>
         <div className="about-content">
           <div className="about-main-column">
             <div className="about-section">
               <div className="about-link-item">
                 <span className="link-icon">🌐</span>
-                <a href={REPO_URL} id="website-link" className="about-link" target="_blank" rel="noopener noreferrer">{REPO_URL}</a>
+                <a href={REPO_URL} id="website-link" className="about-link" target="_blank" rel="noopener noreferrer">
+                  {REPO_URL}
+                </a>
               </div>
             </div>
 
@@ -66,8 +77,7 @@ export function AboutDialog() {
               </div>
               <div className="about-card-content">
                 <div className="about-option-item">
-                  <input type="checkbox" id="auto-update-check" checked={checkUpdates}
-                    onChange={(event) => changeCheckUpdates(event.target.checked)} />
+                  <input type="checkbox" id="auto-update-check" checked={checkUpdates} onChange={(event) => changeCheckUpdates(event.target.checked)} />
                   <label htmlFor="auto-update-check">Check for updates on startup</label>
                 </div>
                 <p className="about-card-description">Asks GitHub for the latest JusttPrint release. Nothing else is sent.</p>
@@ -91,7 +101,11 @@ export function AboutDialog() {
                   <li>You are responsible for backing up your data.</li>
                 </ul>
                 <p className="about-card-description about-license-note">
-                  See <a href={`${REPO_URL}/blob/main/LICENSE.txt`} id="license-link" target="_blank" rel="noopener noreferrer">LICENSE.txt</a> for full text.
+                  See{' '}
+                  <a href={`${REPO_URL}/blob/main/LICENSE.txt`} id="license-link" target="_blank" rel="noopener noreferrer">
+                    LICENSE.txt
+                  </a>{' '}
+                  for full text.
                 </p>
               </div>
             </div>

@@ -109,10 +109,14 @@ export function renderKey(model: GridModel): string {
 
 /** Models inside a ZIP archive are bundled under the archive. */
 export function isZipBundleModel(model: GridModel): boolean {
-  const kind = String(model.bundleKind || '').trim().toLowerCase();
+  const kind = String(model.bundleKind || '')
+    .trim()
+    .toLowerCase();
   if (kind === 'zip') return true;
   if (kind === 'folder') return false;
-  const key = String(model.bundleKey || '').trim().toLowerCase();
+  const key = String(model.bundleKey || '')
+    .trim()
+    .toLowerCase();
   if (key.startsWith('zip:')) return true;
   if (key.startsWith('folder:')) return false;
   const filePath = model.filePath || '';
@@ -137,7 +141,10 @@ export function bundleKey(model: GridModel): string {
 }
 
 export const parentModelLabel = (model: GridModel) => (model.parentModel ? String(model.parentModel).trim() : '');
-export const parentModelKey = (label: string) => String(label || '').trim().toLocaleLowerCase();
+export const parentModelKey = (label: string) =>
+  String(label || '')
+    .trim()
+    .toLocaleLowerCase();
 
 // ---- Display records -------------------------------------------------------------------------
 
@@ -179,7 +186,13 @@ export function groupRecords(records: DisplayRecord[], options: GroupingOptions)
     const existing = grouped[index];
     if (existing.type === 'model') {
       // Labelled as the first member spells it.
-      grouped[index] = { type: 'group', key: `group:${groupKey}`, groupKey, groupLabel: options.label(existing.model), children: [existing.model, record.model] };
+      grouped[index] = {
+        type: 'group',
+        key: `group:${groupKey}`,
+        groupKey,
+        groupLabel: options.label(existing.model),
+        children: [existing.model, record.model]
+      };
     } else {
       existing.children.push(record.model);
     }
@@ -223,11 +236,18 @@ export function buildDisplayRecords(models: GridModel[], expanded: ExpandedGroup
     records.push({ type: 'model', key: `model:${renderKey(model)}`, model });
   });
   const bundled = groupRecords(records, {
-    groupKind: 'bundle', keyPrefix: 'bundle', expanded: expanded.bundles, label: bundleLabel, key: bundleKey
+    groupKind: 'bundle',
+    keyPrefix: 'bundle',
+    expanded: expanded.bundles,
+    label: bundleLabel,
+    key: bundleKey
   });
   return groupRecords(bundled, {
-    groupKind: 'parentModel', keyPrefix: 'parent', expanded: expanded.parentModels,
-    label: parentModelLabel, key: (model) => parentModelKey(parentModelLabel(model))
+    groupKind: 'parentModel',
+    keyPrefix: 'parent',
+    expanded: expanded.parentModels,
+    label: parentModelLabel,
+    key: (model) => parentModelKey(parentModelLabel(model))
   });
 }
 
@@ -235,8 +255,13 @@ export function buildDisplayRecords(models: GridModel[], expanded: ExpandedGroup
 
 /** Cells per row; in list view a group is its own full-width row. */
 export function buildLayoutRows(
-  records: DisplayRecord[], columns: number, view: GridView,
-  itemHeight: number, groupHeight: number, paddingVertical: number, verticalGap: number
+  records: DisplayRecord[],
+  columns: number,
+  view: GridView,
+  itemHeight: number,
+  groupHeight: number,
+  paddingVertical: number,
+  verticalGap: number
 ): Layout {
   const rows: Omit<LayoutRow, 'top' | 'bottom'>[] = [];
   let current: DisplayRecord[] = [];
@@ -293,7 +318,6 @@ export interface ViewMetrics {
   headerOffset: number;
 }
 
-
 /**
  * JusttPrint 5 model cards on the desktop (spec §16): as many columns of at least minWidth as
  * fit (four at 1536 px beside the details panel), stretched to fill the row. The preview is
@@ -312,8 +336,16 @@ export function viewMetrics({ view, width, previewSize }: ViewOptions): ViewMetr
   if (view === 'list') {
     const row = LIST_ROW;
     return {
-      columns: 1, cellWidth: Math.max(0, width - 40), cellHeight: row.height, groupHeight: row.height,
-      paddingVertical: 10, paddingHorizontal: 20, verticalGap: row.gap, horizontalGap: 0, centeredOffset: 0, headerOffset: row.headerOffset
+      columns: 1,
+      cellWidth: Math.max(0, width - 40),
+      cellHeight: row.height,
+      groupHeight: row.height,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      verticalGap: row.gap,
+      horizontalGap: 0,
+      centeredOffset: 0,
+      headerOffset: row.headerOffset
     };
   }
   if (view === 'preview') {
@@ -323,8 +355,16 @@ export function viewMetrics({ view, width, previewSize }: ViewOptions): ViewMetr
     const gap = 2;
     const tile = Math.max(1, Math.floor((Math.max(0, width) - (columns - 1) * gap) / columns));
     return {
-      columns, cellWidth: tile, cellHeight: tile, groupHeight: tile,
-      paddingVertical: 8, paddingHorizontal: 0, verticalGap: gap, horizontalGap: gap, centeredOffset: 0, headerOffset: 0
+      columns,
+      cellWidth: tile,
+      cellHeight: tile,
+      groupHeight: tile,
+      paddingVertical: 8,
+      paddingHorizontal: 0,
+      verticalGap: gap,
+      horizontalGap: gap,
+      centeredOffset: 0,
+      headerOffset: 0
     };
   }
   const compact = width > 0 && width < CARD_COMPACT.width;
@@ -334,8 +374,16 @@ export function viewMetrics({ view, width, previewSize }: ViewOptions): ViewMetr
   const cellWidth = Math.max(1, Math.floor((available - gap * (columns - 1)) / columns));
   const cellHeight = cardPreviewHeight(cellWidth) + CARD.footer;
   return {
-    columns, cellWidth, cellHeight, groupHeight: cellHeight,
-    paddingVertical: CARD.paddingTop, paddingHorizontal: padding, verticalGap: gap, horizontalGap: gap, centeredOffset: 0, headerOffset: 0
+    columns,
+    cellWidth,
+    cellHeight,
+    groupHeight: cellHeight,
+    paddingVertical: CARD.paddingTop,
+    paddingHorizontal: padding,
+    verticalGap: gap,
+    horizontalGap: gap,
+    centeredOffset: 0,
+    headerOffset: 0
   };
 }
 

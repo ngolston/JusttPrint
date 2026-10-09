@@ -68,7 +68,9 @@ export function PartsManagerDialog() {
   }
 
   useEffect(() => {
-    const reloadIfOpen = () => { if (dialogRef.current?.open) void load(); };
+    const reloadIfOpen = () => {
+      if (dialogRef.current?.open) void load();
+    };
     document.addEventListener(PARTS_CHANGED, reloadIfOpen);
     const unexpose = exposeGlobal('openPartsStock', () => {
       setSearch('');
@@ -134,8 +136,10 @@ export function PartsManagerDialog() {
   }
 
   async function removePart(part: Part) {
-    const answer = await showMessage('Remove Part',
-      `Remove "${part.name}" from Parts Stock? Older print logs keep the part name. Stock is not restored.`, ['Remove', 'Cancel']);
+    const answer = await showMessage('Remove Part', `Remove "${part.name}" from Parts Stock? Older print logs keep the part name. Stock is not restored.`, [
+      'Remove',
+      'Cancel'
+    ]);
     if (answer !== 'Remove') return;
     try {
       await partApi.remove(part.id);
@@ -165,7 +169,10 @@ export function PartsManagerDialog() {
     value: form[key],
     onChange: (event: { target: { value: string } }) => setForm((previous) => ({ ...previous, [key]: event.target.value })),
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') { event.preventDefault(); void saveForm(); }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void saveForm();
+      }
     }
   });
 
@@ -176,55 +183,118 @@ export function PartsManagerDialog() {
   const editing = form.id !== undefined;
 
   return (
-    <ModalDialog id="parts-stock-dialog" title="🔩 Parts Manager" dialogRef={dialogRef} fullscreenToggle
-      headerClassName="parts-stock-header" headerRowClassName="parts-stock-header-row"
-      description={<p className="setting-description">Track screws, bearings, inserts, and other hardware. When you log a print, choose the parts it used and they are removed from stock.</p>}
-      footer={<button type="button" id="parts-stock-close" onClick={() => dialogRef.current?.close()}>Close</button>}>
+    <ModalDialog
+      id="parts-stock-dialog"
+      title="🔩 Parts Manager"
+      dialogRef={dialogRef}
+      fullscreenToggle
+      headerClassName="parts-stock-header"
+      headerRowClassName="parts-stock-header-row"
+      description={
+        <p className="setting-description">
+          Track screws, bearings, inserts, and other hardware. When you log a print, choose the parts it used and they are removed from stock.
+        </p>
+      }
+      footer={
+        <button type="button" id="parts-stock-close" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
       <div className={`form-group parts-stock-form-section${formOpen ? '' : ' collapsed'}`} id="parts-stock-form-section">
         <div className="parts-stock-section-header">
-          <label id="parts-stock-form-label" htmlFor="parts-stock-name">{editing ? 'Edit part' : 'Add a part'}</label>
-          <button type="button" id="parts-stock-toggle-add-btn" className={`parts-stock-toggle-add-btn${formOpen ? ' active' : ''}`}
-            aria-expanded={formOpen} onClick={() => (formOpen ? closeForm() : setFormOpen(true))}>
+          <label id="parts-stock-form-label" htmlFor="parts-stock-name">
+            {editing ? 'Edit part' : 'Add a part'}
+          </label>
+          <button
+            type="button"
+            id="parts-stock-toggle-add-btn"
+            className={`parts-stock-toggle-add-btn${formOpen ? ' active' : ''}`}
+            aria-expanded={formOpen}
+            onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+          >
             {formOpen ? '− Cancel' : '+ Add Part'}
           </button>
         </div>
         <div id="parts-stock-form-body" hidden={!formOpen}>
           <div className="parts-stock-add-grid">
             <div className="parts-stock-field parts-stock-span">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-name">Part Name <span className="required">*</span></label>
+              <label className="parts-stock-field-label" htmlFor="parts-stock-name">
+                Part Name <span className="required">*</span>
+              </label>
               <input type="text" id="parts-stock-name" ref={nameRef} placeholder="Name (e.g. M3×8 screw, 608 bearing…)" autoComplete="off" {...field('name')} />
             </div>
             <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-category">Category</label>
-              <input type="text" id="parts-stock-category" list="parts-stock-categories" placeholder="Category (e.g. Screws)" autoComplete="off" {...field('category')} />
+              <label className="parts-stock-field-label" htmlFor="parts-stock-category">
+                Category
+              </label>
+              <input
+                type="text"
+                id="parts-stock-category"
+                list="parts-stock-categories"
+                placeholder="Category (e.g. Screws)"
+                autoComplete="off"
+                {...field('category')}
+              />
             </div>
             <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-unit">Unit</label>
+              <label className="parts-stock-field-label" htmlFor="parts-stock-unit">
+                Unit
+              </label>
               <input type="text" id="parts-stock-unit" placeholder="Unit (pcs)" autoComplete="off" {...field('unit')} />
             </div>
             <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-quantity">Quantity on hand</label>
+              <label className="parts-stock-field-label" htmlFor="parts-stock-quantity">
+                Quantity on hand
+              </label>
               <input type="number" id="parts-stock-quantity" min="0" max="1000000" step="1" {...field('quantity')} />
             </div>
             <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-low">Low stock alert threshold</label>
-              <input type="number" id="parts-stock-low" min="0" max="1000000" step="1" title="Warn when quantity is at or below this number" {...field('lowStock')} />
+              <label className="parts-stock-field-label" htmlFor="parts-stock-low">
+                Low stock alert threshold
+              </label>
+              <input
+                type="number"
+                id="parts-stock-low"
+                min="0"
+                max="1000000"
+                step="1"
+                title="Warn when quantity is at or below this number"
+                {...field('lowStock')}
+              />
             </div>
             <div className="parts-stock-field parts-stock-span">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-notes">Notes (optional)</label>
+              <label className="parts-stock-field-label" htmlFor="parts-stock-notes">
+                Notes (optional)
+              </label>
               <input type="text" id="parts-stock-notes" placeholder="Notes (optional, e.g. bin number or size specs)" autoComplete="off" {...field('notes')} />
             </div>
           </div>
           <datalist id="parts-stock-categories">
-            {CATEGORIES.map((category) => <option key={category} value={category} />)}
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category} />
+            ))}
           </datalist>
           <div className="parts-stock-form-actions">
-            <button type="button" id="parts-stock-add" className="parts-stock-btn-primary" onClick={saveForm}>{editing ? 'Save' : 'Add'}</button>
-            <button type="button" id="parts-stock-cancel-edit" className="parts-stock-btn-cancel"
-              onClick={() => { closeForm(); setStatus({ text: '', error: false }); }}>{editing ? 'Cancel Edit' : 'Cancel'}</button>
+            <button type="button" id="parts-stock-add" className="parts-stock-btn-primary" onClick={saveForm}>
+              {editing ? 'Save' : 'Add'}
+            </button>
+            <button
+              type="button"
+              id="parts-stock-cancel-edit"
+              className="parts-stock-btn-cancel"
+              onClick={() => {
+                closeForm();
+                setStatus({ text: '', error: false });
+              }}
+            >
+              {editing ? 'Cancel Edit' : 'Cancel'}
+            </button>
           </div>
         </div>
-        <div id="parts-stock-status" className={`parts-stock-status${status.error ? ' error' : ''}`} role="status">{status.text}</div>
+        <div id="parts-stock-status" className={`parts-stock-status${status.error ? ' error' : ''}`} role="status">
+          {status.text}
+        </div>
       </div>
       <div className="form-group parts-stock-list-section">
         <div className="parts-stock-section-header">
@@ -234,9 +304,10 @@ export function PartsManagerDialog() {
           </span>
         </div>
         <div className="input-with-icon">
-          <input type="text" id="parts-stock-search" placeholder="Search parts..." value={search}
-            onChange={(event) => setSearch(event.target.value)} />
-          <button type="button" id="parts-stock-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>×</button>
+          <input type="text" id="parts-stock-search" placeholder="Search parts..." value={search} onChange={(event) => setSearch(event.target.value)} />
+          <button type="button" id="parts-stock-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
+            ×
+          </button>
         </div>
         <div id="parts-stock-list" className="parts-stock-list">
           {loadError ? (
@@ -246,22 +317,24 @@ export function PartsManagerDialog() {
               <span className="parts-stock-empty-icon">{term ? '🔍' : '🔩'}</span>
               <span>{term ? 'No parts match that search.' : 'No parts yet. Add screws, bearings, inserts, and anything else a print uses up.'}</span>
             </div>
-          ) : shown.map((part) => (
-            <PartRow key={part.id} part={part} onQuantity={(quantity) => setQuantity(part, quantity)}
-              onEdit={() => editPart(part)} onRemove={() => removePart(part)} />
-          ))}
+          ) : (
+            shown.map((part) => (
+              <PartRow
+                key={part.id}
+                part={part}
+                onQuantity={(quantity) => setQuantity(part, quantity)}
+                onEdit={() => editPart(part)}
+                onRemove={() => removePart(part)}
+              />
+            ))
+          )}
         </div>
       </div>
     </ModalDialog>
   );
 }
 
-function PartRow({ part, onQuantity, onEdit, onRemove }: {
-  part: Part;
-  onQuantity: (quantity: number) => void;
-  onEdit: () => void;
-  onRemove: () => void;
-}) {
+function PartRow({ part, onQuantity, onEdit, onRemove }: { part: Part; onQuantity: (quantity: number) => void; onEdit: () => void; onRemove: () => void }) {
   const quantity = Number(part.quantity) || 0;
   const lowAt = Number(part.low_stock) || 0;
   const isLow = quantity <= lowAt;
@@ -277,25 +350,61 @@ function PartRow({ part, onQuantity, onEdit, onRemove }: {
   return (
     <div className={`parts-stock-item${isLow ? ' is-low' : ''}`} data-part-id={part.id}>
       <div className="parts-stock-item-body">
-        <div className="parts-stock-item-name" title={part.name}>{part.name}</div>
+        <div className="parts-stock-item-name" title={part.name}>
+          {part.name}
+        </div>
         <div className="parts-stock-item-meta">
           {part.category && <span className="parts-stock-tag category">{part.category}</span>}
           <span className="parts-stock-tag">{part.unit || 'pcs'}</span>
-          {isLow && <span className="parts-stock-low-badge" title={`Low stock alert (threshold: ${lowAt})`}>⚠️ Low stock</span>}
-          {part.notes && <span className="parts-stock-notes-text" title={part.notes}>{part.notes}</span>}
+          {isLow && (
+            <span className="parts-stock-low-badge" title={`Low stock alert (threshold: ${lowAt})`}>
+              ⚠️ Low stock
+            </span>
+          )}
+          {part.notes && (
+            <span className="parts-stock-notes-text" title={part.notes}>
+              {part.notes}
+            </span>
+          )}
         </div>
       </div>
       <div className="parts-stock-qty">
-        <button type="button" className="parts-stock-step" title="Remove one" aria-label="Decrease quantity"
-          onClick={() => onQuantity(Math.max(0, quantity - 1))}>−</button>
-        <input type="number" className="parts-stock-qty-input" min="0" max="1000000" step="1" aria-label="Quantity on hand"
-          value={typed} onChange={(event) => setTyped(event.target.value)} onBlur={commitTyped}
-          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitTyped(); } }} />
-        <button type="button" className="parts-stock-step" title="Add one" aria-label="Increase quantity"
-          onClick={() => onQuantity(quantity + 1)}>+</button>
+        <button
+          type="button"
+          className="parts-stock-step"
+          title="Remove one"
+          aria-label="Decrease quantity"
+          onClick={() => onQuantity(Math.max(0, quantity - 1))}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          className="parts-stock-qty-input"
+          min="0"
+          max="1000000"
+          step="1"
+          aria-label="Quantity on hand"
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
+          onBlur={commitTyped}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitTyped();
+            }
+          }}
+        />
+        <button type="button" className="parts-stock-step" title="Add one" aria-label="Increase quantity" onClick={() => onQuantity(quantity + 1)}>
+          +
+        </button>
       </div>
-      <button type="button" className="parts-stock-edit" title="Edit part details" onClick={onEdit}>Edit</button>
-      <button type="button" className="parts-stock-remove" title="Remove from Parts Stock" aria-label="Delete part" onClick={onRemove}>×</button>
+      <button type="button" className="parts-stock-edit" title="Edit part details" onClick={onEdit}>
+        Edit
+      </button>
+      <button type="button" className="parts-stock-remove" title="Remove from Parts Stock" aria-label="Delete part" onClick={onRemove}>
+        ×
+      </button>
     </div>
   );
 }

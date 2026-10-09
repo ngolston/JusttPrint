@@ -9,8 +9,26 @@ const { zipSync, strToU8 } = require('fflate');
 const database = require('../src/core/database');
 const job = require('../src/server/geometry-job');
 
-const SHAPE = [[[0, 0, 0], [30, 0, 0], [0, 20, 0], [5, 7, 13]], [[40, 2, 1], [52, 4, 0], [45, 15, 3], [47, 6, 9]]];
-const faces = (t) => [[t[0], t[2], t[1]], [t[0], t[1], t[3]], [t[1], t[2], t[3]], [t[0], t[3], t[2]]];
+const SHAPE = [
+  [
+    [0, 0, 0],
+    [30, 0, 0],
+    [0, 20, 0],
+    [5, 7, 13]
+  ],
+  [
+    [40, 2, 1],
+    [52, 4, 0],
+    [45, 15, 3],
+    [47, 6, 9]
+  ]
+];
+const faces = (t) => [
+  [t[0], t[2], t[1]],
+  [t[0], t[1], t[3]],
+  [t[1], t[2], t[3]],
+  [t[0], t[3], t[2]]
+];
 const tris = (f, shape = SHAPE) => shape.flatMap((t) => faces(t.map(f)));
 function stl(list) {
   const buf = Buffer.alloc(84 + list.length * 50);
@@ -21,8 +39,9 @@ function stl(list) {
 function threeMf(list) {
   const verts = [];
   const idx = list.map((tri) => tri.map((p) => verts.push(p) - 1));
-  const xml = `<model><resources><object id="1"><mesh><vertices>${verts.map((p) => `<vertex x="${p[0]}" y="${p[1]}" z="${p[2]}"/>`).join('')}</vertices><triangles>${
-    idx.map((t) => `<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`).join('')}</triangles></mesh></object></resources></model>`;
+  const xml = `<model><resources><object id="1"><mesh><vertices>${verts.map((p) => `<vertex x="${p[0]}" y="${p[1]}" z="${p[2]}"/>`).join('')}</vertices><triangles>${idx
+    .map((t) => `<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`)
+    .join('')}</triangles></mesh></object></resources></model>`;
   return Buffer.from(zipSync({ '3D/3dmodel.model': strToU8(xml) }));
 }
 const moved = ([x, y, z]) => [y + 50, -x, z + 3];
@@ -38,7 +57,9 @@ async function waitDone() {
 async function main() {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jp-geometry-')));
   database.db = new Database(path.join(tmp, 'test.db'));
-  database.db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, size INTEGER, hash TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT, isNew INTEGER, favorite INTEGER, rating INTEGER)');
+  database.db.exec(
+    'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, size INTEGER, hash TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT, isNew INTEGER, favorite INTEGER, rating INTEGER)'
+  );
   const files = {
     'part.stl': [stl(tris((p) => p)), 'h1'],
     'part copy.stl': [stl(tris((p) => p)), 'h1'],
@@ -66,9 +87,11 @@ async function main() {
   const { groups, missing } = job.duplicates();
   assert.strictEqual(missing, 0);
   assert.strictEqual(groups.length, 1, JSON.stringify(groups));
-  assert.deepStrictEqual(groups[0].files.map((f) => f.filePath.replace(`${tmp}/`, '')).sort(),
+  assert.deepStrictEqual(
+    groups[0].files.map((f) => f.filePath.replace(`${tmp}/`, '')).sort(),
     ['part copy.stl', 'part moved.stl', 'part.3mf', 'part.stl', 'parts.zip::inner/part.stl'].sort(),
-    'moved, re-saved, as 3MF and inside a ZIP: the same model; the other one is not');
+    'moved, re-saved, as 3MF and inside a ZIP: the same model; the other one is not'
+  );
   assert.ok(!job.duplicates(null, { includeZip: false }).groups[0].files.some((f) => f.filePath.includes('::')), 'without ZIP files, the entry is left out');
   assert.ok(groups[0].hash.startsWith('geometry:'));
 
@@ -79,11 +102,20 @@ async function main() {
   // A changed file is fingerprinted again.
   fs.writeFileSync(path.join(tmp, 'other.stl'), stl(tris((p) => p)));
   fs.utimesSync(path.join(tmp, 'other.stl'), new Date(), new Date(Date.now() + 5000));
-  assert.deepStrictEqual(job.missing().map((row) => path.basename(row.filePath)), ['other.stl']);
+  assert.deepStrictEqual(
+    job.missing().map((row) => path.basename(row.filePath)),
+    ['other.stl']
+  );
   job.start();
   await waitDone();
   database.db.prepare("UPDATE models SET hash = 'h9' WHERE fileName = 'other.stl'").run();
-  assert.deepStrictEqual(job.duplicates().groups[0].files.map((f) => f.fileName).sort(), ['other.stl', 'part copy.stl', 'part.stl'].sort());
+  assert.deepStrictEqual(
+    job
+      .duplicates()
+      .groups[0].files.map((f) => f.fileName)
+      .sort(),
+    ['other.stl', 'part copy.stl', 'part.stl'].sort()
+  );
 
   // A broken file fails without stopping the rest.
   fs.writeFileSync(path.join(tmp, 'broken.stl'), Buffer.from('solid nothing here'));

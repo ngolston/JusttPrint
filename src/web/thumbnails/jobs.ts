@@ -35,13 +35,18 @@ function set(next: Job | null) {
   job = next;
   listeners.forEach((listener) => listener());
 }
-const update = (patch: Partial<Job>) => { if (job) set({ ...job, ...patch }); };
+const update = (patch: Partial<Job>) => {
+  if (job) set({ ...job, ...patch });
+};
 
 export function useThumbnailJob(): Job | null {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }, () => job);
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => job
+  );
 }
 
 /** Start a job on the server. Resolves false when it could not start (the reason is shown unless quiet). */
@@ -50,10 +55,21 @@ export async function startThumbnailJob(mode: JobMode, options: { background?: b
     if (!options.quiet) await showMessage(TITLES[mode], 'A thumbnail job is already running.');
     return false;
   }
-  set({ mode, title: TITLES[mode], phase: 'Starting on the JusttPrint backend...', processed: 0, total: 0, background: !!options.background, ours: true, stopping: false });
+  set({
+    mode,
+    title: TITLES[mode],
+    phase: 'Starting on the JusttPrint backend...',
+    processed: 0,
+    total: 0,
+    background: !!options.background,
+    ours: true,
+    stopping: false
+  });
   setBulkJobActive(true);
-  const start = await callAction<{ success?: boolean; error?: string }>('start-server-thumbnail-job', { mode })
-    .catch((error) => ({ success: false, error: error instanceof Error ? error.message : String(error) }));
+  const start = await callAction<{ success?: boolean; error?: string }>('start-server-thumbnail-job', { mode }).catch((error) => ({
+    success: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
   if (start?.success) return true;
   set(null);
   setBulkJobActive(false);
@@ -76,7 +92,8 @@ function onProgress(payload: { phase?: string; processed?: number; total?: numbe
   setBulkJobActive(true);
   const mode: JobMode = payload?.mode === 'all' ? 'all' : 'missing';
   // A job started elsewhere: follow it in the sidebar.
-  const current: Job = job && !job.done ? job : { mode, title: TITLES[mode], phase: '', processed: 0, total: 0, background: true, ours: false, stopping: false };
+  const current: Job =
+    job && !job.done ? job : { mode, title: TITLES[mode], phase: '', processed: 0, total: 0, background: true, ours: false, stopping: false };
   set({
     ...current,
     phase: current.stopping ? 'Stopping...' : payload?.phase || current.phase,
@@ -93,7 +110,9 @@ function finish(message: string) {
   if (!finished.background) {
     // Leave the outcome on screen briefly.
     set({ ...finished, done: message, phase: message });
-    setTimeout(() => { if (job?.done) set(null); }, 1200);
+    setTimeout(() => {
+      if (job?.done) set(null);
+    }, 1200);
   } else {
     set(null);
     if (finished.ours) showMessage(finished.title, message === 'Stopped.' ? 'Thumbnail generation stopped.' : 'Thumbnail generation finished.');
@@ -126,16 +145,20 @@ export function handlePageEvent(channel: string, handler: (...args: any[]) => vo
 async function regenerate() {
   const total = await callAction<number>('getTotalModelCount').catch(() => 0);
   if (!total) return void showMessage('Information', 'No models found in the database.');
-  const answer = await showMessage('Regenerate Thumbnails',
-    `This will regenerate thumbnails for all ${total} models. This may take a while. Continue?`, ['Yes', 'No']);
+  const answer = await showMessage('Regenerate Thumbnails', `This will regenerate thumbnails for all ${total} models. This may take a while. Continue?`, [
+    'Yes',
+    'No'
+  ]);
   if (answer === 'Yes') await startThumbnailJob('all');
 }
 
 async function generateMissing() {
   const missing = await callAction<unknown[]>('get-models-without-thumbnails').catch(() => []);
   if (!missing.length) return void showMessage('Information', 'All models already have thumbnails. Nothing to generate.');
-  const answer = await showMessage('Generate Missing Thumbnails',
-    `${missing.length} models are missing thumbnails. Would you like to generate them now?`, ['Yes', 'No']);
+  const answer = await showMessage('Generate Missing Thumbnails', `${missing.length} models are missing thumbnails. Would you like to generate them now?`, [
+    'Yes',
+    'No'
+  ]);
   if (answer === 'Yes') await startThumbnailJob('missing');
 }
 
@@ -145,11 +168,20 @@ if (typeof window !== 'undefined' && !isWorkerPage) {
   handlePageEvent('thumbnail-job-progress', onProgress);
   handlePageEvent('thumbnail-job-complete', onComplete);
   handlePageEvent('thumbnail-job-error', onError);
-  handlePageEvent('regenerate-thumbnails', () => { regenerate(); });
-  handlePageEvent('generate-missing-thumbnails', () => { generateMissing(); });
-  window.regenerateAllThumbnails = async () => { await startThumbnailJob('all'); };
+  handlePageEvent('regenerate-thumbnails', () => {
+    regenerate();
+  });
+  handlePageEvent('generate-missing-thumbnails', () => {
+    generateMissing();
+  });
+  window.regenerateAllThumbnails = async () => {
+    await startThumbnailJob('all');
+  };
   // A job already running (started before this page loaded): follow it.
-  callAction<{ status?: string; mode?: JobMode }>('get-server-thumbnail-job-status').then((status) => {
-    if (status?.status === 'running' && !job) onProgress({ mode: status.mode, phase: 'Generating thumbnails on the JusttPrint backend...' });
-  }, () => {});
+  callAction<{ status?: string; mode?: JobMode }>('get-server-thumbnail-job-status').then(
+    (status) => {
+      if (status?.status === 'running' && !job) onProgress({ mode: status.mode, phase: 'Generating thumbnails on the JusttPrint backend...' });
+    },
+    () => {}
+  );
 }

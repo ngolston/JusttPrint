@@ -43,32 +43,52 @@ class App extends EventEmitter {
     process.on('SIGINT', () => this.quit());
   }
 
-  whenReady() { return this._readyPromise; }
-  isReady() { return this._ready; }
-  getName() { return APP_NAME; }
-  getVersion() { return require('../../package.json').version; }
-  getAppPath() { return path.resolve(__dirname, '..', '..'); }
+  whenReady() {
+    return this._readyPromise;
+  }
+  isReady() {
+    return this._ready;
+  }
+  getName() {
+    return APP_NAME;
+  }
+  getVersion() {
+    return require('../../package.json').version;
+  }
+  getAppPath() {
+    return path.resolve(__dirname, '..', '..');
+  }
 
   getPath(name) {
     const userData = process.env.JUSTTPRINT_USER_DATA || path.join(configHome(), APP_NAME);
     switch (name) {
-      case 'userData': return userData;
-      case 'appData': return configHome();
-      case 'logs': return path.join(userData, 'logs');
-      case 'temp': return os.tmpdir();
-      case 'exe': return process.execPath;
+      case 'userData':
+        return userData;
+      case 'appData':
+        return configHome();
+      case 'logs':
+        return path.join(userData, 'logs');
+      case 'temp':
+        return os.tmpdir();
+      case 'exe':
+        return process.execPath;
       case 'home':
       case 'desktop':
       case 'documents':
       case 'downloads':
         return os.homedir();
-      default: return userData;
+      default:
+        return userData;
     }
   }
 
   setPath() {}
-  getGPUInfo() { return Promise.resolve({}); }
-  getGPUFeatureStatus() { return {}; }
+  getGPUInfo() {
+    return Promise.resolve({});
+  }
+  getGPUFeatureStatus() {
+    return {};
+  }
   relaunch() {}
   focus() {}
 
@@ -76,7 +96,12 @@ class App extends EventEmitter {
   quit() {
     if (this._quitting) return;
     this._quitting = true;
-    const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    const event = {
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      }
+    };
     this.emit('before-quit', event);
     this.emit('will-quit', event);
     this.emit('quit', event, 0);
@@ -147,7 +172,9 @@ function trashDirsFor(source) {
   if (top !== path.parse(top).root) {
     try {
       return makeTrashDirs(path.join(top, `.Trash-${uid}`));
-    } catch (_) { /* read-only or no permission: try the home trash */ }
+    } catch (_) {
+      /* read-only or no permission: try the home trash */
+    }
   }
   const dataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
   const homeTrash = path.join(dataHome, 'Trash');
@@ -174,10 +201,7 @@ function trashItem(filePath) {
       }
 
       const deletedAt = new Date().toISOString().replace(/\.\d+Z$/, '');
-      fs.writeFileSync(
-        path.join(infoDir, `${name}.trashinfo`),
-        `[Trash Info]\nPath=${encodeURI(source)}\nDeletionDate=${deletedAt}\n`
-      );
+      fs.writeFileSync(path.join(infoDir, `${name}.trashinfo`), `[Trash Info]\nPath=${encodeURI(source)}\nDeletionDate=${deletedAt}\n`);
       fs.renameSync(source, path.join(filesDir, name));
       resolve();
     } catch (error) {

@@ -13,11 +13,15 @@ function normalizePartStockQuantity(value) {
 async function getAllPartsHandler() {
   try {
     printEvents.ensurePartsSchema(database.db);
-    return database.db.prepare(`
+    return database.db
+      .prepare(
+        `
       SELECT id, name, category, quantity, unit, notes, low_stock
       FROM parts
       ORDER BY name COLLATE NOCASE, id ASC
-    `).all();
+    `
+      )
+      .all();
   } catch (error) {
     console.error('Error getting parts:', error);
     throw error;
@@ -41,17 +45,25 @@ async function savePartHandler(event, part) {
       if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid part');
       const existing = database.db.prepare('SELECT id FROM parts WHERE id = ?').get(id);
       if (!existing) throw new Error('Part not found');
-      database.db.prepare(`
+      database.db
+        .prepare(
+          `
         UPDATE parts
         SET name = ?, category = ?, quantity = ?, unit = ?, notes = ?, low_stock = ?
         WHERE id = ?
-      `).run(name, category, quantity, unit, notes, lowStock, id);
+      `
+        )
+        .run(name, category, quantity, unit, notes, lowStock, id);
       return database.db.prepare('SELECT * FROM parts WHERE id = ?').get(id);
     }
-    const result = database.db.prepare(`
+    const result = database.db
+      .prepare(
+        `
       INSERT INTO parts (name, category, quantity, unit, notes, low_stock)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(name, category, quantity, unit, notes, lowStock);
+    `
+      )
+      .run(name, category, quantity, unit, notes, lowStock);
     return database.db.prepare('SELECT * FROM parts WHERE id = ?').get(result.lastInsertRowid);
   } catch (error) {
     console.error('Error saving part:', error);

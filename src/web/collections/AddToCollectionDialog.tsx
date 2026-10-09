@@ -63,7 +63,10 @@ export function AddToCollectionDialog() {
     };
     const offGlobal = exposeGlobal('openAddToCollection', show);
     const offEvent = onServerEvent('open-add-to-collection', show);
-    return () => { offGlobal(); offEvent(); };
+    return () => {
+      offGlobal();
+      offEvent();
+    };
   }, []);
 
   function toggle(id: number) {
@@ -98,7 +101,11 @@ export function AddToCollectionDialog() {
     setBusy(true);
     try {
       // Only collections the user ticked or unticked change; a partly-selected one left alone stays as it is.
-      const { add, take } = collectionChanges(rows.filter((row) => touched.has(row.id)), ticked, models);
+      const { add, take } = collectionChanges(
+        rows.filter((row) => touched.has(row.id)),
+        ticked,
+        models
+      );
       for (const id of add) await collections.add(id, paths);
       for (const id of take) await collections.take(id, paths);
       setOpen(false);
@@ -111,14 +118,23 @@ export function AddToCollectionDialog() {
 
   const count = paths.length;
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title={count === 1 ? 'Add to Collection' : `Add ${count} Models to Collections`} className="jp-collect"
-      footer={(
+    <Modal
+      open={open}
+      onClose={() => setOpen(false)}
+      title={count === 1 ? 'Add to Collection' : `Add ${count} Models to Collections`}
+      className="jp-collect"
+      footer={
         <>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="primary" id="jp-collect-save" disabled={busy || !rows || touched.size === 0} onClick={save}>Save</Button>
+          <Button variant="primary" id="jp-collect-save" disabled={busy || !rows || touched.size === 0} onClick={save}>
+            Save
+          </Button>
         </>
-      )}>
-      {rows === null ? <p className="jp-meta">Loading…</p> : rows.length === 0 ? (
+      }
+    >
+      {rows === null ? (
+        <p className="jp-meta">Loading…</p>
+      ) : rows.length === 0 ? (
         <p className="jp-meta">No collections yet. Make the first one below.</p>
       ) : (
         <ul className="jp-collect__list" id="jp-collect-list">
@@ -127,10 +143,19 @@ export function AddToCollectionDialog() {
             return (
               <li key={row.id}>
                 <label className="jp-collect__row">
-                  <input type="checkbox" checked={ticked.has(row.id)} ref={(el) => { if (el) el.indeterminate = partly; }}
-                    onChange={() => toggle(row.id)} />
+                  <input
+                    type="checkbox"
+                    checked={ticked.has(row.id)}
+                    ref={(el) => {
+                      if (el) el.indeterminate = partly;
+                    }}
+                    onChange={() => toggle(row.id)}
+                  />
                   <span className="jp-collect__name">{row.name}</span>
-                  <span className="jp-meta">{row.modelCount} {row.modelCount === 1 ? 'model' : 'models'}{partly ? ` · ${row.selectedInIt} of these` : ''}</span>
+                  <span className="jp-meta">
+                    {row.modelCount} {row.modelCount === 1 ? 'model' : 'models'}
+                    {partly ? ` · ${row.selectedInIt} of these` : ''}
+                  </span>
                 </label>
               </li>
             );
@@ -139,11 +164,24 @@ export function AddToCollectionDialog() {
       )}
       <div className="jp-collect__new">
         <FolderPlus size={18} aria-hidden="true" />
-        <input className="jp-input" id="jp-collect-new-name" placeholder="New collection name" value={newName} maxLength={120}
-          onChange={(event) => setNewName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createAndAdd(); }} />
-        <Button icon={Plus} id="jp-collect-create" disabled={busy || !newName.trim()} onClick={createAndAdd}>Create and Add</Button>
+        <input
+          className="jp-input"
+          id="jp-collect-new-name"
+          placeholder="New collection name"
+          value={newName}
+          maxLength={120}
+          onChange={(event) => setNewName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') void createAndAdd();
+          }}
+        />
+        <Button icon={Plus} id="jp-collect-create" disabled={busy || !newName.trim()} onClick={createAndAdd}>
+          Create and Add
+        </Button>
       </div>
-      <p className="jp-meta" role="status" id="jp-collect-status">{status}</p>
+      <p className="jp-meta" role="status" id="jp-collect-status">
+        {status}
+      </p>
     </Modal>
   );
 }

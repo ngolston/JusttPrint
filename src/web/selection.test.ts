@@ -30,7 +30,9 @@ describe('Selection', () => {
   it('notifies once per batch, and not for changes that change nothing', async () => {
     const s = new Selection();
     let calls = 0;
-    const off = s.subscribe(() => { calls++; });
+    const off = s.subscribe(() => {
+      calls++;
+    });
     s.add('/a');
     s.add('/b');
     s.add('/a');

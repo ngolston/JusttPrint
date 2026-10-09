@@ -19,6 +19,8 @@ if (!process.env.E2E_DOCKER_IMAGE) {
   if (build.status !== 0) process.exit(build.status || 1);
 }
 const run = spawnSync(process.execPath, [path.join(ROOT, 'tests', 'e2e', 'run.js')], {
-  cwd: ROOT, stdio: 'inherit', env: { ...process.env, E2E_DOCKER_IMAGE: IMAGE }
+  cwd: ROOT,
+  stdio: 'inherit',
+  env: { ...process.env, E2E_DOCKER_IMAGE: IMAGE }
 });
 process.exit(run.status === null ? 1 : run.status);

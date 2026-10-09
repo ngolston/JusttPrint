@@ -17,12 +17,19 @@ export function PerformanceSettingsDialog() {
   const [maxFileSize, setMaxFileSize] = useState(DEFAULT_MAX_FILE_SIZE_MB);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => exposeGlobal('openPerformanceSettings', () => {
-    settings.get<string | null>('maxFileSizeMB')
-      .then((value) => setMaxFileSize(value || DEFAULT_MAX_FILE_SIZE_MB))
-      .catch((error) => console.error('Could not load the performance settings:', error))
-      .finally(() => { if (!dialogRef.current?.open) dialogRef.current?.showModal(); });
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openPerformanceSettings', () => {
+        settings
+          .get<string | null>('maxFileSizeMB')
+          .then((value) => setMaxFileSize(value || DEFAULT_MAX_FILE_SIZE_MB))
+          .catch((error) => console.error('Could not load the performance settings:', error))
+          .finally(() => {
+            if (!dialogRef.current?.open) dialogRef.current?.showModal();
+          });
+      }),
+    []
+  );
 
   async function save() {
     const mb = Number(maxFileSize);
@@ -43,21 +50,37 @@ export function PerformanceSettingsDialog() {
   }
 
   return (
-    <ModalDialog id="performance-settings-dialog" title="Performance Settings" dialogRef={dialogRef}
+    <ModalDialog
+      id="performance-settings-dialog"
+      title="Performance Settings"
+      dialogRef={dialogRef}
       description={<p className="warning-text">Warning: These settings can impact application performance and stability. Change with caution.</p>}
-      footer={(
+      footer={
         <>
-          <button type="button" id="save-performance-settings" className="is-primary" disabled={saving} onClick={save}>Save</button>
-          <button type="button" id="cancel-performance-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          <button type="button" id="save-performance-settings" className="is-primary" disabled={saving} onClick={save}>
+            Save
+          </button>
+          <button type="button" id="cancel-performance-settings" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </>
-      )}>
+      }
+    >
       <div className="settings-group">
         <h4>File Processing</h4>
         <div className="form-group">
           <label htmlFor="max-file-size">Max File Size (MB):</label>
-          <input type="number" id="max-file-size" min="1" step="1" value={maxFileSize}
+          <input
+            type="number"
+            id="max-file-size"
+            min="1"
+            step="1"
+            value={maxFileSize}
             onChange={(event) => setMaxFileSize(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') save(); }} />
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') save();
+            }}
+          />
           <p className="setting-description">Maximum file size to process. Files larger than this will be skipped during scanning.</p>
         </div>
       </div>

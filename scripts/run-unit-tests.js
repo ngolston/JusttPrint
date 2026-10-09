@@ -34,14 +34,17 @@ for (const file of findTests(root).sort()) {
   if (result.status !== 0 || failures.length) {
     failed.push(name);
     console.log(`FAIL ${name}`);
-    for (const line of (failures.length ? failures : output.trim().split('\n').slice(-5))) console.log(`     ${line}`);
+    for (const line of failures.length ? failures : output.trim().split('\n').slice(-5)) console.log(`     ${line}`);
   } else {
     console.log(`ok   ${name}`);
   }
 }
 
 // TypeScript unit tests for the React screens (src/web/**/*.test.ts), run by Vitest.
-const vitest = spawnSync(process.execPath, [path.join(root, 'node_modules', 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.web.config.mjs'], { cwd: root, encoding: 'utf8' });
+const vitest = spawnSync(process.execPath, [path.join(root, 'node_modules', 'vitest', 'vitest.mjs'), 'run', '--config', 'vitest.web.config.mjs'], {
+  cwd: root,
+  encoding: 'utf8'
+});
 if (vitest.status !== 0) {
   failed.push('src/web (vitest)');
   console.log('FAIL src/web (vitest)');

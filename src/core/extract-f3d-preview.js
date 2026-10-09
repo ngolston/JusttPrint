@@ -55,10 +55,7 @@ function zstdDecompress(bytes, options) {
   if (typeof zlib.zstdDecompressSync === 'function') {
     return new Uint8Array(zlib.zstdDecompressSync(bytes));
   }
-  throw new Error(
-    'preview is Zstandard-compressed (ZIP method 93): needs Node >= 22.15, '
-    + 'or pass { zstd: decompressFn }'
-  );
+  throw new Error('preview is Zstandard-compressed (ZIP method 93): needs Node >= 22.15, ' + 'or pass { zstd: decompressFn }');
 }
 
 async function readCentralDirectory(src) {
@@ -66,7 +63,10 @@ async function readCentralDirectory(src) {
   const tail = await readExact(src, src.size - tailLen, tailLen, 'end of archive');
   let e = -1;
   for (let i = tail.length - 22; i >= 0; i--) {
-    if (u32(tail, i) === SIG_EOCD) { e = i; break; }
+    if (u32(tail, i) === SIG_EOCD) {
+      e = i;
+      break;
+    }
   }
   if (e < 0) throw new Error('not a ZIP archive (no end-of-central-directory record)');
 
@@ -101,14 +101,22 @@ async function readCentralDirectory(src) {
     const name = flags & 0x800 ? td.decode(nameBytes) : String.fromCharCode(...nameBytes);
 
     const extra = cd.subarray(p + 46 + nameLen, p + 46 + nameLen + extraLen);
-    for (let x = 0; x + 4 <= extra.length; ) {
+    for (let x = 0; x + 4 <= extra.length;) {
       const id = u16(extra, x);
       const len = u16(extra, x + 2);
       if (id === 0x0001) {
         let q = x + 4;
-        if (size === 0xffffffff) { size = u64(extra, q); q += 8; }
-        if (compSize === 0xffffffff) { compSize = u64(extra, q); q += 8; }
-        if (localOffset === 0xffffffff) { localOffset = u64(extra, q); }
+        if (size === 0xffffffff) {
+          size = u64(extra, q);
+          q += 8;
+        }
+        if (compSize === 0xffffffff) {
+          compSize = u64(extra, q);
+          q += 8;
+        }
+        if (localOffset === 0xffffffff) {
+          localOffset = u64(extra, q);
+        }
       }
       x += 4 + len;
     }
@@ -148,7 +156,10 @@ function choosePreview(entries) {
     if (/(^|\/)previews\/[^/]+\.(png|jpe?g)$/.test(n)) return 6;
     return 99;
   };
-  const best = files.map((e) => [rank(e), e]).filter(([r]) => r < 99).sort((a, b) => a[0] - b[0])[0];
+  const best = files
+    .map((e) => [rank(e), e])
+    .filter(([r]) => r < 99)
+    .sort((a, b) => a[0] - b[0])[0];
   return best ? best[1] : null;
 }
 

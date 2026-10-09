@@ -81,8 +81,8 @@ export function showModels(models: GridModel[]) {
       if (before.hasMultipleThumbnails) next.hasMultipleThumbnails = true;
     }
   }
-  const focusSelection = selection.size > 0 && !!previousView && (
-    (previousView === 'detailed' && view === 'preview') || (previousView === 'preview' && view === 'detailed'));
+  const focusSelection =
+    selection.size > 0 && !!previousView && ((previousView === 'detailed' && view === 'preview') || (previousView === 'preview' && view === 'detailed'));
   grid.currentModels = list;
   grid._virtualGridView = view;
   if (window.libraryGrid) window.libraryGrid.show({ rebuild, focusSelection });
@@ -137,4 +137,3 @@ export async function updateModel(filePath: string) {
     console.error('Error updating model element:', error);
   }
 }
-

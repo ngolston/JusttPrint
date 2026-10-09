@@ -36,8 +36,20 @@ function set(next: AiTagJob | null) {
 }
 
 export function useAiTagJob(): { job: AiTagJob | null; reviewing: boolean } {
-  const current = useSyncExternalStore((fn) => { listeners.add(fn); return () => listeners.delete(fn); }, () => job);
-  const shown = useSyncExternalStore((fn) => { listeners.add(fn); return () => listeners.delete(fn); }, () => reviewing);
+  const current = useSyncExternalStore(
+    (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    () => job
+  );
+  const shown = useSyncExternalStore(
+    (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    () => reviewing
+  );
   return { job: current, reviewing: !!current && shown === current.id };
 }
 

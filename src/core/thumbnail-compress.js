@@ -86,7 +86,9 @@ function getImageFromBuffer(buffer) {
     // fall through
   } finally {
     if (tempPath) {
-      try { fs.unlinkSync(tempPath); } catch {}
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {}
     }
   }
 
@@ -174,10 +176,7 @@ function compressDataUrl(dataUrl) {
   const preferPng = dataUrl.startsWith('data:image/png');
   let compressed = encodeNativeImage(working, preferPng);
 
-  if (
-    compressed.startsWith('data:image/png') &&
-    compressed.length > THUMBNAIL_MAX_STORED_CHARS
-  ) {
+  if (compressed.startsWith('data:image/png') && compressed.length > THUMBNAIL_MAX_STORED_CHARS) {
     compressed = encodeNativeImage(working, false);
   }
 

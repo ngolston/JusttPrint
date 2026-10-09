@@ -32,7 +32,9 @@ function recentPrints(db, limit = 8, outcome = null, printerId = null) {
     where.push('pe.printer_id = ?');
     params.push(Number(printerId));
   }
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT pe.id, pe.printed_at, pe.outcome, pe.quantity, m.filePath, m.fileName
       ${hasPrinters ? ', p.nickname AS printer' : ', NULL AS printer'}
     FROM print_events pe
@@ -40,7 +42,9 @@ function recentPrints(db, limit = 8, outcome = null, printerId = null) {
     ${hasPrinters ? 'LEFT JOIN printers p ON p.id = pe.printer_id' : ''}
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY datetime(pe.printed_at) DESC, pe.id DESC
-    LIMIT ?`).all(...params, max);
+    LIMIT ?`
+    )
+    .all(...params, max);
   return rows.map((row) => ({
     kind: 'print',
     id: row.id,
@@ -57,10 +61,14 @@ function recentActivity(db, limit = 8) {
   const max = Math.max(1, Math.min(50, Number(limit) || 8));
   const items = recentPrints(db, max);
 
-  const days = db.prepare(`
+  const days = db
+    .prepare(
+      `
     SELECT date(dateAdded) AS day, COUNT(*) AS count, MAX(dateAdded) AS latest
     FROM models WHERE dateAdded IS NOT NULL AND date(dateAdded) IS NOT NULL
-    GROUP BY day ORDER BY day DESC LIMIT ?`).all(max);
+    GROUP BY day ORDER BY day DESC LIMIT ?`
+    )
+    .all(max);
   for (const row of days) items.push({ kind: 'added', at: row.latest, day: row.day, count: row.count });
 
   return items.sort((a, b) => time(b.at) - time(a.at)).slice(0, max);

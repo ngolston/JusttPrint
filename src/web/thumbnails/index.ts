@@ -4,7 +4,15 @@
  * for the rest of the page.
  */
 import type { ThumbnailOptions } from './render';
-import { cachedThumbnail, fetchPrimaryThumbnail, invalidateThumbnail, isImageOnlyMiss, saveThumbnailIfReal, setCachedThumbnail, syncThumbnailFromField } from './cache';
+import {
+  cachedThumbnail,
+  fetchPrimaryThumbnail,
+  invalidateThumbnail,
+  isImageOnlyMiss,
+  saveThumbnailIfReal,
+  setCachedThumbnail,
+  syncThumbnailFromField
+} from './cache';
 import { renderInBackground, setBulkJobActive, thumbnailQueue, tuneForServerGpu } from './cards';
 import { extensionOf, isFailurePlaceholder, isMostlyEmpty, typedPlaceholder } from './formats';
 import { embeddedImages, makeThumbnail } from './pipeline';
@@ -32,7 +40,9 @@ window.thumbnailRenderer = {
     unavailableClass = module.WebGLUnavailableError;
     return module.renderThumbnail(filePath, options);
   },
-  reset: async () => { (await load()).resetThumbnailRenderer(); },
+  reset: async () => {
+    (await load()).resetThumbnailRenderer();
+  },
   isWebGLUnavailable: (error) => !!unavailableClass && error instanceof unavailableClass
 };
 

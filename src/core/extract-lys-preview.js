@@ -49,8 +49,7 @@ function indexOfBytes(data, needle, from, limit) {
 }
 
 function pickImageEntry(entries) {
-  return entries.find(([name]) => /(^|[\\/])preview\.png$/i.test(name))
-    ?? entries.find(([name]) => IMAGE_RE.test(name));
+  return entries.find(([name]) => /(^|[\\/])preview\.png$/i.test(name)) ?? entries.find(([name]) => IMAGE_RE.test(name));
 }
 
 function extractLysPreviewFromZip(data) {

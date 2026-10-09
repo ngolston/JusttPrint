@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { shortcutFor, type KeyContext } from './shortcuts';
 
-const press = (key: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}) =>
-  ({ key, ctrlKey: !!mods.ctrl, metaKey: !!mods.meta, shiftKey: !!mods.shift });
+const press = (key: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}) => ({
+  key,
+  ctrlKey: !!mods.ctrl,
+  metaKey: !!mods.meta,
+  shiftKey: !!mods.shift
+});
 const ctx = (over: Partial<KeyContext> = {}): KeyContext => ({ inInput: false, detailsVisible: false, multiEdit: false, ...over });
 
 describe('shortcutFor', () => {

@@ -34,7 +34,13 @@ export function nextMenuIndex(key: string, index: number, items: Pick<MenuItem, 
 interface MenuProps {
   items: MenuItem[];
   /** Renders the button that opens the menu; spread the props onto it. */
-  trigger: (props: { 'aria-haspopup': 'menu'; 'aria-expanded': boolean; 'aria-controls': string; onClick: () => void; ref: (el: HTMLButtonElement | null) => void }) => ReactNode;
+  trigger: (props: {
+    'aria-haspopup': 'menu';
+    'aria-expanded': boolean;
+    'aria-controls': string;
+    onClick: () => void;
+    ref: (el: HTMLButtonElement | null) => void;
+  }) => ReactNode;
   align?: 'start' | 'end';
   label: string;
 }
@@ -91,16 +97,35 @@ export function Menu({ items, trigger, align = 'end', label }: MenuProps) {
 
   return (
     <div className="jp-menu-anchor">
-      {trigger({ 'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-controls': id, onClick: () => setOpen((v) => !v), ref: (el) => { button.current = el; } })}
+      {trigger({
+        'aria-haspopup': 'menu',
+        'aria-expanded': open,
+        'aria-controls': id,
+        onClick: () => setOpen((v) => !v),
+        ref: (el) => {
+          button.current = el;
+        }
+      })}
       {open && (
         <div id={id} ref={list} role="menu" aria-label={label} className={cx('jp-menu', `jp-menu--${side}`)} onKeyDown={onKeyDown}>
           {items.map((item, index) => {
             const Icon = item.icon;
             return (
-              <button key={item.id} type="button" role="menuitem" disabled={item.disabled} tabIndex={index === active ? 0 : -1}
-                ref={(el) => { itemRefs.current[index] = el; }}
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                disabled={item.disabled}
+                tabIndex={index === active ? 0 : -1}
+                ref={(el) => {
+                  itemRefs.current[index] = el;
+                }}
                 className={cx('jp-menu__item', item.danger && 'is-danger')}
-                onClick={() => { close(); item.onSelect(); }}>
+                onClick={() => {
+                  close();
+                  item.onSelect();
+                }}
+              >
                 {Icon && <Icon size={16} aria-hidden="true" />}
                 <span>{item.label}</span>
               </button>

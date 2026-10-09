@@ -102,7 +102,18 @@ function zipArchivesEnabled() {
 function buildOrganizePlan(sourceDir, destDir, includeZips, layers) {
   const source = inspectOrganizeDirectory(sourceDir, false);
   if (!source.ok) {
-    return { ok: false, error: source.error, moves: [], skipped: [], sample: [], copyCount: 0, resumeCount: 0, copyBytes: 0, noParentCount: 0, reasonCounts: {} };
+    return {
+      ok: false,
+      error: source.error,
+      moves: [],
+      skipped: [],
+      sample: [],
+      copyCount: 0,
+      resumeCount: 0,
+      copyBytes: 0,
+      noParentCount: 0,
+      reasonCounts: {}
+    };
   }
   const dest = inspectOrganizeDirectory(destDir, true);
   if (!dest.ok) {
@@ -223,13 +234,7 @@ ipcMain.handle('organize-library-run', async (event, payload) => {
     const updateZipEntries = database.db.transaction((rows) => {
       for (const row of rows) {
         const bundle = deriveBundleFromFilePath(row.to);
-        const info = updateZipEntry.run(
-          row.to,
-          bundle.bundleKey || null,
-          bundle.bundleLabel || null,
-          bundle.bundleKind || null,
-          row.from
-        );
+        const info = updateZipEntry.run(row.to, bundle.bundleKey || null, bundle.bundleLabel || null, bundle.bundleKind || null, row.from);
         if (!info.changes) throw new Error('Library record was not updated');
       }
     });

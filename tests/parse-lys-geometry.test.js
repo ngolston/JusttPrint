@@ -46,19 +46,26 @@ function writeIndexedBlob(positions, indices) {
 }
 
 function wrapMango(name, blob) {
-  const manifest = Buffer.from(JSON.stringify({
-    mangoFiles: {
-      [name]: { offset: '0', size: String(blob.length) },
-      'scene.bin': { offset: String(blob.length), size: '4' }
-    }
-  }), 'utf8');
+  const manifest = Buffer.from(
+    JSON.stringify({
+      mangoFiles: {
+        [name]: { offset: '0', size: String(blob.length) },
+        'scene.bin': { offset: String(blob.length), size: '4' }
+      }
+    }),
+    'utf8'
+  );
   return Buffer.concat([manifest, Buffer.alloc(8, 0), blob, Buffer.from('abcd')]);
 }
 
 describe('parse-lys-geometry', () => {
   test('parses stride-48 count header and swaps X/Z', () => {
     const blob = writeStride48Blob([
-      [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+      [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ]
     ]);
     const mesh = parseLysGeometryBlob(blob);
     assert.equal(mesh.positions.length, 9);
@@ -68,10 +75,7 @@ describe('parse-lys-geometry', () => {
   });
 
   test('parses indexed mango .lys', () => {
-    const blob = writeIndexedBlob(
-      [0, 0, 0, 10, 0, 0, 0, 10, 0],
-      [0, 1, 2]
-    );
+    const blob = writeIndexedBlob([0, 0, 0, 10, 0, 0, 0, 10, 0], [0, 1, 2]);
     const data = new Uint8Array(wrapMango('mesh.bin', blob));
     const meshes = parseLysGeometries(data);
     assert.equal(meshes.length, 1);
@@ -80,10 +84,7 @@ describe('parse-lys-geometry', () => {
   });
 
   test('parses ZIP .lys geometry', () => {
-    const blob = writeIndexedBlob(
-      [0, 0, 0, 1, 0, 0, 0, 1, 0],
-      [0, 1, 2]
-    );
+    const blob = writeIndexedBlob([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2]);
     const zip = fflate.zipSync({
       'o1.bin': new Uint8Array(blob),
       'scene.bin': new Uint8Array([1, 2, 3, 4])

@@ -17,15 +17,17 @@ const { backupFileName, listBackups, pruneBackups, nextRunAt, folderProblem } = 
 
 const results = [];
 function test(name, fn) {
-  results.push((async () => {
-    try {
-      await fn();
-      console.log('ok ' + name);
-    } catch (err) {
-      console.error('FAIL ' + name + ':', err.message);
-      process.exitCode = 1;
-    }
-  })());
+  results.push(
+    (async () => {
+      try {
+        await fn();
+        console.log('ok ' + name);
+      } catch (err) {
+        console.error('FAIL ' + name + ':', err.message);
+        process.exitCode = 1;
+      }
+    })()
+  );
 }
 
 const HOUR = 3600 * 1000;
@@ -41,11 +43,25 @@ test('backup names are UTC and sort by time', () => {
 test('pruning keeps the newest and never touches other files', () => {
   const dir = path.join(tmp, 'prune');
   fs.mkdirSync(dir);
-  const names = ['justtprint-auto-20261001-000000.db', 'justtprint-auto-20261003-000000.db', 'justtprint-auto-20261002-000000.db', 'justtprint-auto-20261003-000000-1.db'];
+  const names = [
+    'justtprint-auto-20261001-000000.db',
+    'justtprint-auto-20261003-000000.db',
+    'justtprint-auto-20261002-000000.db',
+    'justtprint-auto-20261003-000000-1.db'
+  ];
   for (const name of [...names, 'justtprint.db', 'holiday-photos.db', 'justtprint-backup-x.db']) fs.writeFileSync(path.join(dir, name), 'x');
-  assert.deepStrictEqual(listBackups(dir).map((b) => b.name), [names[3], names[1], names[2], names[0]]);
+  assert.deepStrictEqual(
+    listBackups(dir).map((b) => b.name),
+    [names[3], names[1], names[2], names[0]]
+  );
   assert.deepStrictEqual(pruneBackups(dir, 2).sort(), [names[0], names[2]].sort());
-  assert.deepStrictEqual(fs.readdirSync(dir).sort(), ['holiday-photos.db', 'justtprint-auto-20261003-000000-1.db', 'justtprint-auto-20261003-000000.db', 'justtprint-backup-x.db', 'justtprint.db']);
+  assert.deepStrictEqual(fs.readdirSync(dir).sort(), [
+    'holiday-photos.db',
+    'justtprint-auto-20261003-000000-1.db',
+    'justtprint-auto-20261003-000000.db',
+    'justtprint-backup-x.db',
+    'justtprint.db'
+  ]);
   assert.deepStrictEqual(listBackups(path.join(tmp, 'missing')), []);
 });
 
@@ -55,17 +71,33 @@ test('schedule: off, first right away, every interval, retry an hour after a fai
   const last = Date.parse('2026-10-07T03:00:00Z');
   assert.strictEqual(nextRunAt({ enabled: true, intervalHours: 24, newestBackup: new Date(last).toISOString() }), last + 24 * HOUR);
   const failed = last + 30 * HOUR;
-  assert.strictEqual(nextRunAt({ enabled: true, intervalHours: 24, newestBackup: new Date(last).toISOString(), lastAttempt: new Date(failed).toISOString(), lastError: 'disk full' }), failed + HOUR);
+  assert.strictEqual(
+    nextRunAt({
+      enabled: true,
+      intervalHours: 24,
+      newestBackup: new Date(last).toISOString(),
+      lastAttempt: new Date(failed).toISOString(),
+      lastError: 'disk full'
+    }),
+    failed + HOUR
+  );
   assert.strictEqual(nextRunAt({ enabled: true, intervalHours: 24, lastAttempt: new Date(failed).toISOString(), lastError: 'disk full' }), failed + HOUR);
   // An old error from before the newest backup does not delay the next run.
-  assert.strictEqual(nextRunAt({ enabled: true, intervalHours: 6, newestBackup: new Date(failed).toISOString(), lastAttempt: new Date(last).toISOString(), lastError: 'old' }), failed + 6 * HOUR);
+  assert.strictEqual(
+    nextRunAt({ enabled: true, intervalHours: 6, newestBackup: new Date(failed).toISOString(), lastAttempt: new Date(last).toISOString(), lastError: 'old' }),
+    failed + 6 * HOUR
+  );
   assert.strictEqual(autoBackup.backupTime('justtprint-auto-20261007-030405-1.db'), Date.parse('2026-10-07T03:04:05Z'));
   assert.ok(Number.isNaN(autoBackup.backupTime('justtprint.db')));
 });
 
 test('backup folders: absolute, not system or app folders', () => {
   assert.strictEqual(folderProblem('/mnt/backups', { appDir: '/app' }), '');
-  assert.strictEqual(folderProblem('/root/.config/justtprint/backups', { appDir: '/opt/justtprint', dataDir: '/root/.config/justtprint' }), '', 'the data folder (under /root) is fine');
+  assert.strictEqual(
+    folderProblem('/root/.config/justtprint/backups', { appDir: '/opt/justtprint', dataDir: '/root/.config/justtprint' }),
+    '',
+    'the data folder (under /root) is fine'
+  );
   assert.match(folderProblem('/root/elsewhere', { dataDir: '/root/.config/justtprint' }), /system folder/);
   assert.match(folderProblem('backups'), /absolute/);
   assert.match(folderProblem('/etc/backups'), /system folder/);

@@ -8,8 +8,17 @@ import { applyColumns, loadColumnLayout, subscribeColumns } from './columns';
 import { ListHeader } from './ListHeader';
 import { useGridView } from './view';
 import {
-  buildDisplayRecords, buildLayoutRows, cellPosition, groupBandClasses, scrollTopForSelection, thumbnailPriority,
-  viewMetrics, visibleRows, type ExpandedGroups, type GridModel, type GroupRecord,
+  buildDisplayRecords,
+  buildLayoutRows,
+  cellPosition,
+  groupBandClasses,
+  scrollTopForSelection,
+  thumbnailPriority,
+  viewMetrics,
+  visibleRows,
+  type ExpandedGroups,
+  type GridModel,
+  type GroupRecord,
   type ViewMetrics
 } from './layout';
 
@@ -129,10 +138,7 @@ export function LibraryGrid() {
 
   const { view, previewSize } = useGridView();
   const width = size.width || container?.clientWidth || 0;
-  const metrics: ViewMetrics = useMemo(
-    () => viewMetrics({ view, width, previewSize }),
-    [view, width, previewSize]
-  );
+  const metrics: ViewMetrics = useMemo(() => viewMetrics({ view, width, previewSize }), [view, width, previewSize]);
 
   // Recomputed on every show/refresh: the library edits the model array in place.
   const { records, layout } = useMemo(() => {
@@ -208,29 +214,53 @@ export function LibraryGrid() {
   const shown = visibleRows(layout, scrollTop, viewportHeight, buffer);
   const indexByKey = new Map(records.map((record, index) => [record.key, index]));
 
-  const cells = content ? shown.flatMap((row) => row.records.map((record, column) => {
-    const index = indexByKey.get(record.key) ?? -1;
-    const position = cellPosition(row, column, metrics, view);
-    const priority = thumbnailPriority(scrollTop, viewportHeight, metrics.headerOffset + row.top, rowHeight, column);
-    if (record.type === 'model') {
-      return (
-        <ModelCard key={`${generation}:${view}:${record.key}`} host={host} model={record.model} view={view} layoutKey={record.key}
-          index={index} parentGroupKey={record.parentGroupKey} bandClasses={groupBandClasses(records, index)} position={position}
-          fixedHeight={view === 'preview' || view === 'detailed'} priority={priority} />
-      );
-    }
-    return (
-      <GroupCard key={`${generation}:${view}:${groupCardKey(record)}`} host={host} record={record} view={view} index={index}
-        position={position} fixedHeight={view === 'preview' || view === 'detailed'} />
-    );
-  })) : null;
+  const cells = content
+    ? shown.flatMap((row) =>
+        row.records.map((record, column) => {
+          const index = indexByKey.get(record.key) ?? -1;
+          const position = cellPosition(row, column, metrics, view);
+          const priority = thumbnailPriority(scrollTop, viewportHeight, metrics.headerOffset + row.top, rowHeight, column);
+          if (record.type === 'model') {
+            return (
+              <ModelCard
+                key={`${generation}:${view}:${record.key}`}
+                host={host}
+                model={record.model}
+                view={view}
+                layoutKey={record.key}
+                index={index}
+                parentGroupKey={record.parentGroupKey}
+                bandClasses={groupBandClasses(records, index)}
+                position={position}
+                fixedHeight={view === 'preview' || view === 'detailed'}
+                priority={priority}
+              />
+            );
+          }
+          return (
+            <GroupCard
+              key={`${generation}:${view}:${groupCardKey(record)}`}
+              host={host}
+              record={record}
+              view={view}
+              index={index}
+              position={position}
+              fixedHeight={view === 'preview' || view === 'detailed'}
+            />
+          );
+        })
+      )
+    : null;
 
   return createPortal(
     <>
       {view === 'list' && <ListHeader />}
       <div className="virtual-spacer" style={{ width: '100%', position: 'relative', height: layout.totalHeight }} />
-      <div ref={setContent} className="virtual-content"
-        style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }}>
+      <div
+        ref={setContent}
+        className="virtual-content"
+        style={{ position: 'absolute', left: 0, width: '100%', height: '100%', top: view === 'list' ? metrics.headerOffset : 0, pointerEvents: 'none' }}
+      >
         {cells}
       </div>
     </>,

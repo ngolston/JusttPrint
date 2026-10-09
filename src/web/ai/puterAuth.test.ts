@@ -4,7 +4,7 @@ import { SIGNIN_MESSAGE, tokenFromMessage } from './puterAuth';
 describe('Puter sign-in message', () => {
   const own = 'http://nas.local:5000';
 
-  it('takes the token from this server\'s sign-in page', () => {
+  it("takes the token from this server's sign-in page", () => {
     expect(tokenFromMessage({ type: SIGNIN_MESSAGE, token: ' abc ' }, own, own)).toBe('abc');
   });
 

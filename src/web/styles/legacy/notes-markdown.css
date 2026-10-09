@@ -135,9 +135,15 @@
   font-weight: 650;
 }
 
-.notes-preview h1 { font-size: 1.25em; }
-.notes-preview h2 { font-size: 1.12em; }
-.notes-preview h3 { font-size: 1.02em; }
+.notes-preview h1 {
+  font-size: 1.25em;
+}
+.notes-preview h2 {
+  font-size: 1.12em;
+}
+.notes-preview h3 {
+  font-size: 1.02em;
+}
 
 .notes-preview a {
   color: var(--primary-accent, var(--jp-accent));
@@ -210,7 +216,6 @@
 }
 
 @media (max-width: 720px) {
-
   .notes-modal .notes-preview,
   .notes-richtext {
     min-height: 180px;

@@ -16,8 +16,17 @@ interface Form extends TlsSettings {
 }
 
 const EMPTY_FORM: Form = {
-  mode: 'off', selfSignedHost: '', tlsCertPath: '', tlsKeyPath: '', tlsCaPath: '', tlsDomain: '', tlsEmail: '',
-  tlsAgreeTos: false, tlsUseStaging: false, tlsRedirectHttp: false, serverHttpPort: '5000'
+  mode: 'off',
+  selfSignedHost: '',
+  tlsCertPath: '',
+  tlsKeyPath: '',
+  tlsCaPath: '',
+  tlsDomain: '',
+  tlsEmail: '',
+  tlsAgreeTos: false,
+  tlsUseStaging: false,
+  tlsRedirectHttp: false,
+  serverHttpPort: '5000'
 };
 
 function formFromStatus(status: TlsStatus): Form {
@@ -55,18 +64,34 @@ export function HttpsSettingsDialog() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => exposeGlobal('openHttpsSettings', () => {
-    tls.status()
-      .then((result) => {
-        setStatus(result);
-        setForm(formFromStatus(result));
-      })
-      .catch((error) => setStatus({
-        envOverride: false, tlsMode: 'off', scheme: 'http', source: 'none', cert: null, missingFiles: false, appPort: 5000,
-        lastError: error instanceof Error ? error.message : String(error), settings: EMPTY_FORM
-      }))
-      .finally(() => { if (!dialogRef.current?.open) dialogRef.current?.showModal(); });
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openHttpsSettings', () => {
+        tls
+          .status()
+          .then((result) => {
+            setStatus(result);
+            setForm(formFromStatus(result));
+          })
+          .catch((error) =>
+            setStatus({
+              envOverride: false,
+              tlsMode: 'off',
+              scheme: 'http',
+              source: 'none',
+              cert: null,
+              missingFiles: false,
+              appPort: 5000,
+              lastError: error instanceof Error ? error.message : String(error),
+              settings: EMPTY_FORM
+            })
+          )
+          .finally(() => {
+            if (!dialogRef.current?.open) dialogRef.current?.showModal();
+          });
+      }),
+    []
+  );
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((previous) => ({ ...previous, [key]: value }));
   const text = (key: keyof Form) => (event: { target: { value: string } }) => set(key, event.target.value as never);
@@ -111,19 +136,29 @@ export function HttpsSettingsDialog() {
     }
   }
 
-  const save = () => run('HTTPS / SSL', () => tls.apply(payload()), 'Failed to apply TLS settings.',
-    'Settings applied. Reconnect with https:// if TLS is on.');
-  const issueLetsEncrypt = () => run("Let's Encrypt", () => tls.apply({ ...payload(), tlsMode: 'letsencrypt', issueNow: true }),
-    'Certificate request failed.', 'Certificate issued. Reopen the app as https://<domain>:<port>.');
-  const generateSelfSigned = () => run('Self-signed certificate', () => {
-    const values = payload();
-    return tls.generateSelfSigned({
-      hostname: form.selfSignedHost.trim() || values.tlsDomain,
-      tlsDomain: values.tlsDomain,
-      tlsRedirectHttp: values.tlsRedirectHttp,
-      serverHttpPort: values.serverHttpPort
-    });
-  }, 'Failed to generate certificate.', 'Certificate generated. Reopen as https:// — the browser will warn until you trust it.');
+  const save = () => run('HTTPS / SSL', () => tls.apply(payload()), 'Failed to apply TLS settings.', 'Settings applied. Reconnect with https:// if TLS is on.');
+  const issueLetsEncrypt = () =>
+    run(
+      "Let's Encrypt",
+      () => tls.apply({ ...payload(), tlsMode: 'letsencrypt', issueNow: true }),
+      'Certificate request failed.',
+      'Certificate issued. Reopen the app as https://<domain>:<port>.'
+    );
+  const generateSelfSigned = () =>
+    run(
+      'Self-signed certificate',
+      () => {
+        const values = payload();
+        return tls.generateSelfSigned({
+          hostname: form.selfSignedHost.trim() || values.tlsDomain,
+          tlsDomain: values.tlsDomain,
+          tlsRedirectHttp: values.tlsRedirectHttp,
+          serverHttpPort: values.serverHttpPort
+        });
+      },
+      'Failed to generate certificate.',
+      'Certificate generated. Reopen as https:// — the browser will warn until you trust it.'
+    );
 
   const input = (key: keyof Form, id: string, label: string, placeholder: string, type = 'text') => (
     <div className="form-group">
@@ -133,24 +168,55 @@ export function HttpsSettingsDialog() {
   );
 
   return (
-    <ModalDialog id="https-settings-dialog" title="HTTPS / SSL" dialogRef={dialogRef}
-      description={<p className="setting-description">Use a custom certificate, Let's Encrypt, or a self-signed certificate for the web UI (<code>https://</code> and <code>wss://</code>) on the listen port below. After enabling TLS, use the matching <code>https://</code> URL in the Chrome extension and MCP client.</p>}
-      footer={(
+    <ModalDialog
+      id="https-settings-dialog"
+      title="HTTPS / SSL"
+      dialogRef={dialogRef}
+      description={
+        <p className="setting-description">
+          Use a custom certificate, Let's Encrypt, or a self-signed certificate for the web UI (<code>https://</code> and <code>wss://</code>) on the listen
+          port below. After enabling TLS, use the matching <code>https://</code> URL in the Chrome extension and MCP client.
+        </p>
+      }
+      footer={
         <>
-          {!locked && <button type="button" id="save-https-settings" className="is-primary" disabled={busy} onClick={save}>Save and apply</button>}
-          <button type="button" id="cancel-https-settings" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          {!locked && (
+            <button type="button" id="save-https-settings" className="is-primary" disabled={busy} onClick={save}>
+              Save and apply
+            </button>
+          )}
+          <button type="button" id="cancel-https-settings" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </>
-      )}>
+      }
+    >
       <div className="settings-group" id="https-settings-fields" data-disabled={locked ? '1' : '0'}>
-        <p id="https-settings-status" className="setting-description" role="status">{status ? statusLine(status) : ''}</p>
+        <p id="https-settings-status" className="setting-description" role="status">
+          {status ? statusLine(status) : ''}
+        </p>
         {locked && (
-          <p id="https-settings-env-note" className="warning-text">TLS is controlled by <code>JUSTTPRINT_TLS_CERT</code> / <code>JUSTTPRINT_TLS_KEY</code> (or <code>SSL_*</code>) on this process. Unset those environment variables to configure certificates here.</p>
+          <p id="https-settings-env-note" className="warning-text">
+            TLS is controlled by <code>JUSTTPRINT_TLS_CERT</code> / <code>JUSTTPRINT_TLS_KEY</code> (or <code>SSL_*</code>) on this process. Unset those
+            environment variables to configure certificates here.
+          </p>
         )}
         <div className="form-group" id="tls-listen-port-group">
           <label htmlFor="tls-listen-port">Listen port</label>
-          <input type="number" id="tls-listen-port" min="1" max="65535" value={form.serverHttpPort}
-            disabled={locked || !!status?.portEnvOverride} onChange={text('serverHttpPort')} />
-          <p className="setting-description">Port JusttPrint binds inside the container (default 5000). On Synology or Docker, also publish that port on the host (for example <code>5001:5001</code> if you change this to 5001). DSM already uses host port 5000, so pick another host mapping. <code>JUSTTPRINT_PORT</code> seeds this when the setting is empty.</p>
+          <input
+            type="number"
+            id="tls-listen-port"
+            min="1"
+            max="65535"
+            value={form.serverHttpPort}
+            disabled={locked || !!status?.portEnvOverride}
+            onChange={text('serverHttpPort')}
+          />
+          <p className="setting-description">
+            Port JusttPrint binds inside the container (default 5000). On Synology or Docker, also publish that port on the host (for example{' '}
+            <code>5001:5001</code> if you change this to 5001). DSM already uses host port 5000, so pick another host mapping. <code>JUSTTPRINT_PORT</code>{' '}
+            seeds this when the setting is empty.
+          </p>
         </div>
         <div className="form-group">
           <label htmlFor="tls-mode">Mode</label>
@@ -166,41 +232,63 @@ export function HttpsSettingsDialog() {
             {input('tlsCertPath', 'tls-cert-path', 'Certificate (PEM)', '/certs/fullchain.pem')}
             {input('tlsKeyPath', 'tls-key-path', 'Private key (PEM)', '/certs/privkey.pem')}
             {input('tlsCaPath', 'tls-ca-path', 'Certificate chain (optional)', '/certs/chain.pem')}
-            <p className="setting-description">Use absolute paths the JusttPrint backend can read. In Docker, mount files (for example <code>./certs:/certs:ro</code>) and enter container paths.</p>
+            <p className="setting-description">
+              Use absolute paths the JusttPrint backend can read. In Docker, mount files (for example <code>./certs:/certs:ro</code>) and enter container paths.
+            </p>
           </div>
         )}
         {form.mode === 'letsencrypt' && (
           <div id="tls-panel-letsencrypt" className="tls-mode-panel">
-            <p className="setting-description">Let's Encrypt issues a trusted certificate for a <strong>public DNS name</strong>. Port <strong>80</strong> must reach this host (Docker: publish <code>80:80</code>). This will not work for LAN-only IPs — use self-signed or a custom certificate instead.</p>
+            <p className="setting-description">
+              Let's Encrypt issues a trusted certificate for a <strong>public DNS name</strong>. Port <strong>80</strong> must reach this host (Docker: publish{' '}
+              <code>80:80</code>). This will not work for LAN-only IPs — use self-signed or a custom certificate instead.
+            </p>
             {input('tlsDomain', 'tls-domain', 'Domain', 'justtprint.example.com')}
             {input('tlsEmail', 'tls-email', 'Contact email', 'admin@example.com', 'email')}
             <div className="form-group checkbox-container">
               <input type="checkbox" id="tls-agree-tos" checked={form.tlsAgreeTos} onChange={flag('tlsAgreeTos')} />
-              <label htmlFor="tls-agree-tos">I agree to the <a href="https://letsencrypt.org/repository/" target="_blank" rel="noopener noreferrer">Let's Encrypt Terms of Service</a></label>
+              <label htmlFor="tls-agree-tos">
+                I agree to the{' '}
+                <a href="https://letsencrypt.org/repository/" target="_blank" rel="noopener noreferrer">
+                  Let's Encrypt Terms of Service
+                </a>
+              </label>
             </div>
             <div className="form-group checkbox-container">
               <input type="checkbox" id="tls-use-staging" checked={form.tlsUseStaging} onChange={flag('tlsUseStaging')} />
               <label htmlFor="tls-use-staging">Use Let's Encrypt staging (testing only; browsers will not trust it)</label>
             </div>
             <div className="dialog-buttons mcp-inline-actions">
-              <button type="button" id="tls-issue-letsencrypt" disabled={locked || busy} onClick={issueLetsEncrypt}>Issue / renew certificate</button>
+              <button type="button" id="tls-issue-letsencrypt" disabled={locked || busy} onClick={issueLetsEncrypt}>
+                Issue / renew certificate
+              </button>
             </div>
           </div>
         )}
         {form.mode === 'selfsigned' && (
           <div id="tls-panel-selfsigned" className="tls-mode-panel">
-            <p className="setting-description">Generates a local certificate for LAN access. Browsers will show a warning until you trust it. Enter the hostname or IP you type in the address bar.</p>
+            <p className="setting-description">
+              Generates a local certificate for LAN access. Browsers will show a warning until you trust it. Enter the hostname or IP you type in the address
+              bar.
+            </p>
             {input('selfSignedHost', 'tls-selfsigned-host', 'Hostname or IP', 'localhost')}
             <div className="dialog-buttons mcp-inline-actions">
-              <button type="button" id="tls-generate-selfsigned" disabled={locked || busy} onClick={generateSelfSigned}>Generate certificate</button>
+              <button type="button" id="tls-generate-selfsigned" disabled={locked || busy} onClick={generateSelfSigned}>
+                Generate certificate
+              </button>
             </div>
           </div>
         )}
         <div className="form-group checkbox-container">
           <input type="checkbox" id="tls-redirect-http" checked={form.tlsRedirectHttp} onChange={flag('tlsRedirectHttp')} />
-          <label htmlFor="tls-redirect-http" id="tls-redirect-http-label">Redirect HTTP on port 80 to https://&lt;host&gt;:{listenPort}</label>
+          <label htmlFor="tls-redirect-http" id="tls-redirect-http-label">
+            Redirect HTTP on port 80 to https://&lt;host&gt;:{listenPort}
+          </label>
         </div>
-        <p className="setting-description">Certificates issued by Let's Encrypt or generated here are stored under the app data directory (Docker volume <code>./data</code>), not in the settings database.</p>
+        <p className="setting-description">
+          Certificates issued by Let's Encrypt or generated here are stored under the app data directory (Docker volume <code>./data</code>), not in the
+          settings database.
+        </p>
       </div>
     </ModalDialog>
   );

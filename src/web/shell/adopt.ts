@@ -23,5 +23,5 @@ export function adopt(selector: string, container: HTMLElement): (() => void) | 
 
 /** adopt() for as long as the component is mounted and the container exists. */
 export function useAdopt(selector: string, container: HTMLElement | null) {
-  useLayoutEffect(() => (container ? adopt(selector, container) ?? undefined : undefined), [selector, container]);
+  useLayoutEffect(() => (container ? (adopt(selector, container) ?? undefined) : undefined), [selector, container]);
 }

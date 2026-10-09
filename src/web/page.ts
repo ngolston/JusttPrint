@@ -79,7 +79,9 @@ export async function copyText(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text);
       return true;
     }
-  } catch { /* fall back below */ }
+  } catch {
+    /* fall back below */
+  }
   const field = document.createElement('textarea');
   field.value = text;
   field.setAttribute('readonly', '');
@@ -106,7 +108,6 @@ export async function refreshTagRelatedUi(): Promise<void> {
 export async function refreshAfterTagManagerClose(): Promise<void> {
   await window.refreshAfterTagManagerClose?.();
 }
-
 
 export async function refreshModelDisplay(): Promise<void> {
   await window.refreshModelDisplay?.();

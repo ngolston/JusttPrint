@@ -66,7 +66,14 @@ export interface MakerWorldDetails {
   printSettings?: PrintSettings | null;
   /** Thingiverse without an API token: its files cannot be listed. */
   filesNeedToken?: boolean;
-  stats?: { likes?: number | null; downloads?: number | null; prints?: number | null; views?: number | null; collections?: number | null; comments?: number | null };
+  stats?: {
+    likes?: number | null;
+    downloads?: number | null;
+    prints?: number | null;
+    views?: number | null;
+    collections?: number | null;
+    comments?: number | null;
+  };
   translation?: { mode: string; by: string | null; error: string | null };
 }
 

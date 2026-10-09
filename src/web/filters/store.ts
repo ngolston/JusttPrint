@@ -6,9 +6,22 @@
  */
 import { settings } from '../api';
 import {
-  DEFAULT_SORT, SORT_OPTIONS, appendClause, appendNot, appendOp, clearSidebarKinds, clearedState, consumeIntoQuery,
-  emptyFilterState, invertNext, removeToken,
-  type AtomKind, type ChipRemove, type Combine, type FilterState, type MultiKind
+  DEFAULT_SORT,
+  SORT_OPTIONS,
+  appendClause,
+  appendNot,
+  appendOp,
+  clearSidebarKinds,
+  clearedState,
+  consumeIntoQuery,
+  emptyFilterState,
+  invertNext,
+  removeToken,
+  type AtomKind,
+  type ChipRemove,
+  type Combine,
+  type FilterState,
+  type MultiKind
 } from './query';
 
 type Listener = (state: FilterState) => void;
@@ -43,7 +56,12 @@ function userChange(next: FilterState) {
 }
 
 const SINGLE_TO_ATOM: Record<'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin' | 'fileType', AtomKind> = {
-  printed: 'printed', isNew: 'isNew', favorite: 'favorite', rating: 'rating', ratingMin: 'ratingMin', fileType: 'fileType'
+  printed: 'printed',
+  isNew: 'isNew',
+  favorite: 'favorite',
+  rating: 'rating',
+  ratingMin: 'ratingMin',
+  fileType: 'fileType'
 };
 
 export const filterActions = {
@@ -167,7 +185,7 @@ export const filterActions = {
 
   setViewingEntireLibrary(value: boolean) {
     if (state.viewingEntireLibrary !== value) set({ ...state, viewingEntireLibrary: value });
-  },
+  }
 };
 
 /** Read the saved sort order and notes setting. */

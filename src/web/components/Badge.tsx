@@ -4,7 +4,11 @@ import { cx } from './Button';
 
 /** A compact neutral label: file format, material (spec §19). */
 export function Badge({ children, className, title }: { children: ReactNode; className?: string; title?: string }) {
-  return <span className={cx('jp-badge', className)} title={title}>{children}</span>;
+  return (
+    <span className={cx('jp-badge', className)} title={title}>
+      {children}
+    </span>
+  );
 }
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
@@ -47,7 +51,11 @@ export function printStatusInfo(status: string | null | undefined) {
 
 export function PrintStatusBadge({ status }: { status: string | null | undefined }) {
   const info = printStatusInfo(status);
-  return <StatusBadge tone={info.tone} icon={info.icon}>{info.label}</StatusBadge>;
+  return (
+    <StatusBadge tone={info.tone} icon={info.icon}>
+      {info.label}
+    </StatusBadge>
+  );
 }
 
 /** A tag pill; removable when onRemove is given (spec §24). */
@@ -55,9 +63,13 @@ export function Tag({ children, onClick, onRemove }: { children: ReactNode; onCl
   const label = typeof children === 'string' ? children : 'tag';
   return (
     <span className="jp-tag">
-      {onClick
-        ? <button type="button" className="jp-tag__label" onClick={onClick}>{children}</button>
-        : <span className="jp-tag__label">{children}</span>}
+      {onClick ? (
+        <button type="button" className="jp-tag__label" onClick={onClick}>
+          {children}
+        </button>
+      ) : (
+        <span className="jp-tag__label">{children}</span>
+      )}
       {onRemove && (
         <button type="button" className="jp-tag__remove" aria-label={`Remove ${label}`} title={`Remove ${label}`} onClick={onRemove}>
           <X size={12} aria-hidden="true" />

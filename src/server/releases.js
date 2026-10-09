@@ -9,15 +9,11 @@ const RELEASES_REPO = 'ngolston/JusttPrint';
 const PROJECT_URL = `https://github.com/${RELEASES_REPO}`;
 
 function releasesApiUrl(isBeta) {
-  return isBeta
-    ? `https://api.github.com/repos/${RELEASES_REPO}/releases?per_page=20`
-    : `https://api.github.com/repos/${RELEASES_REPO}/releases/latest`;
+  return isBeta ? `https://api.github.com/repos/${RELEASES_REPO}/releases?per_page=20` : `https://api.github.com/repos/${RELEASES_REPO}/releases/latest`;
 }
 
 function releasesPageUrl(isBeta) {
-  return isBeta
-    ? `${PROJECT_URL}/releases`
-    : `${PROJECT_URL}/releases/latest`;
+  return isBeta ? `${PROJECT_URL}/releases` : `${PROJECT_URL}/releases/latest`;
 }
 
 /**
@@ -28,7 +24,9 @@ function latestVersionFromReleases(body, isBeta) {
   const list = Array.isArray(body) ? body : [body];
   for (const item of list) {
     if (!item || item.draft || (!isBeta && item.prerelease)) continue;
-    const version = String(item.tag_name || '').trim().replace(/^v/i, '');
+    const version = String(item.tag_name || '')
+      .trim()
+      .replace(/^v/i, '');
     // The app compares plain numbers, so tags like "v2.4.0-beta" are skipped.
     if (/^\d+\.\d+(\.\d+)?$/.test(version)) return version;
   }

@@ -35,12 +35,16 @@ const STATUS_SORT_RANK = Object.freeze({
 });
 
 function normalizePrintStatus(value) {
-  const status = String(value || '').trim().toLowerCase();
+  const status = String(value || '')
+    .trim()
+    .toLowerCase();
   return PRINT_STATUSES.includes(status) ? status : 'unprinted';
 }
 
 function normalizeOutcome(value) {
-  const outcome = String(value || '').trim().toLowerCase();
+  const outcome = String(value || '')
+    .trim()
+    .toLowerCase();
   return PRINT_OUTCOMES.includes(outcome) ? outcome : 'printed';
 }
 
@@ -111,7 +115,9 @@ function filterLabel(value) {
 }
 
 function printFilterSql(value) {
-  const v = String(value || '').trim().toLowerCase();
+  const v = String(value || '')
+    .trim()
+    .toLowerCase();
   if (v === 'not-printed') return '(printed = 0 OR printed IS NULL)';
   if (v === 'ever-printed') return 'COALESCE(print_count, 0) > 0';
   if (v === 'never-printed') return 'COALESCE(print_count, 0) = 0';
@@ -123,7 +129,9 @@ function printFilterSql(value) {
 function printFilterSqlBound(value) {
   const sql = printFilterSql(value);
   if (!sql) return null;
-  const v = String(value || '').trim().toLowerCase();
+  const v = String(value || '')
+    .trim()
+    .toLowerCase();
   if (PRINT_STATUSES.includes(v)) return { sql, params: [v] };
   return { sql, params: [] };
 }
@@ -162,9 +170,9 @@ function printSortOrderClause(sortOption) {
     case 'printcount-desc':
       return 'ORDER BY COALESCE(print_count, 0) DESC, fileName ASC';
     case 'lastprinted-asc':
-      return "ORDER BY last_printed_at IS NULL ASC, last_printed_at ASC, fileName ASC";
+      return 'ORDER BY last_printed_at IS NULL ASC, last_printed_at ASC, fileName ASC';
     case 'lastprinted-desc':
-      return "ORDER BY last_printed_at IS NULL ASC, last_printed_at DESC, fileName ASC";
+      return 'ORDER BY last_printed_at IS NULL ASC, last_printed_at DESC, fileName ASC';
     default:
       return null;
   }
@@ -185,10 +193,12 @@ function toIsoDate(value) {
 
 function resolvePrintFieldsOnSave(existing, incoming) {
   const existingStatus = existing
-    ? (existing.print_status ? normalizePrintStatus(existing.print_status) : statusFromPrintedFlag(existing.printed))
+    ? existing.print_status
+      ? normalizePrintStatus(existing.print_status)
+      : statusFromPrintedFlag(existing.printed)
     : 'unprinted';
-  const count = existing ? (Number(existing.print_count) || 0) : 0;
-  const lastAt = existing ? (existing.last_printed_at || null) : null;
+  const count = existing ? Number(existing.print_count) || 0 : 0;
+  const lastAt = existing ? existing.last_printed_at || null : null;
   let status = existingStatus;
   if (incoming.printStatus !== undefined && incoming.printStatus !== null && incoming.printStatus !== '') {
     status = normalizePrintStatus(incoming.printStatus);
@@ -210,7 +220,8 @@ function resolvePrintFieldsOnSave(existing, incoming) {
 }
 
 function ensurePrintLifecycleSchema(db) {
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS print_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       model_id INTEGER NOT NULL,
@@ -221,7 +232,8 @@ function ensurePrintLifecycleSchema(db) {
       created_at DATETIME NOT NULL,
       FOREIGN KEY(model_id) REFERENCES models(id)
     )
-  `).run();
+  `
+  ).run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_print_events_model_id ON print_events(model_id)').run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_print_events_printed_at ON print_events(printed_at)').run();
   try {
@@ -235,7 +247,8 @@ function ensurePrintLifecycleSchema(db) {
 }
 
 function ensurePartsSchema(db) {
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS parts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -245,8 +258,10 @@ function ensurePartsSchema(db) {
       notes TEXT,
       low_stock INTEGER NOT NULL DEFAULT 0
     )
-  `).run();
-  db.prepare(`
+  `
+  ).run();
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS print_event_parts (
       event_id INTEGER NOT NULL,
       part_id INTEGER NOT NULL,
@@ -254,7 +269,8 @@ function ensurePartsSchema(db) {
       name TEXT,
       PRIMARY KEY (event_id, part_id)
     )
-  `).run();
+  `
+  ).run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_parts_name ON parts(name)').run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_print_event_parts_part_id ON print_event_parts(part_id)').run();
 }
@@ -321,42 +337,56 @@ function migratePrintLifecycle(db) {
   db.prepare('CREATE INDEX IF NOT EXISTS idx_models_print_count ON models(print_count)').run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_models_last_printed_at ON models(last_printed_at)').run();
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE models
     SET print_status = CASE
       WHEN printed = 1 THEN 'printed'
       ELSE 'unprinted'
     END
     WHERE print_status IS NULL OR print_status = ''
-  `).run();
-  db.prepare(`
+  `
+  ).run();
+  db.prepare(
+    `
     UPDATE models
     SET print_count = 0
     WHERE print_count IS NULL
-  `).run();
+  `
+  ).run();
 }
 
 function refreshPrintDerivedFields(db, modelId) {
-  const successful = db.prepare(`
+  const successful = db
+    .prepare(
+      `
     SELECT COALESCE(SUM(quantity), 0) AS count, MAX(printed_at) AS last_at
     FROM print_events
     WHERE model_id = ? AND outcome = 'printed'
-  `).get(modelId);
+  `
+    )
+    .get(modelId);
   const model = db.prepare('SELECT print_status FROM models WHERE id = ?').get(modelId);
   if (!model) return null;
   const printCount = Number(successful?.count) || 0;
   const lastPrintedAt = successful?.last_at || null;
   const status = normalizePrintStatus(model.print_status);
   const printed = derivedPrinted(status, printCount);
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE models
     SET print_status = ?, print_count = ?, last_printed_at = ?, printed = ?
     WHERE id = ?
-  `).run(status, printCount, lastPrintedAt, printed, modelId);
-  return db.prepare(`
+  `
+  ).run(status, printCount, lastPrintedAt, printed, modelId);
+  return db
+    .prepare(
+      `
     SELECT id, filePath, print_status, print_count, last_printed_at, printed
     FROM models WHERE id = ?
-  `).get(modelId);
+  `
+    )
+    .get(modelId);
 }
 
 function statusAfterOutcome(currentStatus, outcome) {
@@ -380,10 +410,14 @@ function logPrintEvent(db, payload) {
   const createdAt = new Date().toISOString();
 
   const result = db.transaction(() => {
-    const insert = db.prepare(`
+    const insert = db
+      .prepare(
+        `
       INSERT INTO print_events (model_id, printed_at, outcome, quantity, notes, created_at, printer_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(modelId, printedAt, outcome, quantity, notes || null, createdAt, printerId);
+    `
+      )
+      .run(modelId, printedAt, outcome, quantity, notes || null, createdAt, printerId);
     const eventId = insert.lastInsertRowid;
     applyPartUsage(db, eventId, partsUsage, quantity);
     const current = db.prepare('SELECT print_status FROM models WHERE id = ?').get(modelId);
@@ -452,18 +486,24 @@ function setPrintStatusBatch(db, payload) {
 function getPrintEvents(db, modelId) {
   const id = Number(modelId);
   if (!Number.isInteger(id) || id <= 0) return [];
-  const hasPrintersTable = (function() {
+  const hasPrintersTable = (function () {
     try {
       return Boolean(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='printers'").get());
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   })();
 
-  const hasPrinterTypeCol = hasPrintersTable && (function() {
-    try {
-      const cols = db.prepare("PRAGMA table_info(printers)").all();
-      return cols.some(c => c.name === 'printer_type');
-    } catch (_) { return false; }
-  })();
+  const hasPrinterTypeCol =
+    hasPrintersTable &&
+    (function () {
+      try {
+        const cols = db.prepare('PRAGMA table_info(printers)').all();
+        return cols.some((c) => c.name === 'printer_type');
+      } catch (_) {
+        return false;
+      }
+    })();
 
   const selectFields = hasPrintersTable
     ? `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id,
@@ -472,20 +512,24 @@ function getPrintEvents(db, modelId) {
     : `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id,
        NULL AS printer_nickname, NULL AS printer_manufacturer, NULL AS printer_model, NULL AS printer_type`;
 
-  const fromClause = hasPrintersTable
-    ? `FROM print_events pe LEFT JOIN printers pr ON pr.id = pe.printer_id`
-    : `FROM print_events pe`;
+  const fromClause = hasPrintersTable ? `FROM print_events pe LEFT JOIN printers pr ON pr.id = pe.printer_id` : `FROM print_events pe`;
 
-  const events = db.prepare(`
+  const events = db
+    .prepare(
+      `
     SELECT ${selectFields}
     ${fromClause}
     WHERE pe.model_id = ?
     ORDER BY pe.printed_at DESC, pe.id DESC
-  `).all(id);
+  `
+    )
+    .all(id);
   if (!events.length) return [];
 
   const partsByEventId = new Map();
-  for (const row of db.prepare(`
+  for (const row of db
+    .prepare(
+      `
     SELECT pep.event_id,
            pep.part_id AS id,
            COALESCE(p.name, pep.name) AS name,
@@ -497,7 +541,9 @@ function getPrintEvents(db, modelId) {
     JOIN print_events pe ON pe.id = pep.event_id
     WHERE pe.model_id = ?
     ORDER BY name COLLATE NOCASE
-  `).all(id)) {
+  `
+    )
+    .all(id)) {
     const part = {
       id: row.id,
       name: row.name,

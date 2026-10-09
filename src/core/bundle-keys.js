@@ -26,7 +26,7 @@ function deriveBundleFromFilePath(filePath) {
     return {
       bundleKey: `zip:${normalized.toLowerCase()}`,
       bundleLabel: label,
-      bundleKind: 'zip',
+      bundleKind: 'zip'
     };
   }
 
@@ -35,5 +35,5 @@ function deriveBundleFromFilePath(filePath) {
 
 module.exports = {
   deriveBundleFromFilePath,
-  normalizePath,
+  normalizePath
 };

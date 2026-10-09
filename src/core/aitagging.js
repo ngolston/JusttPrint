@@ -1,7 +1,7 @@
 // aitagging.js
 // This module handles AI configuration and tag generation using OpenAI
 
-const OpenAI = require("openai");
+const OpenAI = require('openai');
 const { libraryContextSnippet } = require('./library-context');
 const { isRateLimitError, rateLimitWaitMs, rateLimitUserMessage } = require('./ai-rate-limit');
 
@@ -11,11 +11,7 @@ let puterIPC = null; // Will be set to IPC handler function for puter calls
 
 // OpenAI SDK requires a non-empty apiKey string even when the server ignores it.
 const PLACEHOLDER_API_KEY = 'not-needed';
-const OFFICIAL_CLOUD_AI_HOSTS = [
-  'api.openai.com',
-  'api.anthropic.com',
-  'generativelanguage.googleapis.com'
-];
+const OFFICIAL_CLOUD_AI_HOSTS = ['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com'];
 
 function requiresApiKey(service, baseURL) {
   const normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
@@ -44,7 +40,7 @@ function initializeOpenAI(apiKey, baseURL, service = 'openai', puterIPCHandler =
   const normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
   currentService = normalizedService;
   puterIPC = puterIPCHandler;
-  
+
   // For puter service, no OpenAI client needed - return immediately
   // Check for 'puter' (case-insensitive) to handle variations
   if (normalizedService === 'puter') {
@@ -52,37 +48,37 @@ function initializeOpenAI(apiKey, baseURL, service = 'openai', puterIPCHandler =
     console.debug('[AITagging] Skipping OpenAI client initialization for Puter.com service');
     return;
   }
-  
+
   // Cloud OpenAI/Claude/Gemini need a key; local OpenAI-compatible servers do not
   if (requiresApiKey(normalizedService, baseURL)) {
     if (!apiKey || (typeof apiKey === 'string' && apiKey.trim() === '')) {
       throw new Error('API key is required for ' + normalizedService + ' service');
     }
   }
-  
+
   // Safety check: Never create OpenAI client for Puter.com (double-check after normalization)
   if (normalizedService === 'puter') {
     console.error('[AITagging] ERROR: Attempted to create OpenAI client for Puter.com - this should not happen!');
     throw new Error('Cannot create OpenAI client for Puter.com service');
   }
-  
+
   // Final safety check: Never create OpenAI client for Puter.com (after normalization)
   if (normalizedService === 'puter') {
     console.error('[AITagging] CRITICAL ERROR: Attempted to create OpenAI client for Puter.com after normalization - this should never happen!');
     throw new Error('Cannot create OpenAI client for Puter.com service');
   }
-  
+
   // Configure client based on service type
   const config = {
     apiKey: apiKeyForClient(apiKey),
     dangerouslyAllowBrowser: true
   };
-  
+
   // Add baseURL if provided or use default based on service
   if (baseURL) {
     const trimmed = baseURL.trim();
     // Ensure single trailing slash so path concatenation is correct (helps avoid 400 in Docker/proxy)
-    config.baseURL = trimmed ? (trimmed.replace(/\/+$/, '') + '/') : defaultBaseURLForService(normalizedService);
+    config.baseURL = trimmed ? trimmed.replace(/\/+$/, '') + '/' : defaultBaseURLForService(normalizedService);
   } else {
     config.baseURL = defaultBaseURLForService(normalizedService);
   }
@@ -132,13 +128,13 @@ function completionOptions(service, model, { maxTokens, temperature } = {}) {
 
 // Helper function to introduce a delay
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Normalize a tag (lowercase, trim, remove special chars)
 function normalizeTag(tag) {
   if (!tag || typeof tag !== 'string') return '';
-  
+
   return tag
     .toLowerCase()
     .trim()
@@ -162,11 +158,11 @@ function isTagValid(tag) {
 function deduplicateTags(tags) {
   const normalized = new Map();
   const result = [];
-  
+
   for (const tag of tags) {
     const normalizedTag = normalizeTag(tag);
     if (!normalizedTag || !isTagValid(normalizedTag)) continue;
-    
+
     // Check for similar tags (exact match or contains)
     let isDuplicate = false;
     for (const [existing, original] of normalized.entries()) {
@@ -192,13 +188,13 @@ function deduplicateTags(tags) {
         break;
       }
     }
-    
+
     if (!isDuplicate) {
       normalized.set(normalizedTag, tag);
       result.push(tag);
     }
   }
-  
+
   return result;
 }
 
@@ -208,16 +204,16 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
     console.warn('parseTagsFromResponse: Empty or invalid content');
     return [];
   }
-  
+
   console.debug(`parseTagsFromResponse: Raw content (first 200 chars): ${content.substring(0, 200)}`);
-  
+
   let tags = [];
-  
+
   if (useJsonResponse) {
     try {
       // Clean up the content - remove markdown code blocks if present
       let cleanedContent = content.trim();
-      
+
       // Remove markdown code blocks (```json ... ```)
       if (cleanedContent.startsWith('```')) {
         const lines = cleanedContent.split('\n');
@@ -229,32 +225,34 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
         }
         cleanedContent = lines.join('\n').trim();
       }
-      
+
       // Try to find JSON object in the content
       const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         cleanedContent = jsonMatch[0];
       }
-      
+
       // Try to parse as JSON
       const parsed = JSON.parse(cleanedContent);
       console.debug('parseTagsFromResponse: Parsed JSON:', parsed);
-      
+
       if (Array.isArray(parsed)) {
         tags = parsed;
       } else if (parsed.tags && Array.isArray(parsed.tags)) {
         tags = parsed.tags;
       } else if (typeof parsed === 'object') {
         // Extract tags from object values
-        tags = Object.values(parsed).flat().filter(t => typeof t === 'string');
+        tags = Object.values(parsed)
+          .flat()
+          .filter((t) => typeof t === 'string');
       }
-      
+
       console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from JSON`);
     } catch (e) {
       // Not JSON, fall through to text parsing
       console.warn('Failed to parse JSON response, falling back to text parsing:', e.message);
       console.warn('Raw content was:', content.substring(0, 500));
-      
+
       // Try to extract JSON-like content manually
       const jsonMatch = content.match(/\{"tags"\s*:\s*\[(.*?)\]\}/s);
       if (jsonMatch && jsonMatch[1]) {
@@ -263,7 +261,7 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
           const tagsContent = '[' + jsonMatch[1] + ']';
           const tagsArray = JSON.parse(tagsContent);
           if (Array.isArray(tagsArray)) {
-            tags = tagsArray.filter(t => typeof t === 'string');
+            tags = tagsArray.filter((t) => typeof t === 'string');
             console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from partial JSON`);
           }
         } catch (e2) {
@@ -272,36 +270,44 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
       }
     }
   }
-  
+
   // If JSON parsing failed or not using JSON, parse as text
   if (tags.length === 0) {
     console.debug('parseTagsFromResponse: Parsing as text');
     // Try comma-separated first
     if (content.includes(',')) {
-      tags = content.split(',').map(t => t.trim());
+      tags = content.split(',').map((t) => t.trim());
     } else if (content.includes('\n')) {
       // Try newline-separated
-      tags = content.split('\n').map(t => t.trim()).filter(t => t.length > 0);
+      tags = content
+        .split('\n')
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
     } else {
       // Single tag or space-separated
-      tags = content.split(/\s+/).map(t => t.trim()).filter(t => t.length > 0);
+      tags = content
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
     }
     console.debug(`parseTagsFromResponse: Extracted ${tags.length} tags from text`);
   }
-  
+
   // Normalize and validate tags
-  tags = tags.map(tag => {
-    const normalized = normalizeTag(tag);
-    const isValid = normalized && isTagValid(normalized);
-    if (!isValid) {
-      console.debug(`parseTagsFromResponse: Filtered out invalid tag: "${tag}" -> "${normalized}"`);
-    }
-    return isValid ? normalized : null;
-  }).filter(tag => tag !== null);
-  
+  tags = tags
+    .map((tag) => {
+      const normalized = normalizeTag(tag);
+      const isValid = normalized && isTagValid(normalized);
+      if (!isValid) {
+        console.debug(`parseTagsFromResponse: Filtered out invalid tag: "${tag}" -> "${normalized}"`);
+      }
+      return isValid ? normalized : null;
+    })
+    .filter((tag) => tag !== null);
+
   // Deduplicate
   tags = deduplicateTags(tags);
-  
+
   console.debug(`parseTagsFromResponse: Final tags (${tags.length}):`, tags);
   return tags;
 }
@@ -309,19 +315,22 @@ function parseTagsFromResponse(content, useJsonResponse = false) {
 // Extract meaningful words from filename
 function extractKeywordsFromFilename(filename) {
   if (!filename) return [];
-  
+
   // Remove extension and path
-  const nameWithoutExt = filename.split(/[/\\]/).pop().replace(/\.[^/.]+$/, '');
-  
+  const nameWithoutExt = filename
+    .split(/[/\\]/)
+    .pop()
+    .replace(/\.[^/.]+$/, '');
+
   // Split by common separators and camelCase
   const words = nameWithoutExt
     .replace(/([a-z])([A-Z])/g, '$1 $2') // Split camelCase
     .split(/[-_\s.]+/) // Split by dashes, underscores, spaces, dots
-    .map(word => word.trim())
-    .filter(word => word.length > 2) // Filter out very short words
-    .filter(word => !/^\d+$/.test(word)) // Filter out pure numbers
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()); // Capitalize first letter
-  
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2) // Filter out very short words
+    .filter((word) => !/^\d+$/.test(word)) // Filter out pure numbers
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()); // Capitalize first letter
+
   return [...new Set(words)]; // Remove duplicates
 }
 
@@ -350,14 +359,14 @@ function buildPrompt(options = {}, filename = null) {
   const useCategories = options.useCategories || false;
   const useJsonResponse = options.useJsonResponse || false;
   const detailLevel = options.detailLevel || 'medium';
-  
+
   let prompt = `You are helping organize 3D models in a library. Analyze this image of a 3D model thumbnail and generate ${maxTags} useful category tags that will help users find and organize this model. `;
-  
+
   prompt += getModelContext(filename, options);
-  
+
   prompt += `Focus ONLY on the 3D model itself - completely ignore any background, text, or UI elements. `;
   prompt += `Do NOT use generic terms like "3D Model", "model", "object", "item", "tag", "tags", "thing", "stuff", or "piece". `;
-  
+
   // Adjust prompt based on detail level
   if (detailLevel === 'low') {
     prompt += `Generate very simple, broad category tags. Use the most basic, high-level classification. `;
@@ -375,15 +384,15 @@ function buildPrompt(options = {}, filename = null) {
     prompt += `Avoid overly specific tags like "corner-bracket" or "mounting-bracket" - use the general category "Bracket" or "Mount" instead. `;
     prompt += `Avoid compound tags when a single general word works. For example, use "Toy" not "toy-car", use "Dragon" not "dragon-figure", use "Car" not "car-model". `;
   }
-  
+
   prompt += `Focus on the primary category, subject, or function of the model. `;
   prompt += `Each tag should represent a distinct category or characteristic that helps organize the library. `;
   prompt += `Tags should be practical and useful for finding models - think about what someone would search for. `;
-  
+
   if (useCategories) {
     prompt += `Organize tags into these categories: object type, style, complexity, material. `;
   }
-  
+
   // JSON response instructions are never part of the editable prompt; they are always appended in generateTagsForImage
   return prompt;
 }
@@ -400,7 +409,7 @@ function getDefaultPrompt(options = {}) {
 async function generateTagsForImage(base64Image, model, options = {}, delayMs = 2000, maxRetries = 5, filename = null) {
   // Validate that base64Image is not empty
   if (!base64Image || base64Image.trim() === '') {
-    throw new Error("Empty image data provided.");
+    throw new Error('Empty image data provided.');
   }
 
   // Merge options with defaults
@@ -422,21 +431,21 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
   // Handle puter service differently
   if (currentService === 'puter') {
     if (!puterIPC) {
-      throw new Error("Puter IPC handler is not initialized. Please ensure puter service is properly configured.");
+      throw new Error('Puter IPC handler is not initialized. Please ensure puter service is properly configured.');
     }
-    
+
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
         await delay(delayMs);
-        console.debug(`Attempting to generate tags with Puter model: ${model || "gpt-5-nano"} (attempt ${attempt + 1}/${maxRetries})`);
-        
+        console.debug(`Attempting to generate tags with Puter model: ${model || 'gpt-5-nano'} (attempt ${attempt + 1}/${maxRetries})`);
+
         // Convert base64 to data URL for puter (mime from stored thumb; often jpeg after compress)
         const imageUrl = `data:${mimeType};base64,${base64Image}`;
-        
+
         // Call puter via IPC (prompt already includes filename context)
         let responseContent = await puterIPC(prompt, imageUrl, model || 'gpt-5-nano');
-        
+
         // Ensure responseContent is a string
         if (typeof responseContent !== 'string') {
           if (responseContent && typeof responseContent === 'object') {
@@ -446,7 +455,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
             responseContent = String(responseContent || '');
           }
         }
-        
+
         // Validate response
         if (!responseContent || responseContent.trim() === '') {
           console.warn('Empty response from Puter AI, returning empty tags');
@@ -457,14 +466,14 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
 
         // Parse tags from response
         const tags = parseTagsFromResponse(responseContent, useJsonResponse);
-        
+
         // Limit to maxTags
         const limitedTags = tags.slice(0, maxTags);
-        
+
         console.debug(`Successfully generated ${limitedTags.length} tags using Puter (from ${tags.length} parsed)`);
         return limitedTags;
       } catch (error) {
-        console.error("Error generating tags with Puter:", error);
+        console.error('Error generating tags with Puter:', error);
         if (attempt < maxRetries - 1) {
           attempt++;
           await delay(delayMs * (attempt + 1)); // Exponential backoff
@@ -474,12 +483,12 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         }
       }
     }
-    throw new Error("Max retries reached with Puter service.");
+    throw new Error('Max retries reached with Puter service.');
   }
 
   // Handle OpenAI-compatible services
   if (!openaiClient) {
-    throw new Error("OpenAI client is not initialized.");
+    throw new Error('OpenAI client is not initialized.');
   }
 
   let attempt = 0;
@@ -497,25 +506,27 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       // Claude's OpenAI-compatible layer ignores response_format; omit it to avoid 400s.
       const requestModel = model || defaultModelForService(currentService);
       const createPayload = {
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } }
-          ]
-        }],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } }
+            ]
+          }
+        ],
         model: requestModel,
         // Lower temperature for more consistent JSON output (where the model allows it).
         ...completionOptions(currentService, requestModel, { maxTokens: useJsonResponse ? 1000 : 300, temperature: 0.3 })
       };
       if (currentService !== 'gemini' && currentService !== 'claude' && useJsonResponse) {
-        createPayload.response_format = { type: "json_object" };
+        createPayload.response_format = { type: 'json_object' };
       }
 
       const completion = await openaiClient.chat.completions.create(createPayload);
 
       const responseContent = completion.choices[0].message.content;
-      
+
       // Validate response
       if (!responseContent || responseContent.trim() === '') {
         console.warn('Empty response from AI, returning empty tags');
@@ -526,18 +537,18 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
 
       // Parse tags from response
       const tags = parseTagsFromResponse(responseContent, useJsonResponse);
-      
+
       // Additional validation - if we only got generic tags, log a warning
       if (tags.length > 0) {
-        const genericTags = tags.filter(t => /^(model|3d|object|item|thing|image|picture|tag|tags)$/i.test(t));
+        const genericTags = tags.filter((t) => /^(model|3d|object|item|thing|image|picture|tag|tags)$/i.test(t));
         if (genericTags.length === tags.length) {
           console.warn('All generated tags were generic and filtered out. This might indicate an issue with the AI response or image.');
         }
       }
-      
+
       // Limit to maxTags
       const limitedTags = tags.slice(0, maxTags);
-      
+
       console.debug(`Successfully generated ${limitedTags.length} tags (from ${tags.length} parsed)`);
       return limitedTags;
     } catch (error) {
@@ -552,16 +563,17 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         console.warn(`Rate limit (429). Waiting ${Math.ceil(waitMs / 1000)}s before retry ${attempt + 1}/${maxRetries}`);
         pacedDelayMs = waitMs;
         continue;
-      } 
+      }
       // Handle bad request (invalid image format, etc.)
       else if (error.response && error.response.status === 400) {
         const errorBody = error.response.data;
-        const errorMessage = (typeof errorBody === 'object' && errorBody?.error?.message)
-          ? errorBody.error.message
-          : (typeof errorBody === 'string' ? errorBody : error.message) || 'Invalid request';
-        console.error("Error 400: Bad request:", errorMessage);
+        const errorMessage =
+          typeof errorBody === 'object' && errorBody?.error?.message
+            ? errorBody.error.message
+            : (typeof errorBody === 'string' ? errorBody : error.message) || 'Invalid request';
+        console.error('Error 400: Bad request:', errorMessage);
         if (errorBody && typeof errorBody === 'object' && Object.keys(errorBody).length > 0) {
-          console.error("Error 400 response body:", JSON.stringify(errorBody).substring(0, 500));
+          console.error('Error 400 response body:', JSON.stringify(errorBody).substring(0, 500));
         }
         if (attempt < 1) {
           // Retry once for 400 errors in case it's a transient issue
@@ -572,7 +584,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         } else {
           throw new Error(`Invalid request: ${errorMessage}. Please check your API configuration and image format.`);
         }
-      } 
+      }
       // Handle authentication errors
       else if (error.response && (error.response.status === 401 || error.response.status === 403)) {
         throw new Error(`Authentication failed: ${error.response.data?.error?.message || 'Invalid API key or insufficient permissions'}`);
@@ -603,7 +615,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       }
       // Handle other errors
       else {
-        console.error("Error generating tags:", error);
+        console.error('Error generating tags:', error);
         // Provide more user-friendly error messages
         if (error.message) {
           throw new Error(`Tag generation failed: ${error.message}`);
@@ -614,60 +626,59 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
     }
   }
 
-  throw new Error("Max retries reached. Could not generate tags due to rate limiting.");
+  throw new Error('Max retries reached. Could not generate tags due to rate limiting.');
 }
 
 // Test AI configuration
 async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPCHandler = null) {
   // Normalize service to lowercase for comparison
   let normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
-  
+
   // If service is not 'puter' but endpoint contains 'puter.com', treat it as Puter
   if (normalizedService !== 'puter' && baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com'))) {
     console.debug('[AITagging] Endpoint contains puter.com, forcing service to puter');
     normalizedService = 'puter';
   }
-  
-  console.debug('[AITagging] testAIConfig called with:', { 
-    service, 
+
+  console.debug('[AITagging] testAIConfig called with:', {
+    service,
     normalizedService,
     baseURL,
-    hasPuterHandler: !!puterIPCHandler, 
-    apiKeyLength: apiKey ? apiKey.length : 0 
+    hasPuterHandler: !!puterIPCHandler,
+    apiKeyLength: apiKey ? apiKey.length : 0
   });
-  
+
   // For Puter.com, skip API key validation and OpenAI client initialization
   // Check for 'puter' (case-insensitive) to handle variations
   // Also check baseURL as a fallback
-  const isPuterService = normalizedService === 'puter' || 
-    (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
-  
+  const isPuterService = normalizedService === 'puter' || (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
+
   if (isPuterService) {
     console.debug('[AITagging] Detected Puter.com service, skipping OpenAI client initialization');
-    console.debug('[AITagging] Service check:', { 
-      service, 
-      normalizedService, 
-      baseURL, 
+    console.debug('[AITagging] Service check:', {
+      service,
+      normalizedService,
+      baseURL,
       isPuterService,
-      hasHandler: !!puterIPCHandler, 
+      hasHandler: !!puterIPCHandler,
       handlerType: typeof puterIPCHandler,
       isFunction: typeof puterIPCHandler === 'function'
     });
-    
+
     if (!puterIPCHandler) {
       console.error('[AITagging] Puter IPC handler is not available - this should not happen for Puter service!');
       console.error('[AITagging] Service:', service, 'Normalized:', normalizedService, 'BaseURL:', baseURL);
       return { success: false, error: 'Puter IPC handler is not available. Please ensure Puter.com service is properly configured.' };
     }
-    
+
     try {
       console.debug('[AITagging] Testing Puter AI configuration with text-only request');
       const response = await puterIPCHandler('test', null, model || 'gpt-5-nano');
-      
+
       console.debug('[AITagging] Puter AI test successful');
-      return { 
-        success: true, 
-        tags: ["Puter AI connection successful"],
+      return {
+        success: true,
+        tags: ['Puter AI connection successful'],
         response: response
       };
     } catch (error) {
@@ -675,23 +686,23 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
       return { success: false, error: error.message || 'Failed to connect to Puter.com' };
     }
   }
-  
+
   // CRITICAL SAFETY CHECK: Never initialize OpenAI for Puter service
   // This is a double-check in case the earlier check somehow failed
   if (normalizedService === 'puter' || (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')))) {
     console.error('[AITagging] CRITICAL: Attempted to initialize OpenAI for Puter service - this should never happen!');
     console.error('[AITagging] Service:', service, 'Normalized:', normalizedService, 'BaseURL:', baseURL);
-    return { 
-      success: false, 
-      error: 'Configuration error: Puter.com service detected but handler not available. Please check your AI configuration.' 
+    return {
+      success: false,
+      error: 'Configuration error: Puter.com service detected but handler not available. Please check your AI configuration.'
     };
   }
-  
+
   if (requiresApiKey(normalizedService, baseURL) && (!apiKey || (typeof apiKey === 'string' && apiKey.trim() === ''))) {
     console.error('[AITagging] API key is required for', normalizedService);
     return { success: false, error: 'API key is required for ' + normalizedService + ' service' };
   }
-  
+
   // For other services, initialize OpenAI client (which will validate API key)
   console.debug('[AITagging] Non-Puter service detected, initializing OpenAI client');
   try {
@@ -700,26 +711,25 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     console.error('[AITagging] Error initializing OpenAI:', error);
     return { success: false, error: error.message };
   }
-  
+
   try {
     // FINAL SAFETY CHECK: Never call OpenAI API for Puter service
     // This is a triple-check to prevent any possibility of calling OpenAI for Puter
-    const finalServiceCheck = normalizedService === 'puter' || 
-      (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
+    const finalServiceCheck = normalizedService === 'puter' || (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
     if (finalServiceCheck) {
       console.error('[AITagging] CRITICAL: Attempted to call OpenAI API for Puter service - blocking!');
       console.error('[AITagging] Service:', service, 'Normalized:', normalizedService, 'BaseURL:', baseURL);
-      return { 
-        success: false, 
-        error: 'Configuration error: Puter.com service detected. OpenAI API should not be called for Puter service.' 
+      return {
+        success: false,
+        error: 'Configuration error: Puter.com service detected. OpenAI API should not be called for Puter service.'
       };
     }
-    
+
     // Test OpenAI-compatible services
     if (!openaiClient) {
       return { success: false, error: 'OpenAI client is not initialized' };
     }
-    
+
     // Minimal request: for Gemini use only model + messages (no max_tokens) to avoid 400 from gateways/proxies
     const testModel = model && model.trim() ? model.trim() : defaultModelForService(normalizedService);
     const isGemini = normalizedService === 'gemini' || (baseURL && baseURL.includes('generativelanguage.googleapis.com'));
@@ -742,7 +752,8 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     const status = error && error.status;
     const is400NoBody = status === 400 && msg && msg.includes('no body');
     if (is400NoBody) {
-      const hint = 'If you are running JusttPrint in Docker or behind a proxy, the API may be returning 400 with an empty response. Check that the container can reach the AI provider (e.g. generativelanguage.googleapis.com for Gemini), that no proxy is altering requests, and that the API key and model name are correct.';
+      const hint =
+        'If you are running JusttPrint in Docker or behind a proxy, the API may be returning 400 with an empty response. Check that the container can reach the AI provider (e.g. generativelanguage.googleapis.com for Gemini), that no proxy is altering requests, and that the API key and model name are correct.';
       return { success: false, error: msg + ' ' + hint };
     }
     return { success: false, error: msg || String(error) };

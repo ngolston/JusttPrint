@@ -10,7 +10,17 @@ const printEvents = require('../../core/print-events');
 const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
 const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
-const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable } = require('../../core/models');
+const {
+  MODEL_DETAIL_COLUMNS,
+  MODEL_LIST_COLUMNS,
+  MODEL_LIST_COLUMNS_QUALIFIED,
+  deleteModelsByIds,
+  getModelByFilePath,
+  getModelById,
+  modelUserFieldsChanged,
+  normalizeModelRating,
+  repairModelTagsTable
+} = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
 const events = require('../events');
 const { findConflicts, mergeTagLists } = require('../../core/edit-merge');
@@ -22,8 +32,8 @@ function getScanExtensions(selectedIds) {
   const extSet = new Set(['.stl', '.3mf']);
   if (selectedIds && Array.isArray(selectedIds)) {
     for (const id of selectedIds) {
-      const entry = ADDITIONAL_FILE_TYPES_CATALOG.find(e => e.id === id);
-      if (entry) entry.extensions.forEach(ext => extSet.add(ext));
+      const entry = ADDITIONAL_FILE_TYPES_CATALOG.find((e) => e.id === id);
+      if (entry) entry.extensions.forEach((ext) => extSet.add(ext));
     }
   }
   return Array.from(extSet);
@@ -34,7 +44,9 @@ function getSupportedExtensionsForLibrary(db) {
   let selectedIds = [];
   try {
     if (setting && setting.value) selectedIds = JSON.parse(setting.value);
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
   return getScanExtensions(selectedIds);
 }
 
@@ -56,12 +68,17 @@ ipcMain.handle('get-model', async (event, filePath) => {
     if (!model) return null;
 
     // Get tags for this model
-    const tags = database.db.prepare(`
+    const tags = database.db
+      .prepare(
+        `
       SELECT t.name 
       FROM tags t 
       JOIN model_tags mt ON mt.tag_id = t.id 
       WHERE mt.model_id = ?
-    `).all(model.id).map(t => t.name);
+    `
+      )
+      .all(model.id)
+      .map((t) => t.name);
 
     return {
       ...model,
@@ -79,9 +96,11 @@ function announceChanged(event, filePaths) {
   if (paths.length) events.broadcastToOthers(event, 'models-changed', { filePaths: paths, by: event && event.user ? event.user.username : null });
 }
 
-const storedTagNames = (modelId) => database.db.prepare(
-  'SELECT t.name FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = ?'
-).all(modelId).map((row) => row.name);
+const storedTagNames = (modelId) =>
+  database.db
+    .prepare('SELECT t.name FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = ?')
+    .all(modelId)
+    .map((row) => row.name);
 
 /**
  * Save one model. With `_base` (the edited fields' values when editing started) the save is
@@ -106,20 +125,26 @@ ipcMain.handle('save-model', async (event, modelData) => {
 
 ipcMain.handle('save-model-batch', async (event, modelDataBatch) => {
   const result = await saveModelBatch(modelDataBatch);
-  announceChanged(event, (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath));
+  announceChanged(
+    event,
+    (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath)
+  );
   return result;
 });
 
 ipcMain.handle('update-models-batch', async (event, modelDataBatch) => {
   const result = await updateModelsBatch(modelDataBatch);
-  announceChanged(event, (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath));
+  announceChanged(
+    event,
+    (Array.isArray(modelDataBatch) ? modelDataBatch : []).map((m) => m && m.filePath)
+  );
   return result;
 });
 
 ipcMain.handle('get-designers', async () => {
   try {
     const rows = database.db.prepare("SELECT DISTINCT designer FROM models WHERE designer IS NOT NULL AND designer != ''").all();
-    return rows.map(row => row.designer);
+    return rows.map((row) => row.designer);
   } catch (error) {
     console.error('Error getting designers:', error);
     throw error;
@@ -129,7 +154,7 @@ ipcMain.handle('get-designers', async () => {
 ipcMain.handle('get-licenses', async () => {
   try {
     const rows = database.db.prepare("SELECT DISTINCT license FROM models WHERE license IS NOT NULL AND license != ''").all();
-    return rows.map(row => row.license);
+    return rows.map((row) => row.license);
   } catch (error) {
     console.error('Error getting licenses:', error);
     throw error;
@@ -139,54 +164,54 @@ ipcMain.handle('get-licenses', async () => {
 const getAllModelsHandler = async (event, sortOption, limit = 0) => {
   try {
     // Determine the ORDER BY clause based on sortOption.
-    let orderClause = "";
+    let orderClause = '';
     switch (sortOption) {
-      case "name-asc":
-        orderClause = "ORDER BY fileName ASC";
+      case 'name-asc':
+        orderClause = 'ORDER BY fileName ASC';
         break;
-      case "name-desc":
-        orderClause = "ORDER BY fileName DESC";
+      case 'name-desc':
+        orderClause = 'ORDER BY fileName DESC';
         break;
-      case "size-asc":
-        orderClause = "ORDER BY size ASC";
+      case 'size-asc':
+        orderClause = 'ORDER BY size ASC';
         break;
-      case "size-desc":
-        orderClause = "ORDER BY size DESC";
+      case 'size-desc':
+        orderClause = 'ORDER BY size DESC';
         break;
-      case "date-asc":
-        orderClause = "ORDER BY modifiedDate ASC";
+      case 'date-asc':
+        orderClause = 'ORDER BY modifiedDate ASC';
         break;
-      case "date-desc":
-        orderClause = "ORDER BY modifiedDate DESC";
+      case 'date-desc':
+        orderClause = 'ORDER BY modifiedDate DESC';
         break;
-      case "dateadded-asc":
-        orderClause = "ORDER BY dateAdded ASC";
+      case 'dateadded-asc':
+        orderClause = 'ORDER BY dateAdded ASC';
         break;
-      case "dateadded-desc":
-        orderClause = "ORDER BY dateAdded DESC";
+      case 'dateadded-desc':
+        orderClause = 'ORDER BY dateAdded DESC';
         break;
-      case "rating-asc":
-        orderClause = "ORDER BY rating ASC, fileName ASC";
+      case 'rating-asc':
+        orderClause = 'ORDER BY rating ASC, fileName ASC';
         break;
-      case "rating-desc":
-        orderClause = "ORDER BY rating DESC, fileName ASC";
+      case 'rating-desc':
+        orderClause = 'ORDER BY rating DESC, fileName ASC';
         break;
-      case "printed-asc":
-      case "printed-desc":
-      case "printstatus-asc":
-      case "printstatus-desc":
-      case "printcount-asc":
-      case "printcount-desc":
-      case "lastprinted-asc":
-      case "lastprinted-desc":
+      case 'printed-asc':
+      case 'printed-desc':
+      case 'printstatus-asc':
+      case 'printstatus-desc':
+      case 'printcount-asc':
+      case 'printcount-desc':
+      case 'lastprinted-asc':
+      case 'lastprinted-desc':
         orderClause = printEvents.printSortOrderClause(sortOption);
         break;
       default:
-        orderClause = "ORDER BY modifiedDate DESC";
+        orderClause = 'ORDER BY modifiedDate DESC';
         break;
     }
 
-const selectCols = MODEL_LIST_COLUMNS;
+    const selectCols = MODEL_LIST_COLUMNS;
 
     let models;
     if (limit === 0) {
@@ -197,7 +222,7 @@ const selectCols = MODEL_LIST_COLUMNS;
     }
     return models;
   } catch (error) {
-    console.error("Error in getAllModels IPC:", error);
+    console.error('Error in getAllModels IPC:', error);
     return [];
   }
 };
@@ -213,78 +238,78 @@ const getModelsFilteredHandler = async (event, filters) => {
 
     // Build WHERE clause
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    
+
     console.debug('WHERE clause built:', whereClause);
     console.debug('Conditions:', conditions);
-    
+
     // Determine ORDER BY clause based on sortOption
-    let orderClause = "";
+    let orderClause = '';
     const sortOption = filters.sortOption || 'date-desc';
     switch (sortOption) {
-      case "name-asc":
-        orderClause = "ORDER BY fileName ASC";
+      case 'name-asc':
+        orderClause = 'ORDER BY fileName ASC';
         break;
-      case "name-desc":
-        orderClause = "ORDER BY fileName DESC";
+      case 'name-desc':
+        orderClause = 'ORDER BY fileName DESC';
         break;
-      case "size-asc":
-        orderClause = "ORDER BY size ASC";
+      case 'size-asc':
+        orderClause = 'ORDER BY size ASC';
         break;
-      case "size-desc":
-        orderClause = "ORDER BY size DESC";
+      case 'size-desc':
+        orderClause = 'ORDER BY size DESC';
         break;
-      case "date-asc":
-        orderClause = "ORDER BY modifiedDate ASC";
+      case 'date-asc':
+        orderClause = 'ORDER BY modifiedDate ASC';
         break;
-      case "date-desc":
-        orderClause = "ORDER BY modifiedDate DESC";
+      case 'date-desc':
+        orderClause = 'ORDER BY modifiedDate DESC';
         break;
-      case "dateadded-asc":
-        orderClause = "ORDER BY dateAdded ASC";
+      case 'dateadded-asc':
+        orderClause = 'ORDER BY dateAdded ASC';
         break;
-      case "dateadded-desc":
-        orderClause = "ORDER BY dateAdded DESC";
+      case 'dateadded-desc':
+        orderClause = 'ORDER BY dateAdded DESC';
         break;
-      case "printed-asc":
-      case "printed-desc":
-      case "printstatus-asc":
-      case "printstatus-desc":
-      case "printcount-asc":
-      case "printcount-desc":
-      case "lastprinted-asc":
-      case "lastprinted-desc":
+      case 'printed-asc':
+      case 'printed-desc':
+      case 'printstatus-asc':
+      case 'printstatus-desc':
+      case 'printcount-asc':
+      case 'printcount-desc':
+      case 'lastprinted-asc':
+      case 'lastprinted-desc':
         orderClause = printEvents.printSortOrderClause(sortOption);
         break;
-      case "rating-asc":
-        orderClause = "ORDER BY rating ASC, fileName ASC";
+      case 'rating-asc':
+        orderClause = 'ORDER BY rating ASC, fileName ASC';
         break;
-      case "rating-desc":
-        orderClause = "ORDER BY rating DESC, fileName ASC";
+      case 'rating-desc':
+        orderClause = 'ORDER BY rating DESC, fileName ASC';
         break;
-      case "designer-asc":
-        orderClause = "ORDER BY designer ASC";
+      case 'designer-asc':
+        orderClause = 'ORDER BY designer ASC';
         break;
-      case "designer-desc":
-        orderClause = "ORDER BY designer DESC";
+      case 'designer-desc':
+        orderClause = 'ORDER BY designer DESC';
         break;
-      case "parentmodel-asc":
-        orderClause = "ORDER BY parentModel ASC";
+      case 'parentmodel-asc':
+        orderClause = 'ORDER BY parentModel ASC';
         break;
-      case "parentmodel-desc":
-        orderClause = "ORDER BY parentModel DESC";
+      case 'parentmodel-desc':
+        orderClause = 'ORDER BY parentModel DESC';
         break;
-      case "directory-asc":
-        orderClause = "ORDER BY filePath ASC";
+      case 'directory-asc':
+        orderClause = 'ORDER BY filePath ASC';
         break;
-      case "directory-desc":
-        orderClause = "ORDER BY filePath DESC";
+      case 'directory-desc':
+        orderClause = 'ORDER BY filePath DESC';
         break;
       default:
-        orderClause = "ORDER BY modifiedDate DESC";
+        orderClause = 'ORDER BY modifiedDate DESC';
         break;
     }
-    
-const selectCols = MODEL_LIST_COLUMNS_QUALIFIED;
+
+    const selectCols = MODEL_LIST_COLUMNS_QUALIFIED;
 
     // Execute query (optional limit/offset for progressive load when clearing filters in Server/Docker)
     // SQLite requires LIMIT when using OFFSET; use a large limit when only offset is set
@@ -299,13 +324,13 @@ const selectCols = MODEL_LIST_COLUMNS_QUALIFIED;
     }
     console.debug('Executing query:', query);
     console.debug('With params:', params);
-    
+
     const models = database.db.prepare(query).all(...params);
 
     console.debug(`Returning ${models.length} filtered models`);
     return models;
   } catch (error) {
-    console.error("Error in getModelsFiltered IPC:", error);
+    console.error('Error in getModelsFiltered IPC:', error);
     throw error;
   }
 };
@@ -315,7 +340,7 @@ ipcMain.handle('get-models-filtered', getModelsFilteredHandler);
 ipcMain.handle('get-parent-models', async () => {
   try {
     const rows = database.db.prepare("SELECT DISTINCT parentModel FROM models WHERE parentModel IS NOT NULL AND parentModel != ''").all();
-    return rows.map(row => row.parentModel);
+    return rows.map((row) => row.parentModel);
   } catch (error) {
     console.error('Error getting parent models:', error);
     throw error;
@@ -334,8 +359,8 @@ function getExtensionsForCatalogIds(catalogIds) {
   if (!catalogIds || !Array.isArray(catalogIds) || catalogIds.length === 0) return [];
   const extSet = new Set();
   for (const id of catalogIds) {
-    const entry = ADDITIONAL_FILE_TYPES_CATALOG.find(e => e.id === id);
-    if (entry) entry.extensions.forEach(ext => extSet.add(ext));
+    const entry = ADDITIONAL_FILE_TYPES_CATALOG.find((e) => e.id === id);
+    if (entry) entry.extensions.forEach((ext) => extSet.add(ext));
   }
   return Array.from(extSet);
 }
@@ -345,7 +370,7 @@ ipcMain.handle('get-model-count-by-file-type-ids', async (event, catalogIds) => 
     const exts = getExtensionsForCatalogIds(catalogIds);
     if (exts.length === 0) return 0;
     const conditions = exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ');
-    const params = exts.map(ext => `%${ext}`);
+    const params = exts.map((ext) => `%${ext}`);
     const row = database.db.prepare(`SELECT COUNT(*) AS count FROM models WHERE ${conditions}`).get(...params);
     return row ? row.count : 0;
   } catch (error) {
@@ -359,9 +384,9 @@ ipcMain.handle('remove-models-by-file-type-ids', async (event, catalogIds) => {
     const exts = getExtensionsForCatalogIds(catalogIds);
     if (exts.length === 0) return { deleted: 0 };
     const conditions = exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ');
-    const params = exts.map(ext => `%${ext}`);
+    const params = exts.map((ext) => `%${ext}`);
     const modelRows = database.db.prepare(`SELECT id FROM models WHERE ${conditions}`).all(...params);
-    const ids = modelRows.map(r => r.id);
+    const ids = modelRows.map((r) => r.id);
     if (ids.length === 0) return { deleted: 0 };
     const deleted = database.db.transaction(() => {
       deleteModelsByIds(ids);
@@ -393,10 +418,10 @@ ipcMain.handle('clear-new-model-flags', clearNewFlagsHandler);
 ipcMain.handle('getTotalModelCount', async () => {
   try {
     // Query total count from the models table
-    const row = database.db.prepare("SELECT COUNT(*) AS total FROM models").get();
+    const row = database.db.prepare('SELECT COUNT(*) AS total FROM models').get();
     return row.total;
   } catch (error) {
-    console.error("Error getting total model count:", error);
+    console.error('Error getting total model count:', error);
     return 0;
   }
 });
@@ -444,20 +469,13 @@ async function saveModelBatch(modelDataBatch) {
         (filePath, fileName, hash, size, modifiedDate, dateAdded, isNew) 
         VALUES (?, ?, ?, ?, ?, ?, 1)
       `);
-      
+
       for (const modelData of modelDataBatch) {
         const dateAdded = new Date().toISOString();
-        stmt.run(
-          modelData.filePath,
-          modelData.fileName,
-          modelData.hash || '',
-          modelData.size || 0,
-          modelData.modifiedDate || dateAdded,
-          dateAdded
-        );
+        stmt.run(modelData.filePath, modelData.fileName, modelData.hash || '', modelData.size || 0, modelData.modifiedDate || dateAdded, dateAdded);
       }
     });
-    
+
     transaction();
     scheduleBackgroundHashGeneration('save-model-batch');
     return true;
@@ -513,47 +531,34 @@ async function updateModelsBatch(modelDataBatch) {
 
       for (let i = 0; i < modelDataBatch.length; i++) {
         const modelData = modelDataBatch[i];
-        const {
-          filePath,
-          fileName,
-          designer,
-          source,
-          notes,
-          printed,
-          printStatus,
-          parentModel,
-          license,
-          rating,
-          favorite,
-          tags
-        } = modelData;
+        const { filePath, fileName, designer, source, notes, printed, printStatus, parentModel, license, rating, favorite, tags } = modelData;
 
         console.debug(`[Batch ${i}] Processing model: ${filePath}`);
         console.debug(`[Batch ${i}] Field values:`, { fileName, designer, source, notes, printed, parentModel, license, tags });
 
         // Get existing model to preserve values that aren't being updated
         const existingModel = getExistingModelStmt.get(filePath);
-        
+
         if (!existingModel) {
           console.warn(`[Batch ${i}] Model not found in database: ${filePath}`);
           continue; // Skip this model if it doesn't exist
         }
-        
+
         console.debug(`[Batch ${i}] Found existing model with ID: ${existingModel.id}`);
         // Only update fields that are explicitly provided (not undefined)
         const finalFileName = fileName !== undefined ? fileName : existingModel.fileName;
-        const finalDesigner = designer !== undefined ? (designer || null) : existingModel.designer;
-        const finalSource = source !== undefined ? (source || null) : existingModel.source;
-        const finalNotes = notes !== undefined ? (notes || null) : existingModel.notes;
+        const finalDesigner = designer !== undefined ? designer || null : existingModel.designer;
+        const finalSource = source !== undefined ? source || null : existingModel.source;
+        const finalNotes = notes !== undefined ? notes || null : existingModel.notes;
         const printFields = printEvents.resolvePrintFieldsOnSave(existingModel, { printed, printStatus });
         const finalPrinted = printFields.printed;
         const finalPrintStatus = printFields.print_status;
         const finalPrintCount = printFields.print_count;
         const finalLastPrintedAt = printFields.last_printed_at;
-        const finalParentModel = parentModel !== undefined ? (parentModel || null) : existingModel.parentModel;
-        const finalLicense = license !== undefined ? (license || null) : existingModel.license;
+        const finalParentModel = parentModel !== undefined ? parentModel || null : existingModel.parentModel;
+        const finalLicense = license !== undefined ? license || null : existingModel.license;
         const finalRating = rating !== undefined ? normalizeModelRating(rating) : normalizeModelRating(existingModel.rating);
-        const finalFavorite = favorite !== undefined ? (favorite ? 1 : 0) : (existingModel.favorite ? 1 : 0);
+        const finalFavorite = favorite !== undefined ? (favorite ? 1 : 0) : existingModel.favorite ? 1 : 0;
 
         const finals = {
           fileName: finalFileName,
@@ -604,16 +609,16 @@ async function updateModelsBatch(modelDataBatch) {
         // Replace the tags when a list is given; an empty list removes them all.
         if (Array.isArray(tags)) {
           const modelId = existingModel.id;
-          
+
           // Delete existing tags
           deleteTagsStmt.run(modelId);
-          
+
           // Insert new tags
           for (const tagName of tags) {
             if (!tagName || typeof tagName !== 'string' || tagName.trim() === '') continue;
-            
+
             const trimmedTagName = tagName.trim();
-            
+
             // Get or create tag
             let tagResult = getTagIdStmt.get(trimmedTagName);
             if (!tagResult) {
@@ -621,7 +626,7 @@ async function updateModelsBatch(modelDataBatch) {
               insertTagNameStmt.run(trimmedTagName);
               tagResult = getTagIdAfterInsertStmt.get(trimmedTagName);
             }
-            
+
             if (tagResult) {
               insertTagStmt.run(modelId, tagResult.id);
             }
@@ -641,14 +646,17 @@ async function updateModelsBatch(modelDataBatch) {
 
 function sortedTagNames(tags) {
   if (!Array.isArray(tags)) return [];
-  return tags.map((t) => String(t).trim()).filter(Boolean).sort();
+  return tags
+    .map((t) => String(t).trim())
+    .filter(Boolean)
+    .sort();
 }
 
 // Add this function before the IPC handlers
 async function saveModel(modelData) {
   try {
     console.debug('saveModel:', modelData?.filePath, modelData?.id != null ? `(id ${modelData.id})` : '');
-    
+
     let {
       id: inputId, // Rename to avoid confusion
       filePath: filePathIn,
@@ -690,9 +698,7 @@ async function saveModel(modelData) {
       });
       const modelExts = getSupportedExtensionsForLibrary(database.db);
       const toAdd = Object.values(entries).filter(
-        (e) => !e.isDirectory
-          && modelExts.includes(path.extname(e.name).toLowerCase())
-          && !isMacOsResourceForkEntry(e.name)
+        (e) => !e.isDirectory && modelExts.includes(path.extname(e.name).toLowerCase()) && !isMacOsResourceForkEntry(e.name)
       );
       if (toAdd.length === 0) {
         throw new Error('No supported model files found in the ZIP file. Enable additional file types in Settings > File Types if needed.');
@@ -735,29 +741,29 @@ async function saveModel(modelData) {
     try {
       // Check if the model exists first
       const existingModel = database.db.prepare('SELECT id FROM models WHERE filePath = ?').get(filePath);
-      
+
       if (existingModel) {
         // Update existing model
         console.debug(`Updating existing model with ID: ${existingModel.id}`);
-        
+
         // Get existing model data to preserve values that aren't being updated
         const existingModelData = getModelById(existingModel.id);
-        
+
         // Only update fields that are explicitly provided (not undefined)
         // Preserve existing values for fields that are undefined in the update
         const finalFileName = fileName !== undefined ? fileName : existingModelData.fileName;
-        const finalDesigner = designer !== undefined ? (designer || null) : existingModelData.designer;
-        const finalSource = source !== undefined ? (source || null) : existingModelData.source;
-        const finalNotes = notes !== undefined ? (notes || null) : existingModelData.notes;
+        const finalDesigner = designer !== undefined ? designer || null : existingModelData.designer;
+        const finalSource = source !== undefined ? source || null : existingModelData.source;
+        const finalNotes = notes !== undefined ? notes || null : existingModelData.notes;
         const printFields = printEvents.resolvePrintFieldsOnSave(existingModelData, { printed, printStatus });
         const finalPrinted = printFields.printed;
         const finalPrintStatus = printFields.print_status;
         const finalPrintCount = printFields.print_count;
         const finalLastPrintedAt = printFields.last_printed_at;
-        const finalParentModel = parentModel !== undefined ? (parentModel || null) : existingModelData.parentModel;
-        const finalLicense = license !== undefined ? (license || null) : existingModelData.license;
+        const finalParentModel = parentModel !== undefined ? parentModel || null : existingModelData.parentModel;
+        const finalLicense = license !== undefined ? license || null : existingModelData.license;
         const finalRating = rating !== undefined ? normalizeModelRating(rating) : normalizeModelRating(existingModelData.rating);
-        const finalFavorite = favorite !== undefined ? (favorite ? 1 : 0) : (existingModelData.favorite ? 1 : 0);
+        const finalFavorite = favorite !== undefined ? (favorite ? 1 : 0) : existingModelData.favorite ? 1 : 0;
 
         const finals = {
           fileName: finalFileName,
@@ -771,15 +777,20 @@ async function saveModel(modelData) {
         };
         let clearIsNew = !markAsNew && modelUserFieldsChanged(existingModelData, finals);
         if (!markAsNew && !clearIsNew && rawTags !== undefined) {
-          const existingTagRows = database.db.prepare(`
+          const existingTagRows = database.db
+            .prepare(
+              `
             SELECT t.name FROM model_tags mt
             JOIN tags t ON mt.tag_id = t.id
             WHERE mt.model_id = ?
-          `).all(existingModel.id).map((row) => row.name);
+          `
+            )
+            .all(existingModel.id)
+            .map((row) => row.name);
           clearIsNew = JSON.stringify(sortedTagNames(existingTagRows)) !== JSON.stringify(sortedTagNames(tags));
         }
         const bundle = deriveBundleFromFilePath(filePath);
-        
+
         // Use a simpler update approach to avoid foreign key issues
         const updateStmt = database.db.prepare(`
           UPDATE models SET 
@@ -801,7 +812,7 @@ async function saveModel(modelData) {
             isNew = CASE WHEN ? THEN 1 WHEN ? THEN 0 ELSE isNew END
           WHERE id = ?
         `);
-        
+
         updateStmt.run(
           finalFileName,
           finalDesigner,
@@ -822,12 +833,12 @@ async function saveModel(modelData) {
           clearIsNew ? 1 : 0,
           existingModel.id
         );
-        
+
         modelId = existingModel.id;
       } else {
         // Insert new model
         console.debug('Inserting new model');
-        
+
         const printFields = printEvents.resolvePrintFieldsOnSave(null, { printed, printStatus });
         const dateAdded = new Date().toISOString();
         const bundle = deriveBundleFromFilePath(filePath);
@@ -837,7 +848,7 @@ async function saveModel(modelData) {
             dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
         `);
-        
+
         const result = insertStmt.run(
           filePath,
           fileName,
@@ -857,11 +868,11 @@ async function saveModel(modelData) {
           bundle.bundleLabel || null,
           bundle.bundleKind || null
         );
-        
+
         modelId = result.lastInsertRowid;
         insertedNewModel = true;
       }
-      
+
       console.debug(`Model saved with ID: ${modelId}`);
     } catch (modelError) {
       console.error('Error saving model data:', modelError);
@@ -873,24 +884,29 @@ async function saveModel(modelData) {
     if (modelId && tags && Array.isArray(tags)) {
       try {
         console.debug(`Processing ${tags.length} tags for model ID ${modelId}`);
-        
+
         // Double-check that the model exists before proceeding
         const modelExists = database.db.prepare('SELECT 1 FROM models WHERE id = ?').get(modelId);
         if (!modelExists) {
           console.error(`Model ID ${modelId} does not exist in the database. This should not happen.`);
           return { success: true, modelId }; // Return success but skip tag processing
         }
-        
+
         // Use a transaction to ensure atomicity and handle errors gracefully
         database.db.transaction(() => {
           // First, get existing tags before deleting (to preserve them if there's an error)
-          const existingTags = database.db.prepare(`
+          const existingTags = database.db
+            .prepare(
+              `
             SELECT t.name 
             FROM model_tags mt
             JOIN tags t ON mt.tag_id = t.id
             WHERE mt.model_id = ?
-          `).all(modelId).map(row => row.name);
-          
+          `
+            )
+            .all(modelId)
+            .map((row) => row.name);
+
           // First, remove all existing tags for this model
           const deleteResult = database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
           console.debug(`Deleted ${deleteResult.changes} existing tag relationships`);
@@ -902,16 +918,16 @@ async function saveModel(modelData) {
                 const trimmedTagName = tagName.trim();
                 try {
                   console.debug(`Processing tag: "${trimmedTagName}"`);
-                  
+
                   // First ensure the tag exists in the tags table
                   database.db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)').run(trimmedTagName);
-                  
+
                   // Get the tag ID directly
                   const tagRow = database.db.prepare('SELECT id FROM tags WHERE name = ?').get(trimmedTagName);
-                  
+
                   if (tagRow && tagRow.id) {
                     console.debug(`Found tag ID ${tagRow.id} for "${trimmedTagName}"`);
-                    
+
                     // Now create the relationship with the known IDs
                     database.db.prepare('INSERT OR IGNORE INTO model_tags (model_id, tag_id) VALUES (?, ?)').run(modelId, tagRow.id);
                   } else {
@@ -929,7 +945,7 @@ async function saveModel(modelData) {
         })();
       } catch (tagError) {
         console.error('Error updating tags:', tagError);
-        
+
         // models_old means model_tags still references the renamed parent table.
         // Repair outside this failed transaction, then retry the tag write.
         if (tagError.message && tagError.message.includes('models_old')) {
@@ -940,7 +956,7 @@ async function saveModel(modelData) {
             database.db.transaction(() => {
               // Delete existing tags first
               database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
-              
+
               // Re-insert the tags we were trying to save (only if there are tags)
               if (tags.length > 0) {
                 for (const tagName of tags) {
@@ -973,11 +989,18 @@ async function saveModel(modelData) {
       scheduleBackgroundHashGeneration('save-model');
     }
     return { success: true, modelId };
-
   } catch (error) {
     console.error('Error saving model:', error);
     throw error;
   }
 }
 
-module.exports = { directoryScanPrefixSqlParam, getModelsFilteredHandler, getScanExtensions, getSupportedExtensionsForLibrary, normalizePath, saveModel, updateModelsBatch };
+module.exports = {
+  directoryScanPrefixSqlParam,
+  getModelsFilteredHandler,
+  getScanExtensions,
+  getSupportedExtensionsForLibrary,
+  normalizePath,
+  saveModel,
+  updateModelsBatch
+};

@@ -6,7 +6,8 @@
  */
 
 function ensurePrinterSchema(db) {
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS printers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nickname TEXT NOT NULL,
@@ -20,7 +21,8 @@ function ensurePrinterSchema(db) {
       created_at DATETIME NOT NULL,
       updated_at DATETIME NOT NULL
     )
-  `).run();
+  `
+  ).run();
 
   try {
     const printerCols = db.prepare('PRAGMA table_info(printers)').all();
@@ -32,7 +34,8 @@ function ensurePrinterSchema(db) {
     // Ignore migration error if already exists
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS printer_maintenance_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       printer_id INTEGER NOT NULL,
@@ -43,9 +46,11 @@ function ensurePrinterSchema(db) {
       created_at DATETIME NOT NULL,
       FOREIGN KEY(printer_id) REFERENCES printers(id) ON DELETE CASCADE
     )
-  `).run();
+  `
+  ).run();
 
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS printer_maintenance_reminders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       printer_id INTEGER NOT NULL,
@@ -59,7 +64,8 @@ function ensurePrinterSchema(db) {
       created_at DATETIME NOT NULL,
       FOREIGN KEY(printer_id) REFERENCES printers(id) ON DELETE CASCADE
     )
-  `).run();
+  `
+  ).run();
 
   db.prepare('CREATE INDEX IF NOT EXISTS idx_printers_nickname ON printers(nickname)').run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_printers_printer_type ON printers(printer_type)').run();
@@ -104,13 +110,17 @@ function getAllPrinters(db) {
        (SELECT MAX(pe.printed_at) FROM print_events pe WHERE pe.printer_id = p.id) AS last_printed_at`
     : ', 0 AS total_prints, NULL AS last_printed_at';
 
-  const printers = db.prepare(`
+  const printers = db
+    .prepare(
+      `
     SELECT p.*${printEventsCols},
       (SELECT COUNT(*) FROM printer_maintenance_reminders pmr 
        WHERE pmr.printer_id = p.id AND pmr.status = 'pending' AND datetime(pmr.due_date) <= datetime('now', '+7 days')) AS due_reminders_count
     FROM printers p
     ORDER BY p.nickname COLLATE NOCASE ASC, p.id ASC
-  `).all();
+  `
+    )
+    .all();
 
   return printers.map((p) => ({
     ...p,
@@ -138,7 +148,7 @@ function savePrinter(db, printer) {
   const printerType = String(printer?.printerType || printer?.printer_type || printer?.technology || printer?.type || '').trim() || null;
   const firmwareType = String(printer?.firmwareType || printer?.firmware_type || '').trim() || null;
   const isKlipper = (firmwareType && firmwareType.toLowerCase() === 'klipper') || Boolean(printer?.isKlipper ?? printer?.is_klipper) ? 1 : 0;
-  
+
   let webUrl = String(printer?.webUrl || printer?.web_url || '').trim() || null;
   if (webUrl && !/^https?:\/\//i.test(webUrl)) {
     webUrl = 'http://' + webUrl;
@@ -152,19 +162,25 @@ function savePrinter(db, printer) {
     const existing = db.prepare('SELECT id FROM printers WHERE id = ?').get(id);
     if (!existing) throw new Error('Printer not found');
 
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE printers
       SET nickname = ?, manufacturer = ?, model = ?, printer_type = ?, firmware_type = ?, is_klipper = ?, web_url = ?, notes = ?, updated_at = ?
       WHERE id = ?
-    `).run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, id);
+    `
+    ).run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, id);
 
     return getPrinterById(db, id);
   }
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO printers (nickname, manufacturer, model, printer_type, firmware_type, is_klipper, web_url, notes, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, now);
+  `
+    )
+    .run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, now);
 
   return getPrinterById(db, result.lastInsertRowid);
 }
@@ -191,11 +207,15 @@ function getPrinterMaintenanceLogs(db, printerId) {
   const id = Number(printerId);
   if (!Number.isInteger(id) || id <= 0) return [];
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT * FROM printer_maintenance_logs
     WHERE printer_id = ?
     ORDER BY performed_at DESC, id DESC
-  `).all(id);
+  `
+    )
+    .all(id);
 }
 
 function savePrinterMaintenanceLog(db, logEntry) {
@@ -212,18 +232,24 @@ function savePrinterMaintenanceLog(db, logEntry) {
   const id = logEntry?.id != null && logEntry.id !== '' ? Number(logEntry.id) : null;
   if (id) {
     if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid log ID');
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE printer_maintenance_logs
       SET maintenance_type = ?, title = ?, description = ?, performed_at = ?
       WHERE id = ? AND printer_id = ?
-    `).run(maintenanceType, title, description, performedAt, id, printerId);
+    `
+    ).run(maintenanceType, title, description, performedAt, id, printerId);
     return db.prepare('SELECT * FROM printer_maintenance_logs WHERE id = ?').get(id);
   }
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO printer_maintenance_logs (printer_id, maintenance_type, title, description, performed_at, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(printerId, maintenanceType, title, description, performedAt, now);
+  `
+    )
+    .run(printerId, maintenanceType, title, description, performedAt, now);
 
   return db.prepare('SELECT * FROM printer_maintenance_logs WHERE id = ?').get(result.lastInsertRowid);
 }
@@ -274,18 +300,24 @@ function savePrinterReminder(db, reminder) {
   const id = reminder?.id != null && reminder.id !== '' ? Number(reminder.id) : null;
   if (id) {
     if (!Number.isInteger(id) || id <= 0) throw new Error('Invalid reminder ID');
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE printer_maintenance_reminders
       SET title = ?, maintenance_type = ?, due_date = ?, interval_days = ?, notes = ?, status = ?
       WHERE id = ? AND printer_id = ?
-    `).run(title, maintenanceType, dueDate, intervalDays, notes, status, id, printerId);
+    `
+    ).run(title, maintenanceType, dueDate, intervalDays, notes, status, id, printerId);
     return db.prepare('SELECT * FROM printer_maintenance_reminders WHERE id = ?').get(id);
   }
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO printer_maintenance_reminders (printer_id, title, maintenance_type, due_date, interval_days, notes, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(printerId, title, maintenanceType, dueDate, intervalDays, notes, status, now);
+  `
+    )
+    .run(printerId, title, maintenanceType, dueDate, intervalDays, notes, status, now);
 
   return db.prepare('SELECT * FROM printer_maintenance_reminders WHERE id = ?').get(result.lastInsertRowid);
 }
@@ -308,7 +340,7 @@ function completePrinterReminder(db, reminderId, notes) {
     if (!reminder) throw new Error('Reminder not found');
 
     const now = new Date().toISOString();
-    const completionNotes = notes ? String(notes).trim() : (reminder.notes ? `Completed: ${reminder.notes}` : 'Completed scheduled reminder');
+    const completionNotes = notes ? String(notes).trim() : reminder.notes ? `Completed: ${reminder.notes}` : 'Completed scheduled reminder';
 
     // Automatically record a maintenance log entry
     savePrinterMaintenanceLog(db, {
@@ -323,17 +355,21 @@ function completePrinterReminder(db, reminderId, notes) {
     if (reminder.interval_days > 0) {
       const nextDue = new Date();
       nextDue.setDate(nextDue.getDate() + reminder.interval_days);
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE printer_maintenance_reminders
         SET due_date = ?, status = 'pending', last_completed_at = ?
         WHERE id = ?
-      `).run(nextDue.toISOString(), now, id);
+      `
+      ).run(nextDue.toISOString(), now, id);
     } else {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE printer_maintenance_reminders
         SET status = 'completed', last_completed_at = ?
         WHERE id = ?
-      `).run(now, id);
+      `
+      ).run(now, id);
     }
 
     return db.prepare('SELECT * FROM printer_maintenance_reminders WHERE id = ?').get(id);

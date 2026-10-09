@@ -74,29 +74,47 @@ export function TagManagerDialog() {
   }
 
   const term = search.trim().toLowerCase();
-  const shown = allTags
-    .filter((tag) => !term || tag.name.toLowerCase().includes(term))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const shown = allTags.filter((tag) => !term || tag.name.toLowerCase().includes(term)).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <ModalDialog id="tag-manager-dialog" title="Tag Manager" dialogRef={dialogRef} fullscreenToggle
-      onClose={() => { if (changed.current) void refreshAfterTagManagerClose(); }}>
+    <ModalDialog
+      id="tag-manager-dialog"
+      title="Tag Manager"
+      dialogRef={dialogRef}
+      fullscreenToggle
+      onClose={() => {
+        if (changed.current) void refreshAfterTagManagerClose();
+      }}
+    >
       <div className="form-group">
         <label htmlFor="new-tag-manager-name">Create New Tag</label>
         <div className="input-with-icon">
-          <input type="text" id="new-tag-manager-name" placeholder="Enter tag name..." value={newName}
+          <input
+            type="text"
+            id="new-tag-manager-name"
+            placeholder="Enter tag name..."
+            value={newName}
             onChange={(event) => setNewName(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void addTag(); } }} />
-          <button type="button" id="add-tag-manager-button" className="icon-button" title="Create tag" onClick={addTag}>+</button>
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void addTag();
+              }
+            }}
+          />
+          <button type="button" id="add-tag-manager-button" className="icon-button" title="Create tag" onClick={addTag}>
+            +
+          </button>
         </div>
       </div>
       <div className="form-group tag-manager-existing-group">
         <label htmlFor="tag-manager-search">Existing Tags</label>
         <p className="tag-manager-hint">Click a tag to rename it. Clear the name and press Enter to delete.</p>
         <div className="input-with-icon">
-          <input type="text" id="tag-manager-search" placeholder="Search tags..." value={search}
-            onChange={(event) => setSearch(event.target.value)} />
-          <button type="button" id="clear-tag-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>×</button>
+          <input type="text" id="tag-manager-search" placeholder="Search tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
+          <button type="button" id="clear-tag-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
+            ×
+          </button>
         </div>
         <div id="tag-manager-list" className="tags-list">
           {shown.map((tag) => (
@@ -108,11 +126,7 @@ export function TagManagerDialog() {
   );
 }
 
-function TagChip({ tag, onRename, onDelete }: {
-  tag: Tag;
-  onRename: (name: string) => Promise<boolean>;
-  onDelete: () => Promise<boolean>;
-}) {
+function TagChip({ tag, onRename, onDelete }: { tag: Tag; onRename: (name: string) => Promise<boolean>; onDelete: () => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tag.name);
   // Enter and the blur that follows must not commit twice.
@@ -149,23 +163,44 @@ function TagChip({ tag, onRename, onDelete }: {
       event.stopPropagation();
       committing.current = true;
       setEditing(false);
-      queueMicrotask(() => { committing.current = false; });
+      queueMicrotask(() => {
+        committing.current = false;
+      });
     }
   }
 
   return (
     <div className="tag" data-tag-id={tag.id} data-tag-name={tag.name} title={`${tag.name} — click to rename`} onClick={startEditing}>
       {editing ? (
-        <input type="text" className="tag-edit-input" aria-label={`Rename tag ${tag.name}`} spellCheck={false} autoFocus
-          value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown}
-          onFocus={(event) => event.target.select()} onClick={(event) => event.stopPropagation()}
-          onBlur={() => void commit()} />
+        <input
+          type="text"
+          className="tag-edit-input"
+          aria-label={`Rename tag ${tag.name}`}
+          spellCheck={false}
+          autoFocus
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={onKeyDown}
+          onFocus={(event) => event.target.select()}
+          onClick={(event) => event.stopPropagation()}
+          onBlur={() => void commit()}
+        />
       ) : (
         <span className="tag-text">{tag.name}</span>
       )}
       <span className="tag-count">{tag.model_count}</span>
-      <span className="tag-remove" title="Delete tag" role="button"
-        onClick={(event) => { event.preventDefault(); event.stopPropagation(); void onDelete(); }}>×</span>
+      <span
+        className="tag-remove"
+        title="Delete tag"
+        role="button"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void onDelete();
+        }}
+      >
+        ×
+      </span>
     </div>
   );
 }

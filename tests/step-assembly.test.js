@@ -19,10 +19,7 @@ ENDSEC;
 
 describe('step-assembly', () => {
   test('lists unique sibling STEP documents from an assembly file', () => {
-    assert.deepEqual(listStepExternalFileNames(FOOT_SNIPPET), [
-      'FOOT_FRONT_000.stp',
-      'FOOT_BACK_000.stp'
-    ]);
+    assert.deepEqual(listStepExternalFileNames(FOOT_SNIPPET), ['FOOT_FRONT_000.stp', 'FOOT_BACK_000.stp']);
   });
 
   test('ignores non-STEP document names', () => {
@@ -31,16 +28,10 @@ describe('step-assembly', () => {
   });
 
   test('resolves siblings next to a Windows path', () => {
-    assert.equal(
-      siblingStepPath('C:\\\\models\\\\FOOT.stp', 'FOOT_FRONT_000.stp'),
-      'C:\\\\models\\\\FOOT_FRONT_000.stp'
-    );
+    assert.equal(siblingStepPath('C:\\\\models\\\\FOOT.stp', 'FOOT_FRONT_000.stp'), 'C:\\\\models\\\\FOOT_FRONT_000.stp');
   });
 
   test('resolves siblings inside a zip entry path', () => {
-    assert.equal(
-      siblingStepPath('pack.zip::parts/FOOT.stp', 'FOOT_BACK_000.stp'),
-      'pack.zip::parts/FOOT_BACK_000.stp'
-    );
+    assert.equal(siblingStepPath('pack.zip::parts/FOOT.stp', 'FOOT_BACK_000.stp'), 'pack.zip::parts/FOOT_BACK_000.stp');
   });
 });

@@ -19,7 +19,14 @@ export interface SaveConflict {
   yours: string | null;
 }
 
-const FIELD_NAMES: Record<string, string> = { designer: 'designer', parentModel: 'parent model', license: 'license', source: 'source', notes: 'notes', tags: 'tags' };
+const FIELD_NAMES: Record<string, string> = {
+  designer: 'designer',
+  parentModel: 'parent model',
+  license: 'license',
+  source: 'source',
+  notes: 'notes',
+  tags: 'tags'
+};
 
 /** Fields whose edits can be undone (rating, favorite and print status are one click to change back). */
 const UNDOABLE = new Set(Object.keys(FIELD_NAMES));
@@ -36,9 +43,11 @@ const shown = (value: string | null) => {
 export async function askAboutConflict(conflict: SaveConflict, modelName: string): Promise<'mine' | 'theirs' | 'both'> {
   const what = FIELD_NAMES[conflict.field] || conflict.field;
   const buttons = conflict.field === 'notes' ? ['Keep Mine', 'Keep Theirs', 'Keep Both'] : ['Keep Mine', 'Keep Theirs'];
-  const answer = await showMessage('Changed by someone else',
+  const answer = await showMessage(
+    'Changed by someone else',
     `While you were editing, someone else changed the ${what} of ${modelName}.\n\nTheirs:\n${shown(conflict.theirs)}\n\nYours:\n${shown(conflict.yours)}`,
-    buttons);
+    buttons
+  );
   return answer === 'Keep Mine' ? 'mine' : answer === 'Keep Both' ? 'both' : 'theirs';
 }
 
@@ -115,7 +124,7 @@ const tagList = tagNames;
 /** Save many models at once (one transaction), one by one if that fails; then redraw their cards. */
 async function saveBatch(batch: ModelRecord[]) {
   try {
-    if (!await callAction<boolean>('update-models-batch', batch)) throw new Error('Bulk update returned false');
+    if (!(await callAction<boolean>('update-models-batch', batch))) throw new Error('Bulk update returned false');
   } catch (error) {
     console.error(`Bulk update of ${batch.length} models failed, saving one at a time:`, error);
     await Promise.all(batch.map((model) => callAction('save-model', model).catch((e) => console.error('Error saving', model.filePath, e))));
@@ -144,7 +153,8 @@ export async function saveSelectedField(field: string, value: unknown, options: 
     }
     if (loaded.length) await saveBatch(loaded);
     if (UNDOABLE.has(field)) {
-      const changes = loaded.map((model, i) => ({ filePath: model.filePath, before: before[i], after: model[field] }))
+      const changes = loaded
+        .map((model, i) => ({ filePath: model.filePath, before: before[i], after: model[field] }))
         .filter((c) => !sameValue(field, c.before, c.after));
       const what = field === 'tags' ? (options.replace ? 'Replaced the tags of' : 'Added tags to') : `Changed the ${FIELD_NAMES[field]} of`;
       if (changes.length) recordUndo(`${what} ${modelCount(changes.length)}`, () => undoBatch(field, changes));
@@ -175,7 +185,11 @@ export async function removeFromSelected(field: 'tags', value: string) {
 
 const modelCount = (n: number) => (n === 1 ? '1 model' : `${n} models`);
 
-interface FieldChange { filePath: string; before: unknown; after: unknown }
+interface FieldChange {
+  filePath: string;
+  before: unknown;
+  after: unknown;
+}
 
 /**
  * Undo a multi-edit. Tags take back only what the edit added or removed. Other fields go back
@@ -210,7 +224,9 @@ async function undoBatch(field: string, changes: FieldChange[]) {
 export async function saveEngagement(filePaths: string[], field: 'rating' | 'favorite', value: number | boolean): Promise<boolean> {
   const batch = (await Promise.all(filePaths.map((p) => modelApi.get<ModelRecord>(p).catch(() => null)))).filter((m): m is ModelRecord => !!m);
   if (!batch.length) return false;
-  batch.forEach((model) => { model[field] = value; });
+  batch.forEach((model) => {
+    model[field] = value;
+  });
   try {
     const ok = await callAction<boolean>('update-models-batch', batch);
     if (ok) for (const model of batch) await updateModel(model.filePath);

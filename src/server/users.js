@@ -54,7 +54,9 @@ function createSqliteUserStore(getDb) {
     const current = getDb();
     if (!current || !current.open) throw new Error('The database is not open');
     if (readyDb !== current) {
-      current.prepare(`CREATE TABLE IF NOT EXISTS users (
+      current
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
         password_hash TEXT NOT NULL,
@@ -62,7 +64,9 @@ function createSqliteUserStore(getDb) {
         session_key TEXT NOT NULL,
         created_at TEXT NOT NULL,
         last_login_at TEXT
-      )`).run();
+      )`
+        )
+        .run();
       readyDb = current;
     }
     return current;
@@ -75,21 +79,37 @@ function createSqliteUserStore(getDb) {
     findById: (id) => db().prepare(`SELECT ${COLUMNS} FROM users WHERE id = ?`).get(id) || null,
     findByName: (username) => db().prepare(`SELECT ${COLUMNS} FROM users WHERE username = ? COLLATE NOCASE`).get(String(username)) || null,
     insert({ username, passwordHash, role, now }) {
-      const info = db().prepare('INSERT INTO users (username, password_hash, role, session_key, created_at) VALUES (?, ?, ?, ?, ?)')
+      const info = db()
+        .prepare('INSERT INTO users (username, password_hash, role, session_key, created_at) VALUES (?, ?, ?, ?, ?)')
         .run(username, passwordHash, role, newSessionKey(), now);
       return Number(info.lastInsertRowid);
     },
     update(id, { passwordHash, role, resetSessions }) {
       const sets = [];
       const values = [];
-      if (passwordHash) { sets.push('password_hash = ?'); values.push(passwordHash); }
-      if (role) { sets.push('role = ?'); values.push(role); }
-      if (resetSessions) { sets.push('session_key = ?'); values.push(newSessionKey()); }
+      if (passwordHash) {
+        sets.push('password_hash = ?');
+        values.push(passwordHash);
+      }
+      if (role) {
+        sets.push('role = ?');
+        values.push(role);
+      }
+      if (resetSessions) {
+        sets.push('session_key = ?');
+        values.push(newSessionKey());
+      }
       if (!sets.length) return;
-      db().prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values, id);
+      db()
+        .prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`)
+        .run(...values, id);
     },
-    touchLogin: (id, now) => { db().prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, id); },
-    remove: (id) => { db().prepare('DELETE FROM users WHERE id = ?').run(id); }
+    touchLogin: (id, now) => {
+      db().prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, id);
+    },
+    remove: (id) => {
+      db().prepare('DELETE FROM users WHERE id = ?').run(id);
+    }
   };
 }
 
@@ -117,8 +137,13 @@ function createMemoryUserStore() {
       if (role) row.role = role;
       if (resetSessions) row.session_key = newSessionKey();
     },
-    touchLogin: (id, now) => { const row = rows.get(Number(id)); if (row) row.last_login_at = now; },
-    remove: (id) => { rows.delete(Number(id)); }
+    touchLogin: (id, now) => {
+      const row = rows.get(Number(id));
+      if (row) row.last_login_at = now;
+    },
+    remove: (id) => {
+      rows.delete(Number(id));
+    }
   };
 }
 

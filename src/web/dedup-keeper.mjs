@@ -22,10 +22,7 @@ export function normalizeDedupPath(filePath) {
 }
 
 function dedupPathsAreCaseInsensitive(fileNorm, dirNorm) {
-  return /^[A-Za-z]:\//.test(fileNorm)
-    || /^[A-Za-z]:\//.test(dirNorm)
-    || fileNorm.startsWith('//')
-    || dirNorm.startsWith('//');
+  return /^[A-Za-z]:\//.test(fileNorm) || /^[A-Za-z]:\//.test(dirNorm) || fileNorm.startsWith('//') || dirNorm.startsWith('//');
 }
 
 /** True when filePath is the directory or any nested file under it. */

@@ -11,29 +11,28 @@ const testAIConfigHandler = async (event, apiKey, baseURL, model, service) => {
   // Normalize service to handle case/whitespace variations
   const normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
   // If endpoint contains puter.com, treat as Puter service
-  const isPuterService = normalizedService === 'puter' || 
-    (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
-  
-  console.debug('[Main] test-ai-config handler:', { 
-    service, 
-    normalizedService, 
-    baseURL, 
+  const isPuterService = normalizedService === 'puter' || (baseURL && (baseURL.includes('puter.com') || baseURL.includes('js.puter.com')));
+
+  console.debug('[Main] test-ai-config handler:', {
+    service,
+    normalizedService,
+    baseURL,
     isPuterService,
     hasEvent: !!event,
     true: true,
     apiKeyLength: apiKey ? apiKey.length : 0,
     model
   });
-  
+
   // Create puter IPC handler if service is puter
   // Pass event so it can route to the correct client (WebSocket in server mode, IPC in normal mode)
   const puterIPCHandler = isPuterService ? createPuterIPCHandler(event) : null;
-  console.debug('[Main] Created puterIPCHandler:', { 
-    isPuterService, 
+  console.debug('[Main] Created puterIPCHandler:', {
+    isPuterService,
     hasHandler: !!puterIPCHandler,
     handlerType: typeof puterIPCHandler
   });
-  
+
   return await aitagging.testAIConfig(apiKey, baseURL, model, service, puterIPCHandler);
 };
 
@@ -64,7 +63,7 @@ const puterPendingRequests = new Map(); // Maps requestId -> { resolve, reject, 
 
 function createPuterIPCHandler(event = null) {
   console.debug('[Puter IPC Handler] createPuterIPCHandler called, has event:', !!event, 'event keys:', event ? Object.keys(event) : []);
-  
+
   // Set up a single listener for all puter responses (both IPC and WebSocket)
   if (!puterResponseListenerSet) {
     // Handle IPC responses (normal mode)
@@ -81,11 +80,11 @@ function createPuterIPCHandler(event = null) {
     });
     puterResponseListenerSet = true;
   }
-  
+
   // Extract webContents and wsClient from event if available
   let webContents = null;
   let wsClient = null;
-  
+
   if (event) {
     // In normal mode, event.sender is the webContents
     if (event.sender && event.sender.send) {
@@ -102,24 +101,26 @@ function createPuterIPCHandler(event = null) {
   } else {
     console.debug('[Puter IPC Handler] No event provided');
   }
-  
+
   console.debug('[Puter IPC Handler] Extracted:', { hasWebContents: !!webContents, hasWsClient: !!wsClient, true: true });
-  
+
   return async (prompt, imageUrl, model) => {
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       // Store both webContents and wsClient for routing responses
       puterPendingRequests.set(requestId, { resolve, reject, webContents, wsClient });
-      
+
       // In server mode with WebSocket client, send via WebSocket
       // This routes to the browser client where Puter.js is loaded and can show the captcha
       if (wsClient) {
         console.debug('[Puter AI] Sending request to browser client via WebSocket (captcha will appear in browser window)');
-        wsClient.send(JSON.stringify({
-          type: 'event',
-          channel: 'puter-ai-chat-request',
-          args: [requestId, prompt, imageUrl, model]
-        }));
+        wsClient.send(
+          JSON.stringify({
+            type: 'event',
+            channel: 'puter-ai-chat-request',
+            args: [requestId, prompt, imageUrl, model]
+          })
+        );
       } else if (webContents) {
         // Normal mode: use the webContents from the event
         webContents.send('puter-ai-chat-request', requestId, prompt, imageUrl, model);
@@ -127,7 +128,7 @@ function createPuterIPCHandler(event = null) {
         reject(new Error('No valid client available for Puter AI request'));
         return;
       }
-      
+
       // Timeout after 3 minutes: the first request may wait for the user to sign in to Puter.
       setTimeout(() => {
         if (puterPendingRequests.has(requestId)) {
@@ -159,7 +160,7 @@ function getAISettings() {
   const aiTagDetailLevelRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('aiTagDetailLevel');
   const aiTagFolderLevelsRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('aiTagFolderLevels');
   const aiTagPromptRow = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('aiTagPrompt');
-  
+
   return {
     apiKey: apiKeyRow ? apiKeyRow.value : null,
     apiEndpoint: apiEndpointRow ? apiEndpointRow.value : 'https://js.puter.com/v2/',

@@ -34,7 +34,9 @@ export async function loadSlicers(): Promise<Slicer[]> {
   try {
     const legacyPath = await bridge()?.getSetting?.('slicerPath');
     if (legacyPath) return [{ id: null, name: 'Slicer', path: legacyPath }];
-  } catch { /* none */ }
+  } catch {
+    /* none */
+  }
   return [];
 }
 

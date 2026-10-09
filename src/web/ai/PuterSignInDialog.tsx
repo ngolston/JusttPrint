@@ -9,24 +9,50 @@ import { cancelSignIn, openSignInWindow, signInNeedsClick, subscribe } from './p
 export function PuterSignInDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => subscribe(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (signInNeedsClick() && !dialog.open) dialog.showModal();
-    else if (!signInNeedsClick() && dialog.open) dialog.close();
-  }), []);
+  useEffect(
+    () =>
+      subscribe(() => {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        if (signInNeedsClick() && !dialog.open) dialog.showModal();
+        else if (!signInNeedsClick() && dialog.open) dialog.close();
+      }),
+    []
+  );
 
   return (
-    <ModalDialog id="puter-signin-dialog" title="Sign in to Puter" dialogRef={dialogRef}
-      onClose={() => { if (signInNeedsClick()) cancelSignIn(); }}
-      description={<p className="setting-description">AI tagging with Puter.com needs your Puter account. Sign in in the window that opens; usage counts against your Puter account.</p>}
-      footer={(
+    <ModalDialog
+      id="puter-signin-dialog"
+      title="Sign in to Puter"
+      dialogRef={dialogRef}
+      onClose={() => {
+        if (signInNeedsClick()) cancelSignIn();
+      }}
+      description={
+        <p className="setting-description">
+          AI tagging with Puter.com needs your Puter account. Sign in in the window that opens; usage counts against your Puter account.
+        </p>
+      }
+      footer={
         <>
-          <button type="button" id="puter-signin-open" onClick={() => { openSignInWindow(); }}>Sign in with Puter</button>
-          <button type="button" id="puter-signin-cancel" onClick={() => cancelSignIn()}>Cancel</button>
+          <button
+            type="button"
+            id="puter-signin-open"
+            onClick={() => {
+              openSignInWindow();
+            }}
+          >
+            Sign in with Puter
+          </button>
+          <button type="button" id="puter-signin-cancel" onClick={() => cancelSignIn()}>
+            Cancel
+          </button>
         </>
-      )}>
-      <p>The browser blocked the sign-in window. Click <strong>Sign in with Puter</strong> to open it.</p>
+      }
+    >
+      <p>
+        The browser blocked the sign-in window. Click <strong>Sign in with Puter</strong> to open it.
+      </p>
     </ModalDialog>
   );
 }

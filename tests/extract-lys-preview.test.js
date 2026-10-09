@@ -6,10 +6,7 @@ const fflate = require('fflate');
 const { extractLysPreview, extractLysPreviewEntry, readLysManifest } = require('../src/core/extract-lys-preview');
 
 // 1x1 PNG
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64'
-);
+const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 function buildLys({ prefix = Buffer.alloc(0), padBytes = 16, extraFiles = {}, previewName = 'preview.png' } = {}) {
   const mangoFiles = {

@@ -94,7 +94,7 @@ export function modelMatchesPrintFilter(model: PrintModel, value: string | null 
   const v = String(value).trim().toLowerCase();
   const status = effectiveStatus(model);
   const count = Number(model?.print_count) || 0;
-  const printed = Number(model?.printed) ? 1 : (status === 'printed' || count > 0 ? 1 : 0);
+  const printed = Number(model?.printed) ? 1 : status === 'printed' || count > 0 ? 1 : 0;
   if (v === 'printed') return status === 'printed';
   if (v === 'not-printed') return !printed;
   if (v === 'ever-printed') return count > 0;

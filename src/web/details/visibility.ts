@@ -13,7 +13,11 @@ export interface DetailsVisibility {
   filePath: string;
 }
 
-const PANEL_IDS: [DetailsPanel, string][] = [['multi', 'multi-edit-panel'], ['bundle', 'bundle-details'], ['model', 'model-details']];
+const PANEL_IDS: [DetailsPanel, string][] = [
+  ['multi', 'multi-edit-panel'],
+  ['bundle', 'bundle-details'],
+  ['model', 'model-details']
+];
 
 let state: DetailsVisibility = { panel: null, filePath: '' };
 const listeners = new Set<() => void>();

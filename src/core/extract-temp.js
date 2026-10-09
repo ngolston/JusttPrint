@@ -22,7 +22,9 @@ function getOsTempRoot() {
     if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
       return app.getPath('temp');
     }
-  } catch (_) { /* use os.tmpdir */ }
+  } catch (_) {
+    /* use os.tmpdir */
+  }
   return os.tmpdir();
 }
 
@@ -39,7 +41,9 @@ function getExtractTempDir() {
         }
       }
     }
-  } catch (_) { /* keep OS temp */ }
+  } catch (_) {
+    /* keep OS temp */
+  }
   return osDir;
 }
 
@@ -58,16 +62,14 @@ function isJusttPrintExtractTempPath(filePath) {
     const base = path.basename(resolved);
     if (!base.startsWith(EXTRACT_TEMP_FILE_PREFIX)) return false;
 
-    const allowedRoots = [
-      path.resolve(getExtractTempDir()),
-      path.resolve(path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)),
-      path.resolve(getOsTempRoot())
-    ];
+    const allowedRoots = [path.resolve(getExtractTempDir()), path.resolve(path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)), path.resolve(getOsTempRoot())];
     try {
       if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
         allowedRoots.push(path.resolve(path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME)));
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
 
     const parent = path.resolve(path.dirname(resolved));
     return allowedRoots.some((root) => parent === root || resolved.startsWith(root + path.sep));
@@ -93,9 +95,12 @@ async function cleanupExtractTempFile(filePath) {
 function scheduleExtractTempCleanup(filePath, delayMs = EXTRACT_TEMP_SLICER_CLEANUP_MS) {
   if (!isJusttPrintExtractTempPath(filePath)) return;
   pendingExtractTempCleanups.add(filePath);
-  setTimeout(() => {
-    cleanupExtractTempFile(filePath).catch(() => {});
-  }, Math.max(0, delayMs));
+  setTimeout(
+    () => {
+      cleanupExtractTempFile(filePath).catch(() => {});
+    },
+    Math.max(0, delayMs)
+  );
 }
 
 function scheduleExtractTempCleanupMany(filePaths, delayMs = EXTRACT_TEMP_SLICER_CLEANUP_MS) {
@@ -108,7 +113,7 @@ function scheduleExtractTempCleanupMany(filePaths, delayMs = EXTRACT_TEMP_SLICER
 async function cleanupExtractTempDirectory({
   maxAgeMs = 0,
   // Full OS TEMP readdir is slow on busy machines — skip on cold start; still run on quit.
-  includeLegacyOsTempRoot = true,
+  includeLegacyOsTempRoot = true
 } = {}) {
   const now = Date.now();
   const dirs = new Set([getExtractTempDir(), path.join(getOsTempRoot(), EXTRACT_TEMP_DIR_NAME)]);
@@ -116,7 +121,9 @@ async function cleanupExtractTempDirectory({
     if (typeof app !== 'undefined' && app && typeof app.isReady === 'function' && app.isReady()) {
       dirs.add(path.join(app.getPath('userData'), EXTRACT_TEMP_DIR_NAME));
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 
   async function sweepDir(dir) {
     if (!dir || !fs.existsSync(dir)) return;
@@ -136,7 +143,9 @@ async function cleanupExtractTempDirectory({
         }
         await fs.promises.unlink(full);
         pendingExtractTempCleanups.delete(full);
-      } catch (_) { /* ignore busy files */ }
+      } catch (_) {
+        /* ignore busy files */
+      }
     }
   }
 
@@ -149,4 +158,15 @@ async function cleanupExtractTempDirectory({
   }
 }
 
-module.exports = { EXTRACT_TEMP_DIR_NAME, EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempDirectory, cleanupExtractTempFile, ensureExtractTempDir, getExtractTempDir, getOsTempRoot, isJusttPrintExtractTempPath, pendingExtractTempCleanups, scheduleExtractTempCleanupMany };
+module.exports = {
+  EXTRACT_TEMP_DIR_NAME,
+  EXTRACT_TEMP_FILE_PREFIX,
+  cleanupExtractTempDirectory,
+  cleanupExtractTempFile,
+  ensureExtractTempDir,
+  getExtractTempDir,
+  getOsTempRoot,
+  isJusttPrintExtractTempPath,
+  pendingExtractTempCleanups,
+  scheduleExtractTempCleanupMany
+};

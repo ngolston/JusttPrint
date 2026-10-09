@@ -7,7 +7,9 @@ import { Button } from './Button';
  */
 export function useShown<T>(items: T[], step = 200, resetKey: unknown = undefined): { shown: T[]; more: () => void; remaining: number } {
   const [limit, setLimit] = useState(step);
-  useEffect(() => { setLimit(step); }, [resetKey, step]);
+  useEffect(() => {
+    setLimit(step);
+  }, [resetKey, step]);
   return { shown: items.slice(0, limit), more: () => setLimit((value) => value + step), remaining: Math.max(0, items.length - limit) };
 }
 

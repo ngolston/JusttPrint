@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  badgeClassNames, badgeText, bundleSummary, detailsHint, effectiveStatus, filterLabel,
-  friendlyError, modelMatchesPrintFilter, partOptionLabel, printerOptionLabel, toDatetimeLocalValue
+  badgeClassNames,
+  badgeText,
+  bundleSummary,
+  detailsHint,
+  effectiveStatus,
+  filterLabel,
+  friendlyError,
+  modelMatchesPrintFilter,
+  partOptionLabel,
+  printerOptionLabel,
+  toDatetimeLocalValue
 } from './printStatus';
 
 describe('effectiveStatus', () => {

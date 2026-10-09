@@ -5,11 +5,7 @@
  */
 
 export function escapeHtml(value: string): string {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /** The URL if it is http, https or mailto; otherwise ''. */
@@ -38,9 +34,7 @@ function inline(raw: string): string {
       out += '<code>' + escapeHtml(match[1].slice(1, -1)) + '</code>';
     } else if (match[2]) {
       const safe = sanitizeUrl(match[4]);
-      out += safe
-        ? '<a href="' + escapeHtml(safe) + '" target="_blank" rel="noopener noreferrer">' + inline(match[3]) + '</a>'
-        : escapeHtml(match[2]);
+      out += safe ? '<a href="' + escapeHtml(safe) + '" target="_blank" rel="noopener noreferrer">' + inline(match[3]) + '</a>' : escapeHtml(match[2]);
     } else if (match[5]) {
       out += '<strong>' + inline(match[6]) + '</strong>';
     } else if (match[7]) {
@@ -61,7 +55,9 @@ function isBlockStart(line: string): boolean {
 
 /** Markdown to safe HTML. */
 export function render(markdown: string | null | undefined): string {
-  const lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
+  const lines = String(markdown || '')
+    .replace(/\r\n/g, '\n')
+    .split('\n');
   let html = '';
   let i = 0;
 
@@ -109,12 +105,22 @@ export function render(markdown: string | null | undefined): string {
     }
 
     if (/^\s*[-*]\s+/.test(line)) {
-      html += '<ul>' + collect(/^\s*[-*]\s+/, /^\s*[-*]\s+/).map((item) => '<li>' + inline(item) + '</li>').join('') + '</ul>';
+      html +=
+        '<ul>' +
+        collect(/^\s*[-*]\s+/, /^\s*[-*]\s+/)
+          .map((item) => '<li>' + inline(item) + '</li>')
+          .join('') +
+        '</ul>';
       continue;
     }
 
     if (/^\s*\d+\.\s+/.test(line)) {
-      html += '<ol>' + collect(/^\s*\d+\.\s+/, /^\s*\d+\.\s+/).map((item) => '<li>' + inline(item) + '</li>').join('') + '</ol>';
+      html +=
+        '<ol>' +
+        collect(/^\s*\d+\.\s+/, /^\s*\d+\.\s+/)
+          .map((item) => '<li>' + inline(item) + '</li>')
+          .join('') +
+        '</ol>';
       continue;
     }
 
@@ -172,17 +178,22 @@ function renderInlineNode(node: MarkdownNode | null | undefined): string {
 
   const styleAttr = node.getAttribute?.('style') || '';
   const style = node.style || {};
-  const isBold = tag === 'strong' || tag === 'b'
-    || style.fontWeight === 'bold' || style.fontWeight === 'bolder'
-    || parseInt(String(style.fontWeight), 10) >= 600
-    || /font-weight:\s*(bold|bolder|[6-9]00)/i.test(styleAttr);
-  const isItalic = tag === 'em' || tag === 'i'
-    || style.fontStyle === 'italic' || style.fontStyle === 'oblique'
-    || /font-style:\s*(italic|oblique)/i.test(styleAttr);
-  const isStrike = tag === 's' || tag === 'strike' || tag === 'del'
-    || !!style.textDecoration?.includes('line-through')
-    || !!style.textDecorationLine?.includes('line-through')
-    || /text-decoration(-line)?:\s*[^;]*line-through/i.test(styleAttr);
+  const isBold =
+    tag === 'strong' ||
+    tag === 'b' ||
+    style.fontWeight === 'bold' ||
+    style.fontWeight === 'bolder' ||
+    parseInt(String(style.fontWeight), 10) >= 600 ||
+    /font-weight:\s*(bold|bolder|[6-9]00)/i.test(styleAttr);
+  const isItalic =
+    tag === 'em' || tag === 'i' || style.fontStyle === 'italic' || style.fontStyle === 'oblique' || /font-style:\s*(italic|oblique)/i.test(styleAttr);
+  const isStrike =
+    tag === 's' ||
+    tag === 'strike' ||
+    tag === 'del' ||
+    !!style.textDecoration?.includes('line-through') ||
+    !!style.textDecorationLine?.includes('line-through') ||
+    /text-decoration(-line)?:\s*[^;]*line-through/i.test(styleAttr);
   if (!isBold && !isItalic && !isStrike) return inner;
 
   const leading = inner.match(/^\s*/)?.[0] || '';
@@ -209,19 +220,27 @@ function blocksFromNode(node: MarkdownNode | null | undefined): string[] {
 
   const tag = tagOf(node);
   if (tag === 'pre') {
-    const code = String(node.textContent || '').replace(/\r\n/g, '\n').replace(/\n$/, '');
+    const code = String(node.textContent || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\n$/, '');
     return ['```\n' + code + '\n```'];
   }
   if (tag === 'hr') return ['---'];
   if (tag === 'ul' || tag === 'ol') {
-    const items = childElements(node).filter((el) => tagOf(el) === 'li').map((li, index) => {
-      const line = renderInline(li).replace(/\n+/g, ' ').trim();
-      return tag === 'ol' ? `${index + 1}. ${line}` : `- ${line}`;
-    });
+    const items = childElements(node)
+      .filter((el) => tagOf(el) === 'li')
+      .map((li, index) => {
+        const line = renderInline(li).replace(/\n+/g, ' ').trim();
+        return tag === 'ol' ? `${index + 1}. ${line}` : `- ${line}`;
+      });
     return items.length ? [items.join('\n')] : [];
   }
   if (tag === 'blockquote') {
-    const quoted = convertChildBlocks(node).join('\n\n').split('\n').map((l) => '> ' + l).join('\n');
+    const quoted = convertChildBlocks(node)
+      .join('\n\n')
+      .split('\n')
+      .map((l) => '> ' + l)
+      .join('\n');
     return quoted ? [quoted] : [];
   }
   if (/^h[1-6]$/.test(tag)) {
@@ -239,7 +258,11 @@ function convertChildBlocks(container: MarkdownNode): string[] {
   const blocks: string[] = [];
   let inlines: MarkdownNode[] = [];
   const flush = () => {
-    const text = inlines.map(renderInlineNode).join('').replace(/\n{3,}/g, '\n\n').trim();
+    const text = inlines
+      .map(renderInlineNode)
+      .join('')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     if (text) blocks.push(text);
     inlines = [];
   };

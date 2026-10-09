@@ -6,7 +6,14 @@ const IPAD = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.
 const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36';
 const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0';
 
-const ctx = (over: Partial<InstallContext>): InstallContext => ({ userAgent: ANDROID_CHROME, standalone: false, secure: false, canPrompt: false, touchPoints: 5, ...over });
+const ctx = (over: Partial<InstallContext>): InstallContext => ({
+  userAgent: ANDROID_CHROME,
+  standalone: false,
+  secure: false,
+  canPrompt: false,
+  touchPoints: 5,
+  ...over
+});
 
 describe('installWay', () => {
   it('knows when it already runs as the app', () => {

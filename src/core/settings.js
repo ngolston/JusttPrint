@@ -12,13 +12,14 @@ function getSettingValueOr(key, fallback) {
     if (!database.db) return fallback;
     const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
     if (row && row.value != null && row.value !== '') return row.value;
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return fallback;
 }
 
 function envOverridesSettings() {
-  return process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1'
-    || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
+  return process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
 }
 
 function flushSettingsToDisk() {
@@ -26,7 +27,9 @@ function flushSettingsToDisk() {
     if (!database.db) return;
     database.db.pragma('synchronous = FULL');
     database.db.prepare('PRAGMA wal_checkpoint(FULL)').run();
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 module.exports = { envOverridesSettings, flushSettingsToDisk, getSettingValueOr, persistSetting };

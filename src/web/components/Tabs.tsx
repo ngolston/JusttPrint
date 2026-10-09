@@ -36,9 +36,19 @@ export function Tabs<T extends string>({ items, value, onChange, label }: { item
         const focusable = selected || (index === 0 && !items.some((other) => other.id === value));
         const Icon = item.icon;
         return (
-          <button key={item.id} type="button" role="tab" aria-selected={selected} tabIndex={focusable ? 0 : -1}
-            ref={(el) => { refs.current[index] = el; }}
-            className={cx('jp-tab', selected && 'is-selected')} onClick={() => onChange(item.id)} onKeyDown={(event) => onKeyDown(event, index)}>
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            tabIndex={focusable ? 0 : -1}
+            ref={(el) => {
+              refs.current[index] = el;
+            }}
+            className={cx('jp-tab', selected && 'is-selected')}
+            onClick={() => onChange(item.id)}
+            onKeyDown={(event) => onKeyDown(event, index)}
+          >
             {Icon && <Icon size={16} aria-hidden="true" />}
             <span>{item.label}</span>
           </button>

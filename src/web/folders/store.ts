@@ -8,8 +8,15 @@ import { runSearch } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { gridViewActions } from '../grid/view';
 import {
-  directoryOfFile, findNode, findWithAncestors, parseRecent, pushRecent, toDirectoryFilter,
-  type FolderForest, type FolderNode, type RecentFolder
+  directoryOfFile,
+  findNode,
+  findWithAncestors,
+  parseRecent,
+  pushRecent,
+  toDirectoryFilter,
+  type FolderForest,
+  type FolderNode,
+  type RecentFolder
 } from './tree';
 
 const RECENT_SETTING = 'recentFolderFilters';
@@ -28,7 +35,13 @@ export interface FolderTreeState {
 }
 
 let state: FolderTreeState = {
-  forest: { roots: [] }, expanded: new Set(), recent: [], railOpen: false, popoverOpen: false, reveal: null, revealSeq: 0
+  forest: { roots: [] },
+  expanded: new Set(),
+  recent: [],
+  railOpen: false,
+  popoverOpen: false,
+  reveal: null,
+  revealSeq: 0
 };
 const listeners = new Set<() => void>();
 
@@ -121,10 +134,7 @@ export const folderTreeActions = {
 /** Read the recent picks and the rail setting, and load the tree. */
 export async function initFolderTree() {
   try {
-    const [recentRaw, railRaw] = await Promise.all([
-      settings.get<string | null>(RECENT_SETTING),
-      settings.get<string | null>(RAIL_SETTING)
-    ]);
+    const [recentRaw, railRaw] = await Promise.all([settings.get<string | null>(RECENT_SETTING), settings.get<string | null>(RAIL_SETTING)]);
     set({ recent: parseRecent(recentRaw), railOpen: railRaw === 'true' });
   } catch (error) {
     console.error('Error loading folder settings:', error);

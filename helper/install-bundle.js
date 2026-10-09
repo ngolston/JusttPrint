@@ -27,7 +27,9 @@ function originFromRequest(req) {
   };
   const forwardedProto = String(header('x-forwarded-proto')).split(',')[0].trim();
   const proto = forwardedProto || (req && req.protocol) || 'http';
-  const host = String(header('x-forwarded-host') || header('host')).split(',')[0].trim();
+  const host = String(header('x-forwarded-host') || header('host'))
+    .split(',')[0]
+    .trim();
   if (!host) throw new Error('Missing host');
   return safePublicOrigin(proto + '://' + host);
 }
@@ -197,16 +199,18 @@ async function buildHelperBundle({ appDir, origin, insecure }) {
   const shell = unixInstaller();
   const file = (data) => [typeof data === 'string' ? strToU8(data) : new Uint8Array(data), { os: 3, attrs: 0o644 << 16 }];
   const executable = (text) => [strToU8(text), { os: 3, attrs: 0o755 << 16 }];
-  return Buffer.from(zipSync({
-    'justtprint-helper.js': file(helperJs),
-    'slicer-protocol.js': file(protocolJs),
-    'slicer-launch.js': file(launchJs),
-    'helper-config.json': file(JSON.stringify(config, null, 2) + '\n'),
-    'install.cmd': file(windowsInstaller()),
-    'install.sh': executable(shell),
-    'install.command': executable(shell),
-    'INSTALL.txt': file(installReadme(config.origins[0]))
-  }));
+  return Buffer.from(
+    zipSync({
+      'justtprint-helper.js': file(helperJs),
+      'slicer-protocol.js': file(protocolJs),
+      'slicer-launch.js': file(launchJs),
+      'helper-config.json': file(JSON.stringify(config, null, 2) + '\n'),
+      'install.cmd': file(windowsInstaller()),
+      'install.sh': executable(shell),
+      'install.command': executable(shell),
+      'INSTALL.txt': file(installReadme(config.origins[0]))
+    })
+  );
 }
 
 function registerHelperBundleRoute(expressApp, appDir) {

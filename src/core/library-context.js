@@ -5,9 +5,30 @@ const DEFAULT_FOLDER_LEVELS = 2;
 const MAX_FOLDER_LEVELS = 6;
 
 const GENERIC_FOLDER_NAMES = new Set([
-  'stl', '3mf', 'obj', 'ply', 'step', 'stp', 'files', 'file', 'models', 'model',
-  'library', 'prints', 'print', '3d', '3dmodels', 'downloads', 'download',
-  'documents', 'desktop', 'users', 'mnt', 'media', 'volume', 'volumes'
+  'stl',
+  '3mf',
+  'obj',
+  'ply',
+  'step',
+  'stp',
+  'files',
+  'file',
+  'models',
+  'model',
+  'library',
+  'prints',
+  'print',
+  '3d',
+  '3dmodels',
+  'downloads',
+  'download',
+  'documents',
+  'desktop',
+  'users',
+  'mnt',
+  'media',
+  'volume',
+  'volumes'
 ]);
 
 function clampFolderLevels(value, fallback = DEFAULT_FOLDER_LEVELS) {
@@ -76,8 +97,7 @@ function libraryContextSnippet(filePath, options = {}) {
   const folders = folderNamesFromPath(filePath, levels);
   if (folders.length) {
     parts.push(
-      `Parent folders, from outermost to closest, are: ${folders.join(' / ')}. ` +
-      `Use a folder name as a tag when it names the category or subject. `
+      `Parent folders, from outermost to closest, are: ${folders.join(' / ')}. ` + `Use a folder name as a tag when it names the category or subject. `
     );
   }
   const notes = notesContextSnippet(options.notes);

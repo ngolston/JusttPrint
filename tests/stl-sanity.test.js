@@ -43,10 +43,7 @@ test('a buffer of only zero normals counts as missing', () => {
 });
 
 test('zero face normals are rebuilt from vertex winding', () => {
-  const positions = new Float32Array([
-    0, 0, 0, 1, 0, 0, 0, 1, 0,
-    0, 0, 0, 0, 1, 0, 0, 0, 1
-  ]);
+  const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]);
   const normals = new Float32Array(18);
   normals.set([0, 1, 0, 0, 1, 0, 0, 1, 0], 9);
   assert.strictEqual(repairZeroFaceNormals(positions, normals), 1);

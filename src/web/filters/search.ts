@@ -61,10 +61,11 @@ function syncSelection(models: Model[]) {
   requestAnimationFrame(() => window.syncSelectionWithFilteredModels?.(models));
 }
 
-const yieldToPage = () => new Promise<void>((resolve) => {
-  if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(() => resolve(), { timeout: 100 });
-  else setTimeout(resolve, 48);
-});
+const yieldToPage = () =>
+  new Promise<void>((resolve) => {
+    if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(() => resolve(), { timeout: 100 });
+    else setTimeout(resolve, 48);
+  });
 
 let generation = 0;
 let inProgress = false;
@@ -209,13 +210,14 @@ declare global {
   }
 }
 
-if (typeof window !== 'undefined') window.libraryFilters = {
-  state: getFilterState,
-  reloadOptions: () => optionReloaders.forEach((reload) => reload()),
-  setFromSelect: (selectId, value) => SELECT_IDS[selectId]?.(value),
-  showAddedSince: (since) => filterActions.showAddedSince(since),
-  setSort: (sort) => {
-    filterActions.setSort(sort);
-    runSearch({ force: true });
-  }
-};
+if (typeof window !== 'undefined')
+  window.libraryFilters = {
+    state: getFilterState,
+    reloadOptions: () => optionReloaders.forEach((reload) => reload()),
+    setFromSelect: (selectId, value) => SELECT_IDS[selectId]?.(value),
+    showAddedSince: (since) => filterActions.showAddedSince(since),
+    setSort: (sort) => {
+      filterActions.setSort(sort);
+      runSearch({ force: true });
+    }
+  };

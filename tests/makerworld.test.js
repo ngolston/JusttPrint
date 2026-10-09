@@ -27,7 +27,10 @@ const design = {
   updateTime: '2026-10-07T23:57:15Z',
   tags: ['pg', '高达'],
   tagsTranslated: ['pg', 'Gundam'],
-  categories: [{ id: 806, name: 'Construction Sets' }, { id: 800, name: 'Toys & Games' }],
+  categories: [
+    { id: 806, name: 'Construction Sets' },
+    { id: 800, name: 'Toys & Games' }
+  ],
   designCreator: { name: '黑方狼灭', handle: 'hei_fang' },
   coverUrl: 'https://makerworld.bblmw.com/makerworld/model/US4d/design/c38e.jpg',
   defaultInstanceId: 2,
@@ -35,14 +38,28 @@ const design = {
   instances: [
     { id: 1, title: 'Other profile', ratingCount: 0, extention: { modelInfo: { plates: [] } } },
     {
-      id: 2, title: '默认参数免支撑', titleTranslated: 'Default parameters no supports', prediction: 326981, weight: 1918, needAms: false,
-      ratingScoreTotal: 39, ratingCount: 8,
-      instanceFilaments: [{ type: 'PETG', color: '#e0e1e2', usedM: '180.48', usedG: '546' }, { type: 'TPU', color: 'bad', usedG: '70' }],
-      extention: { modelInfo: {
-        compatibility: { devProductName: 'P1S', nozzleDiameter: 0.4 },
-        otherCompatibility: [{ devProductName: 'A1' }],
-        plates: [{ index: 1, name: 'ok', prediction: 12542, weight: 86 }, { index: 26, name: 'tpu', prediction: 23820, weight: 70 }]
-      } }
+      id: 2,
+      title: '默认参数免支撑',
+      titleTranslated: 'Default parameters no supports',
+      prediction: 326981,
+      weight: 1918,
+      needAms: false,
+      ratingScoreTotal: 39,
+      ratingCount: 8,
+      instanceFilaments: [
+        { type: 'PETG', color: '#e0e1e2', usedM: '180.48', usedG: '546' },
+        { type: 'TPU', color: 'bad', usedG: '70' }
+      ],
+      extention: {
+        modelInfo: {
+          compatibility: { devProductName: 'P1S', nozzleDiameter: 0.4 },
+          otherCompatibility: [{ devProductName: 'A1' }],
+          plates: [
+            { index: 1, name: 'ok', prediction: 12542, weight: 86 },
+            { index: 26, name: 'tpu', prediction: 23820, weight: 70 }
+          ]
+        }
+      }
     }
   ],
   designExtension: {
@@ -63,12 +80,19 @@ async function main() {
   assert.deepStrictEqual(d.designer, { name: '黑方狼灭', handle: 'hei_fang', url: 'https://makerworld.com/en/@hei_fang' });
   assert.strictEqual(d.license, 'CC BY-NC-SA');
   assert.deepStrictEqual(d.categories, ['Construction Sets', 'Toys & Games']);
-  assert.deepStrictEqual(d.tags, [{ name: 'pg', english: null }, { name: '高达', english: 'Gundam' }]);
+  assert.deepStrictEqual(d.tags, [
+    { name: 'pg', english: null },
+    { name: '高达', english: 'Gundam' }
+  ]);
   assert.strictEqual(d.created, '2026-07-03T12:32:53Z');
   assert.strictEqual(d.description, 'Watch: video (https://youtu.be/D3EyCXCnalk?is=x)\nLine two & more', 'no HTML or script text is kept');
   assert.deepStrictEqual(d.videos, ['D3EyCXCnalk']);
   assert.deepStrictEqual(d.pictures, ['https://makerworld.bblmw.com/a.png'], 'only https pictures');
-  assert.deepStrictEqual(d.profiles.map((p) => p.id), ['2', '1'], 'the default profile comes first');
+  assert.deepStrictEqual(
+    d.profiles.map((p) => p.id),
+    ['2', '1'],
+    'the default profile comes first'
+  );
   const p = d.profiles[0];
   assert.strictEqual(p.nameEnglish, 'Default parameters no supports');
   assert.strictEqual(p.printer, 'P1S');
@@ -76,47 +100,80 @@ async function main() {
   assert.strictEqual(p.grams, 1918);
   assert.strictEqual(p.needAms, false);
   assert.strictEqual(p.rating, 4.9);
-  assert.deepStrictEqual(p.plates, [{ index: 1, name: 'ok', seconds: 12542, grams: 86 }, { index: 26, name: 'tpu', seconds: 23820, grams: 70 }]);
-  assert.deepStrictEqual(p.filaments, [{ type: 'PETG', color: '#E0E1E2', grams: 546, meters: 180.48 }, { type: 'TPU', color: null, grams: 70, meters: null }]);
+  assert.deepStrictEqual(p.plates, [
+    { index: 1, name: 'ok', seconds: 12542, grams: 86 },
+    { index: 26, name: 'tpu', seconds: 23820, grams: 70 }
+  ]);
+  assert.deepStrictEqual(p.filaments, [
+    { type: 'PETG', color: '#E0E1E2', grams: 546, meters: 180.48 },
+    { type: 'TPU', color: null, grams: 70, meters: null }
+  ]);
   assert.deepStrictEqual(d.files, [
     { name: '腿部.stl', folder: null, size: 16100634, type: 'stl' },
     { name: '武器.stl', folder: 'extras/', size: 1426000, type: 'stl' }
   ]);
   assert.strictEqual(makerWorldDetails({ id: 0, title: '' }, URL_), null);
 
-  assert.deepStrictEqual(youtubeIds('<iframe src="https://www.youtube.com/embed/abcdefghijk"></iframe> https://www.youtube.com/watch?v=abcdefghijk&t=1 youtube.com/shorts/ZYXWVUTSRQP'), ['abcdefghijk', 'ZYXWVUTSRQP']);
+  assert.deepStrictEqual(
+    youtubeIds(
+      '<iframe src="https://www.youtube.com/embed/abcdefghijk"></iframe> https://www.youtube.com/watch?v=abcdefghijk&t=1 youtube.com/shorts/ZYXWVUTSRQP'
+    ),
+    ['abcdefghijk', 'ZYXWVUTSRQP']
+  );
   assert.strictEqual(htmlToText('<ul><li>One</li><li>Two</li></ul>'), '• One\n• Two');
   assert.ok(needsTranslation('腿部') && needsTranslation('Крыло') && !needsTranslation('benchy_v2 (1)') && !needsTranslation('Flügel'));
   assert.deepStrictEqual(splitName('腿部.stl'), { stem: '腿部', extension: '.stl' });
   assert.strictEqual(folderName('../a/b:c*'), 'a b c');
   assert.strictEqual(folderName('...'), 'MakerWorld model');
-  assert.strictEqual(folderName('Ultimate Assembly PG Freedom Gundam with full internal structure, 580+ parts, entirely support-free'),
-    'Ultimate Assembly PG Freedom Gundam with full internal structure, 580+ parts', 'long titles are cut at a word');
+  assert.strictEqual(
+    folderName('Ultimate Assembly PG Freedom Gundam with full internal structure, 580+ parts, entirely support-free'),
+    'Ultimate Assembly PG Freedom Gundam with full internal structure, 580+ parts',
+    'long titles are cut at a word'
+  );
 
   // --- Translation ---
   assert.deepStrictEqual(translate.batches(['aaa', 'bbb', 'ccc'], 8), [['aaa', 'bbb'], ['ccc']]);
   const memory = async (url) => {
     const q = new URL(url).searchParams.get('q');
     const words = { 腿部: 'Legs', 武器: 'Weapons' };
-    return new Response(JSON.stringify({ responseStatus: 200, responseData: { translatedText: q.split('\n').map((w) => words[w] || w).join('\n') } }));
+    return new Response(
+      JSON.stringify({
+        responseStatus: 200,
+        responseData: {
+          translatedText: q
+            .split('\n')
+            .map((w) => words[w] || w)
+            .join('\n')
+        }
+      })
+    );
   };
-  assert.deepStrictEqual(await translate.translateNames(['腿部', 'benchy', '武器'], 'free', { fetchImpl: memory }),
-    { english: ['Legs', null, 'Weapons'], by: 'free', error: null });
+  assert.deepStrictEqual(await translate.translateNames(['腿部', 'benchy', '武器'], 'free', { fetchImpl: memory }), {
+    english: ['Legs', null, 'Weapons'],
+    by: 'free',
+    error: null
+  });
   assert.deepStrictEqual((await translate.translateNames(['腿部'], 'off', { fetchImpl: memory })).english, [null]);
-  const quota = async () => new Response(JSON.stringify({ responseStatus: 429, responseDetails: 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY' }));
+  const quota = async () =>
+    new Response(JSON.stringify({ responseStatus: 429, responseDetails: 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY' }));
   const failed = await translate.translateNames(['腿部'], 'free', { fetchImpl: quota });
   assert.deepStrictEqual(failed.english, [null]);
   assert.match(failed.error, /FREE TRANSLATIONS/, 'a failed translation never throws');
   assert.deepStrictEqual(translate.parseAiAnswer('Sure! ["Legs", "Weapons"]', 2), ['Legs', 'Weapons']);
   assert.throws(() => translate.parseAiAnswer('["Legs"]', 2), /did not answer/);
-  const puter = await translate.translateNames(['腿部'], 'ai', { aiSettings: { aiService: 'puter' }, puterHandler: async () => ({ message: { content: '["Legs"]' } }) });
+  const puter = await translate.translateNames(['腿部'], 'ai', {
+    aiSettings: { aiService: 'puter' },
+    puterHandler: async () => ({ message: { content: '["Legs"]' } })
+  });
   assert.deepStrictEqual(puter.english, ['Legs']);
   assert.strictEqual(translate.modeOf('nonsense'), 'free');
 
   // --- Sign-in ---
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jp-makerworld-')));
   database.db = new Database(path.join(tmp, 'test.db'));
-  database.db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT, rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, print_status TEXT DEFAULT \'unprinted\', printed INTEGER, print_count INTEGER DEFAULT 0, last_printed_at TEXT, thumbnail TEXT); CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER, PRIMARY KEY (model_id, tag_id)); CREATE TABLE collection_models (collection_id INTEGER, model_id INTEGER, added_at TEXT, PRIMARY KEY (collection_id, model_id)); CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER); CREATE TABLE share_links (token TEXT PRIMARY KEY, kind TEXT, target_id INTEGER)');
+  database.db.exec(
+    "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT, rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, print_status TEXT DEFAULT 'unprinted', printed INTEGER, print_count INTEGER DEFAULT 0, last_printed_at TEXT, thumbnail TEXT); CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER, PRIMARY KEY (model_id, tag_id)); CREATE TABLE collection_models (collection_id INTEGER, model_id INTEGER, added_at TEXT, PRIMARY KEY (collection_id, model_id)); CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER); CREATE TABLE share_links (token TEXT PRIMARY KEY, kind TEXT, target_id INTEGER)"
+  );
   assert.ok(SECRET_SETTING_KEYS.has('makerWorldAccount'), 'the token is never readable through the settings API');
   assert.deepStrictEqual(account.status(), { signedIn: false, account: null, name: null, expires: null });
 
@@ -165,10 +222,12 @@ async function main() {
     // The separate model files sit behind a CAPTCHA: JusttPrint never asks for them.
     if (u.pathname.startsWith('/api/v1/design-service/design/3006565/model')) throw new Error('the CAPTCHA-protected model files must not be requested');
     if (/^\/api\/v1\/design-service\/instance\/[12]\/f3mf$/.test(u.pathname)) {
-      return signed ? new Response(JSON.stringify({ name: profileName, url: `https://${modelLinkHost}/files/p.3mf` }))
+      return signed
+        ? new Response(JSON.stringify({ name: profileName, url: `https://${modelLinkHost}/files/p.3mf` }))
         : new Response(JSON.stringify({ code: 1, error: 'Please log in to download models.' }), { status: 403 });
     }
-    if (u.hostname === 'makerworld.bblmw.com' && u.pathname === '/files/p.3mf') return new Response(threeMf, { headers: { 'content-length': String(threeMf.length) } });
+    if (u.hostname === 'makerworld.bblmw.com' && u.pathname === '/files/p.3mf')
+      return new Response(threeMf, { headers: { 'content-length': String(threeMf.length) } });
     throw new Error(`unexpected fetch ${url}`);
   };
   const first = await siteDetails.getDetails(`${URL_}-ultimate#profileId-2`, { fetchImpl: world });
@@ -179,9 +238,21 @@ async function main() {
   assert.strictEqual(designFetches, 1, 'kept details are reused for any form of the link');
   await siteDetails.getDetails(URL_, { refresh: true, fetchImpl: world });
   assert.strictEqual(designFetches, 2, 'Refresh fetches again');
-  const offline = await siteDetails.getDetails(URL_, { refresh: true, fetchImpl: async () => { throw new Error('offline'); } });
-  assert.ok(offline.stale && offline.details.title === design.title && /offline/.test(offline.error), 'older details are shown when MakerWorld cannot be reached');
-  assert.strictEqual(await siteDetails.getDetails('https://example.com/model/1', { fetchImpl: world }), null, 'only model links of the three sites have details');
+  const offline = await siteDetails.getDetails(URL_, {
+    refresh: true,
+    fetchImpl: async () => {
+      throw new Error('offline');
+    }
+  });
+  assert.ok(
+    offline.stale && offline.details.title === design.title && /offline/.test(offline.error),
+    'older details are shown when MakerWorld cannot be reached'
+  );
+  assert.strictEqual(
+    await siteDetails.getDetails('https://example.com/model/1', { fetchImpl: world }),
+    null,
+    'only model links of the three sites have details'
+  );
 
   // --- Downloads ---
   const library = path.join(tmp, 'library');
@@ -206,7 +277,10 @@ async function main() {
 
   // One profile: a new folder named after the model; with several profiles, files name theirs.
   const progressSeen = [];
-  const result = await siteDetails.download({ url: URL_, folder: library, profileId: '2' }, { fetchImpl: world, onProgress: (p) => progressSeen.push(p.label) });
+  const result = await siteDetails.download(
+    { url: URL_, folder: library, profileId: '2' },
+    { fetchImpl: world, onProgress: (p) => progressSeen.push(p.label) }
+  );
   const folder = path.join(library, T);
   assert.strictEqual(result.folder, folder, 'a new folder named after the English title');
   assert.deepStrictEqual(result.saved, [defaultFile]);
@@ -216,27 +290,42 @@ async function main() {
   assert.deepStrictEqual(result.missing, []);
   const added = database.db.prepare('SELECT designer, license, source FROM models WHERE filePath = ?').get(path.join(folder, defaultFile));
   assert.deepStrictEqual({ ...added }, { designer: '黑方狼灭', license: 'CC BY-NC-SA', source: 'https://makerworld.com/en/models/3006565' });
-  assert.deepStrictEqual((await siteDetails.getDetails(URL_, { fetchImpl: world })).downloads.map((d) => d.profileId), ['2'], 'the details say which profiles are downloaded');
+  assert.deepStrictEqual(
+    (await siteDetails.getDetails(URL_, { fetchImpl: world })).downloads.map((d) => d.profileId),
+    ['2'],
+    'the details say which profiles are downloaded'
+  );
 
   // All profiles: the rest go into the same folder; what is there is not downloaded again.
   const all = await siteDetails.download({ url: URL_, folder: library, profileId: 'all' }, { fetchImpl: world, onProgress: (p) => progressSeen.push(p.label) });
-  assert.strictEqual(all.folder, folder, 'the model\'s folder from before');
+  assert.strictEqual(all.folder, folder, "the model's folder from before");
   assert.deepStrictEqual(all.saved, [otherFile], 'only the missing profile');
   assert.strictEqual(all.inLibrary, 2);
   assert.deepStrictEqual(fs.readdirSync(folder).sort(), [defaultFile, otherFile].sort());
   assert.strictEqual(all.mainFile, path.join(folder, defaultFile), 'the default profile is the main file');
   const nothingNew = await siteDetails.download({ url: URL_, folder: library, profileId: 'all' }, { fetchImpl: world });
   assert.deepStrictEqual([nothingNew.saved, nothingNew.folder], [[], folder], 'everything there: nothing downloaded');
-  assert.deepStrictEqual(siteDetails.downloadsFor('makerworld:3006565').map((d) => d.profileId).sort(), ['1', '2']);
+  assert.deepStrictEqual(
+    siteDetails
+      .downloadsFor('makerworld:3006565')
+      .map((d) => d.profileId)
+      .sort(),
+    ['1', '2']
+  );
 
   // Files named the old way ("<title> - <profile>") get the profile first; the model row moves with them.
   const oldName = path.join(folder, `${T} - Other profile.3mf`);
   fs.renameSync(path.join(folder, otherFile), oldName);
-  database.db.prepare('UPDATE models SET filePath = ?, fileName = ?, notes = ? WHERE filePath = ?').run(oldName, path.basename(oldName), 'keep me', path.join(folder, otherFile));
+  database.db
+    .prepare('UPDATE models SET filePath = ?, fileName = ?, notes = ? WHERE filePath = ?')
+    .run(oldName, path.basename(oldName), 'keep me', path.join(folder, otherFile));
   database.db.prepare('UPDATE site_files SET file_path = ? WHERE file_path = ?').run(oldName, path.join(folder, otherFile));
   assert.strictEqual(siteDetails.renameProfileFiles(), 1);
   assert.ok(fs.existsSync(path.join(folder, otherFile)) && !fs.existsSync(oldName));
-  assert.deepStrictEqual({ ...database.db.prepare('SELECT fileName, notes FROM models WHERE filePath = ?').get(path.join(folder, otherFile)) }, { fileName: otherFile, notes: 'keep me' });
+  assert.deepStrictEqual(
+    { ...database.db.prepare('SELECT fileName, notes FROM models WHERE filePath = ?').get(path.join(folder, otherFile)) },
+    { fileName: otherFile, notes: 'keep me' }
+  );
   assert.strictEqual(siteDetails.renameProfileFiles(), 0, 'nothing left to rename');
 
   // A profile that is gone: the default one.
@@ -258,12 +347,19 @@ async function main() {
   const robotWorld = async (url, options) => {
     if (/\/f3mf$/.test(new URL(url).pathname)) {
       asked++;
-      if (captcha && asked > captchaAfter) return new Response(JSON.stringify({ error: 'We need to confirm that you are not a robot.', captchaId: 'x' }), { status: 418 });
+      if (captcha && asked > captchaAfter)
+        return new Response(JSON.stringify({ error: 'We need to confirm that you are not a robot.', captchaId: 'x' }), { status: 418 });
     }
     return world(url, options);
   };
-  await assert.rejects(siteDetails.download({ url: URL_, folder: library }, { fetchImpl: robotWorld }), (error) => error.code === 'CAPTCHA' && /only a browser can do/.test(error.message));
-  await assert.rejects(siteDetails.download({ url: URL_, folder: library }, { fetchImpl: robotWorld }), (error) => error.code === 'CAPTCHA' && /try again in 30 min/.test(error.message));
+  await assert.rejects(
+    siteDetails.download({ url: URL_, folder: library }, { fetchImpl: robotWorld }),
+    (error) => error.code === 'CAPTCHA' && /only a browser can do/.test(error.message)
+  );
+  await assert.rejects(
+    siteDetails.download({ url: URL_, folder: library }, { fetchImpl: robotWorld }),
+    (error) => error.code === 'CAPTCHA' && /try again in 30 min/.test(error.message)
+  );
   assert.strictEqual(asked, 1, 'asked once, then paused');
   assert.ok(!fs.existsSync(path.join(library, `${T} (3)`)), 'no empty folder');
   siteDetails.resetCaptchaPause();
@@ -291,7 +387,10 @@ async function main() {
   // The online model is folded into the downloaded files: one model, not two.
   forget();
   const onlinePath = 'url::https://makerworld.com/en/models/3006565';
-  const onlineId = database.db.prepare("INSERT INTO models (filePath, fileName, source, notes, rating, favorite, print_status, printed, print_count) VALUES (?, 'Gundam', ?, 'my notes', 4, 1, 'printed', 1, 2)")
+  const onlineId = database.db
+    .prepare(
+      "INSERT INTO models (filePath, fileName, source, notes, rating, favorite, print_status, printed, print_count) VALUES (?, 'Gundam', ?, 'my notes', 4, 1, 'printed', 1, 2)"
+    )
     .run(onlinePath, 'https://makerworld.com/en/models/3006565').lastInsertRowid;
   database.db.prepare('INSERT INTO model_tags VALUES (?, 7)').run(onlineId);
   database.db.prepare("INSERT INTO collection_models VALUES (3, ?, '2026-10-01')").run(onlineId);
@@ -313,20 +412,31 @@ async function main() {
   assert.strictEqual(otherRow.print_status, 'unprinted', 'print status stays with the main file');
   assert.strictEqual(database.db.prepare('SELECT model_id FROM print_events').get().model_id, mainRow.id, 'print history moves to the main file');
   assert.strictEqual(database.db.prepare("SELECT target_id FROM share_links WHERE token = 'tok'").get().target_id, mainRow.id, 'share links follow');
-  assert.ok(!database.db.prepare('SELECT 1 FROM model_tags WHERE model_id = ?').get(onlineId) && !database.db.prepare('SELECT 1 FROM collection_models WHERE model_id = ?').get(onlineId));
+  assert.ok(
+    !database.db.prepare('SELECT 1 FROM model_tags WHERE model_id = ?').get(onlineId) &&
+      !database.db.prepare('SELECT 1 FROM collection_models WHERE model_id = ?').get(onlineId)
+  );
   profileName = 'Default.3mf';
 
   // Files downloaded in a browser: JusttPrint makes the folder, the browser uploads, then they are added.
-  const manualOnline = database.db.prepare("INSERT INTO models (filePath, fileName, source, notes) VALUES (?, 'Gundam', ?, 'from the browser')")
+  const manualOnline = database.db
+    .prepare("INSERT INTO models (filePath, fileName, source, notes) VALUES (?, 'Gundam', ?, 'from the browser')")
     .run(onlinePath, 'https://makerworld.com/en/models/3006565').lastInsertRowid;
   const prepared = await siteDetails.prepareManualFolder({ url: URL_, folder: library });
   assert.ok(prepared.folder.startsWith(path.join(library, 'Ultimate Assembly PG Freedom Gundam')));
   fs.writeFileSync(path.join(prepared.folder, 'p1s可打版本1.3mf'), threeMf);
   fs.writeFileSync(path.join(prepared.folder, 'legs.stl'), 'solid x\nendsolid');
   const manual = await siteDetails.finishManualFolder({ url: URL_, folder: prepared.folder, files: ['p1s可打版本1.3mf', 'legs.stl'] });
-  assert.strictEqual(prepared.folder, merged.folder, 'into the model\'s folder from the earlier download');
-  assert.ok(fs.existsSync(path.join(prepared.folder, defaultFile)) && fs.existsSync(path.join(prepared.folder, otherFile)), 'downloaded profiles keep their names');
-  assert.strictEqual(manual.mainFile, path.join(prepared.folder, 'Ultimate Assembly PG Freedom Gundam.3mf'), 'the 3MF is the main file, named after the English title');
+  assert.strictEqual(prepared.folder, merged.folder, "into the model's folder from the earlier download");
+  assert.ok(
+    fs.existsSync(path.join(prepared.folder, defaultFile)) && fs.existsSync(path.join(prepared.folder, otherFile)),
+    'downloaded profiles keep their names'
+  );
+  assert.strictEqual(
+    manual.mainFile,
+    path.join(prepared.folder, 'Ultimate Assembly PG Freedom Gundam.3mf'),
+    'the 3MF is the main file, named after the English title'
+  );
   assert.ok(fs.existsSync(path.join(prepared.folder, 'legs.stl')), 'parts keep their names');
   assert.ok(!database.db.prepare('SELECT 1 FROM models WHERE id = ?').get(manualOnline), 'the online model became the files');
   assert.strictEqual(database.db.prepare('SELECT notes FROM models WHERE filePath = ?').get(path.join(prepared.folder, 'legs.stl')).notes, 'from the browser');
@@ -344,7 +454,9 @@ async function main() {
 
   // Several files: every one gets the online model's tags and notes; the main one its history.
   const { mergeOnlineModel } = require('../src/core/merge-online-model');
-  const twoId = database.db.prepare("INSERT INTO models (filePath, fileName, notes, print_status) VALUES ('url::https://makerworld.com/en/models/5', 'x', 'n', 'printed')").run().lastInsertRowid;
+  const twoId = database.db
+    .prepare("INSERT INTO models (filePath, fileName, notes, print_status) VALUES ('url::https://makerworld.com/en/models/5', 'x', 'n', 'printed')")
+    .run().lastInsertRowid;
   database.db.prepare('INSERT INTO model_tags VALUES (?, 8)').run(twoId);
   database.db.prepare('INSERT INTO print_events (model_id) VALUES (?)').run(twoId);
   database.db.prepare("INSERT INTO models (filePath, fileName) VALUES ('/l/a.3mf', 'a'), ('/l/b.stl', 'b')").run();
@@ -359,15 +471,26 @@ async function main() {
   database.db.prepare('DELETE FROM models').run();
   forget();
   const { importLink } = require('../src/server/link-import');
-  const linkDeps = { db: database.db, fetchImpl: world, download: (request, options) => siteDetails.download(request, { ...options, fetchImpl: world }),
-    saveModel: async (model) => database.db.prepare('INSERT INTO models (filePath, fileName, designer, source) VALUES (?, ?, ?, ?)').run(model.filePath, model.fileName, model.designer || null, model.source),
-    saveThumbnail: async () => {} };
+  const linkDeps = {
+    db: database.db,
+    fetchImpl: world,
+    download: (request, options) => siteDetails.download(request, { ...options, fetchImpl: world }),
+    saveModel: async (model) =>
+      database.db
+        .prepare('INSERT INTO models (filePath, fileName, designer, source) VALUES (?, ?, ?, ?)')
+        .run(model.filePath, model.fileName, model.designer || null, model.source),
+    saveThumbnail: async () => {}
+  };
   const viaLinks = await importLink('https://makerworld.com/en/models/3006565-x?from=recommend#profileId-1', linkDeps, { downloadFolder: library });
   assert.strictEqual(viaLinks.status, 'downloaded');
   assert.deepStrictEqual(viaLinks.saved.sort(), [defaultFile, otherFile].sort(), JSON.stringify(viaLinks));
   assert.strictEqual(path.basename(viaLinks.filePath), otherFile, 'the profile in the link is the main file');
   assert.strictEqual(database.db.prepare("SELECT COUNT(*) AS n FROM models WHERE filePath LIKE 'url::%'").get().n, 0, 'no online model next to the files');
-  assert.strictEqual((await importLink('https://makerworld.com/en/models/3006565', linkDeps, { downloadFolder: library })).status, 'exists', 'downloaded files count as already in the library');
+  assert.strictEqual(
+    (await importLink('https://makerworld.com/en/models/3006565', linkDeps, { downloadFolder: library })).status,
+    'exists',
+    'downloaded files count as already in the library'
+  );
   database.db.prepare('DELETE FROM models').run();
   forget();
   database.db.prepare('DELETE FROM models').run();
@@ -403,7 +526,11 @@ async function main() {
   }
   assert.strictEqual(await siteDetails.renameOlderDownloads({ fetchImpl: world }), 1);
   assert.deepStrictEqual(fs.readdirSync(oldDir).sort(), [`${T}.3mf`, 'legs.stl'].sort(), 'the 3MF takes the title; parts keep their names');
-  assert.strictEqual(database.db.prepare('SELECT notes FROM models WHERE filePath = ?').get(path.join(oldDir, `${T}.3mf`)).notes, 'kept', 'the model moves with its file');
+  assert.strictEqual(
+    database.db.prepare('SELECT notes FROM models WHERE filePath = ?').get(path.join(oldDir, `${T}.3mf`)).notes,
+    'kept',
+    'the model moves with its file'
+  );
   assert.deepStrictEqual(fs.readdirSync(mixedDir).sort(), ['benchy.stl', 'p1s.3mf'], 'a folder with other models is left alone');
   fs.renameSync(path.join(oldDir, `${T}.3mf`), path.join(oldDir, 'again.3mf'));
   database.db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(path.join(oldDir, 'again.3mf'), path.join(oldDir, `${T}.3mf`));
@@ -417,7 +544,17 @@ async function main() {
   fs.chmodSync(locked, 0o555);
   if (process.getuid && process.getuid() !== 0) {
     assert.match(siteDetails.checkFolder(locked).error || '', /may not write to/);
-    await assert.rejects(siteDetails.download({ url: URL_, folder: locked }, { fetchImpl: () => { throw new Error('must not be fetched'); } }), /may not write to/);
+    await assert.rejects(
+      siteDetails.download(
+        { url: URL_, folder: locked },
+        {
+          fetchImpl: () => {
+            throw new Error('must not be fetched');
+          }
+        }
+      ),
+      /may not write to/
+    );
   }
   fs.chmodSync(locked, 0o755);
   assert.deepStrictEqual(siteDetails.checkFolder(library), { ok: true, error: null });

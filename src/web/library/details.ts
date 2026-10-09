@@ -211,7 +211,9 @@ export function navigateDetails(direction: 'next' | 'previous'): boolean {
 }
 
 /** Select a model without opening its details (the server's "show this model"). */
-export const highlightModel = (filePath: string) => { if (filePath) selection.set([filePath]); };
+export const highlightModel = (filePath: string) => {
+  if (filePath) selection.set([filePath]);
+};
 
 // ---- Cards ----
 
@@ -221,7 +223,9 @@ type TapCard = HTMLElement & { _suppressTap?: boolean; _suppressTapTimer?: Retur
 function suppressTap(card: TapCard, ms = 600) {
   card._suppressTap = true;
   clearTimeout(card._suppressTapTimer);
-  card._suppressTapTimer = setTimeout(() => { card._suppressTap = false; }, ms);
+  card._suppressTapTimer = setTimeout(() => {
+    card._suppressTap = false;
+  }, ms);
 }
 
 function tapSuppressed(card: TapCard, event?: { preventDefault(): void; stopPropagation(): void } | null) {
@@ -236,28 +240,45 @@ function bindLongPress(card: TapCard, onLongPress: (x: number, y: number) => voi
   let timer: ReturnType<typeof setTimeout> | null = null;
   let x = 0;
   let y = 0;
-  const cancel = () => { if (timer) clearTimeout(timer); timer = null; };
-  card.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    ({ clientX: x, clientY: y } = e.touches[0]);
-    cancel();
-    timer = setTimeout(() => {
-      timer = null;
-      suppressTap(card);
-      onLongPress(x, y);
-    }, 550);
-  }, { passive: true });
-  card.addEventListener('touchmove', (e) => {
-    const t = e.touches[0];
-    if (timer && t && (Math.abs(t.clientX - x) > 14 || Math.abs(t.clientY - y) > 14)) cancel();
-  }, { passive: true });
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  card.addEventListener(
+    'touchstart',
+    (e) => {
+      if (e.touches.length !== 1) return;
+      ({ clientX: x, clientY: y } = e.touches[0]);
+      cancel();
+      timer = setTimeout(() => {
+        timer = null;
+        suppressTap(card);
+        onLongPress(x, y);
+      }, 550);
+    },
+    { passive: true }
+  );
+  card.addEventListener(
+    'touchmove',
+    (e) => {
+      const t = e.touches[0];
+      if (timer && t && (Math.abs(t.clientX - x) > 14 || Math.abs(t.clientY - y) > 14)) cancel();
+    },
+    { passive: true }
+  );
   const end = (e: Event) => {
     cancel();
     if (card._suppressTap) e.preventDefault();
   };
   card.addEventListener('touchend', end);
   card.addEventListener('touchcancel', end);
-  card.addEventListener('click', (e) => { tapSuppressed(card, e); }, true);
+  card.addEventListener(
+    'click',
+    (e) => {
+      tapSuppressed(card, e);
+    },
+    true
+  );
 }
 
 /** The menu acts on the whole selection when the clicked model is part of it (or in multi-edit). */
@@ -273,11 +294,15 @@ export function bindCardMenu(card: TapCard, filePath: string) {
     if (event.pointerType !== 'mouse') suppressTap(card);
     window.contextMenu?.show(menuTarget(filePath), event.clientX, event.clientY);
   };
-  card.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    open(event as MouseEvent & { pointerType?: string });
-  }, card.classList.contains('file-item-list'));
+  card.addEventListener(
+    'contextmenu',
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      open(event as MouseEvent & { pointerType?: string });
+    },
+    card.classList.contains('file-item-list')
+  );
   bindLongPress(card, (clientX, clientY) => open({ clientX, clientY }));
 }
 
@@ -362,9 +387,8 @@ export function bindGroupMenu(card: TapCard, record: GroupRecord) {
     event.stopPropagation();
     const paths = record.children.map((c) => c?.filePath).filter((p): p is string => !!p);
     if (!paths.length) return;
-    const target = record.groupKind === 'bundle' || paths.length > 1
-      ? { filePaths: paths, groupLabel: record.groupLabel || 'Group', previewAsBundle: true }
-      : paths[0];
+    const target =
+      record.groupKind === 'bundle' || paths.length > 1 ? { filePaths: paths, groupLabel: record.groupLabel || 'Group', previewAsBundle: true } : paths[0];
     window.contextMenu?.show(target, event.clientX, event.clientY);
   });
   bindLongPress(card, (clientX, clientY) => card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX, clientY })));
@@ -400,4 +424,3 @@ if (typeof document !== 'undefined') {
   document.getElementById('edit-mode-toggle')?.addEventListener('click', () => toggleMultiEdit());
   document.getElementById('enter-multi-edit-button')?.addEventListener('click', () => toggleMultiEdit(true));
 }
-

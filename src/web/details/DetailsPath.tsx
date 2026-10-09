@@ -23,38 +23,63 @@ export function DetailsPath() {
   const [revealSlot] = useState(() => document.getElementById('details-reveal-slot'));
   const [filePath, setFilePath] = useState<string | null>(null);
 
-  useEffect(() => exposeGlobal('detailsPath', {
-    show: (path: string) => setFilePath(path),
-    clear: () => setFilePath(null)
-  }), []);
-
-  const reveal = revealSlot && createPortal(
-    <button type="button" id="reveal-in-folders-button" className="icon-button" title="Reveal in folders"
-      onClick={(event) => {
-        event.preventDefault();
-        if (filePath) folderTreeActions.reveal(filePath);
-      }}>☰</button>,
-    revealSlot
+  useEffect(
+    () =>
+      exposeGlobal('detailsPath', {
+        show: (path: string) => setFilePath(path),
+        clear: () => setFilePath(null)
+      }),
+    []
   );
+
+  const reveal =
+    revealSlot &&
+    createPortal(
+      <button
+        type="button"
+        id="reveal-in-folders-button"
+        className="icon-button"
+        title="Reveal in folders"
+        onClick={(event) => {
+          event.preventDefault();
+          if (filePath) folderTreeActions.reveal(filePath);
+        }}
+      >
+        ☰
+      </button>,
+      revealSlot
+    );
   if (!container || filePath === null) return reveal;
   const rows = pathTreeRows(filePath);
   return (
     <>
       {reveal}
       {createPortal(
-        rows.length ? rows.map((row, index) => (
-          <div key={index} className="path-tree-item" style={{ marginLeft: `${row.depth * 14}px` }}>
-            <span className={`path-tree-icon ${ICONS[row.kind]}`} />
-            {row.kind === 'file' ? <span className="path-tree-file">{row.label}</span> : (
-              <span className="path-tree-folder" data-path={row.directory} title="Show this folder in the library"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if (row.directory) showFolder(row.directory);
-                }}>{row.label}</span>
-            )}
-          </div>
-        )) : <div className="path-tree-item">No path available</div>,
+        rows.length ? (
+          rows.map((row, index) => (
+            <div key={index} className="path-tree-item" style={{ marginLeft: `${row.depth * 14}px` }}>
+              <span className={`path-tree-icon ${ICONS[row.kind]}`} />
+              {row.kind === 'file' ? (
+                <span className="path-tree-file">{row.label}</span>
+              ) : (
+                <span
+                  className="path-tree-folder"
+                  data-path={row.directory}
+                  title="Show this folder in the library"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (row.directory) showFolder(row.directory);
+                  }}
+                >
+                  {row.label}
+                </span>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="path-tree-item">No path available</div>
+        ),
         container
       )}
     </>

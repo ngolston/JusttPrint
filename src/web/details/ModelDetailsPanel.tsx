@@ -50,7 +50,9 @@ function Prop({ label, children, title }: { label: string; children: ReactNode; 
   return (
     <div className="jp-prop">
       <span className="jp-prop__label">{label}</span>
-      <span className="jp-prop__value" title={title}>{children}</span>
+      <span className="jp-prop__value" title={title}>
+        {children}
+      </span>
     </div>
   );
 }
@@ -67,18 +69,33 @@ function Rating({ model, readOnly, onSaved }: { model: PanelModel; readOnly?: bo
   const rating = normalizeRating(model.rating);
   const shown = hover ?? rating;
   if (readOnly) {
-    return <span className="jp-rating" role="img" aria-label={rating ? `Rated ${rating} of 5` : 'Not rated'}>{[1, 2, 3, 4, 5].map((star) => <span key={star} className={cx('jp-rating__star', star <= rating && 'is-filled')} aria-hidden="true">{star <= rating ? '★' : '☆'}</span>)}</span>;
+    return (
+      <span className="jp-rating" role="img" aria-label={rating ? `Rated ${rating} of 5` : 'Not rated'}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span key={star} className={cx('jp-rating__star', star <= rating && 'is-filled')} aria-hidden="true">
+            {star <= rating ? '★' : '☆'}
+          </span>
+        ))}
+      </span>
+    );
   }
   return (
     <span className="jp-rating" role="radiogroup" aria-label="Rating">
       {[1, 2, 3, 4, 5].map((star) => (
-        <button key={star} type="button" role="radio" aria-checked={star === rating} aria-label={`${star} star${star === 1 ? '' : 's'}`}
+        <button
+          key={star}
+          type="button"
+          role="radio"
+          aria-checked={star === rating}
+          aria-label={`${star} star${star === 1 ? '' : 's'}`}
           className={cx('jp-rating__star', star <= shown && 'is-filled')}
-          onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
+          onMouseEnter={() => setHover(star)}
+          onMouseLeave={() => setHover(null)}
           onClick={async () => {
             const next = rating === star ? 0 : star;
             if (await saveCardField(model.filePath, 'rating', next)) onSaved(next);
-          }}>
+          }}
+        >
           {star <= shown ? '★' : '☆'}
         </button>
       ))}
@@ -94,19 +111,35 @@ function SlicerButton({ filePath, slicers }: { filePath: string; slicers: Slicer
   };
   return (
     <div className="jp-split">
-      <button type="button" id="jp-details-open-slicer" className="jp-btn jp-btn--primary jp-btn--lg jp-split__main"
-        title={slicers[0] ? `Open in ${slicers[0].name}` : 'Set up a slicer first'} onClick={() => send(slicers[0])}>
+      <button
+        type="button"
+        id="jp-details-open-slicer"
+        className="jp-btn jp-btn--primary jp-btn--lg jp-split__main"
+        title={slicers[0] ? `Open in ${slicers[0].name}` : 'Set up a slicer first'}
+        onClick={() => send(slicers[0])}
+      >
         <span>Open in Slicer</span>
       </button>
-      <Menu label="Slicers" align="start"
-        items={slicers.length
-          ? slicers.map((slicer, index) => ({ id: `${slicer.id ?? index}`, label: slicer.name, onSelect: () => { void send(slicer); } }))
-          : [{ id: 'setup', label: 'Set up a slicer…', onSelect: () => window.openSlicerSettings?.() }]}
+      <Menu
+        label="Slicers"
+        align="start"
+        items={
+          slicers.length
+            ? slicers.map((slicer, index) => ({
+                id: `${slicer.id ?? index}`,
+                label: slicer.name,
+                onSelect: () => {
+                  void send(slicer);
+                }
+              }))
+            : [{ id: 'setup', label: 'Set up a slicer…', onSelect: () => window.openSlicerSettings?.() }]
+        }
         trigger={(props) => (
           <button type="button" className="jp-btn jp-btn--primary jp-btn--lg jp-split__more" aria-label="Choose a slicer" title="Choose a slicer" {...props}>
             <ChevronDown size={18} aria-hidden="true" />
           </button>
-        )} />
+        )}
+      />
     </div>
   );
 }
@@ -141,17 +174,21 @@ export function ModelDetailsPanel() {
   useAdopt('#details-history-slot', historyHost);
   useAdopt('#enter-multi-edit-button', footerHost);
 
-  useEffect(() => exposeGlobal('detailsHero', {
-    show: (next: PanelModel) => {
-      if (next.filePath !== shownPath.current) setImageIndex(0);
-      shownPath.current = next.filePath;
-      setModel(next);
-    },
-    clear: () => {
-      shownPath.current = null;
-      setModel(null);
-    }
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('detailsHero', {
+        show: (next: PanelModel) => {
+          if (next.filePath !== shownPath.current) setImageIndex(0);
+          shownPath.current = next.filePath;
+          setModel(next);
+        },
+        clear: () => {
+          shownPath.current = null;
+          setModel(null);
+        }
+      }),
+    []
+  );
 
   // Follow changes made elsewhere (cards, menus, other browsers) and the slicer list.
   useEffect(() => {
@@ -162,9 +199,12 @@ export function ModelDetailsPanel() {
         loadSlicers().then(setSlicers, () => {});
         const path = shownPath.current;
         if (!path) return;
-        models.get<PanelModel>(path).then((fresh) => {
-          if (fresh && shownPath.current === path) setModel(fresh);
-        }, () => {});
+        models.get<PanelModel>(path).then(
+          (fresh) => {
+            if (fresh && shownPath.current === path) setModel(fresh);
+          },
+          () => {}
+        );
       }, 400);
     };
     loadSlicers().then(setSlicers, () => {});
@@ -191,41 +231,78 @@ export function ModelDetailsPanel() {
     <div className="jp jp-details">
       <div className="jp-details__preview">
         {online ? (
-          <div className="jp-details__image"><img src={shown} alt="" draggable={false} /></div>
+          <div className="jp-details__image">
+            <img src={shown} alt="" draggable={false} />
+          </div>
         ) : (
-          <button type="button" className="jp-details__image" title="Open the 3D preview" aria-label="Open the 3D preview"
-            onClick={() => { if (filePath) void window.openPreview?.(filePath); }}>
+          <button
+            type="button"
+            className="jp-details__image"
+            title="Open the 3D preview"
+            aria-label="Open the 3D preview"
+            onClick={() => {
+              if (filePath) void window.openPreview?.(filePath);
+            }}
+          >
             <img src={shown} alt="" draggable={false} />
           </button>
         )}
         <div className="jp-details__preview-actions">
-          {canEdit && <button type="button" className={cx('jp-details__overlay-btn', favorite && 'is-favorited')} aria-pressed={favorite}
-            aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
-            onClick={async () => {
-              if (model && await saveCardField(model.filePath, 'favorite', !favorite)) setModel({ ...model, favorite: !favorite });
-            }}>
-            <Heart size={18} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
-          </button>}
-          <button type="button" className="jp-details__overlay-btn" aria-label="More actions" title="More actions" aria-haspopup="menu"
+          {canEdit && (
+            <button
+              type="button"
+              className={cx('jp-details__overlay-btn', favorite && 'is-favorited')}
+              aria-pressed={favorite}
+              aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+              title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={async () => {
+                if (model && (await saveCardField(model.filePath, 'favorite', !favorite))) setModel({ ...model, favorite: !favorite });
+              }}
+            >
+              <Heart size={18} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="jp-details__overlay-btn"
+            aria-label="More actions"
+            title="More actions"
+            aria-haspopup="menu"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               if (filePath) void window.contextMenu?.show(filePath, rect.left, rect.bottom);
-            }}>
+            }}
+          >
             <MoreHorizontal size={18} aria-hidden="true" />
           </button>
         </div>
-        {!online && <button type="button" className="jp-details__overlay-btn jp-details__view-3d" title="Open the 3D preview"
-          onClick={() => { if (filePath) void window.openPreview?.(filePath); }}>
-          <Box size={16} aria-hidden="true" />
-          <span>3D</span>
-        </button>}
+        {!online && (
+          <button
+            type="button"
+            className="jp-details__overlay-btn jp-details__view-3d"
+            title="Open the 3D preview"
+            onClick={() => {
+              if (filePath) void window.openPreview?.(filePath);
+            }}
+          >
+            <Box size={16} aria-hidden="true" />
+            <span>3D</span>
+          </button>
+        )}
       </div>
 
       {images.length > 1 && (
         <div className="jp-details__strip" role="listbox" aria-label="Images" aria-orientation="horizontal">
           {images.map((src, index) => (
-            <button key={index} type="button" role="option" aria-selected={index === imageIndex} aria-label={`Image ${index + 1} of ${images.length}`}
-              className={cx('jp-details__thumb', index === imageIndex && 'is-selected')} onClick={() => setImageIndex(index)}>
+            <button
+              key={index}
+              type="button"
+              role="option"
+              aria-selected={index === imageIndex}
+              aria-label={`Image ${index + 1} of ${images.length}`}
+              className={cx('jp-details__thumb', index === imageIndex && 'is-selected')}
+              onClick={() => setImageIndex(index)}
+            >
               <img src={src} alt="" draggable={false} />
             </button>
           ))}
@@ -233,7 +310,9 @@ export function ModelDetailsPanel() {
       )}
 
       <div className="jp-details__identity">
-        <h2 className="jp-details__title" title={model ? displayFileName(model) : undefined}>{model ? cardTitle(model) : ''}</h2>
+        <h2 className="jp-details__title" title={model ? displayFileName(model) : undefined}>
+          {model ? cardTitle(model) : ''}
+        </h2>
         <p className="jp-details__byline">{designer ? `By ${designer}` : ''}</p>
       </div>
 
@@ -241,17 +320,27 @@ export function ModelDetailsPanel() {
 
       <div className="jp-details__actions">
         <SlicerButton filePath={filePath} slicers={slicers} />
-        {canEdit && <button type="button" id="jp-details-log-print" className="jp-btn jp-btn--secondary jp-btn--lg"
-          onClick={() => { if (filePath) void window.PrintHistory?.openLogDialog({ filePaths: [filePath] }); }}>
-          <ClipboardPen size={18} aria-hidden="true" />
-          <span>Log Print</span>
-        </button>}
+        {canEdit && (
+          <button
+            type="button"
+            id="jp-details-log-print"
+            className="jp-btn jp-btn--secondary jp-btn--lg"
+            onClick={() => {
+              if (filePath) void window.PrintHistory?.openLogDialog({ filePaths: [filePath] });
+            }}
+          >
+            <ClipboardPen size={18} aria-hidden="true" />
+            <span>Log Print</span>
+          </button>
+        )}
       </div>
 
       <section className="jp-details__section">
         <h3 className="jp-details__heading">Details</h3>
         <div className="jp-props">
-          <Prop label="File" title={model ? displayFileName(model) : undefined}>{model ? displayFileName(model) : ''}</Prop>
+          <Prop label="File" title={model ? displayFileName(model) : undefined}>
+            {model ? displayFileName(model) : ''}
+          </Prop>
           <Prop label="Format">{model ? formatOf(model) || '—' : ''}</Prop>
           <Prop label="Size">{model?.size ? formatFileSize(Number(model.size)) : '—'}</Prop>
           <div className="jp-props__group" ref={setStatusHost} />

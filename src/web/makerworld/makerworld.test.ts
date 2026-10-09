@@ -11,8 +11,14 @@ describe('MakerWorld in the details panel', () => {
   });
 
   it('finds Printables and Thingiverse links too', () => {
-    expect(siteModelUrl({ filePath: 'url::https://www.printables.com/model/1839122' })).toEqual({ site: 'printables', url: 'https://www.printables.com/model/1839122' });
-    expect(siteModelUrl({ filePath: '/l/bear.stl', source: 'https://www.thingiverse.com/thing:7418273' })).toEqual({ site: 'thingiverse', url: 'https://www.thingiverse.com/thing:7418273' });
+    expect(siteModelUrl({ filePath: 'url::https://www.printables.com/model/1839122' })).toEqual({
+      site: 'printables',
+      url: 'https://www.printables.com/model/1839122'
+    });
+    expect(siteModelUrl({ filePath: '/l/bear.stl', source: 'https://www.thingiverse.com/thing:7418273' })).toEqual({
+      site: 'thingiverse',
+      url: 'https://www.thingiverse.com/thing:7418273'
+    });
     expect(siteModelUrl({ filePath: '/l/x.stl', source: 'https://thangs.com/m/1' })).toBeNull();
   });
 
@@ -27,7 +33,9 @@ describe('MakerWorld in the details panel', () => {
 
   it('shows only http(s) addresses as links', () => {
     expect(linkParts('See https://youtu.be/abc. Or javascript:alert(1)')).toEqual([
-      { text: 'See ' }, { text: 'https://youtu.be/abc', href: 'https://youtu.be/abc' }, { text: '. Or javascript:alert(1)' }
+      { text: 'See ' },
+      { text: 'https://youtu.be/abc', href: 'https://youtu.be/abc' },
+      { text: '. Or javascript:alert(1)' }
     ]);
   });
 });

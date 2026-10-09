@@ -36,12 +36,23 @@ const statfs = async () => ({ bsize: 4096, blocks: 1000, bfree: 300, bavail: 250
 
   await test('has no volume without an STL Home folder, or when the volume cannot be read', async () => {
     assert.strictEqual((await libraryStorage({ db: db([]), roots: [], statfs })).volume, null);
-    assert.strictEqual(await volumeUsage('/x', async () => { throw new Error('EACCES'); }), null);
+    assert.strictEqual(
+      await volumeUsage('/x', async () => {
+        throw new Error('EACCES');
+      }),
+      null
+    );
     assert.strictEqual(await volumeUsage('/x', async () => ({ bsize: 0, blocks: 0, bfree: 0, bavail: 0 })), null);
   });
 
   await test('skips folders that cannot be checked', () => {
-    assert.strictEqual(firstExistingRoot(['/a', '/b'], (p) => { if (p === '/a') throw new Error('EPERM'); return true; }), '/b');
+    assert.strictEqual(
+      firstExistingRoot(['/a', '/b'], (p) => {
+        if (p === '/a') throw new Error('EPERM');
+        return true;
+      }),
+      '/b'
+    );
   });
 
   await test('reads a real volume', async () => {
@@ -58,7 +69,12 @@ const { libraryCounts } = require('../src/core/library-counts');
     d.prepare('CREATE TABLE models (id INTEGER PRIMARY KEY, print_status TEXT, printed INTEGER, print_count INTEGER)').run();
     d.prepare('CREATE TABLE printers (id INTEGER PRIMARY KEY)').run();
     const add = d.prepare('INSERT INTO models (print_status, printed, print_count) VALUES (?, ?, ?)');
-    add.run('queued', 0, 0); add.run('Queued', 0, 2); add.run('printing', 0, 0); add.run(null, 1, 0); add.run('printed', 0, 0); add.run('want', 0, 0);
+    add.run('queued', 0, 0);
+    add.run('Queued', 0, 2);
+    add.run('printing', 0, 0);
+    add.run(null, 1, 0);
+    add.run('printed', 0, 0);
+    add.run('want', 0, 0);
     d.prepare('INSERT INTO printers DEFAULT VALUES').run();
     // The second queued model was printed before (print_count 2), so it also counts as printed.
     assert.deepStrictEqual(libraryCounts(d), { models: 6, printed: 3, queued: 2, printing: 1, printers: 1 });

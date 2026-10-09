@@ -14,11 +14,15 @@ function networkPathContext() {
   let generatedDir = '';
   try {
     generatedDir = path.dirname(getDatabasePath());
-  } catch (_) { /* db not ready */ }
+  } catch (_) {
+    /* db not ready */
+  }
   let dataDir = '';
   try {
     dataDir = app.getPath('userData');
-  } catch (_) { /* app not ready */ }
+  } catch (_) {
+    /* app not ready */
+  }
   return {
     roots: [...getLibraryRootPaths(), ...readScannedDirectorySetting()],
     generatedDir,

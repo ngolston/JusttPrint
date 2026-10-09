@@ -47,7 +47,9 @@ function rememberedFolder(): string {
 function rememberFolder(folder: string) {
   try {
     localStorage.setItem(FOLDER_KEY, folder);
-  } catch { /* private window */ }
+  } catch {
+    /* private window */
+  }
 }
 
 /** Where uploads go first: the folder the library shows, else the last one used, else STL Home. */
@@ -103,17 +105,24 @@ export function UploadDialog() {
     setEntries((list) => [...list.filter((entry) => entry.status !== 'done'), ...files.map((file) => entryFor(file, infoRef.current))]);
   }
 
-  useEffect(() => exposeGlobal('openUpload', (files?: File[]) => {
-    setOpen(true);
-    if (files?.length) addFiles(files);
-    uploads.info().then((result) => {
-      infoRef.current = result;
-      setInfo(result);
-      // Files added before the limits arrived are checked now.
-      setEntries((list) => list.map((entry) => (entry.status === 'waiting' ? { ...entryFor(entry.file, result), key: entry.key } : entry)));
-    }).catch(() => {});
-    void defaultFolder().then((dir) => setFolder((current) => current || dir));
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openUpload', (files?: File[]) => {
+        setOpen(true);
+        if (files?.length) addFiles(files);
+        uploads
+          .info()
+          .then((result) => {
+            infoRef.current = result;
+            setInfo(result);
+            // Files added before the limits arrived are checked now.
+            setEntries((list) => list.map((entry) => (entry.status === 'waiting' ? { ...entryFor(entry.file, result), key: entry.key } : entry)));
+          })
+          .catch(() => {});
+        void defaultFolder().then((dir) => setFolder((current) => current || dir));
+      }),
+    []
+  );
 
   async function chooseFolder() {
     const picked = await pickFolder({ title: 'Upload Into', initial: folder || undefined, confirmLabel: 'Upload Here' });
@@ -161,7 +170,9 @@ export function UploadDialog() {
           status: 'done',
           progress: 1,
           savedAs: result.fileName,
-          message: [result.fileName !== entry.file.name ? `Saved as ${result.fileName} (the name was taken).` : '', scanWarning(entry.file, infoRef.current)].filter(Boolean).join(' ')
+          message: [result.fileName !== entry.file.name ? `Saved as ${result.fileName} (the name was taken).` : '', scanWarning(entry.file, infoRef.current)]
+            .filter(Boolean)
+            .join(' ')
         });
       } catch (error) {
         failed++;
@@ -184,9 +195,10 @@ export function UploadDialog() {
       try {
         const { inLibrary } = await uploads.finish(folder, paths);
         const files = `${uploaded} ${uploaded === 1 ? 'file' : 'files'}`;
-        const added = inLibrary === uploaded
-          ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
-          : `${inLibrary} of them in the library. The others are larger than the scan limit (Settings → General → Performance): raise it and scan again to add them.`;
+        const added =
+          inLibrary === uploaded
+            ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
+            : `${inLibrary} of them in the library. The others are larger than the scan limit (Settings → General → Performance): raise it and scan again to add them.`;
         setSummary(`Uploaded ${files}; ${added}${failed ? ` ${failed} failed.` : ''}`);
       } catch (error) {
         setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}, but the scan failed: ${errorText(error)}`);
@@ -208,37 +220,71 @@ export function UploadDialog() {
   const accept = info?.extensions.join(',');
 
   return (
-    <Modal open={open} onClose={close} title="Upload Models" className="jp-upload"
-      footer={(
+    <Modal
+      open={open}
+      onClose={close}
+      title="Upload Models"
+      className="jp-upload"
+      footer={
         <>
           {summary && entries.some((entry) => entry.status === 'done') && !busy && (
-            <Button onClick={() => { close(); navigate('library'); }}>Show Library</Button>
+            <Button
+              onClick={() => {
+                close();
+                navigate('library');
+              }}
+            >
+              Show Library
+            </Button>
           )}
           <Button onClick={close}>{busy ? 'Cancel' : 'Close'}</Button>
           <Button variant="primary" icon={Upload} id="jp-upload-start" disabled={busy || !folder || waiting === 0} onClick={start}>
             {busy ? 'Uploading…' : uploadLabel(waiting)}
           </Button>
         </>
-      )}>
+      }
+    >
       <div className="jp-upload__folder">
         <div className="jp-upload__folder-text">
           <span className="jp-label">Library folder</span>
-          <span className="jp-upload__path" id="jp-upload-folder" title={folder}>{folder || 'Choose a folder in your library'}</span>
+          <span className="jp-upload__path" id="jp-upload-folder" title={folder}>
+            {folder || 'Choose a folder in your library'}
+          </span>
         </div>
-        <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy} id="jp-upload-choose-folder">Choose Folder</Button>
+        <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy} id="jp-upload-choose-folder">
+          Choose Folder
+        </Button>
       </div>
 
-      <div className="jp-upload__drop" onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
+      <div
+        className="jp-upload__drop"
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }}
         onDrop={(event) => {
           event.preventDefault();
           event.stopPropagation();
           addFiles(Array.from(event.dataTransfer.files || []));
-        }}>
+        }}
+      >
         <Upload size={22} aria-hidden="true" />
         <span>Drop model files here, or</span>
-        <Button size="sm" icon={Plus} onClick={() => input.current?.click()} disabled={busy}>Add Files</Button>
-        <input ref={input} type="file" multiple hidden accept={accept} id="jp-upload-input"
-          onChange={(event) => { addFiles(Array.from(event.target.files || [])); event.target.value = ''; }} />
+        <Button size="sm" icon={Plus} onClick={() => input.current?.click()} disabled={busy}>
+          Add Files
+        </Button>
+        <input
+          ref={input}
+          type="file"
+          multiple
+          hidden
+          accept={accept}
+          id="jp-upload-input"
+          onChange={(event) => {
+            addFiles(Array.from(event.target.files || []));
+            event.target.value = '';
+          }}
+        />
         {info && (
           <span className="jp-meta jp-upload__limits">
             {info.extensions.join(' ')} · up to {formatBytes(info.maxBytes)} each. More types under Settings → File Types.
@@ -251,30 +297,47 @@ export function UploadDialog() {
           {entries.map((entry) => (
             <li key={entry.key} className={`jp-upload__item is-${entry.status}`}>
               <span className="jp-upload__icon" aria-hidden="true">
-                {entry.status === 'done' ? <CheckCircle2 size={16} /> : entry.status === 'error' || entry.status === 'skipped' ? <CircleAlert size={16} /> : <Upload size={16} />}
+                {entry.status === 'done' ? (
+                  <CheckCircle2 size={16} />
+                ) : entry.status === 'error' || entry.status === 'skipped' ? (
+                  <CircleAlert size={16} />
+                ) : (
+                  <Upload size={16} />
+                )}
               </span>
-              <span className="jp-upload__name" title={entry.file.name}>{entry.file.name}</span>
+              <span className="jp-upload__name" title={entry.file.name}>
+                {entry.file.name}
+              </span>
               <span className="jp-upload__size">{formatBytes(entry.file.size)}</span>
               {!busy && entry.status !== 'uploading' && (
-                <IconButton icon={X} size="sm" label={`Remove ${entry.file.name}`}
-                  onClick={() => setEntries((list) => list.filter((other) => other.key !== entry.key))} />
+                <IconButton
+                  icon={X}
+                  size="sm"
+                  label={`Remove ${entry.file.name}`}
+                  onClick={() => setEntries((list) => list.filter((other) => other.key !== entry.key))}
+                />
               )}
               {entry.status === 'uploading' && (
                 <span className="jp-upload__progress">
                   <ProgressBar value={entry.progress} max={1} label={`Uploading ${entry.file.name}`} />
-                  <span className="jp-upload__sent">{formatBytes(entry.progress * entry.file.size)} of {formatBytes(entry.file.size)}</span>
+                  <span className="jp-upload__sent">
+                    {formatBytes(entry.progress * entry.file.size)} of {formatBytes(entry.file.size)}
+                  </span>
                 </span>
               )}
               {entry.message && (
                 <span className="jp-upload__message">
-                  {entry.status === 'skipped' ? 'Skipped: ' : entry.status === 'error' ? 'Failed: ' : ''}{entry.message}
+                  {entry.status === 'skipped' ? 'Skipped: ' : entry.status === 'error' ? 'Failed: ' : ''}
+                  {entry.message}
                 </span>
               )}
             </li>
           ))}
         </ul>
       )}
-      <p className="jp-upload__summary" role="status" id="jp-upload-summary">{summary}</p>
+      <p className="jp-upload__summary" role="status" id="jp-upload-summary">
+        {summary}
+      </p>
     </Modal>
   );
 }

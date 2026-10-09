@@ -18,7 +18,11 @@ export const SearchBox = forwardRef<HTMLInputElement, SearchBoxProps>(function S
     <label className={['jp-search', className].filter(Boolean).join(' ')}>
       <Search size={18} aria-hidden="true" className="jp-search__icon" />
       <input ref={ref} type="search" aria-label={label} autoComplete="off" spellCheck={false} {...rest} />
-      {shortcut && <kbd className="jp-search__kbd" aria-hidden="true">{shortcut}</kbd>}
+      {shortcut && (
+        <kbd className="jp-search__kbd" aria-hidden="true">
+          {shortcut}
+        </kbd>
+      )}
     </label>
   );
 });

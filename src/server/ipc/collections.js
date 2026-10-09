@@ -20,7 +20,8 @@ ipcMain.handle('get-collection', async (event, id) => collections.getCollection(
 ipcMain.handle('get-collection-membership', async (event, filePaths) => collections.membership(database.db, filePaths));
 
 ipcMain.handle('create-collection', async (event, details) =>
-  changed(collections.createCollection(database.db, { ...(details || {}), createdBy: who(event) })));
+  changed(collections.createCollection(database.db, { ...(details || {}), createdBy: who(event) }))
+);
 ipcMain.handle('update-collection', async (event, id, changes) => changed(collections.updateCollection(database.db, id, changes || {})));
 ipcMain.handle('delete-collection', async (event, id) => {
   const result = collections.deleteCollection(database.db, id);

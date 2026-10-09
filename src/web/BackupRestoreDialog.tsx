@@ -59,9 +59,11 @@ export function BackupRestoreDialog() {
   async function deleteLeftovers() {
     if (!leftovers?.files.length) return;
     const n = leftovers.files.length;
-    const answer = await showMessage('Delete Old Backup Files',
+    const answer = await showMessage(
+      'Delete Old Backup Files',
       `Delete ${n} backup and export file${n === 1 ? '' : 's'} (${formatFileSize(leftovers.totalBytes)}) from ${leftovers.folder}? Automatic backups and your database are not touched.`,
-      ['Delete', 'Cancel']);
+      ['Delete', 'Cancel']
+    );
     if (answer !== 'Delete') return;
     try {
       await leftoverDownloads.remove();
@@ -71,10 +73,14 @@ export function BackupRestoreDialog() {
     setLeftovers(await leftoverDownloads.list().catch(() => null));
   }
 
-  useEffect(() => exposeGlobal('openBackupRestore', () => {
-    setOpened((n) => n + 1);
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openBackupRestore', () => {
+        setOpened((n) => n + 1);
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+      }),
+    []
+  );
 
   async function run(task: Task, work: () => Promise<void>) {
     if (busy) return;
@@ -103,14 +109,19 @@ export function BackupRestoreDialog() {
   const exportLibrary = () => run('export', () => downloadResult(backup.exportLibrary, 'library export'));
 
   async function chooseRestoreFile() {
-    const answer = await showMessage('Confirm Restore',
-      'Warning: Restoring from backup will replace all current data. This cannot be undone. Continue?', ['Yes', 'No']);
+    const answer = await showMessage('Confirm Restore', 'Warning: Restoring from backup will replace all current data. This cannot be undone. Continue?', [
+      'Yes',
+      'No'
+    ]);
     if (answer === 'Yes') restoreInputRef.current?.click();
   }
 
   async function chooseImportFile() {
-    const answer = await showMessage('Confirm Import',
-      'This will merge the imported library with your current library. Existing models will be updated. Continue?', ['Yes', 'No']);
+    const answer = await showMessage(
+      'Confirm Import',
+      'This will merge the imported library with your current library. Existing models will be updated. Continue?',
+      ['Yes', 'No']
+    );
     if (answer === 'Yes') importInputRef.current?.click();
   }
 
@@ -150,8 +161,7 @@ export function BackupRestoreDialog() {
           return;
         }
         await refreshModelDisplay();
-        await showMessage('Success',
-          `Library imported successfully. ${result.imported ?? 0} new models added, ${result.updated ?? 0} models updated.`);
+        await showMessage('Success', `Library imported successfully. ${result.imported ?? 0} new models added, ${result.updated ?? 0} models updated.`);
       } catch (error) {
         await showMessage('Error', `Failed to import the library: ${errorText(error)}`);
       }
@@ -161,15 +171,26 @@ export function BackupRestoreDialog() {
   const label = (task: Task, idle: string, working: string) => (busy === task ? working : idle);
 
   return (
-    <ModalDialog id="backup-restore-dialog" title="Backup/Restore" dialogRef={dialogRef}
-      footer={<button type="button" id="save-backup-restore" onClick={() => dialogRef.current?.close()}>Close</button>}>
+    <ModalDialog
+      id="backup-restore-dialog"
+      title="Backup/Restore"
+      dialogRef={dialogRef}
+      footer={
+        <button type="button" id="save-backup-restore" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
       <AutoBackup opened={opened} />
       {!!leftovers?.files.length && (
         <div id="leftover-downloads" className="leftover-downloads">
           <p className="setting-description">
-            {leftovers.files.length} backup and export file{leftovers.files.length === 1 ? '' : 's'} from earlier downloads take up {formatFileSize(leftovers.totalBytes)} in the data folder. New ones are deleted an hour after you download them.
+            {leftovers.files.length} backup and export file{leftovers.files.length === 1 ? '' : 's'} from earlier downloads take up{' '}
+            {formatFileSize(leftovers.totalBytes)} in the data folder. New ones are deleted an hour after you download them.
           </p>
-          <button type="button" id="delete-leftover-downloads" onClick={deleteLeftovers}>Delete Them</button>
+          <button type="button" id="delete-leftover-downloads" onClick={deleteLeftovers}>
+            Delete Them
+          </button>
         </div>
       )}
       <div className="backup-restore-columns">

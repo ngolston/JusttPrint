@@ -49,20 +49,38 @@ test('months run back from this month, oldest first', () => {
 test('totals, success rate and prints per month over the period', () => {
   const stats = printStatistics(createDb(), { months: 3, now: NOW });
   assert.deepStrictEqual(stats.totals, { printed: 5, failed: 1, cancelled: 1, successRate: 5 / 6 });
-  assert.deepStrictEqual(stats.byMonth.map((m) => [m.month, m.printed, m.failed, m.cancelled, m.added]), [
-    ['2026-08', 2, 0, 0, 1],
-    ['2026-09', 0, 1, 0, 0],
-    ['2026-10', 3, 0, 1, 2]
-  ]);
+  assert.deepStrictEqual(
+    stats.byMonth.map((m) => [m.month, m.printed, m.failed, m.cancelled, m.added]),
+    [
+      ['2026-08', 2, 0, 0, 1],
+      ['2026-09', 0, 1, 0, 0],
+      ['2026-10', 3, 0, 1, 2]
+    ]
+  );
   assert.strictEqual(stats.from, '2026-08');
   assert.strictEqual(stats.firstPrintMonth, '2024-05');
 });
 
 test('designers merge spelling and case; models and printers rank by prints', () => {
   const stats = printStatistics(createDb(), { months: 3, now: NOW });
-  assert.deepStrictEqual(stats.designers.map((d) => [d.name.toLowerCase(), d.printed, d.models]), [['creativetools', 5, 2]]);
-  assert.deepStrictEqual(stats.models.map((m) => [m.fileName, m.printed]), [['gear.stl', 3], ['benchy.stl', 2]]);
-  assert.deepStrictEqual(stats.printers.map((p) => [p.name, p.printed, p.failed]), [['Mini', 3, 0], ['Voron', 2, 1]]);
+  assert.deepStrictEqual(
+    stats.designers.map((d) => [d.name.toLowerCase(), d.printed, d.models]),
+    [['creativetools', 5, 2]]
+  );
+  assert.deepStrictEqual(
+    stats.models.map((m) => [m.fileName, m.printed]),
+    [
+      ['gear.stl', 3],
+      ['benchy.stl', 2]
+    ]
+  );
+  assert.deepStrictEqual(
+    stats.printers.map((p) => [p.name, p.printed, p.failed]),
+    [
+      ['Mini', 3, 0],
+      ['Voron', 2, 1]
+    ]
+  );
   assert.strictEqual(stats.printers[1].successRate, 2 / 3);
   assert.ok(!('filaments' in stats) && !('materials' in stats));
 });

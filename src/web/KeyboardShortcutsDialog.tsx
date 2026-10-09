@@ -33,7 +33,9 @@ function inFormControl(): boolean {
 
 function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean): boolean {
   switch (action) {
-    case 'exitMultiEdit': host.exitMultiEdit(); return true;
+    case 'exitMultiEdit':
+      host.exitMultiEdit();
+      return true;
     case 'focusSearch': {
       // The top bar's search on the desktop (the sidebar search sits in the closed Filter popover there).
       const input = (document.querySelector('.jp-topbar input') ?? document.getElementById('search-filter-input')) as HTMLInputElement | null;
@@ -41,15 +43,31 @@ function run(action: ShortcutAction, host: ShortcutHost, detailsVisible: boolean
       input?.select();
       return true;
     }
-    case 'showShortcuts': window.openKeyboardShortcuts?.(); return true;
-    case 'next': case 'previous': return host.navigate(action);
-    case 'scan': scanDirectory(); return true;
-    case 'clearFilters': viewEntireLibrary(); return true;
-    case 'roulette': printRoulette(); return true;
-    case 'toggleMultiEdit': host.toggleMultiEdit(detailsVisible); return true;
-    case 'selectAll': host.selectAll(); return true;
+    case 'showShortcuts':
+      window.openKeyboardShortcuts?.();
+      return true;
+    case 'next':
+    case 'previous':
+      return host.navigate(action);
+    case 'scan':
+      scanDirectory();
+      return true;
+    case 'clearFilters':
+      viewEntireLibrary();
+      return true;
+    case 'roulette':
+      printRoulette();
+      return true;
+    case 'toggleMultiEdit':
+      host.toggleMultiEdit(detailsVisible);
+      return true;
+    case 'selectAll':
+      host.selectAll();
+      return true;
     case 'undo':
-      void undoLast().then((label) => { if (label) window.dispatchEvent(new CustomEvent('jp-undone', { detail: label })); });
+      void undoLast().then((label) => {
+        if (label) window.dispatchEvent(new CustomEvent('jp-undone', { detail: label }));
+      });
       return true;
   }
 }
@@ -75,13 +93,25 @@ export function KeyboardShortcuts() {
 export function KeyboardShortcutsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => exposeGlobal('openKeyboardShortcuts', () => {
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openKeyboardShortcuts', () => {
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+      }),
+    []
+  );
 
   return (
-    <ModalDialog id="keyboard-shortcuts-dialog" title="Keyboard Shortcuts" dialogRef={dialogRef}
-      description={<p className="keyboard-shortcuts-intro">Power-user and accessibility shortcuts. Use <kbd>Ctrl</kbd> on Windows/Linux and <kbd>⌘</kbd> on Mac unless noted.</p>}>
+    <ModalDialog
+      id="keyboard-shortcuts-dialog"
+      title="Keyboard Shortcuts"
+      dialogRef={dialogRef}
+      description={
+        <p className="keyboard-shortcuts-intro">
+          Power-user and accessibility shortcuts. Use <kbd>Ctrl</kbd> on Windows/Linux and <kbd>⌘</kbd> on Mac unless noted.
+        </p>
+      }
+    >
       <div className="keyboard-shortcuts-list">
         {SHORTCUT_HELP.map(([action, alternatives]) => (
           <div key={action} className="shortcut-row">
@@ -89,7 +119,12 @@ export function KeyboardShortcutsDialog() {
             {alternatives.map((keys, index) => (
               <Fragment key={keys.join('+')}>
                 {index > 0 && ' or '}
-                {keys.map((key, keyIndex) => <Fragment key={key}>{keyIndex > 0 && '+'}<kbd>{key}</kbd></Fragment>)}
+                {keys.map((key, keyIndex) => (
+                  <Fragment key={key}>
+                    {keyIndex > 0 && '+'}
+                    <kbd>{key}</kbd>
+                  </Fragment>
+                ))}
               </Fragment>
             ))}
           </div>

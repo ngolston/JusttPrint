@@ -2,11 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const {
-  folderNamesFromPath,
-  folderTagsFromPath,
-  libraryContextSnippet
-} = require('../src/core/library-context');
+const { folderNamesFromPath, folderTagsFromPath, libraryContextSnippet } = require('../src/core/library-context');
 
 function test(name, fn) {
   try {

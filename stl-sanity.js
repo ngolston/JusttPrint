@@ -41,14 +41,14 @@ function classifyStlBuffer(buffer) {
   if (bytes.byteLength >= 84) {
     const triangleCount = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(80, true);
     const expectedBinarySize = 84 + triangleCount * 50;
-    const fitsFile = triangleCount > 0
-      && triangleCount <= MAX_STL_TRIANGLES
-      && expectedBinarySize <= bytes.byteLength + 4096
-      && bytes.byteLength - expectedBinarySize <= 4096
-      && bytes.byteLength - expectedBinarySize >= 0;
+    const fitsFile =
+      triangleCount > 0 &&
+      triangleCount <= MAX_STL_TRIANGLES &&
+      expectedBinarySize <= bytes.byteLength + 4096 &&
+      bytes.byteLength - expectedBinarySize <= 4096 &&
+      bytes.byteLength - expectedBinarySize >= 0;
     if (fitsFile) return 'binary';
-    const claimsMoreThanFile = triangleCount > MAX_STL_TRIANGLES
-      || expectedBinarySize > bytes.byteLength + 64;
+    const claimsMoreThanFile = triangleCount > MAX_STL_TRIANGLES || expectedBinarySize > bytes.byteLength + 64;
     if (claimsMoreThanFile && !looksLikeAsciiStl(bytes)) {
       throw new Error('STL header does not match the file size');
     }

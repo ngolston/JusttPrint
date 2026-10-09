@@ -49,7 +49,7 @@ function decodeChituboxPreview(data) {
   const end = offset + size;
   let px = 0;
 
-  for (let i = offset; i + 1 < end && px < total; ) {
+  for (let i = offset; i + 1 < end && px < total;) {
     const dot = bytes[i] | (bytes[i + 1] << 8);
     i += 2;
     let run = 1;

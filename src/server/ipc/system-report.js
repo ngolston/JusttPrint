@@ -19,10 +19,12 @@ ipcMain.handle('get-library-counts', async () => require('../../core/library-cou
 ipcMain.handle('get-recent-activity', async (event, limit) => require('../../core/recent-activity').recentActivity(database.db, limit));
 // Print Queue's Completed list (src/core/recent-activity.js).
 ipcMain.handle('get-recent-prints', async (event, limit, outcome, printerId) =>
-  require('../../core/recent-activity').recentPrints(database.db, limit, outcome || null, printerId ?? null));
+  require('../../core/recent-activity').recentPrints(database.db, limit, outcome || null, printerId ?? null)
+);
 // The Statistics page (src/core/print-stats.js): { months } ending this month, 0 for all time.
 ipcMain.handle('get-print-statistics', async (event, options) =>
-  require('../../core/print-stats').printStatistics(database.db, { months: options && options.months != null ? Number(options.months) : 12 }));
+  require('../../core/print-stats').printStatistics(database.db, { months: options && options.months != null ? Number(options.months) : 12 })
+);
 
 ipcMain.handle('get-stats', async () => {
   try {
@@ -33,29 +35,37 @@ ipcMain.handle('get-stats', async () => {
     // File type breakdown (count + disk usage)
     const stlStats = database.db.prepare("SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as bytes FROM models WHERE LOWER(fileName) LIKE '%.stl'").get();
     const threeMfStats = database.db.prepare("SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as bytes FROM models WHERE LOWER(fileName) LIKE '%.3mf'").get();
-    const otherStats = database.db.prepare("SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as bytes FROM models WHERE LOWER(fileName) NOT LIKE '%.stl' AND LOWER(fileName) NOT LIKE '%.3mf'").get();
+    const otherStats = database.db
+      .prepare(
+        "SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as bytes FROM models WHERE LOWER(fileName) NOT LIKE '%.stl' AND LOWER(fileName) NOT LIKE '%.3mf'"
+      )
+      .get();
     const totalBytesRow = database.db.prepare('SELECT COALESCE(SUM(size), 0) as bytes FROM models').get();
-    
+
     // Archived models (models inside ZIP files)
     const archivedCount = database.db.prepare("SELECT COUNT(*) as count FROM models WHERE filePath LIKE '%::%'").get();
-    
+
     // Models with metadata
     const withDesigner = database.db.prepare("SELECT COUNT(*) as count FROM models WHERE designer IS NOT NULL AND designer != ''").get();
     const withParentModel = database.db.prepare("SELECT COUNT(*) as count FROM models WHERE parentModel IS NOT NULL AND parentModel != ''").get();
     const withLicense = database.db.prepare("SELECT COUNT(*) as count FROM models WHERE license IS NOT NULL AND license != ''").get();
-    const withTags = database.db.prepare("SELECT COUNT(DISTINCT model_id) as count FROM model_tags").get();
-    
+    const withTags = database.db.prepare('SELECT COUNT(DISTINCT model_id) as count FROM model_tags').get();
+
     // Tag statistics
     const totalTags = database.db.prepare('SELECT COUNT(*) as count FROM tags').get();
-    const mostUsedTag = database.db.prepare(`
+    const mostUsedTag = database.db
+      .prepare(
+        `
       SELECT t.name, COUNT(mt.model_id) as count 
       FROM tags t 
       JOIN model_tags mt ON t.id = mt.tag_id 
       GROUP BY t.id, t.name 
       ORDER BY count DESC 
       LIMIT 1
-    `).get();
-    
+    `
+      )
+      .get();
+
     // Calculate percentages
     const calculatePercentage = (count) => {
       if (totalCount === 0) return 0;
@@ -66,7 +76,7 @@ ipcMain.handle('get-stats', async () => {
     const threeMfBytes = threeMfStats ? threeMfStats.bytes : 0;
     const otherBytes = otherStats ? otherStats.bytes : 0;
     const totalBytes = totalBytesRow ? totalBytesRow.bytes : 0;
-    
+
     return {
       totalModels: totalCount,
       totalBytes,
@@ -87,10 +97,12 @@ ipcMain.handle('get-stats', async () => {
       },
       tags: {
         total: totalTags ? totalTags.count : 0,
-        mostUsed: mostUsedTag ? {
-          name: mostUsedTag.name,
-          count: mostUsedTag.count
-        } : null
+        mostUsed: mostUsedTag
+          ? {
+              name: mostUsedTag.name,
+              count: mostUsedTag.count
+            }
+          : null
       }
     };
   } catch (error) {
@@ -105,9 +117,13 @@ async function collectServerGpuInfo() {
   const { promisify } = require('util');
   const execFileAsync = promisify(execFile);
 
-  const glBackend = process.env.JUSTTPRINT_GL_BACKEND
-    || (process.argv.includes('--use-angle=swiftshader') ? 'swiftshader'
-      : (process.argv.some((a) => a.includes('vulkan') || a === '--use-gl=egl') ? 'nvidia' : 'unknown'));
+  const glBackend =
+    process.env.JUSTTPRINT_GL_BACKEND ||
+    (process.argv.includes('--use-angle=swiftshader')
+      ? 'swiftshader'
+      : process.argv.some((a) => a.includes('vulkan') || a === '--use-gl=egl')
+        ? 'nvidia'
+        : 'unknown');
 
   const result = {
     available: false,
@@ -127,10 +143,7 @@ async function collectServerGpuInfo() {
   try {
     const { stdout } = await execFileAsync(
       'nvidia-smi',
-      [
-        '--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu',
-        '--format=csv,noheader,nounits'
-      ],
+      ['--query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu', '--format=csv,noheader,nounits'],
       { timeout: 5000, windowsHide: true }
     );
     const gpus = String(stdout || '')
@@ -157,18 +170,14 @@ async function collectServerGpuInfo() {
   } catch (nvidiaErr) {
     result.nvidia = {
       available: false,
-      message: nvidiaErr && nvidiaErr.code === 'ENOENT'
-        ? 'nvidia-smi not found (no NVIDIA toolkit device mount)'
-        : (nvidiaErr.message || String(nvidiaErr))
+      message: nvidiaErr && nvidiaErr.code === 'ENOENT' ? 'nvidia-smi not found (no NVIDIA toolkit device mount)' : nvidiaErr.message || String(nvidiaErr)
     };
   }
 
   if (result.nvidia?.available && result.nvidiaDriverCapabilities) {
     const caps = `,${result.nvidiaDriverCapabilities},`;
     if (!caps.includes(',graphics,') && !caps.includes(',all,')) {
-      result.warnings.push(
-        "NVIDIA_DRIVER_CAPABILITIES is missing 'graphics' — WebGL cannot use the GPU (need e.g. graphics,compute,utility)."
-      );
+      result.warnings.push("NVIDIA_DRIVER_CAPABILITIES is missing 'graphics' — WebGL cannot use the GPU (need e.g. graphics,compute,utility).");
     }
   }
 
@@ -222,11 +231,11 @@ ipcMain.handle('benchmark-filesystem', async () => {
     const dbPath = getDatabasePath();
     const dbDir = path.dirname(dbPath);
     const testFilePath = path.join(dbDir, 'benchmark-test.tmp');
-    
+
     const iterations = 10;
     const fileSize = 1024 * 1024; // 1MB test file
     const testData = Buffer.alloc(fileSize, 'A');
-    
+
     // Write benchmark
     const writeStart = Date.now();
     for (let i = 0; i < iterations; i++) {
@@ -234,7 +243,7 @@ ipcMain.handle('benchmark-filesystem', async () => {
     }
     const writeTime = Date.now() - writeStart;
     const writeSpeed = (iterations * fileSize) / (writeTime / 1000); // bytes per second
-    
+
     // Read benchmark
     const readStart = Date.now();
     for (let i = 0; i < iterations; i++) {
@@ -242,14 +251,14 @@ ipcMain.handle('benchmark-filesystem', async () => {
     }
     const readTime = Date.now() - readStart;
     const readSpeed = (iterations * fileSize) / (readTime / 1000); // bytes per second
-    
+
     // Cleanup
     try {
       await fs.promises.unlink(testFilePath);
     } catch (cleanupError) {
       console.warn('Failed to cleanup benchmark test file:', cleanupError);
     }
-    
+
     return {
       success: true,
       write: {
@@ -276,9 +285,9 @@ ipcMain.handle('benchmark-database', async () => {
     if (!database.db) {
       return { success: false, error: 'Database not initialized' };
     }
-    
+
     const iterations = 100;
-    
+
     // Write benchmark - insert test records
     const insertStmt = database.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
     const writeStart = Date.now();
@@ -290,7 +299,7 @@ ipcMain.handle('benchmark-database', async () => {
     transaction();
     const writeTime = Date.now() - writeStart;
     const writeOpsPerSec = (iterations / (writeTime / 1000)).toFixed(2);
-    
+
     // Read benchmark - select test records
     const selectStmt = database.db.prepare('SELECT value FROM settings WHERE key = ?');
     const readStart = Date.now();
@@ -299,11 +308,11 @@ ipcMain.handle('benchmark-database', async () => {
     }
     const readTime = Date.now() - readStart;
     const readOpsPerSec = (iterations / (readTime / 1000)).toFixed(2);
-    
+
     // Cleanup - delete test records
     const deleteStmt = database.db.prepare('DELETE FROM settings WHERE key LIKE ?');
     deleteStmt.run('benchmark_test_%');
-    
+
     return {
       success: true,
       write: {

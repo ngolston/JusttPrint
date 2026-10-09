@@ -145,9 +145,7 @@ function parseIndexedGeometry(buffer) {
   if (buffer.byteLength < MIN_HEADER) throw new Error('Geometry file too short');
   const view = new DataView(buffer);
   const declaredHeader = view.getUint32(4, true);
-  const dataOffset = Number.isFinite(declaredHeader) && declaredHeader >= MIN_HEADER && declaredHeader <= buffer.byteLength
-    ? declaredHeader
-    : MIN_HEADER;
+  const dataOffset = Number.isFinite(declaredHeader) && declaredHeader >= MIN_HEADER && declaredHeader <= buffer.byteLength ? declaredHeader : MIN_HEADER;
   const nIndices = view.getUint32(8, true);
   const nCoords = view.getUint32(12, true);
   if (!nIndices || !nCoords || nCoords % 3 !== 0) {
@@ -240,8 +238,7 @@ function parseLegacySoup(buffer) {
       const x = view.getFloat32(off, true);
       const y = view.getFloat32(off + 4, true);
       const z = view.getFloat32(off + 8, true);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)
-        || Math.abs(x) > 10000 || Math.abs(y) > 10000 || Math.abs(z) > 10000) {
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) || Math.abs(x) > 10000 || Math.abs(y) > 10000 || Math.abs(z) > 10000) {
         valid = false;
         break;
       }

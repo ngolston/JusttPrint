@@ -56,7 +56,10 @@ test('a watched tree reports changes, follows new folders and skips hidden and e
   // A folder created with a file in it: the folder itself is reported and watched.
   fs.mkdirSync(path.join(root, 'Designer B', 'Cube'), { recursive: true });
   assert.ok(await until(() => watcher.watchers.has(path.join(root, 'Designer B', 'Cube'))), 'new folders are watched');
-  assert.ok(changes.some(([folder]) => folder === path.join(root, 'Designer B')), 'a new folder is reported');
+  assert.ok(
+    changes.some(([folder]) => folder === path.join(root, 'Designer B')),
+    'a new folder is reported'
+  );
   changes.length = 0;
   fs.writeFileSync(path.join(root, 'Designer B', 'Cube', 'cube.stl'), 'solid');
   assert.ok(await until(() => changes.some(([folder]) => folder === path.join(root, 'Designer B', 'Cube'))), 'files in a new folder are seen');
@@ -70,7 +73,10 @@ test('a watched tree reports changes, follows new folders and skips hidden and e
 
   fs.rmSync(path.join(root, 'Designer B'), { recursive: true });
   assert.ok(await until(() => !watcher.watchers.has(path.join(root, 'Designer B', 'Cube'))), 'removed folders are no longer watched');
-  assert.ok(changes.some(([folder]) => folder === root), 'the parent of a removed folder is reported');
+  assert.ok(
+    changes.some(([folder]) => folder === root),
+    'the parent of a removed folder is reported'
+  );
   watcher.close();
   assert.strictEqual(watcher.folderCount, 0);
 });
@@ -85,8 +91,14 @@ test('changes are batched, collapsed and wait for files that are still being wri
   const scans = [];
   let busy = false;
   const queue = new ChangeQueue({
-    scan: async (root, folders) => { if (busy) return false; scans.push([root, folders]); return true; },
-    quietMs: 150, maxWaitMs: 2000, settleMs: 400
+    scan: async (root, folders) => {
+      if (busy) return false;
+      scans.push([root, folders]);
+      return true;
+    },
+    quietMs: 150,
+    maxWaitMs: 2000,
+    settleMs: 400
   });
   const file = path.join(tmp, 'copying.stl');
   fs.writeFileSync(file, 'part');

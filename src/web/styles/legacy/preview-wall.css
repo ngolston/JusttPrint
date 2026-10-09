@@ -82,7 +82,10 @@
   overflow: hidden;
   box-sizing: border-box;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, z-index 0s;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    z-index 0s;
 }
 
 .file-item.file-item-preview.preview-tile:hover {
@@ -215,7 +218,10 @@
   gap: 6px;
   min-width: 0;
 }
-.file-grid.preview-wall .preview-tile-name-row .preview-tile-name { flex: 1; min-width: 0; }
+.file-grid.preview-wall .preview-tile-name-row .preview-tile-name {
+  flex: 1;
+  min-width: 0;
+}
 
 /* Archive: a small label in front of the name (beats .file-grid .archive-status { position: absolute }). */
 .file-grid.preview-wall .preview-tile-archive {
@@ -274,7 +280,7 @@
 }
 
 .preview-tile-check::after {
-  content: "";
+  content: '';
   width: 5px;
   height: 9px;
   border: solid var(--jp-border);
@@ -302,7 +308,10 @@
   background: linear-gradient(to top, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.4) 65%, transparent 100%);
   z-index: 13;
   opacity: 0;
-  transition: opacity 0.18s ease, min-height 0.18s ease, padding 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    min-height 0.18s ease,
+    padding 0.18s ease;
   pointer-events: none;
 }
 

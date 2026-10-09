@@ -18,7 +18,9 @@ function libraryCounts(db) {
   }
   try {
     counts.printers = db.prepare('SELECT COUNT(*) AS n FROM printers').get().n;
-  } catch (_) { /* no printers table yet */ }
+  } catch (_) {
+    /* no printers table yet */
+  }
   return counts;
 }
 

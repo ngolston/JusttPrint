@@ -12,8 +12,7 @@ declare global {
 }
 
 /** Stored images only: data URLs (the '3d.png' placeholder is not an image of the model). */
-const usable = (list: string[] | null | undefined) =>
-  (list || []).filter((t) => typeof t === 'string' && t !== '3d.png' && t.startsWith('data:image'));
+const usable = (list: string[] | null | undefined) => (list || []).filter((t) => typeof t === 'string' && t !== '3d.png' && t.startsWith('data:image'));
 
 const errorText = (error: unknown) => String((error as Error)?.message || error);
 
@@ -48,7 +47,13 @@ export function ManageThumbnailsDialog() {
   }
 
   useEffect(() => exposeGlobal('openManageThumbnails', open), []);
-  useEffect(() => onServerEvent('manage-thumbnails-request', (path: string) => { if (path) open(path); }), []);
+  useEffect(
+    () =>
+      onServerEvent('manage-thumbnails-request', (path: string) => {
+        if (path) open(path);
+      }),
+    []
+  );
 
   async function reload() {
     if (filePath) setImages(usable(await thumbnailApi.list(filePath)));
@@ -93,7 +98,13 @@ export function ManageThumbnailsDialog() {
 
   return (
     <dialog id="manage-thumbnails-dialog" className="modal" ref={dialogRef} onClose={onClose}>
-      <form method="dialog" onSubmit={(event) => { event.preventDefault(); dialogRef.current?.close(); }}>
+      <form
+        method="dialog"
+        onSubmit={(event) => {
+          event.preventDefault();
+          dialogRef.current?.close();
+        }}
+      >
         <h3>Manage Thumbnails</h3>
         <div className="form-group">
           <p style={{ margin: '0 0 16px 0', color: '#aaa', fontSize: '0.9rem' }}>
@@ -101,16 +112,40 @@ export function ManageThumbnailsDialog() {
           </p>
           <div id="thumbnails-grid" className="thumbnails-grid">
             {images.map((src, index) => (
-              <div key={`${index}:${src.length}:${src.slice(-24)}`} className={`thumbnail-item${index === 0 ? ' active' : ''}`} data-index={index}
-                onClick={(event) => { if (!(event.target as Element).closest('.thumbnail-item-button')) makeActive(index); }}>
+              <div
+                key={`${index}:${src.length}:${src.slice(-24)}`}
+                className={`thumbnail-item${index === 0 ? ' active' : ''}`}
+                data-index={index}
+                onClick={(event) => {
+                  if (!(event.target as Element).closest('.thumbnail-item-button')) makeActive(index);
+                }}
+              >
                 <img src={src} alt={`Thumbnail ${index + 1}`} />
                 <div className="thumbnail-item-label">{index === 0 ? 'Active' : `Image ${index + 1}`}</div>
                 <div className="thumbnail-item-overlay">
-                  <button type="button" className="thumbnail-item-button set-active" disabled={index === 0 || busy}
-                    onClick={(event) => { event.stopPropagation(); makeActive(index); }}>{index === 0 ? 'Active' : 'Set as Active'}</button>
+                  <button
+                    type="button"
+                    className="thumbnail-item-button set-active"
+                    disabled={index === 0 || busy}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      makeActive(index);
+                    }}
+                  >
+                    {index === 0 ? 'Active' : 'Set as Active'}
+                  </button>
                   {index !== 0 && images.length > 1 && (
-                    <button type="button" className="thumbnail-item-button delete" disabled={busy}
-                      onClick={(event) => { event.stopPropagation(); remove(index); }}>Delete</button>
+                    <button
+                      type="button"
+                      className="thumbnail-item-button delete"
+                      disabled={busy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        remove(index);
+                      }}
+                    >
+                      Delete
+                    </button>
                   )}
                 </div>
               </div>
@@ -118,7 +153,9 @@ export function ManageThumbnailsDialog() {
           </div>
         </div>
         <div className="dialog-buttons">
-          <button type="button" onClick={() => dialogRef.current?.close()}>Close</button>
+          <button type="button" onClick={() => dialogRef.current?.close()}>
+            Close
+          </button>
         </div>
       </form>
     </dialog>

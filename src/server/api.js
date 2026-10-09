@@ -57,7 +57,10 @@ function binaryBody(result) {
 }
 
 function sendError(res, status, message) {
-  res.status(status).type('application/json').send(JSON.stringify({ error: message }));
+  res
+    .status(status)
+    .type('application/json')
+    .send(JSON.stringify({ error: message }));
 }
 
 async function runAction(req, res, keepaliveMs) {
@@ -127,9 +130,7 @@ async function runAction(req, res, keepaliveMs) {
 
   const binary = outcome.error ? null : binaryBody(outcome.result);
   if (streaming) {
-    const late = binary
-      ? { result: { __arrayBuffer: true, data: binary.toString('base64'), byteLength: binary.length } }
-      : outcome;
+    const late = binary ? { result: { __arrayBuffer: true, data: binary.toString('base64'), byteLength: binary.length } } : outcome;
     res.end(jsonStringifyForWs(late));
   } else if (outcome.error) {
     sendError(res, 500, outcome.error);

@@ -93,7 +93,13 @@ function el(tag: string, children: (MarkdownNode | string)[] = [], attrs: { styl
     children: elements,
     style: attrs.style || {},
     getAttribute: (name) => (name === 'href' ? attrs.href || null : null),
-    querySelector: (sel) => elements.find((c) => sel.split(',').map((s) => s.trim().toUpperCase()).includes(String(c.tagName))) || null
+    querySelector: (sel) =>
+      elements.find((c) =>
+        sel
+          .split(',')
+          .map((s) => s.trim().toUpperCase())
+          .includes(String(c.tagName))
+      ) || null
   };
 }
 
@@ -108,9 +114,9 @@ describe('htmlToMarkdown', () => {
   it('separates blocks and keeps headings, lists and links', () => {
     expect(htmlToMarkdown(null)).toBe('');
     expect(htmlToMarkdown(el('div', [el('p', ['Paragraph 1']), el('p', ['Paragraph 2'])]))).toBe('Paragraph 1\n\nParagraph 2');
-    expect(htmlToMarkdown(el('div', [el('h2', ['Heading']), el('ul', [el('li', ['Item 1']), el('li', ['Item 2'])])])))
-      .toBe('## Heading\n\n- Item 1\n- Item 2');
-    expect(htmlToMarkdown(el('div', [el('a', ['site'], { href: 'https://example.com' }), el('a', ['bad'], { href: 'javascript:x' })])))
-      .toBe('[site](https://example.com/)bad');
+    expect(htmlToMarkdown(el('div', [el('h2', ['Heading']), el('ul', [el('li', ['Item 1']), el('li', ['Item 2'])])]))).toBe('## Heading\n\n- Item 1\n- Item 2');
+    expect(htmlToMarkdown(el('div', [el('a', ['site'], { href: 'https://example.com' }), el('a', ['bad'], { href: 'javascript:x' })]))).toBe(
+      '[site](https://example.com/)bad'
+    );
   });
 });

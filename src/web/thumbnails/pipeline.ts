@@ -11,7 +11,11 @@ import { corruptedPlaceholder, extensionOf, hasEmbeddedPreviews, isImageOnly, is
 export const renderSettings = { contextReuse: 100 };
 
 const IMAGE_ACTIONS: Record<string, string> = {
-  '3mf': 'get3MFImages', lys: 'getLYSImages', f3d: 'getF3DImages', chitubox: 'getChituboxImages', voxl: 'getVoxlImages'
+  '3mf': 'get3MFImages',
+  lys: 'getLYSImages',
+  f3d: 'getF3DImages',
+  chitubox: 'getChituboxImages',
+  voxl: 'getVoxlImages'
 };
 
 /** The preview images stored inside a file (data URLs), best first. */
@@ -45,7 +49,9 @@ export async function saveEmbeddedImages(filePath: string, images: string[]) {
   const result = await callAction<{ success?: boolean; thumbnailString?: string } | null>('add-multiple-thumbnails', filePath, images);
   if (result?.success) {
     updateGridModel(filePath, {
-      thumbnail: result.thumbnailString || images.join('::'), hasThumbnail: true, hasMultipleThumbnails: images.length > 1
+      thumbnail: result.thumbnailString || images.join('::'),
+      hasThumbnail: true,
+      hasMultipleThumbnails: images.length > 1
     });
   }
   return result;

@@ -18,10 +18,10 @@ export interface Route {
 export const DEFAULT_PAGE: PageId = 'home';
 
 export function parseRoute(hash: string): Route {
-  const [page = '', section = ''] = String(hash || '').replace(/^#\/?/, '').split('/');
-  return (PAGES as readonly string[]).includes(page)
-    ? { page: page as PageId, section: decodeURIComponent(section) }
-    : { page: DEFAULT_PAGE, section: '' };
+  const [page = '', section = ''] = String(hash || '')
+    .replace(/^#\/?/, '')
+    .split('/');
+  return (PAGES as readonly string[]).includes(page) ? { page: page as PageId, section: decodeURIComponent(section) } : { page: DEFAULT_PAGE, section: '' };
 }
 
 export function formatRoute(page: PageId, section = ''): string {

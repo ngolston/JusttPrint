@@ -12,7 +12,11 @@ const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 
 describe('buttons', () => {
   it('draws a variant and size, with icons hidden from screen readers', () => {
-    const out = html(<Button variant="primary" size="lg" icon={Printer}>Open in Slicer</Button>);
+    const out = html(
+      <Button variant="primary" size="lg" icon={Printer}>
+        Open in Slicer
+      </Button>
+    );
     expect(out).toContain('class="jp-btn jp-btn--primary jp-btn--lg"');
     expect(out).toContain('type="button"');
     expect(out).toContain('aria-hidden="true"');
@@ -54,7 +58,11 @@ describe('status', () => {
 
 describe('cards and progress', () => {
   it('labels a panel by its title and shows its action', () => {
-    const out = html(<Panel title="Recent Activity" labelledBy="act" action={{ label: 'View All', onClick: () => {} }}>x</Panel>);
+    const out = html(
+      <Panel title="Recent Activity" labelledBy="act" action={{ label: 'View All', onClick: () => {} }}>
+        x
+      </Panel>
+    );
     expect(out).toContain('aria-labelledby="act"');
     expect(out).toContain('id="act"');
     expect(out).toContain('View All');
@@ -88,7 +96,17 @@ describe('keyboard', () => {
   });
 
   it('marks only the selected tab as focusable', () => {
-    const out = html(<Tabs label="State" value="b" onChange={() => {}} items={[{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }]} />);
+    const out = html(
+      <Tabs
+        label="State"
+        value="b"
+        onChange={() => {}}
+        items={[
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' }
+        ]}
+      />
+    );
     expect(out).toContain('role="tablist"');
     expect(out.match(/tabindex="0"/g)).toHaveLength(1);
     expect(out).toContain('aria-selected="true"');
