@@ -35,6 +35,7 @@ demos/tiktok-work/
 
 # End-to-end test working folder
 tests/e2e/.work/
+tests/perf/.work/
 
 # Local databases from before the rename
 printventory.db

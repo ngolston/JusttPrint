@@ -37,6 +37,7 @@ export default [
       'guide/**',
       'assets/**',
       'tests/e2e/.work/**',
+      'tests/perf/.work/**',
       'tests/fixtures/**',
       'test-results/**',
       'playwright-report/**',
@@ -59,7 +60,7 @@ export default [
   {
     // Browser code in Node files: shared files, and functions run in a page (Playwright's and
     // Puppeteer's page.evaluate in the end-to-end tests, the thumbnail worker, the icon builder).
-    files: [...SHARED, 'tests/e2e/**/*.js', 'src/server/thumbnail-worker.js', 'scripts/build-icons.js'],
+    files: [...SHARED, 'tests/e2e/**/*.js', 'tests/perf/**/*.js', 'src/server/thumbnail-worker.js', 'scripts/build-icons.js'],
     languageOptions: { globals: { ...globals.browser, fflate: 'readonly' } }
   },
   {
