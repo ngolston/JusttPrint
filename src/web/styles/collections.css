@@ -119,9 +119,17 @@
 }
 .jp-share__check {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--jp-space-2);
   color: var(--jp-text);
+}
+.jp-share__check input {
+  margin-top: 3px;
+}
+.jp-share__note {
+  margin: 0;
+  color: var(--jp-text-2);
+  font-size: 13px;
 }
 .jp-share__expiry {
   display: flex;

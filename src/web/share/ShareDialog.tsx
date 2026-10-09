@@ -76,6 +76,7 @@ export function ShareDialog() {
   const [name, setName] = useState('');
   const [links, setLinks] = useState<ShareLink[] | null>(null);
   const [allowDownload, setAllowDownload] = useState(true);
+  const [allowPreview, setAllowPreview] = useState(false);
   const [expires, setExpires] = useState(0);
   const [created, setCreated] = useState<ShareLink | null>(null);
   const [status, setStatus] = useState('');
@@ -117,7 +118,7 @@ export function ShareDialog() {
     setBusy(true);
     setStatus('');
     try {
-      const link = await shareLinks.create(target, { allowDownload, expiresInDays: expires });
+      const link = await shareLinks.create(target, { allowDownload, allowPreview: allowDownload || allowPreview, expiresInDays: expires });
       setCreated(link);
       await reload(target);
     } catch (error) {
@@ -181,7 +182,7 @@ export function ShareDialog() {
               )}
             </div>
             <p className="jp-meta">
-              {created.allowDownload ? 'Downloads allowed' : 'View only'} · {expiryLabel(created)}
+              {created.allowDownload ? 'Downloads allowed' : created.allowPreview ? 'View only, with a 3D preview' : 'View only'} · {expiryLabel(created)}
             </p>
           </div>
         </div>
@@ -191,6 +192,17 @@ export function ShareDialog() {
             <input type="checkbox" id="jp-share-download" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} />
             <span>Allow downloading the files</span>
           </label>
+          {allowDownload ? (
+            <p className="jp-share__note">Visitors can also turn STL and 3MF models around in 3D.</p>
+          ) : (
+            <>
+              <label className="jp-share__check">
+                <input type="checkbox" id="jp-share-preview" checked={allowPreview} onChange={(event) => setAllowPreview(event.target.checked)} />
+                <span>Show STL and 3MF models in 3D</span>
+              </label>
+              <p className="jp-share__note">The model's shape reaches the visitor's browser, so a determined visitor could save it.</p>
+            </>
+          )}
           <label className="jp-share__expiry">
             <span className="jp-label">Link expires</span>
             <select id="jp-share-expires" className="jp-input" value={expires} onChange={(event) => setExpires(Number(event.target.value))}>

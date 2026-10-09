@@ -7,16 +7,25 @@
  *   GET /s/:token               the page: the model, or the collection's models
  *   GET /s/:token/thumb/:id     a shared model's thumbnail
  *   GET /s/:token/file/:id      download a shared model (only when the link allows downloads)
+ *   GET /s/:token/mesh/:id      a shared STL or 3MF for the 3D view (links with a 3D preview)
+ *   GET /share-viewer/*.js      the 3D view's script (src/web/share/viewer.ts) and three.js
  *
  * Shown: names, thumbnails, designer, license, tags, source link (http/https only) and size.
  * Never shown: notes, file paths, print history, other models. Unknown, revoked and expired
- * tokens all get the same "not available" page. The page has no scripts.
+ * tokens all get the same "not available" page. The page has no scripts, except the 3D view's
+ * on links with a 3D preview.
  */
 
 const database = require('../core/database');
 const { getThumbnailImagePayload, readThumbnailColumn } = require('../core/thumbnails');
 const { resolveShareLink, recordShareView } = require('../core/share-links');
+const path = require('path');
 const { sendModelFile } = require('./model-file');
+const { jsonStringifyForWs } = require('./ws-json');
+
+/** The built viewer (vite.config.mjs: share-viewer.js, and the three.js chunk it imports). */
+const VIEWER_DIR = path.join(__dirname, '..', '..', 'web-build');
+const VIEWER_FILES = new Set(['share-viewer.js', 'three.js']);
 
 function escapeHtml(text) {
   return String(text == null ? '' : text).replace(
@@ -82,7 +91,16 @@ const STYLE = `
   .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: rgba(8, 185, 241, 0.12); color: var(--muted); }
   .actions { margin-top: auto; padding-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
   a { color: var(--accent); }
-  .btn { display: inline-block; padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14px; text-decoration: none; }
+  .btn { display: inline-block; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; font-size: 14px; line-height: 1.5; text-decoration: none; cursor: pointer; }
+  .btn-quiet { background: var(--card-2); color: var(--text); border: 1px solid var(--border); }
+  dialog.viewer { width: min(960px, calc(100vw - 32px)); height: min(720px, calc(100vh - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); overflow: hidden; }
+  dialog.viewer::backdrop { background: rgba(0, 0, 0, 0.7); }
+  .viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .viewer-bar strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .viewer-stage { position: relative; height: calc(100% - 53px); }
+  .viewer-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .viewer-status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; pointer-events: none; }
+  .viewer-status[hidden] { display: none; }
   .single { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px; align-items: start; }
   .single .thumb { border-radius: 12px; border: 1px solid var(--border); }
   .single dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; }
@@ -96,7 +114,18 @@ const STYLE = `
 const PLACEHOLDER =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
 
-function pageHtml(title, body) {
+/** 'stl' or '3mf' when a shared model can be shown in 3D (also inside a ZIP file), else null. */
+function meshKind(model) {
+  const name = String(model.filePath || '')
+    .split('::')
+    .pop()
+    .toLowerCase();
+  return name.endsWith('.stl') ? 'stl' : name.endsWith('.3mf') ? '3mf' : null;
+}
+
+const hasPreview = (share) => share.allowPreview && share.models.some((model) => meshKind(model));
+
+function pageHtml(title, body, { viewer = false } = {}) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -106,6 +135,7 @@ function pageHtml(title, body) {
 <title>${escapeHtml(title)} · JusttPrint</title>
 <link rel="icon" href="/assets/favicon.ico">
 <style>${STYLE}</style>
+${viewer ? '<script type="module" src="/share-viewer/share-viewer.js"></script>' : ''}
 </head>
 <body><div class="wrap">
 <header class="top"><img src="/assets/logo.png" alt=""><span>Shared from a JusttPrint library</span></header>
@@ -120,6 +150,13 @@ function thumbHtml(share, model) {
 
 function downloadHtml(share, model) {
   return share.allowDownload ? `<a class="btn" href="/s/${share.token}/file/${model.id}" download>Download</a>` : '';
+}
+
+function previewHtml(share, model) {
+  const kind = share.allowPreview && meshKind(model);
+  return kind
+    ? `<button type="button" class="btn btn-quiet view3d" data-mesh="/s/${share.token}/mesh/${model.id}" data-kind="${kind}" data-name="${escapeHtml(displayName(model.fileName))}">3D view</button>`
+    : '';
 }
 
 function sourceHtml(model) {
@@ -139,7 +176,7 @@ function cardHtml(share, model) {
     ${model.designer ? `<div class="row">By ${escapeHtml(model.designer)}</div>` : ''}
     ${model.license ? `<div class="row">${escapeHtml(model.license)}</div>` : ''}
     ${tagsHtml(model)}
-    <div class="actions">${downloadHtml(share, model)}${sourceHtml(model)}</div>
+    <div class="actions">${previewHtml(share, model)}${downloadHtml(share, model)}${sourceHtml(model)}</div>
   </div>
 </article>`;
 }
@@ -168,9 +205,10 @@ function sharePageHtml(share) {
     <p class="meta">A 3D model${share.allowDownload ? '' : ' (view only)'}${expiryText(share)}</p>
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
     ${tagsHtml(model)}
-    <div class="actions">${downloadHtml(share, model)}${sourceHtml(model)}</div>
+    <div class="actions">${previewHtml(share, model)}${downloadHtml(share, model)}${sourceHtml(model)}</div>
   </div>
-</div>`
+</div>`,
+      { viewer: hasPreview(share) }
     );
   }
   const n = share.models.length;
@@ -180,7 +218,8 @@ function sharePageHtml(share) {
 <h1>${escapeHtml(share.title)}</h1>
 ${share.description ? `<p class="lead">${escapeHtml(share.description)}</p>` : ''}
 <p class="meta">A collection of ${n} ${n === 1 ? 'model' : 'models'}${share.allowDownload ? '' : ' (view only)'}${expiryText(share)}</p>
-${n ? `<div class="grid">${share.models.map((m) => cardHtml(share, m)).join('\n')}</div>` : '<p class="empty">This collection is empty.</p>'}`
+${n ? `<div class="grid">${share.models.map((m) => cardHtml(share, m)).join('\n')}</div>` : '<p class="empty">This collection is empty.</p>'}`,
+    { viewer: hasPreview(share) }
   );
 }
 
@@ -215,6 +254,18 @@ function withThumbFlags(share) {
   return share;
 }
 
+// 3MF files for share pages are parsed one at a time: visitors cannot fill the server's memory.
+const MESH_QUEUE_MAX = 4;
+const meshQueue = [];
+function queueMesh(task) {
+  const previous = meshQueue[meshQueue.length - 1] || Promise.resolve();
+  const run = previous.catch(() => {}).then(task);
+  meshQueue.push(run);
+  const done = () => meshQueue.splice(meshQueue.indexOf(run), 1);
+  run.then(done, done);
+  return run;
+}
+
 function registerSharePages(expressApp) {
   expressApp.get('/s/:token', (req, res) => {
     noStore(res);
@@ -237,6 +288,47 @@ function registerSharePages(expressApp) {
     res.setHeader('Cache-Control', 'private, max-age=300');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.type(payload.mimeType).send(Buffer.from(payload.base64, 'base64'));
+  });
+
+  expressApp.get('/share-viewer/:file', (req, res) => {
+    if (!VIEWER_FILES.has(req.params.file)) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('application/javascript').sendFile(path.join(VIEWER_DIR, req.params.file), (error) => {
+      if (error && !res.headersSent) res.status(404).end();
+    });
+  });
+
+  expressApp.get('/s/:token/mesh/:id', (req, res) => {
+    noStore(res);
+    const { share, model } = sharedModel(req);
+    const kind = model && meshKind(model);
+    if (!share || !model || !share.allowPreview || !kind) {
+      res.status(404).type('text/plain').send('Not available');
+      return;
+    }
+    if (kind === 'stl') {
+      sendModelFile(res, model.filePath, { inline: true }).catch((error) => {
+        console.error('[Share] 3D view failed:', error.message);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Could not read the file');
+      });
+      return;
+    }
+    if (meshQueue.length >= MESH_QUEUE_MAX) {
+      res.status(503).type('text/plain').send('Busy, try again in a moment');
+      return;
+    }
+    queueMesh(() => require('./ipc/previews').parse3mfPreviewHandler(null, model.filePath, `share-${share.token}-${model.id}`, { shared: true }))
+      .then((json) => {
+        if (!json) throw new Error('Could not read the model');
+        res.type('application/json').send(jsonStringifyForWs(json));
+      })
+      .catch((error) => {
+        console.error('[Share] 3D view failed:', error.message);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Could not show this model in 3D');
+      });
   });
 
   expressApp.get('/s/:token/file/:id', (req, res) => {

@@ -505,8 +505,12 @@ const readModelFileHandler = async (event, filePath) => {
 
 ipcMain.handle('read-model-file', readModelFileHandler);
 
-// Parse 3MF preview handler
-const parse3mfPreviewHandler = async (event, filePath, requestId) => {
+/**
+ * A 3MF as three.js ObjectLoader JSON for the 3D preview (parsed in a worker, cached).
+ * `options.shared`: for a share page (share-pages.js): it leaves the library's own previews
+ * running and sends no status events.
+ */
+const parse3mfPreviewHandler = async (event, filePath, requestId, options = {}) => {
   // Validate arguments - ensure filePath is a string, not an array
   if (Array.isArray(filePath)) {
     console.error('parse-3mf-preview: filePath is an array, extracting first element');
@@ -545,7 +549,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     throw new Error(`3MF preview skipped: file is too large (${Math.round(fileStat.size / 1024 / 1024)}MB > ${PREVIEW_3MF_MAX_FILE_SIZE_MB}MB)`);
   }
 
-  cancelAllPreview3mfWorkers();
+  if (!options.shared) cancelAllPreview3mfWorkers();
 
   // Bump preview cache version when simplification/placement logic changes
   const cacheKey = fileStat ? `v8|${filePath}|${fileStat.size}|${fileStat.mtimeMs}` : null;
@@ -623,7 +627,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     const onMessage = async (message) => {
       const { ok, json, error, type, message: statusMessage } = message || {};
       if (type === 'status') {
-        events.toCaller(event, '3mf-preview-status', requestId, statusMessage);
+        if (!options.shared) events.toCaller(event, '3mf-preview-status', requestId, statusMessage);
         return;
       }
 
@@ -677,7 +681,9 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
   });
 };
 
-ipcMain.handle('parse-3mf-preview', parse3mfPreviewHandler);
+ipcMain.handle('parse-3mf-preview', (event, filePath, requestId) => parse3mfPreviewHandler(event, filePath, requestId));
+
+module.exports = { parse3mfPreviewHandler };
 
 ipcMain.handle('cancel-3mf-preview', async (event, requestId) => {
   const entry = preview3mfWorkers.get(requestId);

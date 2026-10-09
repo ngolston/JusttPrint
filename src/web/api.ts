@@ -875,6 +875,8 @@ export interface ShareLink {
   targetId: number;
   targetName: string | null;
   allowDownload: boolean;
+  /** A 3D view on the page: always with downloads, optional on view-only links. */
+  allowPreview: boolean;
   createdBy: string | null;
   createdAt: string;
   expiresAt: string | null;
@@ -893,7 +895,7 @@ export interface ShareTarget {
 
 /** Read-only share links (src/core/share-links.js); the page is /s/<token>. */
 export const shareLinks = {
-  create: (target: ShareTarget, options: { allowDownload: boolean; expiresInDays: number }) =>
+  create: (target: ShareTarget, options: { allowDownload: boolean; allowPreview?: boolean; expiresInDays: number }) =>
     callAction<ShareLink>('create-share-link', { ...target, ...options }),
   list: (target?: ShareTarget) => callAction<ShareLink[]>('get-share-links', target ?? null),
   revoke: (token: string) => callAction<unknown>('revoke-share-link', token),

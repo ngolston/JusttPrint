@@ -4536,7 +4536,10 @@ async function accountChecks(base, wsUrl, admin) {
   check('the shared page opens without logging in', publicPage.status === 200 && publicHtml.includes('E2E Gifts') && publicHtml.includes('Uploaded Cube'));
   check(
     'the shared page escapes text and shows no paths',
-    publicHtml.includes('&lt;b&gt;friends&lt;/b&gt;') && !publicHtml.includes(uploadLibrary) && !/<script/i.test(publicHtml)
+    publicHtml.includes('&lt;b&gt;friends&lt;/b&gt;') &&
+      !publicHtml.includes(uploadLibrary) &&
+      (publicHtml.match(/<script/gi) || []).length === 1 &&
+      publicHtml.includes('<script type="module" src="/share-viewer/share-viewer.js"></script>')
   );
   check(
     'the shared page is not indexed or cached',
@@ -4552,12 +4555,54 @@ async function accountChecks(base, wsUrl, admin) {
       (await fetch(`${base}/s/${link.token}/file/${otherId}`)).status === 404 &&
       (await fetch(`${base}/s/${link.token}/thumb/${otherId}`)).status === 404
   );
+  // The 3D view (src/web/share/viewer.ts): on links with downloads, and on view-only links that allow it.
+  check('a link with downloads offers a 3D view', publicHtml.includes(`data-mesh="/s/${link.token}/mesh/${sharedId}"`));
+  const sharedMesh = await fetch(`${base}/s/${link.token}/mesh/${sharedId}`);
+  check(
+    'the 3D view gets the STL without a login',
+    sharedMesh.status === 200 &&
+      (await sharedMesh.arrayBuffer()).byteLength === cubeBytes.length &&
+      /^inline/.test(sharedMesh.headers.get('content-disposition') || '')
+  );
+  const viewerScript = await fetch(`${base}/share-viewer/share-viewer.js`);
+  check(
+    "the 3D view's script loads without a login, and nothing else of the app",
+    viewerScript.status === 200 &&
+      /javascript/.test(viewerScript.headers.get('content-type') || '') &&
+      (await fetch(`${base}/share-viewer/three.js`)).status === 200 &&
+      (await fetch(`${base}/share-viewer/app.js`)).status === 404
+  );
   const viewOnly = (await invoke(base, editor, 'create-share-link', [{ kind: 'model', filePath: uploadedPath, allowDownload: false }])).result || {};
+  const viewOnlyHtml = await (await fetch(`${base}/s/${viewOnly.token}`)).text();
   check(
     'a view-only link offers no downloads',
-    !(await (await fetch(`${base}/s/${viewOnly.token}`)).text()).includes('/file/') &&
-      (await fetch(`${base}/s/${viewOnly.token}/file/${viewOnly.targetId}`)).status === 404
+    !viewOnlyHtml.includes('/file/') && (await fetch(`${base}/s/${viewOnly.token}/file/${viewOnly.targetId}`)).status === 404
   );
+  check(
+    'a view-only link has no 3D view unless asked for',
+    !viewOnlyHtml.includes('view3d') && !/<script/i.test(viewOnlyHtml) && (await fetch(`${base}/s/${viewOnly.token}/mesh/${viewOnly.targetId}`)).status === 404
+  );
+  // A 3MF of its own (the library was emptied before these checks).
+  const box = path.join(folder, 'Shared Box.3mf');
+  await uploadAs(base, editor, folder, 'Shared Box.3mf', fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf')));
+  await invoke(base, editor, 'add-uploaded-files', [folder, [box]]);
+  const boxModel = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => m.filePath === box) || {}).id;
+  const previewOnly =
+    (await invoke(base, editor, 'create-share-link', [{ kind: 'model', filePath: box, allowDownload: false, allowPreview: true }])).result || {};
+  const previewOnlyHtml = await (await fetch(`${base}/s/${previewOnly.token}`)).text();
+  const boxMesh = await fetch(`${base}/s/${previewOnly.token}/mesh/${boxModel}`);
+  const boxJson = boxMesh.status === 200 ? await boxMesh.json().catch(() => null) : null;
+  check(
+    'a view-only link with a 3D preview shows a 3MF in 3D, without downloads',
+    previewOnly.allowPreview === true &&
+      previewOnlyHtml.includes('data-kind="3mf"') &&
+      !previewOnlyHtml.includes('/file/') &&
+      !!boxJson &&
+      Array.isArray(boxJson.geometries) &&
+      boxJson.geometries.length > 0,
+    `${boxMesh.status} ${JSON.stringify(boxJson).slice(0, 120)}`
+  );
+  const sharePreviewPage = `${base}/s/${previewOnly.token}`;
   check(
     'the rest of the server still needs a login',
     (await fetch(`${base}/api/actions/get-collections`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: '{}' }))
@@ -4629,6 +4674,20 @@ async function accountChecks(base, wsUrl, admin) {
       }
       return page;
     };
+
+    // The 3D view of a share page, for a visitor who is not logged in.
+    const visitor = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+    visitor.on('pageerror', (error) => errors.push(`share page: ${error.message}`));
+    await visitor.goto(sharePreviewPage);
+    await visitor.click('button.view3d');
+    const shown3d = await visitor.waitForSelector('dialog.viewer[data-ready="true"]', { timeout: 30000 }).then(
+      () => true,
+      () => false
+    );
+    check('a share page shows the model in 3D', shown3d && (await visitor.$$eval('dialog.viewer canvas', (list) => list.length)) === 1);
+    await visitor.click('dialog.viewer .viewer-bar button');
+    check('the 3D view closes', !(await visitor.isVisible('dialog.viewer')));
+    await visitor.context().close();
 
     const editorPage = await open('maker', 'maker-password');
     check(

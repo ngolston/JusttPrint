@@ -33,6 +33,15 @@ function ensureShareSchema(db) {
   )`
   ).run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_share_links_target ON share_links(kind, target_id)').run();
+  // 7.10: a 3D preview on view-only links (links that allow downloads always have one).
+  if (
+    !db
+      .prepare('PRAGMA table_info(share_links)')
+      .all()
+      .some((column) => column.name === 'allow_preview')
+  ) {
+    db.prepare('ALTER TABLE share_links ADD COLUMN allow_preview INTEGER NOT NULL DEFAULT 0').run();
+  }
   ensureCollectionsSchema(db);
 }
 
@@ -54,6 +63,7 @@ function present(db, row, now) {
     targetId: row.target_id,
     targetName: target ? target.name : null,
     allowDownload: !!row.allow_download,
+    allowPreview: !!row.allow_download || !!row.allow_preview,
     createdBy: row.created_by || null,
     createdAt: row.created_at,
     expiresAt: row.expires_at || null,
@@ -70,11 +80,12 @@ function present(db, row, now) {
  * @param {number} [options.targetId] The collection id, or the model id.
  * @param {string} [options.filePath] For a model: its file path instead of the id.
  * @param {boolean} [options.allowDownload]
+ * @param {boolean} [options.allowPreview] A 3D preview on a view-only link (it sends the model's shape to the visitor).
  * @param {number} [options.expiresInDays] 0 or missing: never.
  * @param {string | null} [options.createdBy]
  * @param {Date} [now]
  */
-function createShareLink(db, { kind, targetId, filePath, allowDownload, expiresInDays, createdBy } = {}, now = new Date()) {
+function createShareLink(db, { kind, targetId, filePath, allowDownload, allowPreview, expiresInDays, createdBy } = {}, now = new Date()) {
   ensureShareSchema(db);
   if (!KINDS.includes(kind)) throw httpError(400, 'Share a model or a collection');
   let id = Number(targetId);
@@ -90,9 +101,9 @@ function createShareLink(db, { kind, targetId, filePath, allowDownload, expiresI
   const expiresAt = Number.isFinite(days) && days > 0 ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString() : null;
   const token = crypto.randomBytes(18).toString('base64url');
   db.prepare(
-    `INSERT INTO share_links (token, kind, target_id, allow_download, created_by, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(token, kind, id, allowDownload ? 1 : 0, createdBy || null, now.toISOString(), expiresAt);
+    `INSERT INTO share_links (token, kind, target_id, allow_download, allow_preview, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(token, kind, id, allowDownload ? 1 : 0, allowPreview ? 1 : 0, createdBy || null, now.toISOString(), expiresAt);
   return present(db, db.prepare('SELECT * FROM share_links WHERE token = ?').get(token), now);
 }
 
@@ -162,6 +173,7 @@ function resolveShareLink(db, token, now = new Date()) {
     title,
     description,
     allowDownload: !!row.allow_download,
+    allowPreview: !!row.allow_download || !!row.allow_preview,
     expiresAt: row.expires_at || null,
     models: models.map((m) => ({ ...m, tags: tagsOf.all(m.id).map((t) => t.name) }))
   };
