@@ -3530,53 +3530,6 @@ dialog:not([open]) {
   min-height: 0;
   max-height: none;
 }
-#parts-stock-dialog.modal-fullscreen {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  margin: 0 !important;
-  inset: 0 !important;
-  border-radius: 0 !important;
-  padding: 24px !important;
-  box-sizing: border-box !important;
-  overflow: hidden;
-}
-#parts-stock-dialog.modal-fullscreen form {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-#parts-stock-dialog.modal-fullscreen .parts-stock-list-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-#parts-stock-dialog.modal-fullscreen #parts-stock-list {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-}
-#printer-management-dialog.modal-fullscreen {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  margin: 0 !important;
-  inset: 0 !important;
-  border-radius: 0 !important;
-  padding: 24px !important;
-  box-sizing: border-box !important;
-  overflow: hidden !important;
-}
-#printer-management-dialog.modal-fullscreen .printer-management-scroll-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-}
 
 .zip-entry-badge {
   display: inline-block;
@@ -6044,35 +5997,6 @@ dialog:not([open]) {
 }
 
 /* Two-column layout for pages 2-3 */
-.guide-text .guide-two-column {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 2rem;
-  margin: 0;
-}
-
-.guide-text .guide-two-column img {
-  width: 240px;
-  height: auto;
-  flex-shrink: 0;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  transition: transform 0.3s ease;
-}
-
-.guide-text .guide-two-column img:hover {
-  transform: scale(1.03);
-}
-
-.guide-text .guide-two-column .guide-text-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.guide-text .guide-two-column .guide-text-content h3 {
-  margin-top: 0;
-}
 
 /* Navigation buttons */
 .guide-navigation {
@@ -6140,17 +6064,6 @@ dialog:not([open]) {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .guide-text .guide-two-column {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .guide-text .guide-two-column img {
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-  }
-
   .guide-navigation {
     flex-wrap: wrap;
   }

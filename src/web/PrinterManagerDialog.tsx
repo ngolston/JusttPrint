@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { printers as printerApi, type MaintenanceLog, type Printer, type PrinterReminder } from './api';
+import { BellRing, Check, ClipboardList, ExternalLink, Pencil, Plus, Printer as PrinterIcon, Trash2, Wrench, X } from 'lucide-react';
+import { Badge, StatusBadge, type StatusTone } from './components/Badge';
+import { Button, IconButton, cx } from './components/Button';
 import { ModalDialog } from './components/ModalDialog';
 import { askText, exposeGlobal, showMessage } from './page';
 
@@ -64,12 +67,6 @@ const LOG_TYPES: Array<[string, string]> = [
   ['General Service', 'General Service']
 ];
 
-const muted = { fontSize: '12px', color: '#94a3b8' } as const;
-const fieldStack = { display: 'flex', flexDirection: 'column', gap: '10px' } as const;
-const twoColumns = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' } as const;
-const formHeading = { fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase' } as const;
-const smallButton = { padding: '7px 16px', fontSize: '12.5px' } as const;
-
 interface PrinterForm {
   id: number | null;
   nickname: string;
@@ -129,7 +126,7 @@ function useFlash() {
 function StatusLine({ id, status, hideWhenEmpty }: { id: string; status: { text: string; error: boolean }; hideWhenEmpty?: boolean }) {
   if (hideWhenEmpty && !status.text) return null;
   return (
-    <div id={id} className={`printer-status-msg ${status.error ? 'error' : 'success'}`} role="status">
+    <div id={id} className={cx('jp-mgr__status', status.error && 'is-error')} role="status">
       {status.text}
     </div>
   );
@@ -270,44 +267,49 @@ export function PrinterManagerDialog() {
   return (
     <ModalDialog
       id="printer-management-dialog"
-      title="🖨️ Printer Manager"
+      title="Printer Manager"
       dialogRef={dialogRef}
       fullscreenToggle
       plain
-      headerClassName="printer-management-header"
-      headerRowClassName="printer-management-header-row"
-      footerClassName="printer-dialog-footer"
+      className="jp-mgr"
+      headerClassName="jp-mgr__header"
+      headerRowClassName="jp-mgr__header-row"
+      footerClassName="jp-mgr__footer"
       footer={
-        <button type="button" id="printer-management-close" className="printer-btn-close" onClick={() => dialogRef.current?.close()}>
+        <Button id="printer-management-close" onClick={() => dialogRef.current?.close()}>
           Close
-        </button>
+        </Button>
       }
       onClose={resetForm}
       description={
         <>
-          <p className="setting-description">
-            Onboard your 3D printers, launch Klipper/OctoPrint web interfaces, track maintenance logs, and schedule reminders.
-          </p>
-          <div className="printer-management-tabs">
+          <p className="jp-meta">Your printers, their web interfaces, and their maintenance: a log of what was done and reminders for what is due.</p>
+          <div className="jp-tabs jp-mgr__tabs" role="tablist" aria-label="Printer Manager">
             <button
               type="button"
+              role="tab"
               id="printer-tab-printers"
-              className={`printer-tab-btn${tab === 'printers' ? ' active' : ''}`}
+              aria-selected={tab === 'printers'}
+              className={cx('jp-tab', tab === 'printers' && 'is-selected')}
               onClick={() => setTab('printers')}
             >
-              <span>🖨️ My Printers</span>
-              <span id="printer-tab-printers-count" className="printer-tab-badge">
+              <PrinterIcon size={16} aria-hidden="true" />
+              <span>Printers</span>
+              <span id="printer-tab-printers-count" className="jp-mgr__count">
                 {all.length}
               </span>
             </button>
             <button
               type="button"
+              role="tab"
               id="printer-tab-maintenance"
-              className={`printer-tab-btn${tab === 'maintenance' ? ' active' : ''}`}
+              aria-selected={tab === 'maintenance'}
+              className={cx('jp-tab', tab === 'maintenance' && 'is-selected')}
               onClick={() => setTab('maintenance')}
             >
-              <span>📋 Maintenance &amp; Reminders</span>
-              <span id="printer-tab-due-badge" className="printer-tab-badge due" hidden={totalDue === 0}>
+              <Wrench size={16} aria-hidden="true" />
+              <span>Maintenance</span>
+              <span id="printer-tab-due-badge" className="jp-mgr__count is-due" hidden={totalDue === 0}>
                 {totalDue > 0 ? `${totalDue} due` : ''}
               </span>
             </button>
@@ -315,76 +317,79 @@ export function PrinterManagerDialog() {
         </>
       }
     >
-      <div className="printer-management-scroll-content" ref={scrollRef}>
+      <div className="jp-mgr__body" ref={scrollRef}>
         <div id="printer-view-printers" hidden={tab !== 'printers'}>
-          <div className={`form-group printer-form-section${formOpen ? '' : ' collapsed'}`} id="printer-form-section">
-            <div className="printer-section-header">
-              <label id="printer-form-title" className="printer-section-title">
-                {form.id ? `Edit Printer: ${form.nickname}` : 'Onboard a Printer'}
-              </label>
-              <button
-                type="button"
+          <section className="jp-mgr__section" id="printer-form-section">
+            <div className="jp-mgr__section-head">
+              <h4 id="printer-form-title" className="jp-mgr__section-title">
+                {form.id ? `Edit Printer: ${form.nickname}` : formOpen ? 'Add a printer' : 'Printers'}
+              </h4>
+              <Button
                 id="printer-toggle-add-btn"
-                className={`printer-toggle-add-btn${formOpen ? ' active' : ''}`}
+                size="sm"
+                variant={formOpen ? 'ghost' : 'primary'}
+                icon={formOpen ? X : Plus}
                 aria-expanded={formOpen}
                 onClick={() => (formOpen ? resetForm() : setFormOpen(true))}
               >
-                {formOpen ? '− Cancel' : '+ Add Printer'}
-              </button>
+                {formOpen ? 'Cancel' : 'Add Printer'}
+              </Button>
             </div>
             <div id="printer-form-body" hidden={!formOpen}>
-              <form id="printer-form" onSubmit={savePrinter}>
-                <div className="printer-add-grid">
-                  <div className="printer-field printer-span">
-                    <label className="printer-field-label" htmlFor="printer-form-nickname">
-                      Nickname <span className="required">*</span>
-                    </label>
+              <form id="printer-form" className="jp-mgr__form" onSubmit={savePrinter}>
+                <div className="jp-mgr__grid">
+                  <label className="jp-mgr__field is-wide">
+                    <span className="jp-label">
+                      Nickname <span className="jp-mgr__required">*</span>
+                    </span>
                     <input
                       type="text"
                       id="printer-form-nickname"
+                      className="jp-input"
                       ref={nicknameRef}
                       placeholder="e.g. Voron 2.4, Bambu X1C, Living Room Ender"
                       autoComplete="off"
                       {...field('nickname')}
                     />
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="printer-form-manufacturer">
-                      Manufacturer
-                    </label>
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Manufacturer</span>
                     <input
                       type="text"
                       id="printer-form-manufacturer"
+                      className="jp-input"
                       list="printer-manufacturers-list"
-                      placeholder="e.g. Bambu Lab, Prusa, Creality, Voron"
+                      placeholder="e.g. Bambu Lab, Prusa, Creality"
                       autoComplete="off"
                       {...field('manufacturer')}
                     />
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="printer-form-model">
-                      Model
-                    </label>
-                    <input type="text" id="printer-form-model" placeholder="e.g. X1-Carbon, MK4, Ender 3 V2, 2.4r2" autoComplete="off" {...field('model')} />
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="printer-form-type">
-                      Printer Type
-                    </label>
-                    <select id="printer-form-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Model</span>
+                    <input
+                      type="text"
+                      id="printer-form-model"
+                      className="jp-input"
+                      placeholder="e.g. X1-Carbon, MK4, Ender 3 V2"
+                      autoComplete="off"
+                      {...field('model')}
+                    />
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Printer type</span>
+                    <select id="printer-form-type" className="jp-input" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
                       {PRINTER_TYPES.map((type) => (
                         <option key={type} value={type}>
                           {type}
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="printer-form-firmware">
-                      Firmware Type
-                    </label>
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Firmware</span>
                     <select
                       id="printer-form-firmware"
+                      className="jp-input"
                       value={form.firmware}
                       onChange={(event) => setForm({ ...form, firmware: event.target.value, klipper: event.target.value === 'Klipper' })}
                     >
@@ -394,84 +399,75 @@ export function PrinterManagerDialog() {
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div className="printer-field printer-span">
-                    <label className="printer-klipper-toggle-row">
-                      <input
-                        type="checkbox"
-                        id="printer-form-klipper"
-                        checked={form.klipper}
-                        onChange={(event) => setForm({ ...form, klipper: event.target.checked })}
-                      />
-                      <span className="printer-klipper-toggle-label">
-                        <span>Running Klipper</span>
-                        <span className="klipper-tag-badge">Klipper</span>
-                        <span style={{ ...muted, marginLeft: '4px' }}>(Shows a Klipper badge on the printer)</span>
-                      </span>
+                  </label>
+                  <label className="jp-mgr__check is-wide">
+                    <input
+                      type="checkbox"
+                      id="printer-form-klipper"
+                      checked={form.klipper}
+                      onChange={(event) => setForm({ ...form, klipper: event.target.checked })}
+                    />
+                    <span>Runs Klipper</span>
+                    <span className="jp-meta">shows a Klipper badge on the printer</span>
+                  </label>
+                  <div className="jp-mgr__field is-wide">
+                    <label className="jp-label" htmlFor="printer-form-web-url">
+                      Web interface (Mainsail, Fluidd, OctoPrint…)
                     </label>
-                  </div>
-                  <div className="printer-field printer-span">
-                    <label className="printer-field-label" htmlFor="printer-form-web-url">
-                      Web Interface Address (Mainsail, Fluidd, OctoPrint, etc.)
-                    </label>
-                    <div className="printer-url-group">
+                    <div className="jp-mgr__inline">
                       <input
                         type="text"
                         id="printer-form-web-url"
+                        className="jp-input"
                         autoComplete="off"
                         spellCheck={false}
                         placeholder={form.firmware === 'Klipper' ? 'http://mainsail.local or http://fluidd.local' : 'http://192.168.1.100'}
                         {...field('webUrl')}
                       />
-                      <button
-                        type="button"
+                      <Button
                         id="printer-form-test-url"
-                        className="printer-url-open-btn"
-                        title="Open URL in browser"
+                        iconEnd={ExternalLink}
+                        title="Open the address in a new tab"
                         onClick={() => (form.webUrl.trim() ? openWebUrl(form.webUrl) : flashForm('Enter a web address first', true))}
                       >
-                        🌐 Open ↗
-                      </button>
+                        Open
+                      </Button>
                     </div>
                   </div>
-                  <div className="printer-field printer-span">
-                    <label className="printer-field-label" htmlFor="printer-form-notes">
-                      Notes / Location (Optional)
-                    </label>
+                  <label className="jp-mgr__field is-wide">
+                    <span className="jp-label">Notes or location</span>
                     <input
                       type="text"
                       id="printer-form-notes"
-                      placeholder="e.g. Workshop rack, 0.4mm hardened nozzle installed"
+                      className="jp-input"
+                      placeholder="e.g. Workshop rack, 0.4 mm hardened nozzle"
                       autoComplete="off"
                       {...field('notes')}
                     />
-                  </div>
+                  </label>
                 </div>
-                <div className="printer-form-actions">
-                  <button type="submit" id="printer-form-submit" className="printer-btn-primary">
+                <div className="jp-mgr__actions">
+                  <Button type="submit" id="printer-form-submit" variant="primary">
                     {form.id ? 'Save Changes' : 'Add Printer'}
-                  </button>
-                  <button type="button" id="printer-form-cancel" className="printer-btn-cancel" onClick={resetForm}>
-                    {form.id ? 'Cancel Edit' : 'Cancel'}
-                  </button>
+                  </Button>
+                  <Button id="printer-form-cancel" variant="ghost" onClick={resetForm}>
+                    Cancel
+                  </Button>
                 </div>
               </form>
             </div>
             {/* Outside the form body, so "Printer added" stays visible after the form closes. */}
             <StatusLine id="printer-form-status" status={formStatus} hideWhenEmpty />
-          </div>
+          </section>
 
-          <div className="form-group printer-list-section">
-            <div className="printer-section-header">
-              <label className="printer-section-title">Onboarded Printers</label>
-              <span id="printer-count-badge" className="printer-tab-badge">{`${shown.length} printer${shown.length === 1 ? '' : 's'}`}</span>
-            </div>
-            <div className="printer-search-filter-row">
-              <div className="input-with-icon" style={{ flex: 1 }}>
+          <section className="jp-mgr__section">
+            <div className="jp-mgr__toolbar">
+              <div className="input-with-icon jp-mgr__search">
                 <input
                   type="text"
                   id="printer-search-input"
-                  placeholder="Search printers by nickname, type, model..."
+                  className="jp-input"
+                  placeholder="Search by nickname, type or model"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -481,25 +477,26 @@ export function PrinterManagerDialog() {
               </div>
               <select
                 id="printer-type-filter"
-                className="printer-type-filter-select"
+                className="jp-input jp-mgr__filter"
                 title="Filter by printer type"
                 aria-label="Filter by printer type"
                 value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}
               >
-                <option value="">All Types</option>
+                <option value="">All types</option>
                 {PRINTER_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
                 ))}
               </select>
+              <span id="printer-count-badge" className="jp-meta">{`${shown.length} printer${shown.length === 1 ? '' : 's'}`}</span>
             </div>
-            <div id="printer-cards-list" className="printer-cards-grid">
+            <div id="printer-cards-list" className="jp-mgr__list">
               {shown.length === 0 ? (
-                <div className="printer-empty-state">
-                  <div className="printer-empty-icon">🖨️</div>
-                  <div>{term || typeFilter ? 'No printers match your search or filter.' : 'No printers onboarded yet. Add your first printer above!'}</div>
+                <div className="jp-mgr__empty">
+                  <PrinterIcon size={28} aria-hidden="true" />
+                  <span>{term || typeFilter ? 'No printers match the search or filter.' : 'No printers yet. Add your first one above.'}</span>
                 </div>
               ) : (
                 shown.map((printer) => (
@@ -516,7 +513,7 @@ export function PrinterManagerDialog() {
                 ))
               )}
             </div>
-          </div>
+          </section>
         </div>
 
         {tab === 'maintenance' && <MaintenanceView printers={all} selectedId={selectedId} onSelect={setSelectedId} onRemindersChanged={() => void load()} />}
@@ -542,49 +539,44 @@ function PrinterCard({ printer, onMaintenance, onEdit, onDelete }: { printer: Pr
   const prints = printer.total_prints || 0;
   const due = Number(printer.due_reminders_count) || 0;
   return (
-    <div className="printer-card" data-printer-id={printer.id}>
-      <div className="printer-card-main">
-        <div className="printer-card-info">
-          <div className="printer-card-name-row">
-            <span className="printer-card-name">{printer.nickname}</span>
-            {makeModel && <span className="printer-card-model">({makeModel})</span>}
-          </div>
-          <div className="printer-card-meta">
-            {printer.printer_type && <span className="printer-badge printer-type">{printer.printer_type}</span>}
-            {printer.firmware_type && <span className={`printer-badge${klipper ? ' klipper' : ''}`}>{printer.firmware_type}</span>}
-            {klipper && printer.firmware_type?.toLowerCase() !== 'klipper' && <span className="printer-badge klipper">Klipper</span>}
-            <span className="printer-badge prints-count">
-              🖨️ {prints} print{prints === 1 ? '' : 's'}
+    <div className="jp-mgr__row printer-card" data-printer-id={printer.id}>
+      <div className="jp-mgr__row-main">
+        <div className="jp-mgr__row-title">
+          <span className="jp-mgr__name">{printer.nickname}</span>
+          {makeModel && <span className="jp-meta">{makeModel}</span>}
+        </div>
+        <div className="jp-mgr__tags">
+          {printer.printer_type && <Badge>{printer.printer_type}</Badge>}
+          {printer.firmware_type && <Badge className={klipper ? 'jp-mgr__klipper' : undefined}>{printer.firmware_type}</Badge>}
+          {klipper && printer.firmware_type?.toLowerCase() !== 'klipper' && <Badge className="jp-mgr__klipper">Klipper</Badge>}
+          <span className="jp-meta">{`${prints} print${prints === 1 ? '' : 's'}`}</span>
+          {due > 0 && (
+            <span title={`${due} maintenance reminder(s) due soon or overdue`}>
+              <StatusBadge tone="warning">{`${due} reminder${due === 1 ? '' : 's'} due`}</StatusBadge>
             </span>
-            {due > 0 && (
-              <span className="printer-badge reminder-due" title={`${due} maintenance reminder(s) due soon or overdue`}>
-                ⚠️ {due} reminder{due === 1 ? '' : 's'} due
-              </span>
-            )}
-          </div>
-          {printer.notes && <div style={{ ...muted, marginTop: '2px' }}>{printer.notes}</div>}
-        </div>
-        <div className="printer-card-actions">
-          {printer.web_url && (
-            <button
-              type="button"
-              className="printer-action-btn web-ui"
-              title={`Open web interface in browser (${printer.web_url})`}
-              onClick={() => openWebUrl(printer.web_url)}
-            >
-              🌐 Web UI ↗
-            </button>
           )}
-          <button type="button" className="printer-action-btn maintenance" title="View maintenance log and schedule reminders" onClick={onMaintenance}>
-            📋 Maintenance
-          </button>
-          <button type="button" className="printer-action-btn" title="Edit printer details" onClick={onEdit}>
-            ✏️ Edit
-          </button>
-          <button type="button" className="printer-action-btn danger" title="Delete printer" aria-label="Delete printer" onClick={onDelete}>
-            🗑️
-          </button>
         </div>
+        {printer.notes && <div className="jp-meta">{printer.notes}</div>}
+      </div>
+      <div className="jp-mgr__row-actions">
+        {printer.web_url && (
+          <Button
+            size="sm"
+            iconEnd={ExternalLink}
+            className="printer-action-btn web-ui"
+            title={`Open the web interface (${printer.web_url})`}
+            onClick={() => openWebUrl(printer.web_url)}
+          >
+            Web UI
+          </Button>
+        )}
+        <Button size="sm" icon={Wrench} className="printer-action-btn maintenance" title="Maintenance log and reminders" onClick={onMaintenance}>
+          Maintenance
+        </Button>
+        <Button size="sm" icon={Pencil} className="printer-action-btn" title="Edit printer details" onClick={onEdit}>
+          Edit
+        </Button>
+        <IconButton size="sm" icon={Trash2} className="printer-action-btn danger" label="Delete printer" onClick={onDelete} />
       </div>
     </div>
   );
@@ -708,183 +700,164 @@ function MaintenanceView({
 
   return (
     <div id="printer-view-maintenance">
-      <div className="maintenance-active-printer-row">
-        <div className="maintenance-printer-selector">
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#cbd5e1' }}>Active Printer:</span>
-          <select id="maintenance-printer-select" value={printerId ?? ''} onChange={(event) => onSelect(Number(event.target.value))}>
+      <div className="jp-mgr__toolbar">
+        <label className="jp-mgr__inline">
+          <span className="jp-label">Printer</span>
+          <select id="maintenance-printer-select" className="jp-input" value={printerId ?? ''} onChange={(event) => onSelect(Number(event.target.value))}>
             {printers.map((p) => (
               <option key={p.id} value={p.id}>{`${p.printer_type ? `[${p.printer_type}] ` : ''}${p.nickname}${p.model ? ` (${p.model})` : ''}`}</option>
             ))}
           </select>
-        </div>
-        <div style={muted}>Manage preventative maintenance and upcoming service alerts</div>
+        </label>
       </div>
 
-      <div className="maintenance-split">
-        <div className="maintenance-column">
-          <div className="form-group printer-maintenance-form-section">
-            <div className="printer-section-header">
-              <label className="printer-section-title">⏰ Scheduled Reminders</label>
-            </div>
-            <div id="maintenance-reminders-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-              {reminders.length === 0 ? (
-                <div style={{ ...muted, fontSize: '12.5px', padding: '8px 0' }}>No scheduled reminders for this printer. Add one below!</div>
-              ) : (
-                reminders.map((item) => (
-                  <ReminderItem key={item.id} reminder={item} onDone={() => completeReminder(item)} onDelete={() => deleteReminder(item)} />
-                ))
-              )}
-            </div>
-            <form id="reminder-form" onSubmit={scheduleReminder}>
-              <div style={formHeading}>Schedule New Reminder</div>
-              <div style={fieldStack}>
-                <div className="printer-field">
-                  <label className="printer-field-label" htmlFor="reminder-form-title">
-                    Task Title <span className="required">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="reminder-form-title"
-                    list="reminder-presets-list"
-                    placeholder="e.g. Lubricate linear rails"
-                    autoComplete="off"
-                    value={reminder.title}
-                    onChange={(event) => setReminder({ ...reminder, title: event.target.value })}
-                  />
-                </div>
-                <div style={twoColumns}>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="reminder-form-due-date">
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      id="reminder-form-due-date"
-                      required
-                      value={reminder.dueDate}
-                      onChange={(event) => setReminder({ ...reminder, dueDate: event.target.value })}
-                    />
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="reminder-form-interval">
-                      Recurrence
-                    </label>
-                    <select
-                      id="reminder-form-interval"
-                      value={reminder.interval}
-                      onChange={(event) => setReminder({ ...reminder, interval: event.target.value })}
-                    >
-                      {RECURRENCES.map(([days, label]) => (
-                        <option key={days} value={days}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="printer-field">
-                  <label className="printer-field-label" htmlFor="reminder-form-notes">
-                    Notes (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    id="reminder-form-notes"
-                    placeholder="e.g. Use Mobilux EP2 grease"
-                    autoComplete="off"
-                    value={reminder.notes}
-                    onChange={(event) => setReminder({ ...reminder, notes: event.target.value })}
-                  />
-                </div>
-                <div>
-                  <button type="submit" className="printer-btn-primary" style={smallButton}>
-                    Schedule Reminder
-                  </button>
-                </div>
-                <StatusLine id="reminder-form-status" status={reminderStatus} />
-              </div>
-            </form>
+      <div className="jp-mgr__split">
+        <section className="jp-mgr__section">
+          <h4 className="jp-mgr__section-title">
+            <BellRing size={16} aria-hidden="true" /> Reminders
+          </h4>
+          <div id="maintenance-reminders-list" className="jp-mgr__list">
+            {reminders.length === 0 ? (
+              <p className="jp-meta">No reminders for this printer yet.</p>
+            ) : (
+              reminders.map((item) => (
+                <ReminderItem key={item.id} reminder={item} onDone={() => completeReminder(item)} onDelete={() => deleteReminder(item)} />
+              ))
+            )}
           </div>
-        </div>
+          <form id="reminder-form" className="jp-mgr__form" onSubmit={scheduleReminder}>
+            <h5 className="jp-label">New reminder</h5>
+            <label className="jp-mgr__field">
+              <span className="jp-label">
+                Task <span className="jp-mgr__required">*</span>
+              </span>
+              <input
+                type="text"
+                id="reminder-form-title"
+                className="jp-input"
+                list="reminder-presets-list"
+                placeholder="e.g. Lubricate linear rails"
+                autoComplete="off"
+                value={reminder.title}
+                onChange={(event) => setReminder({ ...reminder, title: event.target.value })}
+              />
+            </label>
+            <div className="jp-mgr__grid">
+              <label className="jp-mgr__field">
+                <span className="jp-label">Due</span>
+                <input
+                  type="date"
+                  id="reminder-form-due-date"
+                  className="jp-input"
+                  required
+                  value={reminder.dueDate}
+                  onChange={(event) => setReminder({ ...reminder, dueDate: event.target.value })}
+                />
+              </label>
+              <label className="jp-mgr__field">
+                <span className="jp-label">Repeats</span>
+                <select
+                  id="reminder-form-interval"
+                  className="jp-input"
+                  value={reminder.interval}
+                  onChange={(event) => setReminder({ ...reminder, interval: event.target.value })}
+                >
+                  {RECURRENCES.map(([days, label]) => (
+                    <option key={days} value={days}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="jp-mgr__field">
+              <span className="jp-label">Notes</span>
+              <input
+                type="text"
+                id="reminder-form-notes"
+                className="jp-input"
+                placeholder="e.g. Use Mobilux EP2 grease"
+                autoComplete="off"
+                value={reminder.notes}
+                onChange={(event) => setReminder({ ...reminder, notes: event.target.value })}
+              />
+            </label>
+            <div className="jp-mgr__actions">
+              <Button type="submit" size="sm" variant="primary" icon={Plus}>
+                Add Reminder
+              </Button>
+              <StatusLine id="reminder-form-status" status={reminderStatus} />
+            </div>
+          </form>
+        </section>
 
-        <div className="maintenance-column">
-          <div className="form-group printer-maintenance-form-section">
-            <div className="printer-section-header">
-              <label className="printer-section-title">📝 Maintenance History Log</label>
-            </div>
-            <div
-              id="maintenance-logs-list"
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto', marginBottom: '14px' }}
-            >
-              {logs.length === 0 ? (
-                <div style={{ ...muted, fontSize: '12.5px', padding: '8px 0' }}>No maintenance performed yet.</div>
-              ) : (
-                logs.map((item) => <LogItem key={item.id} log={item} onDelete={() => deleteLog(item)} />)
-              )}
-            </div>
-            <form id="log-maintenance-form" onSubmit={logMaintenance}>
-              <div style={formHeading}>Record Maintenance Performed</div>
-              <div style={fieldStack}>
-                <div style={twoColumns}>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="log-form-type">
-                      Type
-                    </label>
-                    <select id="log-form-type" value={log.type} onChange={(event) => setLog({ ...log, type: event.target.value })}>
-                      {LOG_TYPES.map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="printer-field">
-                    <label className="printer-field-label" htmlFor="log-form-performed-at">
-                      Date
-                    </label>
-                    <input
-                      type="date"
-                      id="log-form-performed-at"
-                      required
-                      value={log.date}
-                      onChange={(event) => setLog({ ...log, date: event.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="printer-field">
-                  <label className="printer-field-label" htmlFor="log-form-title">
-                    Summary / Action
-                  </label>
-                  <input
-                    type="text"
-                    id="log-form-title"
-                    placeholder="e.g. Swapped to 0.6mm CHT nozzle"
-                    autoComplete="off"
-                    value={log.title}
-                    onChange={(event) => setLog({ ...log, title: event.target.value })}
-                  />
-                </div>
-                <div className="printer-field">
-                  <label className="printer-field-label" htmlFor="log-form-description">
-                    Details / Notes
-                  </label>
-                  <textarea
-                    id="log-form-description"
-                    placeholder="Notes, observations, torque specs, brand of replacement parts..."
-                    rows={2}
-                    value={log.description}
-                    onChange={(event) => setLog({ ...log, description: event.target.value })}
-                  />
-                </div>
-                <div>
-                  <button type="submit" className="printer-btn-primary" style={smallButton}>
-                    Log Maintenance
-                  </button>
-                </div>
-                <StatusLine id="log-form-status" status={logStatus} />
-              </div>
-            </form>
+        <section className="jp-mgr__section">
+          <h4 className="jp-mgr__section-title">
+            <ClipboardList size={16} aria-hidden="true" /> Maintenance log
+          </h4>
+          <div id="maintenance-logs-list" className="jp-mgr__list jp-mgr__list--scroll">
+            {logs.length === 0 ? (
+              <p className="jp-meta">Nothing logged yet.</p>
+            ) : (
+              logs.map((item) => <LogItem key={item.id} log={item} onDelete={() => deleteLog(item)} />)
+            )}
           </div>
-        </div>
+          <form id="log-maintenance-form" className="jp-mgr__form" onSubmit={logMaintenance}>
+            <h5 className="jp-label">Log maintenance</h5>
+            <div className="jp-mgr__grid">
+              <label className="jp-mgr__field">
+                <span className="jp-label">Type</span>
+                <select id="log-form-type" className="jp-input" value={log.type} onChange={(event) => setLog({ ...log, type: event.target.value })}>
+                  {LOG_TYPES.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="jp-mgr__field">
+                <span className="jp-label">Date</span>
+                <input
+                  type="date"
+                  id="log-form-performed-at"
+                  className="jp-input"
+                  required
+                  value={log.date}
+                  onChange={(event) => setLog({ ...log, date: event.target.value })}
+                />
+              </label>
+            </div>
+            <label className="jp-mgr__field">
+              <span className="jp-label">What was done</span>
+              <input
+                type="text"
+                id="log-form-title"
+                className="jp-input"
+                placeholder="e.g. Swapped to a 0.6 mm CHT nozzle"
+                autoComplete="off"
+                value={log.title}
+                onChange={(event) => setLog({ ...log, title: event.target.value })}
+              />
+            </label>
+            <label className="jp-mgr__field">
+              <span className="jp-label">Details</span>
+              <textarea
+                id="log-form-description"
+                className="jp-input"
+                placeholder="Observations, torque specs, replacement part brands…"
+                rows={2}
+                value={log.description}
+                onChange={(event) => setLog({ ...log, description: event.target.value })}
+              />
+            </label>
+            <div className="jp-mgr__actions">
+              <Button type="submit" size="sm" variant="primary" icon={Plus}>
+                Log Maintenance
+              </Button>
+              <StatusLine id="log-form-status" status={logStatus} />
+            </div>
+          </form>
+        </section>
       </div>
     </div>
   );
@@ -895,32 +868,29 @@ function ReminderItem({ reminder, onDone, onDelete }: { reminder: PrinterReminde
   const completed = reminder.status === 'completed';
   const days = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   const plural = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
-  let pill = { className: 'upcoming', text: `Due in ${plural(days)}` };
-  if (completed) pill = { className: 'completed', text: 'Completed' };
-  else if (days < 0) pill = { className: 'overdue', text: `Overdue by ${plural(Math.abs(days))}` };
-  else if (days <= 7) pill = { className: 'due-soon', text: days === 0 ? 'Due today!' : `Due in ${plural(days)}` };
-  const state = completed ? 'is-completed' : days < 0 ? 'is-overdue' : days <= 7 ? 'is-due-soon' : '';
+  let pill: { tone: StatusTone; text: string } = { tone: 'neutral', text: `Due in ${plural(days)}` };
+  if (completed) pill = { tone: 'success', text: 'Completed' };
+  else if (days < 0) pill = { tone: 'danger', text: `Overdue by ${plural(Math.abs(days))}` };
+  else if (days <= 7) pill = { tone: 'warning', text: days === 0 ? 'Due today' : `Due in ${plural(days)}` };
 
   return (
-    <div className={`reminder-item ${state}`} data-reminder-id={reminder.id}>
-      <div className="reminder-item-main">
-        <span className="reminder-title">{reminder.title}</span>
-        <div className="reminder-meta">
-          <span className={`due-pill ${pill.className}`}>{pill.text}</span>
-          <span>📅 {due.toLocaleDateString()}</span>
-          <span>🔄 {reminder.interval_days > 0 ? `Repeats every ${reminder.interval_days} days` : 'One-time'}</span>
+    <div className={cx('jp-mgr__row reminder-item', completed && 'is-completed')} data-reminder-id={reminder.id}>
+      <div className="jp-mgr__row-main">
+        <span className="jp-mgr__name">{reminder.title}</span>
+        <div className="jp-mgr__tags">
+          <StatusBadge tone={pill.tone}>{pill.text}</StatusBadge>
+          <span className="jp-meta">{due.toLocaleDateString()}</span>
+          <span className="jp-meta">{reminder.interval_days > 0 ? `Repeats every ${reminder.interval_days} days` : 'One-time'}</span>
         </div>
-        {reminder.notes && <div style={muted}>{reminder.notes}</div>}
+        {reminder.notes && <div className="jp-meta">{reminder.notes}</div>}
       </div>
-      <div className="reminder-actions">
+      <div className="jp-mgr__row-actions">
         {!completed && (
-          <button type="button" className="reminder-done-btn" title="Mark completed and record in maintenance log" onClick={onDone}>
-            ✓ Done
-          </button>
+          <Button size="sm" icon={Check} className="reminder-done-btn" title="Mark done and add it to the maintenance log" onClick={onDone}>
+            Done
+          </Button>
         )}
-        <button type="button" className="printer-action-btn danger" title="Delete reminder" onClick={onDelete}>
-          🗑️
-        </button>
+        <IconButton size="sm" icon={Trash2} className="printer-action-btn danger" label="Delete reminder" onClick={onDelete} />
       </div>
     </div>
   );
@@ -928,19 +898,17 @@ function ReminderItem({ reminder, onDone, onDelete }: { reminder: PrinterReminde
 
 function LogItem({ log, onDelete }: { log: MaintenanceLog; onDelete: () => void }) {
   return (
-    <div className="log-item" data-log-id={log.id}>
-      <div className="log-item-main">
-        <span className="log-title">{log.title || log.maintenance_type}</span>
-        <div className="log-meta">
-          <span className="printer-badge">{log.maintenance_type}</span>
-          <span>📅 {new Date(log.performed_at).toLocaleDateString()}</span>
+    <div className="jp-mgr__row log-item" data-log-id={log.id}>
+      <div className="jp-mgr__row-main">
+        <span className="jp-mgr__name">{log.title || log.maintenance_type}</span>
+        <div className="jp-mgr__tags">
+          <Badge>{log.maintenance_type}</Badge>
+          <span className="jp-meta">{new Date(log.performed_at).toLocaleDateString()}</span>
         </div>
-        {log.description && <div style={{ ...muted, marginTop: '2px' }}>{log.description}</div>}
+        {log.description && <div className="jp-meta">{log.description}</div>}
       </div>
-      <div className="log-actions">
-        <button type="button" className="printer-action-btn danger" title="Delete log entry" onClick={onDelete}>
-          🗑️
-        </button>
+      <div className="jp-mgr__row-actions">
+        <IconButton size="sm" icon={Trash2} className="printer-action-btn danger" label="Delete log entry" onClick={onDelete} />
       </div>
     </div>
   );

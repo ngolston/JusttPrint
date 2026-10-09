@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { parts as partApi, type Part, type PartInput } from './api';
+import { Minus, Package, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Badge, StatusBadge } from './components/Badge';
+import { Button, IconButton, cx } from './components/Button';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
 
@@ -185,150 +188,160 @@ export function PartsManagerDialog() {
   return (
     <ModalDialog
       id="parts-stock-dialog"
-      title="🔩 Parts Manager"
+      title="Parts Manager"
       dialogRef={dialogRef}
       fullscreenToggle
-      headerClassName="parts-stock-header"
-      headerRowClassName="parts-stock-header-row"
+      plain
+      className="jp-mgr"
+      headerClassName="jp-mgr__header"
+      headerRowClassName="jp-mgr__header-row"
+      footerClassName="jp-mgr__footer"
       description={
-        <p className="setting-description">
-          Track screws, bearings, inserts, and other hardware. When you log a print, choose the parts it used and they are removed from stock.
-        </p>
+        <p className="jp-meta">Screws, bearings, inserts and other hardware. When you log a print, choose the parts it used and they come off the stock.</p>
       }
       footer={
-        <button type="button" id="parts-stock-close" onClick={() => dialogRef.current?.close()}>
+        <Button id="parts-stock-close" onClick={() => dialogRef.current?.close()}>
           Close
-        </button>
+        </Button>
       }
     >
-      <div className={`form-group parts-stock-form-section${formOpen ? '' : ' collapsed'}`} id="parts-stock-form-section">
-        <div className="parts-stock-section-header">
-          <label id="parts-stock-form-label" htmlFor="parts-stock-name">
-            {editing ? 'Edit part' : 'Add a part'}
-          </label>
-          <button
-            type="button"
-            id="parts-stock-toggle-add-btn"
-            className={`parts-stock-toggle-add-btn${formOpen ? ' active' : ''}`}
-            aria-expanded={formOpen}
-            onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
-          >
-            {formOpen ? '− Cancel' : '+ Add Part'}
-          </button>
-        </div>
-        <div id="parts-stock-form-body" hidden={!formOpen}>
-          <div className="parts-stock-add-grid">
-            <div className="parts-stock-field parts-stock-span">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-name">
-                Part Name <span className="required">*</span>
+      <div className="jp-mgr__body">
+        <section className="jp-mgr__section" id="parts-stock-form-section">
+          <div className="jp-mgr__section-head">
+            <h4 id="parts-stock-form-label" className="jp-mgr__section-title">
+              {editing ? `Edit ${form.name}` : formOpen ? 'Add a part' : 'Parts'}
+            </h4>
+            <Button
+              id="parts-stock-toggle-add-btn"
+              size="sm"
+              variant={formOpen ? 'ghost' : 'primary'}
+              icon={formOpen ? X : Plus}
+              aria-expanded={formOpen}
+              onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+            >
+              {formOpen ? 'Cancel' : 'Add Part'}
+            </Button>
+          </div>
+          <div id="parts-stock-form-body" className="jp-mgr__form" hidden={!formOpen}>
+            <div className="jp-mgr__grid">
+              <label className="jp-mgr__field is-wide">
+                <span className="jp-label">
+                  Name <span className="jp-mgr__required">*</span>
+                </span>
+                <input
+                  type="text"
+                  id="parts-stock-name"
+                  className="jp-input"
+                  ref={nameRef}
+                  placeholder="e.g. M3×8 screw, 608 bearing"
+                  autoComplete="off"
+                  {...field('name')}
+                />
               </label>
-              <input type="text" id="parts-stock-name" ref={nameRef} placeholder="Name (e.g. M3×8 screw, 608 bearing…)" autoComplete="off" {...field('name')} />
+              <label className="jp-mgr__field">
+                <span className="jp-label">Category</span>
+                <input
+                  type="text"
+                  id="parts-stock-category"
+                  className="jp-input"
+                  list="parts-stock-categories"
+                  placeholder="e.g. Screws"
+                  autoComplete="off"
+                  {...field('category')}
+                />
+              </label>
+              <label className="jp-mgr__field">
+                <span className="jp-label">Unit</span>
+                <input type="text" id="parts-stock-unit" className="jp-input" placeholder="pcs" autoComplete="off" {...field('unit')} />
+              </label>
+              <label className="jp-mgr__field">
+                <span className="jp-label">Quantity on hand</span>
+                <input type="number" id="parts-stock-quantity" className="jp-input" min="0" max="1000000" step="1" {...field('quantity')} />
+              </label>
+              <label className="jp-mgr__field">
+                <span className="jp-label">Warn at or below</span>
+                <input
+                  type="number"
+                  id="parts-stock-low"
+                  className="jp-input"
+                  min="0"
+                  max="1000000"
+                  step="1"
+                  title="Show Low stock when the quantity is at or below this number"
+                  {...field('lowStock')}
+                />
+              </label>
+              <label className="jp-mgr__field is-wide">
+                <span className="jp-label">Notes</span>
+                <input type="text" id="parts-stock-notes" className="jp-input" placeholder="e.g. bin number or size" autoComplete="off" {...field('notes')} />
+              </label>
             </div>
-            <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-category">
-                Category
-              </label>
+            <datalist id="parts-stock-categories">
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category} />
+              ))}
+            </datalist>
+            <div className="jp-mgr__actions">
+              <Button id="parts-stock-add" variant="primary" onClick={saveForm}>
+                {editing ? 'Save' : 'Add'}
+              </Button>
+              <Button
+                id="parts-stock-cancel-edit"
+                variant="ghost"
+                onClick={() => {
+                  closeForm();
+                  setStatus({ text: '', error: false });
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+          <div id="parts-stock-status" className={cx('jp-mgr__status', status.error && 'is-error')} role="status">
+            {status.text}
+          </div>
+        </section>
+        <section className="jp-mgr__section">
+          <div className="jp-mgr__toolbar">
+            <div className="input-with-icon jp-mgr__search">
               <input
                 type="text"
-                id="parts-stock-category"
-                list="parts-stock-categories"
-                placeholder="Category (e.g. Screws)"
-                autoComplete="off"
-                {...field('category')}
+                id="parts-stock-search"
+                className="jp-input"
+                placeholder="Search parts"
+                aria-label="Search parts"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
               />
+              <button type="button" id="parts-stock-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
+                ×
+              </button>
             </div>
-            <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-unit">
-                Unit
-              </label>
-              <input type="text" id="parts-stock-unit" placeholder="Unit (pcs)" autoComplete="off" {...field('unit')} />
-            </div>
-            <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-quantity">
-                Quantity on hand
-              </label>
-              <input type="number" id="parts-stock-quantity" min="0" max="1000000" step="1" {...field('quantity')} />
-            </div>
-            <div className="parts-stock-field">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-low">
-                Low stock alert threshold
-              </label>
-              <input
-                type="number"
-                id="parts-stock-low"
-                min="0"
-                max="1000000"
-                step="1"
-                title="Warn when quantity is at or below this number"
-                {...field('lowStock')}
-              />
-            </div>
-            <div className="parts-stock-field parts-stock-span">
-              <label className="parts-stock-field-label" htmlFor="parts-stock-notes">
-                Notes (optional)
-              </label>
-              <input type="text" id="parts-stock-notes" placeholder="Notes (optional, e.g. bin number or size specs)" autoComplete="off" {...field('notes')} />
-            </div>
+            <span id="parts-stock-count-badge" className="jp-meta">
+              {shown.length ? `${shown.length} part${shown.length === 1 ? '' : 's'}` : ''}
+            </span>
           </div>
-          <datalist id="parts-stock-categories">
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category} />
-            ))}
-          </datalist>
-          <div className="parts-stock-form-actions">
-            <button type="button" id="parts-stock-add" className="parts-stock-btn-primary" onClick={saveForm}>
-              {editing ? 'Save' : 'Add'}
-            </button>
-            <button
-              type="button"
-              id="parts-stock-cancel-edit"
-              className="parts-stock-btn-cancel"
-              onClick={() => {
-                closeForm();
-                setStatus({ text: '', error: false });
-              }}
-            >
-              {editing ? 'Cancel Edit' : 'Cancel'}
-            </button>
+          <div id="parts-stock-list" className="jp-mgr__list">
+            {loadError ? (
+              <div className="jp-mgr__empty">Failed to load parts: {loadError}</div>
+            ) : shown.length === 0 ? (
+              <div className="jp-mgr__empty">
+                <Package size={28} aria-hidden="true" />
+                <span>{term ? 'No parts match that search.' : 'No parts yet. Add screws, bearings, inserts and anything else a print uses up.'}</span>
+              </div>
+            ) : (
+              shown.map((part) => (
+                <PartRow
+                  key={part.id}
+                  part={part}
+                  onQuantity={(quantity) => setQuantity(part, quantity)}
+                  onEdit={() => editPart(part)}
+                  onRemove={() => removePart(part)}
+                />
+              ))
+            )}
           </div>
-        </div>
-        <div id="parts-stock-status" className={`parts-stock-status${status.error ? ' error' : ''}`} role="status">
-          {status.text}
-        </div>
-      </div>
-      <div className="form-group parts-stock-list-section">
-        <div className="parts-stock-section-header">
-          <label htmlFor="parts-stock-search">Parts Inventory</label>
-          <span id="parts-stock-count-badge" className="parts-stock-count-badge">
-            {shown.length ? `${shown.length} part${shown.length === 1 ? '' : 's'}` : ''}
-          </span>
-        </div>
-        <div className="input-with-icon">
-          <input type="text" id="parts-stock-search" placeholder="Search parts..." value={search} onChange={(event) => setSearch(event.target.value)} />
-          <button type="button" id="parts-stock-clear-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
-            ×
-          </button>
-        </div>
-        <div id="parts-stock-list" className="parts-stock-list">
-          {loadError ? (
-            <div className="parts-stock-empty">Failed to load parts: {loadError}</div>
-          ) : shown.length === 0 ? (
-            <div className="parts-stock-empty">
-              <span className="parts-stock-empty-icon">{term ? '🔍' : '🔩'}</span>
-              <span>{term ? 'No parts match that search.' : 'No parts yet. Add screws, bearings, inserts, and anything else a print uses up.'}</span>
-            </div>
-          ) : (
-            shown.map((part) => (
-              <PartRow
-                key={part.id}
-                part={part}
-                onQuantity={(quantity) => setQuantity(part, quantity)}
-                onEdit={() => editPart(part)}
-                onRemove={() => removePart(part)}
-              />
-            ))
-          )}
-        </div>
+        </section>
       </div>
     </ModalDialog>
   );
@@ -348,39 +361,31 @@ function PartRow({ part, onQuantity, onEdit, onRemove }: { part: Part; onQuantit
   };
 
   return (
-    <div className={`parts-stock-item${isLow ? ' is-low' : ''}`} data-part-id={part.id}>
-      <div className="parts-stock-item-body">
-        <div className="parts-stock-item-name" title={part.name}>
+    <div className={cx('jp-mgr__row parts-stock-item', isLow && 'is-low')} data-part-id={part.id}>
+      <div className="jp-mgr__row-main">
+        <span className="jp-mgr__name" title={part.name}>
           {part.name}
-        </div>
-        <div className="parts-stock-item-meta">
-          {part.category && <span className="parts-stock-tag category">{part.category}</span>}
-          <span className="parts-stock-tag">{part.unit || 'pcs'}</span>
+        </span>
+        <div className="jp-mgr__tags">
+          {part.category && <Badge>{part.category}</Badge>}
+          <span className="jp-meta">{part.unit || 'pcs'}</span>
           {isLow && (
-            <span className="parts-stock-low-badge" title={`Low stock alert (threshold: ${lowAt})`}>
-              ⚠️ Low stock
+            <span title={`Low stock (warns at ${lowAt})`}>
+              <StatusBadge tone="warning">Low stock</StatusBadge>
             </span>
           )}
           {part.notes && (
-            <span className="parts-stock-notes-text" title={part.notes}>
+            <span className="jp-meta" title={part.notes}>
               {part.notes}
             </span>
           )}
         </div>
       </div>
-      <div className="parts-stock-qty">
-        <button
-          type="button"
-          className="parts-stock-step"
-          title="Remove one"
-          aria-label="Decrease quantity"
-          onClick={() => onQuantity(Math.max(0, quantity - 1))}
-        >
-          −
-        </button>
+      <div className="jp-mgr__qty">
+        <IconButton size="sm" icon={Minus} className="parts-stock-step" label="Decrease quantity" onClick={() => onQuantity(Math.max(0, quantity - 1))} />
         <input
           type="number"
-          className="parts-stock-qty-input"
+          className="jp-input parts-stock-qty-input"
           min="0"
           max="1000000"
           step="1"
@@ -395,16 +400,14 @@ function PartRow({ part, onQuantity, onEdit, onRemove }: { part: Part; onQuantit
             }
           }}
         />
-        <button type="button" className="parts-stock-step" title="Add one" aria-label="Increase quantity" onClick={() => onQuantity(quantity + 1)}>
-          +
-        </button>
+        <IconButton size="sm" icon={Plus} className="parts-stock-step" label="Increase quantity" onClick={() => onQuantity(quantity + 1)} />
       </div>
-      <button type="button" className="parts-stock-edit" title="Edit part details" onClick={onEdit}>
-        Edit
-      </button>
-      <button type="button" className="parts-stock-remove" title="Remove from Parts Stock" aria-label="Delete part" onClick={onRemove}>
-        ×
-      </button>
+      <div className="jp-mgr__row-actions">
+        <Button size="sm" icon={Pencil} className="parts-stock-edit" title="Edit part details" onClick={onEdit}>
+          Edit
+        </Button>
+        <IconButton size="sm" icon={Trash2} className="parts-stock-remove" label="Delete part" onClick={onRemove} />
+      </div>
     </div>
   );
 }
