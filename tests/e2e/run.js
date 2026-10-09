@@ -3155,7 +3155,8 @@ async function browserChecks(base, wsUrl, session) {
     check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 72 && !(await tablet.isVisible('#jp-sidebar .jp-storage')));
     const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
     if (tabletCard) {
-      await tabletCard.click();
+      // By locator: the grid may draw the card again before the click (slower machines).
+      await tablet.locator('.file-grid .jp-model-card[data-filepath] .file-name').first().click();
       // Waits for the close button and backdrop too: they render after the drawer class is set.
       const drawerState = await tablet
         .waitForFunction(
