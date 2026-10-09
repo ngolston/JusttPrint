@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.8.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
 
 **Changes:**
 - **Same geometry finds models inside ZIP files:** **Find: Same geometry** on the Duplicates page now also reads the STL and 3MF files inside ZIP files (when ZIP archives are turned on in Settings), so a model you have both loose and zipped shows up as one group.
