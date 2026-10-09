@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { X509Certificate } = require('crypto');
+const { AcmeClient, DIRECTORY: ACME_DIRECTORY, createPrivateKey } = require('./acme');
 
 const TLS_MODES = {
   OFF: 'off',
@@ -301,20 +302,19 @@ function certificateNeedsRenewal(certPem) {
   return info.daysRemaining <= RENEW_WITHIN_DAYS;
 }
 
-async function loadOrCreateAccountKey(certsDir) {
-  const acme = require('acme-client');
+/** The ACME account key: kept in the certs folder so renewals use the same Let's Encrypt account. */
+function loadOrCreateAccountKey(certsDir) {
   const accountPath = getAccountKeyPath(certsDir);
   if (fs.existsSync(accountPath)) {
     return fs.readFileSync(accountPath);
   }
   ensureDir(certsDir);
-  const accountKey = await acme.crypto.createPrivateKey();
+  const accountKey = createPrivateKey();
   fs.writeFileSync(accountPath, accountKey, { mode: 0o600 });
   return accountKey;
 }
 
-async function obtainLetsEncryptCertificate({ certsDir, domain, email, agreeTos, useStaging }) {
-  const acme = require('acme-client');
+async function obtainLetsEncryptCertificate({ certsDir, domain, email, agreeTos, useStaging, directoryUrl = '' }) {
   const host = String(domain || '')
     .trim()
     .toLowerCase();
@@ -323,36 +323,15 @@ async function obtainLetsEncryptCertificate({ certsDir, domain, email, agreeTos,
   if (!mail || !mail.includes('@')) throw new Error("A contact email is required for Let's Encrypt.");
   if (!agreeTos) throw new Error("You must agree to the Let's Encrypt Terms of Service.");
 
-  const accountKey = await loadOrCreateAccountKey(certsDir);
-  const client = new acme.Client({
-    directoryUrl: useStaging ? acme.directory.letsencrypt.staging : acme.directory.letsencrypt.production,
-    accountKey
+  const client = new AcmeClient({
+    directoryUrl: directoryUrl || (useStaging ? ACME_DIRECTORY.staging : ACME_DIRECTORY.production),
+    accountKey: loadOrCreateAccountKey(certsDir)
   });
-
-  await client.createAccount({
-    termsOfServiceAgreed: true,
-    contact: [`mailto:${mail}`]
-  });
-
-  const [key, csr] = await acme.crypto.createCsr({
-    commonName: host
-  });
-
-  const cert = await client.auto({
-    csr,
-    email: mail,
-    termsOfServiceAgreed: true,
-    challengePriority: ['http-01'],
-    challengeCreateFn: async (_authz, challenge, keyAuthorization) => {
-      if (challenge.type === 'http-01') {
-        setHttp01Challenge(challenge.token, keyAuthorization);
-      }
-    },
-    challengeRemoveFn: async (_authz, challenge) => {
-      if (challenge.type === 'http-01') {
-        clearHttp01Challenge(challenge.token);
-      }
-    }
+  await client.createAccount(mail);
+  const { certPem: cert, keyPem: key } = await client.orderCertificate({
+    domain: host,
+    onChallenge: setHttp01Challenge,
+    onChallengeDone: clearHttp01Challenge
   });
 
   const live = getLiveCertPaths(certsDir);

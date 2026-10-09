@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.10.2] - 2026-10-09
+
+**Upgrading:** no changes needed. Let's Encrypt certificates and the Let's Encrypt account you already have keep working; the next renewal uses the new client.
+
+**Changes:**
+- **Security:** `proxy-addr` (used by Express) is updated to 2.0.8 for a critical advisory ([GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h)): an IPv4-mapped IPv6 address could pass as a trusted proxy. It mattered only with `JUSTTPRINT_TRUST_PROXY` set to a subnet, where a client could fake the address the login rate limit sees.
+- **Security:** `node-forge` is gone. It came with `acme-client` (Let's Encrypt) and had a high advisory with no fixed release ([GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv)); JusttPrint never used the affected signature check. Let's Encrypt now goes through JusttPrint's own small ACME client ([src/server/acme.js](src/server/acme.js)), built on Node's crypto, and was tested against Let's Encrypt's test server (Pebble) with the HTTP-01 challenge, existing RSA account keys and EC keys. `npm audit` now reports no vulnerabilities.
+
 ## [7.10.1] - 2026-10-09
 
 **Upgrading:** no changes for anyone who runs the published image. If you build the image from a clone of the repository, the Dockerfile and compose files are now in `docker/`: build with `docker build -f docker/Dockerfile .`, or run `docker compose -f docker/docker-compose.yml up -d --build` from the project folder (its `data` and `models` folders stay where they were).
