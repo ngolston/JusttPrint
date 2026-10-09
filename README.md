@@ -19,19 +19,19 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Same-geometry duplicates**: besides identical files, the Duplicates page finds the same model saved as different files (an STL and its 3MF, a re-export), also inside ZIP files
 - **MakerWorld, Printables and Thingiverse details and downloads**: MakerWorld models show their English title, print profile (plates, print time, filament by color), files with English names and video in the details panel, and download as a 3MF into a library folder after a one-time MakerWorld sign-in
 - **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
-- **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download
+- **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download; optional **guest access** to browse without an account
 - **Collections**: group models from any folders into projects, gift lists or spare-part sets
-- **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with optional downloads and an expiry date
+- **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with a 3D view, optional downloads and an expiry date
 - **Statistics**: prints per month, success rate, top designers, most printed models and printers
 - **3D preview** of single models or every part in a folder or ZIP bundle
 - **Tags, designers, licenses, notes and source links** for every model
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
 - **Search and filters** by name, folder, tag, designer, status and more
 - **Multi-edit** to change many models at once
-- **Undo** for metadata and tag edits: the Undo button after a change, or Ctrl/⌘ Z for the last 20
+- **Undo** for metadata and tag edits, and for renaming, merging and deleting tags: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
-- **MCP server** so AI agents can search and update your library
+- **MCP server** so AI agents can search and update your library, and add models from links
 - **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
@@ -122,6 +122,7 @@ All are optional. You can change most of these later under **Settings** in the a
 |----------|--------------|
 | `JUSTTPRINT_PASSWORD` | Password of the admin account. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
 | `JUSTTPRINT_USERNAME` | User name of that admin account (default `admin`). Other accounts are added under **Settings → Authentication → Users**. |
+| `JUSTTPRINT_GUEST_ACCESS` | `true`: people who open JusttPrint without logging in browse like a Viewer (also under **Settings → Authentication → Users**). Off by default. |
 | `JUSTTPRINT_MAX_UPLOAD_MB` | Largest file the browser may upload, in MB (default `2048`; `10240` for 10 GB). |
 | `JUSTTPRINT_UPLOAD_CHUNK_MB` | Size of the pieces uploads are sent in, in MB (default `16`). Lower it only if a proxy in front takes less per request. |
 | `STL_HOME` | Folders to scan automatically, as container paths. Several: `/mnt/models,/mnt/archive`. |
@@ -155,11 +156,12 @@ The sidebar holds every page: **Home**, **Library**, **Collections**, **Queue**,
 
 - **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
 - **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload, move and delete files; **Admins** also change settings, backups, JusttPrint backend access and accounts. The JusttPrint backend checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone.
+- **Guest access**: tick **Guest access** under **Settings → Authentication → Users** (or set `JUSTTPRINT_GUEST_ACCESS=true`) and people who open JusttPrint without logging in browse, preview and download like a Viewer, without an account. Guests keep no settings and cannot edit; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 - **Upload models**: drop files anywhere on the page, or click **Upload** in the Library, choose a library folder and upload. Files go in 16 MB pieces, so large files (5 or 10 GB, up to `JUSTTPRINT_MAX_UPLOAD_MB`) get through reverse proxies and Cloudflare; a piece that fails is sent again, and after a lost connection, a reload or a restart of the JusttPrint backend, uploading the same file again continues where it stopped. Files are never replaced (a taken name becomes `Name (2).stl`), only types the library scans are accepted (**Settings → Scanning → File Types**), and the folder is scanned afterwards so the models appear with thumbnails. Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless you change it): raise it before uploading bigger models, or they are saved but not added. Editors and admins only.
 - **Add Links**: click **Add Links** in the Library and paste Printables, Thingiverse or MakerWorld model links (one per line, up to 200). Each becomes an online model with the name, designer, license and picture from the site and the link as its source; the dialog marks links already in your library (online models, or files whose source is the link) and skips them. The JusttPrint backend fetches the details, so it needs outgoing HTTPS to those sites. Editors and admins only.
 - **MakerWorld section**: a model whose link or source is on MakerWorld shows the model's details, its print profiles (plates, time, grams, AMS, filament), its files with English names, and its video. **Download to Library…** saves the print profile as a 3MF (every part, ready for the slicer) into a new folder in the library, and the online model becomes that file (MakerWorld keeps the separate STL files behind a CAPTCHA, so those are downloaded in the browser); **Add Links** does this by itself for MakerWorld links; the first download asks for a MakerWorld (Bambu Lab) sign-in, which the JusttPrint backend keeps for everyone. **Settings → Integrations → MakerWorld** signs in or out and picks who translates file names: the free MyMemory service, the AI Tagging service, or nobody. Needs outgoing HTTPS to `makerworld.com`, `api.bambulab.com` and, for the free translation, `api.mymemory.translated.net`.
 - **Collections** (sidebar): choose **Add to Collection…** in a model's menu (it works on a selection too) or make one with **New Collection**; a model can be in several. Everyone can browse collections; editors and admins change them.
-- **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; links can expire after 1 to 90 days. Anyone who can reach your JusttPrint backend's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
+- **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; STL and 3MF models can be turned around in 3D (on view-only links only when you tick **Show STL and 3MF models in 3D**, since the model's shape then reaches the visitor's browser); links can expire after 1 to 90 days. Anyone who can reach your JusttPrint backend's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
 - **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the designers, models and printers printed most, and how many models were added, for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
@@ -179,7 +181,7 @@ You can also set this up with the `JUSTTPRINT_AI_*` [environment variables](#env
 
 ## MCP Server
 
-AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search the library, edit tags and metadata, log prints and more. For example, ask "tag everything in the Kitchen folder as kitchen".
+AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search the library, edit tags and metadata, log prints, add models from Printables, Thingiverse and MakerWorld links, and more. For example, ask "tag everything in the Kitchen folder as kitchen".
 
 1. Open **Settings → Integrations → MCP Server**.
 2. Pick your app under **Set up in**: Claude Code, Claude Desktop, Cursor, VS Code, or another MCP client.
