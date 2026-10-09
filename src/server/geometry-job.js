@@ -148,6 +148,17 @@ function start(filters = null) {
     state.running = false;
     events.broadcast('geometry-progress', snapshot());
     events.broadcast('geometry-complete', snapshot());
+    if (state.processed > 0 && !state.cancel) {
+      const notifications = require('./notifications');
+      const groups = duplicates(filters).groups.length;
+      notifications.notify({
+        level: 'success',
+        title: 'Same-geometry search finished',
+        body: groups ? `${notifications.plural(groups, 'group')} of models with the same geometry.` : 'No models with the same geometry.',
+        link: '#/duplicates',
+        minRole: 'editor'
+      });
+    }
   })().catch((error) => {
     console.error('[Geometry] Fingerprinting stopped:', error);
     state.running = false;

@@ -45,6 +45,7 @@ function closeDatabaseOnQuit() {
   if (databaseClosedOnQuit) return;
   databaseClosedOnQuit = true;
   autoBackup.stop();
+  require('./notifications').stop();
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();
@@ -159,6 +160,7 @@ async function start() {
   startServerStlHomeScans();
   startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });
+  require('./notifications').startReminderChecks();
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');
   purgeOversizedThumbnails();

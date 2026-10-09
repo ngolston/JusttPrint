@@ -86,7 +86,10 @@ async function startServerThumbnailJobInternal(mode) {
 
 ipcMain.handle('start-server-thumbnail-job', async (_event, options) => {
   const mode = options && options.mode === 'all' ? 'all' : 'missing';
-  return startServerThumbnailJobInternal(mode);
+  const result = await startServerThumbnailJobInternal(mode);
+  // A job someone started (it can run for a long time) ends with a notification; automatic ones after a scan do not.
+  if (result && result.success) startedByPerson = true;
+  return result;
 });
 
 ipcMain.handle('cancel-server-thumbnail-job', async () => {
@@ -107,9 +110,22 @@ ipcMain.handle('report-server-thumbnail-progress', async (_event, progress) => {
   return true;
 });
 
+/** The running job was started by a person (Generate Missing, Regenerate All), not after a scan. */
+let startedByPerson = false;
+
 ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
   const info = result || {};
   console.log(`[Server thumbnails] Job ${info.cancelled ? 'cancelled' : 'finished'}: ${Number(info.count) || 0} rendered`);
+  if (startedByPerson && !info.cancelled) {
+    const notifications = require('../notifications');
+    notifications.notify({
+      level: 'success',
+      title: 'Thumbnails finished',
+      body: `${notifications.plural(Number(info.count) || 0, 'thumbnail')} rendered.`,
+      minRole: 'editor'
+    });
+  }
+  startedByPerson = false;
   serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
   broadcastThumbnailJobEvent('thumbnail-job-complete', result || {});
   events.broadcast('refresh-grid');
@@ -119,7 +135,9 @@ ipcMain.handle('report-server-thumbnail-complete', async (_event, result) => {
 ipcMain.handle('report-server-thumbnail-error', async (_event, errorInfo) => {
   console.error('[Server thumbnails] Job failed:', (errorInfo && errorInfo.message) || 'unknown error');
   serverThumbnailJob = { status: 'idle', mode: null, cancelRequested: false };
+  startedByPerson = false;
   const message = (errorInfo && (errorInfo.message || errorInfo.error)) || String(errorInfo || 'Thumbnail job failed');
+  require('../notifications').notify({ level: 'error', title: 'Thumbnails stopped with an error', body: message, minRole: 'editor' });
   broadcastThumbnailJobEvent('thumbnail-job-error', { error: message });
   return true;
 });

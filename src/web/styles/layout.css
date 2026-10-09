@@ -342,3 +342,122 @@
   padding-left: 0;
   padding-right: 0;
 }
+
+/* Notifications (shell/Notifications.tsx): the bell in the top bar and its panel. */
+.jp-notify__button {
+  position: relative;
+}
+.jp-notify__badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.jp-notify__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 96px));
+  background: var(--jp-surface-2);
+  border: 1px solid var(--jp-border-strong);
+  border-radius: var(--jp-radius-lg);
+  box-shadow: var(--jp-shadow-pop);
+  overflow: hidden;
+}
+.jp-notify__head {
+  padding: var(--jp-space-3) var(--jp-space-4);
+  border-bottom: 1px solid var(--jp-border);
+}
+.jp-notify__head h2 {
+  margin: 0;
+  text-align: left;
+  font-size: var(--jp-text-title);
+  font-weight: 600;
+}
+.jp-notify__empty {
+  margin: 0;
+  padding: var(--jp-space-6) var(--jp-space-4);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  text-align: center;
+}
+.jp-notify__list {
+  margin: 0;
+  padding: var(--jp-space-1);
+  overflow-y: auto;
+  list-style: none;
+}
+.jp-notify__item.is-unread .jp-notify__row {
+  background: var(--jp-accent-soft);
+}
+.jp-notify__row {
+  display: flex;
+  gap: var(--jp-space-3);
+  width: 100%;
+  padding: var(--jp-space-3);
+  border: 0;
+  border-radius: var(--jp-radius-md);
+  background: none;
+  color: var(--jp-text);
+  font: inherit;
+  text-align: left;
+}
+button.jp-notify__row {
+  cursor: pointer;
+}
+button.jp-notify__row:hover {
+  background: var(--jp-surface-hover);
+}
+button.jp-notify__row:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-notify__icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.jp-notify__icon.is-info {
+  color: var(--jp-accent);
+}
+.jp-notify__icon.is-success {
+  color: var(--jp-success);
+}
+.jp-notify__icon.is-warning {
+  color: var(--jp-warning);
+}
+.jp-notify__icon.is-error {
+  color: var(--jp-danger);
+}
+.jp-notify__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-notify__title {
+  font-size: var(--jp-text-ui);
+  font-weight: 600;
+}
+.jp-notify__body {
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  overflow-wrap: anywhere;
+}
+.jp-notify__time {
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-small);
+}

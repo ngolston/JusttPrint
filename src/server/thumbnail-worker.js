@@ -140,6 +140,14 @@ async function start(options) {
     browser = null;
     launchFailures++;
     console.error('[Thumbnail worker] Could not start Chromium:', error.message);
+    if (launchFailures === LAUNCH_RETRIES + 1)
+      require('./notifications').notify({
+        level: 'error',
+        title: 'Thumbnail renderer could not start',
+        body: `Chromium did not start (${error.message}). Thumbnails are still made in open browsers. See the server log.`,
+        minRole: 'admin',
+        key: `chromium:${new Date().toISOString().slice(0, 10)}`
+      });
     if (launchFailures <= LAUNCH_RETRIES && !stopped) {
       console.warn(`[Thumbnail worker] Trying again in a minute (${launchFailures} of ${LAUNCH_RETRIES}). Thumbnails still render in open browsers.`);
       clearTimeout(restartTimer);

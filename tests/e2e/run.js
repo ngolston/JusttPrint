@@ -3912,6 +3912,41 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
 
+    // Notifications (src/server/notifications.js, shell/Notifications.tsx): a finished same-geometry search shows in the bell.
+    await invoke(base, session, 'start-geometry-scan', [null]);
+    await waitFor(async () => (await invoke(base, session, 'get-geometry-scan')).result?.running === false, 60000, 'geometry search').catch(() => {});
+    const bell = await page
+      .waitForFunction(() => /unread/.test(document.getElementById('jp-notifications-button')?.getAttribute('aria-label') || ''), null, { timeout: 15000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('the bell shows unread notifications', bell, await page.getAttribute('#jp-notifications-button', 'aria-label').catch(() => ''));
+    await page.click('#jp-notifications-button');
+    const notice = await page
+      .waitForSelector('#jp-notifications .jp-notify__item:has-text("Same-geometry search finished")', { timeout: 10000 })
+      .catch(() => null);
+    check('the panel lists what finished', !!notice);
+    const cleared = await page
+      .waitForFunction(() => !document.querySelector('.jp-notify__badge'), null, { timeout: 10000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('opening the panel marks it read', cleared && (await invoke(base, session, 'get-notifications', [null])).result?.unread === 0);
+    if (notice) await page.click('#jp-notifications .jp-notify__item:has-text("Same-geometry search finished") button');
+    check(
+      'a notification opens its page',
+      await page
+        .waitForFunction(() => location.hash.startsWith('#/duplicates'), null, { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        )
+    );
+    await page.evaluate(() => (location.hash = '#/library'));
+    await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+
     // Tools → Clear New Flag (src/web/library/actions.ts).
     const flagged = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter(
       (p) => !p.includes('::')
@@ -4436,6 +4471,11 @@ async function accountChecks(base, wsUrl, admin) {
   const editor = await loginAs(base, 'maker', 'maker-password');
   const viewer = await loginAs(base, 'kid', 'kid-password');
   check('editor and viewer log in', !!editor && !!viewer);
+  check(
+    'viewers do not see editor notifications, and guests none',
+    !((await invoke(base, viewer, 'get-notifications', [null])).result?.items || []).some((item) => /Same-geometry/.test(item.title)) &&
+      ((await invoke(base, editor, 'get-notifications', [null])).result?.items || []).some((item) => /Same-geometry/.test(item.title))
+  );
   check(
     'viewers cannot undo Metadata Editor changes',
     (await invoke(base, viewer, 'restore-metadata', [{ type: 'designer', name: 'x', current: '', modelIds: [1] }])).status === 403

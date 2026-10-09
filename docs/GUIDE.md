@@ -150,6 +150,19 @@ Many models have several print profiles: the parts of a kit (Foot, Body, Wings�
 
 **Settings → Integrations → MakerWorld** shows who is signed in (**Sign In**, **Sign Out**) and who makes the English file names: a free translation service (MyMemory, the default), the AI service from AI Tagging, or nobody.
 
+## Notifications
+
+The bell at the top right collects what happened in the background while you were not looking, with a number for the ones you have not seen:
+
+- new models found by a scan or by folder watching (once things are quiet for two minutes, so a big copy is one notification)
+- **Generate Missing** or **Regenerate All** thumbnails finished, or stopped with an error (editors and admins)
+- AI tagging of several models finished (editors and admins)
+- the same-geometry search on Duplicates finished (editors and admins)
+- printer maintenance that is due or overdue, once per reminder (editors and admins)
+- an automatic backup failed, or the thumbnail renderer could not start (admins)
+
+Opening the bell marks them read for your account, in every browser; a notification with a page opens it when clicked. JusttPrint keeps the newest 200 for 30 days. Guests have no notifications.
+
 ## Undo
 
 After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.

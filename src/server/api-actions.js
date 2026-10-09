@@ -112,6 +112,9 @@ const ACTIONS = {
   'get-model-tags': ['id?'],
   'get-group-tags': ['array'],
   'get-all-metadata': [],
+  // Notifications (notifications.js): the caller's list, and how far they have read.
+  'get-notifications': ['object?'],
+  'mark-notifications-read': ['number'],
   'rename-metadata': ['string', 'string', 'string'],
   'delete-metadata': ['string', 'string'],
   'restore-metadata': ['object'],
@@ -224,6 +227,8 @@ const ACTIONS = {
 
 /** Actions that only read: every logged-in user. */
 const VIEWER_ACTIONS = new Set([
+  'get-notifications',
+  'mark-notifications-read',
   'get-model',
   'get-designers',
   'get-licenses',

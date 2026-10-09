@@ -198,6 +198,7 @@ function runBackup(reason = 'manual') {
         /* database closed */
       }
       console.error(`[Backup] ${reason} backup failed:`, message);
+      require('./notifications').notify({ level: 'error', title: 'Automatic backup failed', body: message, link: '#/settings', minRole: 'admin' });
       return { success: false, message };
     }
   })().finally(() => {
