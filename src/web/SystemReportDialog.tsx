@@ -253,7 +253,7 @@ export function SystemReportDialog() {
 
   return (
     <ModalDialog id="system-report-dialog" title="System Report" dialogRef={dialogRef}>
-      <div className="system-report-content">
+      <div className="system-report-content" tabIndex={0} role="region" aria-label="System report">
         <Section
           id="client-gpu"
           title="Client GPU (this browser)"
