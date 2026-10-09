@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.9.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. After the first start, small grid copies of large thumbnails are made in the background; the database grows a little by their size.
 
 **Changes:**
 - **Faster grid with large thumbnails:** a model whose picture is large (a photo or a big image taken from a 3MF file, often several MB) now shows a small copy in the grid: at most 512 px on its longest side, about twice a grid card, so it stays sharp on high-resolution screens. The original stays stored as it was: the details panel, **Manage Thumbnails**, AI tagging and MCP still get it. Copies are made in the background by the thumbnail renderer, kept in the database and made again when you change the model's pictures; until a copy is ready, the grid shows the original as before.
