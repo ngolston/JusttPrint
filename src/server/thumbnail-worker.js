@@ -187,4 +187,36 @@ async function webglInfo() {
   });
 }
 
-module.exports = { COOKIE, isWorkerRequest, attach, detach, ready, send, start, stop, webglInfo };
+/**
+ * A smaller copy of an image (a data URL): at most `maxDimension` px on its longest side, as WebP
+ * (it keeps transparency). Answers { width, height, dataUrl } with the original's size, or null
+ * when Chromium is not running. Throws when the image cannot be decoded.
+ */
+async function resizeImage(dataUrl, maxDimension, quality) {
+  const page = workerPage;
+  if (!page || page.isClosed()) return null;
+  return page.evaluate(
+    async (src, max, q) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      const scale = Math.min(1, max / Math.max(width, height));
+      const w = Math.max(1, Math.round(width * scale));
+      const h = Math.max(1, Math.round(height * scale));
+      const bitmap = await createImageBitmap(image, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      bitmap.close();
+      return { width, height, dataUrl: canvas.toDataURL('image/webp', q) };
+    },
+    dataUrl,
+    maxDimension,
+    quality
+  );
+}
+
+module.exports = { COOKIE, isWorkerRequest, attach, detach, ready, send, start, stop, webglInfo, resizeImage };

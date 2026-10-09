@@ -8,7 +8,7 @@ const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
 const { getDefaultThumbnail, loadThumbnailForModel, parseThumbnails, readThumbnailColumn } = require('../../core/thumbnails');
 const { getModelByFilePath } = require('../../core/models');
 const { addMultipleThumbnails, addThumbnailToModel, saveThumbnail, setDefaultThumbnailIndex } = require('../../core/thumbnail-store');
-const { compressDataUrl } = require('../../core/thumbnail-compress');
+const gridThumbnails = require('../grid-thumbnails');
 
 ipcMain.handle('save-thumbnail', async (event, filePath, thumbnail) => {
   try {
@@ -132,11 +132,10 @@ ipcMain.handle('get-server-thumbnail-job-status', async () => {
 });
 
 // Add this IPC handler for thumbnails
+// The grid's image: a small copy of a large first image when there is one (src/server/grid-thumbnails.js).
 ipcMain.handle('getThumbnail', async (event, filePath) => {
   try {
-    const stored = loadThumbnailForModel(filePath);
-    if (!stored) return null;
-    return getDefaultThumbnail(stored, 0);
+    return gridThumbnails.gridImage(filePath, () => loadThumbnailForModel(filePath));
   } catch (error) {
     console.error('Error getting thumbnail:', error);
     return null;
@@ -159,8 +158,7 @@ ipcMain.handle('get-all-thumbnails', async (event, filePath) => {
 ipcMain.handle('add-thumbnail', async (event, filePath, imageDataUrl) => {
   try {
     const currentThumbnail = readThumbnailColumn(filePath);
-    const compressedImage = compressDataUrl(imageDataUrl);
-    const thumbnailsWithNew = addThumbnailToModel(currentThumbnail, compressedImage);
+    const thumbnailsWithNew = addThumbnailToModel(currentThumbnail, imageDataUrl);
 
     // Parse thumbnails to get count and new index
     const thumbnails = parseThumbnails(thumbnailsWithNew);
@@ -221,8 +219,8 @@ ipcMain.handle('add-multiple-thumbnails', async (event, filePath, imageDataUrls)
 
     const currentThumbnail = readThumbnailColumn(filePath);
 
-    // Filter out any null/undefined/empty images and compress on ingest
-    const validImages = imageDataUrls.filter((img) => img && typeof img === 'string' && img.length > 0).map((img) => compressDataUrl(img));
+    // Filter out any null/undefined/empty images
+    const validImages = imageDataUrls.filter((img) => img && typeof img === 'string' && img.length > 0);
 
     if (validImages.length === 0) {
       return false;

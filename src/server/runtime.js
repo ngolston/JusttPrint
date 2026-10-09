@@ -4,8 +4,6 @@
  * Process services the server needs: data paths and lifecycle events (`app`), the IPC handler
  * registry that the WebSocket dispatcher calls (`ipcMain`), and Move to Trash (`shell.trashItem`).
  * The names match what the old Electron code used.
- *
- * nativeImage cannot decode images on Node, so stored thumbnails are not re-compressed.
  */
 
 const EventEmitter = require('events');
@@ -212,29 +210,10 @@ function trashItem(filePath) {
 
 const shell = { trashItem };
 
-/** An image that never decodes; callers treat it like a file they cannot read. */
-const emptyImage = {
-  isEmpty: () => true,
-  getSize: () => ({ width: 0, height: 0 }),
-  hasAlpha: () => false,
-  resize: () => emptyImage,
-  toJPEG: () => Buffer.alloc(0),
-  toPNG: () => Buffer.alloc(0),
-  toDataURL: () => ''
-};
-
-const nativeImage = {
-  createEmpty: () => emptyImage,
-  createFromBuffer: () => emptyImage,
-  createFromPath: () => emptyImage,
-  createFromDataURL: () => emptyImage
-};
-
 module.exports = {
   app: new App(),
   ipcMain: new IpcMain(),
   shell,
-  nativeImage,
   // Exposed for tests.
   _internal: { mountTop }
 };

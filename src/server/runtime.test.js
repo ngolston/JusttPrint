@@ -43,10 +43,6 @@ test('ipcMain keeps handlers for the WebSocket dispatcher', () => {
   assert.ok(!shim.ipcMain._handlers.has('ping'));
 });
 
-test('nativeImage never decodes, so compression is skipped', () => {
-  assert.ok(shim.nativeImage.createFromBuffer(Buffer.from('x')).isEmpty());
-});
-
 test('trashItem moves files into a trash folder on the same drive, with restore info', async () => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'pv-trash-'));
   const savedDataHome = process.env.XDG_DATA_HOME;

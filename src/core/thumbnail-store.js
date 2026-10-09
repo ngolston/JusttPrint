@@ -2,7 +2,6 @@
 
 const database = require('./database');
 const { parseThumbnails } = require('./thumbnails');
-const { compressThumbnailBlob } = require('./thumbnail-compress');
 
 function addThumbnailToModel(thumbnailString, newThumbnail) {
   if (!newThumbnail) return thumbnailString;
@@ -25,8 +24,7 @@ function setDefaultThumbnailIndex(thumbnailString, index) {
 
 async function saveThumbnail(filePath, thumbnail) {
   try {
-    const { value } = compressThumbnailBlob(thumbnail);
-    database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(value, filePath);
+    database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(thumbnail, filePath);
     return true;
   } catch (error) {
     console.error('Error saving thumbnail:', error);

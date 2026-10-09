@@ -7,7 +7,6 @@ const fs = require('fs');
 const path = require('path');
 const { isUrlModel, parseZipPath } = require('../../core/library-paths');
 const { extractModelFromZip, isMacOsResourceForkEntry } = require('../../core/zip-entries');
-const { compressDataUrl } = require('../../core/thumbnail-compress');
 const { extractLysPreviewEntry } = require('../../core/extract-lys-preview');
 const { extractF3dPreviewEntry } = require('../../core/extract-f3d-preview');
 const { extractChituboxPreviewEntry } = require('../../core/extract-chitubox-preview');
@@ -18,9 +17,6 @@ ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
   if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
     return [];
   }
-
-  const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
-  const compress = opts.compress !== false;
 
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
@@ -58,13 +54,6 @@ ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
     const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
     const mimeType = mimeMap[ext] || 'png';
     let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) {
-        /* keep original */
-      }
-    }
     return [dataUrl];
   } catch (error) {
     console.error('Error reading LYS preview:', error);
@@ -77,9 +66,6 @@ ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
   if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
     return [];
   }
-
-  const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
-  const compress = opts.compress !== false;
 
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
@@ -127,13 +113,6 @@ ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
     const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
     const mimeType = mimeMap[ext] || 'png';
     let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) {
-        /* keep original */
-      }
-    }
     return [dataUrl];
   } catch (error) {
     console.error('Error reading F3D preview:', error);
@@ -148,9 +127,6 @@ ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
   if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
     return [];
   }
-
-  const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
-  const compress = opts.compress !== false;
 
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
@@ -181,13 +157,6 @@ ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
     }
 
     let dataUrl = `data:image/png;base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) {
-        /* keep original */
-      }
-    }
     return [dataUrl];
   } catch (error) {
     console.error('Error reading ChiTuBox preview:', error);
@@ -200,9 +169,6 @@ ipcMain.handle('getVoxlImages', async (event, filePath, options = {}) => {
   if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
     return [];
   }
-
-  const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
-  const compress = opts.compress !== false;
 
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
@@ -245,13 +211,6 @@ ipcMain.handle('getVoxlImages', async (event, filePath, options = {}) => {
     const mime = (entry.mimeType || 'image/png').toLowerCase();
     const mimeType = mime.includes('jpeg') || mime.includes('jpg') ? 'jpeg' : mime.includes('webp') ? 'webp' : 'png';
     let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) {
-        /* keep original */
-      }
-    }
     return [dataUrl];
   } catch (error) {
     console.error('Error reading VOXL preview:', error);

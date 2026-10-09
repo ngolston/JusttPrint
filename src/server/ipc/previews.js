@@ -12,7 +12,6 @@ const { EXTRACT_TEMP_FILE_PREFIX, cleanupExtractTempFile, ensureExtractTempDir }
 const { getModelByFilePath } = require('../../core/models');
 const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry, openZip } = require('../../core/zip-entries');
 const { filter3MFMetadataBySettings, parse3MFModelXML } = require('../../core/three-mf');
-const { compressDataUrl } = require('../../core/thumbnail-compress');
 
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
@@ -119,7 +118,6 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
   const verbose = opts.verbose === true || process.env.JUSTTPRINT_DEBUG_3MF === '1';
   const maxImagesRaw = Number(opts.maxImages);
   const maxImages = Number.isFinite(maxImagesRaw) && maxImagesRaw > 0 ? Math.min(Math.floor(maxImagesRaw), 250) : 250;
-  const compress = opts.compress !== false;
   const log = (...args) => {
     if (verbose) console.log(...args);
   };
@@ -396,13 +394,6 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       const imageData = imgObj.file.read('base64');
       const mimeType = getMimeType(imgObj.path);
       let dataUrl = `data:image/${mimeType};base64,${imageData}`;
-      if (compress) {
-        try {
-          dataUrl = compressDataUrl(dataUrl) || dataUrl;
-        } catch (_) {
-          /* keep original */
-        }
-      }
       imageFiles.push(dataUrl);
     }
 
