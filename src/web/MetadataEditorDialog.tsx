@@ -69,6 +69,8 @@ export function MetadataEditorDialog() {
   const [error, setError] = useState('');
   // The newest change made while the dialog is open, to undo here (the page's notice is behind the dialog).
   const [lastChange, setLastChange] = useState<UndoEntry | null>(null);
+  // An undo still refreshing the page: the next one waits for it (undoLast ignores clicks meanwhile).
+  const [undoing, setUndoing] = useState(false);
   const openedAt = useRef(0);
 
   useEffect(
@@ -183,7 +185,20 @@ export function MetadataEditorDialog() {
       {lastChange && (
         <div className="metadata-editor-undo" role="status">
           <span>{lastChange.label}</span>
-          <button type="button" className="btn btn-secondary" id="metadata-editor-undo" onClick={() => void undoLast(lastChange.id)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            id="metadata-editor-undo"
+            disabled={undoing}
+            onClick={async () => {
+              setUndoing(true);
+              try {
+                await undoLast(lastChange.id);
+              } finally {
+                setUndoing(false);
+              }
+            }}
+          >
             Undo
           </button>
         </div>

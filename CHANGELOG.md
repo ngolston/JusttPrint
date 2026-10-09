@@ -8,6 +8,7 @@ All notable changes contributed via pull request are documented in this file.
 
 **Changes:**
 - **Undo in the Metadata Editor:** renaming, merging and clearing a designer, parent model or license can be undone, from the dialog's own **Undo** line (the page's notice is behind the dialog), the notice, or Ctrl/⌘ Z. Undoing a merge or a clear puts the old name back on just the models that had it, and leaves models someone edited since.
+- **Undo button waits for the previous undo:** in the Metadata Editor and the Tag Manager, Undo is greyed out while the previous undo is still finishing; a click then used to be ignored.
 
 ## [7.11.0] - 2026-10-09
 

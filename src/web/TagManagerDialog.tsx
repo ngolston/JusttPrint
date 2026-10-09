@@ -25,6 +25,8 @@ export function TagManagerDialog() {
   const changed = useRef(false);
   // The newest tag change made while the dialog is open, to undo here (the page's notice is behind the dialog).
   const [lastChange, setLastChange] = useState<UndoEntry | null>(null);
+  // An undo still refreshing the page: the next one waits for it (undoLast ignores clicks meanwhile).
+  const [undoing, setUndoing] = useState(false);
   const openedAt = useRef(0);
 
   useEffect(
@@ -128,11 +130,17 @@ export function TagManagerDialog() {
             type="button"
             className="btn btn-secondary"
             id="tag-manager-undo"
+            disabled={undoing}
             onClick={async () => {
-              const label = await undoLast(lastChange.id);
-              if (label) {
-                changed.current = true;
-                await load();
+              setUndoing(true);
+              try {
+                const label = await undoLast(lastChange.id);
+                if (label) {
+                  changed.current = true;
+                  await load();
+                }
+              } finally {
+                setUndoing(false);
               }
             }}
           >
