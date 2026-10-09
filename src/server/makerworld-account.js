@@ -52,12 +52,12 @@ async function call(path, body, fetchImpl, { base = API, token } = {}) {
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
   const text = (await readLimited(response, 256 * 1024)).toString('utf8');
-  let json = {};
+  let json;
   try {
     json = text ? JSON.parse(text) : {};
-  } catch (_) {
-    if (/Just a moment/i.test(text)) throw new Error('Bambu Lab asked for a browser check and did not answer. Try again later');
-    throw new Error(`Bambu Lab answered ${response.status}`);
+  } catch (error) {
+    if (/Just a moment/i.test(text)) throw new Error('Bambu Lab asked for a browser check and did not answer. Try again later', { cause: error });
+    throw new Error(`Bambu Lab answered ${response.status}`, { cause: error });
   }
   const cookie = response.headers.get('set-cookie') || '';
   return { status: response.status, ok: response.ok, json, cookieToken: (/(?:^|[;,]\s*)token=([^;,\s]+)/.exec(cookie) || [])[1] || null };

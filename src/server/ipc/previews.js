@@ -110,7 +110,7 @@ function normalizePreview3mfTypedArrays(json) {
 ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
   // Skip files located in __MACOSX directories
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
@@ -202,7 +202,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
           const dbFilePath = filePath;
 
           // Get the model from database to check existing values
-          let existingModel = getModelByFilePath(dbFilePath);
+          const existingModel = getModelByFilePath(dbFilePath);
 
           // If model doesn't exist, create it (similar to add-multiple-thumbnails handler)
           if (!existingModel) {
@@ -393,7 +393,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       log(`Extracting: ${imgObj.path} (Score: ${imgObj.score})`);
       const imageData = imgObj.file.read('base64');
       const mimeType = getMimeType(imgObj.path);
-      let dataUrl = `data:image/${mimeType};base64,${imageData}`;
+      const dataUrl = `data:image/${mimeType};base64,${imageData}`;
       imageFiles.push(dataUrl);
     }
 

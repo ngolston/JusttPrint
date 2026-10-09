@@ -30,7 +30,7 @@ async function checkForUpdates(isBeta = false) {
             let data = '';
             res.on('data', (chunk) => (data += chunk));
             res.on('end', () => {
-              let version = null;
+              let version;
               try {
                 version = latestVersionFromReleases(JSON.parse(data), isBeta);
               } catch (_) {

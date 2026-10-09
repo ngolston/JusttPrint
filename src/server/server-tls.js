@@ -84,7 +84,7 @@ function readPemTlsOptions(certPath, keyPath, caPath) {
   const certPem = fs.readFileSync(resolvedCert);
   const keyPem = fs.readFileSync(resolvedKey);
   const opts = { cert: certPem, key: keyPem };
-  let caPem = null;
+  let caPem;
   if (caPath) {
     const resolvedCa = path.resolve(caPath);
     if (fs.existsSync(resolvedCa)) {
@@ -141,8 +141,8 @@ function resolveServerTls({ getSetting, certsDir }) {
     return { options: null, source: 'none', envOverride: false, mode };
   }
 
-  let certPath = '';
-  let keyPath = '';
+  let certPath;
+  let keyPath;
   let caPath = '';
   if (mode === TLS_MODES.CUSTOM) {
     certPath = getSetting('tlsCertPath', '') || '';

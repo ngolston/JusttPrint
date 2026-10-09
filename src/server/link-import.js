@@ -128,8 +128,8 @@ async function fetchJson(fetchImpl, url, options) {
   if (!response.ok) throw new Error(`The site answered ${response.status}`);
   try {
     return JSON.parse(text);
-  } catch (_) {
-    throw new Error('The site did not answer with model details');
+  } catch (error) {
+    throw new Error('The site did not answer with model details', { cause: error });
   }
 }
 

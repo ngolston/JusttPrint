@@ -4,7 +4,6 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const containerRuntime = require('./container-runtime');
 
 // Read package.json for version

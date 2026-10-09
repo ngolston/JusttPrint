@@ -56,7 +56,7 @@ function collectSlicerSkipIds(unzipped) {
   const decoder = new TextDecoder();
   for (const key of Object.keys(unzipped)) {
     if (!/(model_settings|slice_info)\.config$/i.test(key)) continue;
-    let xml = '';
+    let xml;
     try {
       xml = decoder.decode(unzipped[key]);
     } catch (_) {
@@ -239,7 +239,7 @@ class Simple3MFLoader {
       if (error && error.message && (error.message.includes('No geometry') || error.message.includes('No mesh') || error.message.includes('No .model'))) {
         throw error;
       }
-      throw new Error(`Failed to parse 3MF: ${error.message}`);
+      throw new Error(`Failed to parse 3MF: ${error.message}`, { cause: error });
     }
   }
 
@@ -254,7 +254,7 @@ class Simple3MFLoader {
     const skipIds = collectSlicerSkipIds(unzipped);
 
     const relsPath = '3D/_rels/3dmodel.model.rels';
-    let relsMap = new Map();
+    const relsMap = new Map();
     if (unzipped[relsPath]) {
       try {
         const relsDoc = parser.parseFromString(textDecoder.decode(unzipped[relsPath]), 'text/xml');
@@ -287,7 +287,7 @@ class Simple3MFLoader {
       return results;
     };
 
-    let meshInstances = [];
+    const meshInstances = [];
     const objectMap = new Map();
     const buildItemsAll = [];
 

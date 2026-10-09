@@ -126,9 +126,6 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
 
     // Process files in parallel with concurrency limit
     const concurrency = Math.max(1, Math.min(settings.aiTagConcurrency || 3, 10));
-    let completed = 0;
-    let successCount = 0;
-    let failureCount = 0;
     let rateLimitStopped = false;
     const totalFiles = filesToProcess.length;
     const rateLimitSkipMessage =
@@ -138,7 +135,6 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
     // Use eventSender (captured from event or clickEvent) for sending events
     const processFile = async (filePath, index) => {
       if (rateLimitStopped || aiTagJob.stopRequested(runId)) {
-        completed++;
         report(filePath, [], rateLimitStopped ? rateLimitSkipMessage : 'Stopped before this model. Tags already generated can still be applied.');
         return;
       }
@@ -148,7 +144,6 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
 
         if (!model) {
           console.debug(`Model not found in database: ${filePath}, skipping`);
-          completed++;
           report(filePath, [], null);
           return;
         }
@@ -170,7 +165,6 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
         // Check if model already has the "AI Tagged" tag (unless retagging is allowed)
         if (!settings.aiTagAllowRetagging && modelTags.includes('AI Tagged')) {
           console.debug(`Model ${filePath} already has AI Tagged tag, skipping generation`);
-          completed++;
           report(filePath, [], null);
           return;
         }
@@ -197,15 +191,12 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
             const defaultImagePath = path.join(__dirname, '..', '..', '..', 'assets', 'logo.png');
             const data = await fs.readFile(defaultImagePath, { encoding: 'base64' });
             tags = await aitagging.generateTagsForImage(data, settings.aiModel, tagOptions, 2000, 5, filePath);
-            successCount++;
           } catch (error) {
             console.error(`Error generating tags with default image for ${filePath}:`, error);
-            failureCount++;
             // Check if it's a rate limit error
             if (error.message && error.message.includes('Rate limit')) {
               rateLimitStopped = true;
               report(filePath, [], error.message);
-              completed++;
               return;
             }
           }
@@ -215,7 +206,6 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
 
           if (!imagePayload) {
             console.error(`Invalid thumbnail format for ${filePath}`);
-            failureCount++;
           } else {
             try {
               // Generate tags using the thumbnail image
@@ -227,15 +217,12 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
                 5,
                 filePath
               );
-              successCount++;
             } catch (error) {
               console.error(`Error generating tags for ${filePath}:`, error);
-              failureCount++;
               // Check if it's a rate limit error
               if (error.message && error.message.includes('Rate limit')) {
                 rateLimitStopped = true;
                 report(filePath, [], error.message);
-                completed++;
                 return;
               }
             }
@@ -244,12 +231,9 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
 
         report(filePath, tags, null);
 
-        completed++;
         // Progress is now shown in the review dialog
       } catch (error) {
         console.error(`Unexpected error processing ${filePath}:`, error);
-        failureCount++;
-        completed++;
         // Check if it's a rate limit error
         if (error.message && error.message.includes('Rate limit')) {
           rateLimitStopped = true;

@@ -391,7 +391,7 @@ function createServerAuth({
   /** The user for a user name and password, or null. Unknown names cost as much as wrong passwords. */
   function verifyLogin(username, password) {
     const name = String(username || '').trim() || defaultUsername();
-    let row = null;
+    let row;
     try {
       row = users.findByName(name);
     } catch (_) {

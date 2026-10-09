@@ -55,7 +55,6 @@ async function updateModelsBatch(modelDataBatch) {
 
     // Use a transaction for better performance - update models and tags together
     const transaction = database.db.transaction(() => {
-      const getModelIdStmt = database.db.prepare('SELECT id FROM models WHERE filePath = ?');
       const getExistingModelStmt = database.db.prepare(`SELECT ${MODEL_DETAIL_COLUMNS} FROM models WHERE filePath = ?`);
       const getExistingTagsStmt = database.db.prepare(`
         SELECT t.name FROM model_tags mt
@@ -214,8 +213,7 @@ async function saveModel(modelData) {
   try {
     console.debug('saveModel:', modelData?.filePath, modelData?.id != null ? `(id ${modelData.id})` : '');
 
-    let {
-      id: inputId, // Rename to avoid confusion
+    const {
       filePath: filePathIn,
       fileName,
       designer,
@@ -452,20 +450,7 @@ async function saveModel(modelData) {
 
         // Use a transaction to ensure atomicity and handle errors gracefully
         database.db.transaction(() => {
-          // First, get existing tags before deleting (to preserve them if there's an error)
-          const existingTags = database.db
-            .prepare(
-              `
-            SELECT t.name 
-            FROM model_tags mt
-            JOIN tags t ON mt.tag_id = t.id
-            WHERE mt.model_id = ?
-          `
-            )
-            .all(modelId)
-            .map((row) => row.name);
-
-          // First, remove all existing tags for this model
+          // Remove all existing tags for this model
           const deleteResult = database.db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(modelId);
           console.debug(`Deleted ${deleteResult.changes} existing tag relationships`);
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const { flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../../core/settings');
+const { flushSettingsToDisk, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
 const {
   closeClientsOfUser,

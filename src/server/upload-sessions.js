@@ -87,7 +87,7 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
   let loaded = false;
 
   function save() {
-    const list = [...sessions.values()].map(({ busy, ...rest }) => rest); // eslint-disable-line no-unused-vars
+    const list = [...sessions.values()].map(({ busy, ...rest }) => rest);
     try {
       fs.mkdirSync(path.dirname(stateFile), { recursive: true });
       const temp = `${stateFile}.tmp`;
@@ -102,7 +102,7 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
   function load() {
     if (loaded) return;
     loaded = true;
-    let list = [];
+    let list;
     try {
       list = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     } catch (_) {

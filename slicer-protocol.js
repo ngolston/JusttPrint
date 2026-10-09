@@ -113,7 +113,7 @@
     try {
       actual = new URL(origin).origin;
     } catch (error) {
-      throw new Error('Invalid server origin');
+      throw new Error('Invalid server origin', { cause: error });
     }
     const allowed = (Array.isArray(allowedOrigins) ? allowedOrigins : [])
       .map((entry) => {

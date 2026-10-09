@@ -49,8 +49,8 @@ async function json(response, what) {
   let body;
   try {
     body = JSON.parse(text);
-  } catch (_) {
-    throw new Error(`${what} answered ${response.status}`);
+  } catch (error) {
+    throw new Error(`${what} answered ${response.status}`, { cause: error });
   }
   return body;
 }
@@ -181,7 +181,6 @@ async function fileUrl(link, file, fetchImpl) {
 
 /** The file name to save: no folders, no characters a file name cannot have. */
 function plainName(name, fallback) {
-  // eslint-disable-next-line no-control-regex
   const text = path
     .basename(String(name || '').replace(/\\/g, '/'))
     .normalize('NFC')

@@ -96,7 +96,7 @@ async function main() {
     image
   ]);
 
-  let stoppedCleanly = false;
+  let stoppedCleanly;
   try {
     const port = docker(['port', NAME, '5000/tcp']).split('\n')[0].split(':').pop();
     const base = `http://127.0.0.1:${port}`;

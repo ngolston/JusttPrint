@@ -4,7 +4,7 @@ const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
-const { isUrlModel, parseZipPath } = require('../../core/library-paths');
+const { isUrlModel } = require('../../core/library-paths');
 const { parseThumbnails, readThumbnailColumn } = require('../../core/thumbnails');
 const { deleteModelJunctionRows, deleteModelsByFilePaths } = require('../../core/models');
 const { clientDialogs } = require('../dialogs');
@@ -88,10 +88,6 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
   if (filePaths.length === 1) {
     events.toCaller(event, 'select-model-by-filepath', filePaths[0]);
   }
-
-  // Check if any file is a zip entry
-  const isZipEntry = filePaths.length === 1 && filePaths[0].includes('::');
-  const pathInfo = filePaths.length === 1 ? parseZipPath(filePaths[0]) : null;
 
   let menuItems = [];
 
@@ -357,7 +353,7 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Remove from Library',
       click: async () => {
         // In server mode (Docker/browser), no native dialog - proceed and broadcast refresh
-        let confirmed = true;
+        const confirmed = true;
         if (confirmed) {
           try {
             deleteModelsByFilePaths(filePaths);
@@ -372,11 +368,11 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
       label: 'Delete from Disk', // Renamed from just "Delete"
       click: async () => {
         // In server mode (Docker/browser), no native dialog - proceed and broadcast refresh
-        let confirmed = true;
+        const confirmed = true;
         if (confirmed) {
           for (const fp of filePaths) {
             try {
-              const success = await deleteFile(fp);
+              await deleteFile(fp);
             } catch (error) {
               console.error('Error deleting file:', error);
             }

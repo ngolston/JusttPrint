@@ -10,7 +10,7 @@ function postStatus(message) {
 
 parentPort.on('message', async (message) => {
   const { filePath } = message || {};
-  let arrayBuffer = null;
+  let arrayBuffer;
 
   try {
     postStatus('Reading 3MF file...');

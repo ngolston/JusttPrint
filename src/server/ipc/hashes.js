@@ -53,7 +53,7 @@ async function calculateFileHash(filePath) {
       return fileHash;
     } catch (error) {
       console.error(`Error extracting zip entry for hashing: ${filePath}`, error);
-      throw new Error(`Failed to extract zip entry for hashing: ${error.message}`);
+      throw new Error(`Failed to extract zip entry for hashing: ${error.message}`, { cause: error });
     }
   }
 

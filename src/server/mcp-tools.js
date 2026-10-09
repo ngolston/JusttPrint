@@ -197,7 +197,7 @@ function getMcpToolContext() {
     },
     getModel: async (args) => {
       const includeThumbnails = !!args.includeThumbnails;
-      let model = null;
+      let model;
       if (args.id != null && args.id !== '') {
         model = getModelById(Number(args.id), { includeThumbnail: includeThumbnails });
       } else if (args.filePath) {
@@ -447,7 +447,7 @@ function getMcpToolContext() {
         )
         .all(),
     pull3mfMetadata: async (args) => {
-      let filePaths = resolveMcpFilePaths(args);
+      const filePaths = resolveMcpFilePaths(args);
       if (!filePaths.length) throw new Error('Provide filePaths, filePath, or id');
       const threeMFFiles = filePaths.filter((fp) => {
         const target = fp.includes('::') ? fp.split('::')[1] || '' : fp;

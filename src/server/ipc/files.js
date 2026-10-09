@@ -23,7 +23,7 @@ ipcMain.handle('trash-file', async (event, filePath) => {
     try {
       assertContainerPath(filePath, 'trash-file');
     } catch (validationError) {
-      throw new Error(validationError.message);
+      throw new Error(validationError.message, { cause: validationError });
     }
   } catch (error) {
     console.error('Error in trash-file handler:', error);
@@ -74,7 +74,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     try {
       assertContainerPath(filePath, 'delete-file');
     } catch (validationError) {
-      throw new Error(validationError.message);
+      throw new Error(validationError.message, { cause: validationError });
     }
 
     console.debug('main: delete-file handler called with:', filePath);

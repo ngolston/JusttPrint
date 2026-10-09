@@ -357,7 +357,6 @@ function getModelContext(filePath, options = {}) {
 function buildPrompt(options = {}, filename = null) {
   const maxTags = options.maxTags || DEFAULT_OPTIONS.maxTags;
   const useCategories = options.useCategories || false;
-  const useJsonResponse = options.useJsonResponse || false;
   const detailLevel = options.detailLevel || 'medium';
 
   let prompt = `You are helping organize 3D models in a library. Analyze this image of a 3D model thumbnail and generate ${maxTags} useful category tags that will help users find and organize this model. `;
@@ -479,7 +478,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
           await delay(delayMs * (attempt + 1)); // Exponential backoff
           continue;
         } else {
-          throw new Error(`Tag generation failed with Puter: ${error.message}`);
+          throw new Error(`Tag generation failed with Puter: ${error.message}`, { cause: error });
         }
       }
     }
@@ -558,7 +557,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         if (attempt >= maxRetries) {
           const errorMessage = rateLimitUserMessage(error);
           console.warn(`Rate limit exceeded (429) after ${attempt} attempt(s): ${errorMessage}`);
-          throw new Error(`Rate limit exceeded: ${errorMessage}`);
+          throw new Error(`Rate limit exceeded: ${errorMessage}`, { cause: error });
         }
         console.warn(`Rate limit (429). Waiting ${Math.ceil(waitMs / 1000)}s before retry ${attempt + 1}/${maxRetries}`);
         pacedDelayMs = waitMs;
@@ -582,12 +581,12 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
           await delay(delayMs);
           continue;
         } else {
-          throw new Error(`Invalid request: ${errorMessage}. Please check your API configuration and image format.`);
+          throw new Error(`Invalid request: ${errorMessage}. Please check your API configuration and image format.`, { cause: error });
         }
       }
       // Handle authentication errors
       else if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-        throw new Error(`Authentication failed: ${error.response.data?.error?.message || 'Invalid API key or insufficient permissions'}`);
+        throw new Error(`Authentication failed: ${error.response.data?.error?.message || 'Invalid API key or insufficient permissions'}`, { cause: error });
       }
       // Handle no body errors (but not if it's a 429 - that's handled above)
       else if (error.message && error.message.includes('no body') && !error.message.includes('429')) {
@@ -610,7 +609,9 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
           delayMs *= 2;
           continue;
         } else {
-          throw new Error(`Network error: Unable to connect to API endpoint. Please check your internet connection and API endpoint configuration.`);
+          throw new Error(`Network error: Unable to connect to API endpoint. Please check your internet connection and API endpoint configuration.`, {
+            cause: error
+          });
         }
       }
       // Handle other errors
@@ -618,9 +619,9 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         console.error('Error generating tags:', error);
         // Provide more user-friendly error messages
         if (error.message) {
-          throw new Error(`Tag generation failed: ${error.message}`);
+          throw new Error(`Tag generation failed: ${error.message}`, { cause: error });
         } else {
-          throw new Error(`Tag generation failed: Unknown error occurred. Please check your API configuration.`);
+          throw new Error(`Tag generation failed: Unknown error occurred. Please check your API configuration.`, { cause: error });
         }
       }
     }

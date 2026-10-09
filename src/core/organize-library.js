@@ -44,7 +44,7 @@ function emptyPlan(error) {
 function compareKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  let resolved = path.resolve(raw);
+  const resolved = path.resolve(raw);
   const asPosix = resolved.replace(/\\/g, '/').replace(/\/+$/, '');
   const folded = asPosix || resolved.replace(/\\/g, '/');
   if (process.platform === 'win32' || /^[A-Za-z]:/.test(folded) || folded.startsWith('//')) {

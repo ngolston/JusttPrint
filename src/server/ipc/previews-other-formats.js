@@ -14,7 +14,7 @@ const { extractVoxlPreviewEntry } = require('../../core/extract-voxl-preview');
 
 ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
@@ -53,7 +53,7 @@ ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
         .replace(/^\./, '') || 'png';
     const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
     const mimeType = mimeMap[ext] || 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
+    const dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
     return [dataUrl];
   } catch (error) {
     console.error('Error reading LYS preview:', error);
@@ -63,7 +63,7 @@ ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
 
 ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
@@ -112,7 +112,7 @@ ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
         .replace(/^\./, '') || 'png';
     const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
     const mimeType = mimeMap[ext] || 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
+    const dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
     return [dataUrl];
   } catch (error) {
     console.error('Error reading F3D preview:', error);
@@ -124,7 +124,7 @@ ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
 
 ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
@@ -156,7 +156,7 @@ ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
       return [];
     }
 
-    let dataUrl = `data:image/png;base64,${Buffer.from(entry.bytes).toString('base64')}`;
+    const dataUrl = `data:image/png;base64,${Buffer.from(entry.bytes).toString('base64')}`;
     return [dataUrl];
   } catch (error) {
     console.error('Error reading ChiTuBox preview:', error);
@@ -166,7 +166,7 @@ ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
 
 ipcMain.handle('getVoxlImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
@@ -210,7 +210,7 @@ ipcMain.handle('getVoxlImages', async (event, filePath, options = {}) => {
 
     const mime = (entry.mimeType || 'image/png').toLowerCase();
     const mimeType = mime.includes('jpeg') || mime.includes('jpg') ? 'jpeg' : mime.includes('webp') ? 'webp' : 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
+    const dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
     return [dataUrl];
   } catch (error) {
     console.error('Error reading VOXL preview:', error);

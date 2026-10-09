@@ -24,7 +24,7 @@ const rules = {
 };
 
 /** Files that also run in the browser (they check `typeof window` / `typeof fflate` first). */
-const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'parse-lys-geometry.js', 'threemf-svg-extrude.js', 'threemf-mesh-extract.js'];
+const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'parse-lys-geometry.js', 'threemf-mesh-extract.js'];
 
 export default [
   {

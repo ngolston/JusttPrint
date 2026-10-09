@@ -389,8 +389,8 @@
       try {
         // Long calls start with keep-alive spaces; JSON.parse skips them.
         data = text.trim() ? JSON.parse(text) : {};
-      } catch (_) {
-        throw new Error('Unexpected response from the JusttPrint backend (HTTP ' + response.status + ')');
+      } catch (error) {
+        throw new Error('Unexpected response from the JusttPrint backend (HTTP ' + response.status + ')', { cause: error });
       }
       if (!response.ok || Object.prototype.hasOwnProperty.call(data, 'error')) {
         throw new Error(data.error || 'HTTP ' + response.status);
@@ -564,9 +564,6 @@
   // This ensures all methods exist before any other script tries to use them
   console.log('[Bridge] Creating', Object.keys(methodToChannel).length, 'methods from methodToChannel...');
   Object.keys(methodToChannel).forEach((method) => {
-    // Store original method if it exists (before we overwrite it)
-    const originalMethod = originalElectron[method];
-
     // Create the method immediately - don't wait for WebSocket connection
     window.electron[method] = function (...args) {
       // Every call goes to the server's HTTP API (makeIpcCall)

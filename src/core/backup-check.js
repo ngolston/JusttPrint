@@ -12,7 +12,7 @@ function checkBackupFile(filePath) {
     const models = candidate.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='models'").get();
     if (!models) throw new Error('it has no models table');
   } catch (error) {
-    throw new Error(`Not a JusttPrint backup: ${error.message}`);
+    throw new Error(`Not a JusttPrint backup: ${error.message}`, { cause: error });
   } finally {
     if (candidate) candidate.close();
   }

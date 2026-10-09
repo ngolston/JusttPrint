@@ -32,7 +32,7 @@ function downloadsDir() {
 
 /** The download-style files in a folder, with size and time. */
 function listFiles(dir, fileSystem = fs) {
-  let names = [];
+  let names;
   try {
     names = fileSystem.readdirSync(dir);
   } catch (_) {
