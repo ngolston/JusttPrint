@@ -2218,6 +2218,61 @@ async function browserChecks(base, wsUrl, session) {
           'designer cleared'
         ).catch(() => false);
         check('Metadata Manager clears a designer after asking', !!confirmClear && cleared === true);
+
+        // Undo, in the dialog's own Undo line (the page's notice is behind the dialog): the clear, then the rename.
+        const designerIs = (name, what) =>
+          waitFor(
+            async () => {
+              const model = await invoke(base, session, 'get-model', [cube]);
+              return model.result && (model.result.designer || '') === name;
+            },
+            15000,
+            what
+          ).catch(() => false);
+        const undoLine = await page.waitForSelector('#metadata-editor-undo', { timeout: 10000 }).catch(() => null);
+        if (undoLine) await undoLine.click();
+        check('Metadata Editor undoes clearing a designer', !!undoLine && (await designerIs('New Designer', 'clear undone')) === true);
+        const undoRename = await page
+          .waitForSelector('#metadata-editor-dialog .metadata-editor-undo:has-text("Renamed")', { timeout: 10000 })
+          .catch(() => null);
+        if (undoRename) await page.click('#metadata-editor-undo');
+        check('Metadata Editor undoes a rename', !!undoRename && (await designerIs('Old Designer', 'rename undone')) === true);
+        check(
+          'the Metadata Editor list shows the undone name',
+          !!(await page.waitForSelector('#metadata-editor-dialog .metadata-item:has-text("Old Designer")', { timeout: 10000 }).catch(() => null))
+        );
+
+        // A merge is undone on the models it changed only, and keeps edits made since.
+        const ball = path.join(LIBRARY, 'Designer A', 'cube.stl');
+        const other = (await invoke(base, session, 'get-model', [path.join(LIBRARY, 'Designer B', 'box.3mf')])).result;
+        if (other) {
+          await invoke(base, session, 'update-models-batch', [[{ filePath: other.filePath, designer: 'Merge Target' }]]);
+          const merged = (await invoke(base, session, 'rename-metadata', ['designer', 'Old Designer', 'Merge Target'])).result || {};
+          const cubeId = (await invoke(base, session, 'get-model', [ball])).result?.id;
+          check(
+            'a merge reports the models it changed',
+            merged.merged === true && JSON.stringify(merged.modelIds) === JSON.stringify([cubeId]),
+            JSON.stringify(merged)
+          );
+          const restored =
+            (await invoke(base, session, 'restore-metadata', [{ type: 'designer', name: 'Old Designer', current: 'Merge Target', modelIds: merged.modelIds }]))
+              .result || {};
+          const otherAfter = (await invoke(base, session, 'get-model', [other.filePath])).result?.designer;
+          check(
+            'undoing a merge splits it again',
+            restored.restored === 1 && (await designerIs('Old Designer', 'merge undone')) === true && otherAfter === 'Merge Target'
+          );
+          await invoke(base, session, 'rename-metadata', ['designer', 'Old Designer', 'Merge Target']);
+          await invoke(base, session, 'update-models-batch', [[{ filePath: ball, designer: 'Edited Since' }]]);
+          const kept =
+            (await invoke(base, session, 'restore-metadata', [{ type: 'designer', name: 'Old Designer', current: 'Merge Target', modelIds: merged.modelIds }]))
+              .result || {};
+          check('undo keeps a value edited since', kept.restored === 0 && (await designerIs('Edited Since', 'edit kept')) === true);
+          await invoke(base, session, 'update-models-batch', [[{ filePath: other.filePath, designer: other.designer || '' }]]);
+        } else {
+          check('a second model for the merge undo', false);
+        }
+        await invoke(base, session, 'update-models-batch', [[{ filePath: ball, designer: '' }]]);
       }
     } else {
       check('Metadata Manager lists the designer', false, 'rename button not found');
@@ -4349,6 +4404,10 @@ async function accountChecks(base, wsUrl, admin) {
   const editor = await loginAs(base, 'maker', 'maker-password');
   const viewer = await loginAs(base, 'kid', 'kid-password');
   check('editor and viewer log in', !!editor && !!viewer);
+  check(
+    'viewers cannot undo Metadata Editor changes',
+    (await invoke(base, viewer, 'restore-metadata', [{ type: 'designer', name: 'x', current: '', modelIds: [1] }])).status === 403
+  );
   const users = (await invoke(base, admin, 'list-users')).result || {};
   check(
     'the user list has all three, without password hashes',

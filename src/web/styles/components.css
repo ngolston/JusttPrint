@@ -941,8 +941,9 @@ button.jp-tag__label:hover {
   max-width: calc(100vw - 32px);
   pointer-events: none;
 }
-/* The Tag Manager's own Undo line (the notice above is behind the dialog). */
-.tag-manager-undo {
+/* The Tag Manager's and Metadata Editor's own Undo line (the notice above is behind the dialog). */
+.tag-manager-undo,
+.metadata-editor-undo {
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.12.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **Undo in the Metadata Editor:** renaming, merging and clearing a designer, parent model or license can be undone, from the dialog's own **Undo** line (the page's notice is behind the dialog), the notice, or Ctrl/⌘ Z. Undoing a merge or a clear puts the old name back on just the models that had it, and leaves models someone edited since.
+
 ## [7.11.0] - 2026-10-09
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. Details already kept for a model show the new parts after their daily refresh, or right away with the section's refresh button.

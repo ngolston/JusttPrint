@@ -7,8 +7,8 @@ export interface UndoEntry {
   id: number;
   /** What the edit did, e.g. "Changed the designer of benchy.stl". */
   label: string;
-  /** What was edited: 'tag' for the Tag Manager's own Undo line (the page's notice is behind it). */
-  kind?: 'tag';
+  /** What was edited: 'tag' and 'metadata' get an Undo line in the Tag Manager and Metadata Editor (the page's notice is behind them). */
+  kind?: 'tag' | 'metadata';
   undo: () => Promise<unknown>;
 }
 

@@ -674,9 +674,12 @@ export const metadata = {
   list: () => callAction<MetadataEntry[]>('get-all-metadata'),
   /** Renaming onto an existing name merges the two. */
   rename: (type: MetadataType, oldName: string, newName: string) =>
-    callAction<{ merged?: boolean; updated?: number }>('rename-metadata', type, oldName, newName),
+    callAction<{ merged?: boolean; updated?: number; modelIds?: number[] }>('rename-metadata', type, oldName, newName),
   /** Clears the value on every model that has it. */
-  remove: (type: MetadataType, name: string) => callAction<unknown>('delete-metadata', type, name)
+  remove: (type: MetadataType, name: string) => callAction<{ updated?: number; modelIds?: number[] }>('delete-metadata', type, name),
+  /** Undo: `name` again on `modelIds`, for those still at `current` (empty after a delete). */
+  restore: (request: { type: MetadataType; name: string; current: string; modelIds: number[] }) =>
+    callAction<{ restored?: number }>('restore-metadata', request)
 };
 
 export interface OrganizeJob {

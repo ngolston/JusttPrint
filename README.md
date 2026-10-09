@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 7.11.0**
+**Version 7.12.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -28,7 +28,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
 - **Search and filters** by name, folder, tag, designer, status and more
 - **Multi-edit** to change many models at once
-- **Undo** for metadata and tag edits, and for renaming, merging and deleting tags: the Undo button after a change, or Ctrl/⌘ Z for the last 20
+- **Undo** for metadata and tag edits, for renaming, merging and deleting tags, and for the Metadata Editor's renames, merges and clears: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
 - **MCP server** so AI agents can search and update your library, and add models from links

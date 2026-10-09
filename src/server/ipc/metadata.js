@@ -9,6 +9,43 @@ const { getModelByFilePath } = require('../../core/models');
 const { clientDialogs } = require('../dialogs');
 const { extract3MFMetadata, filter3MFMetadataBySettings } = require('../../core/three-mf');
 
+const METADATA_TYPES = ['designer', 'parentModel', 'license'];
+
+/** Set `type` to `to` on every model that has `from`. Answers the UPDATE's result and the changed models' ids. */
+function changeModels(type, from, to) {
+  const db = database.db;
+  return db.transaction(() => {
+    const modelIds = db
+      .prepare(`SELECT id FROM models WHERE ${type} = ?`)
+      .all(from)
+      .map((row) => row.id);
+    const result = db.prepare(`UPDATE models SET ${type} = ? WHERE ${type} = ?`).run(to, from);
+    return { result, modelIds };
+  })();
+}
+
+/**
+ * Undo a rename, merge or delete from the Metadata Editor: give the models `modelIds` the value
+ * `name` again, but only those still at `current` (what the edit set; empty for a delete), so
+ * later edits stay. Answers { restored }.
+ */
+async function restoreMetadataHandler(event, request) {
+  const type = request && request.type;
+  if (!METADATA_TYPES.includes(type)) throw new Error('Invalid metadata type');
+  const name = String(request.name || '').trim();
+  if (!name) throw new Error('Name cannot be empty');
+  const current = String(request.current || '').trim();
+  const ids = (Array.isArray(request.modelIds) ? request.modelIds : []).map(Number).filter((id) => Number.isInteger(id) && id > 0);
+  const db = database.db;
+  const restore = current
+    ? db.prepare(`UPDATE models SET ${type} = ? WHERE id = ? AND ${type} = ?`)
+    : db.prepare(`UPDATE models SET ${type} = ? WHERE id = ? AND (${type} IS NULL OR ${type} = '')`);
+  const restored = db.transaction(() => ids.reduce((count, id) => count + (current ? restore.run(name, id, current) : restore.run(name, id)).changes, 0))();
+  return { success: true, restored };
+}
+
+ipcMain.handle('restore-metadata', restoreMetadataHandler);
+
 ipcMain.handle('get-all-metadata', async () => {
   try {
     return database.db
@@ -44,9 +81,7 @@ ipcMain.handle('rename-metadata', async (event, type, oldName, newName) => {
       throw new Error('Name cannot be empty');
     }
 
-    // Validate type
-    const validTypes = ['designer', 'parentModel', 'license'];
-    if (!validTypes.includes(type)) {
+    if (!METADATA_TYPES.includes(type)) {
       throw new Error('Invalid metadata type');
     }
 
@@ -64,22 +99,16 @@ ipcMain.handle('rename-metadata', async (event, type, oldName, newName) => {
     const existingCount = existing ? existing.count : 0;
     const isMerge = existingCount > 0;
 
-    // Update all models with the old name to the new name (merge if new name exists)
-    const result = database.db
-      .prepare(
-        `
-      UPDATE models 
-      SET ${type} = ? 
-      WHERE ${type} = ?
-    `
-      )
-      .run(newName.trim(), oldName.trim());
+    // Update all models with the old name to the new name (merge if new name exists). The ids of
+    // the changed models are what restore-metadata needs to undo it, even after a merge.
+    const { result, modelIds } = changeModels(type, oldName.trim(), newName.trim());
 
     return {
       success: true,
       updated: result.changes,
       merged: isMerge,
-      existingCount: existingCount
+      existingCount: existingCount,
+      modelIds
     };
   } catch (error) {
     console.error('Error renaming metadata:', error);
@@ -93,24 +122,14 @@ ipcMain.handle('delete-metadata', async (event, type, name) => {
       throw new Error('Name cannot be empty');
     }
 
-    // Validate type
-    const validTypes = ['designer', 'parentModel', 'license'];
-    if (!validTypes.includes(type)) {
+    if (!METADATA_TYPES.includes(type)) {
       throw new Error('Invalid metadata type');
     }
 
     // Set the field to NULL for all models with that value
-    const result = database.db
-      .prepare(
-        `
-      UPDATE models 
-      SET ${type} = NULL 
-      WHERE ${type} = ?
-    `
-      )
-      .run(name.trim());
+    const { result, modelIds } = changeModels(type, name.trim(), null);
 
-    return { success: true, updated: result.changes };
+    return { success: true, updated: result.changes, modelIds };
   } catch (error) {
     console.error('Error deleting metadata:', error);
     throw error;
