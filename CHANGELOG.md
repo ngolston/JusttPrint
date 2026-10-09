@@ -2,7 +2,7 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.10.1] - 2026-10-09
 
 **Upgrading:** no changes for anyone who runs the published image. If you build the image from a clone of the repository, the Dockerfile and compose files are now in `docker/`: build with `docker build -f docker/Dockerfile .`, or run `docker compose -f docker/docker-compose.yml up -d --build` from the project folder (its `data` and `models` folders stay where they were).
 
