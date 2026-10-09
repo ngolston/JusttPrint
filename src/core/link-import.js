@@ -222,12 +222,20 @@ function fromThingiversePage(html, id) {
   const name = clean(product.name) || (byline ? byline[1] : title);
   if (!name) return null;
   const image = clean(meta['og:image'] || meta['twitter:image'] || (Array.isArray(product.image) ? product.image[0] : product.image), 2000);
+  // Like and comment counts: schema.org interaction counters on the model page.
+  const counters = (product.mainEntityOfPage && product.mainEntityOfPage.interactionStatistic) || product.interactionStatistic || [];
+  const count = (action) => {
+    const counter = (Array.isArray(counters) ? counters : [counters]).find((c) => c && String(c.interactionType || '').endsWith(action));
+    const n = counter ? Number(counter.userInteractionCount) : NaN;
+    return Number.isFinite(n) ? n : null;
+  };
   return {
     name,
     designer: clean(author && (typeof author === 'string' ? author : author.name)) || (byline ? clean(byline[2]) : null),
     // The license is in the page's app data (escaped JSON), not in the Product record.
     license: licenseName(product.license || (/\\?"license\\?"\s*:\s*\\?"(https:\/\/creativecommons\.org\/[^"\\]+)/.exec(text) || [])[1]),
-    image: image && /^https:\/\//i.test(image) ? image : null
+    image: image && /^https:\/\//i.test(image) ? image : null,
+    stats: { likes: count('LikeAction'), comments: count('CommentAction') }
   };
 }
 

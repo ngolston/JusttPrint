@@ -44,9 +44,22 @@ function needsTokenError() {
   return error;
 }
 
+/** Thingiverse (its site and its API) sometimes puts every request behind Cloudflare's browser check. */
+function blockedError() {
+  return Object.assign(
+    new Error(
+      'Thingiverse is refusing requests from servers right now (a Cloudflare browser check only a browser can pass). Try again later, or open the model on Thingiverse'
+    ),
+    { code: 'BLOCKED' }
+  );
+}
+
 async function json(response, what) {
   const text = (await readLimited(response, 4 * 1024 * 1024)).toString('utf8');
-  if (/<title>\s*Just a moment/i.test(text)) throw new Error(`${what} asked for a browser check and did not answer`);
+  if (/<title>\s*Just a moment/i.test(text)) {
+    if (what === 'Thingiverse') throw blockedError();
+    throw new Error(`${what} asked for a browser check and did not answer`);
+  }
   let body;
   try {
     body = JSON.parse(text);
@@ -76,6 +89,10 @@ async function thingiverseApi(apiPath, fetchImpl, options = {}) {
     headers: { authorization: `Bearer ${key}`, accept: 'application/json', 'user-agent': USER_AGENT },
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
+  if (response.headers.get('cf-mitigated') === 'challenge') {
+    response.body?.cancel?.();
+    throw blockedError();
+  }
   if (response.status === 401 || response.status === 403) {
     response.body?.cancel?.();
     const error = Object.assign(new Error('Thingiverse did not accept the API token: check it under Settings → Integrations → Thingiverse'), {
@@ -96,6 +113,19 @@ async function thingiverseJson(apiPath, fetchImpl = httpsFetch) {
   return json(response, 'Thingiverse');
 }
 
+/** What Printables says about a G-code file: printer, material, time (hours), grams, layer, nozzle. */
+function gcodePrint(file) {
+  const num = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null);
+  return {
+    printer: (file.printer && file.printer.name) || null,
+    material: (file.material && file.material.name) || null,
+    seconds: num(file.printDuration) ? Math.round(num(file.printDuration) * 3600) : null,
+    grams: num(file.weight),
+    layerHeight: num(file.layerHeight),
+    nozzle: num(file.nozzleDiameter)
+  };
+}
+
 /**
  * The files of a Printables or Thingiverse model: [{ id, name, size, kind, model }], `model`
  * true for model files (ticked to start). Throws `code: 'THINGIVERSE_TOKEN'` without a token.
@@ -105,7 +135,7 @@ async function listFiles(url, fetchImpl = httpsFetch) {
   if (!link || !['printables', 'thingiverse'].includes(link.site)) throw new Error('Not a Printables or Thingiverse model link');
   if (link.site === 'printables') {
     const data = await printablesGraphql(
-      'query JusttPrintFiles($id: ID!) { print(id: $id) { stls { id name fileSize } gcodes { id name fileSize } slas { id name fileSize } otherFiles { id name fileSize } } }',
+      'query JusttPrintFiles($id: ID!) { print(id: $id) { stls { id name fileSize } gcodes { id name fileSize printer { name } material { name } printDuration weight layerHeight nozzleDiameter } slas { id name fileSize } otherFiles { id name fileSize } } }',
       { id: link.id },
       fetchImpl
     );
@@ -121,7 +151,14 @@ async function listFiles(url, fetchImpl = httpsFetch) {
       for (const file of list || []) {
         const name = String(file.name || `file ${file.id}`);
         // Printables lists project files (.shapr, .f3z…) with the STLs: only model files start ticked.
-        files.push({ id: String(file.id), name, size: Number(file.fileSize) || null, kind, model: MODEL_KINDS.has(kind) && MODEL_EXTENSIONS.test(name) });
+        files.push({
+          id: String(file.id),
+          name,
+          size: Number(file.fileSize) || null,
+          kind,
+          model: MODEL_KINDS.has(kind) && MODEL_EXTENSIONS.test(name),
+          ...(kind === 'gcode' ? { print: gcodePrint(file) } : {})
+        });
       }
     }
     return files;
@@ -319,4 +356,4 @@ const setFileGap = (ms) => {
   fileGapMs = ms;
 };
 
-module.exports = { FILE_HOSTS, downloadFiles, listFiles, plainName, setFileGap, setToken, thingiverseJson, tokenStatus };
+module.exports = { FILE_HOSTS, blockedError, downloadFiles, listFiles, plainName, setFileGap, setToken, thingiverseJson, tokenStatus };

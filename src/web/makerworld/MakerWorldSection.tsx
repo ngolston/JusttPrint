@@ -12,6 +12,7 @@ import {
   formatDay,
   formatDuration,
   formatGrams,
+  gcodeSummary,
   getSiteDetails,
   linkParts,
   siteModelUrl,
@@ -82,11 +83,13 @@ function popularity(details: MakerWorldDetails): string {
     [stats.likes, 'like'],
     [stats.downloads, 'download'],
     [stats.prints, details.site === 'makerworld' ? 'print' : 'make'],
-    [stats.collections, 'collection']
+    [stats.collections, 'collection'],
+    [stats.comments, 'comment'],
+    [stats.remixes, 'remix']
   ];
   return parts
     .filter(([n]) => typeof n === 'number' && n > 0)
-    .map(([n, word]) => `${n!.toLocaleString()} ${word}${n === 1 ? '' : 's'}`)
+    .map(([n, word]) => `${n!.toLocaleString()} ${word}${n === 1 ? '' : word.endsWith('x') ? 'es' : 's'}`)
     .join(' · ');
 }
 
@@ -100,6 +103,7 @@ function PrintSettingsPart({ settings }: { settings: PrintSettings }) {
         {!!settings.seconds && <Prop label="Print time">about {formatDuration(settings.seconds)}</Prop>}
         {!!settings.grams && <Prop label="Filament">{formatGrams(settings.grams)}</Prop>}
         {!!settings.pieces && <Prop label="Pieces">{settings.pieces}</Prop>}
+        {settings.printer && <Prop label="Printer">{settings.printer}</Prop>}
         {settings.materials.length > 0 && <Prop label="Material">{settings.materials.join(', ')}</Prop>}
         {settings.nozzles.length > 0 && <Prop label="Nozzle">{list(settings.nozzles, 'mm')}</Prop>}
         {settings.layerHeights.length > 0 && <Prop label="Layer height">{list(settings.layerHeights, 'mm')}</Prop>}
@@ -131,6 +135,35 @@ function ModelPart({ details }: { details: MakerWorldDetails }) {
         <Prop label="Created">{formatDay(details.created)}</Prop>
         <Prop label="Updated">{formatDay(details.updated)}</Prop>
         {popularity(details) && <Prop label="Popularity">{popularity(details)}</Prop>}
+        {!!details.stats?.rating && (
+          <Prop label="Rating">
+            {`★ ${details.stats.rating.toFixed(1)} of 5`}
+            {!!details.stats.ratings && (
+              <span className="jp-meta">{` (${details.stats.ratings.toLocaleString()} ${details.stats.ratings === 1 ? 'rating' : 'ratings'})`}</span>
+            )}
+          </Prop>
+        )}
+        {!!details.remixedFrom?.length && (
+          <Prop label="Remixed from">
+            <ul className="jp-mw__remixes">
+              {details.remixedFrom.map((source) => (
+                <li key={source.url}>
+                  <a href={source.url} target="_blank" rel="noopener noreferrer">
+                    {source.title || source.url}
+                  </a>
+                  {source.designer && <span className="jp-meta"> by {source.designer}</span>}
+                </li>
+              ))}
+            </ul>
+          </Prop>
+        )}
+        {details.pdfUrl && (
+          <Prop label="Model page">
+            <a href={details.pdfUrl} target="_blank" rel="noopener noreferrer">
+              PDF on {SITE_LABELS[details.site]} <ExternalLink size={12} aria-hidden="true" />
+            </a>
+          </Prop>
+        )}
       </div>
       {details.tags.length > 0 && (
         <ul className="jp-mw__tags" aria-label={`${SITE_LABELS[details.site]} tags`}>
@@ -370,6 +403,7 @@ function SiteFilesPart({ details, downloads }: { details: MakerWorldDetails; dow
                   {file.name}
                   {file.id && have.has(file.id) && <span className="jp-mw-profiles__tag">downloaded</span>}
                   {file.type === 'gcode' && <span className="jp-mw-profiles__tag">G-code</span>}
+                  {file.print && gcodeSummary(file.print) && <span className="jp-meta">{gcodeSummary(file.print)}</span>}
                 </td>
                 <td className="is-number">{file.size ? formatBytes(file.size) : '—'}</td>
               </tr>

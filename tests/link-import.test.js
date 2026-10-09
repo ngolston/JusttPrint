@@ -115,7 +115,14 @@ async function main() {
     '@type': 'Product',
     name: '#3DBenchy - The jolly torture-test by CreativeTools.se',
     author: { '@type': 'Person', name: 'CreativeTools' },
-    license: 'https://creativecommons.org/publicdomain/zero/1.0/'
+    license: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    mainEntityOfPage: {
+      '@type': 'CreativeWork',
+      interactionStatistic: [
+        { '@type': 'InteractionCounter', interactionType: 'https://schema.org/CommentAction', userInteractionCount: 0 },
+        { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: 16 }
+      ]
+    }
   };
   const thingPage = `<html><head><meta property="og:title" content="#3DBenchy - The jolly torture-test by CreativeTools.se by CreativeTools"/>
     <meta property="og:image" content="https://resize.thingiverse.com/?url=https://cdn.thingiverse.com/a.JPG&amp;w=628"/>
@@ -124,14 +131,16 @@ async function main() {
     name: '#3DBenchy - The jolly torture-test by CreativeTools.se',
     designer: 'CreativeTools',
     license: 'CC0 1.0',
-    image: 'https://resize.thingiverse.com/?url=https://cdn.thingiverse.com/a.JPG&w=628'
+    image: 'https://resize.thingiverse.com/?url=https://cdn.thingiverse.com/a.JPG&w=628',
+    stats: { likes: 16, comments: 0 }
   });
   // No structured data: "Name by Designer" from the preview title.
   assert.deepStrictEqual(fromThingiversePage('<meta property="og:title" content="Tiny &amp; Mighty Clip by maker">'), {
     name: 'Tiny & Mighty Clip',
     designer: 'maker',
     license: null,
-    image: null
+    image: null,
+    stats: { likes: null, comments: null }
   });
   assert.strictEqual(fromThingiversePage('<title>Just a moment...</title><meta property="og:title" content="x">'), null);
   assert.strictEqual(licenseName('https://creativecommons.org/licenses/by-nc-sa/4.0/'), 'CC BY-NC-SA 4.0');

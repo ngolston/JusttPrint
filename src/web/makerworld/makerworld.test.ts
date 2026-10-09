@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, linkParts, makerWorldUrl, siteModelUrl } from './makerworld';
+import { formatDuration, formatGrams, gcodeSummary, linkParts, makerWorldUrl, siteModelUrl } from './makerworld';
 
 describe('MakerWorld in the details panel', () => {
   it('finds the MakerWorld link of a model', () => {
@@ -37,5 +37,13 @@ describe('MakerWorld in the details panel', () => {
       { text: 'https://youtu.be/abc', href: 'https://youtu.be/abc' },
       { text: '. Or javascript:alert(1)' }
     ]);
+  });
+
+  it('sums up what a Printables G-code file was sliced for', () => {
+    expect(gcodeSummary({ printer: 'Prusa MK4S', material: 'PLA', seconds: 7200, grams: 11, layerHeight: 0.2, nozzle: 0.4 })).toBe(
+      `Prusa MK4S · PLA · 0.2 mm layers · 0.4 mm nozzle · about ${formatDuration(7200)} · 11 g`
+    );
+    expect(gcodeSummary({ printer: null, material: 'PETG', seconds: null, grams: null, layerHeight: null, nozzle: null })).toBe('PETG');
+    expect(gcodeSummary({ printer: null, material: null, seconds: null, grams: null, layerHeight: null, nozzle: null })).toBe('');
   });
 });

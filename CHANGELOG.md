@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.11.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. Details already kept for a model show the new parts after their daily refresh, or right away with the section's refresh button.
+
+**Changes:**
+- **More Printables details:** the details panel now shows the rating (★ out of 5 and how many rated), comments, collections and remixes next to likes, downloads and makes; **Remixed from** with links to the models it is based on (on Printables or elsewhere); the printer it was printed on; a link to Printables' PDF of the model page; and, for each G-code file, what it was sliced for: printer, material, layer height, nozzle, print time and filament.
+- **More Thingiverse details:** without an API token, the like and comment counts from the model page; with a token, also comments, remixes and views, and **Remixed from** with the things it is based on.
+- **Thingiverse behind Cloudflare:** when Thingiverse puts requests behind its Cloudflare browser check, the section says so (and keeps the details it had) instead of saying the API token was not accepted. When only the model page is blocked, the details still come from the API if you have a token.
+
 ## [7.10.2] - 2026-10-09
 
 **Upgrading:** no changes needed. Let's Encrypt certificates and the Let's Encrypt account you already have keep working; the next renewal uses the new client.
