@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.10.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. Guest access is off until an admin turns it on.
 
 **Changes:**
 - **Guest access:** an admin can let people browse JusttPrint without logging in (**Settings → Authentication → Users → Guest access**, or `JUSTTPRINT_GUEST_ACCESS=true`). Guests look, preview and download like a Viewer; they cannot edit, keep no settings, and see **Log In** under the account button. It is off by default: anyone who can reach the server gets in, so leave it off if the server is reachable from the internet. API tokens and MCP never fall back to a guest.
