@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.7.1] - 2026-10-08
+
+**Fixes:**
+- An AI tagging review reopened from the sidebar (**Review**) could miss a result that came in while it was opening, then wait forever with **Apply** greyed out. It now catches up once it is open.
+- When the last model of an AI tagging run finished, the review could briefly mark it "stopped before this model finished" with **Apply** ready but without that model's tags (they showed up a moment later). A result is now shown at once for a model the review lists. The end-to-end checks in the Docker image found it, where the slower start made the gap wider; they now pass in full there too.
+- The release checklist runs `npm run test:e2e:docker` as well.
+
 ## [7.7.0] - 2026-10-08
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. On the first start, downloads from MakerWorld made before 7.6.0 are renamed once to the model's English title (see below).

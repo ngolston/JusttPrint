@@ -1924,8 +1924,11 @@ async function browserChecks(base, wsUrl, session) {
       check('Review reopens it with the tags that came in', await page.waitForSelector(`#tag-preview-dialog[open] input[value="e2e-real-a"]`, { timeout: 10000 }).then(() => true, () => false)
         && /\(1\/2 processed/.test(await page.textContent('#tag-preview-dialog h3')));
       await release();
-      check('the rest arrives in the reopened review', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 15000 * SLOW }).then(() => true, () => false)
-        && (await page.locator('#tag-preview-container input[value="e2e-real-a"]').count()) === 2);
+      const applyReady = await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 15000 * SLOW }).then(() => true, () => false);
+      const tagInputs = await page.locator('#tag-preview-container input[value="e2e-real-a"]').count();
+      check('the rest arrives in the reopened review', applyReady && tagInputs === 2, JSON.stringify({
+        applyReady, tagInputs, title: await page.textContent('#tag-preview-dialog h3').catch(() => null), job: await job()
+      }));
       await page.click('#tag-preview-cancel');
       check('closing a finished review forgets the run', await waitFor(async () => (await job()) === null, 10000, 'dismissed').catch(() => false)
         && await page.waitForSelector('#ai-tag-progress-container', { state: 'detached', timeout: 5000 }).then(() => true, () => false));

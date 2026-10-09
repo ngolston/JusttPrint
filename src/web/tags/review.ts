@@ -48,6 +48,19 @@ export function upsertEntry(review: Review, entry: ReviewEntry): Review {
   return { ...review, entries };
 }
 
+/** Whether the review lists this model already. */
+export const hasEntry = (review: Review | null, filePath: string) => !!review && review.entries.some((e) => pathKey(e.filePath) === pathKey(filePath));
+
+/** A model's result, on the entry the review already has (unchanged when it has none). */
+export function withResult(review: Review, filePath: string, generatedTags: string[], error: string | null): Review {
+  const key = pathKey(filePath);
+  const index = review.entries.findIndex((e) => pathKey(e.filePath) === key);
+  if (index < 0) return review;
+  const entries = review.entries.slice();
+  entries[index] = { ...entries[index], generatedTags, error };
+  return { ...review, entries };
+}
+
 /** The batch ended (finished, stopped, or rate limited): models still waiting get a note. */
 export function finishBatch(review: Review): Review {
   return {

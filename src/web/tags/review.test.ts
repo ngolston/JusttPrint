@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canApply, emptyReview, finishBatch, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry, type ReviewEntry } from './review';
+import { canApply, emptyReview, finishBatch, hasEntry, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry, withResult, type ReviewEntry } from './review';
 
 const entry = (filePath: string, over: Partial<ReviewEntry> = {}): ReviewEntry => ({
   filePath, fileName: filePath.split('/').pop()!, thumbnail: null, existingTags: [], ...over
@@ -49,5 +49,26 @@ describe('tag review', () => {
     expect(rateLimitDetail('Rate limit exceeded: try in 1 minute')).toBe('try in 1 minute');
     expect(rateLimitDetail('Rate limit hit')).toMatch(/rate limit has been exceeded/);
     expect(rateLimitDetail('Network down')).toBeNull();
+  });
+});
+
+describe('a result for a model the review lists', () => {
+  const entry = (filePath: string): ReviewEntry => ({ filePath, fileName: filePath.split('/').pop() || '', thumbnail: null, existingTags: ['old'] });
+  const listed = upsertEntry(upsertEntry(emptyReview(true, 2, true), entry('/l/cube.stl')), entry('/l/box.3mf'));
+
+  it('is shown at once, keeping the entry as it was', () => {
+    expect(hasEntry(listed, '/L/box.3mf')).toBe(true);
+    expect(hasEntry(listed, '/l/other.stl')).toBe(false);
+    expect(hasEntry(null, '/l/box.3mf')).toBe(false);
+    const next = withResult(listed, '/l/box.3mf', ['e2e-real-a'], null);
+    expect(next.entries[1]).toEqual({ ...entry('/l/box.3mf'), generatedTags: ['e2e-real-a'], error: null });
+    expect(withResult(listed, '/l/other.stl', ['x'], null)).toBe(listed);
+  });
+
+  it('is kept when the end of the run comes right after', () => {
+    const done = finishBatch(withResult(withResult(listed, '/l/cube.stl', ['a'], null), '/l/box.3mf', ['e2e-real-a'], null));
+    expect(done.entries.map((e) => e.generatedTags)).toEqual([['a'], ['e2e-real-a']]);
+    expect(done.entries.every((e) => !e.error)).toBe(true);
+    expect(canApply(done)).toBe(true);
   });
 });

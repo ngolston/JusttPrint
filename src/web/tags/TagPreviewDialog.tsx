@@ -3,7 +3,7 @@ import { callAction, models, settings } from '../api';
 import { ModalDialog } from '../components/ModalDialog';
 import { onServerEvent, refreshTagRelatedUi, showMessage } from '../page';
 import {
-  STRATEGY_HELP, canApply, emptyReview, finishBatch, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry,
+  STRATEGY_HELP, canApply, emptyReview, finishBatch, hasEntry, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry, withResult,
   type MergeStrategy, type Review, type ReviewEntry
 } from './review';
 import { currentAiTagJob, dismissAiTagJob, getAiTagJob, setReviewing, stopAiTagJob, useAiTagJob } from './aiJob';
@@ -65,6 +65,9 @@ declare global {
 export function TagPreviewDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [review, setReview] = useState<Review | null>(null);
+  /** The review as last shown, for server events (they run outside React). */
+  const reviewRef = useRef<Review | null>(null);
+  reviewRef.current = review;
   const [strategy, setStrategy] = useState<MergeStrategy>('merge');
   const [applying, setApplying] = useState<{ done: number; total: number } | null>(null);
   /** Closed by the user: later events of the same run do not reopen it. */
@@ -105,9 +108,15 @@ export function TagPreviewDialog() {
       }),
       onServerEvent('tags-generated', async (filePath: string, tags: string[] | null, error: string | null, id?: number) => {
         if (closedRun.current || otherRun(id)) return;
-        const model = await models.get<ModelRecord>(filePath).catch(() => null);
-        if (!model) return;
-        update((review) => upsertEntry(review, toEntry(filePath, model, undefined, { generatedTags: tags || [], error })));
+        // A model the review lists already gets its tags at once: fetching it first let the end of
+        // the run arrive in between and mark it "stopped before this model finished".
+        if (hasEntry(reviewRef.current, filePath)) {
+          update((review) => withResult(review, filePath, tags || [], error));
+        } else {
+          const model = await models.get<ModelRecord>(filePath).catch(() => null);
+          if (!model) return;
+          update((review) => upsertEntry(review, toEntry(filePath, model, undefined, { generatedTags: tags || [], error })));
+        }
         const detail = rateLimitDetail(error);
         if (detail && !rateLimitShown.current) {
           rateLimitShown.current = true;
@@ -129,6 +138,16 @@ export function TagPreviewDialog() {
       });
       start(next, run.id);
       rateLimitShown.current = run.results.some((r) => rateLimitDetail(r.error));
+      // Results that came in while this review was being built were not for "this run" yet, and
+      // not in the first answer: ask again and add them, and the end of the run.
+      const latest = await getAiTagJob();
+      if (!latest || latest.id !== run.id || closedRun.current) return;
+      const loadedByPath = new Map(run.filePaths.map((p, i) => [p, loaded[i]]));
+      for (const result of latest.results) {
+        if (results.has(result.filePath)) continue;
+        update((review) => upsertEntry(review, toEntry(result.filePath, loadedByPath.get(result.filePath) ?? null, undefined, { generatedTags: result.tags, error: result.error })));
+      }
+      if (!latest.running) update(finishBatch);
     };
     return () => {
       offs.forEach((off) => off());
