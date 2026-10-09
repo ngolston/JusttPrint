@@ -5,7 +5,7 @@
 
 const assert = require('assert');
 const { MAX_FILES, isOrcaLinkSlicer, issueSlicerFileLinks, linkFileName, _links } = require('../src/server/slicer-links');
-const { buildOrcaSlicerOpenUrl } = require('../slicer-protocol');
+const { buildOrcaSlicerOpenUrl } = require('../src/shared/slicer-protocol');
 
 function test(name, fn) {
   try {

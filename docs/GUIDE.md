@@ -1,8 +1,8 @@
 # JusttPrint Guide
 
-JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker, and you use it from any browser on your network: computer, tablet or phone. This guide shows how to use it; [README.md](README.md) covers installing and setup.
+JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker, and you use it from any browser on your network: computer, tablet or phone. This guide shows how to use it; [README.md](../README.md) covers installing and setup.
 
-![The library with a model selected](docs/images/library.png)
+![The library with a model selected](images/library.png)
 
 ## Finding your way around
 
@@ -41,7 +41,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 
 ## Home
 
-![Home](docs/images/home.png)
+![Home](images/home.png)
 
 Home greets you with your library's figures (models, printed, in queue, printers; click one to open it), a render of the model you printed last, **Recent Activity** (logged prints and newly added models), **Your Printers** with maintenance reminders that are due, and the models added most recently.
 
@@ -58,7 +58,7 @@ The library shows your models as cards: preview, name, designer (or folder), fil
 
 ### Search and filters
 
-![The Filter popover](docs/images/filters.png)
+![The Filter popover](images/filters.png)
 
 Type in the top bar to search names, designers, tags and (optionally) notes. **Filter** opens every filter: folder, designer, parent model, license, tags, print status, new models, favorites, rating, file type and sort order. Active filters show as chips under the tabs; click a chip's × to remove one, or **Clear all**.
 
@@ -76,7 +76,7 @@ Single files in a folder are not grouped.
 
 ## Model details
 
-![The details panel](docs/images/details.png)
+![The details panel](images/details.png)
 
 Click a model to see it in the details panel:
 
@@ -96,12 +96,12 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 ## Printing
 
-![Print Queue](docs/images/queue.png)
+![Print Queue](images/queue.png)
 
 - **Queue** lists **Printing now**, **Up next** (queued models; **Start** sets one to Printing, × takes it out of the queue) and **Completed** (recent successful prints; ↻ queues one again).
 - **Printers** keeps your printers: make and model, type, firmware, print count and last print. Select one for its web page (**Open Web UI**), maintenance reminders and log, and recent prints. **Add Printer**, **Edit** and **Maintenance** open the printer forms; **Parts** opens the Parts Manager (screws, bearings and other stock that logged prints use up).
 
-![Printers](docs/images/printers.png)
+![Printers](images/printers.png)
 
 ### Statistics
 
@@ -220,7 +220,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 
 ## Settings
 
-![Settings](docs/images/settings.png)
+![Settings](images/settings.png)
 
 **Settings** is one page with an index on the left. Viewers and editors see only the few entries their role can use:
 

@@ -1,4 +1,5 @@
-# JusttPrint server image: plain Node, no Electron.
+# JusttPrint server image: plain Node, no Electron. Build from the project folder:
+#   docker build -f docker/Dockerfile .
 # The server is src/server/index.js. Thumbnails render in headless Chromium (Puppeteer).
 
 # --- Dependencies: production packages only, with better-sqlite3 built for Node ---
@@ -44,7 +45,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 COPY --from=web /app/web-build ./web-build
 
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY docker/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \

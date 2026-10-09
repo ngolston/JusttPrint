@@ -194,7 +194,7 @@ function installReadme(origin) {
 async function buildHelperBundle({ appDir, origin, insecure }) {
   const config = bundleConfig(origin, insecure);
   const helperJs = fs.readFileSync(path.join(appDir, 'helper', 'justtprint-helper.js'));
-  const protocolJs = fs.readFileSync(path.join(appDir, 'slicer-protocol.js'));
+  const protocolJs = fs.readFileSync(path.join(appDir, 'src', 'shared', 'slicer-protocol.js'));
   const launchJs = fs.readFileSync(path.join(appDir, 'helper', 'slicer-launch.js'));
   const shell = unixInstaller();
   /** @returns {import('fflate').ZippableFile} */

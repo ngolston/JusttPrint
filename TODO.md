@@ -18,14 +18,15 @@ Items are ordered from most important to least within each phase. Line numbers a
 src/
   core/      database, scanning, parsers, thumbnails, print history, AI tagging (no Electron, no Express)
   server/    Express app, HTTP API, WebSocket, auth, MCP, TLS
-  web/       index.html, web UI scripts, styles, PWA files
+  shared/    plain scripts both the browser and the server load (slicer links, STL/3MF/LYS/STEP helpers)
+  web/       React + TypeScript UI, styles; public/ holds index.html, the service worker, manifest and other static pages
 assets/      images and icons (logo, png/jpg, icons)
 docker/      Dockerfile, entrypoint, compose files
 extensions/  helper
 vendor/      third-party browser bundles
 scripts/     build and release scripts
 tests/       unit/, e2e/, fixtures/
-docs/        GUIDE.md, guide/ images
+docs/        GUIDE.md, its images, redesign notes
 ```
 
 `README.md`, `CHANGELOG.md`, `LICENSE.txt`, `TODO.md` and `package.json` stay at the root. Move files a few modules at a time, keeping tests green after each move, rather than all at once.
@@ -154,7 +155,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 - [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
 - [x] **New logo and icons for JusttPrint** (7.3.1; vector redraw in 7.3.2): drawn from [assets/icon-mark.svg](assets/icon-mark.svg), rendered by `npm run build:icons`; images live in `assets/`.
-- [ ] **Reorganize files and folders into the target layout above** (done alongside sections 4 and 5).
+- [x] **Reorganize files and folders into the target layout above.** Done: the page and its static files are in `src/web/public/`, the scripts the browser and server share in `src/shared/`, the Docker files in `docker/`, `GUIDE.md` in `docs/`. The server serves only its web folders ([src/server/server-paths.js](src/server/server-paths.js) `STATIC_FOLDERS`).
 - [x] **Remove unneeded dependencies**: the empty `fs` package, `node-fetch`, and `jszip` (zips are read and written with `fflate`; `openZip()` in `src/core/zip-entries.js`).
 - [x] **Replace the ~500 `console.log` calls with a leveled logger.** Done (6.1.0): [src/core/log.js](src/core/log.js) adds time and level to every line and hides `console.debug` unless `JUSTTPRINT_LOG_LEVEL=debug`; per-request and per-file lines moved to `console.debug`. Before: Settings reads currently log on every call. Container logs should be readable with `docker logs`.
 - [x] **Review the 133 `innerHTML =` assignments** for injection of file names or scraped data. Done (6.1.0): six were left after the React rewrite; only model notes build HTML from data, through the escaping Markdown renderer ([src/web/notes/markdown.ts](src/web/notes/markdown.ts), with injection tests). Links from data are limited to http(s).

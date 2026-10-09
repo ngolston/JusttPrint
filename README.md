@@ -36,7 +36,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
 
-See [GUIDE.md](GUIDE.md) for how to use each feature and [CHANGELOG.md](CHANGELOG.md) for what changed.
+See [GUIDE.md](docs/GUIDE.md) for how to use each feature and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 | Home | On a phone |
 |------|------------|
@@ -247,6 +247,16 @@ With Docker Run, update by pulling the image (`docker pull ace2123/justtprint:la
 
 **Backups:** turn on **Automatic Backups** under **Settings → Backup**: the JusttPrint backend copies the database every day (or 6 hours, 12 hours, a week) and keeps the newest 7 (you choose). They go to `./data/backups` unless you pick another folder; to survive a failed disk, mount a folder on another disk (for example `- /mnt/usb/justtprint-backups:/backups`) and choose `/backups`. Each one can be downloaded or restored from the same page. You can also download a backup by hand there (the copy in the JusttPrint backend is deleted an hour later), or copy the `./data` folder while the container is stopped.
 
+## Building from Source
+
+To build the image yourself from a clone of this repository, run from the project folder:
+
+```bash
+docker build -f docker/Dockerfile -t justtprint:latest .
+```
+
+or build and start it with `docker compose -f docker/docker-compose.yml up -d --build` (it keeps `data` and `models` in the project folder). `npm start` runs the server without Docker (Node 22). The server is in `src/server` and `src/core`, the web UI in `src/web` (its static page in `src/web/public`), the scripts both use in `src/shared`, and the Docker files in `docker/`.
+
 ## Upgrading to 7.0
 
 7.0 removes everything to do with filament: the Filament page, the catalog, the Filament section of a model's details, the filament picker in Log Print, the Filament filter, the material badge on cards, the filament statistics and the MCP filament tools. On the first start, the filament tables are deleted from the database (your print history, printers and parts stay). Take a backup first if you might want them back (**Settings → Backup**); a 6.x version restored from that backup has them again.
@@ -288,4 +298,4 @@ MIT License, see [LICENSE.txt](LICENSE.txt).
 
 ## Support
 
-Open an issue at [github.com/ngolston/JusttPrint](https://github.com/ngolston/JusttPrint/issues), or see [GUIDE.md](GUIDE.md).
+Open an issue at [github.com/ngolston/JusttPrint](https://github.com/ngolston/JusttPrint/issues), or see [GUIDE.md](docs/GUIDE.md).

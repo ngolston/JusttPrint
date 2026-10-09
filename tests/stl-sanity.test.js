@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const { classifyStlBuffer, normalsAreMissing, repairZeroFaceNormals } = require('../stl-sanity');
+const { classifyStlBuffer, normalsAreMissing, repairZeroFaceNormals } = require('../src/shared/stl-sanity');
 
 function test(name, fn) {
   try {

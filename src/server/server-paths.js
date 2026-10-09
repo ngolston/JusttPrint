@@ -3,11 +3,13 @@
 /**
  * Which files the HTTP server may hand out.
  *
- * - Static files: only web assets, never server code, config, secrets or node_modules.
+ * - Static files: only web assets from the web folders (STATIC_FOLDERS), never server code,
+ *   config, secrets or node_modules.
  * - Library files (/api/file, /api/download): only paths inside a library root,
  *   paths stored as models, or backup/export files the server just wrote.
  */
 
+const fs = require('fs');
 const path = require('path');
 
 const STATIC_EXTENSIONS = new Set([
@@ -27,51 +29,58 @@ const STATIC_EXTENSIONS = new Set([
   '.ttf'
 ]);
 
-/** Top-level folders and files that are never served, even with an allowed extension. */
-const STATIC_BLOCKED_TOP = new Set([
-  'node_modules',
-  'scripts',
-  'tests',
-  'build',
-  'dist',
-  'helper',
-  'src',
-  'data',
-  'certs',
-  'test-results',
-  'playwright-report'
-]);
+/**
+ * The only folders the server hands files out from, by URL prefix ('' is the site root). Nothing
+ * else in the app folder (server code, config, node_modules, tests) has a URL.
+ */
+const STATIC_FOLDERS = [
+  { prefix: '', dir: 'src/web/public' }, // the page, service worker, manifest, Puter sign-in, guide images
+  { prefix: '', dir: 'src/shared' }, // scripts the page and the server both use
+  { prefix: 'assets', dir: 'assets' },
+  { prefix: 'vendor', dir: 'vendor' },
+  { prefix: 'web-build', dir: 'web-build' }
+];
 
-const STATIC_BLOCKED_FILES = new Set([
-  'main.js',
-  'db-repair.js',
-  'server-auth.js',
-  'server-paths.js',
-  'server-tls.js',
-  'mcp-server.js',
-  'scan-worker.js',
-  'playwright.config.js'
-]);
+const APP_DIR = path.join(__dirname, '..', '..');
 
 const SERVER_GENERATED_FILE = /^justtprint-(backup|library)-[\w.-]+\.(db|json|zip)$/i;
 /** Automatic backups (src/server/auto-backup.js), in their own folder. */
 const AUTO_BACKUP_FILE = /^justtprint-auto-\d{8}-\d{6}(-\d+)?\.db$/;
 
-/** True when a URL path may be served from the app folder. */
-function isServableStaticPath(urlPath) {
+/** URL path segments when the path names a web asset (extension, no dot-segments), else null. */
+function staticPathSegments(urlPath) {
   let decoded;
   try {
     decoded = decodeURIComponent(String(urlPath || ''));
   } catch (_) {
-    return false;
+    return null;
   }
   const segments = decoded.split('/').filter(Boolean);
-  if (!segments.length) return true; // "/" is handled by the index route.
-  if (segments.some((segment) => segment.startsWith('.') || segment.includes('\\'))) return false;
-  if (STATIC_BLOCKED_TOP.has(segments[0])) return false;
-  if (segments.length === 1 && STATIC_BLOCKED_FILES.has(segments[0])) return false;
-  if (/\.test\.js$|\.spec\.js$/i.test(decoded)) return false;
-  return STATIC_EXTENSIONS.has(path.extname(decoded).toLowerCase());
+  if (!segments.length) return null; // "/" is handled by the index route.
+  if (segments.some((segment) => segment.startsWith('.') || segment.includes('\\'))) return null;
+  if (/\.test\.js$|\.spec\.js$/i.test(decoded)) return null;
+  if (!STATIC_EXTENSIONS.has(path.extname(decoded).toLowerCase())) return null;
+  return segments;
+}
+
+/** The file a URL path serves from STATIC_FOLDERS, or null. */
+function staticFilePath(urlPath, appDir = APP_DIR) {
+  const segments = staticPathSegments(urlPath);
+  if (!segments) return null;
+  for (const { prefix, dir } of STATIC_FOLDERS) {
+    if (prefix && segments[0] !== prefix) continue;
+    const rest = prefix ? segments.slice(1) : segments;
+    if (!rest.length) continue;
+    const root = path.join(appDir, dir);
+    const file = path.join(root, ...rest);
+    if (!file.startsWith(root + path.sep)) continue;
+    try {
+      if (fs.statSync(file).isFile()) return file;
+    } catch (_) {
+      // Not in this folder.
+    }
+  }
+  return null;
 }
 
 function compareKey(value) {
@@ -355,7 +364,7 @@ function assertMcpToolArgs(toolName, args, ctx) {
 }
 
 module.exports = {
-  isServableStaticPath,
+  staticFilePath,
   isLibraryPathAllowed,
   isInsideOrSame,
   isSystemDirectory,

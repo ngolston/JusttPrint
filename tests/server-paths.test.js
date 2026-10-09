@@ -3,7 +3,9 @@
 
 const assert = require('assert');
 const path = require('path');
-const { isServableStaticPath, isLibraryPathAllowed } = require('../src/server/server-paths');
+const { staticFilePath, isLibraryPathAllowed } = require('../src/server/server-paths');
+
+const ROOT = path.join(__dirname, '..');
 
 function test(name, fn) {
   try {
@@ -15,17 +17,18 @@ function test(name, fn) {
   }
 }
 
-test('web assets are served', () => {
-  for (const p of [
-    '/slicer-protocol.js',
-    '/assets/logo.png',
-    '/web-build/parse-worker.js',
-    '/vendor/occt-import-js.wasm',
-    '/manifest.webmanifest',
-    '/guide/step1.png',
-    '/index.html'
+test('web assets are served from the web folders', () => {
+  for (const [url, file] of [
+    ['/slicer-protocol.js', 'src/shared/slicer-protocol.js'],
+    ['/stl-sanity.js', 'src/shared/stl-sanity.js'],
+    ['/assets/logo.png', 'assets/logo.png'],
+    ['/vendor/occt-import-js/occt-import-js.wasm', 'vendor/occt-import-js/occt-import-js.wasm'],
+    ['/manifest.webmanifest', 'src/web/public/manifest.webmanifest'],
+    ['/sw.js', 'src/web/public/sw.js'],
+    ['/guide/guide-home.png', 'src/web/public/guide/guide-home.png'],
+    ['/index.html', 'src/web/public/index.html']
   ]) {
-    assert.ok(isServableStaticPath(p), p);
+    assert.strictEqual(staticFilePath(url, ROOT), path.join(ROOT, file), url);
   }
 });
 
@@ -36,23 +39,27 @@ test('secrets, server code and dependencies are not served', () => {
     '/package-lock.json',
     '/.env',
     '/.git/config',
-    '/main.js',
-    '/server-auth.js',
-    '/mcp-server.js',
+    '/eslint.config.mjs',
     '/justtprint.db',
     '/node_modules/express/index.js',
     '/scripts/docker-hub-push.js',
     '/tests/test-utils.js',
     '/helper/justtprint-helper.js',
     '/data/justtprint.db',
-    '/server-auth.test.js',
     '/src/server/index.js',
     '/src/server/runtime.js',
-    '/vendor/..%2Fmain.js',
+    '/src/shared/stl-sanity.js',
+    '/src/web/public/index.html',
+    '/docker/Dockerfile',
+    '/server-paths.js',
+    '/http.js',
+    '/vendor/..%2Fpackage.json',
+    '/vendor/..%2F..%2Fsrc%2Fserver%2Fapp.js',
     '/%2e%2e/etc/passwd',
-    '/vendor/%5c..%5cmain.js'
+    '/vendor/%5c..%5cmain.js',
+    '/assets/..%2Fsrc%2Fserver%2Fapp.js'
   ]) {
-    assert.ok(!isServableStaticPath(p), p);
+    assert.strictEqual(staticFilePath(p, ROOT), null, p);
   }
 });
 

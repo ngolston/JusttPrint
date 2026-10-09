@@ -3,7 +3,6 @@ web-build/
 dist/
 vendor/
 docs/
-guide/
 assets/
 tests/e2e/.work/
 tests/perf/.work/
