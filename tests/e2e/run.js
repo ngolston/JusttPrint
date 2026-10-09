@@ -6,6 +6,11 @@
  * tests/fixtures/library, then checks the API, security rules and the web UI in a browser.
  *
  *   npm run test:e2e
+ *   npm run test:e2e:docker     the same checks against the Docker image (scripts/e2e-docker.js)
+ *
+ * With E2E_DOCKER_IMAGE set, the server runs in that image instead: the test folders (and /tmp)
+ * are mounted at the same paths, so the checks that look at files on disk work unchanged, and
+ * the container runs as this user (PUID/PGID), so the files stay writable here.
  *
  * Needs a Chromium-based browser for the thumbnail worker and the browser checks:
  * CHROME_PATH=/path/to/chrome (on macOS, Google Chrome is found automatically).
@@ -26,6 +31,13 @@ let browseDir = '';
 /** The library folder the upload checks use (outside the app folder, like browseDir). */
 let uploadLibrary = '';
 const PASSWORD = 'e2e-test-password';
+const DOCKER_IMAGE = process.env.E2E_DOCKER_IMAGE || '';
+/** The server's own folder (never scanned or browsed): this checkout, or /app inside the image. */
+const APP_DIR = DOCKER_IMAGE ? '/app' : ROOT;
+/** How the server reaches helpers this script runs (the fake AI service): the host, from inside a container. */
+const HOST_FOR_SERVER = DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1';
+/** The container renders thumbnails in software (SwiftShader): steps that wait for one get longer there. */
+const SLOW = DOCKER_IMAGE ? 3 : 1;
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROME : '');
 
@@ -70,6 +82,7 @@ function startServer(port) {
   fs.mkdirSync(DATA, { recursive: true });
   fs.cpSync(path.join(ROOT, 'tests', 'fixtures', 'library'), LIBRARY, { recursive: true });
   const log = fs.openSync(path.join(WORK, 'server.log'), 'w');
+  if (DOCKER_IMAGE) return startContainer(port, log);
   const child = spawn(process.execPath, [path.join(ROOT, 'src', 'server', 'index.js')], {
     cwd: ROOT,
     stdio: ['ignore', log, log],
@@ -90,7 +103,40 @@ function startServer(port) {
   return child;
 }
 
+/** The server in the Docker image, with the same settings and the test folders at the same paths. */
+function startContainer(port, log) {
+  const name = `justtprint-e2e-${process.pid}`;
+  const folders = [...new Set([WORK, '/tmp', fs.realpathSync('/tmp')])];
+  const env = {
+    JUSTTPRINT_USER_DATA: DATA,
+    JUSTTPRINT_PORT: String(port),
+    JUSTTPRINT_PASSWORD: PASSWORD,
+    JUSTTPRINT_ENABLE_ZIP: 'true',
+    JUSTTPRINT_UPLOAD_CHUNK_MB: '0.0001',
+    STL_HOME: LIBRARY,
+    XDG_DATA_HOME: path.join(WORK, 'share'),
+    PUID: String(process.getuid()),
+    PGID: String(process.getgid()),
+    ...(process.env.JUSTTPRINT_LOG_LEVEL ? { JUSTTPRINT_LOG_LEVEL: process.env.JUSTTPRINT_LOG_LEVEL } : {})
+  };
+  const child = spawn('docker', ['run', '--rm', '--name', name, '-p', `127.0.0.1:${port}:${port}`, '--add-host', 'host.docker.internal:host-gateway',
+    ...folders.flatMap((folder) => ['-v', `${folder}:${folder}`]),
+    ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
+    DOCKER_IMAGE], { cwd: ROOT, stdio: ['ignore', log, log] });
+  child.containerName = name;
+  console.log(`# Server in Docker image ${DOCKER_IMAGE} (container ${name})`);
+  return child;
+}
+
 function stopServer(child) {
+  if (child && child.containerName) {
+    return new Promise((resolve) => {
+      if (child.exitCode !== null) return resolve();
+      const timer = setTimeout(() => { spawn('docker', ['rm', '-f', child.containerName]); resolve(); }, 30000);
+      child.once('exit', () => { clearTimeout(timer); resolve(); });
+      spawn('docker', ['stop', '-t', '15', child.containerName], { stdio: 'ignore' });
+    });
+  }
   return new Promise((resolve) => {
     if (!child || child.exitCode !== null) return resolve();
     const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(); }, 15000);
@@ -298,9 +344,9 @@ async function apiChecks(base, wsUrl) {
   check('read /etc/passwd refused', refused(await invoke(base, { cookie, origin }, 'read-model-file', ['/etc/passwd']), /outside the library/));
   check('delete live database refused', refused(await invoke(base, { cookie, origin }, 'delete-file', [path.join(DATA, 'data', 'justtprint.db')]), /outside the library/));
   check('scan /etc refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', ['/etc']), /cannot be scanned/));
-  const thangs = await invoke(base, { cookie, origin }, 'fetch-thangs-page', ['http://127.0.0.1/']);
-  check('page fetch outside Thangs refused', /Only https links to thangs\.com/.test(thangs.error || ''), JSON.stringify(thangs));
-  check('scan of the app folder refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', [path.join(ROOT, 'src')]), /cannot be scanned/));
+  // The old Thangs page scraper (headless Chromium) is gone: nothing called it.
+  check('the Thangs page scraper is gone', (await invoke(base, { cookie, origin }, 'fetch-thangs-page', ['https://thangs.com/m/1'])).status === 404);
+  check('scan of the app folder refused', refused(await invoke(base, { cookie, origin }, 'scan-directory', [path.join(APP_DIR, 'src')]), /cannot be scanned/));
   check('move out of library refused', refused(await invoke(base, { cookie, origin }, 'move-files', [[cube], '/tmp']), /outside the library/));
   // Choose Folder (browse-folders): the same folders as scanning; system, app and data folders are refused.
   browseDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-browse-'));
@@ -309,11 +355,11 @@ async function apiChecks(base, wsUrl) {
   fs.writeFileSync(path.join(browseDir, 'part.stl'), 'solid');
   const placesOnly = await invoke(base, { cookie, origin }, 'browse-folders', []);
   check('Choose Folder lists places and no folder yet', Array.isArray(placesOnly.result?.places) && placesOnly.result.path === null
-    && !placesOnly.result.places.some((place) => place.path === '/' || place.path.startsWith(ROOT)), JSON.stringify(placesOnly).slice(0, 300));
+    && !placesOnly.result.places.some((place) => place.path === '/' || place.path.startsWith(APP_DIR)), JSON.stringify(placesOnly).slice(0, 300));
   const browsed = (await invoke(base, { cookie, origin }, 'browse-folders', [browseDir])).result;
   check('Choose Folder lists subfolders only (no files or hidden folders)', browsed?.path === browseDir
     && JSON.stringify(browsed.folders.map((f) => f.name)) === '["Prints"]' && browsed.parent === path.dirname(browseDir), JSON.stringify(browsed));
-  for (const [what, dir] of [['/etc', '/etc'], ['the app folder', ROOT], ['the data folder', DATA], ['/', '/']]) {
+  for (const [what, dir] of [['/etc', '/etc'], ['the app folder', APP_DIR], ['the data folder', DATA], ['/', '/']]) {
     const res = await invoke(base, { cookie, origin }, 'browse-folders', [dir]);
     check(`Choose Folder refuses ${what}`, /cannot be browsed/.test(res.result?.error || '') && res.result.path === null, JSON.stringify(res).slice(0, 200));
   }
@@ -528,6 +574,7 @@ async function apiChecks(base, wsUrl) {
   const asA = { cookie, origin, client: browserA?.clientId };
   await invoke(base, asA, 'scan-directory', [ownDir]);
   fs.rmSync(path.join(ownDir, 'gone.stl'));
+  if (DOCKER_IMAGE) await sleep(1500); // Docker Desktop shows the deletion inside the container a moment later.
   browserA?.channels.splice(0);
   browserB?.channels.splice(0);
   await invoke(base, asA, 'scan-directory', [ownDir]);
@@ -1545,10 +1592,11 @@ async function browserChecks(base, wsUrl, session) {
       && await page.isVisible('.jp-page h1:text-is("Settings")')
       && await page.getAttribute('.jp-sidebar .jp-nav__row:has-text("Settings")', 'aria-current') === 'page');
     // Settings forms sit on the page (src/web/settings/EmbeddedDialog.tsx): the dialogs, opened in place.
-    check('Settings shows the settings forms on the page', await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
-      && await page.isVisible('#setting-stl-home #stl-home-dialog[open]') && await page.isVisible('#setting-mcp #mcp-server-settings-dialog[open]')
+    const formOpen = (selector) => page.waitForSelector(selector, { timeout: 10000 }).then(() => true, () => false);
+    check('Settings shows the settings forms on the page', await formOpen('#setting-performance #performance-settings-dialog[open]')
+      && await formOpen('#setting-stl-home #stl-home-dialog[open]') && await formOpen('#setting-mcp #mcp-server-settings-dialog[open]')
       && await page.evaluate(() => !document.querySelector('#performance-settings-dialog:modal')));
-    check('Settings → MakerWorld shows the sign-in and the translation choice', await page.isVisible('#setting-makerworld #makerworld-settings-dialog[open]')
+    check('Settings → MakerWorld shows the sign-in and the translation choice', await page.waitForSelector('#setting-makerworld #makerworld-settings-dialog[open] #makerworld-account-status', { timeout: 10000 }).then(() => true, () => false)
       && /Not signed in/.test(await page.textContent('#makerworld-account-status')) && (await page.inputValue('#makerworld-translation')) === 'free');
     const sizeBefore = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
     await page.fill('#max-file-size', '61');
@@ -1843,15 +1891,15 @@ async function browserChecks(base, wsUrl, session) {
             choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{"tags":["e2e-real-a","e2e-real-b"]}' } }] }));
         });
       });
-      await new Promise((resolve) => fakeAi.listen(0, '127.0.0.1', resolve));
+      await new Promise((resolve) => fakeAi.listen(0, DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1', resolve));
       const release = async () => {
-        await waitFor(async () => held.length > 0, 15000, 'an AI request').catch(() => {});
+        await waitFor(async () => held.length > 0, 15000 * SLOW, 'an AI request').catch(() => {});
         held.shift()?.();
       };
       const runKeys = ['aiService', 'apiEndpoint', 'aiModel', 'aiTagConcurrency', 'aiTagAllowRetagging'];
       const runSaved = {};
       for (const key of runKeys) runSaved[key] = (await invoke(base, session, 'get-setting', [key])).result;
-      for (const [key, value] of [['aiService', 'custom'], ['apiEndpoint', `http://127.0.0.1:${fakeAi.address().port}/v1`], ['aiModel', 'e2e'], ['aiTagConcurrency', '1'], ['aiTagAllowRetagging', '1']]) {
+      for (const [key, value] of [['aiService', 'custom'], ['apiEndpoint', `http://${HOST_FOR_SERVER}:${fakeAi.address().port}/v1`], ['aiModel', 'e2e'], ['aiTagConcurrency', '1'], ['aiTagAllowRetagging', '1']]) {
         await invoke(base, session, 'save-setting', [key, value]);
       }
       const runTags = async () => {
@@ -1876,7 +1924,7 @@ async function browserChecks(base, wsUrl, session) {
       check('Review reopens it with the tags that came in', await page.waitForSelector(`#tag-preview-dialog[open] input[value="e2e-real-a"]`, { timeout: 10000 }).then(() => true, () => false)
         && /\(1\/2 processed/.test(await page.textContent('#tag-preview-dialog h3')));
       await release();
-      check('the rest arrives in the reopened review', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 15000 }).then(() => true, () => false)
+      check('the rest arrives in the reopened review', await page.waitForSelector('#tag-preview-apply:not([disabled])', { timeout: 15000 * SLOW }).then(() => true, () => false)
         && (await page.locator('#tag-preview-container input[value="e2e-real-a"]').count()) === 2);
       await page.click('#tag-preview-cancel');
       check('closing a finished review forgets the run', await waitFor(async () => (await job()) === null, 10000, 'dismissed').catch(() => false)
@@ -2153,8 +2201,9 @@ async function browserChecks(base, wsUrl, session) {
     check('Sign Out forgets the Puter login', (await page.textContent('#puter-account-status')) === 'Not signed in'
       && await page.evaluate(() => localStorage.getItem('justtprint.puterAuthToken')) === null);
     await page.click('#cancel-ai-config');
-    await page.unroute('**/api/puter-ai/chat');
-    await puterContext.unroute('https://js.puter.com/**');
+    // Cleanup: the sign-in popup's context may be closed already.
+    await page.unroute('**/api/puter-ai/chat').catch(() => {});
+    await puterContext.unroute('https://js.puter.com/**').catch(() => {});
     puterContext.off('request', recordSignInPage);
 
     // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
@@ -2268,7 +2317,7 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('.jp-sidebar .jp-nav__row:has-text("Organize")');
     await page.waitForSelector('#organize-library-page', { timeout: 10000 }).catch(() => {});
     check('Organize opens the Organize Library page', /#\/organize$/.test(page.url()) && await page.isVisible('#organize-library-page h1:text-is("Organize Library")'));
-    check('Organize Library lists the scanned folders', await page.isEnabled('#organize-source-button'));
+    check('Organize Library lists the scanned folders', await page.waitForSelector('#organize-source-button:not([disabled])', { timeout: 10000 }).then(() => true, () => false));
     await page.click('#organize-source-button');
     await page.fill('#organize-source-search', 'zzz-no-match');
     check('source search filters the folders', await page.isVisible('#organize-source-empty'));
@@ -2552,7 +2601,7 @@ async function accountChecks(base, wsUrl, admin) {
   check('only model links are added', /Not a Printables, Thingiverse or MakerWorld model link/.test((await invoke(base, editor, 'import-model-link', ['http://127.0.0.1:5000/api/health'])).error || ''));
 
   // MakerWorld: details for everyone; sign-in and downloads for editors. Nothing here reaches MakerWorld.
-  check('MakerWorld details are only for MakerWorld links', (await invoke(base, viewer, 'get-site-details', ['https://www.printables.com/model/3161'])).result === null);
+  check('site details are only for MakerWorld, Printables and Thingiverse links', (await invoke(base, viewer, 'get-site-details', ['https://example.com/model/3161'])).result === null);
   check('viewers cannot sign in to MakerWorld or download', (await invoke(base, viewer, 'makerworld-download', [{ url: 'https://makerworld.com/en/models/1' }])).status === 403
     && (await invoke(base, viewer, 'makerworld-sign-in', [{ account: 'x' }])).status === 403);
   check('MakerWorld starts signed out', (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false);

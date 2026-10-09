@@ -5,9 +5,11 @@ import { Menu } from '../components/Menu';
 import { formatBytes } from '../shell/AppShell';
 import { useCan } from '../session';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
+import { useCurrentUser } from '../session';
+import { openSetting } from '../links/SiteSetup';
 import {
-  formatDay, formatDuration, formatGrams, getSiteDetails, linkParts, makerWorldUrl,
-  type MakerWorldDetails, type MakerWorldProfile, type ProfileDownload, type SiteDetailsResult
+  SITE_LABELS, formatDay, formatDuration, formatGrams, getSiteDetails, linkParts, siteModelUrl,
+  type MakerWorldDetails, type MakerWorldProfile, type PrintSettings, type ProfileDownload, type SiteDetailsResult
 } from './makerworld';
 
 function Prop({ label, children }: { label: string; children: ReactNode }) {
@@ -19,7 +21,7 @@ function Prop({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Text with its http(s) addresses as links (no HTML from MakerWorld is ever shown). */
+/** Text with its http(s) addresses as links (no HTML from the site is ever shown). */
 function LinkedText({ text }: { text: string }) {
   return <>{linkParts(text).map((part, i) => (part.href
     ? <a key={i} href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>
@@ -46,6 +48,31 @@ function Video({ id }: { id: string }) {
   );
 }
 
+/** "2,118 likes · 7,924 downloads · 10 makes", from what the site tells. */
+function popularity(details: MakerWorldDetails): string {
+  const stats = details.stats || {};
+  const parts: [number | null | undefined, string][] = [[stats.likes, 'like'], [stats.downloads, 'download'], [stats.prints, details.site === 'makerworld' ? 'print' : 'make'], [stats.collections, 'collection']];
+  return parts.filter(([n]) => typeof n === 'number' && n > 0).map(([n, word]) => `${n!.toLocaleString()} ${word}${n === 1 ? '' : 's'}`).join(' · ');
+}
+
+/** Printables: what the designer says about printing it. */
+function PrintSettingsPart({ settings }: { settings: PrintSettings }) {
+  const list = (values: number[], unit: string) => values.map((v) => `${v} ${unit}`).join(', ');
+  return (
+    <>
+      <h4 className="jp-mw__heading">Print settings</h4>
+      <div className="jp-props">
+        {!!settings.seconds && <Prop label="Print time">about {formatDuration(settings.seconds)}</Prop>}
+        {!!settings.grams && <Prop label="Filament">{formatGrams(settings.grams)}</Prop>}
+        {!!settings.pieces && <Prop label="Pieces">{settings.pieces}</Prop>}
+        {settings.materials.length > 0 && <Prop label="Material">{settings.materials.join(', ')}</Prop>}
+        {settings.nozzles.length > 0 && <Prop label="Nozzle">{list(settings.nozzles, 'mm')}</Prop>}
+        {settings.layerHeights.length > 0 && <Prop label="Layer height">{list(settings.layerHeights, 'mm')}</Prop>}
+      </div>
+    </>
+  );
+}
+
 function ModelPart({ details }: { details: MakerWorldDetails }) {
   return (
     <>
@@ -64,9 +91,10 @@ function ModelPart({ details }: { details: MakerWorldDetails }) {
         <Prop label="Categories">{details.categories.length ? details.categories.join(' › ') : '—'}</Prop>
         <Prop label="Created">{formatDay(details.created)}</Prop>
         <Prop label="Updated">{formatDay(details.updated)}</Prop>
+        {popularity(details) && <Prop label="Popularity">{popularity(details)}</Prop>}
       </div>
       {details.tags.length > 0 && (
-        <ul className="jp-mw__tags" aria-label="MakerWorld tags">
+        <ul className="jp-mw__tags" aria-label={`${SITE_LABELS[details.site]} tags`}>
           {details.tags.map((tag) => (
             <li key={tag.name} className="jp-mw__tag" title={tag.english ? `${tag.name} (${tag.english})` : tag.name}>
               {tag.english || tag.name}{tag.english && <span className="jp-mw__tag-original">{tag.name}</span>}
@@ -204,6 +232,52 @@ function ProfilePart({ details, profileId, onChange, downloads, currentPath }: {
   );
 }
 
+/** Printables and Thingiverse: the files, which ones are downloaded, and Download to Library. */
+function SiteFilesPart({ details, downloads }: { details: MakerWorldDetails; downloads: ProfileDownload[] }) {
+  const canDownload = useCan('editor');
+  const isAdmin = useCurrentUser()?.role === 'admin';
+  const have = new Set(downloads.map((d) => d.profileId.replace(/^file:/, '')));
+  const label = SITE_LABELS[details.site];
+  return (
+    <>
+      <h4 className="jp-mw__heading">Files</h4>
+      {details.files.length ? (
+        <table className="jp-mw__table" id="jp-mw-files">
+          <thead><tr><th scope="col">File</th><th scope="col" className="is-number">Size</th></tr></thead>
+          <tbody>
+            {details.files.map((file) => (
+              <tr key={file.id || file.name}>
+                <td className="jp-mw__file" title={file.name}>
+                  {file.name}
+                  {file.id && have.has(file.id) && <span className="jp-mw-profiles__tag">downloaded</span>}
+                  {file.type === 'gcode' && <span className="jp-mw-profiles__tag">G-code</span>}
+                </td>
+                <td className="is-number">{file.size ? formatBytes(file.size) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : details.filesNeedToken ? (
+        <p className="jp-meta">Thingiverse lists the files only with an API token.</p>
+      ) : <p className="jp-meta">{label} lists no files.</p>}
+
+      <h5 className="jp-mw__label">File downloads</h5>
+      {!canDownload ? <p className="jp-meta">An editor or admin downloads the files.</p>
+        : details.filesNeedToken ? (
+          <>
+            <p className="jp-meta jp-mw__note">To download Thingiverse files, JusttPrint needs a Thingiverse API token (Settings → Integrations → Thingiverse).</p>
+            {isAdmin ? <Button size="sm" onClick={() => openSetting('thingiverse')}>Open Thingiverse Settings</Button> : <p className="jp-meta">Ask an admin to add it.</p>}
+          </>
+        ) : (
+          <>
+            <Button icon={Download} id="jp-site-download" disabled={!details.files.length} onClick={() => window.openSiteFilesDownload?.(details, downloads)}>Download to Library…</Button>
+            <p className="jp-meta jp-mw__note">Saves the files you tick into the model's folder in the library; model files are ticked to start.</p>
+          </>
+        )}
+    </>
+  );
+}
+
 function FilesPart({ details, profileId, downloads }: { details: MakerWorldDetails; profileId: string; downloads: ProfileDownload[] }) {
   const canDownload = useCan('editor');
   const english = details.files.some((file) => file.english);
@@ -244,11 +318,14 @@ function FilesPart({ details, profileId, downloads }: { details: MakerWorldDetai
 }
 
 /**
- * The MakerWorld section of the details panel, for models whose link or source is a MakerWorld
- * model: the model, its print profiles, files and downloads, and its video.
+ * The site section of the details panel, for models whose link or source is a MakerWorld,
+ * Printables or Thingiverse model: the model, its print profiles (MakerWorld) or print settings
+ * (Printables), files and downloads, and its video.
  */
 export function MakerWorldSection({ model }: { model: { filePath?: string | null; source?: unknown } | null }) {
-  const url = makerWorldUrl(model);
+  const found = siteModelUrl(model);
+  const url = found?.url || null;
+  const label = found ? SITE_LABELS[found.site] : '';
   const [result, setResult] = useState<SiteDetailsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -283,19 +360,22 @@ export function MakerWorldSection({ model }: { model: { filePath?: string | null
   return (
     <section className="jp-details__section jp-mw" id="jp-mw-section" aria-busy={loading}>
       <div className="jp-mw__top">
-        <h3 className="jp-details__heading">MakerWorld</h3>
+        <h3 className="jp-details__heading">{label}</h3>
         <a className="jp-mw__open" href={details?.url || url} target="_blank" rel="noopener noreferrer">Open <ExternalLink size={12} aria-hidden="true" /></a>
-        <IconButton icon={RefreshCw} size="sm" label="Get the details from MakerWorld again" disabled={loading} onClick={() => load(true)} className={loading ? 'jp-mw__spinning' : undefined} />
+        <IconButton icon={RefreshCw} size="sm" label={`Get the details from ${label} again`} disabled={loading} onClick={() => load(true)} className={loading ? 'jp-mw__spinning' : undefined} />
       </div>
-      {loading && !details && <p className="jp-meta">Getting the details from MakerWorld…</p>}
+      {loading && !details && <p className="jp-meta">Getting the details from {label}…</p>}
       {error && <p className="jp-meta jp-mw__note" role="alert">Could not get the details: {error}</p>}
       {result && !details && result.error && <p className="jp-meta jp-mw__note">{result.error}</p>}
-      {result?.stale && <p className="jp-meta jp-mw__note">MakerWorld could not be reached ({result.error}); these details are from {formatDay(result.fetchedAt)}.</p>}
+      {result?.stale && <p className="jp-meta jp-mw__note">{label} could not be reached ({result.error}); these details are from {formatDay(result.fetchedAt)}.</p>}
       {details && (
         <>
           <ModelPart details={details} />
-          <ProfilePart details={details} profileId={profileId} onChange={setProfileId} downloads={result?.downloads || []} currentPath={model?.filePath || ''} />
-          <FilesPart details={details} profileId={profileId} downloads={result?.downloads || []} />
+          {details.site === 'makerworld' && <ProfilePart details={details} profileId={profileId} onChange={setProfileId} downloads={result?.downloads || []} currentPath={model?.filePath || ''} />}
+          {details.printSettings && <PrintSettingsPart settings={details.printSettings} />}
+          {details.site === 'makerworld'
+            ? <FilesPart details={details} profileId={profileId} downloads={result?.downloads || []} />
+            : <SiteFilesPart details={details} downloads={result?.downloads || []} />}
           <h4 className="jp-mw__heading">Video</h4>
           {details.videos.length ? details.videos.map((id) => <Video key={id} id={id} />) : <p className="jp-meta">No video.</p>}
         </>

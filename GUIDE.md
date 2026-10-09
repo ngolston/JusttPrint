@@ -133,9 +133,9 @@ If a site does not answer, the model is still added with a name from the link an
 
 For MakerWorld links, the same option downloads the model's print profiles, each as a 3MF (its parts, ready for the slicer); a model with several profiles lists them, all ticked, so you can leave some out. The first time, JusttPrint asks you to sign in to MakerWorld. If a model cannot be downloaded, it is added as an online model and the list says why. When MakerWorld or Thingiverse is not set up yet, the dialog says what to do and has a button to the place in Settings.
 
-## MakerWorld models
+## MakerWorld, Printables and Thingiverse models
 
-A model added from a MakerWorld link, or any model whose **Source** is a MakerWorld link, has a **MakerWorld** section in its details:
+A model added from a link, or any model whose **Source** is a MakerWorld, Printables or Thingiverse link, has a section named after the site in its details. Printables and Thingiverse models show the model's details, Printables' print settings, the files (with **Download to Library…** to tick and download them) and the video; Thingiverse lists its files only with an API token (**Settings → Integrations → Thingiverse**). MakerWorld models have the most:
 
 - **The model**: title, English title, model number, designer (opens their MakerWorld page), license, categories, tags with their English names, dates and description.
 - **Print profile**: the profile's name, printer, the size of the job (plates, grams, hours), whether it needs an AMS, its rating, **Plates** (each plate's time and grams) and the filament by material, color and grams. Models with several profiles get a list to pick from.
@@ -196,7 +196,7 @@ Change a role with its menu; **Set Password** gives someone a new password and l
 ## Managing the library
 
 - **Tags** lists every tag with how many models use it. Create, rename (renaming onto an existing tag merges the two), delete, or show a tag's models.
-- **Duplicates** finds identical files by their contents and shows each group side by side. **Keep this** marks the other copies for deletion; **Easy** keeps one copy of each group for you (preferring a folder you choose). Nothing is deleted until you confirm **Delete Selected**. You can limit the search to the models currently shown.
+- **Duplicates** finds identical files by their contents and shows each group side by side. **Find: Same geometry** finds the same model saved as different files instead (an STL and its 3MF, a re-export, a copy turned on the plate); JusttPrint reads each STL and 3MF once for it, and mirrored left and right parts are not matched. **Keep this** marks the other copies for deletion; **Easy** keeps one copy of each group for you (preferring a folder you choose). Nothing is deleted until you confirm **Delete Selected**. You can limit the search to the models currently shown.
 - **Organize** moves the models in a scanned folder into a folder structure you choose (up to four levels, such as designer / parent model / license). **Preview** shows what will happen first; each original is removed only after its copy is checked, and files that are not in the library stay where they are. The models folder must be mounted without `:ro`.
 - **AI Tagging** sets up the AI service; then select models, right-click and choose **Generate Tags**, and tick the tags to keep. See [AI tagging](#ai-tagging).
 - **Settings → Library** has the Metadata Manager (rename or remove designers, licenses and parent models everywhere), Library Stats, Print Roulette (random models to print), Clear New Flag and Purge Models.

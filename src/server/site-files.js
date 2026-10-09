@@ -84,6 +84,16 @@ async function thingiverseApi(apiPath, fetchImpl, options = {}) {
   return response;
 }
 
+/** A Thingiverse API answer as JSON (with the token), or throws. */
+async function thingiverseJson(apiPath, fetchImpl = httpsFetch) {
+  const response = await thingiverseApi(apiPath, fetchImpl);
+  if (!response.ok) {
+    response.body?.cancel?.();
+    throw new Error(`Thingiverse answered ${response.status}`);
+  }
+  return json(response, 'Thingiverse');
+}
+
 /**
  * The files of a Printables or Thingiverse model: [{ id, name, size, kind, model }], `model`
  * true for model files (ticked to start). Throws `code: 'THINGIVERSE_TOKEN'` without a token.
@@ -265,4 +275,4 @@ async function setToken(value, fetchImpl = httpsFetch) {
 /** For tests: no pause between files. */
 const setFileGap = (ms) => { fileGapMs = ms; };
 
-module.exports = { FILE_HOSTS, downloadFiles, listFiles, plainName, setFileGap, setToken, tokenStatus };
+module.exports = { FILE_HOSTS, downloadFiles, listFiles, plainName, setFileGap, setToken, thingiverseJson, tokenStatus };

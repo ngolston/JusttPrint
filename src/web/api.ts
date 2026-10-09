@@ -703,7 +703,13 @@ export const dedup = {
     callAction<{ started?: boolean; alreadyRunning?: boolean; total?: number; failed?: number }>('generateMissingHashes', filters),
   thumbnail: (filePath: string) => callAction<string | null>('getThumbnail', filePath),
   /** Deletes the file from disk (permanently) and removes it from the library. */
-  deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath)
+  deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath),
+  /** Same geometry, different files (src/server/geometry-job.js). */
+  geometryGroups: (filters: Record<string, unknown> | null) =>
+    callAction<{ groups: DuplicateGroup[]; missing: number; running: boolean; processed: number; total: number }>('get-geometry-duplicates', filters ? { filters } : null),
+  /** Starts fingerprinting in the background; progress comes as geometry-progress events. */
+  startGeometry: (filters: Record<string, unknown> | null) =>
+    callAction<{ started?: boolean; alreadyRunning?: boolean; total: number }>('start-geometry-scan', filters ? { filters } : null)
 };
 
 /** Values in use across the library, for the details panel's pickers. */

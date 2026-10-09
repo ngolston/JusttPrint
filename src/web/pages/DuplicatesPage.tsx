@@ -126,12 +126,18 @@ function GroupRow({ group, selected, preferredDir, onToggle, onSelect }: {
 }) {
   const size = group.files[0]?.size || 0;
   const removing = group.files.filter((file) => selected.has(file.filePath)).length;
+  // Same geometry: "geometry:<triangles>:<area>:…" (src/core/geometry-signature.js).
+  const geometry = String(group.hash || '').startsWith('geometry:');
+  const triangles = geometry ? Number(String(group.hash).split(':')[1]) : 0;
+  const title = geometry ? `${group.files.length} files with the same geometry` : `${group.files.length} identical copies`;
   return (
     <div className="jp-dup-group" role="group" data-hash={group.hash} style={{ height: ROW_HEIGHT - 12, boxSizing: 'border-box' }}
-      aria-label={`${group.files.length} identical copies of ${splitPath(group.files[0]?.filePath || '').name}`}>
+      aria-label={`${title}: ${splitPath(group.files[0]?.filePath || '').name}`}>
       <header className="jp-dup-group__header">
-        <span className="jp-dup-group__title">{group.files.length} identical copies</span>
-        <span className="jp-dup-group__meta">{formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code></span>
+        <span className="jp-dup-group__title">{title}</span>
+        {geometry
+          ? <span className="jp-dup-group__meta">{triangles.toLocaleString()} triangles • different files, same shape</span>
+          : <span className="jp-dup-group__meta">{formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code></span>}
         {removing > 0 && <span className="jp-dup-group__removing">{removing} to delete</span>}
         <button type="button" className="jp-link jp-dup-group__keep-all" onClick={() => onSelect(keepOnly(selected, group, null))} disabled={!removing}>Keep all</button>
       </header>
@@ -204,13 +210,15 @@ function GroupList({ groups, selected, preferredDir, onToggle, onSelect, note }:
 type View =
   | { kind: 'loading'; text: string }
   | { kind: 'hashes'; progress: HashProgress; joined: boolean }
+  | { kind: 'geometry'; progress: HashProgress }
   | { kind: 'ready'; groups: DuplicateGroup[]; generating: boolean }
   | { kind: 'error'; text: string };
 
 const RUNNING_NOTE = 'Note: Hash generation is currently running in the background. Additional duplicate files may be found once the process completes.';
 
 /**
- * Duplicates: groups of identical files (same hash) in the library or the current view, side
+ * Duplicates: groups of identical files (same hash), or of different files with the same
+ * geometry (Same geometry: an STL and its 3MF, a re-export), in the library or the current view, side
  * by side, with Keep this / Keep all per group, Easy (keep one per group, preferring the
  * preferred directory) and Delete Selected, which always asks first. Offers to generate missing
  * hashes. Mounted while shown: as the #/duplicates page, or in the De-Dup dialog on phones.
@@ -224,6 +232,9 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   const [zipEnabled, setZipEnabled] = useState(false);
   const [preferredDir, setPreferredDir] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [mode, setMode] = useState<'files' | 'geometry'>('files');
+  const modeRef = useRef<'files' | 'geometry'>('files');
+  modeRef.current = mode;
   const mounted = useRef(true);
   const loadId = useRef(0);
   const waitingForHashes = useRef(false);
@@ -248,6 +259,30 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     const id = ++loadId.current;
     const current = () => id === loadId.current && mounted.current;
     try {
+      // Same geometry: fingerprints first (asked for, like hashes), then the groups.
+      if (modeRef.current === 'geometry') {
+        setView({ kind: 'loading', text: 'Comparing geometry...' });
+        const found = await dedup.geometryGroups(options.scopeFilters);
+        if (!current()) return;
+        if (found.running) {
+          setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
+          return;
+        }
+        if (found.missing > 0 && options.checkHashes) {
+          const answer = await showMessage('Compare Geometry',
+            `${found.missing} STL and 3MF models${options.scopeFilters ? ' in the current view' : ''} have not been compared by geometry yet. Read their shapes now? This takes a while for large files; you can leave the page meanwhile.`,
+            ['Yes', 'No']);
+          if (!current()) return;
+          if (answer === 'Yes') {
+            const started = await dedup.startGeometry(options.scopeFilters);
+            setView({ kind: 'geometry', progress: { processed: 0, total: started.total } });
+            return;
+          }
+        }
+        setSelected(new Set());
+        setView({ kind: 'ready', groups: found.groups, generating: false });
+        return;
+      }
       if (options.checkHashes) {
         setView({ kind: 'loading', text: 'Checking file hashes...' });
         const missing = await dedup.modelsWithoutHash(options.scopeFilters);
@@ -340,8 +375,23 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       }
       finish();
     });
-    return () => { stopProgress(); stopComplete(); };
+    // Geometry fingerprints: progress, then the groups.
+    const stopGeometry = onServerEvent('geometry-progress', (progress: HashProgress & { running?: boolean }) => {
+      if (modeRef.current !== 'geometry' || !progress) return;
+      setView((previous) => (previous.kind === 'geometry' ? { ...previous, progress } : previous));
+    });
+    const stopGeometryDone = onServerEvent('geometry-complete', () => {
+      if (modeRef.current === 'geometry') setTimeout(() => load({ checkHashes: false, ...optionsRef.current }), 300);
+    });
+    return () => { stopProgress(); stopComplete(); stopGeometry(); stopGeometryDone(); };
   }, [load]);
+
+  function changeMode(next: 'files' | 'geometry') {
+    setMode(next);
+    modeRef.current = next;
+    setSelected(new Set());
+    load({ checkHashes: true, scopeFilters, zip: includeZip });
+  }
 
   function changeScope(next: 'current' | 'entire') {
     setScope(next);
@@ -434,6 +484,21 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   return (
     <>
       <div className="jp-dup-options">
+        <div className="dedup-scope" id="dedup-mode">
+          <span className="dedup-scope-label">Find</span>
+          <label className="dedup-scope-option" htmlFor="dedup-mode-files">
+            <input type="radio" name="dedup-mode" id="dedup-mode-files" checked={mode === 'files'} onChange={() => changeMode('files')} />
+            <span>Identical files</span>
+          </label>
+          <label className="dedup-scope-option" htmlFor="dedup-mode-geometry">
+            <input type="radio" name="dedup-mode" id="dedup-mode-geometry" checked={mode === 'geometry'} onChange={() => changeMode('geometry')} />
+            <span>Same geometry</span>
+          </label>
+          <p className="dedup-scope-summary">
+            {mode === 'files' ? 'Byte-for-byte copies of a file.'
+              : 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF only.'}
+          </p>
+        </div>
         <div id="dedup-scope-container" className="dedup-scope">
           <span className="dedup-scope-label">Scope</span>
           <label className={`dedup-scope-option${hasFilters ? '' : ' disabled'}`} htmlFor="dedup-scope-current">
@@ -500,6 +565,14 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
               </p>
             </div>
           )}
+          {view.kind === 'geometry' && (
+            <div className="dedup-status" id="dedup-geometry-progress">
+              <div>Reading model shapes</div>
+              <progress value={view.progress.total ? view.progress.processed : 0} max={view.progress.total || 1} />
+              <div>{view.progress.processed}/{view.progress.total}{view.progress.failed ? ` (${view.progress.failed} could not be read)` : ''}</div>
+              <p className="setting-description">Each STL and 3MF is read once and remembered until the file changes. You can leave this page; it keeps going.</p>
+            </div>
+          )}
           {view.kind === 'error' && <div className="error-message">{view.text}</div>}
           {view.kind === 'ready' && (
             <>
@@ -516,7 +589,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   );
 }
 
-const INTRO = 'Identical files are found by their file hash. Limit the scan to your current library filters so a large collection does not have to be processed all at once. Nothing is deleted until you confirm.';
+const INTRO = 'Identical files are found by their file hash; Same geometry finds the same model saved as different files. Limit the scan to your current library filters so a large collection does not have to be processed all at once. Nothing is deleted until you confirm.';
 
 /** Duplicates as a page of the JusttPrint 5 shell (#/duplicates). */
 export function DuplicatesPage() {

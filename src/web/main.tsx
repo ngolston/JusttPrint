@@ -55,6 +55,7 @@ import { UsersDialog } from './UsersDialog';
 import { UploadDialog, UploadDropZone } from './upload/UploadDialog';
 import { LinkImportDialog } from './links/LinkImportDialog';
 import { ThingiverseSettingsDialog } from './links/ThingiverseSettingsDialog';
+import { SiteFilesDownloadDialog } from './links/SiteFilesDownloadDialog';
 import { MakerWorldDownloadDialog } from './makerworld/MakerWorldDownloadDialog';
 import { MakerWorldSettingsDialog } from './makerworld/MakerWorldSettingsDialog';
 import { MakerWorldSignInDialog } from './makerworld/MakerWorldSignInDialog';
@@ -84,6 +85,7 @@ function Screens() {
       <MakerWorldSignInDialog />
       <MakerWorldSettingsDialog />
       <ThingiverseSettingsDialog />
+      <SiteFilesDownloadDialog />
       <AddToCollectionDialog />
       <ShareDialog />
       <ShareLinksDialog />

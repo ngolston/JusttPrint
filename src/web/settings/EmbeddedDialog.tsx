@@ -17,12 +17,20 @@ export function EmbeddedDialog({ dialogId, opener }: { dialogId: string; opener:
     if (!host || !dialog) return undefined;
     const restore = adopt(`#${CSS.escape(dialogId)}`, host);
     let alive = true;
+    // Openers that load values first call showModal() later; one still loading when the page is
+    // left must not pop up as a modal over the next page.
+    let opening = false;
     const open = () => {
       const fn = (window as unknown as Record<string, unknown>)[opener];
-      if (typeof fn === 'function') fn();
+      if (typeof fn !== 'function') return;
+      opening = true;
+      fn();
     };
     // The opener calls showModal(); here the dialog opens in the page instead.
-    dialog.showModal = () => { if (!dialog.open) dialog.show(); };
+    dialog.showModal = () => {
+      opening = false;
+      if (!dialog.open) dialog.show();
+    };
     dialog.classList.add('is-embedded');
     const onClose = () => { if (alive) setTimeout(() => { if (alive) open(); }, 0); };
     if (dialog.open) dialog.close();
@@ -32,7 +40,14 @@ export function EmbeddedDialog({ dialogId, opener }: { dialogId: string; opener:
       alive = false;
       dialog.removeEventListener('close', onClose);
       if (dialog.open) dialog.close();
-      delete (dialog as Partial<WithShowModal>).showModal;
+      if (opening) {
+        // Swallow the late showModal() of the opener still loading; the next real one works again.
+        const late = () => { delete (dialog as Partial<WithShowModal>).showModal; };
+        dialog.showModal = late;
+        setTimeout(() => { if (dialog.showModal === late) delete (dialog as Partial<WithShowModal>).showModal; }, 10000);
+      } else {
+        delete (dialog as Partial<WithShowModal>).showModal;
+      }
       dialog.classList.remove('is-embedded');
       restore?.();
     };
