@@ -33,8 +33,7 @@ function ensureCollectionsSchema(db) {
 }
 
 function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
+  const error = Object.assign(new Error(message), { status: status });
   return error;
 }
 
@@ -109,6 +108,11 @@ function getCollection(db, id) {
   return { ...summary({ ...row, model_count: models.length, cover_path: models[0]?.filePath }), models };
 }
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {{ name?: string, description?: string, createdBy?: string | null }} [input]
+ * @param {Date} [now]
+ */
 function createCollection(db, { name, description, createdBy } = {}, now = new Date()) {
   ensureCollectionsSchema(db);
   const clean = cleanName(name);
@@ -120,6 +124,12 @@ function createCollection(db, { name, description, createdBy } = {}, now = new D
   return summary({ ...findOrThrow(db, info.lastInsertRowid), model_count: 0 });
 }
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {number} id
+ * @param {{ name?: string, description?: string }} [changes]
+ * @param {Date} [now]
+ */
 function updateCollection(db, id, { name, description } = {}, now = new Date()) {
   ensureCollectionsSchema(db);
   const row = findOrThrow(db, id);

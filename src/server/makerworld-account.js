@@ -39,6 +39,12 @@ function status() {
   return { signedIn: true, account: account.account || null, name: account.name || null, expires: account.expiresAt || null };
 }
 
+/**
+ * @param {string} path
+ * @param {any} body
+ * @param {Function} fetchImpl
+ * @param {{ base?: string, token?: string }} [options]
+ */
 async function call(path, body, fetchImpl, { base = API, token } = {}) {
   const response = await fetchImpl(`${base}${path}`, {
     method: body === undefined ? 'GET' : 'POST',

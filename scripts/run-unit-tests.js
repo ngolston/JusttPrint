@@ -64,6 +64,14 @@ if (lint.status !== 0) {
 } else {
   console.log('ok   eslint (no errors or warnings)');
 }
+const types = spawnSync(bin('tsc'), ['-p', 'tsconfig.server.json'], { cwd: root, encoding: 'utf8' });
+if (types.status !== 0) {
+  failed.push('typecheck:server');
+  console.log('FAIL server type check (npm run typecheck:server)');
+  for (const line of `${types.stdout || ''}${types.stderr || ''}`.trim().split('\n').slice(-20)) console.log(`     ${line}`);
+} else {
+  console.log('ok   server type check');
+}
 const format = spawnSync(bin('prettier'), ['--check', '.', '--log-level', 'warn'], { cwd: root, encoding: 'utf8' });
 if (format.status !== 0) {
   failed.push('prettier');

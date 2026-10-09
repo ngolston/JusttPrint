@@ -78,7 +78,7 @@ function trimPreview3mfMemoryCache() {
 function serializePreview3mfForDisk(json) {
   return JSON.stringify(json, (_key, value) => {
     if (ArrayBuffer.isView(value)) {
-      return Array.from(value);
+      return Array.from(/** @type {Uint8Array} */ (value));
     }
     return value;
   });
@@ -114,6 +114,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
     return [];
   }
 
+  /** @type {{ verbose?: boolean, maxImages?: number }} */
   const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
   const verbose = opts.verbose === true || process.env.JUSTTPRINT_DEBUG_3MF === '1';
   const maxImagesRaw = Number(opts.maxImages);

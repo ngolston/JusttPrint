@@ -138,7 +138,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 ## 🟡 6. Medium: bugs, tests and CI
 
 - [x] **Puter.com AI could not load Puter.js** (the CSP blocked `js.puter.com`). Puter.js now runs only on its own sign-in popup ([puter-signin.html](puter-signin.html)), which hands the login to the page ([src/web/ai/puterAuth.ts](src/web/ai/puterAuth.ts)); the library page's CSP is unchanged.
-- [ ] **Preview reopened within ~1 second logs "Container has zero dimensions"** (`preview.js` sets up the 3D scene 100 ms after opening). Harmless; goes away with the React preview.
+- [x] **Preview reopened within ~1 second logs "Container has zero dimensions"**: gone with `preview.js` (the 3D preview is React now).
 - [x] **Fix the version check.** The startup check always used the public channel (2.2.2), so beta users never saw beta updates. It now follows `betaOptIn`.
 - [x] **Run the tests in CI.** `.github/workflows/tests.yml` runs `npm test` and `npm run test:e2e` (with the runner's Google Chrome) on every push.
 - [x] **Build the Docker image in CI and smoke-test it**: [scripts/docker-smoke.js](scripts/docker-smoke.js) (`npm run test:docker`, and the `docker` job in [.github/workflows/tests.yml](.github/workflows/tests.yml)) starts the image with the fixture library and checks health, PUID, login, the STL Home scan, the web UI, server-side thumbnails and a clean `docker stop`.
@@ -161,7 +161,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Remove redundant code**: the JS content-type middleware and the second static-file handler in [src/server/http.js](src/server/http.js), which could never serve anything the first did not.
 - [x] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files`: the `Dockerfile` copies the project (`COPY . .`, trimmed by `.dockerignore`) and `build.files` went with Electron.
 - [x] **Add ESLint and Prettier.** Done: [eslint.config.mjs](eslint.config.mjs) (JavaScript; TypeScript stays with `tsc` until typescript-eslint supports TypeScript 7) and [.prettierrc.json](.prettierrc.json); `npm test` runs both.
-- [ ] **Gradually add type checking to the server** (JSDoc + `// @ts-check`), and work down the ESLint warnings (`npm run lint`).
+- [x] **Type checking for the server, and no ESLint warnings.** `npm run typecheck:server` ([tsconfig.server.json](tsconfig.server.json)) checks `src/server` and `src/core` from their JSDoc; `npm test` runs it and fails on any ESLint warning. Next step: `strict` mode, one folder at a time.
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [x] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view. Done (6.1.0): the label is in the name row.
 - [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.

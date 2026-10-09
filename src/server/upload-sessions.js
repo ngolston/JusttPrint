@@ -25,8 +25,7 @@ const FREE_SPACE_MARGIN = 64 * 1024 * 1024;
 const TEMP_SUFFIX = '.justtprint-upload';
 
 function httpError(status, message, extra = {}) {
-  const error = new Error(message);
-  error.status = status;
+  const error = Object.assign(new Error(message), { status: status });
   Object.assign(error, extra);
   return error;
 }

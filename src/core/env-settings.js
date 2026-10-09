@@ -29,7 +29,10 @@ function splitList(value) {
     .filter(Boolean);
 }
 
-/** [env name, setting key, convert(value, ctx) -> stored string] */
+/**
+ * [env name, setting key, convert(value, ctx) -> stored string]
+ * @type {Array<[string, string, (value: string, ctx: { fileTypeIds: string[] }) => string]>}
+ */
 const ENV_SETTINGS = [
   ['JUSTTPRINT_ENABLE_ZIP', 'enableZipArchives', parseBoolean],
   [

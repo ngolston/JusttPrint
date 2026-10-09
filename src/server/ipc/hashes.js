@@ -144,6 +144,7 @@ function resolveReadableModelPath(filePath) {
   return pathInfo.isZipEntry ? `${resolved}::${pathInfo.entryPath}` : resolved;
 }
 
+/** @param {boolean | { includeZip?: boolean, filters?: object | null }} includeZipOrOptions */
 function parseDuplicatesRequest(includeZipOrOptions) {
   if (includeZipOrOptions && typeof includeZipOrOptions === 'object' && !Array.isArray(includeZipOrOptions)) {
     const filters = includeZipOrOptions.filters && typeof includeZipOrOptions.filters === 'object' ? includeZipOrOptions.filters : null;
@@ -152,7 +153,11 @@ function parseDuplicatesRequest(includeZipOrOptions) {
   return { includeZip: !!includeZipOrOptions, filters: null };
 }
 
-// Add a new IPC handler for getting duplicates
+/**
+ * Identical files (same hash).
+ * @param {any} event
+ * @param {boolean | { includeZip?: boolean, filters?: object | null }} [includeZipOrOptions]
+ */
 const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
   const { includeZip, filters } = parseDuplicatesRequest(includeZipOrOptions);
   const maxRetries = isGeneratingHashes ? 5 : 1;

@@ -66,7 +66,12 @@ function httpsFetch(url, options = {}, redirects = 0) {
       for (const [name, value] of Object.entries(res.headers)) {
         if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : String(value));
       }
-      resolve(new Response(status === 204 || status === 304 ? null : Readable.toWeb(res), { status: status < 200 ? 502 : status, headers }));
+      resolve(
+        new Response(status === 204 || status === 304 ? null : /** @type {ReadableStream} */ (/** @type {unknown} */ (Readable.toWeb(res))), {
+          status: status < 200 ? 502 : status,
+          headers
+        })
+      );
     });
     req.on('error', reject);
     req.end(options.body);
@@ -115,8 +120,7 @@ function isBlocked(response, text) {
 
 /** The site answered, and has no such model: nothing is added. */
 function notFound(message) {
-  const error = new Error(message);
-  error.notFound = true;
+  const error = Object.assign(new Error(message), { notFound: true });
   return error;
 }
 

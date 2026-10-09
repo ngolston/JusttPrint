@@ -135,8 +135,7 @@ async function extractUsingCentralDirectory(zipPath, entry) {
     const compressed = Buffer.alloc(compressedSize);
     const { bytesRead } = await handle.read(compressed, 0, compressedSize, dataStart);
     if (bytesRead !== compressedSize) {
-      const err = new Error('unexpected end of file');
-      err.code = 'Z_BUF_ERROR';
+      const err = Object.assign(new Error('unexpected end of file'), { code: 'Z_BUF_ERROR' });
       throw err;
     }
 

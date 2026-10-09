@@ -1,7 +1,7 @@
 // aitagging.js
 // This module handles AI configuration and tag generation using OpenAI
 
-const OpenAI = require('openai');
+const { OpenAI } = require('openai');
 const { libraryContextSnippet } = require('./library-context');
 const { isRateLimitError, rateLimitWaitMs, rateLimitUserMessage } = require('./ai-rate-limit');
 
@@ -27,6 +27,7 @@ function apiKeyForClient(apiKey) {
 }
 
 // Default configuration options
+/** @type {{ maxTags: number, useCategories: boolean, useJsonResponse: boolean, tagCategories: string[], mimeType?: string, customPrompt?: string, detailLevel?: string }} */
 const DEFAULT_OPTIONS = {
   maxTags: 10,
   useCategories: false,
@@ -111,6 +112,9 @@ function isReasoningModel(model) {
  * The reply limit and temperature a request may send, by service and model. OpenAI only takes
  * max_completion_tokens from its newer models (older ones accept it too); Claude and local servers
  * take max_tokens; Gemini's OpenAI layer gets neither (it can answer 400 with no body).
+ * @param {string} service
+ * @param {string} model
+ * @param {{ maxTokens?: number, temperature?: number }} [limits]
  */
 function completionOptions(service, model, { maxTokens, temperature } = {}) {
   const options = {};
@@ -504,6 +508,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       // max_tokens or response_format (e.g. in Docker or behind proxies). Use minimal payload for Gemini.
       // Claude's OpenAI-compatible layer ignores response_format; omit it to avoid 400s.
       const requestModel = model || defaultModelForService(currentService);
+      /** @type {Record<string, any>} */
       const createPayload = {
         messages: [
           {

@@ -14,8 +14,7 @@ const KINDS = ['model', 'collection'];
 const MAX_LINKS = 500;
 
 function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
+  const error = Object.assign(new Error(message), { status: status });
   return error;
 }
 
@@ -65,12 +64,15 @@ function present(db, row, now) {
 }
 
 /**
- * @param {object} options
- * @param {'model'|'collection'} options.kind
+ * @param {import('better-sqlite3').Database} db
+ * @param {object} [options]
+ * @param {'model'|'collection'} [options.kind]
  * @param {number} [options.targetId] The collection id, or the model id.
  * @param {string} [options.filePath] For a model: its file path instead of the id.
  * @param {boolean} [options.allowDownload]
  * @param {number} [options.expiresInDays] 0 or missing: never.
+ * @param {string | null} [options.createdBy]
+ * @param {Date} [now]
  */
 function createShareLink(db, { kind, targetId, filePath, allowDownload, expiresInDays, createdBy } = {}, now = new Date()) {
   ensureShareSchema(db);
@@ -94,7 +96,12 @@ function createShareLink(db, { kind, targetId, filePath, allowDownload, expiresI
   return present(db, db.prepare('SELECT * FROM share_links WHERE token = ?').get(token), now);
 }
 
-/** Links, newest first: all of them, or those of one item. */
+/**
+ * Links, newest first: all of them, or those of one item.
+ * @param {import('better-sqlite3').Database} db
+ * @param {{ kind?: string, targetId?: number, filePath?: string }} [filter]
+ * @param {Date} [now]
+ */
 function listShareLinks(db, { kind, targetId, filePath } = {}, now = new Date()) {
   ensureShareSchema(db);
   let rows;

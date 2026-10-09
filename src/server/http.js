@@ -245,7 +245,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
           });
         }
       }
-      resolve();
+      resolve(undefined);
     };
 
     console.log(`[Server] Binding ${scheme}://${HOST}:${PORT} (tls source: ${tlsResolved.source || 'none'})`);
@@ -392,7 +392,7 @@ function stopHttpServer() {
   return new Promise((resolve) => {
     if (!httpServer) {
       console.log('HTTP server is not running');
-      resolve();
+      resolve(undefined);
       return;
     }
 
@@ -443,7 +443,7 @@ function stopHttpServer() {
         wsClients = null;
         events.setBroadcaster(null);
       }
-      resolve();
+      resolve(undefined);
     });
 
     // Force close after timeout if graceful shutdown doesn't complete
@@ -460,7 +460,7 @@ function stopHttpServer() {
         wsClients = null;
         wss = null;
         events.setBroadcaster(null);
-        resolve();
+        resolve(undefined);
       }
     }, 5000);
   });

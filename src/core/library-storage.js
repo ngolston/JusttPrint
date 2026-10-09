@@ -37,6 +37,7 @@ async function volumeUsage(dir, statfs = fs.promises.statfs) {
 /**
  * { libraryBytes, modelCount, volume: { path, totalBytes, usedBytes, freeBytes } | null }.
  * `db` is a better-sqlite3 database; `roots` are the STL Home folders.
+ * @param {{ db: any, roots: string[], existsSync?: (path: string) => boolean, statfs?: any }} options
  */
 async function libraryStorage({ db, roots, existsSync, statfs }) {
   const row = db.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(size), 0) AS bytes FROM models').get();

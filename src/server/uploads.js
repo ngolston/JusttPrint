@@ -146,8 +146,7 @@ function writeBody(req, tempPath, maxBytes) {
     req.on('data', (chunk) => {
       size += chunk.length;
       if (size > maxBytes) {
-        const error = new Error(`The file is larger than the upload limit (${Math.round(maxBytes / 1024 / 1024)} MB)`);
-        error.status = 413;
+        const error = Object.assign(new Error(`The file is larger than the upload limit (${Math.round(maxBytes / 1024 / 1024)} MB)`), { status: 413 });
         fail(error);
       }
     });

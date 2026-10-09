@@ -17,7 +17,7 @@
     module.exports = exported;
   }
   if (root) {
-    root.ThreeMFMeshExtract = exported;
+    /** @type {any} */ (root).ThreeMFMeshExtract = exported;
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   function readEnvInt(name, fallback) {

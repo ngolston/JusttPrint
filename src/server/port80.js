@@ -25,7 +25,7 @@ function formatPort80BindError(err) {
 function stopPort80Server() {
   return new Promise((resolve) => {
     if (!http80Server) {
-      resolve();
+      resolve(undefined);
       return;
     }
     const server = http80Server;
@@ -34,7 +34,7 @@ function stopPort80Server() {
     const finish = () => {
       if (settled) return;
       settled = true;
-      resolve();
+      resolve(undefined);
     };
     try {
       server.close(() => finish());
@@ -49,7 +49,7 @@ function stopPort80Server() {
 function startPort80Server() {
   return new Promise((resolve, reject) => {
     if (http80Server) {
-      resolve();
+      resolve(undefined);
       return;
     }
     const http = require('http');
@@ -69,7 +69,7 @@ function startPort80Server() {
     server.listen(80, '0.0.0.0', () => {
       http80Server = server;
       console.log('[TLS] HTTP listener on 0.0.0.0:80 (ACME HTTP-01 / optional redirect)');
-      resolve();
+      resolve(undefined);
     });
   });
 }

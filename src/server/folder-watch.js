@@ -47,7 +47,7 @@ class TreeWatcher {
    * @param {string} options.root
    * @param {(dirPath: string) => boolean} [options.isIgnoredDir] Excluded folders (hidden ones are always skipped).
    * @param {(folder: string, changedPath: string|null) => void} options.onChange
-   * @param {object} [options.fileSystem] fs (watch, promises.readdir, promises.stat), for tests.
+   * @param {typeof import('fs')} [options.fileSystem] fs (watch, promises.readdir, promises.stat), for tests.
    */
   constructor({ root, isIgnoredDir = () => false, onChange, fileSystem = fs }) {
     this.root = path.resolve(root);
@@ -169,6 +169,7 @@ class TreeWatcher {
  * `scan` may return false (busy elsewhere): the folders are kept and tried again later.
  */
 class ChangeQueue {
+  /** @param {{ scan: Function, quietMs?: number, maxWaitMs?: number, settleMs?: number, maxSettleMs?: number, fileSystem?: typeof import('fs'), now?: () => number }} options */
   constructor({ scan, quietMs = QUIET_MS, maxWaitMs = MAX_WAIT_MS, settleMs = SETTLE_MS, maxSettleMs = MAX_SETTLE_MS, fileSystem = fs, now = Date.now }) {
     this.scan = scan;
     this.quietMs = quietMs;

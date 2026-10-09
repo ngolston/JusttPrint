@@ -84,6 +84,10 @@ function createSqliteUserStore(getDb) {
         .run(username, passwordHash, role, newSessionKey(), now);
       return Number(info.lastInsertRowid);
     },
+    /**
+     * @param {number} id
+     * @param {{ passwordHash?: string, role?: string, resetSessions?: boolean }} changes
+     */
     update(id, { passwordHash, role, resetSessions }) {
       const sets = [];
       const values = [];
@@ -130,6 +134,10 @@ function createMemoryUserStore() {
       rows.set(id, { id, username, password_hash: passwordHash, role, session_key: newSessionKey(), created_at: now, last_login_at: null });
       return id;
     },
+    /**
+     * @param {number} id
+     * @param {{ passwordHash?: string, role?: string, resetSessions?: boolean }} changes
+     */
     update(id, { passwordHash, role, resetSessions }) {
       const row = rows.get(Number(id));
       if (!row) return;

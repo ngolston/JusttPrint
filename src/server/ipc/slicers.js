@@ -16,6 +16,10 @@ const { libraryPathAllowed } = require('../path-context');
  * the files and starts the slicer there.
  */
 
+/**
+ * @param {any[]} slicers
+ * @param {{ slicerId?: number | string, slicerName?: string }} [selection]
+ */
 function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
   if (!Array.isArray(slicers) || slicers.length === 0) return null;
   if (slicerId != null) {

@@ -227,8 +227,8 @@ function loginPageHtml(next, error, username = '') {
  * @param {object} deps
  * @param {(key: string) => (string|null|undefined)} deps.getSetting
  * @param {(key: string, value: string) => void} deps.setSetting
- * @param {object} [deps.users] User store (users.js); tests get a memory store.
- * @param {object} [deps.env]
+ * @param {ReturnType<typeof createMemoryUserStore>} [deps.users] User store (users.js); tests get a memory store.
+ * @param {NodeJS.ProcessEnv} [deps.env]
  * @param {{log: Function, warn: Function}} [deps.logger]
  * @param {() => number} [deps.now]
  * @param {() => string[]} [deps.extraOrigins] Origins allowed besides this server (e.g. the desktop UI).
@@ -580,6 +580,7 @@ function createServerAuth({
     if (row.role === 'admin' && users.countRole('admin') <= 1) throw new Error(message);
   }
 
+  /** @param {{ username?: string, password?: string, role?: string }} [input] */
   function createUser({ username, password, role } = {}) {
     const name = String(username || '').trim();
     if (!USERNAME_PATTERN.test(name)) {
@@ -593,6 +594,10 @@ function createServerAuth({
   }
 
   /** Change a user's role and/or password. A new password logs that user out everywhere. */
+  /**
+   * @param {number} id
+   * @param {{ role?: string, password?: string }} [changes]
+   */
   function updateUser(id, { role, password } = {}) {
     const row = findUserOrThrow(id);
     if (role !== undefined && role !== null && role !== row.role) {

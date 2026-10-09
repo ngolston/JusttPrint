@@ -197,7 +197,9 @@ async function buildHelperBundle({ appDir, origin, insecure }) {
   const protocolJs = fs.readFileSync(path.join(appDir, 'slicer-protocol.js'));
   const launchJs = fs.readFileSync(path.join(appDir, 'helper', 'slicer-launch.js'));
   const shell = unixInstaller();
+  /** @returns {import('fflate').ZippableFile} */
   const file = (data) => [typeof data === 'string' ? strToU8(data) : new Uint8Array(data), { os: 3, attrs: 0o644 << 16 }];
+  /** @returns {import('fflate').ZippableFile} */
   const executable = (text) => [strToU8(text), { os: 3, attrs: 0o755 << 16 }];
   return Buffer.from(
     zipSync({

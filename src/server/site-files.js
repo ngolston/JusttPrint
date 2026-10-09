@@ -38,8 +38,9 @@ function token() {
 }
 
 function needsTokenError() {
-  const error = new Error('Thingiverse needs an API token to download files: add yours under Settings → Integrations → Thingiverse');
-  error.code = 'THINGIVERSE_TOKEN';
+  const error = Object.assign(new Error('Thingiverse needs an API token to download files: add yours under Settings → Integrations → Thingiverse'), {
+    code: 'THINGIVERSE_TOKEN'
+  });
   return error;
 }
 
@@ -77,8 +78,9 @@ async function thingiverseApi(apiPath, fetchImpl, options = {}) {
   });
   if (response.status === 401 || response.status === 403) {
     response.body?.cancel?.();
-    const error = new Error('Thingiverse did not accept the API token: check it under Settings → Integrations → Thingiverse');
-    error.code = 'THINGIVERSE_TOKEN';
+    const error = Object.assign(new Error('Thingiverse did not accept the API token: check it under Settings → Integrations → Thingiverse'), {
+      code: 'THINGIVERSE_TOKEN'
+    });
     throw error;
   }
   return response;
