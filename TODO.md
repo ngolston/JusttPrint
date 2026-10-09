@@ -153,7 +153,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🔵 7. Cleanup
 
-- [ ] **Turn on `strict` type checking for the server, one folder at a time.** [tsconfig.server.json](tsconfig.server.json) still has `strict: false`; start with `src/core`, then `src/server`, so missing null checks show up before they become bugs.
+- [x] **Turn on `strict` type checking for the server.** Done: [tsconfig.server.json](tsconfig.server.json) is strict for `src/core` and `src/server` at once (973 findings fixed, among them a file-type filter that crashed the query builder), except `noImplicitAny` and `useUnknownInCatchVariables`, which would only ask for annotations on older code.
 - [ ] **Shrink the legacy CSS** in [src/web/styles/legacy/](src/web/styles/legacy/) (about 10.7k lines) by redrawing the older dialogs (Organize, Parts, Printer Manager and others) with the JusttPrint 5 components, deleting their old rules as each one goes.
 - [x] **Rename and rebrand the project to JusttPrint.** Name, docs, UI, package, Docker image, data folder, database file, `JUSTTPRINT_*` variables, `justtprint://` helper link, MCP name, browser extension and GitHub repository. A clean break (4.0.0) with upgrade steps in the CHANGELOG.
 - [x] **New logo and icons for JusttPrint** (7.3.1; vector redraw in 7.3.2): drawn from [assets/icon-mark.svg](assets/icon-mark.svg), rendered by `npm run build:icons`; images live in `assets/`.
@@ -164,7 +164,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 - [x] **Remove redundant code**: the JS content-type middleware and the second static-file handler in [src/server/http.js](src/server/http.js), which could never serve anything the first did not.
 - [x] **Replace the long hand-maintained file lists** in the `Dockerfile` and `package.json` `build.files`: the `Dockerfile` copies the project (`COPY . .`, trimmed by `.dockerignore`) and `build.files` went with Electron.
 - [x] **Add ESLint and Prettier.** Done: [eslint.config.mjs](eslint.config.mjs) (JavaScript; TypeScript stays with `tsc` until typescript-eslint supports TypeScript 7) and [.prettierrc.json](.prettierrc.json); `npm test` runs both.
-- [x] **Type checking for the server, and no ESLint warnings.** `npm run typecheck:server` ([tsconfig.server.json](tsconfig.server.json)) checks `src/server` and `src/core` from their JSDoc; `npm test` runs it and fails on any ESLint warning. Next step: `strict` mode, one folder at a time.
+- [x] **Type checking for the server, and no ESLint warnings.** `npm run typecheck:server` ([tsconfig.server.json](tsconfig.server.json)) checks `src/server` and `src/core` from their JSDoc; `npm test` runs it and fails on any ESLint warning. Strict since 7.13.0 (see below).
 - [x] **Update docs**: the README and GUIDE describe the Docker web app only.
 - [x] **Fix the "Archive" badge overlapping the file name** on zip-entry tiles in Preview view. Done (6.1.0): the label is in the name row.
 - [x] **Fix the sidebar banner text in Docker.** The "Server Mode / UNC paths required" box is removed, and Scan Directory asks for a container path.

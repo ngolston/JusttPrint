@@ -2,6 +2,12 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Changes:**
+- **Fixed:** a file-type filter for a type added under **Settings → Scanning → File Types** (not one of the built-in ones) made the library list fail; it now shows the files with that extension, as the search box already did.
+- **Development:** the server's type check (`npm run typecheck:server`) is strict: values that may be missing (null) must be checked before use. Two parts stay off, since they would only ask for annotations on older code: parameters without a type, and `catch` variables. Also fixed on the way: a broadcast to browsers right after the server stopped could throw.
+
 ## [7.12.0] - 2026-10-09
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update.
