@@ -1548,6 +1548,8 @@ async function browserChecks(base, wsUrl, session) {
     check('Settings shows the settings forms on the page', await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 10000 }).then(() => true, () => false)
       && await page.isVisible('#setting-stl-home #stl-home-dialog[open]') && await page.isVisible('#setting-mcp #mcp-server-settings-dialog[open]')
       && await page.evaluate(() => !document.querySelector('#performance-settings-dialog:modal')));
+    check('Settings → MakerWorld shows the sign-in and the translation choice', await page.isVisible('#setting-makerworld #makerworld-settings-dialog[open]')
+      && /Not signed in/.test(await page.textContent('#makerworld-account-status')) && (await page.inputValue('#makerworld-translation')) === 'free');
     const sizeBefore = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
     await page.fill('#max-file-size', '61');
     await page.click('#save-performance-settings');
@@ -2549,6 +2551,21 @@ async function accountChecks(base, wsUrl, admin) {
   check('adding a link already in the library adds nothing', again.status === 'exists' && again.filePath === 'url::https://www.printables.com/model/3161', JSON.stringify(again));
   check('only model links are added', /Not a Printables, Thingiverse or MakerWorld model link/.test((await invoke(base, editor, 'import-model-link', ['http://127.0.0.1:5000/api/health'])).error || ''));
 
+  // MakerWorld: details for everyone; sign-in and downloads for editors. Nothing here reaches MakerWorld.
+  check('MakerWorld details are only for MakerWorld links', (await invoke(base, viewer, 'get-site-details', ['https://www.printables.com/model/3161'])).result === null);
+  check('viewers cannot sign in to MakerWorld or download', (await invoke(base, viewer, 'makerworld-download', [{ url: 'https://makerworld.com/en/models/1' }])).status === 403
+    && (await invoke(base, viewer, 'makerworld-sign-in', [{ account: 'x' }])).status === 403);
+  check('MakerWorld starts signed out', (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false);
+  const mwDownload = (await invoke(base, editor, 'makerworld-download', [{ url: 'https://makerworld.com/en/models/1', folder: LIBRARY, files: ['a.stl'] }])).result || {};
+  check('a download without a MakerWorld sign-in asks for one', mwDownload.signIn === true, JSON.stringify(mwDownload));
+  check('viewers cannot list site files; only admins set the Thingiverse token', (await invoke(base, viewer, 'list-site-files', ['https://www.printables.com/model/1'])).status === 403
+    && (await invoke(base, editor, 'set-thingiverse-token', ['x'])).status === 403
+    && (await invoke(base, editor, 'thingiverse-token-status')).result?.hasToken === false
+    && (await invoke(base, admin, 'get-setting', ['thingiverseToken'])).result === null);
+  const mwSave = await invoke(base, admin, 'save-setting', ['makerWorldAccount', '{"accessToken":"x"}']);
+  check('the MakerWorld sign-in cannot be read or set through settings', (await invoke(base, admin, 'get-setting', ['makerWorldAccount'])).result === null
+    && mwSave.result !== true && (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false, JSON.stringify(mwSave));
+
   // Display preferences are each user's own; the server-wide value is the default.
   const adminView = (await invoke(base, admin, 'get-setting', ['sortOption'])).result;
   check('a user saves their own sort order', (await invoke(base, viewer, 'save-setting', ['sortOption', 'name-desc'])).result === true
@@ -2726,7 +2743,15 @@ async function accountChecks(base, wsUrl, admin) {
     check('Add Links lists each link and what is already there', await editorPage.waitForSelector('#jp-links-list .jp-upload__item.is-exists:has-text("E2E Benchy")', { timeout: 10000 }).then(() => true, () => false)
       && await editorPage.isVisible('#jp-links-list .jp-upload__item.is-new:has-text("Lens Cap")')
       && /example\.com\/x/.test(await editorPage.textContent('#jp-links-unsupported')));
-    check('Add Links offers only the new ones', (await editorPage.textContent('#jp-links-start')) === 'Add 1 model');
+    // With downloading on, an online model already in the library is offered too (to get its files).
+    check('Add Links offers the new ones, and online models when downloading', (await editorPage.textContent('#jp-links-start')) === 'Add 2 models'
+      && await editorPage.isChecked('#jp-links-download-toggle'));
+    await editorPage.uncheck('#jp-links-download-toggle');
+    check('Add Links offers only the new ones without downloading', (await editorPage.textContent('#jp-links-start')) === 'Add 1 model');
+    await editorPage.check('#jp-links-download-toggle');
+    // Not signed in to MakerWorld: the dialog says so, with the steps; editors are not offered the admin-only settings.
+    check('Add Links says MakerWorld downloads need a sign-in, and how', await editorPage.waitForSelector('#jp-site-setup:has-text("To download models from MakerWorld, you need to sign in")', { timeout: 10000 }).then(() => true, () => false)
+      && await editorPage.isVisible('#jp-site-setup a[href="https://makerworld.com/en"]') && !(await editorPage.isVisible('#jp-site-setup-open-makerworld')));
     await editorPage.keyboard.press('Escape');
 
     await editorPage.evaluate(() => { window.location.hash = '#/stats'; });
@@ -2830,7 +2855,11 @@ async function accountChecks(base, wsUrl, admin) {
       const saved = await waitFor(async () => (await sourceNow()) === typed, 10000, 'source saved').catch(() => false);
       const toast = await editorPage.waitForSelector('[data-testid="undo-toast"]:has-text("Changed the source")', { timeout: 10000 }).catch(() => null);
       if (how === 'the Undo button') await editorPage.click('[data-testid="undo-toast"] button:text-is("Undo")').catch(() => {});
-      else await editorPage.keyboard.press('ControlOrMeta+z');
+      else {
+        // The shortcut is off while typing in a field: leave it first, as a person would.
+        await editorPage.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+        await editorPage.keyboard.press('ControlOrMeta+z');
+      }
       const undone = await waitFor(async () => (await sourceNow()) === sourceBefore, 10000, 'source undone').catch(() => false);
       check(`${how} undoes a details edit`, saved && !!toast && undone, await sourceNow());
     }

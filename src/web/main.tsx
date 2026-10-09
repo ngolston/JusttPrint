@@ -54,6 +54,10 @@ import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { UsersDialog } from './UsersDialog';
 import { UploadDialog, UploadDropZone } from './upload/UploadDialog';
 import { LinkImportDialog } from './links/LinkImportDialog';
+import { ThingiverseSettingsDialog } from './links/ThingiverseSettingsDialog';
+import { MakerWorldDownloadDialog } from './makerworld/MakerWorldDownloadDialog';
+import { MakerWorldSettingsDialog } from './makerworld/MakerWorldSettingsDialog';
+import { MakerWorldSignInDialog } from './makerworld/MakerWorldSignInDialog';
 import { AddToCollectionDialog } from './collections/AddToCollectionDialog';
 import { ShareDialog } from './share/ShareDialog';
 import { ShareLinksDialog } from './share/ShareLinksDialog';
@@ -76,6 +80,10 @@ function Screens() {
       <UploadDialog />
       <UploadDropZone />
       <LinkImportDialog />
+      <MakerWorldDownloadDialog />
+      <MakerWorldSignInDialog />
+      <MakerWorldSettingsDialog />
+      <ThingiverseSettingsDialog />
       <AddToCollectionDialog />
       <ShareDialog />
       <ShareLinksDialog />

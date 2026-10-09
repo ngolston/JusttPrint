@@ -758,5 +758,7 @@ module.exports = {
   deduplicateTags,
   getDefaultPrompt,
   requiresApiKey,
-  completionOptions
+  completionOptions,
+  defaultBaseURLForService,
+  defaultModelForService
 };

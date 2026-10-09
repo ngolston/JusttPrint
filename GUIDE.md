@@ -129,6 +129,27 @@ Keep track of models you have not downloaded yet: editors and admins can add Pri
 
 If a site does not answer, the model is still added with a name from the link and a note to fill in the rest; a link to a model the site does not have is left out. **Stop** finishes the model being added and leaves the rest.
 
+**Download the files** (on unless you turn it off) downloads each model into a new folder per model inside the library folder shown, instead of adding an online model. Printables and Thingiverse links list their files: model files are ticked, G-code and project files are not. A link already in your library as an online model gets its files too. Thingiverse needs your own API token: make one at thingiverse.com/developers (create an app, copy its App Token) and paste it under **Settings → Integrations → Thingiverse**; without it, Thingiverse links are added as online models.
+
+For MakerWorld links, the same option downloads the model's print profiles, each as a 3MF (its parts, ready for the slicer); a model with several profiles lists them, all ticked, so you can leave some out. The first time, JusttPrint asks you to sign in to MakerWorld. If a model cannot be downloaded, it is added as an online model and the list says why. When MakerWorld or Thingiverse is not set up yet, the dialog says what to do and has a button to the place in Settings.
+
+## MakerWorld models
+
+A model added from a MakerWorld link, or any model whose **Source** is a MakerWorld link, has a **MakerWorld** section in its details:
+
+- **The model**: title, English title, model number, designer (opens their MakerWorld page), license, categories, tags with their English names, dates and description.
+- **Print profile**: the profile's name, printer, the size of the job (plates, grams, hours), whether it needs an AMS, its rating, **Plates** (each plate's time and grams) and the filament by material, color and grams. Models with several profiles get a list to pick from.
+- **Files**: each file with its English name and size.
+- **Video**: the model's YouTube video, loaded only when you press **Play video**.
+
+**Refresh** (the round arrow) gets the details again; otherwise they are kept for a day.
+
+Many models have several print profiles: the parts of a kit (Foot, Body, Wings…) or versions for other printers. When you add the link (or use **Download to Library…**), JusttPrint lists them with every one ticked: untick the ones you do not want, and only the ticked ones are downloaded, each as its own 3MF in the model's folder. **Downloaded profiles** in the MakerWorld section lists them with their plates, weight and print time; **Open in Slicer** next to a profile sends that one to your slicer.
+
+**Download to Library…** (editors and admins) picks a library folder and a print profile, and saves the profile as a 3MF project: every part on its plates, ready for the slicer. It goes into a new folder named after the model, is named after the model too (its English title, else its title), then shows up in the library with the designer, license and MakerWorld link filled in. The online model becomes the downloaded 3MF (it keeps the tags, notes, rating, collections and print history), so the model is not in the library twice. MakerWorld only lets a browser download the separate files (it asks you to prove you are not a robot), and sometimes asks the same before a 3MF. Then download on MakerWorld in your browser and use **Add Downloaded Files…** in the same dialog: the files go into the model's folder and become this model. After a robot check, JusttPrint waits 30 minutes before asking MakerWorld again. MakerWorld only gives files to signed-in accounts: the first time, JusttPrint asks you to sign in with your Bambu Lab account. Bambu Lab may email a code to enter next. The sign-in is kept on the JusttPrint backend for everyone; your password is not kept.
+
+**Settings → Integrations → MakerWorld** shows who is signed in (**Sign In**, **Sign Out**) and who makes the English file names: a free translation service (MyMemory, the default), the AI service from AI Tagging, or nobody.
+
 ## Undo
 
 After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.

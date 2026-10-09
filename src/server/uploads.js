@@ -174,6 +174,26 @@ function checkFolder(folder, ctx) {
   return dir;
 }
 
+/**
+ * checkFolder, and JusttPrint may write there. A folder mounted read-only (`:ro` in Docker) or
+ * owned by another user throws a message that says what to change.
+ */
+function checkWritableFolder(folder, ctx) {
+  const dir = checkFolder(folder, ctx);
+  try {
+    fs.accessSync(dir, fs.constants.W_OK);
+  } catch (error) {
+    if (error.code === 'EROFS') {
+      throw new Error(`${dir} is read-only inside the container, so JusttPrint cannot save files there. Remove ":ro" from its volume in docker-compose.yml (or docker run -v) and restart the container, or choose a folder that is mounted read-write.`);
+    }
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      throw new Error(`JusttPrint may not write to ${dir}. Set PUID and PGID to the owner of the folder (see the README), or choose another folder.`);
+    }
+    throw error;
+  }
+  return dir;
+}
+
 async function handleUpload(req, res) {
   const send = (status, body) => {
     if (!res.headersSent) res.status(status).json(body);
@@ -182,7 +202,7 @@ async function handleUpload(req, res) {
   let folder;
   let name;
   try {
-    folder = checkFolder(req.query.folder, networkPathContext());
+    folder = checkWritableFolder(req.query.folder, networkPathContext());
     name = checkUploadName(req.query.name, allowedUploadExtensions());
   } catch (error) {
     req.resume();
@@ -240,7 +260,7 @@ function registerUploadRoutes(expressApp, { requireRole }) {
     let folder;
     let name;
     try {
-      folder = checkFolder(body.folder, ctx);
+      folder = checkWritableFolder(body.folder, ctx);
       name = checkUploadName(body.name, allowedUploadExtensions());
     } catch (error) {
       error.status = /outside the library/.test(error.message) ? 403 : 400;
@@ -295,6 +315,7 @@ module.exports = {
   uploadChunkBytes,
   allowedUploadExtensions,
   checkFolder,
+  checkWritableFolder,
   checkUploadName,
   candidateName,
   placeWithoutReplacing,

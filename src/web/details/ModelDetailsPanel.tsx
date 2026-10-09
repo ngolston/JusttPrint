@@ -11,6 +11,7 @@ import { exposeGlobal, onServerEvent } from '../page';
 import { useAdopt } from '../shell/adopt';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import { useCan } from '../session';
+import { MakerWorldSection } from '../makerworld/MakerWorldSection';
 
 /** The model the panel shows, as get-model returns it (with its images). */
 export interface PanelModel extends GridModel {
@@ -21,6 +22,7 @@ export interface PanelModel extends GridModel {
   favorite?: number | boolean | null;
   rating?: number | null;
   thumbnail?: string | null;
+  source?: string | null;
 }
 
 declare global {
@@ -182,14 +184,20 @@ export function ModelDetailsPanel() {
   const favorite = !!model?.favorite;
   const designer = typeof model?.designer === 'string' ? model.designer.trim() : '';
   const filePath = model?.filePath || '';
+  // Online models (added from a link) have no file: nothing to show in 3D.
+  const online = filePath.startsWith('url::');
 
   return createPortal(
     <div className="jp jp-details">
       <div className="jp-details__preview">
-        <button type="button" className="jp-details__image" title="Open the 3D preview" aria-label="Open the 3D preview"
-          onClick={() => { if (filePath) void window.openPreview?.(filePath); }}>
-          <img src={shown} alt="" draggable={false} />
-        </button>
+        {online ? (
+          <div className="jp-details__image"><img src={shown} alt="" draggable={false} /></div>
+        ) : (
+          <button type="button" className="jp-details__image" title="Open the 3D preview" aria-label="Open the 3D preview"
+            onClick={() => { if (filePath) void window.openPreview?.(filePath); }}>
+            <img src={shown} alt="" draggable={false} />
+          </button>
+        )}
         <div className="jp-details__preview-actions">
           {canEdit && <button type="button" className={cx('jp-details__overlay-btn', favorite && 'is-favorited')} aria-pressed={favorite}
             aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -206,11 +214,11 @@ export function ModelDetailsPanel() {
             <MoreHorizontal size={18} aria-hidden="true" />
           </button>
         </div>
-        <button type="button" className="jp-details__overlay-btn jp-details__view-3d" title="Open the 3D preview"
+        {!online && <button type="button" className="jp-details__overlay-btn jp-details__view-3d" title="Open the 3D preview"
           onClick={() => { if (filePath) void window.openPreview?.(filePath); }}>
           <Box size={16} aria-hidden="true" />
           <span>3D</span>
-        </button>
+        </button>}
       </div>
 
       {images.length > 1 && (
@@ -256,6 +264,8 @@ export function ModelDetailsPanel() {
           <Prop label="Rating">{model && <Rating model={model} readOnly={!canEdit} onSaved={(rating) => setModel({ ...model, rating })} />}</Prop>
         </div>
       </section>
+
+      <MakerWorldSection model={model} />
 
       <section className="jp-details__section">
         <h3 className="jp-details__heading">Notes</h3>

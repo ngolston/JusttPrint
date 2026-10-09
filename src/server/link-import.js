@@ -26,7 +26,7 @@ const MAX_REDIRECTS = 3;
 /**
  * fetch() over Node's https module. MakerWorld and Thingiverse turn away Node's built-in fetch
  * with a browser check but answer this. Redirects are followed only with `redirect: 'follow'`,
- * and only to the same host.
+ * and only to the same host; `redirect: 'manual'` answers the redirect itself.
  */
 function httpsFetch(url, options = {}, redirects = 0) {
   return new Promise((resolve, reject) => {
@@ -37,6 +37,12 @@ function httpsFetch(url, options = {}, redirects = 0) {
     }
     const req = https.request(target, { method: options.method || 'GET', headers: options.headers || {}, signal: options.signal }, (res) => {
       const status = res.statusCode || 0;
+      if (status >= 300 && status < 400 && res.headers.location && options.redirect === 'manual') {
+        // The caller checks where it leads (another host, for one).
+        res.resume();
+        resolve(new Response(null, { status, headers: { location: new URL(res.headers.location, target).href } }));
+        return;
+      }
       if (status >= 300 && status < 400 && res.headers.location) {
         res.resume();
         const next = new URL(res.headers.location, target);
@@ -186,7 +192,7 @@ function checkLinks(db, text) {
   return {
     links: links.map((link) => {
       const existing = known.get(linkKey(link));
-      return { site: link.site, siteLabel: SITES[link.site].label, id: link.id, url: link.url, name: link.slug ? fallbackName(link) : null,
+      return { site: link.site, siteLabel: SITES[link.site].label, id: link.id, url: link.url, profileId: link.profileId || null, name: link.slug ? fallbackName(link) : null,
         existing: existing ? { filePath: existing.filePath, fileName: existing.fileName } : null };
     }),
     unsupported,
@@ -199,20 +205,67 @@ function checkLinks(db, text) {
  * designer, picture, warning }. When the site cannot be reached the model is still added, named
  * from the link, and `warning` says why; when the site has no such model nothing is added.
  */
-async function importLink(raw, deps) {
-  const { db, saveModel, saveThumbnail, fetchImpl = httpsFetch } = deps;
+async function importLink(raw, deps, options = {}) {
+  const { db, saveModel, saveThumbnail, fetchImpl = httpsFetch, download, downloadFiles } = deps;
   const link = parseModelLink(raw);
   if (!link) throw new Error('Not a Printables, Thingiverse or MakerWorld model link');
+  // With a download folder, files are downloaded; none chosen (empty `profileIds`/`fileIds`): no download.
+  const chosenNone = (Array.isArray(options.profileIds) && !options.profileIds.length) || (Array.isArray(options.fileIds) && !options.fileIds.length);
+  const downloading = !!options.downloadFolder && !chosenNone
+    && (link.site === 'makerworld' ? !!download : !!downloadFiles);
   const existing = knownModels(db).get(linkKey(link));
-  if (existing) return { status: 'exists', filePath: existing.filePath, name: existing.fileName, designer: null, picture: false, warning: null };
+  const exists = (warning = null) => ({ status: 'exists', filePath: existing.filePath, name: existing.fileName, designer: null, picture: false, warning });
+  // An online model already in the library can still get its files.
+  if (existing && !(downloading && String(existing.filePath).startsWith('url::'))) return exists();
 
   let info = null;
   let warning = null;
+
+  // Printables and Thingiverse with a download folder: the chosen files (every model file when not
+  // chosen), so the model arrives as its files. If that fails, the online model is added instead.
+  if (downloading && link.site !== 'makerworld') {
+    try {
+      info = await fetchModelInfo(link, fetchImpl).catch(() => null);
+      const result = await downloadFiles({ url: link.url, folder: options.downloadFolder, fileIds: Array.isArray(options.fileIds) ? options.fileIds : null },
+        { ...(options.downloadOptions || {}), info });
+      const main = result.mainFile ? db.prepare('SELECT fileName, designer FROM models WHERE filePath = ?').get(result.mainFile) : null;
+      return {
+        status: 'downloaded', filePath: result.mainFile, name: (main && main.fileName) || (info && info.name) || null, designer: (main && main.designer) || null,
+        picture: true, warning: result.warning || null, folder: result.folder, saved: result.saved, notScanned: result.notScanned || []
+      };
+    } catch (error) {
+      warning = `Not downloaded: ${error.message.replace(/\.$/, '')}. ${existing ? 'The online model stays.' : 'Added as an online model.'}`;
+      if (existing) return exists(warning);
+    }
+  }
+
+  // MakerWorld with a download folder: download every print profile as a 3MF, so the model
+  // arrives as files. If that fails, the online model is added instead and `warning` says why.
+  // `profileIds`: the profiles chosen in Add Links (none: the online model only).
+  if (downloading && link.site === 'makerworld') {
+    // The chosen print profiles, else every one; the one the link named is the main file.
+    const linkProfile = (/#profileId-(\d+)/.exec(String(raw)) || [])[1] || null;
+    try {
+      const chosen = Array.isArray(options.profileIds) ? { profileIds: options.profileIds } : { profileId: 'all' };
+      const result = await download({ url: link.url, folder: options.downloadFolder, ...chosen, mainProfileId: linkProfile }, options.downloadOptions || {});
+      const main = result.mainFile ? db.prepare('SELECT fileName, designer FROM models WHERE filePath = ?').get(result.mainFile) : null;
+      return {
+        status: 'downloaded', filePath: result.mainFile, name: (main && main.fileName) || null, designer: (main && main.designer) || null,
+        picture: true, warning: result.warning || null, folder: result.folder, saved: result.saved
+      };
+    } catch (error) {
+      const what = existing ? 'The online model stays.' : 'Added as an online model.';
+      warning = error.code === 'SIGN_IN'
+        ? `Not downloaded: sign in to MakerWorld to download. ${what}`
+        : `Not downloaded: ${error.message.replace(/\.$/, '')}. ${what}`;
+      if (existing) return exists(warning);
+    }
+  }
   try {
     info = await fetchModelInfo(link, fetchImpl);
   } catch (error) {
     if (error.notFound) return { status: 'missing', filePath: null, name: null, designer: null, picture: false, warning: `${error.message}.` };
-    warning = `${error.message}. Added with the name from the link; fill in the details yourself.`;
+    warning = [warning, `${error.message}. Added with the name from the link; fill in the details yourself.`].filter(Boolean).join(' ');
   }
   const filePath = `url::${link.url}`;
   const name = (info && info.name) || fallbackName(link);
@@ -226,15 +279,19 @@ async function importLink(raw, deps) {
   });
 
   let picture = false;
-  if (info && info.image) {
+  const pictures = info ? [info.image, info.imageFallback].filter((url, i, all) => url && all.indexOf(url) === i) : [];
+  let pictureError = null;
+  for (const url of pictures) {
     try {
-      await saveThumbnail(filePath, await fetchImage(info.image, fetchImpl));
+      await saveThumbnail(filePath, await fetchImage(url, fetchImpl));
       picture = true;
+      break;
     } catch (error) {
-      warning = `No picture: ${error.message}.`;
+      pictureError = error;
     }
   }
+  if (!picture && pictureError) warning = [warning, `No picture: ${pictureError.message}.`].filter(Boolean).join(' ');
   return { status: 'added', filePath, name, designer: (info && info.designer) || null, picture, warning };
 }
 
-module.exports = { checkLinks, fetchImage, fetchModelInfo, httpsFetch, importLink, knownModels };
+module.exports = { USER_AGENT, checkLinks, fetchImage, fetchModelInfo, httpsFetch, importLink, isBlocked, knownModels, readLimited };

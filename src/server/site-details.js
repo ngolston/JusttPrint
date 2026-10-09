@@ -1,0 +1,490 @@
+'use strict';
+
+/**
+ * MakerWorld details in the details panel (src/core/makerworld.js), and downloading a model's
+ * files into a library folder.
+ *
+ * Details are kept per model link in the site_details table, so a model and the files downloaded
+ * from it (same source link) share them; they are fetched again after a day or with Refresh.
+ * Downloads (a print profile's 3MF) need a MakerWorld sign-in (makerworld-account.js); a request that needs one fails
+ * with `code: 'SIGN_IN'`, and the browser asks for it first.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { Readable, Transform } = require('stream');
+const { pipeline } = require('stream/promises');
+const database = require('../core/database');
+const { linkKey, parseModelLink } = require('../core/link-import');
+const { folderName, makerWorldDetails, modelFileName, splitName } = require('../core/makerworld');
+const { httpsFetch, isBlocked, readLimited, USER_AGENT } = require('./link-import');
+const translate = require('./translate');
+const account = require('./makerworld-account');
+
+const MAX_AGE_MS = 24 * 3600 * 1000;
+const TIMEOUT_MS = 20000;
+const MAX_DESIGN_BYTES = 8 * 1024 * 1024;
+
+/** Hosts MakerWorld hands out download links on. */
+const DOWNLOAD_HOSTS = ['bblmw.com', 'bambulab.com', 'amazonaws.com', 'aliyuncs.com', 'cloudfront.net'];
+
+let tableReady = false;
+function table() {
+  if (!tableReady) {
+    database.db.prepare(`CREATE TABLE IF NOT EXISTS site_details (
+      key TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    )`).run();
+    // Which downloaded file holds which print profile of a model.
+    database.db.prepare(`CREATE TABLE IF NOT EXISTS site_files (
+      file_path TEXT PRIMARY KEY,
+      key TEXT NOT NULL,
+      profile_id TEXT NOT NULL
+    )`).run();
+    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_site_files_key ON site_files(key)').run();
+    tableReady = true;
+  }
+  return database.db;
+}
+
+const setting = (key) => {
+  const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : null;
+};
+
+// After MakerWorld asks for its robot check (a CAPTCHA only a browser can answer), downloads
+// pause for a while instead of asking again: more requests make the check last longer.
+const CAPTCHA_PAUSE_MS = 30 * 60 * 1000;
+let captchaUntil = 0;
+
+function captchaError() {
+  const minutes = Math.max(1, Math.ceil((captchaUntil - Date.now()) / 60000));
+  const error = new Error(`MakerWorld wants to check that you are not a robot, which only a browser can do. Download the model on MakerWorld in your browser (then drop the file on JusttPrint), or try again in ${minutes} min`);
+  error.code = 'CAPTCHA';
+  return error;
+}
+
+function signInError(message = 'Sign in to MakerWorld first') {
+  const error = new Error(message);
+  error.code = 'SIGN_IN';
+  return error;
+}
+
+/** A MakerWorld model link, or throws. */
+function makerWorldLink(url) {
+  const link = parseModelLink(url);
+  if (!link || link.site !== 'makerworld') throw new Error('Not a MakerWorld model link');
+  return link;
+}
+
+async function fetchDesign(link, fetchImpl, headers = {}) {
+  const response = await fetchImpl(`https://makerworld.com/api/v1/design-service/design/${link.id}`, {
+    headers: { 'user-agent': USER_AGENT, accept: 'application/json', ...headers },
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  const text = (await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8');
+  if (isBlocked(response, text)) throw new Error('MakerWorld asked for a browser check and did not answer');
+  if (!response.ok) throw new Error(`MakerWorld answered ${response.status}`);
+  return JSON.parse(text);
+}
+
+/** English names for the files (Settings → MakerWorld → File name translation). */
+async function addTranslations(details, deps) {
+  const mode = translate.modeOf(setting(translate.SETTING_KEY));
+  const stems = details.files.map((file) => splitName(file.name).stem);
+  const { english, by, error } = await translate.translateNames(stems, mode, deps);
+  details.files = details.files.map((file, i) => ({ ...file, english: english[i] ? `${english[i]}${splitName(file.name).extension}` : null }));
+  details.translation = { mode, by, error };
+  return details;
+}
+
+/**
+ * The print profiles of a model downloaded so far: [{ profileId, filePath, fileName }], for files
+ * still in the library (a moved or deleted file is forgotten).
+ */
+function downloadsFor(key) {
+  const rows = table().prepare(`SELECT f.file_path AS filePath, f.profile_id AS profileId, m.fileName AS fileName
+    FROM site_files f LEFT JOIN models m ON m.filePath = f.file_path WHERE f.key = ? ORDER BY f.file_path`).all(key);
+  const gone = rows.filter((row) => !row.fileName && !fs.existsSync(row.filePath));
+  for (const row of gone) table().prepare('DELETE FROM site_files WHERE file_path = ?').run(row.filePath);
+  return rows.filter((row) => !gone.includes(row)).map((row) => ({ profileId: row.profileId, filePath: row.filePath, fileName: row.fileName || path.basename(row.filePath) }));
+}
+
+/**
+ * The details for a model link: kept ones when fresh, else fetched (and translated). Answers
+ * { details, fetchedAt, stale, error, downloads }; `stale` when MakerWorld could not be reached
+ * and older details are shown; `downloads` the profiles downloaded so far. Null for other sites.
+ */
+async function getDetails(url, options = {}) {
+  const result = await fetchDetails(url, options);
+  if (result) result.downloads = downloadsFor(linkKey(parseModelLink(url)));
+  return result;
+}
+
+async function fetchDetails(url, { refresh = false, event = null, fetchImpl = httpsFetch } = {}) {
+  const link = parseModelLink(url);
+  if (!link || link.site !== 'makerworld') return null;
+  const key = linkKey(link);
+  const row = table().prepare('SELECT data, fetched_at FROM site_details WHERE key = ?').get(key);
+  const kept = row ? JSON.parse(row.data) : null;
+  const mode = translate.modeOf(setting(translate.SETTING_KEY));
+  const fresh = row && Date.now() - Date.parse(row.fetched_at) < MAX_AGE_MS;
+  if (kept && fresh && !refresh && (kept.translation && kept.translation.mode) === mode) {
+    return { details: kept, fetchedAt: row.fetched_at, stale: false, error: null };
+  }
+  try {
+    const details = makerWorldDetails(await fetchDesign(link, fetchImpl), link.url);
+    if (!details) return { details: null, fetchedAt: null, stale: false, error: 'MakerWorld has no model with this number' };
+    const deps = { fetchImpl, aiSettings: require('./ipc/ai').getAISettings(), puterHandler: event ? require('./ipc/ai').createPuterIPCHandler(event) : null };
+    await addTranslations(details, deps);
+    const fetchedAt = new Date().toISOString();
+    table().prepare('INSERT OR REPLACE INTO site_details (key, data, fetched_at) VALUES (?, ?, ?)').run(key, JSON.stringify(details), fetchedAt);
+    return { details, fetchedAt, stale: false, error: null };
+  } catch (error) {
+    if (kept) return { details: kept, fetchedAt: row.fetched_at, stale: true, error: error.message };
+    throw error;
+  }
+}
+
+function isAllowedDownloadUrl(raw) {
+  try {
+    const url = new URL(String(raw || ''));
+    const host = url.hostname.toLowerCase();
+    return url.protocol === 'https:' && DOWNLOAD_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch (_) {
+    return false;
+  }
+}
+
+/** A signed-in MakerWorld API call that answers { url, name }; refreshes the sign-in once. */
+async function downloadLink(apiPath, fetchImpl) {
+  if (Date.now() < captchaUntil) throw captchaError();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const headers = account.authHeaders();
+    if (!headers) throw signInError();
+    const response = await fetchImpl(`https://makerworld.com${apiPath}`, {
+      headers: { 'user-agent': USER_AGENT, accept: 'application/json', ...headers },
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    const text = (await readLimited(response, 1024 * 1024)).toString('utf8');
+    if (isBlocked(response, text)) throw new Error('MakerWorld asked for a browser check and did not answer. Try again later');
+    let json = {};
+    try {
+      json = JSON.parse(text);
+    } catch (_) { /* handled below */ }
+    if (response.status === 418 || json.captchaId || /not a robot/i.test(json.error || '')) {
+      captchaUntil = Date.now() + CAPTCHA_PAUSE_MS;
+      throw captchaError();
+    }
+    if (response.status === 401 || /log ?in/i.test(json.error || '')) {
+      if (attempt === 0 && await account.refresh(fetchImpl)) continue;
+      throw signInError('Your MakerWorld sign-in has expired. Sign in again');
+    }
+    if (!response.ok) throw new Error(json.error || `MakerWorld answered ${response.status}`);
+    const data = json.data && typeof json.data === 'object' ? json.data : json;
+    const url = data.url || data.downloadUrl || data.fileUrl;
+    if (!url) throw new Error('MakerWorld did not give a download link');
+    if (!isAllowedDownloadUrl(url)) throw new Error(`MakerWorld's download link is on a server JusttPrint does not download from (${new URL(url).hostname})`);
+    return { url, name: String(data.name || data.fileName || '').trim() };
+  }
+  throw signInError();
+}
+
+/** Stream a download into `tempPath` (at most `maxBytes`), reporting progress. */
+async function saveTo(url, tempPath, { fetchImpl, maxBytes, onProgress }) {
+  const response = await fetchImpl(url, { headers: { 'user-agent': USER_AGENT }, redirect: 'follow' });
+  if (!response.ok || !response.body) throw new Error(`The download failed (${response.status})`);
+  const total = Number(response.headers.get('content-length')) || null;
+  if (total && total > maxBytes) throw new Error('The download is larger than the upload limit (JUSTTPRINT_MAX_UPLOAD_MB)');
+  let received = 0;
+  let last = 0;
+  const counter = new Transform({
+    transform(chunk, _encoding, done) {
+      received += chunk.length;
+      if (received > maxBytes) return done(new Error('The download is larger than the upload limit (JUSTTPRINT_MAX_UPLOAD_MB)'));
+      if (onProgress && Date.now() - last > 250) {
+        last = Date.now();
+        onProgress(received, total);
+      }
+      return done(null, chunk);
+    }
+  });
+  await pipeline(Readable.fromWeb(response.body), counter, fs.createWriteStream(tempPath, { flags: 'wx' }));
+  if (onProgress) onProgress(received, total);
+  return received;
+}
+
+/** A new folder for the model inside `parent`: "Name", "Name (2)", … */
+function makeModelFolder(parent, details) {
+  const { isInsideOrSame } = require('./server-paths');
+  const base = folderName(details.titleEnglish || details.title);
+  for (let n = 1; n < 1000; n++) {
+    const candidate = path.join(parent, n === 1 ? base : `${base} (${n})`);
+    try {
+      fs.mkdirSync(candidate);
+      if (!isInsideOrSame(candidate, parent)) throw new Error('Could not make a folder for the model');
+      return candidate;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+  }
+  throw new Error('Could not make a folder for the model');
+}
+
+/**
+ * Scan a model's folder, give its models the model's details (only empty fields; "Unknown" counts
+ * as empty, and tags the scan gave are kept), and fold the online model into them. `mainName` is
+ * the main file's name (the 3MF). Answers { inLibrary, mainFile }.
+ */
+async function finishFolder(target, details, link, mainName, ctx) {
+  const { rootFor } = require('./uploads');
+  const { isInsideOrSame } = require('./server-paths');
+  const { scanUploadedFolder } = require('./stl-home');
+  const { readStlHomeDirectories } = require('../core/library-paths');
+  const isStlHomeScan = readStlHomeDirectories().some((home) => isInsideOrSame(target, home));
+  await scanUploadedFolder(target, rootFor(target, ctx.roots), { isStlHomeScan });
+  const prefix = `${target.replace(/[\\%_]/g, (c) => `\\${c}`)}${path.sep}%`;
+  database.db.prepare(`UPDATE models SET
+      designer = CASE WHEN designer IS NULL OR designer = '' OR designer = 'Unknown' THEN ? ELSE designer END,
+      license = CASE WHEN license IS NULL OR license = '' OR license = 'Unknown' THEN ? ELSE license END,
+      source = CASE WHEN source IS NULL OR source = '' THEN ? ELSE source END
+    WHERE filePath LIKE ? ESCAPE '\\'`).run(details.designer.name || null, details.license, link.url, prefix);
+  const inLibrary = database.db.prepare("SELECT filePath FROM models WHERE filePath LIKE ? ESCAPE '\\' ORDER BY filePath").all(prefix).map((row) => row.filePath);
+
+  // One model, not the link and the files side by side: the online model goes into the files.
+  const named = mainName ? path.join(target, mainName) : null;
+  const mainFile = (named && inLibrary.includes(named) && named) || inLibrary.find((p) => /\.3mf$/i.test(p)) || inLibrary[0] || null;
+  const online = require('./link-import').knownModels(database.db).get(linkKey(link));
+  if (online && String(online.filePath).startsWith('url::') && inLibrary.length) {
+    require('../core/merge-online-model').mergeOnlineModel(database.db, online.filePath, inLibrary, mainFile);
+  }
+  require('./events').broadcast('refresh-grid');
+  return { inLibrary: inLibrary.length, mainFile };
+}
+
+/**
+ * Files downloaded on MakerWorld in a browser, for a model: `prepare` makes the model's folder
+ * (the browser then uploads into it, POST /api/upload), `finish` scans it and folds the online
+ * model into the files.
+ */
+async function prepareManualFolder({ url, folder }) {
+  const link = makerWorldLink(url);
+  const ctx = require('./path-context').networkPathContext();
+  const parent = require('./uploads').checkWritableFolder(folder, ctx);
+  const { details } = (await getDetails(link.url)) || {};
+  if (!details) throw new Error('MakerWorld has no model with this number');
+  // The model's folder from an earlier download, so its files stay together.
+  return { folder: earlierFolder(linkKey(link), ctx) || makeModelFolder(parent, details) };
+}
+
+async function finishManualFolder({ url, folder, files = null }) {
+  const link = makerWorldLink(url);
+  const ctx = require('./path-context').networkPathContext();
+  const target = require('./uploads').checkWritableFolder(folder, ctx);
+  const { details } = (await getDetails(link.url)) || {};
+  if (!details) throw new Error('MakerWorld has no model with this number');
+  const mainName = nameMainFile(target, details, Array.isArray(files) ? files.map(String) : null);
+  return { folder: target, ...(await finishFolder(target, details, link, mainName, ctx)) };
+}
+
+/**
+ * Name the main file of the files just added to a model's folder (`added`; every file in it when
+ * not given) after the model (English title, else title): the only file, else the only 3MF. Other
+ * files are parts and keep their names, as do the files of earlier downloads. A model the folder
+ * watcher already added under the old name moves with it. Answers the main file's name, or null.
+ */
+function nameMainFile(target, details, added = null) {
+  const files = fs.readdirSync(target).filter((name) => !name.startsWith('.') && fs.statSync(path.join(target, name)).isFile()
+    && (!added || added.includes(name)));
+  const threeMfs = files.filter((name) => /\.3mf$/i.test(name));
+  const main = files.length === 1 ? files[0] : threeMfs.length === 1 ? threeMfs[0] : null;
+  if (!main) return null;
+  const wanted = modelFileName(details, path.extname(main).toLowerCase());
+  if (wanted === main) return main;
+  const { candidateName } = require('./uploads');
+  let renamed = null;
+  for (let n = 1; n < 1000 && !renamed; n++) {
+    const name = candidateName(wanted, n);
+    const to = path.join(target, name);
+    if (name === main) return main;
+    if (fs.existsSync(to)) continue;
+    fs.renameSync(path.join(target, main), to);
+    renamed = name;
+  }
+  if (!renamed) return main;
+  database.db.prepare('UPDATE models SET filePath = ?, fileName = ? WHERE filePath = ?').run(path.join(target, renamed), renamed, path.join(target, main));
+  return renamed;
+}
+
+const PROFILE_GAP_MS = 2500;
+let profileGapMs = PROFILE_GAP_MS;
+
+/**
+ * The model's folder from an earlier download (the folder of its downloaded profiles), when it is
+ * still a library folder JusttPrint can write to; else null.
+ */
+function earlierFolder(key, ctx) {
+  for (const { filePath } of downloadsFor(key)) {
+    try {
+      return require('./uploads').checkWritableFolder(path.dirname(filePath), ctx);
+    } catch (_) { /* moved, read-only, outside the library: a new folder then */ }
+  }
+  return null;
+}
+
+/**
+ * Download a MakerWorld model's print profiles as 3MF files (each holds its parts on their plates,
+ * ready for the slicer): `profileIds` the chosen ones, else `profileId` one profile, `'default'`
+ * the model's default, `'all'` every one. They go into a new folder named after the model inside `folder`, or the model's folder from
+ * an earlier download, where profiles already there are skipped. MakerWorld only lets a browser
+ * download the separate model files (a CAPTCHA), which JusttPrint does not try to get around.
+ *
+ * The folder is scanned, the new models get the designer, license and source link, and the
+ * model's online model, if any, is folded into them (merge-online-model.js); the main file (the
+ * profile `mainProfileId`, else the default one) gets its print history. When MakerWorld stops a
+ * download partway (its robot check), what was saved is kept and `missing` lists the rest.
+ * Answers { folder, saved, inLibrary, mainFile, missing, warning }.
+ */
+async function download({ url, folder, profileId = 'default', profileIds = null, mainProfileId = null }, { event = null, fetchImpl = httpsFetch, onProgress = null } = {}) {
+  const link = makerWorldLink(url);
+  const key = linkKey(link);
+  if (!account.authHeaders()) throw signInError();
+  if (Date.now() < captchaUntil) throw captchaError();
+
+  const { checkWritableFolder, maxUploadBytes, placeWithoutReplacing } = require('./uploads');
+  const ctx = require('./path-context').networkPathContext();
+  const parent = checkWritableFolder(folder, ctx);
+
+  const { details } = (await getDetails(link.url, { event, fetchImpl })) || {};
+  if (!details) throw new Error('MakerWorld has no model with this number');
+  if (!details.profiles.length) throw new Error('This model has no print profile to download. MakerWorld only lets a browser download its separate files: open it on MakerWorld');
+  const wantedId = profileId && !['default', 'all'].includes(profileId) ? String(profileId) : null;
+  // The profiles chosen by number (`profileIds`), else all, else one: a profile the link named
+  // that is gone is the default one.
+  const picked = Array.isArray(profileIds) ? new Set(profileIds.map(String)) : null;
+  const chosen = picked ? details.profiles.filter((p) => picked.has(p.id))
+    : profileId === 'all' ? details.profiles
+      : [(wantedId && details.profiles.find((p) => p.id === wantedId)) || details.profiles[0]];
+  if (!chosen.length) throw new Error('Choose the print profiles to download');
+
+  // Profiles already downloaded into a folder that can be added to are skipped.
+  renameProfileFiles(key);
+  const reused = earlierFolder(key, ctx);
+  const have = new Set(reused ? downloadsFor(key).filter((d) => path.dirname(d.filePath) === reused).map((d) => d.profileId) : []);
+  const todo = chosen.filter((p) => !have.has(p.id));
+  if (!todo.length && reused) {
+    return { folder: reused, saved: [], ...(await finishFolder(reused, details, link, mainFileOf(key, details, mainProfileId || wantedId), ctx)), missing: [], warning: null };
+  }
+  const target = reused || makeModelFolder(parent, details);
+
+  const saved = [];
+  const missing = [];
+  let warning = null;
+  for (let i = 0; i < todo.length; i++) {
+    const profile = todo[i];
+    const label = todo.length > 1 ? `${profile.nameEnglish || profile.name || 'Print profile'} (${i + 1} of ${todo.length})` : 'Print profile';
+    const tempPath = path.join(target, `.justtprint-${crypto.randomBytes(6).toString('hex')}.part`);
+    try {
+      // Spaced out: a burst of downloads makes MakerWorld ask for its robot check.
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, profileGapMs));
+      const { url: fileUrl } = await downloadLink(`/api/v1/design-service/instance/${profile.id}/f3mf?type=download`, fetchImpl);
+      await saveTo(fileUrl, tempPath, {
+        fetchImpl,
+        maxBytes: maxUploadBytes(),
+        onProgress: onProgress ? (received, total) => onProgress({ label, received, total }) : null
+      });
+      // Named after the model (English title, else title), and the profile when there are several.
+      const name = path.basename(placeWithoutReplacing(tempPath, target, modelFileName(details, '.3mf', details.profiles.length > 1 ? profile : null)));
+      table().prepare('INSERT OR REPLACE INTO site_files (file_path, key, profile_id) VALUES (?, ?, ?)').run(path.join(target, name), key, profile.id);
+      saved.push(name);
+    } catch (error) {
+      fs.rmSync(tempPath, { force: true });
+      // Nothing saved this time and the folder is new: leave no empty folder behind.
+      if (!saved.length && !have.size && !reused) {
+        fs.rmSync(target, { recursive: true, force: true });
+        throw error;
+      }
+      missing.push(...todo.slice(i).map((p) => p.nameEnglish || p.name || p.id));
+      warning = `${error.message}. Not downloaded yet: ${missing.join(', ')}; download again to add them`;
+      break;
+    }
+  }
+
+  const finished = await finishFolder(target, details, link, mainFileOf(key, details, mainProfileId || wantedId), ctx);
+  return { folder: target, saved, ...finished, missing, warning };
+}
+
+/** The main file's name: the profile `mainProfileId` when downloaded, else the default profile, else any. */
+function mainFileOf(key, details, mainProfileId) {
+  const downloads = downloadsFor(key);
+  const pick = (id) => downloads.find((d) => d.profileId === id);
+  const main = (mainProfileId && pick(String(mainProfileId))) || (details.profiles[0] && pick(details.profiles[0].id)) || downloads[0];
+  return main ? path.basename(main.filePath) : null;
+}
+
+/**
+ * Give downloaded print profiles today's names (modelFileName) when an older version named them
+ * differently; `key` limits it to one model. The library's model moves with its file (same row:
+ * tags, notes and history stay). Uses the kept details only, no network. Answers how many moved.
+ */
+function renameProfileFiles(key = null) {
+  const { candidateName } = require('./uploads');
+  const rows = table().prepare(`SELECT f.file_path AS filePath, f.key, f.profile_id AS profileId, d.data
+    FROM site_files f JOIN site_details d ON d.key = f.key ${key ? 'WHERE f.key = ?' : ''}`).all(...(key ? [key] : []));
+  let moved = 0;
+  for (const row of rows) {
+    let details;
+    try {
+      details = JSON.parse(row.data);
+    } catch (_) {
+      continue;
+    }
+    const profile = (details.profiles || []).find((p) => p.id === row.profileId);
+    if (!profile || !fs.existsSync(row.filePath)) continue;
+    const wanted = modelFileName(details, path.extname(row.filePath).toLowerCase() || '.3mf', details.profiles.length > 1 ? profile : null);
+    if (path.basename(row.filePath) === wanted) continue;
+    const folder = path.dirname(row.filePath);
+    let to = null;
+    for (let n = 1; n < 1000 && !to; n++) {
+      const candidate = path.join(folder, candidateName(wanted, n));
+      if (candidate === row.filePath) break;
+      if (!fs.existsSync(candidate)) to = candidate;
+    }
+    if (!to) continue;
+    try {
+      fs.renameSync(row.filePath, to);
+    } catch (error) {
+      console.warn(`[MakerWorld] Could not rename ${row.filePath}: ${error.message}`);
+      continue;
+    }
+    // Right after the rename, so a folder rescan finds the model under its new name.
+    database.db.transaction(() => {
+      database.db.prepare('UPDATE models SET filePath = ?, fileName = ? WHERE filePath = ?').run(to, path.basename(to), row.filePath);
+      table().prepare('UPDATE site_files SET file_path = ? WHERE file_path = ?').run(to, row.filePath);
+    })();
+    moved++;
+  }
+  if (moved) console.log(`[MakerWorld] Renamed ${moved} downloaded print profile(s) so their names start with the profile`);
+  return moved;
+}
+
+/** For tests: no pause between profile downloads. */
+const setProfileGap = (ms) => { profileGapMs = ms; };
+
+/** Whether files can be saved in a library folder: { ok, error } (the download dialog checks before downloading). */
+function checkFolder(folder) {
+  try {
+    const { checkWritableFolder } = require('./uploads');
+    checkWritableFolder(folder, require('./path-context').networkPathContext());
+    return { ok: true, error: null };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/** For tests: forget a robot check. */
+const resetCaptchaPause = () => { captchaUntil = 0; };
+
+module.exports = { DOWNLOAD_HOSTS, downloadsFor, earlierFolder, finishFolder, makeModelFolder, renameProfileFiles, saveTo, setProfileGap, siteFilesTable: table, checkFolder, finishManualFolder, nameMainFile, prepareManualFolder, resetCaptchaPause, download, getDetails, isAllowedDownloadUrl, makerWorldLink, signInError };

@@ -90,7 +90,8 @@ function findModelLinks(text) {
       if (seen.has(key)) continue;
       seen.add(key);
       if (links.length >= MAX_LINKS) skipped++;
-      else links.push(link);
+      // A MakerWorld link may name a print profile (#profileId-3376302).
+      else links.push({ ...link, profileId: (/#profileId-(\d+)/.exec(candidate) || [])[1] || null });
     }
   }
   return { links, unsupported: [...new Set(unsupported)], skipped };
@@ -136,7 +137,9 @@ function fromPrintables(body) {
     name: clean(print.name),
     designer: clean(print.user && (print.user.publicUsername || print.user.handle)),
     license: clean(print.license && print.license.name),
-    image: print.image && print.image.filePath ? printablesImageUrl(print.image.filePath) : null
+    image: print.image && print.image.filePath ? printablesImageUrl(print.image.filePath) : null,
+    // Newer Printables pictures have no resized versions: the original, when the resized one fails.
+    imageFallback: print.image && print.image.filePath ? `https://media.printables.com/${String(print.image.filePath).replace(/^\/+/, '')}` : null
   };
 }
 
@@ -146,7 +149,8 @@ function fromMakerWorld(body) {
   const creator = body.designCreator || {};
   const cover = clean(body.coverUrl, 2000);
   return {
-    name: clean(body.title),
+    // The English title when MakerWorld has one.
+    name: clean(body.titleTranslated) || clean(body.title),
     designer: clean(creator.name || creator.handle),
     license: licenseName(body.license),
     image: cover ? `${cover.split('?')[0]}?x-oss-process=image/resize,w_640` : null

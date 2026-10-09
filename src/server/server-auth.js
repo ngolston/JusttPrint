@@ -29,7 +29,11 @@ const SETTING_KEYS = {
   /** The single password from before user accounts; moved into the users table on first start. */
   passwordHash: 'serverPasswordHash',
   signingSecret: 'serverSessionSecret',
-  apiToken: 'serverApiToken'
+  apiToken: 'serverApiToken',
+  /** The MakerWorld (Bambu Lab) sign-in for downloads: makerworld-account.js. */
+  makerWorldAccount: 'makerWorldAccount',
+  /** The Thingiverse API token for downloads: site-files.js. */
+  thingiverseToken: 'thingiverseToken'
 };
 
 /** Settings that must never be read or written through the generic settings API. */

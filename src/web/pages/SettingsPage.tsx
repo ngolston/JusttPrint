@@ -57,10 +57,16 @@ export function SettingsPage({ section }: { section: string }) {
     const timer = setTimeout(() => {
       const focused = document.activeElement as HTMLElement | null;
       if (focused && focused.closest('.jp-settings-page')) focused.blur();
-      const target = section && document.getElementById(`settings-${section}`);
+      // A group (#/settings/integrations), or one form in it (#/settings/thingiverse), shown for a moment.
+      const form = section && document.getElementById(`setting-${section}`);
+      const target = section && (document.getElementById(`settings-${section}`) || form);
       const page = document.querySelector('.jp-page');
       if (target) target.scrollIntoView({ block: 'start' });
       else page?.scrollTo({ top: 0 });
+      if (form) {
+        form.classList.add('is-highlighted');
+        setTimeout(() => form.classList.remove('is-highlighted'), 2500);
+      }
     }, 120);
     return () => clearTimeout(timer);
   }, [section]);

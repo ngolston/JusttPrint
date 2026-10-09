@@ -8,6 +8,7 @@ require('./context-menu');
 require('./files');
 require('./hashes');
 require('./link-import');
+require('./makerworld');
 require('./metadata');
 require('./models');
 require('./organize');
