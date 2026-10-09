@@ -88,6 +88,12 @@ function sign(secret, body) {
 const SYSTEM_USER = Object.freeze({ id: 0, username: 'system', role: 'admin', system: true });
 const API_TOKEN_USER = Object.freeze({ id: 0, username: 'API token', role: 'admin', system: true });
 const DOWNLOAD_USER = Object.freeze({ id: 0, username: 'download link', role: 'viewer', system: true });
+/**
+ * Guest access (Settings → Users, or JUSTTPRINT_GUEST_ACCESS=true): requests without a login
+ * browse as this user, like a Viewer. Guests keep no settings and change no password, and API
+ * tokens and MCP never fall back to it.
+ */
+const GUEST_USER = Object.freeze({ id: 0, username: 'guest', role: 'viewer', guest: true });
 
 function makeSignedToken(secret, kind, ttlMs, now) {
   const body = `${kind}.${now + ttlMs}`;
@@ -182,7 +188,7 @@ function safeNextPath(value) {
   return next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/';
 }
 
-function loginPageHtml(next, error, username = '') {
+function loginPageHtml(next, error, username = '', { guest = false } = {}) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -204,6 +210,8 @@ function loginPageHtml(next, error, username = '') {
   button { width: 100%; margin-top: 16px; padding: 10px; font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
   .error { color: var(--error); font-size: 0.875rem; margin: 12px 0 0; }
   .hint { color: var(--muted); font-size: 0.8125rem; margin: 16px 0 0; }
+  .hint.guest { text-align: center; font-size: 0.9375rem; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -217,6 +225,7 @@ function loginPageHtml(next, error, username = '') {
   <input type="hidden" name="next" value="${escapeHtml(next)}">
   <button type="submit">Log in</button>
   ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ''}
+  ${guest ? `<p class="hint guest"><a href="${escapeHtml(next)}">Browse as a guest</a> (look and download, without an account)</p>` : ''}
   <p class="hint">First start: log in as <code>admin</code> with the password from the JusttPrint backend's log (<code>docker logs</code>), or the one in <code>JUSTTPRINT_PASSWORD</code>.</p>
 </form>
 </body>
@@ -461,6 +470,17 @@ function createServerAuth({
     return !!authenticate(req);
   }
 
+  /** Guest access is on (the setting, or JUSTTPRINT_GUEST_ACCESS=true). */
+  function guestAccessOn() {
+    return String(env.JUSTTPRINT_GUEST_ACCESS || '').toLowerCase() === 'true' || getSetting('guestAccess') === 'true';
+  }
+
+  /** The guest for a request without a login, when guest access is on. Not for API tokens or MCP. */
+  function guestFor(req) {
+    if (!guestAccessOn() || req.headers.authorization) return null;
+    return /^\/mcp(\/|$)/.test(req.path || '') ? null : GUEST_USER;
+  }
+
   function hasDownloadToken(req) {
     const token = req.query && typeof req.query.token === 'string' ? req.query.token : '';
     return !!token && checkSignedToken(signingSecret(), 'dl', token, now());
@@ -514,7 +534,7 @@ function createServerAuth({
    */
   function requireAuth(req, res, next) {
     if (isPublicPath(req.path)) return next();
-    const user = authenticate(req) || (isDownloadPath(req.path) && hasDownloadToken(req) ? DOWNLOAD_USER : null);
+    const user = authenticate(req) || (isDownloadPath(req.path) && hasDownloadToken(req) ? DOWNLOAD_USER : null) || guestFor(req);
     if (user) {
       req.user = user;
       return next();
@@ -559,7 +579,7 @@ function createServerAuth({
   /** For WebSocket upgrades: same origin, plus a session or API token. */
   function verifyUpgrade(req) {
     if (!originAllowed(req, extraOrigins())) return { ok: false, status: 403, reason: 'Origin not allowed' };
-    const user = authenticate(req);
+    const user = authenticate(req) || guestFor(req);
     if (!user) return { ok: false, status: 401, reason: 'Login required' };
     return { ok: true, user };
   }
@@ -646,7 +666,9 @@ function createServerAuth({
         return;
       }
       const username = typeof req.query.user === 'string' ? req.query.user.slice(0, 64) : '';
-      res.type('html').send(loginPageHtml(safeNextPath(req.query.next), req.query.error ? 'Wrong user name or password.' : '', username));
+      res
+        .type('html')
+        .send(loginPageHtml(safeNextPath(req.query.next), req.query.error ? 'Wrong user name or password.' : '', username, { guest: guestAccessOn() }));
     });
 
     app.post('/api/auth/login', form, express.json({ limit: '10kb' }), (req, res) => {
@@ -699,10 +721,13 @@ function createServerAuth({
 
     app.get('/api/auth/status', (req, res) => {
       const user = authenticate(req);
+      const guest = user ? null : guestFor(req);
       res.json(
         user
           ? { authenticated: true, user: { id: user.id, username: user.username, role: user.role, roleLabel: ROLE_LABELS[user.role] } }
-          : { authenticated: false }
+          : guest
+            ? { authenticated: true, guest: true, user: { id: 0, username: 'Guest', role: guest.role, roleLabel: 'Guest', guest: true } }
+            : { authenticated: false }
       );
     });
   }
@@ -717,6 +742,7 @@ function createServerAuth({
     issueSessionToken,
     authenticate,
     isAuthenticated,
+    guestAccessOn,
     isDownloadAuthorized,
     requireAuth,
     cors,

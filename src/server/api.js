@@ -80,6 +80,12 @@ async function runAction(req, res, keepaliveMs) {
     return;
   }
 
+  // Guests (server-auth.js) have no account to change.
+  if (user.guest && name === 'set-server-password') {
+    sendError(res, 403, 'Log in to change a password.');
+    return;
+  }
+
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const args = body.args === undefined ? [] : body.args;
   try {

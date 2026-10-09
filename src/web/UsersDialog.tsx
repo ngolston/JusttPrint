@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { users as usersApi, type UserAccount, type UserRole } from './api';
+import { settings, users as usersApi, type UserAccount, type UserRole } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { timeAgo } from './home/format';
 import { exposeGlobal, showMessage } from './page';
@@ -169,6 +169,7 @@ export function UsersDialog() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('viewer');
   const load = useRef(0);
+  const [guestAccess, setGuestAccess] = useState(false);
 
   async function refresh() {
     const ticket = ++load.current;
@@ -177,6 +178,7 @@ export function UsersDialog() {
       if (ticket !== load.current) return;
       setList(result.users);
       setMinLength(result.minPasswordLength);
+      setGuestAccess((await settings.get<string | null>('guestAccess').catch(() => null)) === 'true');
     } catch (error) {
       if (ticket === load.current) setStatus(`Could not load the users: ${errorText(error)}`);
     }
@@ -241,6 +243,28 @@ export function UsersDialog() {
           ))
         )}
       </ul>
+      <label className="users-guest">
+        <input
+          type="checkbox"
+          id="users-guest-access"
+          checked={guestAccess}
+          onChange={async (event) => {
+            const on = event.target.checked;
+            setGuestAccess(on);
+            try {
+              await settings.save('guestAccess', on ? 'true' : 'false');
+              setStatus(on ? 'Guests can now browse without logging in.' : 'Guest access is off: everyone logs in.');
+            } catch (error) {
+              setGuestAccess(!on);
+              setStatus(`Could not save: ${errorText(error)}`);
+            }
+          }}
+        />
+        <span>
+          <strong>Guest access</strong>: people who open JusttPrint without logging in can browse, preview and download, like a Viewer. Anyone who can reach
+          this server gets in, so leave it off if it is reachable from the internet.
+        </span>
+      </label>
       <p id="users-status" className="setting-description" role="status">
         {status}
       </p>

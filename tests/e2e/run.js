@@ -4615,6 +4615,36 @@ async function accountChecks(base, wsUrl, admin) {
     ((await invoke(base, editor, 'get-share-links', [])).result || []).some((l) => l.token === link.token && l.targetName === 'E2E Gifts')
   );
 
+  console.log('\n# Guest access');
+  const nobody = { origin: base };
+  check('without guest access, nobody browses without a login', (await invoke(base, nobody, 'get-all-models')).status === 401);
+  const editorGuest = await invoke(base, editor, 'save-setting', ['guestAccess', 'true']);
+  check(
+    'only admins turn on guest access',
+    editorGuest.status !== 200 && (await invoke(base, nobody, 'get-all-models')).status === 401,
+    JSON.stringify(editorGuest)
+  );
+  await invoke(base, admin, 'save-setting', ['guestAccess', 'true']);
+  const guestModels = await invoke(base, nobody, 'get-all-models');
+  check('with guest access, guests browse without a login', guestModels.status === 200 && Array.isArray(guestModels.result) && guestModels.result.length > 0);
+  check('guests cannot edit', (await invoke(base, nobody, 'save-model', [{ filePath: uploadedPath, notes: 'guest was here' }])).status === 403);
+  check('guests cannot change a password', (await invoke(base, nobody, 'set-server-password', ['x', 'y'])).status === 403);
+  await invoke(base, nobody, 'save-setting', ['uiTheme', 'guest-theme']);
+  check("a guest's display choices are not kept", (await invoke(base, admin, 'get-setting', ['uiTheme'])).result !== 'guest-theme');
+  const guestStatus = await (await fetch(`${base}/api/auth/status`)).json();
+  check(
+    'the page knows it is a guest',
+    guestStatus.authenticated === true && guestStatus.guest === true && guestStatus.user.roleLabel === 'Guest',
+    JSON.stringify(guestStatus)
+  );
+  check('the login page offers to browse as a guest', (await (await fetch(`${base}/login`)).text()).includes('Browse as a guest'));
+  const guestMcp = await fetch(`${base}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+  });
+  check('MCP still needs the API token', guestMcp.status === 401);
+
   console.log('\n# Open in OrcaSlicer (no helper)');
   const slicersBefore = (await invoke(base, admin, 'get-slicers')).result || [];
   check(
@@ -4674,6 +4704,31 @@ async function accountChecks(base, wsUrl, admin) {
       }
       return page;
     };
+
+    // A guest in the browser (guest access is on): the library, and Log In instead of the account items.
+    const guestPage = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+    guestPage.on('pageerror', (error) => errors.push(`guest: ${error.message}`));
+    await guestPage.goto(base + '/#/library');
+    const guestIn = await guestPage
+      .waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('a guest opens the library without logging in', guestIn && !guestPage.url().includes('/login'));
+    check(
+      'the account button says Guest',
+      await guestPage.waitForSelector('#jp-account-who:has-text("Guest")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
+    check('a guest sees no welcome or terms', !(await guestPage.isVisible('#welcome-message')) && !(await guestPage.isVisible('#terms-of-service-dialog')));
+    await guestPage.click('.jp-account');
+    check('a guest can go to Log In', await guestPage.isVisible('[role="menuitem"]:has-text("Log In")'));
+    await guestPage.context().close();
+    await invoke(base, admin, 'save-setting', ['guestAccess', 'false']);
+    check('turning guest access off asks for a login again', (await invoke(base, { origin: base }, 'get-all-models')).status === 401);
 
     // The 3D view of a share page, for a visitor who is not logged in.
     const visitor = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
