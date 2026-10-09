@@ -242,6 +242,7 @@ const MCP_TOOL_PATH_RULES = {
   set_default_thumbnail: [['filePath', 'file']],
   delete_thumbnail: [['filePath', 'file']],
   scan_directory: [['directory', 'scanDir']],
+  import_model_links: [['downloadFolder', 'dir']],
   remove_model: [
     ['filePath', 'file'],
     ['filePaths', 'files']

@@ -541,6 +541,24 @@ async function apiChecks(base, wsUrl) {
     mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text),
     mcpStats.text.slice(0, 200)
   );
+  const mcpLinks = await mcpTool('check_model_links', { text: 'see https://www.printables.com/model/3161-3d-benchy and https://www.thingiverse.com/thing:42' });
+  check(
+    'MCP finds model links in text (Add Links)',
+    mcpLinks.status === 200 && /printables/.test(mcpLinks.text) && /thingiverse/.test(mcpLinks.text) && !/"isError":\s*true/.test(mcpLinks.text),
+    mcpLinks.text.slice(0, 200)
+  );
+  const mcpNoLinks = await mcpTool('import_model_links', { text: 'no links here' });
+  check(
+    'MCP import_model_links says when there are no links',
+    /"isError":\s*true/.test(mcpNoLinks.text) && /No Printables/.test(mcpNoLinks.text),
+    mcpNoLinks.text.slice(0, 200)
+  );
+  const mcpOutside = await mcpTool('import_model_links', { links: ['https://www.printables.com/model/3161'], downloadFolder: '/etc' });
+  check(
+    'MCP import_model_links refuses a download folder outside the library',
+    /"isError":\s*true/.test(mcpOutside.text) && /outside the library/.test(mcpOutside.text),
+    mcpOutside.text.slice(0, 200)
+  );
   const mcpTree = await mcpTool('get_folder_tree');
   check(
     'MCP folder tree',
