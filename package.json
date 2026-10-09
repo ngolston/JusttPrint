@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "7.10.0",
+  "version": "7.10.1",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
@@ -13,9 +13,9 @@
     "docker:push:latest": "node scripts/docker-hub-push.js push-latest",
     "docker:hub:all": "node scripts/docker-hub-push.js all",
     "docker:hub:multiarch": "node scripts/docker-hub-push.js multiarch",
-    "docker:local": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env up -d --build && echo JusttPrint is starting at http://localhost:5055",
-    "docker:local:logs": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env logs -f",
-    "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
+    "docker:local": "docker compose -f docker/docker-compose.local.yml --env-file ~/justtprint-test/local.env up -d --build && echo JusttPrint is starting at http://localhost:5055",
+    "docker:local:logs": "docker compose -f docker/docker-compose.local.yml --env-file ~/justtprint-test/local.env logs -f",
+    "docker:local:down": "docker compose -f docker/docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
     "test": "node scripts/run-unit-tests.js",
     "lint": "eslint .",
     "typecheck:server": "tsc -p tsconfig.server.json",

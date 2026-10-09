@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.10.1] - 2026-10-09
+
+**Upgrading:** no changes for anyone who runs the published image. If you build the image from a clone of the repository, the Dockerfile and compose files are now in `docker/`: build with `docker build -f docker/Dockerfile .`, or run `docker compose -f docker/docker-compose.yml up -d --build` from the project folder (its `data` and `models` folders stay where they were).
+
+**Changes:**
+- **Project layout:** the files that sat loose at the top of the project moved into the planned layout: the page, service worker, app manifest, Puter sign-in page and Quick Start images into `src/web/public/`; the scripts the browser and the server both use (`slicer-protocol.js`, `step-assembly.js`, `stl-sanity.js`, `parse-lys-geometry.js`, `threemf-mesh-extract.js`) into `src/shared/`; the Dockerfile, entrypoint and compose files into `docker/`; and `GUIDE.md` into `docs/`. Their web addresses are unchanged.
+- **Security:** the server now serves files only from its web folders (`src/web/public`, `src/shared`, `assets`, `vendor`, `web-build`), instead of from the whole app folder minus a list of exceptions, so a file added to the project later can never be served by mistake.
+
 ## [7.10.0] - 2026-10-09
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. Guest access is off until an admin turns it on.

@@ -1,5 +1,5 @@
 // ESLint for JusttPrint's JavaScript: the server (src/server, src/core), scripts, tests, the helper
-// and the plain browser scripts at the top of the project.
+// and the plain browser scripts in src/web/public.
 //
 // The web UI (src/web, TypeScript) is checked by `tsc` in strict mode instead: typescript-eslint
 // does not support TypeScript 7 yet (it needs < 6.1). Add it here once it does.
@@ -24,7 +24,7 @@ const rules = {
 };
 
 /** Files that also run in the browser (they check `typeof window` / `typeof fflate` first). */
-const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'parse-lys-geometry.js', 'threemf-mesh-extract.js'];
+const SHARED = ['src/shared/**/*.js'];
 
 export default [
   {
@@ -34,21 +34,22 @@ export default [
       'dist/**',
       'vendor/**',
       'docs/**',
-      'guide/**',
       'assets/**',
       'tests/e2e/.work/**',
       'tests/perf/.work/**',
       'tests/fixtures/**',
       'test-results/**',
       'playwright-report/**',
-      // TypeScript: checked by tsc (see above).
-      'src/web/**'
+      // TypeScript: checked by tsc (see above). The plain scripts in src/web/public are linted here.
+      'src/web/*',
+      '!src/web/public/'
     ]
   },
   js.configs.recommended,
   {
     // Node, CommonJS: the server, shared core code, scripts, tests and the helper.
-    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'helper/**/*.js', ...SHARED],
+    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'helper/**/*.js'],
+    ignores: ['src/web/public/**'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'commonjs',
@@ -65,7 +66,7 @@ export default [
   },
   {
     // Plain scripts outside the app (no bundler): the Puter sign-in popup and the service worker.
-    files: ['puter-signin.js', 'sw.js'],
+    files: ['src/web/public/**/*.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'script',

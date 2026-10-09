@@ -2,7 +2,7 @@
 
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
-const { listStepExternalFileNames, siblingStepPath } = require('../step-assembly');
+const { listStepExternalFileNames, siblingStepPath } = require('../src/shared/step-assembly');
 
 const FOOT_SNIPPET = `
 ISO-10303-21;

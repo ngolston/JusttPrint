@@ -15,7 +15,7 @@ const { registerHelperBundleRoute } = require('../../helper/install-bundle');
 const { parseTrustProxy } = require('./server-auth');
 const { RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./client-dialogs');
 const { clientDialogs } = require('./dialogs');
-const { isServableStaticPath } = require('./server-paths');
+const { staticFilePath } = require('./server-paths');
 const { getServerAuth } = require('./auth');
 const { ROLE_LABELS, roleAllows } = require('./users');
 const { registerUploadRoutes } = require('./uploads');
@@ -147,12 +147,11 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   registerMcpRoutes(expressApp, getMcpToolContext());
   registerPuterAiProxyRoute(expressApp);
 
-  // Serve static files from the application directory
   const appDir = path.join(__dirname, '..', '..');
 
   /** The page. index.html loads server-bridge.js itself; nothing is inlined (CSP script-src 'self'). */
   function sendIndexHtml(res) {
-    res.sendFile(path.join(appDir, 'index.html'), (err) => {
+    res.sendFile(path.join(appDir, 'src', 'web', 'public', 'index.html'), (err) => {
       if (err && !res.headersSent) res.status(500).send('Error loading index.html');
     });
   }
@@ -165,30 +164,20 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     expressApp.get(`/${name}`, (req, res) => res.sendFile(path.join(appDir, 'assets', name)));
   }
 
-  // The web app's files (only web assets: staticWebAssetsOnly). express.static sets the content
-  // types; these add the ones it lacks and keep the browser from caching code between updates.
-  expressApp.use(
-    staticWebAssetsOnly(
-      express.static(appDir, {
-        setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
-            res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-          }
-          if (filePath.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-          }
-          if (filePath.endsWith(`${path.sep}sw.js`) || filePath.endsWith('/sw.js') || filePath.endsWith('sw.js')) {
-            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-            res.setHeader('Service-Worker-Allowed', '/');
-            res.setHeader('Cache-Control', 'no-cache');
-          }
-          if (/\.(js|css|html|webmanifest)$/i.test(filePath)) {
-            res.setHeader('Cache-Control', 'no-cache');
-          }
-        }
-      })
-    )
-  );
+  // The web app's files, only from the web folders (server-paths.js STATIC_FOLDERS). sendFile sets
+  // the content types; these add the ones it lacks and keep the browser from caching code between updates.
+  expressApp.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const filePath = staticFilePath(req.path, appDir);
+    if (!filePath) return next();
+    if (filePath.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+    if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+    if (req.path === '/sw.js') res.setHeader('Service-Worker-Allowed', '/');
+    if (/\.(js|css|html|webmanifest)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) next(err);
+    });
+  });
 
   // Library files for the browser: /api/file (viewing) and /api/download (saving), library-file-routes.js.
   registerLibraryFileRoutes(expressApp);
@@ -197,7 +186,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Other page paths get the page too (SPA routing).
   expressApp.get('*', (req, res) => {
-    // Missing static files: express.static already called next(); respond or the client hangs (blocks parser on <script src>)
+    // Missing static files: the static handler called next(); respond or the client hangs (blocks parser on <script src>)
     if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|bmp|webp|json|webmanifest|map)$/)) {
       res.status(404).type('text/plain').send('Not Found');
       return;
@@ -464,11 +453,6 @@ function stopHttpServer() {
       }
     }, 5000);
   });
-}
-
-/** Only hand out web assets from the app folder (never server code, config or secrets). */
-function staticWebAssetsOnly(staticHandler) {
-  return (req, res, next) => (isServableStaticPath(req.path) ? staticHandler(req, res, next) : next());
 }
 
 function parseListenPort(value, fallback = 5000) {

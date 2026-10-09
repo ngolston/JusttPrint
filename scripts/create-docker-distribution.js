@@ -26,7 +26,7 @@ fs.mkdirSync(dockerDistDir, { recursive: true });
 // Everything the Docker build needs: all files tracked by git except the ones the image
 // does not use (same intent as .dockerignore). No hand-maintained list to fall out of date.
 const EXCLUDED_PREFIXES = ['tests/', '.github/', '.claude/', 'scripts/', 'demos/'];
-const EXCLUDED_FILES = new Set(['CLAUDE.md', 'TODO.md', 'docker-compose.local.yml', '.gitignore', '.gitattributes']);
+const EXCLUDED_FILES = new Set(['CLAUDE.md', 'TODO.md', 'docker/docker-compose.local.yml', '.gitignore', '.gitattributes']);
 const filesToCopy = execSync('git ls-files -z', { encoding: 'utf8' })
   .split('\0')
   .filter(Boolean)
@@ -40,7 +40,16 @@ for (const file of filesToCopy) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(file, target);
 }
-for (const required of ['Dockerfile', 'docker-entrypoint.sh', '.npmrc', 'package.json', 'package-lock.json', 'src/server/index.js', 'src/server/app.js']) {
+for (const required of [
+  'docker/Dockerfile',
+  'docker/docker-entrypoint.sh',
+  'docker/docker-compose.yml',
+  '.npmrc',
+  'package.json',
+  'package-lock.json',
+  'src/server/index.js',
+  'src/server/app.js'
+]) {
   if (!fs.existsSync(path.join(dockerDistDir, required))) {
     console.error(`Missing required file in the distribution: ${required}`);
     process.exit(1);
@@ -61,12 +70,12 @@ This package contains everything needed to run JusttPrint in server mode using D
    \`\`\`
 
 2. **Add your models and a password:**
-   Put your models in the \`models\` folder (or change the \`./models\` mount in \`docker-compose.yml\`),
-   and set \`JUSTTPRINT_PASSWORD\` in \`docker-compose.yml\`.
+   Put your models in the \`models\` folder (or change the \`../models\` mount in \`docker/docker-compose.yml\`),
+   and set \`JUSTTPRINT_PASSWORD\` in \`docker/docker-compose.yml\`.
 
 3. **Build and run with Docker Compose:**
    \`\`\`bash
-   docker compose up -d --build
+   docker compose -f docker/docker-compose.yml up -d --build
    \`\`\`
 
 4. **Access the server:**
@@ -84,7 +93,7 @@ Environment variables \`JUSTTPRINT_TLS_CERT\` and \`JUSTTPRINT_TLS_KEY\` still o
 
 \`\`\`bash
 # Build the image
-docker build -t justtprint:latest .
+docker build -f docker/Dockerfile -t justtprint:latest .
 
 # Run the container
 docker run -d \\
@@ -135,4 +144,4 @@ console.log(`  Size: ${sizeMB} MB`);
 console.log('');
 console.log('To distribute:');
 console.log(`  1. Upload ${path.basename(dockerDistZip)} to your release page`);
-console.log('  2. Users can extract and run: docker-compose up -d');
+console.log('  2. Users can extract and run: docker compose -f docker/docker-compose.yml up -d --build');

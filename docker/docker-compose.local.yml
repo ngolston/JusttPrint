@@ -10,8 +10,8 @@ name: justtprint
 services:
   justtprint:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     image: justtprint:local
     container_name: justtprint-local
     ports:

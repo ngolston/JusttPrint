@@ -13,8 +13,8 @@
  */
 
 const fflate = require('fflate');
-const { classifyStlBuffer } = require('../../stl-sanity');
-const { extractMeshFromXml } = require('../../threemf-mesh-extract');
+const { classifyStlBuffer } = require('../shared/stl-sanity');
+const { extractMeshFromXml } = require('../shared/threemf-mesh-extract');
 
 /** Four significant figures, as text ("1.235e+3"), so near-equal values give the same key. */
 const sig = (value) => (Number.isFinite(value) && value !== 0 ? Number(value).toPrecision(4) : '0');

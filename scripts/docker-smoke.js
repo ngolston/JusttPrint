@@ -58,7 +58,7 @@ async function main() {
   const image = process.argv[2] || 'justtprint:smoke';
   if (!process.argv[2]) {
     console.log(`# Building ${image}`);
-    const build = spawnSync('docker', ['build', '-t', image, ROOT], { stdio: 'inherit' });
+    const build = spawnSync('docker', ['build', '-f', path.join(ROOT, 'docker', 'Dockerfile'), '-t', image, ROOT], { stdio: 'inherit' });
     if (build.status !== 0) throw new Error('docker build failed');
   }
 

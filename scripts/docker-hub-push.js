@@ -61,7 +61,7 @@ function buildImage() {
   // Docker Hub requests multi-repository auth scopes (e.g. library/node:pull).
   const runtime = containerRuntime.getRuntime();
   const squashFlag = runtime.endsWith('podman') ? ' --squash-all' : '';
-  const buildCommand = `${runtime} build${squashFlag} -t ${fullImageName} .`;
+  const buildCommand = `${runtime} build${squashFlag} -f docker/Dockerfile -t ${fullImageName} .`;
   if (!exec(buildCommand)) {
     console.error('Failed to build container image');
     process.exit(1);
@@ -179,7 +179,7 @@ function buildAndPushMultiArch() {
 
   console.log(`Building ${fullImageName} for ${platforms} and pushing ${versionTag} and ${latestTag}...`);
   console.log("Platforms other than this machine's are emulated, so expect this to take a while.");
-  const ok = exec(`${runtime} buildx build --builder ${builder} --platform ${platforms} ` + `-t ${versionTag} -t ${latestTag} --push .`);
+  const ok = exec(`${runtime} buildx build --builder ${builder} --platform ${platforms} ` + `-f docker/Dockerfile -t ${versionTag} -t ${latestTag} --push .`);
   if (!ok) {
     printPushAuthHelp();
     process.exit(1);

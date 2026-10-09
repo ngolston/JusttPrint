@@ -21,7 +21,7 @@ const { spawn, execFileSync } = require('child_process');
 function loadCompanion(name) {
   const candidates = [
     path.join(__dirname, name),
-    path.join(__dirname, '..', name) // running from a source checkout (slicer-protocol.js)
+    path.join(__dirname, '..', 'src', 'shared', name) // running from a source checkout (slicer-protocol.js)
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return require(candidate);

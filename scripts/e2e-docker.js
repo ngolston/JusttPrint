@@ -15,7 +15,7 @@ const IMAGE = process.env.E2E_DOCKER_IMAGE || 'justtprint:e2e';
 
 if (!process.env.E2E_DOCKER_IMAGE) {
   console.log(`# Building ${IMAGE}`);
-  const build = spawnSync('docker', ['build', '-t', IMAGE, '.'], { cwd: ROOT, stdio: 'inherit' });
+  const build = spawnSync('docker', ['build', '-f', 'docker/Dockerfile', '-t', IMAGE, '.'], { cwd: ROOT, stdio: 'inherit' });
   if (build.status !== 0) process.exit(build.status || 1);
 }
 const run = spawnSync(process.execPath, [path.join(ROOT, 'tests', 'e2e', 'run.js')], {

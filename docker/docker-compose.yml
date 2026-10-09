@@ -1,9 +1,12 @@
+# Builds the image from this checkout and runs it. From the project folder:
+#   docker compose -f docker/docker-compose.yml up -d --build
+# Paths are relative to this file: ../data and ../models are in the project folder.
 services:
   justtprint:
     image: justtprint:latest
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: justtprint-server
     ports:
       - "5000:5000"
@@ -16,11 +19,11 @@ services:
     volumes:
       # Persist database and application data to local directory
       # Server mode stores the SQLite DB at /root/.config/justtprint/data/justtprint.db
-      # (host path: ./data/data/justtprint.db). Optional: JUSTTPRINT_DB_PATH to override.
-      - ./data:/root/.config/justtprint
-      # Your models (read-only). Change ./models to your models folder, or remove :ro to allow
+      # (host path: ../data/data/justtprint.db). Optional: JUSTTPRINT_DB_PATH to override.
+      - ../data:/root/.config/justtprint
+      # Your models (read-only). Change ../models to your models folder, or remove :ro to allow
       # delete, move and Organize Library.
-      - ./models:/mnt/models:ro
+      - ../models:/mnt/models:ro
       # Mount network shares for accessing files
       # For Windows Docker Desktop:
       # 1. Map network share to drive: net use Z: \\msi\folder1 /persistent:yes
@@ -37,8 +40,8 @@ services:
       # Option 3: Mount local directory (if files are on the Docker host)
       # - /path/to/local/files:/mnt/models:ro
       # Optional: custom PEM files for Settings → HTTPS / SSL (custom mode) or JUSTTPRINT_TLS_*
-      # Let's Encrypt / self-signed certs are written under this data volume (./data), not ./certs.
-      # - ./certs:/certs:ro
+      # Let's Encrypt / self-signed certs are written under this data volume (../data), not ../certs.
+      # - ../certs:/certs:ro
     environment:
       # Preview parsing memory controls (override defaults when needed).
       # Keep worker memory well below the container/host RAM budget — OOM kills the whole
@@ -87,7 +90,7 @@ services:
       #
       # --- HTTPS (optional): TLS terminates in JusttPrint (no reverse proxy required) ---
       # Preferred: open Settings → HTTPS / SSL in the UI (custom PEM paths, Let's Encrypt, or self-signed).
-      # Settings persist in ./data. Let's Encrypt also needs ports 80:80 published.
+      # Settings persist in ../data. Let's Encrypt also needs ports 80:80 published.
       #
       # Ops override (wins over the UI): mount PEMs and set these env vars.
       # - JUSTTPRINT_TLS_CERT=/certs/fullchain.pem
@@ -129,7 +132,7 @@ services:
     #           capabilities: [gpu]
 
 # Using bind mount instead of named volume for better control and persistence
-# Database is now stored in ./data directory on the host filesystem
+# Database is now stored in ../data directory on the host filesystem
 # volumes:
 #   justtprint-data:
 #     driver: local
