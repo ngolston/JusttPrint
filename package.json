@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "7.9.0",
+  "version": "7.10.0",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
@@ -18,12 +18,14 @@
     "docker:local:down": "docker compose -f docker-compose.local.yml --env-file ~/justtprint-test/local.env down",
     "test": "node scripts/run-unit-tests.js",
     "lint": "eslint .",
+    "typecheck:server": "tsc -p tsconfig.server.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build:web": "tsc -p src/web && vite build",
     "build:icons": "node scripts/build-icons.js",
     "dev:web": "vite build --watch --mode development",
     "test:e2e": "npm run build:web && node tests/e2e/run.js",
+    "test:perf": "npm run build:web && node tests/perf/run.js",
     "test:e2e:docker": "node scripts/e2e-docker.js",
     "test:docker": "node scripts/docker-smoke.js",
     "test:bundle": "node tests/bundle-keys.test.js",

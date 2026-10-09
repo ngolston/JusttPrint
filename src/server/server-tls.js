@@ -84,7 +84,7 @@ function readPemTlsOptions(certPath, keyPath, caPath) {
   const certPem = fs.readFileSync(resolvedCert);
   const keyPem = fs.readFileSync(resolvedKey);
   const opts = { cert: certPem, key: keyPem };
-  let caPem = null;
+  let caPem;
   if (caPath) {
     const resolvedCa = path.resolve(caPath);
     if (fs.existsSync(resolvedCa)) {
@@ -141,8 +141,8 @@ function resolveServerTls({ getSetting, certsDir }) {
     return { options: null, source: 'none', envOverride: false, mode };
   }
 
-  let certPath = '';
-  let keyPath = '';
+  let certPath;
+  let keyPath;
   let caPath = '';
   if (mode === TLS_MODES.CUSTOM) {
     certPath = getSetting('tlsCertPath', '') || '';
@@ -247,6 +247,7 @@ function isIpv4(host) {
   return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
 }
 
+/** @returns {Array<{ type: 2, value: string } | { type: 7, ip: string }>} */
 function buildSelfSignedAltNames(hostname) {
   const dns = new Set();
   const ips = new Set();
@@ -259,7 +260,7 @@ function buildSelfSignedAltNames(hostname) {
   add(hostname);
   add('localhost');
   add('127.0.0.1');
-  return [...[...dns].map((value) => ({ type: 2, value })), ...[...ips].map((ip) => ({ type: 7, ip }))];
+  return [...[...dns].map((value) => ({ type: /** @type {2} */ (2), value })), ...[...ips].map((ip) => ({ type: /** @type {7} */ (7), ip }))];
 }
 
 async function generateSelfSignedCertificate({ certsDir, hostname }) {

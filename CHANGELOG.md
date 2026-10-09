@@ -2,6 +2,19 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.10.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. Guest access is off until an admin turns it on.
+
+**Changes:**
+- **Guest access:** an admin can let people browse JusttPrint without logging in (**Settings → Authentication → Users → Guest access**, or `JUSTTPRINT_GUEST_ACCESS=true`). Guests look, preview and download like a Viewer; they cannot edit, keep no settings, and see **Log In** under the account button. It is off by default: anyone who can reach the server gets in, so leave it off if the server is reachable from the internet. API tokens and MCP never fall back to a guest.
+- **3D view on share pages:** a shared STL or 3MF model can be turned and zoomed in 3D, right on the share page. Links that allow downloads always have it; a view-only link gets it when you tick **Show STL and 3MF models in 3D** in the Share dialog (the model's shape then reaches the visitor's browser, so a determined visitor could save it).
+- **Undo for tags:** renaming, merging and deleting a tag in the Tag Manager or on the Tags page can be undone (the Undo notice, Ctrl/⌘ Z, or the Tag Manager's own Undo line). Undoing a delete or a merge puts the tag back on the models that had it.
+- **MCP: Add Links:** two new tools let AI apps add Printables, Thingiverse and MakerWorld models from their links: `check_model_links` (which links are new) and `import_model_links` (adds them, and downloads the files into a library folder when you name one).
+- **Faster grid for large libraries:** the grid no longer regroups the whole library each time a picture arrives. Scrolling 3,000 models went from 81 slow frames (over 100 ms) to none.
+- **Speed checks:** `npm run test:perf` times the scan, the API, the grid's pictures and scrolling, the grid copies and repeated 3D previews on a generated library of 3,000 models (`PERF_MODELS` for more), against budgets and the previous run.
+- **Development:** the last browser scripts moved to TypeScript (the server connection and in-page dialogs, the Quick Start Guide as a React component, the page wiring); `slicer-protocol.js`, `step-assembly.js` and `stl-sanity.js` stay plain JavaScript because the Send to Slicer helper and the parse worker load them too. The server's JavaScript is type-checked (`npm run typecheck:server`), there are no ESLint warnings left, and `npm test` fails on new ones. Removed: the unused SVG extruder, a static-file handler that never served anything, and the scan worker's Electron-era module loader.
+
 ## [7.9.0] - 2026-10-09
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. After the first start, small grid copies of large thumbnails are made in the background; the database grows a little by their size.

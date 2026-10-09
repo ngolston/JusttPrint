@@ -111,6 +111,8 @@ const saveSettingHandler = async (event, key, value) => {
   if (!isAdminCaller(event) && !isPreferenceSetting(key)) {
     throw new Error('Only an admin can change this setting');
   }
+  // Guests share one guest user: their display choices are not kept (they would change everyone's).
+  if (event && event.user && event.user.guest) return true;
   try {
     if (SECRET_SETTING_KEYS.has(key)) {
       throw new Error(`Setting ${key} can only be changed under JusttPrint Backend Access`);

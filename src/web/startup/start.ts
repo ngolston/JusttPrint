@@ -6,6 +6,7 @@
 import { settings } from '../api';
 import { runSearch } from '../filters/search';
 import { loadSavedFilterSettings } from '../filters/store';
+import { loadCurrentUser } from '../session';
 import { checkTerms } from './FirstRun';
 import { applyTheme } from './theme';
 import { checkForUpdatesOnStartup } from './updates';
@@ -45,8 +46,10 @@ async function start() {
     document.body.classList.add('server-thumbnail-worker');
     return;
   }
-  if (!(await checkTerms())) return;
-  if (!(await settings.get<string | null>('hasRunBefore').catch(() => 'true'))) {
+  // Guests keep no settings: the terms and the welcome are for accounts.
+  const guest = !!(await loadCurrentUser())?.guest;
+  if (!guest && !(await checkTerms())) return;
+  if (!guest && !(await settings.get<string | null>('hasRunBefore').catch(() => 'true'))) {
     window.showWelcome?.();
     settings.save('hasRunBefore', 'true').catch(() => {});
   }

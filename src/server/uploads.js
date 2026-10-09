@@ -88,7 +88,7 @@ function checkUploadName(name, extensions) {
   if (!text) throw new Error('The file has no name');
   if (/[/\\\0]/.test(text) || text === '.' || text === '..') throw new Error(`Not a plain file name: ${text}`);
   if (text.startsWith('.')) throw new Error(`Hidden files are not uploaded: ${text}`);
-  // eslint-disable-next-line no-control-regex
+
   if (/[\x00-\x1f\x7f]/.test(text)) throw new Error(`The file name has control characters: ${text}`);
   if (text.length > MAX_NAME_LENGTH) throw new Error('The file name is too long');
   const ext = path.extname(text).toLowerCase();
@@ -146,8 +146,7 @@ function writeBody(req, tempPath, maxBytes) {
     req.on('data', (chunk) => {
       size += chunk.length;
       if (size > maxBytes) {
-        const error = new Error(`The file is larger than the upload limit (${Math.round(maxBytes / 1024 / 1024)} MB)`);
-        error.status = 413;
+        const error = Object.assign(new Error(`The file is larger than the upload limit (${Math.round(maxBytes / 1024 / 1024)} MB)`), { status: 413 });
         fail(error);
       }
     });
@@ -173,8 +172,8 @@ function checkFolder(folder, ctx) {
   let stat;
   try {
     stat = fs.statSync(dir);
-  } catch (_) {
-    throw new Error(`The folder does not exist: ${dir}`);
+  } catch (error) {
+    throw new Error(`The folder does not exist: ${dir}`, { cause: error });
   }
   if (!stat.isDirectory()) throw new Error(`Not a folder: ${dir}`);
   return dir;
@@ -191,11 +190,14 @@ function checkWritableFolder(folder, ctx) {
   } catch (error) {
     if (error.code === 'EROFS') {
       throw new Error(
-        `${dir} is read-only inside the container, so JusttPrint cannot save files there. Remove ":ro" from its volume in docker-compose.yml (or docker run -v) and restart the container, or choose a folder that is mounted read-write.`
+        `${dir} is read-only inside the container, so JusttPrint cannot save files there. Remove ":ro" from its volume in docker-compose.yml (or docker run -v) and restart the container, or choose a folder that is mounted read-write.`,
+        { cause: error }
       );
     }
     if (error.code === 'EACCES' || error.code === 'EPERM') {
-      throw new Error(`JusttPrint may not write to ${dir}. Set PUID and PGID to the owner of the folder (see the README), or choose another folder.`);
+      throw new Error(`JusttPrint may not write to ${dir}. Set PUID and PGID to the owner of the folder (see the README), or choose another folder.`, {
+        cause: error
+      });
     }
     throw error;
   }

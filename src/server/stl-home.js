@@ -123,7 +123,7 @@ async function rescanChangedFolders(root, folders) {
 async function scanUploadedFolder(folder, root, { isStlHomeScan = false } = {}) {
   while (serverStlHomeScanRunning || watchScanRunning) await new Promise((resolve) => setTimeout(resolve, 250));
   watchScanRunning = true;
-  let newModels = 0;
+  let newModels;
   try {
     const result = await scanDirectoryHandler(quietEvent, folder, { isStlHomeScan, scanRoot: root, rememberDirectory: false });
     newModels = Number(result && result.newFilesCount) || 0;

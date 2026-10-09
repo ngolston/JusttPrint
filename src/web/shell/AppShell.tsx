@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
+import { ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, LogIn, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
 import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
@@ -192,7 +192,18 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
       <div className="jp-topbar__actions">
         <Menu
           label="Account"
-          items={itemsFor(ACCOUNT, user?.role).map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))}
+          items={
+            user?.guest
+              ? [
+                  {
+                    id: 'login',
+                    label: 'Log In',
+                    icon: LogIn,
+                    onSelect: () => window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname + window.location.hash)}`)
+                  }
+                ]
+              : itemsFor(ACCOUNT, user?.role).map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))
+          }
           trigger={(props) => (
             <button
               type="button"

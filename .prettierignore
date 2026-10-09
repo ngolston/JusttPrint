@@ -6,6 +6,7 @@ docs/
 guide/
 assets/
 tests/e2e/.work/
+tests/perf/.work/
 tests/fixtures/
 package-lock.json
 *.md

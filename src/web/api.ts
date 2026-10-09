@@ -299,10 +299,22 @@ export interface Tag {
 export const tags = {
   list: () => callAction<Tag[]>('get-all-tags'),
   create: (name: string) => callAction<{ id: number; name: string }>('save-tag', name),
-  /** Renaming onto an existing name merges the two tags. */
-  rename: (id: number, newName: string) => callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
-  remove: (id: number) => callAction<boolean>('delete-tag', id)
+  /** Renaming onto an existing name merges the two tags (`undo` says how to split them again). */
+  rename: (id: number, newName: string) =>
+    callAction<{ success: boolean; id: number; name: string; merged: boolean; undo?: TagRestore }>('rename-tag', id, newName),
+  remove: (id: number) => callAction<{ success: boolean; name: string | null; modelIds: number[] }>('delete-tag', id),
+  /** Undo of a delete or merge: the tag comes back on its models. */
+  restore: (request: TagRestore) => callAction<{ id: number; name: string; linked: number }>('restore-tag', request)
 };
+
+/** What restore-tag puts back: the tag `name` on `modelIds`; after a merge, also splits it from `intoId`. */
+export interface TagRestore {
+  name: string;
+  modelIds: number[];
+  intoId?: number;
+  intoName?: string;
+  addedModelIds?: number[];
+}
 
 export interface Part {
   id: number;
@@ -863,6 +875,8 @@ export interface ShareLink {
   targetId: number;
   targetName: string | null;
   allowDownload: boolean;
+  /** A 3D view on the page: always with downloads, optional on view-only links. */
+  allowPreview: boolean;
   createdBy: string | null;
   createdAt: string;
   expiresAt: string | null;
@@ -881,7 +895,7 @@ export interface ShareTarget {
 
 /** Read-only share links (src/core/share-links.js); the page is /s/<token>. */
 export const shareLinks = {
-  create: (target: ShareTarget, options: { allowDownload: boolean; expiresInDays: number }) =>
+  create: (target: ShareTarget, options: { allowDownload: boolean; allowPreview?: boolean; expiresInDays: number }) =>
     callAction<ShareLink>('create-share-link', { ...target, ...options }),
   list: (target?: ShareTarget) => callAction<ShareLink[]>('get-share-links', target ?? null),
   revoke: (token: string) => callAction<unknown>('revoke-share-link', token),

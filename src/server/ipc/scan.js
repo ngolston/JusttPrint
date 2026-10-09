@@ -163,7 +163,6 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
     // This prevents overwhelming the file system, especially in Docker/network share scenarios
     // Sequential checks were causing massive slowdowns (10-100ms per file in Docker)
     const MAX_CONCURRENT_CHECKS = 20; // Limit concurrent file system operations
-    const checkPromises = [];
 
     for (let i = 0; i < modelsInDirectory.length; i += MAX_CONCURRENT_CHECKS) {
       const batch = modelsInDirectory.slice(i, i + MAX_CONCURRENT_CHECKS);
@@ -178,7 +177,7 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
           return;
         }
         const pathInfo = parseZipPath(model.filePath);
-        let fileExists = false;
+        let fileExists;
 
         if (pathInfo.isZipEntry) {
           // For zip entries, check if the zip file exists and the entry exists within it
@@ -300,7 +299,7 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
     try {
       assertContainerPath(directoryPath, 'scan-directory');
     } catch (validationError) {
-      throw new Error(validationError.message);
+      throw new Error(validationError.message, { cause: validationError });
     }
 
     if (options.rememberDirectory !== false) rememberScannedDirectory(directoryPath);
@@ -520,17 +519,14 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
         }
       });
 
-      // Start the worker - pass node_modules path so worker can find dependencies
-      const nodeModulesPath = path.join(__dirname, '..', '..', '..', 'node_modules');
-
+      // Start the worker
       worker.postMessage({
         directoryPath,
         maxFileSize,
         enableZipArchives,
         scanExtensions,
         excludeFolderNames: Array.from(getScanExcludeNames()),
-        excludeDirectories,
-        nodeModulesPath: nodeModulesPath
+        excludeDirectories
       });
     });
   } catch (error) {

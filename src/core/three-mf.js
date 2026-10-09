@@ -65,7 +65,7 @@ function parse3MFModelXML(xmlContent) {
       const nameMatch = attrChunk.match(/\bname\s*=\s*["']([^"']+)["']/i);
       if (!nameMatch) continue;
       const fieldName = nameMatch[1].trim();
-      let fieldValue = match[2].trim();
+      const fieldValue = match[2].trim();
 
       // If the value is in a CDATA section, it's already extracted by the regex
       // Otherwise, handle any remaining encoding

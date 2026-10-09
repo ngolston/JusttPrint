@@ -352,7 +352,7 @@ function downloadFile(urlString, destPath, { tlsInsecure, allowedOrigin, redirec
 }
 
 function sweepOldDownloads(root) {
-  let names = [];
+  let names;
   try {
     names = fs.readdirSync(root);
   } catch (error) {

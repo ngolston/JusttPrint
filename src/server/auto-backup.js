@@ -61,6 +61,7 @@ function listBackups(dir, fileSystem = fs) {
 }
 
 /** Time stamp and same-second counter (…-030405.db is 0, …-030405-1.db is 1). */
+/** @returns {[string, number]} */
 function sortKey(name) {
   const match = /^justtprint-auto-(\d{8}-\d{6})(?:-(\d+))?\.db$/.exec(name);
   return match ? [match[1], Number(match[2] || 0)] : ['', 0];

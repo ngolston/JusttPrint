@@ -141,11 +141,12 @@ export function LibraryGrid() {
   const metrics: ViewMetrics = useMemo(() => viewMetrics({ view, width, previewSize }), [view, width, previewSize]);
 
   // Recomputed on every show/refresh: the library edits the model array in place.
-  const { records, layout } = useMemo(() => {
+  const { records, layout, indexByKey } = useMemo(() => {
     const models = host?.models() ?? [];
     const built = buildDisplayRecords(models, host?.expanded() ?? { bundles: new Set(), parentModels: new Set() });
     return {
       records: built,
+      indexByKey: new Map(built.map((record, index) => [record.key, index])),
       layout: buildLayoutRows(built, metrics.columns, view, metrics.cellHeight, metrics.groupHeight, metrics.paddingVertical, metrics.verticalGap)
     };
   }, [host, metrics, view, tick, generation]);
@@ -212,7 +213,6 @@ export function LibraryGrid() {
   const rowHeight = view === 'preview' ? metrics.cellWidth : metrics.cellHeight;
   const buffer = Math.max(rowHeight, metrics.groupHeight) * 2;
   const shown = visibleRows(layout, scrollTop, viewportHeight, buffer);
-  const indexByKey = new Map(records.map((record, index) => [record.key, index]));
 
   const cells = content
     ? shown.flatMap((row) =>

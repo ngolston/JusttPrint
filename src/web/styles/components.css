@@ -941,6 +941,20 @@ button.jp-tag__label:hover {
   max-width: calc(100vw - 32px);
   pointer-events: none;
 }
+/* The Tag Manager's own Undo line (the notice above is behind the dialog). */
+.tag-manager-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+  margin: 0 0 var(--jp-space-3);
+  padding: var(--jp-space-2) var(--jp-space-2) var(--jp-space-2) var(--jp-space-3);
+  background: var(--jp-surface-2);
+  border: 1px solid var(--jp-border-strong);
+  border-radius: var(--jp-radius-md);
+  font-size: 13px;
+}
+
 .jp-undo-toast {
   display: flex;
   align-items: center;

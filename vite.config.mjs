@@ -22,10 +22,11 @@ export default defineConfig({
     // three.js (three.js chunk) is loaded only when a preview opens or a thumbnail is drawn.
     chunkSizeWarningLimit: 800,
     rollupOptions: {
-      input: 'src/web/main.tsx',
+      // The app, and the 3D view of share pages (src/web/share/viewer.ts; share-pages.js serves it).
+      input: { app: 'src/web/main.tsx', 'share-viewer': 'src/web/share/viewer.ts' },
       output: {
-        // A fixed name, so index.html can load it; the server sends JS with Cache-Control: no-cache.
-        entryFileNames: 'app.js',
+        // Fixed names, so index.html and share pages can load them; the server sends JS with Cache-Control: no-cache.
+        entryFileNames: '[name].js',
         chunkFileNames: '[name].js',
         // The stylesheet is app.css (index.html links it); fonts keep their names.
         assetFileNames: (asset) => (asset.names?.some((n) => n.endsWith('.css')) ? 'app.css' : '[name][extname]'),

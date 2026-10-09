@@ -165,15 +165,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     expressApp.get(`/${name}`, (req, res) => res.sendFile(path.join(appDir, 'assets', name)));
   }
 
-  // Add middleware to set proper MIME types for JavaScript modules
-  expressApp.use((req, res, next) => {
-    // Module scripts (type="module") need a JavaScript Content-Type.
-    if (req.path.endsWith('.js')) res.type('application/javascript');
-    next();
-  });
-
-  // Now register static file serving AFTER the route handler
-  // This ensures the route handler takes precedence for the root path
+  // The web app's files (only web assets: staticWebAssetsOnly). express.static sets the content
+  // types; these add the ones it lacks and keep the browser from caching code between updates.
   expressApp.use(
     staticWebAssetsOnly(
       express.static(appDir, {
@@ -201,44 +194,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   registerLibraryFileRoutes(expressApp);
 
   registerHelperBundleRoute(expressApp, appDir);
-
-  // Serve static assets
-  expressApp.use(
-    staticWebAssetsOnly(
-      express.static(appDir, {
-        setHeaders: (res, filePath) => {
-          // Set proper MIME types
-          const ext = path.extname(filePath).toLowerCase();
-          const mimeTypes = {
-            '.html': 'text/html',
-            '.css': 'text/css',
-            '.js': 'application/javascript',
-            '.json': 'application/json',
-            '.webmanifest': 'application/manifest+json',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.svg': 'image/svg+xml',
-            '.ico': 'image/x-icon',
-            '.bmp': 'image/bmp',
-            '.webp': 'image/webp',
-            '.wasm': 'application/wasm'
-          };
-          if (mimeTypes[ext]) {
-            res.setHeader('Content-Type', mimeTypes[ext]);
-          }
-          if (path.basename(filePath) === 'sw.js') {
-            res.setHeader('Service-Worker-Allowed', '/');
-            res.setHeader('Cache-Control', 'no-cache');
-          }
-          if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
-            res.setHeader('Cache-Control', 'no-cache');
-          }
-        }
-      })
-    )
-  );
 
   // Other page paths get the page too (SPA routing).
   expressApp.get('*', (req, res) => {
@@ -290,7 +245,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
           });
         }
       }
-      resolve();
+      resolve(undefined);
     };
 
     console.log(`[Server] Binding ${scheme}://${HOST}:${PORT} (tls source: ${tlsResolved.source || 'none'})`);
@@ -437,7 +392,7 @@ function stopHttpServer() {
   return new Promise((resolve) => {
     if (!httpServer) {
       console.log('HTTP server is not running');
-      resolve();
+      resolve(undefined);
       return;
     }
 
@@ -488,7 +443,7 @@ function stopHttpServer() {
         wsClients = null;
         events.setBroadcaster(null);
       }
-      resolve();
+      resolve(undefined);
     });
 
     // Force close after timeout if graceful shutdown doesn't complete
@@ -505,7 +460,7 @@ function stopHttpServer() {
         wsClients = null;
         wss = null;
         events.setBroadcaster(null);
-        resolve();
+        resolve(undefined);
       }
     }, 5000);
   });

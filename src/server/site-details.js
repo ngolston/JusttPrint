@@ -70,16 +70,17 @@ let captchaUntil = 0;
 
 function captchaError() {
   const minutes = Math.max(1, Math.ceil((captchaUntil - Date.now()) / 60000));
-  const error = new Error(
-    `MakerWorld wants to check that you are not a robot, which only a browser can do. Download the model on MakerWorld in your browser (then drop the file on JusttPrint), or try again in ${minutes} min`
+  const error = Object.assign(
+    new Error(
+      `MakerWorld wants to check that you are not a robot, which only a browser can do. Download the model on MakerWorld in your browser (then drop the file on JusttPrint), or try again in ${minutes} min`
+    ),
+    { code: 'CAPTCHA' }
   );
-  error.code = 'CAPTCHA';
   return error;
 }
 
 function signInError(message = 'Sign in to MakerWorld first') {
-  const error = new Error(message);
-  error.code = 'SIGN_IN';
+  const error = Object.assign(new Error(message), { code: 'SIGN_IN' });
   return error;
 }
 

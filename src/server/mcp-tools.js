@@ -23,6 +23,7 @@ const { buildLibraryExportData } = require('./ipc/backup');
 const { scanDirectoryHandler } = require('./ipc/scan');
 const { saveThumbnail, setDefaultThumbnailIndex } = require('../core/thumbnail-store');
 const { networkPathContext } = require('./path-context');
+const { checkLinks, importLink } = require('./link-import');
 const { version } = require('../../package.json');
 
 function resolveModelForMcp(args) {
@@ -112,6 +113,17 @@ function requireMcpConfirm(args, action) {
   }
 }
 
+/** The links an Add Links tool call names: `links` (a list) or `text` (pasted text). */
+function linkTextFromMcpArgs(args) {
+  const list = Array.isArray(args && args.links) ? args.links.filter((link) => typeof link === 'string') : [];
+  const text = [args && typeof args.text === 'string' ? args.text : '', ...list].join('\n');
+  if (!text.trim()) throw new Error('Provide links (a list of model links) or text that contains them');
+  return text;
+}
+
+/** Most links one import_model_links call takes (each one fetches the site, and maybe downloads). */
+const MCP_IMPORT_LINKS_MAX = 50;
+
 function mcpIpcEvent() {
   return { sender: { send() {} } };
 }
@@ -197,7 +209,7 @@ function getMcpToolContext() {
     },
     getModel: async (args) => {
       const includeThumbnails = !!args.includeThumbnails;
-      let model = null;
+      let model;
       if (args.id != null && args.id !== '') {
         model = getModelById(Number(args.id), { includeThumbnail: includeThumbnails });
       } else if (args.filePath) {
@@ -447,7 +459,7 @@ function getMcpToolContext() {
         )
         .all(),
     pull3mfMetadata: async (args) => {
-      let filePaths = resolveMcpFilePaths(args);
+      const filePaths = resolveMcpFilePaths(args);
       if (!filePaths.length) throw new Error('Provide filePaths, filePath, or id');
       const threeMFFiles = filePaths.filter((fp) => {
         const target = fp.includes('::') ? fp.split('::')[1] || '' : fp;
@@ -578,6 +590,40 @@ function getMcpToolContext() {
         )
         .all(directoryScanPrefixSqlParam(directory), limit);
       return { count: models.length, models };
+    },
+    checkModelLinks: async (args) => checkLinks(database.db, linkTextFromMcpArgs(args)),
+    importModelLinks: async (args) => {
+      const { links, unsupported } = checkLinks(database.db, linkTextFromMcpArgs(args));
+      if (!links.length) throw new Error('No Printables, Thingiverse or MakerWorld model links found');
+      if (links.length > MCP_IMPORT_LINKS_MAX) throw new Error(`At most ${MCP_IMPORT_LINKS_MAX} links per call (got ${links.length})`);
+      const downloadFolder = typeof args.downloadFolder === 'string' && args.downloadFolder.trim() ? args.downloadFolder.trim() : null;
+      const { download } = require('./site-details');
+      const { downloadFiles } = require('./site-files');
+      const results = [];
+      // One at a time, as the Add Links dialog does: the sites limit how fast they answer.
+      for (const link of links) {
+        try {
+          const result = await importLink(
+            link.url,
+            { db: database.db, saveModel, saveThumbnail, download, downloadFiles },
+            { downloadFolder, downloadOptions: { event: mcpIpcEvent(), onProgress() {} } }
+          );
+          results.push({ url: link.url, ...result });
+        } catch (error) {
+          results.push({ url: link.url, status: 'failed', error: error.message });
+        }
+      }
+      if (results.some((result) => result.status === 'added' || result.status === 'downloaded')) events.broadcast('refresh-grid');
+      const count = (status) => results.filter((result) => result.status === status).length;
+      return {
+        added: count('added'),
+        downloaded: count('downloaded'),
+        alreadyInLibrary: count('exists'),
+        notFound: count('missing'),
+        failed: count('failed'),
+        unsupported,
+        results
+      };
     },
     scanDirectory: async (args) => {
       let directory = String(args.directory || '').trim();

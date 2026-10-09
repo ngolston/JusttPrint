@@ -1,10 +1,17 @@
 /**
  * Creating, renaming (renaming onto an existing name merges), and deleting tags, with the same
  * questions wherever it happens: the Tag Manager dialog and the Tags page. Each change also
- * refreshes the tag pickers and filters on the page.
+ * refreshes the tag pickers and filters on the page, and can be undone (the Undo notice, Ctrl/Cmd+Z).
  */
 import { tags as tagApi, type Tag } from '../api';
+import { recordUndo } from '../library/undo';
 import { refreshTagRelatedUi, showMessage } from '../page';
+
+/** After an undo: the pickers, filters and an open Tag Manager show the tags again. */
+async function afterUndo() {
+  await refreshTagRelatedUi();
+  window.reloadTagManager?.();
+}
 
 /** Asks before deleting a tag that models use. Resolves to true when it may go. */
 export async function confirmTagDelete(tag: Tag, message?: string): Promise<boolean> {
@@ -30,7 +37,17 @@ export async function createTag(name: string): Promise<boolean> {
 export async function deleteTag(tag: Tag, message?: string): Promise<boolean> {
   if (!(await confirmTagDelete(tag, message))) return false;
   try {
-    await tagApi.remove(tag.id);
+    const deleted = await tagApi.remove(tag.id);
+    if (deleted && deleted.name) {
+      recordUndo(
+        `Deleted the tag "${deleted.name}"`,
+        async () => {
+          await tagApi.restore({ name: deleted.name!, modelIds: deleted.modelIds || [] });
+          await afterUndo();
+        },
+        'tag'
+      );
+    }
     await refreshTagRelatedUi();
     return true;
   } catch (error) {
@@ -63,7 +80,28 @@ export async function renameTag(all: Tag[], tag: Tag, name: string): Promise<boo
     if (answer !== 'Merge') return false;
   }
   try {
-    await tagApi.rename(tag.id, trimmed);
+    const renamed = await tagApi.rename(tag.id, trimmed);
+    const oldName = tag.name;
+    if (renamed?.merged && renamed.undo) {
+      const undo = renamed.undo;
+      recordUndo(
+        `Merged the tag "${oldName}" into "${renamed.name}"`,
+        async () => {
+          await tagApi.restore(undo);
+          await afterUndo();
+        },
+        'tag'
+      );
+    } else if (renamed && oldName !== trimmed) {
+      recordUndo(
+        `Renamed the tag "${oldName}" to "${trimmed}"`,
+        async () => {
+          await tagApi.rename(tag.id, oldName);
+          await afterUndo();
+        },
+        'tag'
+      );
+    }
     await refreshTagRelatedUi();
     return true;
   } catch (error) {

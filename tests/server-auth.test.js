@@ -432,3 +432,41 @@ test('JUSTTPRINT_TRUST_PROXY parses hops, true, and address lists', () => {
   assert.strictEqual(parseTrustProxy('true'), true);
   assert.deepStrictEqual(parseTrustProxy('loopback, 10.0.0.0/8'), ['loopback', '10.0.0.0/8']);
 });
+
+test('guest access: off by default; when on, requests without a login browse as a guest Viewer', () => {
+  const { auth, settings } = makeAuth();
+  const res = () => ({
+    status(c) {
+      this.code = c;
+      return this;
+    },
+    json() {},
+    redirect() {}
+  });
+  const run = (request) => {
+    let passed = false;
+    const response = res();
+    auth.requireAuth(request, response, () => {
+      passed = true;
+    });
+    return { passed, code: response.code, user: request.user };
+  };
+  assert.strictEqual(run(req({ path: '/api/actions/get-all-models' })).code, 401);
+  settings.set('guestAccess', 'true');
+  const guest = run(req({ path: '/api/actions/get-all-models' }));
+  assert.ok(guest.passed && guest.user.guest && guest.user.role === 'viewer');
+  // A wrong API token is refused, not downgraded; MCP never gets the guest.
+  const badToken = req({ path: '/api/actions/get-all-models' });
+  badToken.headers.authorization = 'Bearer wrong';
+  assert.strictEqual(run(badToken).code, 401);
+  assert.strictEqual(run(req({ path: '/mcp' })).code, 401);
+  assert.ok(auth.verifyUpgrade(req({ origin: 'http://nas.local:5000' })).user.guest);
+  settings.set('guestAccess', 'false');
+  assert.strictEqual(run(req({ path: '/api/actions/get-all-models' })).code, 401);
+});
+
+test('guest access can be turned on with JUSTTPRINT_GUEST_ACCESS', () => {
+  const { auth } = makeAuth({ env: { JUSTTPRINT_GUEST_ACCESS: 'true' } });
+  assert.ok(auth.guestAccessOn());
+  assert.ok(auth.verifyUpgrade(req({ origin: 'http://nas.local:5000' })).ok);
+});

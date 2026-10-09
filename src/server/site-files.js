@@ -38,8 +38,9 @@ function token() {
 }
 
 function needsTokenError() {
-  const error = new Error('Thingiverse needs an API token to download files: add yours under Settings → Integrations → Thingiverse');
-  error.code = 'THINGIVERSE_TOKEN';
+  const error = Object.assign(new Error('Thingiverse needs an API token to download files: add yours under Settings → Integrations → Thingiverse'), {
+    code: 'THINGIVERSE_TOKEN'
+  });
   return error;
 }
 
@@ -49,8 +50,8 @@ async function json(response, what) {
   let body;
   try {
     body = JSON.parse(text);
-  } catch (_) {
-    throw new Error(`${what} answered ${response.status}`);
+  } catch (error) {
+    throw new Error(`${what} answered ${response.status}`, { cause: error });
   }
   return body;
 }
@@ -77,8 +78,9 @@ async function thingiverseApi(apiPath, fetchImpl, options = {}) {
   });
   if (response.status === 401 || response.status === 403) {
     response.body?.cancel?.();
-    const error = new Error('Thingiverse did not accept the API token: check it under Settings → Integrations → Thingiverse');
-    error.code = 'THINGIVERSE_TOKEN';
+    const error = Object.assign(new Error('Thingiverse did not accept the API token: check it under Settings → Integrations → Thingiverse'), {
+      code: 'THINGIVERSE_TOKEN'
+    });
     throw error;
   }
   return response;
@@ -181,7 +183,6 @@ async function fileUrl(link, file, fetchImpl) {
 
 /** The file name to save: no folders, no characters a file name cannot have. */
 function plainName(name, fallback) {
-  // eslint-disable-next-line no-control-regex
   const text = path
     .basename(String(name || '').replace(/\\/g, '/'))
     .normalize('NFC')

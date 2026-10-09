@@ -127,7 +127,7 @@ function makerWorldDetails(body, url) {
   const profiles = instances
     .map(profileOf)
     // The default profile first.
-    .sort((a, b) => (b.id === defaultId) - (a.id === defaultId));
+    .sort((a, b) => Number(b.id === defaultId) - Number(a.id === defaultId));
   const tags = (Array.isArray(body.tags) ? body.tags : []).map((t) => clean(t, 80)).filter(Boolean);
   const tagsEnglish = (Array.isArray(body.tagsTranslated) ? body.tagsTranslated : []).map((t) => clean(t, 80));
   const pictures = (Array.isArray(extension.design_pictures) ? extension.design_pictures : [])

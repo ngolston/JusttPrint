@@ -7,6 +7,8 @@ export interface UndoEntry {
   id: number;
   /** What the edit did, e.g. "Changed the designer of benchy.stl". */
   label: string;
+  /** What was edited: 'tag' for the Tag Manager's own Undo line (the page's notice is behind it). */
+  kind?: 'tag';
   undo: () => Promise<unknown>;
 }
 
@@ -21,8 +23,8 @@ const listeners = new Set<(latest: UndoEntry | null) => void>();
 const notify = () => listeners.forEach((fn) => fn(entries[entries.length - 1] ?? null));
 
 /** Remember how to undo an edit that was just saved. */
-export function recordUndo(label: string, undo: () => Promise<unknown>): UndoEntry {
-  const entry = { id: nextId++, label, undo };
+export function recordUndo(label: string, undo: () => Promise<unknown>, kind?: UndoEntry['kind']): UndoEntry {
+  const entry: UndoEntry = { id: nextId++, label, undo, ...(kind ? { kind } : {}) };
   entries = [...entries, entry].slice(-UNDO_LIMIT);
   notify();
   return entry;
@@ -46,6 +48,9 @@ export async function undoLast(id?: number): Promise<string | null> {
     running = false;
   }
 }
+
+/** The id of the newest edit recorded so far (0 before any): later edits have larger ids. */
+export const lastUndoId = () => nextId - 1;
 
 /** Follow the newest undoable edit (null when there is none). Returns the unsubscribe function. */
 export function onUndoChange(fn: (latest: UndoEntry | null) => void): () => void {

@@ -23,7 +23,7 @@ ipcMain.handle('trash-file', async (event, filePath) => {
     try {
       assertContainerPath(filePath, 'trash-file');
     } catch (validationError) {
-      throw new Error(validationError.message);
+      throw new Error(validationError.message, { cause: validationError });
     }
   } catch (error) {
     console.error('Error in trash-file handler:', error);
@@ -52,7 +52,7 @@ ipcMain.handle('trash-file', async (event, filePath) => {
           database.db.prepare('DELETE FROM models WHERE id = ?').run(model.id);
         }
       })();
-      resolve();
+      resolve(undefined);
     });
 
     return true;
@@ -74,7 +74,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     try {
       assertContainerPath(filePath, 'delete-file');
     } catch (validationError) {
-      throw new Error(validationError.message);
+      throw new Error(validationError.message, { cause: validationError });
     }
 
     console.debug('main: delete-file handler called with:', filePath);
@@ -208,8 +208,7 @@ const getFileStatsHandler = async (event, filePath) => {
     const pathInfo = parseZipPath(filePath);
     if (pathInfo.isZipEntry) {
       if (!fs.existsSync(pathInfo.zipPath)) {
-        const err = new Error(`ENOENT: no such file or directory, stat '${pathInfo.zipPath}'`);
-        err.code = 'ENOENT';
+        const err = Object.assign(new Error(`ENOENT: no such file or directory, stat '${pathInfo.zipPath}'`), { code: 'ENOENT' });
         throw err;
       }
       return await withZipFileLock(pathInfo.zipPath, async () => {
@@ -219,8 +218,9 @@ const getFileStatsHandler = async (event, filePath) => {
           const entries = await zip.entries();
           const entry = findZipEntry(entries, pathInfo.entryPath);
           if (!entry) {
-            const err = new Error(`ENOENT: no such file or directory, zip entry '${pathInfo.entryPath}' in '${pathInfo.zipPath}'`);
-            err.code = 'ENOENT';
+            const err = Object.assign(new Error(`ENOENT: no such file or directory, zip entry '${pathInfo.entryPath}' in '${pathInfo.zipPath}'`), {
+              code: 'ENOENT'
+            });
             throw err;
           }
           const mtimeMs = entry.time ? Number(entry.time) : 0;

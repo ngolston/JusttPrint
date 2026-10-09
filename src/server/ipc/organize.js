@@ -51,7 +51,7 @@ function directoryExists(dir) {
 function listOrganizeSources() {
   const saved = readScannedDirectorySetting();
   const homes = readStlHomeDirectories();
-  let lastScan = '';
+  let lastScan;
   try {
     lastScan = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('directoryPath')?.value || '';
   } catch (_) {

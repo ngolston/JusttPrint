@@ -80,6 +80,12 @@ async function runAction(req, res, keepaliveMs) {
     return;
   }
 
+  // Guests (server-auth.js) have no account to change.
+  if (user.guest && name === 'set-server-password') {
+    sendError(res, 403, 'Log in to change a password.');
+    return;
+  }
+
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const args = body.args === undefined ? [] : body.args;
   try {
@@ -158,7 +164,7 @@ function registerApiRoutes(expressApp, { keepaliveMs = KEEPALIVE_MS } = {}) {
       });
     },
     // Body parser errors (bad JSON, too large) as JSON instead of an HTML page.
-    // eslint-disable-next-line no-unused-vars
+
     (error, req, res, next) => sendError(res, error.status || 400, error.message || 'Bad request')
   );
 }

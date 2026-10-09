@@ -24,7 +24,7 @@ const rules = {
 };
 
 /** Files that also run in the browser (they check `typeof window` / `typeof fflate` first). */
-const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'parse-lys-geometry.js', 'threemf-svg-extrude.js', 'threemf-mesh-extract.js'];
+const SHARED = ['slicer-protocol.js', 'step-assembly.js', 'stl-sanity.js', 'parse-lys-geometry.js', 'threemf-mesh-extract.js'];
 
 export default [
   {
@@ -37,6 +37,7 @@ export default [
       'guide/**',
       'assets/**',
       'tests/e2e/.work/**',
+      'tests/perf/.work/**',
       'tests/fixtures/**',
       'test-results/**',
       'playwright-report/**',
@@ -59,12 +60,12 @@ export default [
   {
     // Browser code in Node files: shared files, and functions run in a page (Playwright's and
     // Puppeteer's page.evaluate in the end-to-end tests, the thumbnail worker, the icon builder).
-    files: [...SHARED, 'tests/e2e/**/*.js', 'src/server/thumbnail-worker.js', 'scripts/build-icons.js'],
+    files: [...SHARED, 'tests/e2e/**/*.js', 'tests/perf/**/*.js', 'src/server/thumbnail-worker.js', 'scripts/build-icons.js'],
     languageOptions: { globals: { ...globals.browser, fflate: 'readonly' } }
   },
   {
-    // Plain scripts the page loads (no bundler): page wiring, the server bridge, the guide, the service worker.
-    files: ['page-init.js', 'server-bridge.js', 'guide.js', 'pwa.js', 'puter-signin.js', 'sw.js'],
+    // Plain scripts outside the app (no bundler): the Puter sign-in popup and the service worker.
+    files: ['puter-signin.js', 'sw.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'script',

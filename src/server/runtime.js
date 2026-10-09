@@ -34,7 +34,7 @@ class App extends EventEmitter {
       setImmediate(() => {
         this._ready = true;
         this.emit('ready');
-        resolve();
+        resolve(undefined);
       });
     });
     process.on('SIGTERM', () => this.quit());
@@ -201,7 +201,7 @@ function trashItem(filePath) {
       const deletedAt = new Date().toISOString().replace(/\.\d+Z$/, '');
       fs.writeFileSync(path.join(infoDir, `${name}.trashinfo`), `[Trash Info]\nPath=${encodeURI(source)}\nDeletionDate=${deletedAt}\n`);
       fs.renameSync(source, path.join(filesDir, name));
-      resolve();
+      resolve(undefined);
     } catch (error) {
       reject(error);
     }

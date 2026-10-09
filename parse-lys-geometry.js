@@ -279,7 +279,7 @@ function parseLysGeometryBlob(buffer) {
     try {
       return parseLegacySoup(buffer);
     } catch (legacyError) {
-      throw new Error(indexedError.message || legacyError.message);
+      throw new Error(indexedError.message || legacyError.message, { cause: legacyError });
     }
   }
 }

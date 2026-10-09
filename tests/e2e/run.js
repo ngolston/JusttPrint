@@ -395,7 +395,7 @@ async function apiChecks(base, wsUrl) {
     !JSON.stringify((await invoke(base, ctxCookie(), 'get-setting', ['scannedDirectories'])).result || '').includes('Designer B')
   );
   check('home after login', (await http.request('/')).status === 200);
-  check('web asset served', (await http.request('/page-init.js')).status === 200);
+  check('web asset served', (await http.request('/slicer-protocol.js')).status === 200);
   for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
@@ -410,7 +410,7 @@ async function apiChecks(base, wsUrl) {
       !/unsafe-inline/.test(health.headers.get('content-security-policy') || '')
   );
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
-  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
+  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/slicer-protocol.js')));
   check(
     'the parse worker may not eval either (STEP library built without it)',
     !/'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')) && /'wasm-unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js'))
@@ -541,6 +541,24 @@ async function apiChecks(base, wsUrl) {
     mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text),
     mcpStats.text.slice(0, 200)
   );
+  const mcpLinks = await mcpTool('check_model_links', { text: 'see https://www.printables.com/model/3161-3d-benchy and https://www.thingiverse.com/thing:42' });
+  check(
+    'MCP finds model links in text (Add Links)',
+    mcpLinks.status === 200 && /printables/.test(mcpLinks.text) && /thingiverse/.test(mcpLinks.text) && !/"isError":\s*true/.test(mcpLinks.text),
+    mcpLinks.text.slice(0, 200)
+  );
+  const mcpNoLinks = await mcpTool('import_model_links', { text: 'no links here' });
+  check(
+    'MCP import_model_links says when there are no links',
+    /"isError":\s*true/.test(mcpNoLinks.text) && /No Printables/.test(mcpNoLinks.text),
+    mcpNoLinks.text.slice(0, 200)
+  );
+  const mcpOutside = await mcpTool('import_model_links', { links: ['https://www.printables.com/model/3161'], downloadFolder: '/etc' });
+  check(
+    'MCP import_model_links refuses a download folder outside the library',
+    /"isError":\s*true/.test(mcpOutside.text) && /outside the library/.test(mcpOutside.text),
+    mcpOutside.text.slice(0, 200)
+  );
   const mcpTree = await mcpTool('get_folder_tree');
   check(
     'MCP folder tree',
@@ -600,6 +618,51 @@ async function apiChecks(base, wsUrl) {
     check('tag model count', renamed && renamed.model_count === 0, JSON.stringify(renamed));
     await ask('delete-tag', [tag.id]);
     check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
+  }
+
+  // Undo of a tag merge and a tag delete (restore-tag; the Tag Manager and the Tags page use it).
+  const tagsOf = async (p) => ((await ask('get-model', [p])).result || {}).tags || [];
+  const cubeTagsBefore = await tagsOf(cube);
+  const boxTagsBefore = await tagsOf(box);
+  await ask('update-models-batch', [
+    [
+      { filePath: cube, tags: [...cubeTagsBefore, 'e2e-undo-from'] },
+      { filePath: box, tags: [...boxTagsBefore, 'e2e-undo-from', 'e2e-undo-into'] }
+    ]
+  ]);
+  const tagNamed = async (name) => ((await ask('get-all-tags')).result || []).find((t) => t.name.toLowerCase() === name.toLowerCase());
+  const fromTag = await tagNamed('e2e-undo-from');
+  const merge = fromTag ? (await ask('rename-tag', [fromTag.id, 'E2E-UNDO-INTO'])).result || {} : {};
+  check(
+    'a tag merge says how to undo it',
+    merge.merged === true && merge.undo && merge.undo.modelIds.length === 2 && merge.undo.addedModelIds.length === 1,
+    JSON.stringify(merge)
+  );
+  if (merge.undo) await ask('restore-tag', [merge.undo]);
+  const cubeAfterUndo = await tagsOf(cube);
+  const boxAfterUndo = await tagsOf(box);
+  check(
+    'undoing a merge splits the tags again',
+    cubeAfterUndo.includes('e2e-undo-from') &&
+      !cubeAfterUndo.some((t) => /e2e-undo-into/i.test(t)) &&
+      boxAfterUndo.includes('e2e-undo-from') &&
+      boxAfterUndo.includes('e2e-undo-into'),
+    JSON.stringify({ cubeAfterUndo, boxAfterUndo })
+  );
+  const intoTag = await tagNamed('e2e-undo-into');
+  const deletedTag = intoTag ? (await ask('delete-tag', [intoTag.id])).result || {} : {};
+  check('a tag delete says which models had it', deletedTag.name === 'e2e-undo-into' && (deletedTag.modelIds || []).length === 1, JSON.stringify(deletedTag));
+  if (deletedTag.name) await ask('restore-tag', [{ name: deletedTag.name, modelIds: deletedTag.modelIds }]);
+  check('undoing a delete puts the tag back on its models', (await tagsOf(box)).includes('e2e-undo-into'));
+  await ask('update-models-batch', [
+    [
+      { filePath: cube, tags: cubeTagsBefore },
+      { filePath: box, tags: boxTagsBefore }
+    ]
+  ]);
+  for (const name of ['e2e-undo-from', 'e2e-undo-into']) {
+    const leftover = await tagNamed(name);
+    if (leftover) await ask('delete-tag', [leftover.id]);
   }
 
   const cubeHash = (await ask('calculate-file-hash', [cube])).result;
@@ -2230,6 +2293,15 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { state: 'detached', timeout: 10000 }).catch(() => {});
       const merged = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n));
       check('merge leaves one tag', merged.length === 1, JSON.stringify(merged));
+      // The dialog's own Undo line (the page's Undo notice is behind the dialog).
+      const undoMerge = await page.waitForSelector('#tag-manager-undo', { timeout: 5000 }).catch(() => null);
+      check('Tag Manager offers to undo the merge', !!undoMerge && /Merged the tag "e2e-merge-source"/.test(await page.textContent('.tag-manager-undo')));
+      if (undoMerge) {
+        await undoMerge.click();
+        await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { timeout: 10000 }).catch(() => {});
+        const split = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n)).sort();
+        check('Undo in the Tag Manager splits the merged tags', split.join() === 'e2e-merge-source,e2e-merge-target', JSON.stringify(split));
+      }
     }
     await page.click('#tag-manager-dialog .dialog-buttons button');
     check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));
@@ -3102,6 +3174,33 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       )) && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true'
     );
+    // The guide (src/web/QuickStartGuide.tsx): Next, the arrow keys, Back, and Finish on the last page.
+    const guidePage = () => fresh.textContent('#guide-progress-text').catch(() => '');
+    await fresh.click('#guide-next-button');
+    const onSecond = await fresh
+      .waitForFunction(() => /Page 2 of 5/.test(document.getElementById('guide-progress-text')?.textContent || ''), null, { timeout: 5000 })
+      .then(
+        () => true,
+        () => false
+      );
+    await fresh.waitForTimeout(500);
+    await fresh.keyboard.press('ArrowRight');
+    await fresh.waitForTimeout(600);
+    const third = await guidePage();
+    await fresh.click('#guide-back-button');
+    await fresh.waitForTimeout(600);
+    check(
+      'the guide pages forward and back (buttons and arrow keys)',
+      onSecond && /Page 3 of 5/.test(third) && /Page 2 of 5/.test(await guidePage()) && /Model Details/.test(await fresh.textContent('#guide-text')),
+      `${third} / ${await guidePage()}`
+    );
+    for (let k = 0; k < 3; k++) {
+      await fresh.click('#guide-next-button');
+      await fresh.waitForTimeout(600);
+    }
+    check('the last page says Finish', (await fresh.textContent('#guide-next-button')).trim() === 'Finish');
+    await fresh.click('#guide-next-button');
+    check('Finish closes the guide', !(await fresh.isVisible('#quickstart-guide')));
     await fresh.close();
 
     // Review Generated Tags (React, src/web/tags/TagPreviewDialog.tsx), driven by the events an AI run sends.
@@ -3397,7 +3496,7 @@ async function browserChecks(base, wsUrl, session) {
     );
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
-    // Installing (src/web/install.ts, pwa.js): the service worker is there for the browser, and Install App says how.
+    // Installing (src/web/install.ts, startup/pageInit.ts): the service worker is there for the browser, and Install App says how.
     check(
       'the install service worker is active',
       await page
@@ -4464,7 +4563,10 @@ async function accountChecks(base, wsUrl, admin) {
   check('the shared page opens without logging in', publicPage.status === 200 && publicHtml.includes('E2E Gifts') && publicHtml.includes('Uploaded Cube'));
   check(
     'the shared page escapes text and shows no paths',
-    publicHtml.includes('&lt;b&gt;friends&lt;/b&gt;') && !publicHtml.includes(uploadLibrary) && !/<script/i.test(publicHtml)
+    publicHtml.includes('&lt;b&gt;friends&lt;/b&gt;') &&
+      !publicHtml.includes(uploadLibrary) &&
+      (publicHtml.match(/<script/gi) || []).length === 1 &&
+      publicHtml.includes('<script type="module" src="/share-viewer/share-viewer.js"></script>')
   );
   check(
     'the shared page is not indexed or cached',
@@ -4480,12 +4582,54 @@ async function accountChecks(base, wsUrl, admin) {
       (await fetch(`${base}/s/${link.token}/file/${otherId}`)).status === 404 &&
       (await fetch(`${base}/s/${link.token}/thumb/${otherId}`)).status === 404
   );
+  // The 3D view (src/web/share/viewer.ts): on links with downloads, and on view-only links that allow it.
+  check('a link with downloads offers a 3D view', publicHtml.includes(`data-mesh="/s/${link.token}/mesh/${sharedId}"`));
+  const sharedMesh = await fetch(`${base}/s/${link.token}/mesh/${sharedId}`);
+  check(
+    'the 3D view gets the STL without a login',
+    sharedMesh.status === 200 &&
+      (await sharedMesh.arrayBuffer()).byteLength === cubeBytes.length &&
+      /^inline/.test(sharedMesh.headers.get('content-disposition') || '')
+  );
+  const viewerScript = await fetch(`${base}/share-viewer/share-viewer.js`);
+  check(
+    "the 3D view's script loads without a login, and nothing else of the app",
+    viewerScript.status === 200 &&
+      /javascript/.test(viewerScript.headers.get('content-type') || '') &&
+      (await fetch(`${base}/share-viewer/three.js`)).status === 200 &&
+      (await fetch(`${base}/share-viewer/app.js`)).status === 404
+  );
   const viewOnly = (await invoke(base, editor, 'create-share-link', [{ kind: 'model', filePath: uploadedPath, allowDownload: false }])).result || {};
+  const viewOnlyHtml = await (await fetch(`${base}/s/${viewOnly.token}`)).text();
   check(
     'a view-only link offers no downloads',
-    !(await (await fetch(`${base}/s/${viewOnly.token}`)).text()).includes('/file/') &&
-      (await fetch(`${base}/s/${viewOnly.token}/file/${viewOnly.targetId}`)).status === 404
+    !viewOnlyHtml.includes('/file/') && (await fetch(`${base}/s/${viewOnly.token}/file/${viewOnly.targetId}`)).status === 404
   );
+  check(
+    'a view-only link has no 3D view unless asked for',
+    !viewOnlyHtml.includes('view3d') && !/<script/i.test(viewOnlyHtml) && (await fetch(`${base}/s/${viewOnly.token}/mesh/${viewOnly.targetId}`)).status === 404
+  );
+  // A 3MF of its own (the library was emptied before these checks).
+  const box = path.join(folder, 'Shared Box.3mf');
+  await uploadAs(base, editor, folder, 'Shared Box.3mf', fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf')));
+  await invoke(base, editor, 'add-uploaded-files', [folder, [box]]);
+  const boxModel = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => m.filePath === box) || {}).id;
+  const previewOnly =
+    (await invoke(base, editor, 'create-share-link', [{ kind: 'model', filePath: box, allowDownload: false, allowPreview: true }])).result || {};
+  const previewOnlyHtml = await (await fetch(`${base}/s/${previewOnly.token}`)).text();
+  const boxMesh = await fetch(`${base}/s/${previewOnly.token}/mesh/${boxModel}`);
+  const boxJson = boxMesh.status === 200 ? await boxMesh.json().catch(() => null) : null;
+  check(
+    'a view-only link with a 3D preview shows a 3MF in 3D, without downloads',
+    previewOnly.allowPreview === true &&
+      previewOnlyHtml.includes('data-kind="3mf"') &&
+      !previewOnlyHtml.includes('/file/') &&
+      !!boxJson &&
+      Array.isArray(boxJson.geometries) &&
+      boxJson.geometries.length > 0,
+    `${boxMesh.status} ${JSON.stringify(boxJson).slice(0, 120)}`
+  );
+  const sharePreviewPage = `${base}/s/${previewOnly.token}`;
   check(
     'the rest of the server still needs a login',
     (await fetch(`${base}/api/actions/get-collections`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: '{}' }))
@@ -4497,6 +4641,36 @@ async function accountChecks(base, wsUrl, admin) {
     'Settings → Sharing lists the links',
     ((await invoke(base, editor, 'get-share-links', [])).result || []).some((l) => l.token === link.token && l.targetName === 'E2E Gifts')
   );
+
+  console.log('\n# Guest access');
+  const nobody = { origin: base };
+  check('without guest access, nobody browses without a login', (await invoke(base, nobody, 'get-all-models')).status === 401);
+  const editorGuest = await invoke(base, editor, 'save-setting', ['guestAccess', 'true']);
+  check(
+    'only admins turn on guest access',
+    editorGuest.status !== 200 && (await invoke(base, nobody, 'get-all-models')).status === 401,
+    JSON.stringify(editorGuest)
+  );
+  await invoke(base, admin, 'save-setting', ['guestAccess', 'true']);
+  const guestModels = await invoke(base, nobody, 'get-all-models');
+  check('with guest access, guests browse without a login', guestModels.status === 200 && Array.isArray(guestModels.result) && guestModels.result.length > 0);
+  check('guests cannot edit', (await invoke(base, nobody, 'save-model', [{ filePath: uploadedPath, notes: 'guest was here' }])).status === 403);
+  check('guests cannot change a password', (await invoke(base, nobody, 'set-server-password', ['x', 'y'])).status === 403);
+  await invoke(base, nobody, 'save-setting', ['uiTheme', 'guest-theme']);
+  check("a guest's display choices are not kept", (await invoke(base, admin, 'get-setting', ['uiTheme'])).result !== 'guest-theme');
+  const guestStatus = await (await fetch(`${base}/api/auth/status`)).json();
+  check(
+    'the page knows it is a guest',
+    guestStatus.authenticated === true && guestStatus.guest === true && guestStatus.user.roleLabel === 'Guest',
+    JSON.stringify(guestStatus)
+  );
+  check('the login page offers to browse as a guest', (await (await fetch(`${base}/login`)).text()).includes('Browse as a guest'));
+  const guestMcp = await fetch(`${base}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+  });
+  check('MCP still needs the API token', guestMcp.status === 401);
 
   console.log('\n# Open in OrcaSlicer (no helper)');
   const slicersBefore = (await invoke(base, admin, 'get-slicers')).result || [];
@@ -4557,6 +4731,45 @@ async function accountChecks(base, wsUrl, admin) {
       }
       return page;
     };
+
+    // A guest in the browser (guest access is on): the library, and Log In instead of the account items.
+    const guestPage = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+    guestPage.on('pageerror', (error) => errors.push(`guest: ${error.message}`));
+    await guestPage.goto(base + '/#/library');
+    const guestIn = await guestPage
+      .waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('a guest opens the library without logging in', guestIn && !guestPage.url().includes('/login'));
+    check(
+      'the account button says Guest',
+      await guestPage.waitForSelector('#jp-account-who:has-text("Guest")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
+    check('a guest sees no welcome or terms', !(await guestPage.isVisible('#welcome-message')) && !(await guestPage.isVisible('#terms-of-service-dialog')));
+    await guestPage.click('.jp-account');
+    check('a guest can go to Log In', await guestPage.isVisible('[role="menuitem"]:has-text("Log In")'));
+    await guestPage.context().close();
+    await invoke(base, admin, 'save-setting', ['guestAccess', 'false']);
+    check('turning guest access off asks for a login again', (await invoke(base, { origin: base }, 'get-all-models')).status === 401);
+
+    // The 3D view of a share page, for a visitor who is not logged in.
+    const visitor = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+    visitor.on('pageerror', (error) => errors.push(`share page: ${error.message}`));
+    await visitor.goto(sharePreviewPage);
+    await visitor.click('button.view3d');
+    const shown3d = await visitor.waitForSelector('dialog.viewer[data-ready="true"]', { timeout: 30000 }).then(
+      () => true,
+      () => false
+    );
+    check('a share page shows the model in 3D', shown3d && (await visitor.$$eval('dialog.viewer canvas', (list) => list.length)) === 1);
+    await visitor.click('dialog.viewer .viewer-bar button');
+    check('the 3D view closes', !(await visitor.isVisible('dialog.viewer')));
+    await visitor.context().close();
 
     const editorPage = await open('maker', 'maker-password');
     check(

@@ -57,7 +57,7 @@ function parseModelLink(raw) {
     if (!match) return null;
     const id = String(Number(match[1]));
     if (id === '0') return null;
-    let slug = '';
+    let slug;
     try {
       slug = match[2] ? decodeURIComponent(match[2]) : '';
     } catch (_) {

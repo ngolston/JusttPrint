@@ -1,6 +1,6 @@
 /**
- * What the React screens use from the rest of the page (the page globals and server-bridge.js),
- * typed in one place.
+ * What the React screens use from the rest of the page (the page globals and window.electron,
+ * the server connection in bridge/server.ts), typed in one place.
  */
 
 /** The sidebar filters as the search builds them (src/web/filters/search.ts); passed to the server as-is. */
@@ -9,19 +9,25 @@ export type LibraryFilters = Record<string, unknown>;
 declare global {
   interface Window {
     electron?: {
-      /** In-page message dialog (server-bridge.js). Resolves to the clicked button's label. */
+      /** In-page message dialog (bridge/dialogs.ts). Resolves to the clicked button's label. */
       showMessage?: (title: string, message: string, buttons?: string[]) => Promise<string>;
-      /** In-page text prompt (server-bridge.js). Resolves to the text, or null when cancelled. */
-      showInputDialog?: (options: { title?: string; message?: string; defaultValue?: string; placeholder?: string }) => Promise<string | null>;
-      /** Server events over the page's WebSocket (server-bridge.js). */
-      on?: (channel: string, callback: (...args: any[]) => void) => void;
-      off?: (channel: string, callback: (...args: any[]) => void) => void;
-      /** Raise a page event ('open-tag-manager', 'start-print-roulette', ...) for its handler (server-bridge.js). */
+      /** In-page text prompt (bridge/dialogs.ts). Resolves to the text, or null when cancelled. */
+      showInputDialog?: (options?: { title?: string; message?: string; defaultValue?: string; placeholder?: string }) => Promise<string | null>;
+      /** Server events over the page's WebSocket, and page events. */
+      on?: (channel: string, callback: (...args: any[]) => unknown) => void;
+      off?: (channel: string, callback: (...args: any[]) => unknown) => void;
+      /** Raise a page event ('open-tag-manager', 'start-print-roulette', ...) for its handler. */
       send?: (channel: string, ...args: unknown[]) => void;
-      /** Open a link in a new tab (server-bridge.js). */
+      /** Open a link in a new tab. */
       openExternal?: (url: string) => Promise<unknown>;
-      /** Id of this page's WebSocket (server-bridge.js), so the server can send events back to this page. */
+      /** Id of this page's WebSocket, so the server can send events back to this page. */
       getClientId?: () => string | null;
+      /** A server action, queued, with long timeouts for file work (binary results as ArrayBuffer). */
+      invoke?: (channel: string, ...args: unknown[]) => Promise<any>;
+      /** Resolves when the WebSocket is open. */
+      whenConnected?: () => Promise<void>;
+      /** Plus the actions of bridge/server.ts's call list (getSlicers, parse3MFPreview, ...). */
+      [call: string]: unknown;
     };
     /** library/actions.ts: refresh tag pickers, the tag filter, the open model's tags and the grid. */
     refreshTagRelatedUi?: () => Promise<void>;

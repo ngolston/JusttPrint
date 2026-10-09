@@ -93,6 +93,8 @@ test('lists expected tools', () => {
   assert.ok(names.includes('remove_model'));
   assert.ok(names.includes('trash_file'));
   assert.ok(names.includes('scan_directory'));
+  assert.ok(names.includes('check_model_links'));
+  assert.ok(names.includes('import_model_links'));
   assert.ok(names.includes('pull_3mf_metadata'));
 });
 

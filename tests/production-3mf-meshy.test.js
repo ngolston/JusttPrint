@@ -8,7 +8,6 @@ const assert = require('node:assert/strict');
 const fflate = require('fflate');
 const { zipHasSplitModelParts, modelHasPlacementTransforms, extractAllMeshesFast, shouldUseFastPath } = require('../threemf-mesh-extract.js');
 const { Simple3MFLoader, collectSlicerSkipIds } = require('../src/core/threemf-loader-simple.js');
-const { parseSvgPathContours } = require('../threemf-svg-extrude.js');
 
 function cubeModelXml(objectId = '1') {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -135,12 +134,6 @@ describe('3MF Production Extension (MeshyAI / Bambu)', () => {
     const skip = collectSlicerSkipIds(unzipped);
     assert.equal(skip.has('12'), true);
     assert.equal(skip.has('13'), true);
-  });
-
-  test('parseSvgPathContours samples curves', () => {
-    const contours = parseSvgPathContours('M 0 0 C 0 10 10 10 10 0 Z', 8);
-    assert.ok(contours.length >= 1);
-    assert.ok(contours[0].length > 4);
   });
 
   test('Simple3MFLoader parses a Meshy-style split 3MF', () => {

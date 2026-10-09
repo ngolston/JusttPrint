@@ -121,7 +121,7 @@ async function start(options) {
       }, RESTART_DELAY_MS);
     });
     const page = await launched.newPage();
-    page.on('pageerror', (error) => console.error('[Thumbnail worker] page error:', error.message));
+    page.on('pageerror', (error) => console.error('[Thumbnail worker] page error:', error instanceof Error ? error.message : String(error)));
     page.on('console', (message) => {
       if (message.type() === 'error') console.error('[Thumbnail worker]', message.text().slice(0, 300));
     });

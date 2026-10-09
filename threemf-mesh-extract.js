@@ -17,7 +17,7 @@
     module.exports = exported;
   }
   if (root) {
-    root.ThreeMFMeshExtract = exported;
+    /** @type {any} */ (root).ThreeMFMeshExtract = exported;
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   function readEnvInt(name, fallback) {
@@ -270,9 +270,9 @@
 
     for (let t = 0; t < triCount; t++) {
       const base = t * 3;
-      let a = remap[indices[base]];
-      let b = remap[indices[base + 1]];
-      let c = remap[indices[base + 2]];
+      const a = remap[indices[base]];
+      const b = remap[indices[base + 1]];
+      const c = remap[indices[base + 2]];
       if (a === b || b === c || a === c) continue;
 
       // Canonical order for duplicate detection (keep winding via original order)

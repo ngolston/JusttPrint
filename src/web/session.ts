@@ -12,6 +12,8 @@ export interface CurrentUser {
   username: string;
   role: Role;
   roleLabel: string;
+  /** Browsing without an account (guest access, Settings → Users): a Viewer that keeps no settings. */
+  guest?: boolean;
 }
 
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2 };

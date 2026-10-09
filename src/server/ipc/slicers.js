@@ -16,6 +16,10 @@ const { libraryPathAllowed } = require('../path-context');
  * the files and starts the slicer there.
  */
 
+/**
+ * @param {any[]} slicers
+ * @param {{ slicerId?: number | string, slicerName?: string }} [selection]
+ */
 function getSlicerBySelection(slicers, { slicerId, slicerName } = {}) {
   if (!Array.isArray(slicers) || slicers.length === 0) return null;
   if (slicerId != null) {
@@ -146,10 +150,10 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
     console.error('slicers parameter type:', typeof slicers, 'isArray:', Array.isArray(slicers), 'value:', slicers);
     const message = String(error && error.message ? error.message : error);
     if (/slicers\.name/i.test(message)) {
-      throw new Error('That slicer name is already used. Each slicer needs its own name.');
+      throw new Error('That slicer name is already used. Each slicer needs its own name.', { cause: error });
     }
     if (/slicers\.path/i.test(message)) {
-      throw new Error('That slicer path is already used. Each slicer needs its own path.');
+      throw new Error('That slicer path is already used. Each slicer needs its own path.', { cause: error });
     }
     throw error;
   }

@@ -134,7 +134,7 @@ function invalidSlicerPathError(slicerPath, name) {
     return error;
   }
 
-  let stat = null;
+  let stat;
   try {
     stat = fs.statSync(raw);
   } catch (_) {

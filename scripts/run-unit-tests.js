@@ -56,13 +56,21 @@ if (vitest.status !== 0) {
 
 // Lint (eslint.config.mjs) and formatting (.prettierrc.json).
 const bin = (name) => path.join(root, 'node_modules', '.bin', name);
-const lint = spawnSync(bin('eslint'), ['.', '--quiet'], { cwd: root, encoding: 'utf8' });
+const lint = spawnSync(bin('eslint'), ['.', '--max-warnings', '0'], { cwd: root, encoding: 'utf8' });
 if (lint.status !== 0) {
   failed.push('eslint');
   console.log('FAIL eslint (npm run lint)');
   for (const line of `${lint.stdout || ''}${lint.stderr || ''}`.trim().split('\n').slice(-20)) console.log(`     ${line}`);
 } else {
-  console.log('ok   eslint (no errors; npm run lint lists the warnings)');
+  console.log('ok   eslint (no errors or warnings)');
+}
+const types = spawnSync(bin('tsc'), ['-p', 'tsconfig.server.json'], { cwd: root, encoding: 'utf8' });
+if (types.status !== 0) {
+  failed.push('typecheck:server');
+  console.log('FAIL server type check (npm run typecheck:server)');
+  for (const line of `${types.stdout || ''}${types.stderr || ''}`.trim().split('\n').slice(-20)) console.log(`     ${line}`);
+} else {
+  console.log('ok   server type check');
 }
 const format = spawnSync(bin('prettier'), ['--check', '.', '--log-level', 'warn'], { cwd: root, encoding: 'utf8' });
 if (format.status !== 0) {

@@ -89,7 +89,10 @@ async function makeCopy(image, resize = thumbnailWorker.resizeImage) {
 const state = { running: false, again: false };
 let timer = null;
 
-/** Make the missing copies. Answers { made, failed, skipped } (skipped: Chromium not running). */
+/**
+ * Make the missing copies. Answers { made, failed, skipped } (skipped: Chromium not running).
+ * @param {{ resize?: typeof thumbnailWorker.resizeImage }} [options] Tests pass their own resize.
+ */
 async function run({ resize } = {}) {
   if (state.running) {
     state.again = true;

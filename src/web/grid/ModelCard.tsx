@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
@@ -84,6 +85,8 @@ function tagNamesOf(model: GridModel): string[] | null {
 
 /** Image to show, whether to fetch or render one, and the carousel images. */
 function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority: number, container: HTMLElement | null) {
+  // Its own image arrived: redraw this card only (a grid refresh regroups the whole library).
+  const [, redraw] = useReducer((count: number) => count + 1, 0);
   const all = parseThumbnails(model.thumbnail);
   const imageOnlyMiss = isImageOnlyMiss(model.filePath);
   let current: string | null = all[0] ?? null;
@@ -128,7 +131,7 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
             model.thumbnail = thumbnail;
             model.hasThumbnail = true;
             if (carouselView && multiple) loadAllThumbnails(model);
-            else window.libraryGrid?.refresh();
+            else redraw();
           } else if (carouselView && !imageOnlyMiss) {
             // Flagged as having one, but it is empty: render it again.
             model.hasThumbnail = false;

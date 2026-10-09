@@ -7,7 +7,8 @@ const { parseZipPath } = require('../core/library-paths');
 const { extractModelFromZip } = require('../core/zip-entries');
 const { cleanupExtractTempFile } = require('../core/extract-temp');
 
-async function sendModelFile(res, filePath) {
+/** `options.inline`: for the browser to read (a share page's 3D view), not to save. */
+async function sendModelFile(res, filePath, options = {}) {
   const info = parseZipPath(filePath);
   let actual = filePath;
   let name = path.basename(filePath);
@@ -21,7 +22,7 @@ async function sendModelFile(res, filePath) {
   }
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Length', String(fs.statSync(actual).size));
-  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+  res.setHeader('Content-Disposition', `${options.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(name)}`);
   const stream = fs.createReadStream(actual);
   stream.on('error', () => {
     if (!res.headersSent) res.status(500).end();

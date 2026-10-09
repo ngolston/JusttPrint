@@ -3,6 +3,8 @@
  * document.body) and register the global functions that open them (window.openTagManager, ...).
  */
 import './styles/index.css';
+// First: the server connection and window.electron, which the screens use.
+import './bridge/server';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AboutDialog } from './AboutDialog';
@@ -22,6 +24,8 @@ import { LibraryGrid } from './grid/LibraryGrid';
 import { FolderPicker } from './components/FolderPicker';
 import { ListPicker } from './components/ListPicker';
 import { ServerProgressDialog } from './components/ServerProgressDialog';
+import { QuickStartGuide } from './QuickStartGuide';
+import { initPage } from './startup/pageInit';
 import { KeyboardShortcuts, KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { UndoToast } from './library/UndoToast';
 import { InstallAppDialog } from './InstallAppDialog';
@@ -98,6 +102,7 @@ function Screens() {
       <SystemReportDialog />
       <BackupRestoreDialog />
       <KeyboardShortcutsDialog />
+      <QuickStartGuide />
       <KeyboardShortcuts />
       <UndoToast />
       <InstallAppDialog />
@@ -137,6 +142,8 @@ function Screens() {
     </>
   );
 }
+
+initPage();
 
 const root = document.getElementById('react-root');
 if (root) {

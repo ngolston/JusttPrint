@@ -121,15 +121,20 @@ function isInsideRoots(filePath, roots, realpath) {
 }
 
 /**
+ * Where library paths may point.
+ * @typedef {object} LibraryPathContext
+ * @property {string[]} [roots] Library folders (scanned directories, STL Home, last scan).
+ * @property {(filePath: string) => boolean} [isKnownModel] Exact match against stored models.
+ * @property {string} [generatedDir] Folder where backups and exports are written.
+ * @property {string} [autoBackupDir] Folder of the automatic backups (justtprint-auto-*.db only).
+ * @property {string} [downloadsDir] Folder of backups and exports made for a browser download.
+ * @property {(filePath: string) => boolean} [isExtractTemp] The app's own zip-extract temp files.
+ * @property {(filePath: string) => string} [realpath] Follows symlinks (fs.realpathSync). Without it, paths are compared as written.
+ */
+
+/**
  * @param {string} filePath Absolute path requested by the client (zip entries: the archive path).
- * @param {object} ctx
- * @param {string[]} ctx.roots Library folders (scanned directories, STL Home, last scan).
- * @param {(filePath: string) => boolean} [ctx.isKnownModel] Exact match against stored models.
- * @param {string} [ctx.generatedDir] Folder where backups and exports are written.
- * @param {string} [ctx.autoBackupDir] Folder of the automatic backups (justtprint-auto-*.db only).
- * @param {string} [ctx.downloadsDir] Folder of backups and exports made for a browser download.
- * @param {(filePath: string) => boolean} [ctx.isExtractTemp] The app's own zip-extract temp files.
- * @param {(filePath: string) => string} [ctx.realpath] Follows symlinks (fs.realpathSync). Without it, paths are compared as written.
+ * @param {LibraryPathContext} [ctx]
  */
 function isLibraryPathAllowed(
   filePath,
@@ -237,6 +242,7 @@ const MCP_TOOL_PATH_RULES = {
   set_default_thumbnail: [['filePath', 'file']],
   delete_thumbnail: [['filePath', 'file']],
   scan_directory: [['directory', 'scanDir']],
+  import_model_links: [['downloadFolder', 'dir']],
   remove_model: [
     ['filePath', 'file'],
     ['filePaths', 'files']
@@ -271,7 +277,7 @@ function isSystemDirectory(dir) {
  * Throws when a network caller passes a path it may not touch.
  * @param {string} kind file | files | contextFiles | dir | scanDir | dest
  * @param {*} value The argument value.
- * @param {object} ctx Same as isLibraryPathAllowed, plus appDir and dataDir (never valid roots).
+ * @param {LibraryPathContext & { appDir?: string, dataDir?: string }} ctx Same as isLibraryPathAllowed, plus appDir and dataDir (never valid roots).
  */
 function assertNetworkPathAllowed(kind, value, ctx) {
   if (value === undefined || value === null || value === '') return;

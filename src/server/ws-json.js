@@ -4,7 +4,7 @@
 function jsonStringifyForWs(payload) {
   return JSON.stringify(payload, (_key, value) => {
     if (ArrayBuffer.isView(value)) {
-      return Array.from(value);
+      return Array.from(/** @type {Uint8Array} */ (value));
     }
     return value;
   });

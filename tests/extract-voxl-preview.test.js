@@ -30,7 +30,7 @@ function buildV2({ withPreview = true, compress = false } = {}) {
         }
       }
     : { other: true };
-  let extdRaw = Buffer.from(JSON.stringify(extdObj), 'utf8');
+  const extdRaw = Buffer.from(JSON.stringify(extdObj), 'utf8');
   let compression = 0;
   let extdStored = extdRaw;
   if (compress) {

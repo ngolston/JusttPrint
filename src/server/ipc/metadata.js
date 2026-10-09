@@ -196,7 +196,7 @@ ipcMain.handle('pull-3mf-metadata', async (event, filePaths) => {
 
         if (filteredMetadata && (filteredMetadata.designer || filteredMetadata.parentModel || filteredMetadata.notes || filteredMetadata.license)) {
           // Get or create model in database
-          let existingModel = getModelByFilePath(filePath, { includeThumbnail: true });
+          const existingModel = getModelByFilePath(filePath, { includeThumbnail: true });
 
           if (!existingModel) {
             // Create new model entry

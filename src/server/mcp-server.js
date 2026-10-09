@@ -478,6 +478,31 @@ const TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'check_model_links',
+    description:
+      'Find the Printables, Thingiverse and MakerWorld model links in text or a list, and say which ones are already in the library. Changes nothing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        links: { type: 'array', items: { type: 'string' }, description: 'Model links' },
+        text: { type: 'string', description: 'Text that contains model links (one or many)' }
+      }
+    }
+  },
+  {
+    name: 'import_model_links',
+    description:
+      'Add Printables, Thingiverse and MakerWorld models to the library from their links (Library → Add Links), with name, designer, picture and source link. Links already in the library are skipped. With downloadFolder (a library folder), the model files are downloaded there too; MakerWorld needs the MakerWorld sign-in and Thingiverse files an API token (Settings → Integrations). At most 50 links per call; slow (each link asks the site).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        links: { type: 'array', items: { type: 'string' }, description: 'Model links' },
+        text: { type: 'string', description: 'Text that contains model links' },
+        downloadFolder: { type: 'string', description: 'Library folder to download the model files into. Omit to add the models as online models only.' }
+      }
+    }
+  },
+  {
     name: 'scan_directory',
     description: 'Scan a folder and add/update models in the library. Long-running. Omit directory to rescan the last scanned folder.',
     inputSchema: {
@@ -758,6 +783,10 @@ async function callTool(name, args, ctx) {
         directory: a.directory,
         limit: clampLimit(a.limit, 100, 500)
       });
+    case 'check_model_links':
+      return ctx.checkModelLinks({ links: a.links, text: a.text });
+    case 'import_model_links':
+      return ctx.importModelLinks({ links: a.links, text: a.text, downloadFolder: a.downloadFolder });
     case 'scan_directory':
       return ctx.scanDirectory({ directory: a.directory });
     case 'remove_model':
@@ -794,7 +823,7 @@ function initializeResult(params, getVersion) {
       version: typeof getVersion === 'function' ? String(getVersion() || '0') : '0'
     },
     instructions:
-      'JusttPrint library MCP. Search and update models, manage tags/print history, find duplicates, scan folders, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
+      'JusttPrint library MCP. Search and update models, manage tags/print history, find duplicates, scan folders, add models from Printables/Thingiverse/MakerWorld links, pull 3MF metadata, and write thumbnails. Destructive tools (remove_model, trash_file, move_files) require confirm: true. filePath is on disk for local thumbnail rendering.'
   };
 }
 

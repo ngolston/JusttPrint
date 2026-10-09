@@ -78,7 +78,7 @@ function trimPreview3mfMemoryCache() {
 function serializePreview3mfForDisk(json) {
   return JSON.stringify(json, (_key, value) => {
     if (ArrayBuffer.isView(value)) {
-      return Array.from(value);
+      return Array.from(/** @type {Uint8Array} */ (value));
     }
     return value;
   });
@@ -110,10 +110,11 @@ function normalizePreview3mfTypedArrays(json) {
 ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
   if (isUrlModel(filePath)) return [];
   // Skip files located in __MACOSX directories
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
+  if (/[\\/]__macosx[\\/]/i.test(filePath)) {
     return [];
   }
 
+  /** @type {{ verbose?: boolean, maxImages?: number }} */
   const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
   const verbose = opts.verbose === true || process.env.JUSTTPRINT_DEBUG_3MF === '1';
   const maxImagesRaw = Number(opts.maxImages);
@@ -202,7 +203,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
           const dbFilePath = filePath;
 
           // Get the model from database to check existing values
-          let existingModel = getModelByFilePath(dbFilePath);
+          const existingModel = getModelByFilePath(dbFilePath);
 
           // If model doesn't exist, create it (similar to add-multiple-thumbnails handler)
           if (!existingModel) {
@@ -393,7 +394,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       log(`Extracting: ${imgObj.path} (Score: ${imgObj.score})`);
       const imageData = imgObj.file.read('base64');
       const mimeType = getMimeType(imgObj.path);
-      let dataUrl = `data:image/${mimeType};base64,${imageData}`;
+      const dataUrl = `data:image/${mimeType};base64,${imageData}`;
       imageFiles.push(dataUrl);
     }
 
@@ -504,8 +505,12 @@ const readModelFileHandler = async (event, filePath) => {
 
 ipcMain.handle('read-model-file', readModelFileHandler);
 
-// Parse 3MF preview handler
-const parse3mfPreviewHandler = async (event, filePath, requestId) => {
+/**
+ * A 3MF as three.js ObjectLoader JSON for the 3D preview (parsed in a worker, cached).
+ * `options.shared`: for a share page (share-pages.js): it leaves the library's own previews
+ * running and sends no status events.
+ */
+const parse3mfPreviewHandler = async (event, filePath, requestId, options = {}) => {
   // Validate arguments - ensure filePath is a string, not an array
   if (Array.isArray(filePath)) {
     console.error('parse-3mf-preview: filePath is an array, extracting first element');
@@ -544,7 +549,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     throw new Error(`3MF preview skipped: file is too large (${Math.round(fileStat.size / 1024 / 1024)}MB > ${PREVIEW_3MF_MAX_FILE_SIZE_MB}MB)`);
   }
 
-  cancelAllPreview3mfWorkers();
+  if (!options.shared) cancelAllPreview3mfWorkers();
 
   // Bump preview cache version when simplification/placement logic changes
   const cacheKey = fileStat ? `v8|${filePath}|${fileStat.size}|${fileStat.mtimeMs}` : null;
@@ -622,7 +627,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     const onMessage = async (message) => {
       const { ok, json, error, type, message: statusMessage } = message || {};
       if (type === 'status') {
-        events.toCaller(event, '3mf-preview-status', requestId, statusMessage);
+        if (!options.shared) events.toCaller(event, '3mf-preview-status', requestId, statusMessage);
         return;
       }
 
@@ -676,7 +681,9 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
   });
 };
 
-ipcMain.handle('parse-3mf-preview', parse3mfPreviewHandler);
+ipcMain.handle('parse-3mf-preview', (event, filePath, requestId) => parse3mfPreviewHandler(event, filePath, requestId));
+
+module.exports = { parse3mfPreviewHandler };
 
 ipcMain.handle('cancel-3mf-preview', async (event, requestId) => {
   const entry = preview3mfWorkers.get(requestId);

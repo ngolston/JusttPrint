@@ -500,6 +500,23 @@
   flex: 1;
   min-width: 160px;
 }
+.users-guest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--jp-space-2);
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  color: var(--jp-text-2);
+  font-size: 13px;
+}
+.users-guest input {
+  margin-top: 3px;
+}
+.users-guest strong {
+  color: var(--jp-text);
+}
 .users-add {
   margin: 12px 0 0;
   padding: 12px;

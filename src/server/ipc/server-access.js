@@ -1,6 +1,6 @@
 'use strict';
 
-const { flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../../core/settings');
+const { flushSettingsToDisk, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
 const {
   closeClientsOfUser,
@@ -32,7 +32,7 @@ function collectLanAddresses() {
   for (const name of Object.keys(nets || {})) {
     for (const net of nets[name] || []) {
       if (!net || net.internal) continue;
-      if (net.family !== 'IPv4' && net.family !== 4) continue;
+      if (String(net.family) !== 'IPv4' && String(net.family) !== '4') continue; // Node 18.0–18.3 used the number 4
       if (net.address) out.push(net.address);
     }
   }

@@ -25,8 +25,7 @@ const FREE_SPACE_MARGIN = 64 * 1024 * 1024;
 const TEMP_SUFFIX = '.justtprint-upload';
 
 function httpError(status, message, extra = {}) {
-  const error = new Error(message);
-  error.status = status;
+  const error = Object.assign(new Error(message), { status: status });
   Object.assign(error, extra);
   return error;
 }
@@ -87,7 +86,7 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
   let loaded = false;
 
   function save() {
-    const list = [...sessions.values()].map(({ busy, ...rest }) => rest); // eslint-disable-line no-unused-vars
+    const list = [...sessions.values()].map(({ busy, ...rest }) => rest);
     try {
       fs.mkdirSync(path.dirname(stateFile), { recursive: true });
       const temp = `${stateFile}.tmp`;
@@ -102,7 +101,7 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
   function load() {
     if (loaded) return;
     loaded = true;
-    let list = [];
+    let list;
     try {
       list = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     } catch (_) {

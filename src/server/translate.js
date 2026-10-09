@@ -6,7 +6,7 @@
  * for AI Tagging, 'off' does not translate. Names already in Latin script are left as they are.
  */
 
-const OpenAI = require('openai');
+const { OpenAI } = require('openai');
 const { needsTranslation } = require('../core/makerworld');
 const { httpsFetch, readLimited, USER_AGENT } = require('./link-import');
 
@@ -69,7 +69,11 @@ function parseAiAnswer(content, count) {
   return list.map((item) => String(item ?? ''));
 }
 
-/** The AI service from AI Tagging (Puter runs in the browser that asked). */
+/**
+ * The AI service from AI Tagging (Puter runs in the browser that asked).
+ * @param {string[]} texts
+ * @param {{ aiSettings?: any, puterHandler?: any }} deps
+ */
 async function translateAi(texts, { aiSettings, puterHandler }) {
   const { apiKey, apiEndpoint, aiModel, aiService } = aiSettings;
   const service = String(aiService || 'openai').toLowerCase();
@@ -99,6 +103,9 @@ async function translateAi(texts, { aiSettings, puterHandler }) {
 /**
  * English names for `names` (null where none is needed or none came back), and what translated
  * them. Never throws: a failed translation leaves the names as they are, with `error`.
+ * @param {string[]} names
+ * @param {string} mode off | free | ai
+ * @param {{ aiSettings?: any, puterHandler?: any, fetchImpl?: typeof httpsFetch }} [deps]
  */
 async function translateNames(names, mode, deps = {}) {
   const english = names.map(() => null);

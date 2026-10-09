@@ -71,11 +71,11 @@ const nameOf = (dir) => path.basename(dir) || dir;
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 /**
- * @param {object} options
+ * @param {object} [options]
  * @param {string|null} [options.dir] Folder to list; none lists only the places.
- * @param {string[]} options.places Candidate starting folders (mount points, library folders).
- * @param {(dir: string) => boolean} options.isBlocked System, app and data folders; never listed.
- * @param {object} [options.fileSystem] fs (statSync, realpathSync, readdirSync), for tests.
+ * @param {string[]} [options.places] Candidate starting folders (mount points, library folders).
+ * @param {(dir: string) => boolean} [options.isBlocked] System, app and data folders; never listed.
+ * @param {typeof import('fs')} [options.fileSystem] fs (statSync, realpathSync, readdirSync), for tests.
  * @returns {{ places: {name: string, path: string}[], path: string|null, parent: string|null,
  *   folders: {name: string, path: string}[], truncated: boolean, error?: string }} A folder that
  *   cannot be listed comes back as `error` with no `path` (an answer, not a failed request).
