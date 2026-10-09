@@ -479,7 +479,8 @@ module.exports = { countModelsNeedingHash, generateMissingHashesHandler, getDupl
 
 // Same geometry (src/server/geometry-job.js): the Duplicates page's second list.
 const geometryJob = require('../geometry-job');
-ipcMain.handle('get-geometry-duplicates', async (event, options) => geometryJob.duplicates(options && options.filters ? options.filters : null));
+ipcMain.handle('get-geometry-duplicates', async (event, options) => geometryJob.duplicates(options && options.filters ? options.filters : null,
+  { includeZip: !!(options && options.includeZip) }));
 ipcMain.handle('start-geometry-scan', async (event, options) => geometryJob.start(options && options.filters ? options.filters : null));
 ipcMain.handle('get-geometry-scan', async () => geometryJob.status());
 ipcMain.handle('stop-geometry-scan', async () => geometryJob.stop());

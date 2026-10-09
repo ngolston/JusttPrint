@@ -52,23 +52,28 @@ async function main() {
     database.db.prepare('INSERT INTO models (filePath, fileName, size, hash) VALUES (?, ?, ?, ?)').run(path.join(tmp, name), name, bytes.length, hash);
   }
   database.db.prepare("INSERT INTO models (filePath, fileName) VALUES ('url::https://www.printables.com/model/1', 'online')").run();
+  // The same part inside a ZIP file.
+  fs.writeFileSync(path.join(tmp, 'parts.zip'), Buffer.from(zipSync({ 'inner/part.stl': new Uint8Array(stl(tris(moved))) })));
+  database.db.prepare("INSERT INTO models (filePath, fileName, hash) VALUES (?, 'part.stl', 'h6')").run(`${path.join(tmp, 'parts.zip')}::inner/part.stl`);
 
-  assert.strictEqual(job.missing().length, 5, 'STL and 3MF files only');
+  assert.strictEqual(job.missing().length, 6, 'STL and 3MF files, also inside a ZIP; not online models');
   assert.ok(job.start().started);
   assert.ok(job.start().alreadyRunning, 'one run at a time');
   const done = await waitDone();
-  assert.deepStrictEqual([done.processed, done.total, done.failed], [5, 5, 0]);
+  assert.deepStrictEqual([done.processed, done.total, done.failed], [6, 6, 0]);
   assert.strictEqual(job.missing().length, 0, 'kept until the file changes');
 
   const { groups, missing } = job.duplicates();
   assert.strictEqual(missing, 0);
   assert.strictEqual(groups.length, 1, JSON.stringify(groups));
-  assert.deepStrictEqual(groups[0].files.map((f) => f.fileName).sort(), ['part copy.stl', 'part moved.stl', 'part.3mf', 'part.stl'].sort(),
-    'moved, re-saved and as 3MF: the same model; the other one is not');
+  assert.deepStrictEqual(groups[0].files.map((f) => f.filePath.replace(`${tmp}/`, '')).sort(),
+    ['part copy.stl', 'part moved.stl', 'part.3mf', 'part.stl', 'parts.zip::inner/part.stl'].sort(),
+    'moved, re-saved, as 3MF and inside a ZIP: the same model; the other one is not');
+  assert.ok(!job.duplicates(null, { includeZip: false }).groups[0].files.some((f) => f.filePath.includes('::')), 'without ZIP files, the entry is left out');
   assert.ok(groups[0].hash.startsWith('geometry:'));
 
   // Two identical files only: already on the identical-files list.
-  database.db.prepare("DELETE FROM models WHERE fileName IN ('part moved.stl', 'part.3mf')").run();
+  database.db.prepare("DELETE FROM models WHERE fileName IN ('part moved.stl', 'part.3mf') OR filePath LIKE '%::%'").run();
   assert.strictEqual(job.duplicates().groups.length, 0);
 
   // A changed file is fingerprinted again.

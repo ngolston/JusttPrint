@@ -16,10 +16,11 @@ const database = require('../core/database');
 const events = require('./events');
 const { buildModelFilterConditions, sqlAndFilterConditions } = require('../core/model-filters');
 
-/** Larger files are not fingerprinted (they are read whole). */
+/** Larger files (for a model inside a ZIP: larger ZIP files) are not fingerprinted (they are read whole). */
 const MAX_BYTES = 512 * 1024 * 1024;
 const TYPES = "(lower(filePath) LIKE '%.stl' OR lower(filePath) LIKE '%.3mf')";
-const PLAIN = "filePath NOT LIKE 'url::%' AND instr(filePath, '::') = 0";
+/** Files and models inside ZIP files; not online models. */
+const ON_DISK = "filePath NOT LIKE 'url::%'";
 
 let tableReady = false;
 function table() {
@@ -41,20 +42,25 @@ function table() {
 const state = { running: false, processed: 0, total: 0, failed: 0, cancel: false };
 const snapshot = () => ({ running: state.running, processed: state.processed, total: state.total, failed: state.failed });
 
-/** The file's identity for the fingerprint: size and modification time. Null when it cannot be read. */
+/**
+ * The file's identity for the fingerprint: size and modification time (for a model inside a ZIP,
+ * the ZIP's, and the entry). Null when it cannot be read.
+ */
 function fileKey(filePath) {
+  const [diskPath, entryPath] = filePath.includes('::') ? filePath.split('::') : [filePath, null];
   try {
-    const stat = fs.statSync(filePath);
-    return stat.isFile() ? { key: `${stat.size}:${Math.round(stat.mtimeMs)}`, size: stat.size } : null;
+    const stat = fs.statSync(diskPath);
+    if (!stat.isFile()) return null;
+    return { key: `${stat.size}:${Math.round(stat.mtimeMs)}${entryPath ? `:${entryPath}` : ''}`, size: stat.size };
   } catch (_) {
     return null;
   }
 }
 
-/** STL and 3MF models (plain files) in the filters' view: { id, filePath }. */
+/** STL and 3MF models (files, and models inside ZIP files) in the filters' view: { id, filePath }. */
 function candidates(filters) {
   const filter = buildModelFilterConditions(filters || null);
-  return database.db.prepare(`SELECT id, filePath FROM models WHERE ${TYPES} AND ${PLAIN} ${sqlAndFilterConditions(filter.conditions)}`).all(...filter.params);
+  return database.db.prepare(`SELECT id, filePath FROM models WHERE ${TYPES} AND ${ON_DISK} ${sqlAndFilterConditions(filter.conditions)}`).all(...filter.params);
 }
 
 /** Models without a fingerprint for their current file. */
@@ -132,13 +138,13 @@ function start(filters = null) {
  * duplicates): [{ hash: 'geometry:<fingerprint>', files: [{ filePath, fileName, size }] }], plus
  * how many models still need a fingerprint and whether fingerprinting is running.
  */
-function duplicates(filters = null) {
+function duplicates(filters = null, { includeZip = true } = {}) {
   table();
   // The models in view, by the library's own filter SQL; then their fingerprints.
   const inView = filters ? new Set(candidates(filters).map((row) => row.id)) : null;
   const rows = database.db.prepare(`SELECT g.signature, m.id, m.filePath, m.fileName, m.size, m.hash
     FROM model_geometry g JOIN models m ON m.id = g.model_id
-    WHERE g.signature IS NOT NULL AND m.filePath NOT LIKE 'url::%' AND instr(m.filePath, '::') = 0
+    WHERE g.signature IS NOT NULL AND m.filePath NOT LIKE 'url::%' ${includeZip ? '' : "AND instr(m.filePath, '::') = 0"}
     ORDER BY g.signature, m.filePath`).all().filter((row) => !inView || inView.has(row.id));
   const groups = new Map();
   for (const row of rows) {

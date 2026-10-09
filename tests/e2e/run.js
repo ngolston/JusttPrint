@@ -467,6 +467,9 @@ async function apiChecks(base, wsUrl) {
 
   const gpu = await ask('get-gpu-info');
   check('System Report GPU info', !gpu.error && gpu.result !== undefined, gpu.error);
+  // The GPU the thumbnail renderer (headless Chromium) uses, read from its WebGL.
+  const rendererGpu = await waitFor(async () => (await ask('get-gpu-info')).result?.activeRenderer, 30000, 'the renderer GPU').catch(() => null);
+  check('System Report names the thumbnail renderer\'s GPU', typeof rendererGpu === 'string' && rendererGpu.length > 0, String(rendererGpu));
   const dbBench = await ask('benchmark-database');
   check('System Report database benchmark', !dbBench.error && !!dbBench.result, dbBench.error);
 

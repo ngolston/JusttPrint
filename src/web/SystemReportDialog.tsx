@@ -67,7 +67,13 @@ function serverGpu(info: ServerGpuInfo | null): SectionResult {
   const details = (
     <>
       <div><strong>GL backend:</strong> {backendLabel}</div>
-      {info.activeRenderer && <div><strong>WebGL renderer:</strong> {info.activeRenderer}</div>}
+      {info.activeRenderer && <div><strong>Thumbnail renderer's GPU:</strong> {info.activeRenderer}</div>}
+      {info.workerWebgl?.renderer && (
+        <div className="system-report-indent">
+          {[info.workerWebgl.vendor, info.workerWebgl.webgl2 ? 'WebGL 2' : 'WebGL 1', info.workerWebgl.version,
+            info.workerWebgl.maxTextureSize ? `textures up to ${info.workerWebgl.maxTextureSize} px` : null].filter(Boolean).join(' · ')}
+        </div>
+      )}
       {nvidia?.available && nvidia.gpus ? (
         <>
           <div className="system-report-gap"><strong>nvidia-smi:</strong></div>

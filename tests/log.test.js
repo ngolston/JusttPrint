@@ -40,8 +40,8 @@ test('info hides debug; lines get a time and a level; errors go to stderr', () =
   target.warn('low disk');
   target.error(new Error('boom'));
   assert.strictEqual(target.lines.length, 1);
-  assert.match(target.lines[0], /^\d{4}-\d\d-\d\dT[\d:.]+Z INFO  Server running at http:\/\/0\.0\.0\.0:5000$/);
-  assert.match(target.errors[0], /WARN  low disk$/);
+  assert.match(target.lines[0], /^\d{4}-\d\d-\d\dT[\d:.]+Z INFO {2}Server running at http:\/\/0\.0\.0\.0:5000$/);
+  assert.match(target.errors[0], /WARN {2}low disk$/);
   assert.match(target.errors[1], /ERROR Error: boom/);
 });
 

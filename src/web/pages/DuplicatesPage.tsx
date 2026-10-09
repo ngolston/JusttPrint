@@ -262,7 +262,9 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       // Same geometry: fingerprints first (asked for, like hashes), then the groups.
       if (modeRef.current === 'geometry') {
         setView({ kind: 'loading', text: 'Comparing geometry...' });
-        const found = await dedup.geometryGroups(options.scopeFilters);
+        const zipOn = (await settings.get<string | null>('enableZipArchives').catch(() => null)) === '1';
+        setZipEnabled(zipOn);
+        const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip);
         if (!current()) return;
         if (found.running) {
           setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
@@ -496,7 +498,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
           </label>
           <p className="dedup-scope-summary">
             {mode === 'files' ? 'Byte-for-byte copies of a file.'
-              : 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF only.'}
+              : 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF, also inside ZIP files.'}
           </p>
         </div>
         <div id="dedup-scope-container" className="dedup-scope">

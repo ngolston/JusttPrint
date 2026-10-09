@@ -1,7 +1,7 @@
 'use strict';
 
 const database = require('../../core/database');
-const { app, ipcMain } = require('../runtime');
+const { ipcMain } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
 const { getDatabasePath } = require('../../core/db-path');
@@ -99,7 +99,7 @@ ipcMain.handle('get-stats', async () => {
   }
 });
 
-// System Report: server / Electron-process GPU (client WebGL is detected in the browser)
+// System Report: the server's GPU (nvidia-smi) and the WebGL of its thumbnail renderer (this browser's WebGL is detected in the browser)
 async function collectServerGpuInfo() {
   const { execFile } = require('child_process');
   const { promisify } = require('util');
@@ -116,8 +116,7 @@ async function collectServerGpuInfo() {
     nvidiaVisibleDevices: process.env.NVIDIA_VISIBLE_DEVICES || null,
     nvidiaDriverCapabilities: process.env.NVIDIA_DRIVER_CAPABILITIES || null,
     nvidia: null,
-    electronGpuInfo: null,
-    featureStatus: null,
+    workerWebgl: null,
     activeRenderer: null,
     usingSwiftShader: glBackend === 'swiftshader',
     warnings: [],
@@ -173,40 +172,31 @@ async function collectServerGpuInfo() {
     }
   }
 
-  // Chromium/Electron GPU process view (what thumbnail WebGL actually sees)
+  // The Chromium that renders the server's thumbnails: the GPU it actually uses for WebGL.
   try {
-    if (app.isReady()) {
-      const [gpuInfo, featureStatus] = await Promise.all([
-        app.getGPUInfo('complete').catch(() => app.getGPUInfo('basic')),
-        Promise.resolve().then(() => app.getGPUFeatureStatus())
-      ]);
-      result.electronGpuInfo = gpuInfo || null;
-      result.featureStatus = featureStatus || null;
-
-      const aux = gpuInfo && gpuInfo.auxAttributes ? gpuInfo.auxAttributes : null;
-      const glRenderer = (aux && (aux.glRenderer || aux.gl_renderer)) || null;
-      const gpuDevice = Array.isArray(gpuInfo?.gpuDevice) ? gpuInfo.gpuDevice[0] : null;
-      const deviceString = gpuDevice
-        ? [gpuDevice.vendorString, gpuDevice.deviceString].filter(Boolean).join(' ')
-        : null;
-
-      result.activeRenderer = glRenderer || deviceString || null;
-      if (result.activeRenderer) result.available = true;
-
-      const rendererLower = String(result.activeRenderer || '').toLowerCase();
+    const webgl = await require('../thumbnail-worker').webglInfo();
+    result.workerWebgl = webgl;
+    if (!webgl) {
+      result.warnings.push('The thumbnail renderer (headless Chromium) is not running, so its WebGL could not be checked.');
+    } else if (!webgl.renderer) {
+      result.warnings.push('The thumbnail renderer has no WebGL: server thumbnails cannot be rendered.');
+    } else {
+      result.activeRenderer = webgl.renderer;
+      result.available = true;
+      const rendererLower = webgl.renderer.toLowerCase();
       if (rendererLower.includes('swiftshader') || rendererLower.includes('llvmpipe')) {
         result.usingSwiftShader = true;
         if (result.nvidia?.available) {
           result.warnings.push(
-            'Host NVIDIA GPU is visible, but Electron WebGL is still on software rendering (SwiftShader/llvmpipe). Check JUSTTPRINT_GL_BACKEND and NVIDIA_DRIVER_CAPABILITIES=graphics.'
+            'Host NVIDIA GPU is visible, but the thumbnail renderer is still on software rendering (SwiftShader/llvmpipe). Check JUSTTPRINT_GL_BACKEND and NVIDIA_DRIVER_CAPABILITIES=graphics.'
           );
         }
-      } else if (result.activeRenderer && glBackend === 'nvidia') {
+      } else {
         result.usingSwiftShader = false;
       }
     }
-  } catch (electronGpuErr) {
-    result.warnings.push(`Electron GPU info unavailable: ${electronGpuErr.message || electronGpuErr}`);
+  } catch (webglError) {
+    result.warnings.push(`The thumbnail renderer's WebGL could not be read: ${webglError.message || webglError}`);
   }
 
   if (glBackend === 'swiftshader') {
