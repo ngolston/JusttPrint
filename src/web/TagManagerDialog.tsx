@@ -3,6 +3,7 @@ import { tags as tagApi, type Tag } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, refreshAfterTagManagerClose } from './page';
 import { createTag, deleteTag, renameTag } from './tags/manage';
+import { lastUndoId, onUndoChange, undoLast, type UndoEntry } from './library/undo';
 
 declare global {
   interface Window {
@@ -22,6 +23,17 @@ export function TagManagerDialog() {
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
   const changed = useRef(false);
+  // The newest tag change made while the dialog is open, to undo here (the page's notice is behind the dialog).
+  const [lastChange, setLastChange] = useState<UndoEntry | null>(null);
+  const openedAt = useRef(0);
+
+  useEffect(
+    () =>
+      onUndoChange((latest) => {
+        setLastChange(latest && latest.kind === 'tag' && latest.id > openedAt.current ? latest : null);
+      }),
+    []
+  );
 
   async function load() {
     try {
@@ -41,6 +53,8 @@ export function TagManagerDialog() {
     const cleanups = [
       exposeGlobal('openTagManager', () => {
         changed.current = false;
+        openedAt.current = lastUndoId();
+        setLastChange(null);
         setSearch('');
         setNewName('');
         setAllTags([]);
@@ -107,6 +121,25 @@ export function TagManagerDialog() {
           </button>
         </div>
       </div>
+      {lastChange && (
+        <div className="tag-manager-undo" role="status">
+          <span>{lastChange.label}</span>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            id="tag-manager-undo"
+            onClick={async () => {
+              const label = await undoLast(lastChange.id);
+              if (label) {
+                changed.current = true;
+                await load();
+              }
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
       <div className="form-group tag-manager-existing-group">
         <label htmlFor="tag-manager-search">Existing Tags</label>
         <p className="tag-manager-hint">Click a tag to rename it. Clear the name and press Enter to delete.</p>

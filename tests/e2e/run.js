@@ -620,6 +620,51 @@ async function apiChecks(base, wsUrl) {
     check('tag deleted', !((await ask('get-all-tags')).result || []).some((t) => t.id === tag.id));
   }
 
+  // Undo of a tag merge and a tag delete (restore-tag; the Tag Manager and the Tags page use it).
+  const tagsOf = async (p) => ((await ask('get-model', [p])).result || {}).tags || [];
+  const cubeTagsBefore = await tagsOf(cube);
+  const boxTagsBefore = await tagsOf(box);
+  await ask('update-models-batch', [
+    [
+      { filePath: cube, tags: [...cubeTagsBefore, 'e2e-undo-from'] },
+      { filePath: box, tags: [...boxTagsBefore, 'e2e-undo-from', 'e2e-undo-into'] }
+    ]
+  ]);
+  const tagNamed = async (name) => ((await ask('get-all-tags')).result || []).find((t) => t.name.toLowerCase() === name.toLowerCase());
+  const fromTag = await tagNamed('e2e-undo-from');
+  const merge = fromTag ? (await ask('rename-tag', [fromTag.id, 'E2E-UNDO-INTO'])).result || {} : {};
+  check(
+    'a tag merge says how to undo it',
+    merge.merged === true && merge.undo && merge.undo.modelIds.length === 2 && merge.undo.addedModelIds.length === 1,
+    JSON.stringify(merge)
+  );
+  if (merge.undo) await ask('restore-tag', [merge.undo]);
+  const cubeAfterUndo = await tagsOf(cube);
+  const boxAfterUndo = await tagsOf(box);
+  check(
+    'undoing a merge splits the tags again',
+    cubeAfterUndo.includes('e2e-undo-from') &&
+      !cubeAfterUndo.some((t) => /e2e-undo-into/i.test(t)) &&
+      boxAfterUndo.includes('e2e-undo-from') &&
+      boxAfterUndo.includes('e2e-undo-into'),
+    JSON.stringify({ cubeAfterUndo, boxAfterUndo })
+  );
+  const intoTag = await tagNamed('e2e-undo-into');
+  const deletedTag = intoTag ? (await ask('delete-tag', [intoTag.id])).result || {} : {};
+  check('a tag delete says which models had it', deletedTag.name === 'e2e-undo-into' && (deletedTag.modelIds || []).length === 1, JSON.stringify(deletedTag));
+  if (deletedTag.name) await ask('restore-tag', [{ name: deletedTag.name, modelIds: deletedTag.modelIds }]);
+  check('undoing a delete puts the tag back on its models', (await tagsOf(box)).includes('e2e-undo-into'));
+  await ask('update-models-batch', [
+    [
+      { filePath: cube, tags: cubeTagsBefore },
+      { filePath: box, tags: boxTagsBefore }
+    ]
+  ]);
+  for (const name of ['e2e-undo-from', 'e2e-undo-into']) {
+    const leftover = await tagNamed(name);
+    if (leftover) await ask('delete-tag', [leftover.id]);
+  }
+
   const cubeHash = (await ask('calculate-file-hash', [cube])).result;
   const expectedHash = require('crypto').createHash('md5').update(fs.readFileSync(cube)).digest('hex');
   check('file hash is the MD5 of the file', cubeHash === expectedHash, `${cubeHash} vs ${expectedHash}`);
@@ -2248,6 +2293,15 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { state: 'detached', timeout: 10000 }).catch(() => {});
       const merged = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n));
       check('merge leaves one tag', merged.length === 1, JSON.stringify(merged));
+      // The dialog's own Undo line (the page's Undo notice is behind the dialog).
+      const undoMerge = await page.waitForSelector('#tag-manager-undo', { timeout: 5000 }).catch(() => null);
+      check('Tag Manager offers to undo the merge', !!undoMerge && /Merged the tag "e2e-merge-source"/.test(await page.textContent('.tag-manager-undo')));
+      if (undoMerge) {
+        await undoMerge.click();
+        await page.waitForSelector('#tag-manager-list .tag[data-tag-name="e2e-merge-source"]', { timeout: 10000 }).catch(() => {});
+        const split = (await serverTagNames()).filter((n) => /e2e-merge/i.test(n)).sort();
+        check('Undo in the Tag Manager splits the merged tags', split.join() === 'e2e-merge-source,e2e-merge-target', JSON.stringify(split));
+      }
     }
     await page.click('#tag-manager-dialog .dialog-buttons button');
     check('Tag Manager closes', !(await page.isVisible('#tag-manager-dialog')));

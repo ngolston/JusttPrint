@@ -299,10 +299,22 @@ export interface Tag {
 export const tags = {
   list: () => callAction<Tag[]>('get-all-tags'),
   create: (name: string) => callAction<{ id: number; name: string }>('save-tag', name),
-  /** Renaming onto an existing name merges the two tags. */
-  rename: (id: number, newName: string) => callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
-  remove: (id: number) => callAction<boolean>('delete-tag', id)
+  /** Renaming onto an existing name merges the two tags (`undo` says how to split them again). */
+  rename: (id: number, newName: string) =>
+    callAction<{ success: boolean; id: number; name: string; merged: boolean; undo?: TagRestore }>('rename-tag', id, newName),
+  remove: (id: number) => callAction<{ success: boolean; name: string | null; modelIds: number[] }>('delete-tag', id),
+  /** Undo of a delete or merge: the tag comes back on its models. */
+  restore: (request: TagRestore) => callAction<{ id: number; name: string; linked: number }>('restore-tag', request)
 };
+
+/** What restore-tag puts back: the tag `name` on `modelIds`; after a merge, also splits it from `intoId`. */
+export interface TagRestore {
+  name: string;
+  modelIds: number[];
+  intoId?: number;
+  intoName?: string;
+  addedModelIds?: number[];
+}
 
 export interface Part {
   id: number;

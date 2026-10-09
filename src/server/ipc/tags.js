@@ -35,8 +35,23 @@ function renameTagForMcp(args) {
   }
   const existing = database.db.prepare('SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE').get(newName);
   if (existing && existing.id !== tag.id) {
+    /** @type {{ name: string, modelIds: number[], intoId: number, intoName: string, addedModelIds: number[] }} */
+    let undo = null;
     database.db.transaction(() => {
       const rows = database.db.prepare('SELECT model_id FROM model_tags WHERE tag_id = ?').all(tag.id);
+      const had = new Set(
+        database.db
+          .prepare('SELECT model_id FROM model_tags WHERE tag_id = ?')
+          .all(existing.id)
+          .map((row) => row.model_id)
+      );
+      undo = {
+        name: tag.name,
+        modelIds: rows.map((row) => row.model_id),
+        intoId: existing.id,
+        intoName: existing.name,
+        addedModelIds: rows.map((row) => row.model_id).filter((id) => !had.has(id))
+      };
       const insert = database.db.prepare('INSERT OR IGNORE INTO model_tags (model_id, tag_id) VALUES (?, ?)');
       for (const row of rows) insert.run(row.model_id, existing.id);
       database.db.prepare('DELETE FROM model_tags WHERE tag_id = ?').run(tag.id);
@@ -45,7 +60,8 @@ function renameTagForMcp(args) {
         database.db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(newName, existing.id);
       }
     })();
-    return { success: true, id: existing.id, name: newName, merged: true, deletedId: tag.id };
+    // `undo`: what restore-tag needs to split the tags again.
+    return { success: true, id: existing.id, name: newName, merged: true, deletedId: tag.id, undo };
   }
   database.db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(newName, tag.id);
   return { success: true, id: tag.id, name: newName, merged: false };
@@ -99,16 +115,22 @@ async function renameTagHandler(event, tagId, newName) {
 
 ipcMain.handle('rename-tag', renameTagHandler);
 
+/** Delete a tag and unlink it. Answers { success, name, modelIds } (what restore-tag needs to undo it). */
 async function deleteTagHandler(event, tagId) {
   try {
     return database.db.transaction(() => {
+      const tag = database.db.prepare('SELECT name FROM tags WHERE id = ?').get(tagId);
+      const modelIds = database.db
+        .prepare('SELECT model_id FROM model_tags WHERE tag_id = ?')
+        .all(tagId)
+        .map((row) => row.model_id);
       // First delete from model_tags (child table)
       database.db.prepare('DELETE FROM model_tags WHERE tag_id = ?').run(tagId);
 
       // Then delete the tag itself
       database.db.prepare('DELETE FROM tags WHERE id = ?').run(tagId);
 
-      return true;
+      return { success: true, name: tag ? tag.name : null, modelIds };
     })();
   } catch (error) {
     console.error('Error deleting tag:', error);
@@ -117,6 +139,37 @@ async function deleteTagHandler(event, tagId) {
 }
 
 ipcMain.handle('delete-tag', deleteTagHandler);
+
+/**
+ * Undo of a tag delete or merge (Tag Manager, Tags page): the tag `name` comes back on the models
+ * in `modelIds` that still exist. After a merge (`intoId`), the tag it went into leaves the models
+ * that only had it from the merge (`addedModelIds`) and gets its old name (`intoName`) back.
+ */
+async function restoreTagHandler(event, request) {
+  const name = String((request && request.name) || '').trim();
+  if (!name) throw new Error('The tag name is missing');
+  const ids = (list) => (Array.isArray(list) ? list.map(Number).filter((id) => Number.isInteger(id) && id > 0) : []);
+  const db = database.db;
+  return db.transaction(() => {
+    const intoId = Number(request.intoId) || null;
+    if (intoId) {
+      const remove = db.prepare('DELETE FROM model_tags WHERE model_id = ? AND tag_id = ?');
+      for (const id of ids(request.addedModelIds)) remove.run(id, intoId);
+      const intoName = String(request.intoName || '').trim();
+      if (intoName && !db.prepare('SELECT 1 FROM tags WHERE name = ? AND id != ?').get(intoName, intoId)) {
+        db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(intoName, intoId);
+      }
+    }
+    db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)').run(name);
+    const tag = db.prepare('SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE').get(name);
+    const link = db.prepare('INSERT OR IGNORE INTO model_tags (model_id, tag_id) SELECT id, ? FROM models WHERE id = ?');
+    let linked = 0;
+    for (const id of ids(request.modelIds)) linked += link.run(tag.id, id).changes;
+    return { id: tag.id, name: tag.name, linked };
+  })();
+}
+
+ipcMain.handle('restore-tag', restoreTagHandler);
 
 // Update the handler name to match the convention
 async function getModelTagsHandler(event, modelId) {
