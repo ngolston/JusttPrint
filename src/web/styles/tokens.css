@@ -1,8 +1,12 @@
 /*
  * JusttPrint 5 design tokens (docs/redesign-5.md, spec §2, §4, §32, §33). Components use only
- * these. Colors are semantic, so a light theme can redefine them without touching components.
+ * these. Colors are semantic: the light theme (:root[data-color-scheme='light'], below) redefines
+ * them without touching components. The *-rgb channels are for translucent tints:
+ * rgba(var(--jp-overlay-rgb), 0.08) is a white veil on dark and a slate one on light.
  */
 :root {
+  color-scheme: dark;
+
   /* Surfaces: layered graphite, never pure black. */
   --jp-bg: #081017;
   --jp-bg-2: #0b141d;
@@ -76,6 +80,63 @@
   --jp-focus-ring: 0 0 0 2px var(--jp-bg), 0 0 0 4px var(--jp-accent);
 
   --jp-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Channels for translucent tints (rgba(var(--jp-…-rgb), alpha)). */
+  --jp-overlay-rgb: 255, 255, 255;
+  --jp-accent-rgb: 8, 185, 241;
+  --jp-success-rgb: 33, 201, 107;
+  --jp-warning-rgb: 245, 184, 46;
+  --jp-danger-rgb: 244, 100, 104;
+  --jp-surface-1-rgb: 14, 24, 33;
+  --jp-bg-rgb: 8, 16, 23;
+  /* Darkening wells and panels: full strength on dark, a light touch on light. */
+  --jp-shade-rgb: 0, 0, 0;
+  --jp-shade-strength: 1;
+}
+
+/* Light theme (Settings → Appearance → Color scheme). Same roles, light values. */
+:root[data-color-scheme='light'] {
+  color-scheme: light;
+  --jp-bg: #f2f5f8;
+  --jp-bg-2: #e9eef2;
+  --jp-sidebar: #f7f9fb;
+  --jp-surface-1: #ffffff;
+  --jp-surface-2: #f3f6f9;
+  --jp-surface-hover: #e4ebf1;
+  --jp-preview-bg: #e1e8ee;
+  --jp-border: #d3dce4;
+  --jp-border-strong: #b2bfca;
+
+  --jp-text: #0d1821;
+  --jp-text-2: #3c4a56;
+  --jp-text-3: #536270;
+
+  --jp-accent: #0369a1;
+  --jp-accent-hover: #075985;
+  --jp-accent-soft: rgba(3, 105, 161, 0.1);
+  --jp-accent-border: rgba(3, 105, 161, 0.4);
+  --jp-on-accent: #ffffff;
+
+  --jp-success: #137337;
+  --jp-success-soft: rgba(19, 115, 55, 0.1);
+  --jp-warning: #8a5300;
+  --jp-warning-soft: rgba(138, 83, 0, 0.1);
+  --jp-danger: #c0262d;
+  --jp-danger-soft: rgba(192, 38, 45, 0.1);
+  --jp-neutral: #5b6773;
+  --jp-neutral-soft: rgba(91, 103, 115, 0.12);
+
+  --jp-shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.16);
+
+  --jp-overlay-rgb: 15, 23, 42;
+  --jp-accent-rgb: 3, 105, 161;
+  --jp-success-rgb: 19, 115, 55;
+  --jp-warning-rgb: 138, 83, 0;
+  --jp-danger-rgb: 192, 38, 45;
+  --jp-surface-1-rgb: 255, 255, 255;
+  --jp-bg-rgb: 242, 245, 248;
+  --jp-shade-rgb: 15, 23, 42;
+  --jp-shade-strength: 0.2;
 }
 
 @media (prefers-reduced-motion: reduce) {

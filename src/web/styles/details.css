@@ -87,7 +87,7 @@ body.jp-shell-on #model-details .details-name-field {
   height: 32px;
   padding: 0 var(--jp-space-2);
   border-radius: var(--jp-radius-md);
-  background: rgba(8, 16, 23, 0.65);
+  background: rgba(var(--jp-bg-rgb), 0.65);
   color: var(--jp-text);
   font: 600 var(--jp-text-small) var(--jp-font);
   cursor: pointer;
@@ -96,7 +96,7 @@ body.jp-shell-on #model-details .details-name-field {
     color var(--jp-transition);
 }
 #model-details .jp-details__overlay-btn:hover {
-  background: rgba(8, 16, 23, 0.9);
+  background: rgba(var(--jp-bg-rgb), 0.9);
 }
 #model-details .jp-details__overlay-btn:focus-visible {
   box-shadow: var(--jp-focus-ring);

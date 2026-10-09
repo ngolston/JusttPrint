@@ -5,6 +5,7 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Changes:**
+- **Light theme:** **Settings → Appearance → Theme → Color Scheme** offers Dark, Light, or Match the system (follows your computer, and switches when it does). Each person picks their own. Every page and dialog follows it, the accent colors have darker shades on light so text stays readable (checked against WCAG AA), and the page opens in the chosen scheme without a dark flash.
 - **Printer Manager and Parts Manager redrawn** in the JusttPrint 5 style: tabs with counts, labelled fields in two columns, rows with clear actions and icons instead of emoji, status badges for due reminders and low stock. Nothing changed in what they do. Their old stylesheets (about 1,600 lines) are gone.
 - **Fixed:** a file-type filter for a type added under **Settings → Scanning → File Types** (not one of the built-in ones) made the library list fail; it now shows the files with that extension, as the search box already did.
 - **Development:** the server's type check (`npm run typecheck:server`) is strict: values that may be missing (null) must be checked before use. Two parts stay off, since they would only ask for annotations on older code: parameters without a type, and `catch` variables. Also fixed on the way: a broadcast to browsers right after the server stopped could throw.

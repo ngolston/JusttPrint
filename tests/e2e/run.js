@@ -3878,6 +3878,37 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       );
     check('the saved theme is applied when the page loads', themed);
+
+    // Light color scheme (tokens.css, startup/theme.ts): the page turns light, the accent takes its light shade.
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Theme settings offers the color scheme, dark to start', (await page.inputValue('#ui-color-scheme')) === 'dark');
+    await page.selectOption('#ui-color-scheme', 'light');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const lightLook = () =>
+      page.evaluate(() => ({
+        scheme: document.documentElement.getAttribute('data-color-scheme'),
+        background: getComputedStyle(document.body).backgroundColor,
+        accent: document.documentElement.style.getPropertyValue('--jp-accent').trim()
+      }));
+    const isLight = (look) => look.scheme === 'light' && /rgb\((2[0-9]{2}), (2[0-9]{2}), (2[0-9]{2})\)/.test(look.background) && look.accent === '#7c3aed';
+    let look = await lightLook();
+    check(
+      'choosing Light turns the page light, with the light shade of the accent',
+      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'light' && isLight(look),
+      JSON.stringify(look)
+    );
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const lightFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
+    await page
+      .waitForFunction(() => document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#7c3aed', null, { timeout: 15000 })
+      .catch(() => {});
+    look = await lightLook();
+    check('the light scheme is there from the first paint after a reload', lightFirst === 'light' && isLight(look), JSON.stringify({ lightFirst, look }));
+    await invoke(base, session, 'save-setting', ['uiColorScheme', 'dark']);
+    await page.evaluate(() => window.applyColorScheme?.('dark'));
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
 
@@ -4516,7 +4547,9 @@ async function accountChecks(base, wsUrl, admin) {
   check(
     'everyone picks their own color scheme',
     (await invoke(base, viewer, 'save-setting', ['uiTheme', 'modern-green'])).result === true &&
-      (await invoke(base, editor, 'get-setting', ['uiTheme'])).result !== 'modern-green'
+      (await invoke(base, editor, 'get-setting', ['uiTheme'])).result !== 'modern-green' &&
+      (await invoke(base, viewer, 'save-setting', ['uiColorScheme', 'light'])).result === true &&
+      (await invoke(base, editor, 'get-setting', ['uiColorScheme'])).result !== 'light'
   );
   check('thumbnail colors stay for admins', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['renderColor', '#ff0000'])).error || ''));
 

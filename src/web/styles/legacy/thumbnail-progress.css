@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(14, 24, 33, 0.72);
+  background: rgba(var(--jp-surface-1-rgb), 0.72);
   backdrop-filter: blur(4px);
   opacity: 1;
   transition: opacity 0.2s ease;
@@ -22,7 +22,7 @@
   padding: 24px 26px 20px;
   border-radius: 16px;
   background: var(--jp-surface-2);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   color: var(--jp-text);
   text-align: center;
@@ -44,8 +44,8 @@
 .tp-track {
   height: 14px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--jp-shade-rgb), calc(0.45 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.08);
   overflow: hidden;
 }
 
@@ -121,17 +121,17 @@
 .tp-cancel:hover:not(:disabled) {
   transform: translateY(-1px);
   background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
-  box-shadow: 0 6px 18px rgba(244, 100, 104, 0.35);
+  box-shadow: 0 6px 18px rgba(var(--jp-danger-rgb), 0.35);
 }
 
 .tp-background {
   background: linear-gradient(135deg, var(--jp-surface-2) 0%, var(--jp-surface-2) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.14);
 }
 
 .tp-background:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #5a6578 0%, var(--jp-surface-2) 100%);
+  background: var(--jp-surface-hover);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 

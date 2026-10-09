@@ -35,7 +35,7 @@ function FileTypePie({ slices }: { slices: Slice[] }) {
     <div className="chart-container-small stats-pie">
       <svg viewBox="0 0 100 100" role="img" aria-label="Models by file type">
         {total === 0 ? (
-          <circle cx="50" cy="50" r="48" fill="rgba(255, 255, 255, 0.08)" />
+          <circle cx="50" cy="50" r="48" style={{ fill: 'rgba(var(--jp-overlay-rgb), 0.08)' }} />
         ) : (
           slices.map((slice, index) => {
             const share = slice.count / total;

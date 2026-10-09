@@ -5,7 +5,7 @@ import { COLUMNS, applyColumns, columnActions, getColumnLayout, subscribeColumns
 
 const ICONS: Partial<Record<ColumnId, { d: string; fill: string }>> = {
   directory: {
-    fill: '#aaa',
+    fill: 'var(--jp-text-2)',
     d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z'
   },
   designer: {
@@ -13,11 +13,11 @@ const ICONS: Partial<Record<ColumnId, { d: string; fill: string }>> = {
     d: 'm352-522 86-87-56-57-44 44-56-56 43-44-45-45-87 87 159 158Zm328 329 87-87-45-45-44 43-56-56 43-44-57-56-86 86 158 159Zm24-567 57 57-57-57ZM290-120H120v-170l175-175L80-680l200-200 216 216 151-152q12-12 27-18t31-6q16 0 31 6t27 18l53 54q12 12 18 27t6 31q0 16-6 30.5T816-647L665-495l215 215L680-80 465-295 290-120Zm-90-80h56l392-391-57-57-391 392v56Zm420-419-29-29 57 57-28-28Z'
   },
   tags: {
-    fill: '#aaa',
+    fill: 'var(--jp-text-2)',
     d: 'M240-120q-33 0-56.5-23.5T160-200v-480q0-33 23.5-56.5T240-760h120l80 80h320q33 0 56.5 23.5T820-600v400q0 33-23.5 56.5T740-120H240Zm0-80h500v-400H447l-80-80H240v480Zm0 0v-480 480Zm280-240q17 0 28.5-11.5T560-480q0-17-11.5-28.5T520-520q-17 0-28.5 11.5T480-480q0 17 11.5 28.5T520-440Zm-160 0q17 0 28.5-11.5T400-480q0-17-11.5-28.5T360-520q-17 0-28.5 11.5T320-480q0 17 11.5 28.5T360-440Zm320 0q17 0 28.5-11.5T720-480q0-17-11.5-28.5T680-520q-17 0-28.5 11.5T640-480q0 17 11.5 28.5T680-440ZM520-280q17 0 28.5-11.5T560-320q0-17-11.5-28.5T520-360q-17 0-28.5 11.5T480-320q0 17 11.5 28.5T520-280Zm-160 0q17 0 28.5-11.5T400-320q0-17-11.5-28.5T360-360q-17 0-28.5 11.5T320-320q0 17 11.5 28.5T360-280Zm320 0q17 0 28.5-11.5T720-320q0-17-11.5-28.5T680-360q-17 0-28.5 11.5T640-320q0 17 11.5 28.5T680-280Z'
   },
   archive: {
-    fill: '#aaa',
+    fill: 'var(--jp-text-2)',
     d: 'M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80ZM447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z'
   }
 };
@@ -26,7 +26,7 @@ function Icon({ id }: { id: ColumnId }) {
   const icon = ICONS[id];
   if (!icon) return null;
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" height="16px" width="16px" viewBox="0 -960 960 960" fill={icon.fill} style={{ flexShrink: 0 }} aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" height="16px" width="16px" viewBox="0 -960 960 960" style={{ flexShrink: 0, fill: icon.fill }} aria-hidden="true">
       <path d={icon.d} />
     </svg>
   );
@@ -145,7 +145,7 @@ export function ListHeader() {
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
-                    color: active ? '#fff' : '#aaa'
+                    color: active ? 'var(--jp-text)' : 'var(--jp-text-2)'
                   }}
                   onClick={() => sortBy(col.sortKey!)}
                 >
@@ -159,7 +159,7 @@ export function ListHeader() {
                   </span>
                 </div>
               ) : (
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginLeft: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--jp-text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginLeft: 6 }}>
                   {col.label}
                 </span>
               )}

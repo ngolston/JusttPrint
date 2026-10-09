@@ -54,7 +54,7 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(8, 16, 23, 0.8);
+  background: rgba(var(--jp-bg-rgb), 0.8);
 }
 
 .jp-collect {

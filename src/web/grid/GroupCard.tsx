@@ -298,7 +298,17 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
 
   const cell = (col: string, className: string, text: string, title?: string) => (
     <div className={className} data-list-col={col} title={title}>
-      <span style={{ fontSize: 12, color: text === '—' ? '#666' : '#aaa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+      <span
+        style={{
+          fontSize: 12,
+          color: text === '—' ? 'var(--jp-text-3)' : 'var(--jp-text-2)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {text}
+      </span>
     </div>
   );
 

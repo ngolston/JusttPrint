@@ -12,6 +12,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 
 - **A home for your printing**: Home shows your figures, recent prints and printers; the Library has tabs for Printed, Unprinted, Queue and Favorites
 - **Print queue and printers** pages: what is printing and up next, and your printers with their web pages and maintenance reminders
+- **Light or dark**: each person picks a dark or light look, or follows their computer's setting, and an accent color
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets, finger-sized controls on touch screens, and **Install App** for the home screen (Android and desktop need HTTPS)
 - **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered by the JusttPrint backend; large pictures show as small copies in the grid, and the originals are kept
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection

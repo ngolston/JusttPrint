@@ -677,7 +677,7 @@ export function PreviewDialog() {
             >
               <div id="preview-loading" className="preview-loading" style={{ display: loading ? 'flex' : 'none' }}>
                 {loading && 'error' in loading ? (
-                  <div style={{ color: '#ff6b6b', textAlign: 'center', padding: 20, maxWidth: 500 }}>
+                  <div style={{ color: 'var(--jp-danger)', textAlign: 'center', padding: 20, maxWidth: 500 }}>
                     <p style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{loading.title}</p>
                     <p style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{loading.error}</p>
                     <button
@@ -686,8 +686,8 @@ export function PreviewDialog() {
                       style={{
                         marginTop: 20,
                         padding: '10px 20px',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'rgba(var(--jp-overlay-rgb), 0.1)',
+                        border: '1px solid rgba(var(--jp-overlay-rgb), 0.2)',
                         borderRadius: 8,
                         color: 'white',
                         cursor: 'pointer',

@@ -95,7 +95,7 @@ button.jp-tag__label:hover,
 .jp-btn--danger {
   background: var(--jp-danger-soft);
   color: var(--jp-danger);
-  border-color: rgba(239, 79, 85, 0.35);
+  border-color: rgba(var(--jp-danger-rgb), 0.35);
 }
 .jp-btn--danger:hover:not(:disabled) {
   background: var(--jp-danger);
@@ -285,7 +285,7 @@ button.jp-tag__label:hover {
   padding: var(--jp-space-3) var(--jp-space-4);
   border: 1px solid var(--jp-border);
   border-radius: var(--jp-radius-lg);
-  background: rgba(14, 24, 33, 0.72);
+  background: rgba(var(--jp-surface-1-rgb), 0.72);
   color: var(--jp-text);
   font: inherit;
   text-align: left;
@@ -344,6 +344,10 @@ button.jp-tag__label:hover {
 .jp-tone--violet {
   background: rgba(139, 120, 255, 0.16);
   color: #9d8cff;
+}
+:root[data-color-scheme='light'] .jp-tone--violet {
+  background: rgba(109, 40, 217, 0.1);
+  color: #6d28d9;
 }
 
 /* Progress */

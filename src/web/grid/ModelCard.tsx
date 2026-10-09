@@ -398,7 +398,7 @@ const DESIGNER_ICON =
 function Icon({ path, fill }: { path: string; fill: string }) {
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, flexShrink: 0, marginRight: 6 }}>
-      <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill={fill}>
+      <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" style={{ fill }}>
         <path d={path} />
       </svg>
     </div>
@@ -626,21 +626,21 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             className={`file-name${zipFile ? ' zip-file' : ''}`}
             data-list-col="name"
             title={name}
-            ref={importantColor(zipFile ? '#4ade80' : '#fff')}
+            ref={importantColor(zipFile ? 'var(--jp-success)' : 'var(--jp-text)')}
             style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
           >
             {name}
           </div>
           <div className="file-size-column" data-list-col="size" style={{ ...column, justifyContent: 'center' }}>
-            {!!model.size && <span style={{ fontSize: 12, color: '#aaa', fontFamily: 'monospace' }}>{host.formatSize(Number(model.size))}</span>}
+            {!!model.size && <span style={{ fontSize: 12, color: 'var(--jp-text-2)', fontFamily: 'monospace' }}>{host.formatSize(Number(model.size))}</span>}
           </div>
           <div className="date-added-column" data-list-col="dateadded" style={{ ...column, justifyContent: 'center' }}>
             {added ? (
-              <span title={added.toLocaleString()} style={{ fontSize: 12, color: '#aaa', fontFamily: 'monospace' }}>
+              <span title={added.toLocaleString()} style={{ fontSize: 12, color: 'var(--jp-text-2)', fontFamily: 'monospace' }}>
                 {added.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
               </span>
             ) : (
-              <span style={{ fontSize: 12, color: '#666' }}>—</span>
+              <span style={{ fontSize: 12, color: 'var(--jp-text-3)' }}>—</span>
             )}
           </div>
           <div
@@ -657,13 +657,13 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
                 : undefined
             }
           >
-            <Icon path={zipEntry ? ARCHIVE_ICON : FOLDER_ICON} fill={zipEntry ? '#22c55e' : '#e3e3e3'} />
+            <Icon path={zipEntry ? ARCHIVE_ICON : FOLDER_ICON} fill={zipEntry ? 'var(--jp-success)' : 'var(--jp-text-2)'} />
             <span
               className="directory-info"
               title={directory ? host.directoryFullPath(model.filePath) || directory : undefined}
               style={{
                 ...small,
-                color: directory ? '#4a9eff' : '#888',
+                color: directory ? 'var(--jp-accent)' : 'var(--jp-text-3)',
                 cursor: directory ? 'pointer' : 'default',
                 fontWeight: directory ? 500 : 400,
                 flex: 1,
@@ -675,12 +675,20 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
           </div>
           <div className="designer-info-column" data-list-col="designer" style={{ ...column, overflow: 'hidden' }}>
             <Icon path={DESIGNER_ICON} fill="#a855f7" />
-            <span className="designer-info" title={designer || undefined} style={{ ...small, color: designer ? '#aaa' : '#666', flex: 1, minWidth: 0 }}>
+            <span
+              className="designer-info"
+              title={designer || undefined}
+              style={{ ...small, color: designer ? 'var(--jp-text-2)' : 'var(--jp-text-3)', flex: 1, minWidth: 0 }}
+            >
               {model.designer ? String(model.designer) : ''}
             </span>
           </div>
           <div className="parent-model-column" data-list-col="parentmodel" style={{ ...column, overflow: 'hidden' }}>
-            <span className="parent-model-info" title={parentModel || undefined} style={{ ...small, color: parentModel ? '#aaa' : '#666' }}>
+            <span
+              className="parent-model-info"
+              title={parentModel || undefined}
+              style={{ ...small, color: parentModel ? 'var(--jp-text-2)' : 'var(--jp-text-3)' }}
+            >
               {model.parentModel ? String(model.parentModel) : ''}
             </span>
           </div>
@@ -688,14 +696,18 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             <PrintBadge host={host} model={model} style={badgeStyle} />
           </div>
           <div className="tags-info-column" data-list-col="tags" style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-            <span className="tags-info" title={tags?.length ? tags.join(', ') : undefined} style={{ ...small, color: tags?.length ? '#aaa' : '#666' }}>
+            <span
+              className="tags-info"
+              title={tags?.length ? tags.join(', ') : undefined}
+              style={{ ...small, color: tags?.length ? 'var(--jp-text-2)' : 'var(--jp-text-3)' }}
+            >
               {tags?.length ? <TagLinks host={host} names={tags} /> : '—'}
             </span>
           </div>
           <div className="archive-status-column" data-list-col="archive" style={{ ...column, justifyContent: 'center', gap: 6 }}>
             {zipEntry && (
               <>
-                <Icon path={ARCHIVE_ICON} fill="#e3e3e3" />
+                <Icon path={ARCHIVE_ICON} fill="var(--jp-text-2)" />
                 <div className="archive-status" style={badgeStyle}>
                   Archive
                 </div>
