@@ -20,7 +20,13 @@ parentPort.on('message', async ({ id, filePath }) => {
     const [zipPath, entryPath] = filePath.includes('::') ? filePath.split('::') : [filePath, null];
     const buffer = entryPath ? await extractZipEntryBuffer(zipPath, entryPath) : await fs.promises.readFile(filePath);
     const result = geometrySignature(buffer, path.extname(entryPath || filePath));
-    parentPort.postMessage({ id, ok: true, result: result ? { signature: result.signature, triangles: result.triangles } : null });
+    parentPort.postMessage({
+      id,
+      ok: true,
+      result: result
+        ? { signature: result.signature, triangles: result.triangles, volume: result.volume, spreads: result.spreads, hand: result.hand, shape: result.shape }
+        : null
+    });
   } catch (error) {
     parentPort.postMessage({ id, ok: false, error: error && error.message ? error.message : String(error) });
   }

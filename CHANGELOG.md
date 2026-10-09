@@ -2,9 +2,12 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.13.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. Everyone starts on the Dark color scheme, as before. The first search for **Same shape, any resolution** reads your STL and 3MF files once more (new measurements are kept). The database gets two small tables for notifications.
 
 **Changes:**
+- **Duplicates: Same shape, any resolution.** A third **Find** mode groups the same design exported with more or fewer triangles (a smooth and a coarse STL), which **Same geometry** misses. It compares volume, the spread along the model's own axes, its handedness and a histogram of the surface's distance from its centre, all within small margins tested on spheres, tori, cylinders, cones and a bracket meshed from very coarse to very fine; a part 5% taller, a mirrored part or a different shape of the same volume are not matched. A part only a few percent bigger can still look the same, so the page says to check before deleting. Models compared before this version are read once more the next time you search.
 - **Notifications:** a bell in the top bar with an unread count. It collects what finished or went wrong in the background: new models from scans and folder watching (one notification per batch), thumbnail jobs someone started, AI tagging of several models, the same-geometry search, printer maintenance that is due or overdue, failed automatic backups and a thumbnail renderer that will not start. Each person sees what their role may (maintenance and jobs for editors, backups for admins, none for guests) and has their own read state across browsers. The newest 200 are kept for 30 days.
 - **Light theme:** **Settings → Appearance → Theme → Color Scheme** offers Dark, Light, or Match the system (follows your computer, and switches when it does). Each person picks their own. Every page and dialog follows it, the accent colors have darker shades on light so text stays readable (checked against WCAG AA), and the page opens in the chosen scheme without a dark flash.
 - **Printer Manager and Parts Manager redrawn** in the JusttPrint 5 style: tabs with counts, labelled fields in two columns, rows with clear actions and icons instead of emoji, status badges for due reminders and low stock. Nothing changed in what they do. Their old stylesheets (about 1,600 lines) are gone.

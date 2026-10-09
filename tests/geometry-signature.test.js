@@ -2,7 +2,7 @@
 
 const assert = require('assert');
 const { zipSync, strToU8 } = require('fflate');
-const { eigenSymmetric, geometrySignature, stlSignature, threeMfSignature } = require('../src/core/geometry-signature');
+const { eigenSymmetric, geometrySignature, similarShape, stlSignature, threeMfSignature } = require('../src/core/geometry-signature');
 
 // A lopsided solid with no mirror symmetry: two tetrahedra of different shapes, apart.
 const SHAPE = [
@@ -118,5 +118,37 @@ assert.deepStrictEqual(
   eig.map((e) => Math.round(e.value)),
   [5, 2, 1]
 );
+
+// Same shape, any resolution (similarShape): a cylinder meshed with 24 or 256 sides is one design;
+// one 5% taller, one with a cone's taper, a mirrored part and a different shape are not.
+function meshStl(list) {
+  const buf = Buffer.alloc(84 + list.length * 50);
+  buf.writeUInt32LE(list.length, 80);
+  list.forEach((tri, i) => tri.forEach((p, j) => p.forEach((x, k) => buf.writeFloatLE(x, 84 + i * 50 + 12 + j * 12 + k * 4))));
+  return buf;
+}
+function cylinder(n, r = 8, h = 20, top = r) {
+  const out = [];
+  const p = (i, rad, z) => [rad * Math.cos((i / n) * Math.PI * 2), rad * Math.sin((i / n) * Math.PI * 2), z];
+  for (let i = 0; i < n; i++) {
+    out.push([p(i, r, 0), p(i + 1, r, 0), p(i + 1, top, h)], [p(i, r, 0), p(i + 1, top, h), p(i, top, h)]);
+    out.push([[0, 0, 0], p(i + 1, r, 0), p(i, r, 0)], [[0, 0, h], p(i, top, h), p(i + 1, top, h)]);
+  }
+  return out;
+}
+const measured = (list) => stlSignature(meshStl(list));
+const fineCylinder = measured(cylinder(256));
+assert.ok(similarShape(measured(cylinder(24)), fineCylinder), 'the same cylinder at another resolution');
+assert.notStrictEqual(measured(cylinder(24)).signature, fineCylinder.signature, 'a different exact fingerprint');
+assert.ok(!similarShape(measured(cylinder(96, 8, 21)), fineCylinder), '5% taller is another part');
+assert.ok(!similarShape(measured(cylinder(96, 6.5, 30.3)), fineCylinder), 'same volume, other proportions');
+assert.ok(!similarShape(measured(cylinder(96, 10, 25, 0.001)), fineCylinder), 'a cone');
+const part = triangles(([x, y, z]) => [x, y, z]);
+const mirroredPart = part.map((tri) => tri.map(([x, y, z]) => [-x, y, z]).reverse());
+assert.ok(similarShape(measured(part), measured(part)), 'itself');
+assert.ok(!similarShape(measured(part), measured(mirroredPart)), 'its mirror image is the other hand');
+assert.ok(!similarShape(null, fineCylinder) && !similarShape({ volume: 1 }, fineCylinder), 'missing measurements never match');
+assert.strictEqual(fineCylinder.shape.length, 16);
+assert.ok(Math.abs(fineCylinder.shape.reduce((sum, x) => sum + x, 0) - 1) < 0.01, 'the shape histogram covers the whole surface');
 
 console.log('geometry-signature tests passed');

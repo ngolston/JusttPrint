@@ -3912,6 +3912,35 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
 
+    // Same shape, any resolution (geometry-signature.js similarShape): a ball meshed coarse and fine.
+    const ballDir = path.join(LIBRARY, 'Balls');
+    fs.mkdirSync(ballDir, { recursive: true });
+    const ballStl = (n) => {
+      const tris = [];
+      const p = (i, j) => {
+        const th = (i / n) * Math.PI * 2;
+        const ph = (j / (n / 2)) * Math.PI;
+        return [10 * Math.sin(ph) * Math.cos(th), 10 * Math.sin(ph) * Math.sin(th), 10 * Math.cos(ph)];
+      };
+      for (let i = 0; i < n; i++) for (let j = 0; j < n / 2; j++) tris.push([p(i, j), p(i + 1, j), p(i + 1, j + 1)], [p(i, j), p(i + 1, j + 1), p(i, j + 1)]);
+      const buf = Buffer.alloc(84 + tris.length * 50);
+      buf.writeUInt32LE(tris.length, 80);
+      tris.forEach((tri, i) => tri.forEach((pt, j) => pt.forEach((x, k) => buf.writeFloatLE(x, 84 + i * 50 + 12 + j * 12 + k * 4))));
+      return buf;
+    };
+    fs.writeFileSync(path.join(ballDir, 'ball smooth.stl'), ballStl(96));
+    fs.writeFileSync(path.join(ballDir, 'ball coarse.stl'), ballStl(32));
+    // Folder watching adds them (scanning a new folder inside the app folder is refused from the web).
+    await waitFor(
+      async () => {
+        for (const name of ['ball smooth.stl', 'ball coarse.stl'])
+          if (!(await invoke(base, session, 'get-model', [path.join(ballDir, name)])).result) return false;
+        return true;
+      },
+      60000,
+      'balls added by folder watching'
+    ).catch(() => {});
+
     // Notifications (src/server/notifications.js, shell/Notifications.tsx): a finished same-geometry search shows in the bell.
     await invoke(base, session, 'start-geometry-scan', [null]);
     await waitFor(async () => (await invoke(base, session, 'get-geometry-scan')).result?.running === false, 60000, 'geometry search').catch(() => {});
@@ -3944,8 +3973,28 @@ async function browserChecks(base, wsUrl, session) {
           () => false
         )
     );
+    const similarGroups = (await invoke(base, session, 'get-geometry-duplicates', [{ similar: true }])).result?.groups || [];
+    check(
+      'Same shape, any resolution groups a ball meshed coarse and fine',
+      similarGroups.some(
+        (g) =>
+          g.files
+            .map((f) => path.basename(f.filePath))
+            .sort()
+            .join('|') === 'ball coarse.stl|ball smooth.stl'
+      ),
+      JSON.stringify(similarGroups.map((g) => g.files.map((f) => path.basename(f.filePath))))
+    );
+    await page.evaluate(() => (location.hash = '#/duplicates'));
+    await page.click('#dedup-mode-similar').catch(() => {});
+    const similarCard = await page.waitForSelector('.jp-dup-group:has-text("files with the same shape")', { timeout: 15000 }).catch(() => null);
+    check('the Duplicates page shows them under Same shape, any resolution', !!similarCard && /check before deleting/.test(await similarCard.textContent()));
+    await page.click('#dedup-mode-files').catch(() => {});
+    for (const name of ['ball smooth.stl', 'ball coarse.stl']) await invoke(base, session, 'delete-file', [path.join(ballDir, name)]);
     await page.evaluate(() => (location.hash = '#/library'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+    // The deleted balls leave the grid once the refresh arrives.
+    await page.waitForFunction(() => !document.querySelector('.file-grid [data-filepath*="/Balls/"]'), null, { timeout: 15000 }).catch(() => {});
 
     // Tools → Clear New Flag (src/web/library/actions.ts).
     const flagged = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter(
@@ -3982,7 +4031,7 @@ async function browserChecks(base, wsUrl, session) {
         15000,
         'image added'
       ).catch(() => false);
-      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true);
+      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true, flagged);
     }
 
     // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.

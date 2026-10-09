@@ -750,6 +750,8 @@ export const organize = {
 export interface DuplicateFile {
   filePath: string;
   size?: number;
+  /** Same shape, any resolution: the file's triangle count. */
+  triangles?: number | null;
 }
 
 export interface DuplicateGroup {
@@ -780,11 +782,12 @@ export const dedup = {
   thumbnail: (filePath: string) => callAction<string | null>('getThumbnail', filePath),
   /** Deletes the file from disk (permanently) and removes it from the library. */
   deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath),
-  /** Same geometry, different files (src/server/geometry-job.js). */
-  geometryGroups: (filters: Record<string, unknown> | null, includeZip = false) =>
+  /** Same geometry, different files; with `similar`, the same shape at any mesh resolution (src/server/geometry-job.js). */
+  geometryGroups: (filters: Record<string, unknown> | null, includeZip = false, similar = false) =>
     callAction<{ groups: DuplicateGroup[]; missing: number; running: boolean; processed: number; total: number }>('get-geometry-duplicates', {
       ...(filters ? { filters } : {}),
-      includeZip
+      includeZip,
+      ...(similar ? { similar: true } : {})
     }),
   /** Starts fingerprinting in the background; progress comes as geometry-progress events. */
   startGeometry: (filters: Record<string, unknown> | null) =>
