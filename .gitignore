@@ -42,3 +42,6 @@ printventory.db-shm
 printventory.db-wal
 tests/printventory.db
 web-build/
+
+# macOS Finder
+.DS_Store
