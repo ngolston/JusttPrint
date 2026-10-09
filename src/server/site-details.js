@@ -143,7 +143,9 @@ async function getDetails(url, options = {}) {
 
 const PRINTABLES_FIELDS = `id name summary description datePublished firstPublish modified likesCount downloadCount makesCount displayCount
   tags { name } category { path { name } } printDuration numPieces weight nozzleDiameters usedMaterial layerHeights
-  materials { name } images { filePath } license { name } user { publicUsername handle }`;
+  materials { name } images { filePath } license { name } user { publicUsername handle }
+  ratingAvg ratingCount commentCount collectionsCount remixCount pdfFilePath printer { name }
+  remixParents { url parentPrint { id name user { publicUsername handle } } }`;
 
 /** A Printables model's details, from its GraphQL API (no account needed). */
 async function printablesSiteDetails(link, fetchImpl) {
@@ -163,7 +165,10 @@ async function printablesSiteDetails(link, fetchImpl) {
   return printablesDetails(print, files, link.url);
 }
 
-/** A Thingiverse model's details: its page, and with an API token its tags, categories and files too. */
+/**
+ * A Thingiverse model's details: its page, and with an API token its tags, categories and files too.
+ * When Cloudflare blocks the page, the API (with a token) still gives the details.
+ */
 async function thingiverseSiteDetails(link, fetchImpl) {
   const response = await fetchImpl(SITES.thingiverse.canonical(link.id), {
     headers: { 'user-agent': USER_AGENT, accept: 'text/html' },
@@ -171,22 +176,26 @@ async function thingiverseSiteDetails(link, fetchImpl) {
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
   const html = (await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8');
-  if (isBlocked(response, html)) throw new Error('Thingiverse asked for a browser check and did not answer');
-  const fromPage = response.ok ? fromThingiversePage(html, link.id) : null;
+  const blocked = isBlocked(response, html);
+  const fromPage = !blocked && response.ok ? fromThingiversePage(html, link.id) : null;
   let thing = null;
   let tags = null;
   let files = null;
+  let ancestors = null;
   const siteFiles = require('./site-files');
   if (siteFiles.tokenStatus().hasToken) {
     try {
       thing = await siteFiles.thingiverseJson(`/things/${link.id}`, fetchImpl);
       tags = await siteFiles.thingiverseJson(`/things/${link.id}/tags`, fetchImpl).catch(() => null);
+      ancestors = await siteFiles.thingiverseJson(`/things/${link.id}/ancestors`, fetchImpl).catch(() => null);
       files = await siteFiles.listFiles(link.url, fetchImpl);
     } catch (error) {
+      if (blocked) throw error;
       console.warn(`[Thingiverse] API details of ${link.url}: ${error.message}`);
     }
   }
-  return thingiverseDetails({ id: link.id, url: link.url, fromPage, html, thing, tags, files });
+  if (blocked && !thing) throw siteFiles.blockedError();
+  return thingiverseDetails({ id: link.id, url: link.url, fromPage, html: blocked ? '' : html, thing, tags, files, ancestors });
 }
 
 /** A model's details from its site: MakerWorld, Printables or Thingiverse; null when there is no such model. */

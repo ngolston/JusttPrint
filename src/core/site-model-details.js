@@ -46,7 +46,11 @@ function blank(site, url, id) {
     filesNeedToken: false,
     pictures: [],
     cover: null,
-    stats: {}
+    stats: {},
+    /** Models this one is a remix of: [{ title, designer, url }] (Printables). */
+    remixedFrom: [],
+    /** The site's PDF of the model page (Printables). */
+    pdfUrl: null
   };
 }
 
@@ -58,8 +62,30 @@ const filesOf = (files) =>
     folder: null,
     size: number(file.size),
     type: clean(file.kind, 20),
-    model: !!file.model
+    model: !!file.model,
+    // Printables G-code: printer, material, seconds, grams, layer height, nozzle.
+    ...(file.print ? { print: file.print } : {})
   }));
+
+const PRINTABLES = 'https://www.printables.com';
+
+/** Printables' remixParents → [{ title, designer, url }]: a Printables model, or a link elsewhere. */
+function remixSources(parents) {
+  return list(parents)
+    .map((parent) => {
+      const print = parent && parent.parentPrint;
+      if (print && print.id) {
+        return {
+          title: clean(print.name, 300),
+          designer: clean(print.user && (print.user.publicUsername || print.user.handle), 200),
+          url: `${PRINTABLES}/model/${encodeURIComponent(print.id)}`
+        };
+      }
+      const url = clean(parent && parent.url, 2000);
+      return url && /^https?:\/\//i.test(url) ? { title: null, designer: null, url } : null;
+    })
+    .filter(Boolean);
+}
 
 /**
  * Printables' print answer (api.printables.com GraphQL) and its files → the details panel's
@@ -74,7 +100,7 @@ function printablesDetails(print, files, url) {
   details.designer = {
     name: clean(print.user && (print.user.publicUsername || print.user.handle), 200),
     handle,
-    url: handle ? `https://www.printables.com/@${encodeURIComponent(handle)}` : null
+    url: handle ? `${PRINTABLES}/@${encodeURIComponent(handle)}` : null
   };
   details.license = licenseName(print.license && print.license.name);
   details.categories = list(print.category && print.category.path)
@@ -99,7 +125,8 @@ function printablesDetails(print, files, url) {
     layerHeights: list(print.layerHeights)
       .map(number)
       .filter((n) => n),
-    materials: [...new Set([...list(print.materials).map((m) => clean(m && m.name, 60)), clean(print.usedMaterial, 60)].filter(Boolean))]
+    materials: [...new Set([...list(print.materials).map((m) => clean(m && m.name, 60)), clean(print.usedMaterial, 60)].filter(Boolean))],
+    printer: clean(print.printer && print.printer.name, 100)
   };
   details.printSettings = Object.values(settings).some((v) => (Array.isArray(v) ? v.length : v)) ? settings : null;
   details.files = filesOf(files);
@@ -111,8 +138,15 @@ function printablesDetails(print, files, url) {
     likes: number(print.likesCount),
     downloads: number(print.downloadCount),
     prints: number(print.makesCount),
-    views: number(print.displayCount)
+    views: number(print.displayCount),
+    comments: number(print.commentCount),
+    collections: number(print.collectionsCount),
+    remixes: number(print.remixCount),
+    rating: number(print.ratingAvg) ? Math.round(number(print.ratingAvg) * 10) / 10 : null,
+    ratings: number(print.ratingCount)
   };
+  details.remixedFrom = remixSources(print.remixParents);
+  details.pdfUrl = print.pdfFilePath ? `https://media.printables.com/${String(print.pdfFilePath).replace(/^\/+/, '')}` : null;
   return details;
 }
 
@@ -132,7 +166,7 @@ function pageValue(html, pattern) {
  * tags and files → the details panel's details, or null for Cloudflare's check page or a missing
  * thing. `fromPage` is fromThingiversePage's answer for the same page.
  */
-function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null, tags = null, files = null }) {
+function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null, tags = null, files = null, ancestors = null }) {
   if (!thing && !fromPage) return null;
   const details = blank('thingiverse', url, id);
   if (thing && thing.name) {
@@ -156,8 +190,19 @@ function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null,
       likes: number(thing.like_count),
       downloads: number(thing.download_count),
       prints: number(thing.make_count),
-      collections: number(thing.collect_count)
+      collections: number(thing.collect_count),
+      comments: number(thing.comment_count),
+      remixes: number(thing.remix_count),
+      views: number(thing.view_count)
     };
+    // The things this one is a remix of (/things/{id}/ancestors).
+    details.remixedFrom = list(ancestors)
+      .filter((a) => a && a.id && String(a.id) !== String(id))
+      .map((a) => ({
+        title: clean(a.name, 300),
+        designer: clean(a.creator && a.creator.name, 200),
+        url: `https://www.thingiverse.com/thing:${encodeURIComponent(a.id)}`
+      }));
   } else {
     details.title = fromPage.name;
     details.designer = {
@@ -173,6 +218,7 @@ function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null,
     details.description = description ? htmlToText(description).replace(/([a-z0-9)][.!?])(?=[A-Z])/g, '$1 ') : null;
     details.videos = youtubeIds(html);
     details.cover = fromPage.image;
+    details.stats = { ...(fromPage.stats || {}) };
   }
   details.files = filesOf(files);
   details.filesNeedToken = files === null;

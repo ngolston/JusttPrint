@@ -34,6 +34,8 @@ async function main() {
 
   const calls = [];
   let fileHost = 'files.printables.com';
+  let cloudflare = false;
+  let cloudflarePage = false;
   const json = (value, init) => new Response(JSON.stringify(value), init);
   const web = async (url, options = {}) => {
     const u = new URL(url);
@@ -48,7 +50,19 @@ async function main() {
                 { id: '1', name: 'Main Parts.stl', fileSize: 300 },
                 { id: '2', name: 'Stand.shapr', fileSize: 100 }
               ],
-              gcodes: [{ id: '3', name: 'MK4 0.2mm.gcode', fileSize: 900 }],
+              gcodes: [
+                {
+                  id: '3',
+                  name: 'MK4 0.2mm.gcode',
+                  fileSize: 900,
+                  printer: { name: 'Prusa MK4S' },
+                  material: { name: 'PETG' },
+                  printDuration: '2.5',
+                  weight: 40,
+                  layerHeight: '0.20',
+                  nozzleDiameter: '0.40'
+                }
+              ],
               slas: [],
               otherFiles: [{ id: '4', name: 'Pins.step', fileSize: 50 }]
             }
@@ -66,6 +80,10 @@ async function main() {
       }
     }
     if (u.hostname === 'files.printables.com') return new Response(`solid file ${u.pathname}\nendsolid`);
+    const challenge = () =>
+      new Response('<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>', { status: 403, headers: { 'cf-mitigated': 'challenge' } });
+    if (cloudflare && u.hostname.endsWith('thingiverse.com')) return challenge();
+    if (cloudflarePage && u.hostname === 'www.thingiverse.com') return challenge();
     if (u.hostname === 'www.thingiverse.com')
       return new Response(
         '<meta property="og:url" content="https://www.thingiverse.com/thing:7418273"><meta property="og:title" content="Prowling Bear by LennyFace">'
@@ -73,6 +91,9 @@ async function main() {
     if (u.hostname === 'api.thingiverse.com') {
       if (options.headers.authorization !== 'Bearer good-token-1234567890') return new Response('{}', { status: 401 });
       if (u.pathname === '/users/me') return json({ name: 'me' });
+      if (u.pathname === '/things/7418273') return json({ name: 'Prowling Bear', creator: { name: 'LennyFace' }, like_count: 16, remix_count: 0 });
+      if (u.pathname === '/things/7418273/tags') return json([{ name: 'bear' }]);
+      if (u.pathname === '/things/7418273/ancestors') return json([{ id: 6000000, name: 'Bear', creator: { name: 'Original' } }]);
       if (u.pathname === '/things/7418273/files')
         return json([
           { id: 11, name: 'bear.stl', size: 1000 },
@@ -95,6 +116,11 @@ async function main() {
       ['MK4 0.2mm.gcode', 'gcode', false]
     ],
     'model files are ticked; project files and G-code are not'
+  );
+  assert.deepStrictEqual(
+    files.find((f) => f.kind === 'gcode').print,
+    { printer: 'Prusa MK4S', material: 'PETG', seconds: 9000, grams: 40, layerHeight: 0.2, nozzle: 0.4 },
+    'what each G-code file was sliced for'
   );
 
   const online = database.db
@@ -148,6 +174,23 @@ async function main() {
   );
   const bear = await siteFiles.downloadFiles({ url: THINGIVERSE, folder: library }, { fetchImpl: web });
   assert.deepStrictEqual(bear.saved, ['Prowling Bear.stl'], 'downloaded through the redirect to its file server');
+
+  // --- Thingiverse behind Cloudflare's browser check: said so, not blamed on the token ---
+  cloudflare = true;
+  await assert.rejects(siteFiles.listFiles(THINGIVERSE, web), (error) => error.code === 'BLOCKED' && /Cloudflare/.test(error.message));
+  const siteDetails = require('../src/server/site-details');
+  await assert.rejects(siteDetails.getDetails(THINGIVERSE, { refresh: true, fetchImpl: web }), (error) => error.code === 'BLOCKED');
+  cloudflare = false;
+  cloudflarePage = true;
+  const pageBlocked = await siteDetails.getDetails(THINGIVERSE, { refresh: true, fetchImpl: web });
+  assert.strictEqual(pageBlocked.details.title, 'Prowling Bear', 'the API still gives the details when only the page is blocked');
+  cloudflarePage = false;
+  const viaApi = await siteDetails.getDetails(THINGIVERSE, { refresh: true, fetchImpl: web });
+  assert.deepStrictEqual(
+    [viaApi.details.title, viaApi.details.tags.map((t) => t.name), viaApi.details.remixedFrom],
+    ['Prowling Bear', ['bear'], [{ title: 'Bear', designer: 'Original', url: 'https://www.thingiverse.com/thing:6000000' }]],
+    'with a token: tags and what it is a remix of'
+  );
   assert.strictEqual(fs.readFileSync(path.join(bear.folder, 'Prowling Bear.stl'), 'utf8'), 'solid bear\nendsolid');
 
   // --- Add Links: online models get their files; failures keep the online model ---

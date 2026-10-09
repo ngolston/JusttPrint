@@ -33,6 +33,25 @@ export interface MakerWorldFile {
   english?: string | null;
   /** Printables and Thingiverse: a model file (ticked to start), not G-code or a project file. */
   model?: boolean;
+  /** Printables G-code: what it was sliced for. */
+  print?: GcodePrint;
+}
+
+/** Printables: what a G-code file was sliced for. */
+export interface GcodePrint {
+  printer: string | null;
+  material: string | null;
+  seconds: number | null;
+  grams: number | null;
+  layerHeight: number | null;
+  nozzle: number | null;
+}
+
+/** A model this one is a remix of (Printables, Thingiverse with a token). */
+export interface RemixSource {
+  title: string | null;
+  designer: string | null;
+  url: string;
 }
 
 /** Printables: what the designer says about printing it. */
@@ -43,6 +62,8 @@ export interface PrintSettings {
   nozzles: number[];
   layerHeights: number[];
   materials: string[];
+  /** The printer the designer printed it on. */
+  printer?: string | null;
 }
 
 /** A model's details from its site (src/core/makerworld.js, src/core/site-model-details.js). */
@@ -73,7 +94,14 @@ export interface MakerWorldDetails {
     views?: number | null;
     collections?: number | null;
     comments?: number | null;
+    remixes?: number | null;
+    /** Average rating out of 5, and how many rated (Printables). */
+    rating?: number | null;
+    ratings?: number | null;
   };
+  remixedFrom?: RemixSource[];
+  /** The site's PDF of the model page (Printables). */
+  pdfUrl?: string | null;
   translation?: { mode: string; by: string | null; error: string | null };
 }
 
@@ -164,4 +192,18 @@ export function linkParts(text: string): { text: string; href?: string }[] {
   }
   if (last < text.length) parts.push({ text: text.slice(last) });
   return parts;
+}
+
+/** "Prusa MK4S · PLA · 0.2 mm layers · 0.4 mm nozzle · about 2 h · 11 g": what a G-code file was sliced for. */
+export function gcodeSummary(print: GcodePrint): string {
+  return [
+    print.printer,
+    print.material,
+    print.layerHeight ? `${print.layerHeight} mm layers` : null,
+    print.nozzle ? `${print.nozzle} mm nozzle` : null,
+    print.seconds ? `about ${formatDuration(print.seconds)}` : null,
+    print.grams ? formatGrams(print.grams) : null
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }

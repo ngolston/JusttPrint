@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 7.10.2**
+**Version 7.11.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -17,7 +17,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
 - **Add from links**: paste a list of Printables, Thingiverse or MakerWorld links and each model is added with its name, designer, license, picture and source link, and its files downloaded into the library when you want (Thingiverse with your own API token); links already in the library are skipped
 - **Same-geometry duplicates**: besides identical files, the Duplicates page finds the same model saved as different files (an STL and its 3MF, a re-export), also inside ZIP files
-- **MakerWorld, Printables and Thingiverse details and downloads**: MakerWorld models show their English title, print profile (plates, print time, filament by color), files with English names and video in the details panel, and download as a 3MF into a library folder after a one-time MakerWorld sign-in
+- **MakerWorld, Printables and Thingiverse details and downloads**: MakerWorld models show their English title, print profile (plates, print time, filament by color), files with English names and video in the details panel, and download as a 3MF into a library folder after a one-time MakerWorld sign-in; Printables and Thingiverse models show their popularity and rating, what they are a remix of, print settings, the printer and settings each G-code file was sliced for, and their files to download
 - **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
 - **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download; optional **guest access** to browse without an account
 - **Collections**: group models from any folders into projects, gift lists or spare-part sets
