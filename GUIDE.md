@@ -154,6 +154,8 @@ Many models have several print profiles: the parts of a kit (Foot, Body, Wings�
 
 After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.
 
+Renaming, merging and deleting a tag (in the Tag Manager or on the Tags page) can be undone the same way; the Tag Manager shows its own **Undo** line, since the notice is behind it. Undoing a delete or a merge puts the tag back on the models that had it.
+
 Undo respects other people's work: undoing a tag edit takes back only the tags you added or removed, and if someone changed a field after you, you are asked whose value stays.
 
 ## Several people at once
@@ -176,7 +178,7 @@ Everyone can look at collections; editors and admins make and change them.
 
 **Share…** in a model's menu, or **Share** on a collection, makes a read-only link to send to someone without an account:
 
-- Choose whether the files may be downloaded, and when the link expires (never, or after 1 to 90 days). **Create Link** shows the link and its QR code: **Copy Link**, or **Save QR Code** to print it.
+- Choose whether the files may be downloaded, and when the link expires (never, or after 1 to 90 days). STL and 3MF models get a **3D view** button on the page to turn and zoom them; on a view-only link only if you tick **Show STL and 3MF models in 3D** (the model's shape then reaches the visitor's browser, so a determined visitor could save it). **Create Link** shows the link and its QR code: **Copy Link**, or **Save QR Code** to print it.
 - The page shows the name, pictures, designer, license, tags and source link of each model, and the collection's description. It never shows notes, file locations or print history. A shared collection also shows the models added to it later.
 - Anyone with the link can open it, as long as they can reach your JusttPrint backend; to share outside your network, JusttPrint must be reachable from the internet (use HTTPS).
 - The Share dialog lists the links to that item; **Settings → Sharing** lists every link with how often it was opened. The bin or **Turn Off** ends a link at once.
@@ -192,6 +194,8 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
 Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel and the color scheme (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
+
+**Guest access** (the switch under the list of users, or `JUSTTPRINT_GUEST_ACCESS=true`) lets people who open JusttPrint without logging in browse, preview and download like a Viewer. Guests keep no settings, cannot edit, and find **Log In** under the account button; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 
 ## Managing the library
 
@@ -247,7 +251,7 @@ Slicers run on your computer, not in the JusttPrint backend. **Open in Slicer** 
 
 ### MCP server
 
-AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints and set thumbnails. **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
+AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints, set thumbnails, and add models from Printables, Thingiverse and MakerWorld links (`import_model_links`, with an optional library folder to download the files into). **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
 
 ## Keyboard
 
