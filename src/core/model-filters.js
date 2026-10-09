@@ -526,7 +526,9 @@ function buildModelFilterConditions(filters) {
       conditions.push('filePath LIKE ?');
       params.push('%::%');
     } else {
-      const exts = getExtensionsForFileTypeFilter(filters.fileType);
+      // A type not in the list (a file type added under Settings) matches by its extension, as in search queries.
+      const known = getExtensionsForFileTypeFilter(filters.fileType);
+      const exts = known && known.length ? known : [`.${String(filters.fileType).toLowerCase()}`];
       if (exts.length === 1) {
         conditions.push('LOWER(fileName) LIKE ?');
         params.push(`%${exts[0]}`);

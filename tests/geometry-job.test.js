@@ -124,6 +124,62 @@ async function main() {
   const afterBroken = await waitDone();
   assert.deepStrictEqual([afterBroken.processed, afterBroken.failed], [1, 1]);
 
+  // Same shape, any resolution: a sphere meshed coarse and fine is one design; a bigger sphere and
+  // a torus are not, and a model fingerprinted before the measurements were kept is read again.
+  const sphere = (n, r = 10) => {
+    const out = [];
+    const p = (i, j) => {
+      const th = (i / n) * Math.PI * 2;
+      const ph = (j / (n / 2)) * Math.PI;
+      return [r * Math.sin(ph) * Math.cos(th), r * Math.sin(ph) * Math.sin(th), r * Math.cos(ph)];
+    };
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n / 2; j++) {
+        out.push([p(i, j), p(i + 1, j), p(i + 1, j + 1)], [p(i, j), p(i + 1, j + 1), p(i, j + 1)]);
+      }
+    return out;
+  };
+  const torus = (n) => {
+    const out = [];
+    const p = (i, j) => {
+      const a = (i / n) * Math.PI * 2;
+      const b = (j / n) * Math.PI * 2;
+      return [(15 + 5 * Math.cos(b)) * Math.cos(a), (15 + 5 * Math.cos(b)) * Math.sin(a), 5 * Math.sin(b)];
+    };
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) out.push([p(i, j), p(i + 1, j), p(i + 1, j + 1)], [p(i, j), p(i + 1, j + 1), p(i, j + 1)]);
+    return out;
+  };
+  const shapes = {
+    'ball fine.stl': stl(sphere(96)),
+    'ball coarse.stl': stl(sphere(32)),
+    'ball big.stl': stl(sphere(96, 10.6)),
+    'ring.stl': stl(torus(48))
+  };
+  for (const [name, buffer] of Object.entries(shapes)) {
+    fs.writeFileSync(path.join(tmp, name), buffer);
+    database.db.prepare('INSERT INTO models (filePath, fileName, hash) VALUES (?, ?, ?)').run(path.join(tmp, name), name, `hash-${name}`);
+  }
+  job.start();
+  await waitDone();
+  const similar = job.similar().groups;
+  assert.deepStrictEqual(
+    similar.map((g) => g.files.map((f) => f.fileName).sort()),
+    [['ball coarse.stl', 'ball fine.stl']],
+    'the coarse and fine ball are one design; the bigger ball and the ring are not'
+  );
+  assert.ok(similar[0].hash.startsWith('similar:'));
+  assert.ok(
+    similar[0].files.every((f) => f.triangles > 0),
+    'each file says how many triangles it has'
+  );
+  assert.ok(!job.duplicates().groups.some((g) => g.files.some((f) => f.fileName.startsWith('ball'))), 'not the same mesh');
+  database.db.prepare("UPDATE model_geometry SET measures = NULL WHERE model_id = (SELECT id FROM models WHERE fileName = 'ring.stl')").run();
+  assert.deepStrictEqual(
+    job.missing().map((row) => path.basename(row.filePath)),
+    ['ring.stl'],
+    'fingerprinted before the measurements: read again'
+  );
+
   database.db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('geometry-job tests passed');

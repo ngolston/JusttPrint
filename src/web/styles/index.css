@@ -6,8 +6,6 @@
 @import '@fontsource-variable/inter/wght.css';
 @import './legacy/theme-vars.css';
 @import './legacy/base.css';
-@import './legacy/parts-stock.css';
-@import './legacy/printer-manager.css';
 @import './legacy/notes-markdown.css';
 @import './legacy/preview-wall.css';
 @import './legacy/thumbnail-progress.css';
@@ -21,6 +19,8 @@
 @import './home.css';
 @import './queue.css';
 @import './printers.css';
+@import './managers.css';
+@import './print-log.css';
 @import './tags.css';
 @import './manage.css';
 @import './settings.css';

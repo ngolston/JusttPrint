@@ -18,7 +18,7 @@
   border: 1px solid var(--jp-border);
   border-radius: var(--jp-radius-xl);
   background:
-    radial-gradient(120% 140% at 85% 30%, rgba(8, 185, 241, 0.14) 0%, rgba(8, 185, 241, 0) 55%),
+    radial-gradient(120% 140% at 85% 30%, rgba(var(--jp-accent-rgb), 0.14) 0%, rgba(var(--jp-accent-rgb), 0) 55%),
     linear-gradient(135deg, var(--jp-surface-2) 0%, var(--jp-bg-2) 100%);
   overflow: hidden;
   box-sizing: border-box;
@@ -52,7 +52,7 @@
   min-width: 0;
   padding: var(--jp-space-3);
   gap: 10px;
-  background: rgba(14, 24, 33, 0.72);
+  background: rgba(var(--jp-surface-1-rgb), 0.72);
 }
 .jp-hero__stats .jp-stat__icon {
   flex: none;

@@ -35,7 +35,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 1. Start the container, open `http://<docker-host-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
 2. Add your models folder under **Settings → Scanning → STL Home** (or upload models, see [Uploading models](#uploading-models)): **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
-4. Optional: pick an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
+4. Optional: pick light or dark and an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
 
 **Help → Quick Start Guide** shows a short tour in the app.
 
@@ -150,13 +150,26 @@ Many models have several print profiles: the parts of a kit (Foot, Body, Wings�
 
 **Settings → Integrations → MakerWorld** shows who is signed in (**Sign In**, **Sign Out**) and who makes the English file names: a free translation service (MyMemory, the default), the AI service from AI Tagging, or nobody.
 
+## Notifications
+
+The bell at the top right collects what happened in the background while you were not looking, with a number for the ones you have not seen:
+
+- new models found by a scan or by folder watching (once things are quiet for two minutes, so a big copy is one notification)
+- **Generate Missing** or **Regenerate All** thumbnails finished, or stopped with an error (editors and admins)
+- AI tagging of several models finished (editors and admins)
+- the same-geometry search on Duplicates finished (editors and admins)
+- printer maintenance that is due or overdue, once per reminder (editors and admins)
+- an automatic backup failed, or the thumbnail renderer could not start (admins)
+
+Opening the bell marks them read for your account, in every browser; a notification with a page opens it when clicked. JusttPrint keeps the newest 200 for 30 days. Guests have no notifications.
+
 ## Undo
 
 After you change a model's designer, parent model, license, source, notes or tags, a notice at the bottom of the page says what changed: click **Undo** to put it back. It works for multi-edit too (for example "Added tags to 12 models"). **Ctrl/⌘ Z**, when you are not typing in a field, undoes your last 20 edits one by one, newest first. Rating, favorite and print status are a click to change back, so they are not in the list.
 
-Renaming, merging and deleting a tag (in the Tag Manager or on the Tags page) can be undone the same way; the Tag Manager shows its own **Undo** line, since the notice is behind it. Undoing a delete or a merge puts the tag back on the models that had it.
+Renaming, merging and deleting a tag (in the Tag Manager or on the Tags page) can be undone the same way; the Tag Manager shows its own **Undo** line, since the notice is behind it. Undoing a delete or a merge puts the tag back on the models that had it. The same goes for the **Metadata Editor** (renaming, merging and clearing designers, parent models and licenses): it has its own **Undo** line too, and undoing a merge or a clear puts the old name back on just the models that had it.
 
-Undo respects other people's work: undoing a tag edit takes back only the tags you added or removed, and if someone changed a field after you, you are asked whose value stays.
+Undo respects other people's work: undoing a tag edit takes back only the tags you added or removed, and if someone changed a field after you, you are asked whose value stays. Undoing a Metadata Editor change leaves models whose value was edited since.
 
 ## Several people at once
 
@@ -193,14 +206,14 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Editor | Also edit models, tags, notes and the print log, upload and add links, move, trash and delete files, scan, find duplicates |
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
-Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel and the color scheme (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
+Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel, light or dark (**Color Scheme**: Dark, Light, or Match the system, which follows your computer's setting) and the accent color (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
 
 **Guest access** (the switch under the list of users, or `JUSTTPRINT_GUEST_ACCESS=true`) lets people who open JusttPrint without logging in browse, preview and download like a Viewer. Guests keep no settings, cannot edit, and find **Log In** under the account button; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 
 ## Managing the library
 
 - **Tags** lists every tag with how many models use it. Create, rename (renaming onto an existing tag merges the two), delete, or show a tag's models.
-- **Duplicates** finds identical files by their contents and shows each group side by side. **Find: Same geometry** finds the same model saved as different files instead (an STL and its 3MF, a re-export, a copy turned on the plate); JusttPrint reads each STL and 3MF once for it, and mirrored left and right parts are not matched. **Keep this** marks the other copies for deletion; **Easy** keeps one copy of each group for you (preferring a folder you choose). Nothing is deleted until you confirm **Delete Selected**. You can limit the search to the models currently shown.
+- **Duplicates** finds identical files by their contents and shows each group side by side. **Find: Same geometry** finds the same model saved as different files instead (an STL and its 3MF, a re-export, a copy turned on the plate); JusttPrint reads each STL and 3MF once for it, and mirrored left and right parts are not matched. **Find: Same shape, any resolution** also finds the same design exported with more or fewer triangles (a smooth and a coarse STL of one part); since a part a few percent bigger, or one that differs only in small details, looks the same to it, check those groups before deleting. **Keep this** marks the other copies for deletion; **Easy** keeps one copy of each group for you (preferring a folder you choose). Nothing is deleted until you confirm **Delete Selected**. You can limit the search to the models currently shown.
 - **Organize** moves the models in a scanned folder into a folder structure you choose (up to four levels, such as designer / parent model / license). **Preview** shows what will happen first; each original is removed only after its copy is checked, and files that are not in the library stay where they are. The models folder must be mounted without `:ro`.
 - **AI Tagging** sets up the AI service; then select models, right-click and choose **Generate Tags**, and tick the tags to keep. See [AI tagging](#ai-tagging).
 - **Settings → Library** has the Metadata Manager (rename or remove designers, licenses and parent models everywhere), Library Stats, Print Roulette (random models to print), Clear New Flag and Purge Models.

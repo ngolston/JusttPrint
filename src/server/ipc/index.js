@@ -14,6 +14,7 @@ require('./makerworld');
 require('./metadata');
 require('./model-save');
 require('./models');
+require('./notifications');
 require('./organize');
 require('./parts');
 require('./previews');

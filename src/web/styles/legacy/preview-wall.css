@@ -32,8 +32,8 @@
   margin-left: 0;
   padding: 2px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(var(--jp-shade-rgb), calc(0.35 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
   vertical-align: middle;
 }
 
@@ -44,7 +44,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(var(--jp-overlay-rgb), 0.75);
   background: transparent;
   border: none;
   border-radius: 6px;
@@ -54,11 +54,11 @@
 
 .preview-size-switcher button:hover {
   color: var(--jp-text);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--jp-overlay-rgb), 0.08);
 }
 
 .preview-size-switcher button.active {
-  color: #0a0a0a;
+  color: var(--jp-on-accent);
   background: var(--primary-accent, var(--jp-accent));
 }
 
@@ -265,7 +265,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--primary-accent, var(--jp-accent));
-  border: 2px solid rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
   z-index: 16;
   display: flex;
   align-items: center;
@@ -305,7 +305,12 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 6px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.4) 65%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    rgba(var(--jp-shade-rgb), calc(0.86 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.4 * var(--jp-shade-strength))) 65%,
+    transparent 100%
+  );
   z-index: 13;
   opacity: 0;
   transition:
@@ -323,7 +328,12 @@
 .preview-tile:focus-within .preview-tile-overlay {
   min-height: 42%;
   padding: 10px 28px 8px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.45) 55%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    rgba(var(--jp-shade-rgb), calc(0.88 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.45 * var(--jp-shade-strength))) 55%,
+    transparent 100%
+  );
 }
 
 .preview-tile .preview-tile-actions {
@@ -369,7 +379,7 @@
   border-radius: 4px;
   cursor: pointer;
   pointer-events: auto;
-  color: #0a0a0a;
+  color: var(--jp-on-accent);
   background: var(--primary-accent, var(--jp-accent));
 }
 
@@ -392,8 +402,8 @@
   border-radius: 4px !important;
   transform: none !important;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(14, 24, 33, 0.95) 0%, rgba(14, 24, 33, 0.98) 100%) !important;
-  border: 1px solid rgba(8, 185, 241, 0.2) !important;
+  background: linear-gradient(180deg, rgba(var(--jp-surface-1-rgb), 0.95) 0%, rgba(var(--jp-surface-1-rgb), 0.98) 100%) !important;
+  border: 1px solid rgba(var(--jp-accent-rgb), 0.2) !important;
 }
 
 .file-grid.preview-wall .parent-model-group-preview {
@@ -468,8 +478,8 @@
   align-items: stretch !important;
   justify-content: center;
   gap: 3px !important;
-  background: rgba(0, 0, 0, 0.5);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  border-top: 1px solid rgba(var(--jp-overlay-rgb), 0.08);
 }
 
 .file-grid.preview-wall .parent-model-group-preview .parent-model-group-title-row {
@@ -504,7 +514,7 @@
 .file-grid.preview-wall .parent-model-group-preview .parent-model-group-meta {
   font-size: 9px !important;
   line-height: 1.2 !important;
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: rgba(var(--jp-overlay-rgb), 0.7) !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

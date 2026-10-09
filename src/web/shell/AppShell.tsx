@@ -23,6 +23,7 @@ import { StatsPage } from '../pages/StatsPage';
 import { CollectionsPage } from '../pages/CollectionsPage';
 import { roleAllows, useCurrentUser } from '../session';
 import { useAdopt } from './adopt';
+import { NotificationBell } from './Notifications';
 import { useLibraryData } from './libraryData';
 import { ACCOUNT, NAV, itemsFor, navFor, type NavItem } from './nav';
 import { navigate, useRoute, type PageId } from './routes';
@@ -190,6 +191,7 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
         onKeyDown={onKeyDown}
       />
       <div className="jp-topbar__actions">
+        {user && !user.guest && <NotificationBell />}
         <Menu
           label="Account"
           items={

@@ -339,7 +339,7 @@
   padding: 0 6px;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  border-left: 1px solid rgba(0, 0, 0, 0.2);
+  border-left: 1px solid rgba(var(--jp-shade-rgb), calc(0.2 * var(--jp-shade-strength)));
 }
 .jp-mw-profiles {
   display: flex;

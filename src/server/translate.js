@@ -108,7 +108,7 @@ async function translateAi(texts, { aiSettings, puterHandler }) {
  * @param {{ aiSettings?: any, puterHandler?: any, fetchImpl?: typeof httpsFetch }} [deps]
  */
 async function translateNames(names, mode, deps = {}) {
-  const english = names.map(() => null);
+  const english = names.map(() => /** @type {string | null} */ (null));
   const wanted = names.map((name, i) => ({ name: String(name || ''), i })).filter((item) => needsTranslation(item.name));
   if (mode === 'off' || !wanted.length) return { english, by: null, error: null };
   try {

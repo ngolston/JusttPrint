@@ -7,7 +7,7 @@ const { version } = require('../../../package.json');
 
 /**
  * Display preferences each user has for themselves (users.js): the view, sort and column layout,
- * panel widths, the folder panel, the accent color, the first-run tour. Reads and saves of these
+ * panel widths, the folder panel, the accent color and color scheme, the first-run tour. Reads and saves of these
  * go to the logged-in user's row in user_settings; until a user saves one, the server-wide value
  * is their default. The API token, MCP and the thumbnail worker (no user id) use the server-wide
  * values.
@@ -26,7 +26,8 @@ const PER_USER_SETTING_KEYS = new Set([
   'dedupPreferredDirectory',
   'hideSkippedFileSizeNotice',
   'hasRunBefore',
-  'uiTheme'
+  'uiTheme',
+  'uiColorScheme'
 ]);
 
 /** Server-wide settings any user may save: the update check and the accepted terms. Everything else needs an admin. */

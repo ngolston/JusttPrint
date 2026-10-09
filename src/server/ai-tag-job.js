@@ -57,9 +57,22 @@ function record(id, filePath, tags, error) {
 
 function finish(id) {
   if (!job || job.id !== id) return;
+  const stopped = job.stopping;
   job.running = false;
   job.stopping = false;
   announce();
+  // A run of several models takes a while: say when it is done (one model shows its review at once).
+  if (job.batch) {
+    const notifications = require('./notifications');
+    const done = summary();
+    if (done)
+      notifications.notify({
+        level: 'success',
+        title: stopped ? 'AI tagging stopped' : 'AI tagging finished',
+        body: `Tags suggested for ${notifications.plural(done.withTags, 'model')} of ${done.total}${done.by ? `, started by ${done.by}` : ''}. Open Generate Tags to review them.`,
+        minRole: 'editor'
+      });
+  }
 }
 
 /** Ask the running run to stop: models not started yet are skipped. */

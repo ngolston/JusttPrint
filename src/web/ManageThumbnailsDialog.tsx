@@ -107,7 +107,7 @@ export function ManageThumbnailsDialog() {
       >
         <h3>Manage Thumbnails</h3>
         <div className="form-group">
-          <p style={{ margin: '0 0 16px 0', color: '#aaa', fontSize: '0.9rem' }}>
+          <p style={{ margin: '0 0 16px 0', color: 'var(--jp-text-2)', fontSize: '0.9rem' }}>
             Select a thumbnail to set it as active, or delete thumbnails (the active thumbnail cannot be deleted).
           </p>
           <div id="thumbnails-grid" className="thumbnails-grid">

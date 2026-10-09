@@ -23,7 +23,45 @@ const number = (value) => {
 
 const list = (value) => (Array.isArray(value) ? value : []);
 
-/** The fields every site fills in, empty. */
+/**
+ * Not null or undefined, as a type guard (filter(Boolean) does not narrow the type).
+ * @template T
+ * @param {T} value
+ * @returns {value is NonNullable<T>}
+ */
+const present = (value) => value !== null && value !== undefined;
+
+/**
+ * @typedef {object} SiteDetails
+ * @property {string} site
+ * @property {string} url
+ * @property {string} id
+ * @property {string | null} title
+ * @property {string | null} titleEnglish
+ * @property {{ name: string | null, handle: string | null, url: string | null }} designer
+ * @property {string | null} license
+ * @property {string[]} categories
+ * @property {{ name: string, english: string | null }[]} tags
+ * @property {string | null} created
+ * @property {string | null} updated
+ * @property {string | null} description
+ * @property {string | null} descriptionEnglish
+ * @property {string[]} videos
+ * @property {any[]} profiles
+ * @property {object | null} printSettings
+ * @property {any[]} files
+ * @property {boolean} filesNeedToken
+ * @property {string[]} pictures
+ * @property {string | null} cover
+ * @property {Record<string, number | null>} stats
+ * @property {{ title: string | null, designer: string | null, url: string }[]} remixedFrom
+ * @property {string | null} pdfUrl
+ */
+
+/**
+ * The fields every site fills in, empty.
+ * @returns {SiteDetails}
+ */
 function blank(site, url, id) {
   return {
     site,
@@ -84,7 +122,7 @@ function remixSources(parents) {
       const url = clean(parent && parent.url, 2000);
       return url && /^https?:\/\//i.test(url) ? { title: null, designer: null, url } : null;
     })
-    .filter(Boolean);
+    .filter(present);
 }
 
 /**
@@ -105,18 +143,19 @@ function printablesDetails(print, files, url) {
   details.license = licenseName(print.license && print.license.name);
   details.categories = list(print.category && print.category.path)
     .map((c) => clean(c && c.name, 100))
-    .filter(Boolean);
+    .filter(present);
   details.tags = list(print.tags)
     .map((t) => clean(t && t.name, 80))
-    .filter(Boolean)
+    .filter(present)
     .map((name) => ({ name, english: null }));
   details.created = clean(print.firstPublish || print.datePublished, 40);
   details.updated = clean(print.modified, 40);
   details.description = htmlToText(print.description) || clean(print.summary, 2000);
   details.videos = youtubeIds(print.description);
+  const hours = number(print.printDuration);
   const settings = {
     // Printables gives the print time in hours.
-    seconds: number(print.printDuration) ? Math.round(number(print.printDuration) * 3600) : null,
+    seconds: hours ? Math.round(hours * 3600) : null,
     pieces: number(print.numPieces) || null,
     grams: number(print.weight),
     nozzles: list(print.nozzleDiameters)
@@ -125,15 +164,16 @@ function printablesDetails(print, files, url) {
     layerHeights: list(print.layerHeights)
       .map(number)
       .filter((n) => n),
-    materials: [...new Set([...list(print.materials).map((m) => clean(m && m.name, 60)), clean(print.usedMaterial, 60)].filter(Boolean))],
+    materials: [...new Set([...list(print.materials).map((m) => clean(m && m.name, 60)), clean(print.usedMaterial, 60)].filter(present))],
     printer: clean(print.printer && print.printer.name, 100)
   };
   details.printSettings = Object.values(settings).some((v) => (Array.isArray(v) ? v.length : v)) ? settings : null;
   details.files = filesOf(files);
   details.pictures = list(print.images)
     .map((image) => (image && image.filePath ? `https://media.printables.com/${String(image.filePath).replace(/^\/+/, '')}` : null))
-    .filter(Boolean);
+    .filter(present);
   details.cover = details.pictures[0] || null;
+  const rating = number(print.ratingAvg);
   details.stats = {
     likes: number(print.likesCount),
     downloads: number(print.downloadCount),
@@ -142,7 +182,7 @@ function printablesDetails(print, files, url) {
     comments: number(print.commentCount),
     collections: number(print.collectionsCount),
     remixes: number(print.remixCount),
-    rating: number(print.ratingAvg) ? Math.round(number(print.ratingAvg) * 10) / 10 : null,
+    rating: rating ? Math.round(rating * 10) / 10 : null,
     ratings: number(print.ratingCount)
   };
   details.remixedFrom = remixSources(print.remixParents);
@@ -165,6 +205,8 @@ function pageValue(html, pattern) {
  * A Thingiverse model page (no API token: what the page says) and, with a token, the API's thing,
  * tags and files → the details panel's details, or null for Cloudflare's check page or a missing
  * thing. `fromPage` is fromThingiversePage's answer for the same page.
+ * @param {{ id: string, url: string, fromPage?: any, html?: string, thing?: any, tags?: any, files?: any, ancestors?: any }} input
+ * @returns {SiteDetails | null}
  */
 function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null, tags = null, files = null, ancestors = null }) {
   if (!thing && !fromPage) return null;
@@ -176,10 +218,10 @@ function thingiverseDetails({ id, url, fromPage = null, html = '', thing = null,
     details.license = licenseName(thing.license);
     details.categories = list(thing.categories)
       .map((c) => clean(c && c.name, 100))
-      .filter(Boolean);
+      .filter(present);
     details.tags = list(tags || thing.tags)
       .map((t) => clean(typeof t === 'string' ? t : t && t.name, 80))
-      .filter(Boolean)
+      .filter(present)
       .map((name) => ({ name, english: null }));
     details.created = clean(thing.added, 40);
     details.updated = clean(thing.modified, 40);

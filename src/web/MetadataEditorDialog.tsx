@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { metadata, type MetadataEntry, type MetadataType } from './api';
 import { ModalDialog } from './components/ModalDialog';
+import { lastUndoId, onUndoChange, recordUndo, undoLast, type UndoEntry } from './library/undo';
 import { askText, exposeGlobal, showMessage } from './page';
 
 declare global {
@@ -16,6 +17,28 @@ const TABS: { type: MetadataType; tab: string; heading: string; one: string }[] 
 ];
 
 const plural = (count: number) => `${count} model${count !== 1 ? 's' : ''}`;
+
+/** After a change or its undo: the dialog (if open), the grid and the details panel show it. */
+async function refreshAll(reload?: () => Promise<void>) {
+  await reload?.();
+  await window.refreshAfterMetadataChange?.();
+}
+
+/** The open dialog's reload, so an undo from the notice or Ctrl/Cmd+Z updates its list. */
+let reloadOpenDialog: (() => Promise<void>) | null = null;
+
+/** Make a Metadata Editor change undoable: `name` goes back on the models it changed. */
+function recordMetadataUndo(label: string, type: MetadataType, name: string, current: string, modelIds: number[] | undefined) {
+  if (!modelIds?.length) return;
+  recordUndo(
+    label,
+    async () => {
+      await metadata.restore({ type, name, current, modelIds });
+      await refreshAll(reloadOpenDialog ?? undefined);
+    },
+    'metadata'
+  );
+}
 const capitalize = (text: string) => text.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 /**
@@ -44,6 +67,19 @@ export function MetadataEditorDialog() {
   const [type, setType] = useState<MetadataType>('designer');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  // The newest change made while the dialog is open, to undo here (the page's notice is behind the dialog).
+  const [lastChange, setLastChange] = useState<UndoEntry | null>(null);
+  // An undo still refreshing the page: the next one waits for it (undoLast ignores clicks meanwhile).
+  const [undoing, setUndoing] = useState(false);
+  const openedAt = useRef(0);
+
+  useEffect(
+    () =>
+      onUndoChange((latest) => {
+        setLastChange(latest && latest.kind === 'metadata' && latest.id > openedAt.current ? latest : null);
+      }),
+    []
+  );
 
   async function reload() {
     try {
@@ -60,6 +96,8 @@ export function MetadataEditorDialog() {
       exposeGlobal('openMetadataEditor', () => {
         setType('designer');
         setSearch('');
+        openedAt.current = lastUndoId();
+        setLastChange(null);
         if (!dialogRef.current?.open) dialogRef.current?.showModal();
         reload();
       }),
@@ -69,10 +107,16 @@ export function MetadataEditorDialog() {
   const tab = TABS.find((candidate) => candidate.type === type) ?? TABS[0];
   const rows = useMemo(() => rowsFor(entries, type, search), [entries, type, search]);
 
-  async function afterChange() {
-    await reload();
-    await window.refreshAfterMetadataChange?.();
-  }
+  useEffect(() => {
+    reloadOpenDialog = async () => {
+      if (dialogRef.current?.open) await reload();
+    };
+    return () => {
+      reloadOpenDialog = null;
+    };
+  }, []);
+
+  const afterChange = () => refreshAll(reload);
 
   async function rename(entry: MetadataEntry) {
     const typed = await askText(`Rename ${capitalize(tab.one)}`, `Enter new name for "${entry.name}":`, entry.name);
@@ -90,6 +134,13 @@ export function MetadataEditorDialog() {
       return;
     try {
       const result = await metadata.rename(type, entry.name, newName);
+      recordMetadataUndo(
+        result?.merged ? `Merged the ${tab.one} "${entry.name}" into "${newName}"` : `Renamed the ${tab.one} "${entry.name}" to "${newName}"`,
+        type,
+        entry.name,
+        newName,
+        result?.modelIds
+      );
       await afterChange();
       if (result?.merged) {
         await showMessage('Success', `Successfully merged "${entry.name}" into "${newName}". ${plural(result.updated ?? 0)} updated.`);
@@ -102,7 +153,8 @@ export function MetadataEditorDialog() {
   async function remove(entry: MetadataEntry) {
     if ((await showMessage(`Delete ${capitalize(tab.one)}`, `Remove "${entry.name}" from ${plural(entry.model_count)}?`, ['Yes', 'No'])) !== 'Yes') return;
     try {
-      await metadata.remove(type, entry.name);
+      const result = await metadata.remove(type, entry.name);
+      recordMetadataUndo(`Removed the ${tab.one} "${entry.name}" from ${plural(result?.modelIds?.length ?? 0)}`, type, entry.name, '', result?.modelIds);
       await afterChange();
     } catch (reason) {
       console.error('Error deleting metadata:', reason);
@@ -130,6 +182,27 @@ export function MetadataEditorDialog() {
           </button>
         ))}
       </div>
+      {lastChange && (
+        <div className="metadata-editor-undo" role="status">
+          <span>{lastChange.label}</span>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            id="metadata-editor-undo"
+            disabled={undoing}
+            onClick={async () => {
+              setUndoing(true);
+              try {
+                await undoLast(lastChange.id);
+              } finally {
+                setUndoing(false);
+              }
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
       <div className="form-group">
         <label id="metadata-type-label" htmlFor="metadata-editor-search">
           {tab.heading}

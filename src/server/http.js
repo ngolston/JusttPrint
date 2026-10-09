@@ -40,12 +40,15 @@ function requireRole(role) {
 }
 
 // Server mode detection
+/** @type {import('http').Server | import('https').Server | null} */
 let httpServer = null;
 
 let httpServerEpoch = 0;
 
+/** @type {import('ws').WebSocketServer | null} */
 let wss = null; // WebSocket server
 
+/** @type {Set<any> | null} */
 let wsClients = null; // WebSocket clients Set
 
 let letsEncryptRenewInFlight = false;
@@ -239,14 +242,10 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
     console.log(`[Server] Binding ${scheme}://${HOST}:${PORT} (tls source: ${tlsResolved.source || 'none'})`);
     httpServerEpoch += 1;
-    if (useTls) {
-      httpServer = https.createServer(tlsOptions, expressApp);
-      httpServer.listen(PORT, HOST, onListening);
-    } else {
-      httpServer = expressApp.listen(PORT, HOST, onListening);
-    }
+    const server = useTls ? https.createServer(tlsOptions, expressApp).listen(PORT, HOST, onListening) : expressApp.listen(PORT, HOST, onListening);
+    httpServer = server;
 
-    httpServer.on('error', (err) => {
+    server.on('error', (err) => {
       console.error('[Local HTTP] Server failed to bind:', err.message);
       console.error('[Local HTTP] Code:', err.code, '— If EACCES on macOS, add com.apple.security.network.server to entitlements and rebuild.');
       httpServer = null;
@@ -270,7 +269,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     const isThumbnailWorker = thumbnailWorker.isWorkerRequest(req);
     console.debug(isThumbnailWorker ? 'Thumbnail worker connected' : 'WebSocket client connected');
     ws.user = req.user || null;
-    wsClients.add(ws);
+    wsClients?.add(ws);
     if (isThumbnailWorker) thumbnailWorker.attach(ws);
 
     // Actions go over the HTTP API; this id ties them back to this socket (dialogs, Puter AI).
@@ -320,7 +319,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
     ws.on('close', () => {
       console.debug('WebSocket client disconnected');
-      wsClients.delete(ws);
+      wsClients?.delete(ws);
       unregisterClient(clientId);
       clientDialogs.dropClient(ws);
       thumbnailWorker.detach(ws);
@@ -328,7 +327,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
-      wsClients.delete(ws);
+      wsClients?.delete(ws);
       unregisterClient(clientId);
     });
   });
@@ -340,7 +339,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       channel,
       args
     });
-    wsClients.forEach((client) => {
+    wsClients?.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
@@ -354,7 +353,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   /** The same, to every browser except `except`. */
   function broadcastToOthers(except, channel, ...args) {
     const message = jsonStringifyForWs({ type: 'event', channel, args });
-    wsClients.forEach((client) => {
+    wsClients?.forEach((client) => {
       if (client === except || client.readyState !== WebSocket.OPEN) return;
       try {
         client.send(message);

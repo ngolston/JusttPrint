@@ -173,7 +173,7 @@
   outline: none;
 }
 .jp-dup-group .jp-dup-copy.is-removed {
-  border-color: rgba(239, 79, 85, 0.6);
+  border-color: rgba(var(--jp-danger-rgb), 0.6);
 }
 .jp-dup-group .jp-dup-copy.is-removed .jp-dup-copy__preview {
   opacity: 0.45;

@@ -2,6 +2,20 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.13.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. Everyone starts on the Dark color scheme, as before. The first search for **Same shape, any resolution** reads your STL and 3MF files once more (new measurements are kept). The database gets two small tables for notifications.
+
+**Changes:**
+- **Duplicates: Same shape, any resolution.** A third **Find** mode groups the same design exported with more or fewer triangles (a smooth and a coarse STL), which **Same geometry** misses. It compares volume, the spread along the model's own axes, its handedness and a histogram of the surface's distance from its centre, all within small margins tested on spheres, tori, cylinders, cones and a bracket meshed from very coarse to very fine; a part 5% taller, a mirrored part or a different shape of the same volume are not matched. A part only a few percent bigger can still look the same, so the page says to check before deleting. Models compared before this version are read once more the next time you search.
+- **Notifications:** a bell in the top bar with an unread count. It collects what finished or went wrong in the background: new models from scans and folder watching (one notification per batch), thumbnail jobs someone started, AI tagging of several models, the same-geometry search, printer maintenance that is due or overdue, failed automatic backups and a thumbnail renderer that will not start. Each person sees what their role may (maintenance and jobs for editors, backups for admins, none for guests) and has their own read state across browsers. The newest 200 are kept for 30 days.
+- **Light theme:** **Settings → Appearance → Theme → Color Scheme** offers Dark, Light, or Match the system (follows your computer, and switches when it does). Each person picks their own. Every page and dialog follows it, the accent colors have darker shades on light so text stays readable (checked against WCAG AA), and the page opens in the chosen scheme without a dark flash.
+- **Printer Manager and Parts Manager redrawn** in the JusttPrint 5 style: tabs with counts, labelled fields in two columns, rows with clear actions and icons instead of emoji, status badges for due reminders and low stock. Nothing changed in what they do. Their old stylesheets (about 1,600 lines) are gone.
+- **Undo in the Metadata Editor:** renaming, merging and clearing a designer, parent model or license can be undone, from the dialog's own **Undo** line (the page's notice is behind the dialog), the notice, or Ctrl/⌘ Z. Undoing a merge or a clear puts the old name back on just the models that had it, and leaves models someone edited since.
+- **Undo button waits for the previous undo:** in the Metadata Editor and the Tag Manager, Undo is greyed out while the previous undo is still finishing; a click then used to be ignored.
+- **Fixed:** a file-type filter for a type added under **Settings → Scanning → File Types** (not one of the built-in ones) made the library list fail; it now shows the files with that extension, as the search box already did.
+- **Development:** the server's type check (`npm run typecheck:server`) is strict: values that may be missing (null) must be checked before use. Two parts stay off, since they would only ask for annotations on older code: parameters without a type, and `catch` variables. Also fixed on the way: a broadcast to browsers right after the server stopped could throw.
+
 ## [7.11.0] - 2026-10-09
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. Details already kept for a model show the new parts after their daily refresh, or right away with the section's refresh button.

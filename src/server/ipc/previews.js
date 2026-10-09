@@ -481,6 +481,7 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
 // Read model file for preview (STL parsing in renderer)
 const readModelFileHandler = async (event, filePath) => {
   if (isUrlModel(filePath)) throw new Error('URL-only model has no file to read');
+  /** @type {string | null} */
   let tempPath = null;
   try {
     // Handle zip entries — extract to OS temp, read, then delete
@@ -524,6 +525,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId, options = {}) 
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
   let shouldCleanup = false;
+  /** @type {import('fs').Stats | null} */
   let fileStat = null;
 
   if (pathInfo.isZipEntry) {

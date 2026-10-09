@@ -149,7 +149,9 @@ function newestBackupDate(dir) {
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
 }
 
+/** @type {Promise<any> | null} */
 let running = null;
+/** @type {NodeJS.Timeout | null} */
 let timer = null;
 
 /** Back up now. Resolves to { success, backup?, removed?, message? }; never runs two at once. */
@@ -196,6 +198,7 @@ function runBackup(reason = 'manual') {
         /* database closed */
       }
       console.error(`[Backup] ${reason} backup failed:`, message);
+      require('./notifications').notify({ level: 'error', title: 'Automatic backup failed', body: message, link: '#/settings', minRole: 'admin' });
       return { success: false, message };
     }
   })().finally(() => {

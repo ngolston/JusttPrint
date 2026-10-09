@@ -131,11 +131,16 @@ async function collectServerGpuInfo() {
     glBackend,
     nvidiaVisibleDevices: process.env.NVIDIA_VISIBLE_DEVICES || null,
     nvidiaDriverCapabilities: process.env.NVIDIA_DRIVER_CAPABILITIES || null,
+    /** @type {{ available: boolean, gpus?: object[], message?: string } | null} */
     nvidia: null,
+    /** @type {any} */
     workerWebgl: null,
+    /** @type {string | null} */
     activeRenderer: null,
     usingSwiftShader: glBackend === 'swiftshader',
+    /** @type {string[]} */
     warnings: [],
+    /** @type {string | null} */
     error: null
   };
 

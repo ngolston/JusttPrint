@@ -149,6 +149,7 @@ ipcMain.handle('get-licenses', async () => {
 const getAllModelsHandler = async (event, sortOption, limit = 0) => {
   try {
     // Determine the ORDER BY clause based on sortOption.
+    /** @type {string | null} */
     let orderClause = '';
     switch (sortOption) {
       case 'name-asc':
@@ -228,6 +229,7 @@ const getModelsFilteredHandler = async (event, filters) => {
     console.debug('Conditions:', conditions);
 
     // Determine ORDER BY clause based on sortOption
+    /** @type {string | null} */
     let orderClause = '';
     const sortOption = filters.sortOption || 'date-desc';
     switch (sortOption) {

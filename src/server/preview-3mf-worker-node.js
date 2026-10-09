@@ -1,4 +1,7 @@
-const { parentPort } = require('worker_threads');
+const workerThreads = require('worker_threads');
+
+// This file only runs as a worker thread, so it always has a parent.
+const parentPort = /** @type {import('worker_threads').MessagePort} */ (workerThreads.parentPort);
 // Worker threads have their own console: same levels and timestamps as the server.
 require('../core/log').install();
 const fs = require('fs');

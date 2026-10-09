@@ -223,7 +223,7 @@
   border-color: var(--jp-accent-border);
 }
 .jp-library-header .filter-pill.inverted {
-  border-color: rgba(239, 79, 85, 0.5);
+  border-color: rgba(var(--jp-danger-rgb), 0.5);
   background: var(--jp-danger-soft);
   box-shadow: none;
 }
@@ -450,7 +450,7 @@
   max-width: none;
   padding: 2px var(--jp-space-2);
   border-radius: var(--jp-radius-pill);
-  background: rgba(8, 16, 23, 0.78);
+  background: rgba(var(--jp-bg-rgb), 0.78);
   color: var(--jp-accent);
   font: 600 var(--jp-text-badge) / 1.4 var(--jp-font);
 }
@@ -476,7 +476,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--jp-radius-sm);
-  background: rgba(8, 16, 23, 0.6);
+  background: rgba(var(--jp-bg-rgb), 0.6);
   color: var(--jp-text);
   cursor: pointer;
   opacity: 0;
@@ -490,7 +490,7 @@
   display: none;
 }
 .file-grid .jp-model-card .jp-model-card__action:hover {
-  background: rgba(8, 16, 23, 0.85);
+  background: rgba(var(--jp-bg-rgb), 0.85);
   transform: none;
 }
 .file-grid .jp-model-card .jp-model-card__action:focus-visible {
@@ -500,7 +500,7 @@
 .file-grid .jp-model-card .model-favorite-btn.is-favorited {
   opacity: 1;
   color: var(--jp-danger);
-  background: rgba(8, 16, 23, 0.6);
+  background: rgba(var(--jp-bg-rgb), 0.6);
 }
 .file-grid .jp-model-card:hover .jp-model-card__action,
 .file-grid .jp-model-card.selected .jp-model-card__action,
@@ -519,7 +519,7 @@
   margin: 0;
   padding: 0 var(--jp-space-1);
   border-radius: var(--jp-radius-sm);
-  background: rgba(8, 16, 23, 0.6);
+  background: rgba(var(--jp-bg-rgb), 0.6);
   opacity: 0;
   transition: opacity var(--jp-transition);
 }
@@ -795,7 +795,7 @@
   height: 30px;
   margin: 0;
   padding: 0 var(--jp-space-3);
-  border: 1px solid rgba(239, 79, 85, 0.35);
+  border: 1px solid rgba(var(--jp-danger-rgb), 0.35);
   border-radius: var(--jp-radius-sm);
   background: var(--jp-danger-soft);
   color: var(--jp-danger);

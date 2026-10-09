@@ -237,11 +237,20 @@ async function importLink(raw, deps, options = {}) {
   const chosenNone = (Array.isArray(options.profileIds) && !options.profileIds.length) || (Array.isArray(options.fileIds) && !options.fileIds.length);
   const downloading = !!options.downloadFolder && !chosenNone && (link.site === 'makerworld' ? !!download : !!downloadFiles);
   const existing = knownModels(db).get(linkKey(link));
-  const exists = (warning = null) => ({ status: 'exists', filePath: existing.filePath, name: existing.fileName, designer: null, picture: false, warning });
+  const exists = (/** @type {string | null} */ warning = null) => ({
+    status: 'exists',
+    filePath: existing.filePath,
+    name: existing.fileName,
+    designer: null,
+    picture: false,
+    warning
+  });
   // An online model already in the library can still get its files.
   if (existing && !(downloading && String(existing.filePath).startsWith('url::'))) return exists();
 
+  /** @type {{ name: string | null, designer: string | null, license: string | null, image: string | null, imageFallback?: string | null } | null} */
   let info = null;
+  /** @type {string | null} */
   let warning = null;
 
   // Printables and Thingiverse with a download folder: the chosen files (every model file when not
@@ -319,6 +328,7 @@ async function importLink(raw, deps, options = {}) {
 
   let picture = false;
   const pictures = info ? [info.image, info.imageFallback].filter((url, i, all) => url && all.indexOf(url) === i) : [];
+  /** @type {any} */
   let pictureError = null;
   for (const url of pictures) {
     try {

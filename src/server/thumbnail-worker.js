@@ -18,11 +18,15 @@ const OPEN = 1; // WebSocket.OPEN
 const RESTART_DELAY_MS = 10000;
 const secret = crypto.randomBytes(24).toString('hex');
 
+/** @type {import('ws').WebSocket | null} */
 let socket = null;
+/** @type {import('puppeteer').Browser | null} */
 let browser = null;
 /** The worker page, for questions about the Chromium that renders (its WebGL). */
+/** @type {import('puppeteer').Page | null} */
 let workerPage = null;
-let restartTimer = null;
+/** @type {NodeJS.Timeout | undefined} */
+let restartTimer;
 let stopped = false;
 
 /** True for the WebSocket upgrade request that carries the worker's cookie. */
@@ -44,7 +48,7 @@ function ready() {
 }
 
 function send(channel, ...args) {
-  if (!ready()) throw new Error('Thumbnail worker is not connected yet');
+  if (!socket || !ready()) throw new Error('Thumbnail worker is not connected yet');
   socket.send(jsonStringifyForWs({ type: 'event', channel, args }));
 }
 
@@ -136,6 +140,14 @@ async function start(options) {
     browser = null;
     launchFailures++;
     console.error('[Thumbnail worker] Could not start Chromium:', error.message);
+    if (launchFailures === LAUNCH_RETRIES + 1)
+      require('./notifications').notify({
+        level: 'error',
+        title: 'Thumbnail renderer could not start',
+        body: `Chromium did not start (${error.message}). Thumbnails are still made in open browsers. See the server log.`,
+        minRole: 'admin',
+        key: `chromium:${new Date().toISOString().slice(0, 10)}`
+      });
     if (launchFailures <= LAUNCH_RETRIES && !stopped) {
       console.warn(`[Thumbnail worker] Trying again in a minute (${launchFailures} of ${LAUNCH_RETRIES}). Thumbnails still render in open browsers.`);
       clearTimeout(restartTimer);
@@ -209,7 +221,7 @@ async function resizeImage(dataUrl, maxDimension, quality) {
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
-      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d')).drawImage(bitmap, 0, 0);
       bitmap.close();
       return { width, height, dataUrl: canvas.toDataURL('image/webp', q) };
     },

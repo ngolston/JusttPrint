@@ -25,7 +25,34 @@ function serverIpcEvent() {
   };
 }
 
+/** @type {NodeJS.Timeout | null} */
 let serverStlHomeTimer = null;
+
+/**
+ * New models found by scans and folder watching, told in one notification once things are quiet
+ * for two minutes (a copy of 300 files is one notification, not 300).
+ */
+let newSinceNotice = 0;
+/** @type {NodeJS.Timeout | null} */
+let newModelsNoticeTimer = null;
+function noteNewModels(count) {
+  if (!(count > 0)) return;
+  newSinceNotice += count;
+  if (newModelsNoticeTimer) clearTimeout(newModelsNoticeTimer);
+  newModelsNoticeTimer = setTimeout(() => {
+    const notifications = require('./notifications');
+    notifications.notify({
+      level: 'success',
+      title: `${notifications.plural(newSinceNotice, 'new model')} in the library`,
+      body: 'Found in the STL Home folders.',
+      link: '#/library'
+    });
+    newSinceNotice = 0;
+    newModelsNoticeTimer = null;
+  }, NEW_MODELS_QUIET_MS);
+  newModelsNoticeTimer.unref();
+}
+const NEW_MODELS_QUIET_MS = 2 * 60 * 1000;
 
 let serverStlHomeScanRunning = false;
 
@@ -48,6 +75,7 @@ async function runServerStlHomeScan(reason) {
       }
     }
     events.broadcast('refresh-grid');
+    noteNewModels(newModels);
     if (newModels > 0 && thumbnailWorker.ready() && !thumbnailJobRunning()) {
       startServerThumbnailJobInternal('missing').catch((error) => console.error('[STL Home] thumbnail job:', error.message));
     }
@@ -81,8 +109,10 @@ function startServerStlHomeScans() {
 const quietEvent = { sender: { send() {} } };
 
 let watchers = [];
+/** @type {{ stop: () => void } | null} */
 let watchQueue = null;
 let watchScanRunning = false;
+/** @type {NodeJS.Timeout | null} */
 let restartTimer = null;
 
 function watchingEnabled() {
@@ -106,6 +136,7 @@ async function rescanChangedFolders(root, folders) {
     }
     console.log(`[Watch] Rescanned ${folders.length} folder(s) under ${root}: ${newModels} new`);
     events.broadcast('refresh-grid');
+    noteNewModels(newModels);
     if (newModels > 0 && thumbnailWorker.ready() && !thumbnailJobRunning()) {
       startServerThumbnailJobInternal('missing').catch((error) => console.error('[Watch] thumbnail job:', error.message));
     }

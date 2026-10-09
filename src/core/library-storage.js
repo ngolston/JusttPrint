@@ -7,7 +7,10 @@
 
 const fs = require('fs');
 
-/** The first STL Home folder that exists, else null. */
+/**
+ * The first STL Home folder that exists, else null.
+ * @param {(path: string) => boolean} [existsSync]
+ */
 function firstExistingRoot(roots, existsSync = fs.existsSync) {
   for (const root of roots || []) {
     try {

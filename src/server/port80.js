@@ -9,6 +9,7 @@
 const { getSettingValueOr } = require('../core/settings');
 const serverTls = require('./server-tls');
 
+/** @type {import('http').Server | null} */
 let http80Server = null;
 
 function formatPort80BindError(err) {

@@ -87,7 +87,7 @@ function present(db, row, now) {
  */
 function createShareLink(db, { kind, targetId, filePath, allowDownload, allowPreview, expiresInDays, createdBy } = {}, now = new Date()) {
   ensureShareSchema(db);
-  if (!KINDS.includes(kind)) throw httpError(400, 'Share a model or a collection');
+  if (!kind || !KINDS.includes(kind)) throw httpError(400, 'Share a model or a collection');
   let id = Number(targetId);
   if (kind === 'model' && filePath) {
     const row = db.prepare('SELECT id FROM models WHERE filePath = ?').get(String(filePath));

@@ -110,6 +110,7 @@ function browseFolders({ dir = null, places = [], isBlocked = () => false, fileS
   // Not a blocked folder, as written or after following links.
   const allowed = (candidate) => !isBlocked(candidate) && !isBlocked(real(candidate));
 
+  /** @type {{ places: any[], path: string | null, parent: string | null, folders: any[], truncated: boolean }} */
   const result = { places: shown, path: null, parent: null, folders: [], truncated: false };
   if (dir === null || dir === undefined || String(dir).trim() === '') return result;
 

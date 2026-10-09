@@ -23,6 +23,7 @@ const quiet = { warn() {} };
 function fakeSocket() {
   return {
     readyState: 1,
+    /** @type {any[]} */
     sent: [],
     send(text) {
       this.sent.push(JSON.parse(text));

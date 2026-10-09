@@ -1,6 +1,8 @@
 {
   // Type checks the server's JavaScript (src/server, src/core and what they load) from its JSDoc,
-  // without building anything: npm run typecheck:server (npm test runs it too). Not strict yet.
+  // without building anything: npm run typecheck:server (npm test runs it too). Strict, except two
+  // checks that would only ask for annotations on old code: untyped parameters (noImplicitAny) and
+  // `catch (error)` read as `any` (useUnknownInCatchVariables).
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
@@ -9,7 +11,9 @@
     "target": "es2023",
     "types": ["node"],
     "skipLibCheck": true,
-    "strict": false
+    "strict": true,
+    "noImplicitAny": false,
+    "useUnknownInCatchVariables": false
   },
   "include": ["src/core/**/*.js", "src/server/**/*.js"]
 }

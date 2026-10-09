@@ -178,10 +178,16 @@ function GroupRow({
 }) {
   const size = group.files[0]?.size || 0;
   const removing = group.files.filter((file) => selected.has(file.filePath)).length;
-  // Same geometry: "geometry:<triangles>:<area>:…" (src/core/geometry-signature.js).
+  // Same geometry: "geometry:<triangles>:<area>:…" (src/core/geometry-signature.js); same shape: "similar:<id>".
   const geometry = String(group.hash || '').startsWith('geometry:');
+  const similar = String(group.hash || '').startsWith('similar:');
   const triangles = geometry ? Number(String(group.hash).split(':')[1]) : 0;
-  const title = geometry ? `${group.files.length} files with the same geometry` : `${group.files.length} identical copies`;
+  const counts = similar ? group.files.map((file) => file.triangles || 0).filter(Boolean) : [];
+  const title = geometry
+    ? `${group.files.length} files with the same geometry`
+    : similar
+      ? `${group.files.length} files with the same shape`
+      : `${group.files.length} identical copies`;
   return (
     <div
       className="jp-dup-group"
@@ -194,6 +200,11 @@ function GroupRow({
         <span className="jp-dup-group__title">{title}</span>
         {geometry ? (
           <span className="jp-dup-group__meta">{triangles.toLocaleString()} triangles • different files, same shape</span>
+        ) : similar ? (
+          <span className="jp-dup-group__meta">
+            {counts.length ? `${Math.min(...counts).toLocaleString()}–${Math.max(...counts).toLocaleString()} triangles • ` : ''}other mesh resolutions • check
+            before deleting
+          </span>
         ) : (
           <span className="jp-dup-group__meta">
             {formatFileSize(size)} each • hash <code title={group.hash}>{String(group.hash || '').slice(0, 12)}</code>
@@ -304,6 +315,9 @@ type View =
   | { kind: 'ready'; groups: DuplicateGroup[]; generating: boolean }
   | { kind: 'error'; text: string };
 
+/** Identical files, the same mesh in different files, or the same shape at any mesh resolution. */
+type Mode = 'files' | 'geometry' | 'similar';
+
 const RUNNING_NOTE = 'Note: Hash generation is currently running in the background. Additional duplicate files may be found once the process completes.';
 
 /**
@@ -322,8 +336,8 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   const [zipEnabled, setZipEnabled] = useState(false);
   const [preferredDir, setPreferredDir] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [mode, setMode] = useState<'files' | 'geometry'>('files');
-  const modeRef = useRef<'files' | 'geometry'>('files');
+  const [mode, setMode] = useState<Mode>('files');
+  const modeRef = useRef<Mode>('files');
   modeRef.current = mode;
   const mounted = useRef(true);
   const loadId = useRef(0);
@@ -351,11 +365,11 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       const current = () => id === loadId.current && mounted.current;
       try {
         // Same geometry: fingerprints first (asked for, like hashes), then the groups.
-        if (modeRef.current === 'geometry') {
+        if (modeRef.current !== 'files') {
           setView({ kind: 'loading', text: 'Comparing geometry...' });
           const zipOn = (await settings.get<string | null>('enableZipArchives').catch(() => null)) === '1';
           setZipEnabled(zipOn);
-          const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip);
+          const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip, modeRef.current === 'similar');
           if (!current()) return;
           if (found.running) {
             setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
@@ -480,11 +494,11 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     });
     // Geometry fingerprints: progress, then the groups.
     const stopGeometry = onServerEvent('geometry-progress', (progress: HashProgress & { running?: boolean }) => {
-      if (modeRef.current !== 'geometry' || !progress) return;
+      if (modeRef.current === 'files' || !progress) return;
       setView((previous) => (previous.kind === 'geometry' ? { ...previous, progress } : previous));
     });
     const stopGeometryDone = onServerEvent('geometry-complete', () => {
-      if (modeRef.current === 'geometry') setTimeout(() => load({ checkHashes: false, ...optionsRef.current }), 300);
+      if (modeRef.current !== 'files') setTimeout(() => load({ checkHashes: false, ...optionsRef.current }), 300);
     });
     return () => {
       stopProgress();
@@ -494,7 +508,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     };
   }, [load]);
 
-  function changeMode(next: 'files' | 'geometry') {
+  function changeMode(next: Mode) {
     setMode(next);
     modeRef.current = next;
     setSelected(new Set());
@@ -630,10 +644,16 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
             <input type="radio" name="dedup-mode" id="dedup-mode-geometry" checked={mode === 'geometry'} onChange={() => changeMode('geometry')} />
             <span>Same geometry</span>
           </label>
+          <label className="dedup-scope-option" htmlFor="dedup-mode-similar">
+            <input type="radio" name="dedup-mode" id="dedup-mode-similar" checked={mode === 'similar'} onChange={() => changeMode('similar')} />
+            <span>Same shape, any resolution</span>
+          </label>
           <p className="dedup-scope-summary">
             {mode === 'files'
               ? 'Byte-for-byte copies of a file.'
-              : 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF, also inside ZIP files.'}
+              : mode === 'geometry'
+                ? 'The same model in different files: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Mirrored left and right parts are not matched. STL and 3MF, also inside ZIP files.'
+                : 'The same design exported with more or fewer triangles (a smooth and a coarse STL). A part a few percent bigger, or one that differs only in small details, also looks the same here: check before deleting. Mirrored parts are not matched.'}
           </p>
         </div>
         <div id="dedup-scope-container" className="dedup-scope">

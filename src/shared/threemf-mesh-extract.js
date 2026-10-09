@@ -331,6 +331,7 @@
     const goal = Math.max(1000, Math.floor(targetTriangles * 0.92));
     let cellSize = longest / Math.cbrt(Math.max(goal * 0.55, 8));
 
+    /** @type {{ positions: Float32Array, indices: Uint32Array } | null} */
     let best = null;
     for (let attempt = 0; attempt < 5; attempt++) {
       const clustered = clusterMesh(positions, indices, cellSize);

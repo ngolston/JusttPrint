@@ -24,6 +24,7 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
     usingSender: !!eventSender,
     hasSend: !!(eventSender && eventSender.send)
   });
+  /** @type {any} */
   let tagJob = null;
   try {
     // One run at a time (the AI client and Puter's browser are shared by the run).

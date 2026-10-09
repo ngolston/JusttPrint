@@ -2218,6 +2218,61 @@ async function browserChecks(base, wsUrl, session) {
           'designer cleared'
         ).catch(() => false);
         check('Metadata Manager clears a designer after asking', !!confirmClear && cleared === true);
+
+        // Undo, in the dialog's own Undo line (the page's notice is behind the dialog): the clear, then the rename.
+        const designerIs = (name, what) =>
+          waitFor(
+            async () => {
+              const model = await invoke(base, session, 'get-model', [cube]);
+              return model.result && (model.result.designer || '') === name;
+            },
+            15000,
+            what
+          ).catch(() => false);
+        const undoLine = await page.waitForSelector('#metadata-editor-undo', { timeout: 10000 }).catch(() => null);
+        if (undoLine) await undoLine.click();
+        check('Metadata Editor undoes clearing a designer', !!undoLine && (await designerIs('New Designer', 'clear undone')) === true);
+        const undoRename = await page
+          .waitForSelector('#metadata-editor-dialog .metadata-editor-undo:has-text("Renamed")', { timeout: 10000 })
+          .catch(() => null);
+        if (undoRename) await page.click('#metadata-editor-undo');
+        check('Metadata Editor undoes a rename', !!undoRename && (await designerIs('Old Designer', 'rename undone')) === true);
+        check(
+          'the Metadata Editor list shows the undone name',
+          !!(await page.waitForSelector('#metadata-editor-dialog .metadata-item:has-text("Old Designer")', { timeout: 10000 }).catch(() => null))
+        );
+
+        // A merge is undone on the models it changed only, and keeps edits made since.
+        const ball = path.join(LIBRARY, 'Designer A', 'cube.stl');
+        const other = (await invoke(base, session, 'get-model', [path.join(LIBRARY, 'Designer B', 'box.3mf')])).result;
+        if (other) {
+          await invoke(base, session, 'update-models-batch', [[{ filePath: other.filePath, designer: 'Merge Target' }]]);
+          const merged = (await invoke(base, session, 'rename-metadata', ['designer', 'Old Designer', 'Merge Target'])).result || {};
+          const cubeId = (await invoke(base, session, 'get-model', [ball])).result?.id;
+          check(
+            'a merge reports the models it changed',
+            merged.merged === true && JSON.stringify(merged.modelIds) === JSON.stringify([cubeId]),
+            JSON.stringify(merged)
+          );
+          const restored =
+            (await invoke(base, session, 'restore-metadata', [{ type: 'designer', name: 'Old Designer', current: 'Merge Target', modelIds: merged.modelIds }]))
+              .result || {};
+          const otherAfter = (await invoke(base, session, 'get-model', [other.filePath])).result?.designer;
+          check(
+            'undoing a merge splits it again',
+            restored.restored === 1 && (await designerIs('Old Designer', 'merge undone')) === true && otherAfter === 'Merge Target'
+          );
+          await invoke(base, session, 'rename-metadata', ['designer', 'Old Designer', 'Merge Target']);
+          await invoke(base, session, 'update-models-batch', [[{ filePath: ball, designer: 'Edited Since' }]]);
+          const kept =
+            (await invoke(base, session, 'restore-metadata', [{ type: 'designer', name: 'Old Designer', current: 'Merge Target', modelIds: merged.modelIds }]))
+              .result || {};
+          check('undo keeps a value edited since', kept.restored === 0 && (await designerIs('Edited Since', 'edit kept')) === true);
+          await invoke(base, session, 'update-models-batch', [[{ filePath: other.filePath, designer: other.designer || '' }]]);
+        } else {
+          check('a second model for the merge undo', false);
+        }
+        await invoke(base, session, 'update-models-batch', [[{ filePath: ball, designer: '' }]]);
       }
     } else {
       check('Metadata Manager lists the designer', false, 'rename button not found');
@@ -3100,7 +3155,8 @@ async function browserChecks(base, wsUrl, session) {
     check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 72 && !(await tablet.isVisible('#jp-sidebar .jp-storage')));
     const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
     if (tabletCard) {
-      await tabletCard.click();
+      // By locator: the grid may draw the card again before the click (slower machines).
+      await tablet.locator('.file-grid .jp-model-card[data-filepath] .file-name').first().click();
       // Waits for the close button and backdrop too: they render after the drawer class is set.
       const drawerState = await tablet
         .waitForFunction(
@@ -3822,8 +3878,123 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       );
     check('the saved theme is applied when the page loads', themed);
+
+    // Light color scheme (tokens.css, startup/theme.ts): the page turns light, the accent takes its light shade.
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
+    check('Theme settings offers the color scheme, dark to start', (await page.inputValue('#ui-color-scheme')) === 'dark');
+    await page.selectOption('#ui-color-scheme', 'light');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    const lightLook = () =>
+      page.evaluate(() => ({
+        scheme: document.documentElement.getAttribute('data-color-scheme'),
+        background: getComputedStyle(document.body).backgroundColor,
+        accent: document.documentElement.style.getPropertyValue('--jp-accent').trim()
+      }));
+    const isLight = (look) => look.scheme === 'light' && /rgb\((2[0-9]{2}), (2[0-9]{2}), (2[0-9]{2})\)/.test(look.background) && look.accent === '#7c3aed';
+    let look = await lightLook();
+    check(
+      'choosing Light turns the page light, with the light shade of the accent',
+      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'light' && isLight(look),
+      JSON.stringify(look)
+    );
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+    const lightFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
+    await page
+      .waitForFunction(() => document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#7c3aed', null, { timeout: 15000 })
+      .catch(() => {});
+    look = await lightLook();
+    check('the light scheme is there from the first paint after a reload', lightFirst === 'light' && isLight(look), JSON.stringify({ lightFirst, look }));
+    await invoke(base, session, 'save-setting', ['uiColorScheme', 'dark']);
+    await page.evaluate(() => window.applyColorScheme?.('dark'));
     await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+
+    // Same shape, any resolution (geometry-signature.js similarShape): a ball meshed coarse and fine.
+    const ballDir = path.join(LIBRARY, 'Balls');
+    fs.mkdirSync(ballDir, { recursive: true });
+    const ballStl = (n) => {
+      const tris = [];
+      const p = (i, j) => {
+        const th = (i / n) * Math.PI * 2;
+        const ph = (j / (n / 2)) * Math.PI;
+        return [10 * Math.sin(ph) * Math.cos(th), 10 * Math.sin(ph) * Math.sin(th), 10 * Math.cos(ph)];
+      };
+      for (let i = 0; i < n; i++) for (let j = 0; j < n / 2; j++) tris.push([p(i, j), p(i + 1, j), p(i + 1, j + 1)], [p(i, j), p(i + 1, j + 1), p(i, j + 1)]);
+      const buf = Buffer.alloc(84 + tris.length * 50);
+      buf.writeUInt32LE(tris.length, 80);
+      tris.forEach((tri, i) => tri.forEach((pt, j) => pt.forEach((x, k) => buf.writeFloatLE(x, 84 + i * 50 + 12 + j * 12 + k * 4))));
+      return buf;
+    };
+    fs.writeFileSync(path.join(ballDir, 'ball smooth.stl'), ballStl(96));
+    fs.writeFileSync(path.join(ballDir, 'ball coarse.stl'), ballStl(32));
+    // Folder watching adds them (scanning a new folder inside the app folder is refused from the web).
+    await waitFor(
+      async () => {
+        for (const name of ['ball smooth.stl', 'ball coarse.stl'])
+          if (!(await invoke(base, session, 'get-model', [path.join(ballDir, name)])).result) return false;
+        return true;
+      },
+      60000,
+      'balls added by folder watching'
+    ).catch(() => {});
+
+    // Notifications (src/server/notifications.js, shell/Notifications.tsx): a finished same-geometry search shows in the bell.
+    await invoke(base, session, 'start-geometry-scan', [null]);
+    await waitFor(async () => (await invoke(base, session, 'get-geometry-scan')).result?.running === false, 60000, 'geometry search').catch(() => {});
+    const bell = await page
+      .waitForFunction(() => /unread/.test(document.getElementById('jp-notifications-button')?.getAttribute('aria-label') || ''), null, { timeout: 15000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('the bell shows unread notifications', bell, await page.getAttribute('#jp-notifications-button', 'aria-label').catch(() => ''));
+    await page.click('#jp-notifications-button');
+    const notice = await page
+      .waitForSelector('#jp-notifications .jp-notify__item:has-text("Same-geometry search finished")', { timeout: 10000 })
+      .catch(() => null);
+    check('the panel lists what finished', !!notice);
+    const cleared = await page
+      .waitForFunction(() => !document.querySelector('.jp-notify__badge'), null, { timeout: 10000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check('opening the panel marks it read', cleared && (await invoke(base, session, 'get-notifications', [null])).result?.unread === 0);
+    if (notice) await page.click('#jp-notifications .jp-notify__item:has-text("Same-geometry search finished") button');
+    check(
+      'a notification opens its page',
+      await page
+        .waitForFunction(() => location.hash.startsWith('#/duplicates'), null, { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        )
+    );
+    const similarGroups = (await invoke(base, session, 'get-geometry-duplicates', [{ similar: true }])).result?.groups || [];
+    check(
+      'Same shape, any resolution groups a ball meshed coarse and fine',
+      similarGroups.some(
+        (g) =>
+          g.files
+            .map((f) => path.basename(f.filePath))
+            .sort()
+            .join('|') === 'ball coarse.stl|ball smooth.stl'
+      ),
+      JSON.stringify(similarGroups.map((g) => g.files.map((f) => path.basename(f.filePath))))
+    );
+    await page.evaluate(() => (location.hash = '#/duplicates'));
+    await page.click('#dedup-mode-similar').catch(() => {});
+    const similarCard = await page.waitForSelector('.jp-dup-group:has-text("files with the same shape")', { timeout: 15000 }).catch(() => null);
+    check('the Duplicates page shows them under Same shape, any resolution', !!similarCard && /check before deleting/.test(await similarCard.textContent()));
+    await page.click('#dedup-mode-files').catch(() => {});
+    for (const name of ['ball smooth.stl', 'ball coarse.stl']) await invoke(base, session, 'delete-file', [path.join(ballDir, name)]);
+    await page.evaluate(() => (location.hash = '#/library'));
+    await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
+    // The deleted balls leave the grid once the refresh arrives.
+    await page.waitForFunction(() => !document.querySelector('.file-grid [data-filepath*="/Balls/"]'), null, { timeout: 15000 }).catch(() => {});
 
     // Tools → Clear New Flag (src/web/library/actions.ts).
     const flagged = (await page.$$eval('.file-grid [data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).filter(
@@ -3860,7 +4031,7 @@ async function browserChecks(base, wsUrl, session) {
         15000,
         'image added'
       ).catch(() => false);
-      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true);
+      check('Add Image picks a file in the browser and adds it to the model', !!fileChooser && added === true, flagged);
     }
 
     // Slicer settings (React): lists saved slicers, refuses a duplicate name, saves a new one.
@@ -4349,6 +4520,15 @@ async function accountChecks(base, wsUrl, admin) {
   const editor = await loginAs(base, 'maker', 'maker-password');
   const viewer = await loginAs(base, 'kid', 'kid-password');
   check('editor and viewer log in', !!editor && !!viewer);
+  check(
+    'viewers do not see editor notifications, and guests none',
+    !((await invoke(base, viewer, 'get-notifications', [null])).result?.items || []).some((item) => /Same-geometry/.test(item.title)) &&
+      ((await invoke(base, editor, 'get-notifications', [null])).result?.items || []).some((item) => /Same-geometry/.test(item.title))
+  );
+  check(
+    'viewers cannot undo Metadata Editor changes',
+    (await invoke(base, viewer, 'restore-metadata', [{ type: 'designer', name: 'x', current: '', modelIds: [1] }])).status === 403
+  );
   const users = (await invoke(base, admin, 'list-users')).result || {};
   check(
     'the user list has all three, without password hashes',
@@ -4456,7 +4636,9 @@ async function accountChecks(base, wsUrl, admin) {
   check(
     'everyone picks their own color scheme',
     (await invoke(base, viewer, 'save-setting', ['uiTheme', 'modern-green'])).result === true &&
-      (await invoke(base, editor, 'get-setting', ['uiTheme'])).result !== 'modern-green'
+      (await invoke(base, editor, 'get-setting', ['uiTheme'])).result !== 'modern-green' &&
+      (await invoke(base, viewer, 'save-setting', ['uiColorScheme', 'light'])).result === true &&
+      (await invoke(base, editor, 'get-setting', ['uiColorScheme'])).result !== 'light'
   );
   check('thumbnail colors stay for admins', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['renderColor', '#ff0000'])).error || ''));
 

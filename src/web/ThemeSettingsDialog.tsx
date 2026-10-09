@@ -3,6 +3,7 @@ import { settings } from './api';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, showMessage } from './page';
 import { useCan } from './session';
+import { applyColorScheme, schemePreference } from './startup/theme';
 
 declare global {
   interface Window {
@@ -17,6 +18,12 @@ const THEMES: [string, string][] = [
   ['modern-orange', 'Modern Orange'],
   ['modern-pink', 'Modern Pink'],
   ['dark-minimal', 'Dark Minimal']
+];
+
+const SCHEMES: [string, string][] = [
+  ['dark', 'Dark'],
+  ['light', 'Light'],
+  ['system', 'Match the system (light or dark)']
 ];
 
 const BACKGROUNDS: [string, string][] = [
@@ -44,12 +51,13 @@ const MODEL_COLORS: [string, string][] = [
 
 interface Theme {
   uiTheme: string;
+  colorScheme: string;
   background: string;
   modelColor: string;
   lighting: boolean;
 }
 
-const DEFAULT_THEME: Theme = { uiTheme: 'modern-cyan', background: '#070147', modelColor: '#cccccc', lighting: true };
+const DEFAULT_THEME: Theme = { uiTheme: 'modern-cyan', colorScheme: 'dark', background: '#070147', modelColor: '#cccccc', lighting: true };
 
 /**
  * Settings → Theme: UI accent theme, thumbnail background, and the model color and lighting
@@ -68,9 +76,12 @@ export function ThemeSettingsDialog() {
       exposeGlobal('openThemeSettings', () => {
         (async () => {
           const get = (key: string) => settings.get<string | null>(key).catch(() => null);
-          const [uiTheme, background, modelColor, lighting] = await Promise.all(['uiTheme', 'modelBackgroundColor', 'renderColor', 'renderLighting'].map(get));
+          const [uiTheme, colorScheme, background, modelColor, lighting] = await Promise.all(
+            ['uiTheme', 'uiColorScheme', 'modelBackgroundColor', 'renderColor', 'renderLighting'].map(get)
+          );
           setTheme({
             uiTheme: uiTheme || DEFAULT_THEME.uiTheme,
+            colorScheme: schemePreference(colorScheme),
             background: background || DEFAULT_THEME.background,
             modelColor: modelColor || DEFAULT_THEME.modelColor,
             lighting: lighting == null ? true : lighting === 'true'
@@ -94,10 +105,12 @@ export function ThemeSettingsDialog() {
         await settings.save('renderLighting', String(theme.lighting));
       }
       await settings.save('uiTheme', theme.uiTheme);
+      await settings.save('uiColorScheme', theme.colorScheme);
 
       if (isAdmin) document.documentElement.style.setProperty('--model-background-color', theme.background);
       document.body.setAttribute('data-theme', theme.uiTheme);
       window.applyThemeColors?.(theme.uiTheme);
+      applyColorScheme(theme.colorScheme);
       if (isAdmin) {
         window.currentRenderColor = theme.modelColor;
         window.currentRenderLighting = theme.lighting;
@@ -121,10 +134,10 @@ export function ThemeSettingsDialog() {
     }
   }
 
-  const select = (key: 'uiTheme' | 'background' | 'modelColor', id: string, label: string, options: [string, string][], help: string) => (
+  const select = (key: 'uiTheme' | 'colorScheme' | 'background' | 'modelColor', id: string, label: string, options: [string, string][], help: string) => (
     <div className="form-group">
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={theme[key]} disabled={key !== 'uiTheme' && !isAdmin} onChange={(event) => set(key, event.target.value)}>
+      <select id={id} value={theme[key]} disabled={key !== 'uiTheme' && key !== 'colorScheme' && !isAdmin} onChange={(event) => set(key, event.target.value)}>
         {options.map(([value, name]) => (
           <option key={value} value={value}>
             {name}
@@ -151,7 +164,8 @@ export function ThemeSettingsDialog() {
         </>
       }
     >
-      {select('uiTheme', 'ui-theme', 'UI Theme:', THEMES, 'The color scheme of the app, for your account only')}
+      {select('colorScheme', 'ui-color-scheme', 'Color Scheme:', SCHEMES, 'Light or dark, for your account only')}
+      {select('uiTheme', 'ui-theme', 'Accent Color:', THEMES, 'The color of buttons, links and selections, for your account only')}
       {!isAdmin && <p className="setting-description">The thumbnail colors below are the same for everyone; an admin changes them.</p>}
       {select('background', 'model-background-color', 'Model Background Color:', BACKGROUNDS, 'Background color for 3D model thumbnails')}
       <p className="setting-description theme-render-note">Note: These settings are for STLs and 3MFs without embedded data.</p>

@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 7.11.0**
+**Version 7.13.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -12,11 +12,13 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 
 - **A home for your printing**: Home shows your figures, recent prints and printers; the Library has tabs for Printed, Unprinted, Queue and Favorites
 - **Print queue and printers** pages: what is printing and up next, and your printers with their web pages and maintenance reminders
+- **Notifications**: a bell for what finished or went wrong in the background (new models from scans, thumbnail and AI tagging jobs, maintenance coming due, failed backups), each person seeing what their role may
+- **Light or dark**: each person picks a dark or light look, or follows their computer's setting, and an accent color
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets, finger-sized controls on touch screens, and **Install App** for the home screen (Android and desktop need HTTPS)
 - **Automatic scanning** of STL, 3MF, ZIP and other model files, with thumbnails rendered by the JusttPrint backend; large pictures show as small copies in the grid, and the originals are kept
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
 - **Add from links**: paste a list of Printables, Thingiverse or MakerWorld links and each model is added with its name, designer, license, picture and source link, and its files downloaded into the library when you want (Thingiverse with your own API token); links already in the library are skipped
-- **Same-geometry duplicates**: besides identical files, the Duplicates page finds the same model saved as different files (an STL and its 3MF, a re-export), also inside ZIP files
+- **Same-geometry duplicates**: besides identical files, the Duplicates page finds the same model saved as different files (an STL and its 3MF, a re-export), also inside ZIP files, and the same design exported at another mesh resolution
 - **MakerWorld, Printables and Thingiverse details and downloads**: MakerWorld models show their English title, print profile (plates, print time, filament by color), files with English names and video in the details panel, and download as a 3MF into a library folder after a one-time MakerWorld sign-in; Printables and Thingiverse models show their popularity and rating, what they are a remix of, print settings, the printer and settings each G-code file was sliced for, and their files to download
 - **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
 - **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download; optional **guest access** to browse without an account
@@ -28,7 +30,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
 - **Search and filters** by name, folder, tag, designer, status and more
 - **Multi-edit** to change many models at once
-- **Undo** for metadata and tag edits, and for renaming, merging and deleting tags: the Undo button after a change, or Ctrl/⌘ Z for the last 20
+- **Undo** for metadata and tag edits, for renaming, merging and deleting tags, and for the Metadata Editor's renames, merges and clears: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
 - **MCP server** so AI agents can search and update your library, and add models from links

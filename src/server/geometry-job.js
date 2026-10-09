@@ -1,9 +1,10 @@
 'use strict';
 
 /**
- * Geometry fingerprints for the Duplicates page's "Same geometry" (src/core/geometry-signature.js):
- * computed in the background for STL and 3MF models, one at a time in a worker thread, and kept in
- * the model_geometry table until the file changes (size or modification time).
+ * Geometry fingerprints for the Duplicates page's "Same geometry" and "Same shape, any resolution"
+ * (src/core/geometry-signature.js): computed in the background for STL and 3MF models, one at a
+ * time in a worker thread, and kept in the model_geometry table with the measurements (volume,
+ * spreads, handedness, shape) until the file changes (size or modification time).
  *
  * Progress goes to every browser as 'geometry-progress' { running, processed, total, failed },
  * and 'geometry-complete' when done.
@@ -15,6 +16,7 @@ const { Worker } = require('worker_threads');
 const database = require('../core/database');
 const events = require('./events');
 const { buildModelFilterConditions, sqlAndFilterConditions } = require('../core/model-filters');
+const { SIMILAR, similarShape } = require('../core/geometry-signature');
 
 /** Larger files (for a model inside a ZIP: larger ZIP files) are not fingerprinted (they are read whole). */
 const MAX_BYTES = 512 * 1024 * 1024;
@@ -38,6 +40,9 @@ function table() {
       )
       .run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_model_geometry_signature ON model_geometry(signature)').run();
+    // The measurements for "Same shape, any resolution" (7.13): JSON { volume, spreads, hand, shape }.
+    const columns = database.db.prepare('PRAGMA table_info(model_geometry)').all();
+    if (!columns.some((column) => column.name === 'measures')) database.db.prepare('ALTER TABLE model_geometry ADD COLUMN measures TEXT').run();
     tableReady = true;
   }
   return database.db;
@@ -69,11 +74,14 @@ function candidates(filters) {
     .all(...filter.params);
 }
 
-/** Models without a fingerprint for their current file. */
+/**
+ * Models without a fingerprint for their current file, or fingerprinted before the measurements
+ * were kept (they are read once more).
+ */
 function missing(filters) {
   const kept = new Map(
     table()
-      .prepare('SELECT model_id, file_key FROM model_geometry')
+      .prepare('SELECT model_id, file_key FROM model_geometry WHERE NOT (signature IS NOT NULL AND measures IS NULL)')
       .all()
       .map((row) => [row.model_id, row.file_key])
   );
@@ -83,6 +91,7 @@ function missing(filters) {
   });
 }
 
+/** @type {import('worker_threads').Worker | null} */
 let worker = null;
 const pending = new Map();
 let nextId = 1;
@@ -95,16 +104,17 @@ function fingerprint(filePath) {
       if (done) done(ok ? { result } : { error });
     });
     worker.on('error', (error) => {
-      for (const done of pending.values()) done({ error: error.message });
+      for (const done of pending.values()) done({ error: error instanceof Error ? error.message : String(error) });
       pending.clear();
       worker = null;
     });
     worker.unref();
   }
+  const active = worker;
   return new Promise((resolve) => {
     const id = nextId++;
     pending.set(id, resolve);
-    worker.postMessage({ id, filePath });
+    active.postMessage({ id, filePath });
   });
 }
 
@@ -116,7 +126,7 @@ function start(filters = null) {
   events.broadcast('geometry-progress', snapshot());
   (async () => {
     const save = table().prepare(
-      'INSERT OR REPLACE INTO model_geometry (model_id, file_key, signature, triangles, error, computed_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO model_geometry (model_id, file_key, signature, triangles, error, computed_at, measures) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     let last = 0;
     for (const row of todo) {
@@ -135,7 +145,8 @@ function start(filters = null) {
           result ? result.signature : null,
           result ? result.triangles : null,
           outcome.error || (result ? null : 'No surface'),
-          new Date().toISOString()
+          new Date().toISOString(),
+          result ? JSON.stringify({ volume: result.volume, spreads: result.spreads, hand: result.hand, shape: result.shape }) : null
         );
       state.processed++;
       if (Date.now() - last > 500) {
@@ -146,6 +157,17 @@ function start(filters = null) {
     state.running = false;
     events.broadcast('geometry-progress', snapshot());
     events.broadcast('geometry-complete', snapshot());
+    if (state.processed > 0 && !state.cancel) {
+      const notifications = require('./notifications');
+      const groups = duplicates(filters).groups.length;
+      notifications.notify({
+        level: 'success',
+        title: 'Same-geometry search finished',
+        body: groups ? `${notifications.plural(groups, 'group')} of models with the same geometry.` : 'No models with the same geometry.',
+        link: '#/duplicates',
+        minRole: 'editor'
+      });
+    }
   })().catch((error) => {
     console.error('[Geometry] Fingerprinting stopped:', error);
     state.running = false;
@@ -189,10 +211,56 @@ function duplicates(filters = null, { includeZip = true } = {}) {
   return { groups: result, missing: missing(filters).length, ...snapshot() };
 }
 
+/**
+ * Groups of models with the same shape at any mesh resolution (similarShape): models whose
+ * measurements match are joined, through each other too. Only groups with at least two different
+ * meshes are listed (the rest are "Same geometry"). Same answer shape as duplicates(), with
+ * hashes 'similar:<first model id>'.
+ */
+function similar(filters = null, { includeZip = true } = {}) {
+  table();
+  const inView = filters ? new Set(candidates(filters).map((row) => row.id)) : null;
+  const rows = database.db
+    .prepare(
+      `SELECT g.signature, g.measures, m.id, m.filePath, m.fileName, m.size
+    FROM model_geometry g JOIN models m ON m.id = g.model_id
+    WHERE g.measures IS NOT NULL AND m.filePath NOT LIKE 'url::%' ${includeZip ? '' : "AND instr(m.filePath, '::') = 0"}`
+    )
+    .all()
+    .filter((row) => (!inView || inView.has(row.id)) && fileKey(row.filePath))
+    .map((row) => ({ ...row, m: JSON.parse(row.measures) }))
+    .filter((row) => row.m && row.m.volume > 0)
+    .sort((a, b) => a.m.volume - b.m.volume);
+  // Union-find over matching pairs; sorted by volume, each model only meets its near neighbours.
+  const parent = rows.map((_, i) => i);
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length && rows[j].m.volume <= rows[i].m.volume * (1 + SIMILAR.volume) * 1.001; j++) {
+      if (similarShape(rows[i].m, rows[j].m)) parent[find(j)] = find(i);
+    }
+  }
+  const groups = new Map();
+  rows.forEach((row, i) => {
+    const root = find(i);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(row);
+  });
+  const result = [];
+  for (const files of groups.values()) {
+    if (files.length < 2 || new Set(files.map((f) => f.signature)).size < 2) continue;
+    files.sort((a, b) => b.m.volume - a.m.volume || String(a.filePath).localeCompare(String(b.filePath)));
+    result.push({
+      hash: `similar:${files[0].id}`,
+      files: files.map(({ filePath, fileName, size, signature }) => ({ filePath, fileName, size, triangles: Number(String(signature).split(':')[0]) || null }))
+    });
+  }
+  return { groups: result, missing: missing(filters).length, ...snapshot() };
+}
+
 const status = () => snapshot();
 const stop = () => {
   state.cancel = true;
   return snapshot();
 };
 
-module.exports = { duplicates, fileKey, missing, start, status, stop };
+module.exports = { duplicates, fileKey, missing, similar, start, status, stop };

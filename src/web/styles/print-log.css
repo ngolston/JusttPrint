@@ -1,0 +1,53 @@
+/* Log Print (print/PrintHistory.tsx): the printer of a logged print, and the parts it used. */
+
+.print-history-printer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent);
+  font-size: var(--jp-text-small);
+}
+.print-history-printer-model {
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-badge);
+}
+
+.form-group .log-print-parts-add {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.form-group .log-print-parts-add select {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.form-group .log-print-parts-add input[type='number'] {
+  flex: 0 0 76px;
+  width: 76px;
+  padding-right: var(--jp-space-2);
+  background-image: none;
+}
+.form-group .log-print-parts-add button {
+  flex: 0 0 auto;
+}
+#log-print-dialog .part-chip-qty {
+  width: 52px;
+  padding: 2px 4px;
+  border: 1px solid var(--jp-border-strong);
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  text-align: center;
+}
+.part-chip-stock {
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-badge);
+}
+#log-print-parts-summary:empty {
+  display: none;
+}

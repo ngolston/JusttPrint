@@ -297,6 +297,8 @@ function planOrganize(models, sourceDir, destDir, options = {}) {
     for (const group of groups.values()) {
       const archive = group.archive;
       claimedArchives.add(compareKey(archive));
+      /** @type {number | null} */
+      /** @type {number | null} */
       let bytes = null;
       if (sourceStat) {
         const onDisk = sourceStat(archive);
@@ -371,6 +373,7 @@ function planOrganize(models, sourceDir, destDir, options = {}) {
     if (!fileIsInsideDirectory(filePath, source)) continue;
     if (claimedArchives.has(compareKey(filePath))) continue;
 
+    /** @type {number | null} */
     let bytes = null;
     if (sourceStat) {
       const onDisk = sourceStat(filePath);
@@ -444,6 +447,7 @@ function withFreeSpace(plan, freeBytes) {
   const known = Number.isFinite(free) && free >= 0;
   const needsCopy = (Number(base.copyBytes) || 0) > 0;
   const enough = !needsCopy || (known && free >= base.copyBytes + SPACE_MARGIN_BYTES);
+  /** @type {string | null} */
   let spaceError = null;
   if (base.ok && needsCopy && !enough) {
     spaceError = known ? 'Not enough free disk space to copy the files before removing the originals.' : 'Could not read free space on the destination.';
@@ -547,6 +551,7 @@ async function relocatePlannedFile(move, deps = {}) {
       return { status: 'failed', error: 'Copy size did not match the original', from: move.from };
     }
 
+    /** @type {any} */
     let blocked = null;
     try {
       blocked = await stat(move.to);
@@ -591,7 +596,9 @@ async function runOrganizePlan(plan, deps = {}) {
   const results = {
     moved: 0,
     resumed: 0,
+    /** @type {{ from: string, error: string }[]} */
     failed: [],
+    /** @type {{ from: string, to: string, warning: string }[]} */
     warnings: [],
     zipModels: 0,
     skipped: plan && Array.isArray(plan.skipped) ? plan.skipped.length : 0

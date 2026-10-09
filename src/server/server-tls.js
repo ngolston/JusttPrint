@@ -299,7 +299,7 @@ async function generateSelfSignedCertificate({ certsDir, hostname }) {
 function certificateNeedsRenewal(certPem) {
   const info = inspectCertificate(certPem);
   if (!info || info.parseError) return true;
-  return info.daysRemaining <= RENEW_WITHIN_DAYS;
+  return info.daysRemaining !== undefined && info.daysRemaining <= RENEW_WITHIN_DAYS;
 }
 
 /** The ACME account key: kept in the certs folder so renewals use the same Let's Encrypt account. */

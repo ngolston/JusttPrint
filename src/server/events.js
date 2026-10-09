@@ -7,7 +7,9 @@
 const { jsonStringifyForWs } = require('./ws-json');
 
 const OPEN = 1; // WebSocket.OPEN
+/** @type {((channel: string, ...args: any[]) => void) | null} */
 let sender = null;
+/** @type {((ws: any, channel: string, ...args: any[]) => void) | null} */
 let otherSender = null;
 
 /**

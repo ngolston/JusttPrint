@@ -61,3 +61,9 @@ test('NOT in a query keeps models with an empty designer', () => {
   const tokens = [{ t: 'not' }, { t: 'filter', kind: 'designer', value: 'Ann' }];
   assert.deepStrictEqual(names(createDb(), { searchTokens: tokens }), ['box.3mf', 'cone.stl']);
 });
+
+test('a file type not in the list filters by its extension instead of failing', () => {
+  const db = createDb();
+  db.prepare("INSERT INTO models (filePath, fileName) VALUES ('/lib/gear.f3d', 'gear.f3d')").run();
+  assert.deepStrictEqual(names(db, { fileType: 'f3d' }), ['gear.f3d']);
+});
