@@ -58,7 +58,7 @@ async function startServerThumbnailJobInternal(mode) {
     return { success: false, error: 'A thumbnail job is already running' };
   }
   if (!thumbnailWorker.ready()) {
-    return { success: false, error: 'The JusttPrint backend\'s thumbnail worker is not ready' };
+    return { success: false, error: "The JusttPrint backend's thumbnail worker is not ready" };
   }
 
   const jobMode = mode === 'all' ? 'all' : 'missing';
@@ -193,7 +193,7 @@ ipcMain.handle('add-multiple-thumbnails', async (event, filePath, imageDataUrls)
     if (!imageDataUrls || !Array.isArray(imageDataUrls) || imageDataUrls.length === 0) {
       return false;
     }
-    
+
     // Check if model exists in database
     let model = getModelByFilePath(filePath);
     if (!model) {
@@ -204,51 +204,45 @@ ipcMain.handle('add-multiple-thumbnails', async (event, filePath, imageDataUrls)
       // Create model entry
       const dateAdded = new Date().toISOString();
       const bundle = deriveBundleFromFilePath(filePath);
-      database.db.prepare(`
+      database.db
+        .prepare(
+          `
         INSERT INTO models (filePath, fileName, thumbnail, dateAdded, isNew, bundleKey, bundleLabel, bundleKind)
         VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-      `).run(
-        filePath,
-        fileName,
-        '',
-        dateAdded,
-        bundle.bundleKey || null,
-        bundle.bundleLabel || null,
-        bundle.bundleKind || null
-      );
+      `
+        )
+        .run(filePath, fileName, '', dateAdded, bundle.bundleKey || null, bundle.bundleLabel || null, bundle.bundleKind || null);
       // Re-fetch the model
       model = getModelByFilePath(filePath);
       if (!model) {
         return false;
       }
     }
-    
+
     const currentThumbnail = readThumbnailColumn(filePath);
-    
+
     // Filter out any null/undefined/empty images and compress on ingest
-    const validImages = imageDataUrls
-      .filter(img => img && typeof img === 'string' && img.length > 0)
-      .map((img) => compressDataUrl(img));
-    
+    const validImages = imageDataUrls.filter((img) => img && typeof img === 'string' && img.length > 0).map((img) => compressDataUrl(img));
+
     if (validImages.length === 0) {
       return false;
     }
-    
+
     const updatedThumbnail = addMultipleThumbnails(currentThumbnail, validImages);
     const finalCount = parseThumbnails(updatedThumbnail).length;
-    
+
     // Save the thumbnail
     await saveThumbnail(filePath, updatedThumbnail);
-    
+
     // Verify it was saved
     const verifyThumbnail = readThumbnailColumn(filePath);
     const verifyCount = verifyThumbnail ? parseThumbnails(verifyThumbnail).length : 0;
-    
+
     if (verifyCount !== finalCount) {
       // Try to save again
       await saveThumbnail(filePath, updatedThumbnail);
     }
-    
+
     // Return the updated thumbnail string so renderer can use it
     return {
       success: true,
@@ -288,39 +282,40 @@ ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
   try {
     const thumbnail = readThumbnailColumn(filePath);
     if (!thumbnail) return false;
-    
-    const thumbnails = parseThumbnails(thumbnail).filter(t => t && t !== '3d.png' && t.length > 0 && t.startsWith('data:image'));
-    
+
+    const thumbnails = parseThumbnails(thumbnail).filter((t) => t && t !== '3d.png' && t.length > 0 && t.startsWith('data:image'));
+
     // Ensure model has at least one thumbnail and index is valid
     if (thumbnails.length <= 1) {
       throw new Error('Cannot delete thumbnail: model must have at least one thumbnail');
     }
-    
+
     if (index < 0 || index >= thumbnails.length) {
       throw new Error('Invalid thumbnail index');
     }
-    
+
     // Cannot delete the active (first) thumbnail
     if (index === 0) {
       throw new Error('Cannot delete the active thumbnail');
     }
-    
+
     // Remove the thumbnail at the specified index
     thumbnails.splice(index, 1);
     const updatedThumbnail = thumbnails.join('::');
     await saveThumbnail(filePath, updatedThumbnail);
-    
+
     // Send refresh event
     if (event && event.sender) {
       events.broadcast('thumbnail-deleted', {
         filePath: filePath,
         thumbnailCount: thumbnails.length
       });
-    } else events.broadcast('thumbnail-deleted', {
-      filePath: filePath,
-      thumbnailCount: thumbnails.length
-    });
-    
+    } else
+      events.broadcast('thumbnail-deleted', {
+        filePath: filePath,
+        thumbnailCount: thumbnails.length
+      });
+
     return true;
   } catch (error) {
     console.error('Error deleting thumbnail:', error);
@@ -331,9 +326,13 @@ ipcMain.handle('delete-thumbnail', async (event, filePath, index) => {
 // Add or update this function to get models without thumbnails
 ipcMain.handle('get-models-without-thumbnails', async () => {
   try {
-    const modelsWithoutThumbnails = database.db.prepare(`
+    const modelsWithoutThumbnails = database.db
+      .prepare(
+        `
       SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
-    `).all();
+    `
+      )
+      .all();
     return modelsWithoutThumbnails;
   } catch (error) {
     console.error('Error fetching models without thumbnails:', error);
@@ -343,9 +342,13 @@ ipcMain.handle('get-models-without-thumbnails', async () => {
 
 ipcMain.handle('get-models-with-default-thumbnails', async () => {
   try {
-    const modelsWithDefaultThumbnails = database.db.prepare(`
+    const modelsWithDefaultThumbnails = database.db
+      .prepare(
+        `
       SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
-    `).all();
+    `
+      )
+      .all();
     return modelsWithDefaultThumbnails;
   } catch (error) {
     console.error('Error fetching models with default thumbnails:', error);

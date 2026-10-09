@@ -25,7 +25,13 @@ function withZipFileLock(zipPath, operation) {
   const key = zipLockKey(zipPath);
   const prev = zipOpQueues.get(key) || Promise.resolve();
   const run = prev.then(operation, operation);
-  zipOpQueues.set(key, run.then(() => undefined, () => undefined));
+  zipOpQueues.set(
+    key,
+    run.then(
+      () => undefined,
+      () => undefined
+    )
+  );
   return run;
 }
 
@@ -53,9 +59,11 @@ function findZipEntry(entries, entryPath) {
 function isFragileZipError(error) {
   const msg = error && error.message ? error.message : String(error || '');
   const code = error && error.code;
-  return code === 'Z_BUF_ERROR' ||
+  return (
+    code === 'Z_BUF_ERROR' ||
     code === 'Z_DATA_ERROR' ||
-    /invalid local header|unexpected end of file|invalid distance|incorrect header check|invalid entry header|invalid block type/i.test(msg);
+    /invalid local header|unexpected end of file|invalid distance|incorrect header check|invalid entry header|invalid block type/i.test(msg)
+  );
 }
 
 function errorMessage(error) {
@@ -137,9 +145,7 @@ async function extractUsingCentralDirectory(zipPath, entry) {
     }
     if (method === METHOD_DEFLATE) {
       const uncompressedSize = Number(entry.size);
-      const inflateOpts = Number.isFinite(uncompressedSize) && uncompressedSize > 0
-        ? { maxOutputLength: uncompressedSize + 32 }
-        : undefined;
+      const inflateOpts = Number.isFinite(uncompressedSize) && uncompressedSize > 0 ? { maxOutputLength: uncompressedSize + 32 } : undefined;
       return zlib.inflateRawSync(compressed, inflateOpts);
     }
     throw new Error(`Unsupported ZIP compression method: ${method}`);
@@ -173,9 +179,7 @@ async function extractWithFflate(zipPath, entryPath) {
 async function extractWithInMemoryFallback(zipPath, entryPath) {
   const stat = await fs.promises.stat(zipPath);
   if (stat.size > MAX_IN_MEMORY_FALLBACK_BYTES) {
-    throw new Error(
-      `Zip archive is too large for fallback extraction (${stat.size} bytes)`
-    );
+    throw new Error(`Zip archive is too large for fallback extraction (${stat.size} bytes)`);
   }
   return extractWithFflate(zipPath, entryPath);
 }
@@ -201,9 +205,7 @@ async function extractZipEntryBuffer(zipPath, entryPath) {
     }
 
     try {
-      console.warn(
-        `node-stream-zip failed for ${zipPath}::${entryPath} (${errorMessage(lastError)}); retrying with fflate`
-      );
+      console.warn(`node-stream-zip failed for ${zipPath}::${entryPath} (${errorMessage(lastError)}); retrying with fflate`);
       return await extractWithInMemoryFallback(zipPath, entryPath);
     } catch (fallbackErr) {
       console.error(`Error extracting ${entryPath} from ${zipPath}:`, lastError);

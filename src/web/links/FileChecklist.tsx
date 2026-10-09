@@ -11,7 +11,12 @@ export interface SiteFile {
 }
 
 /** The files of a Printables or Thingiverse model to tick for download (Add Links). */
-export function FileChecklist({ files, chosen, onChange, disabled = false }: {
+export function FileChecklist({
+  files,
+  chosen,
+  onChange,
+  disabled = false
+}: {
   files: SiteFile[];
   chosen: string[];
   onChange: (ids: string[]) => void;
@@ -21,10 +26,18 @@ export function FileChecklist({ files, chosen, onChange, disabled = false }: {
   return (
     <div className="jp-mw-profiles">
       <div className="jp-mw-profiles__top">
-        <span className="jp-mw-profiles__count">Files: {chosen.length} of {files.length} chosen</span>
-        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(files.filter((f) => f.model).map((f) => f.id))}>Models</button>
-        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(files.map((f) => f.id))}>All</button>
-        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange([])}>None</button>
+        <span className="jp-mw-profiles__count">
+          Files: {chosen.length} of {files.length} chosen
+        </span>
+        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(files.filter((f) => f.model).map((f) => f.id))}>
+          Models
+        </button>
+        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(files.map((f) => f.id))}>
+          All
+        </button>
+        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange([])}>
+          None
+        </button>
       </div>
       <ul className="jp-mw-profiles__list">
         {files.map((file) => (

@@ -60,8 +60,8 @@ export function clearUndo() {
 }
 
 /** Tag lists as plain names. */
-export const tagNames = (list: unknown): string[] => (Array.isArray(list) ? list : [])
-  .map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '').trim()).filter(Boolean);
+export const tagNames = (list: unknown): string[] =>
+  (Array.isArray(list) ? list : []).map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '').trim()).filter(Boolean);
 
 /** Undo one tag edit on a list someone may have changed since: drop what it added, add back what it removed. */
 export function revertTags(current: unknown, before: unknown, after: unknown): string[] {

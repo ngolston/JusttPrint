@@ -41,8 +41,10 @@ function createDb({ prints = true } = {}) {
 
 test('prints and added days come newest first, with the printer', () => {
   const items = recentActivity(createDb());
-  assert.deepStrictEqual(items.map((i) => `${i.kind}:${i.kind === 'print' ? i.id : i.day}`),
-    ['print:2', 'added:2026-10-03', 'print:1', 'added:2026-10-01']);
+  assert.deepStrictEqual(
+    items.map((i) => `${i.kind}:${i.kind === 'print' ? i.id : i.day}`),
+    ['print:2', 'added:2026-10-03', 'print:1', 'added:2026-10-01']
+  );
   const first = items.find((i) => i.kind === 'print' && i.id === 1);
   assert.strictEqual(first.printer, 'Bambu P1S');
   assert.strictEqual(items.find((i) => i.kind === 'added' && i.day === '2026-10-03').count, 2);
@@ -52,20 +54,32 @@ test('prints and added days come newest first, with the printer', () => {
 
 test('the limit applies, and a database without print tables still lists added models', () => {
   assert.strictEqual(recentActivity(createDb(), 2).length, 2);
-  assert.deepStrictEqual(recentActivity(createDb({ prints: false })).map((i) => i.kind), ['added', 'added']);
+  assert.deepStrictEqual(
+    recentActivity(createDb({ prints: false })).map((i) => i.kind),
+    ['added', 'added']
+  );
 });
 
 test('recent prints can be limited to one outcome', () => {
   const { recentPrints } = require('../src/core/recent-activity');
   const db = createDb();
-  assert.deepStrictEqual(recentPrints(db, 10).map((p) => p.id), [2, 1]);
-  assert.deepStrictEqual(recentPrints(db, 10, 'printed').map((p) => p.id), [1]);
+  assert.deepStrictEqual(
+    recentPrints(db, 10).map((p) => p.id),
+    [2, 1]
+  );
+  assert.deepStrictEqual(
+    recentPrints(db, 10, 'printed').map((p) => p.id),
+    [1]
+  );
   assert.deepStrictEqual(recentPrints(createDb({ prints: false }), 10), []);
 });
 
 test('recent prints can be limited to one printer', () => {
   const { recentPrints } = require('../src/core/recent-activity');
   const db = createDb();
-  assert.deepStrictEqual(recentPrints(db, 10, null, 1).map((p) => p.id), [1]);
+  assert.deepStrictEqual(
+    recentPrints(db, 10, null, 1).map((p) => p.id),
+    [1]
+  );
   assert.deepStrictEqual(recentPrints(db, 10, 'failed', 1), []);
 });

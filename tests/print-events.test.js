@@ -12,9 +12,9 @@ function insertModel(db, values) {
   const printed = values.printed != null ? values.printed : 0;
   const printStatus = values.print_status || 'unprinted';
   const printCount = values.print_count != null ? values.print_count : 0;
-  return db.prepare(
-    'INSERT INTO models (filePath, fileName, printed, print_status, print_count) VALUES (?, ?, ?, ?, ?)'
-  ).run(filePath, fileName, printed, printStatus, printCount).lastInsertRowid;
+  return db
+    .prepare('INSERT INTO models (filePath, fileName, printed, print_status, print_count) VALUES (?, ?, ?, ?, ?)')
+    .run(filePath, fileName, printed, printStatus, printCount).lastInsertRowid;
 }
 
 function test(name, fn) {
@@ -30,7 +30,8 @@ function test(name, fn) {
 function createDb() {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filePath TEXT UNIQUE,
@@ -40,13 +41,16 @@ function createDb() {
       print_count INTEGER,
       last_printed_at DATETIME
     )
-  `).run();
-  db.prepare(`
+  `
+  ).run();
+  db.prepare(
+    `
     CREATE TABLE settings (
       key TEXT PRIMARY KEY,
       value TEXT
     )
-  `).run();
+  `
+  ).run();
   printEvents.migratePrintLifecycle(db);
   return db;
 }
@@ -153,9 +157,7 @@ test('derived printed stays true after a later failed reprint', () => {
 test('logging a print removes selected parts from stock, scaled by copy count', () => {
   const db = createDb();
   const id = insertModel(db, { filePath: 'parts.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
-  const partId = db.prepare(
-    "INSERT INTO parts (name, category, quantity, unit, low_stock) VALUES ('M3x8', 'Screws', 20, 'pcs', 4)"
-  ).run().lastInsertRowid;
+  const partId = db.prepare("INSERT INTO parts (name, category, quantity, unit, low_stock) VALUES ('M3x8', 'Screws', 20, 'pcs', 4)").run().lastInsertRowid;
   printEvents.logPrintEvent(db, {
     modelId: id,
     outcome: 'printed',
@@ -173,9 +175,7 @@ test('logging a print removes selected parts from stock, scaled by copy count', 
 test('a short parts stock rolls the print log back', () => {
   const db = createDb();
   const id = insertModel(db, { filePath: 'short.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
-  const partId = db.prepare(
-    "INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('608 bearing', 3, 'pcs', 0)"
-  ).run().lastInsertRowid;
+  const partId = db.prepare("INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('608 bearing', 3, 'pcs', 0)").run().lastInsertRowid;
   assert.throws(
     () => printEvents.logPrintEvent(db, { modelId: id, outcome: 'printed', quantity: 2, parts: [{ id: partId, quantity: 2 }] }),
     /Not enough "608 bearing"/
@@ -189,9 +189,7 @@ test('a short parts stock rolls the print log back', () => {
 test('deleting a print log puts the parts back in stock', () => {
   const db = createDb();
   const id = insertModel(db, { filePath: 'restore.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
-  const partId = db.prepare(
-    "INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('Heat set insert', 10, 'pcs', 0)"
-  ).run().lastInsertRowid;
+  const partId = db.prepare("INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('Heat set insert', 10, 'pcs', 0)").run().lastInsertRowid;
   const logged = printEvents.logPrintEvent(db, {
     modelId: id,
     outcome: 'failed',
@@ -208,9 +206,7 @@ test('a batch log removes parts once per model and rolls back when stock runs ou
   const db = createDb();
   const a = insertModel(db, { filePath: 'batch-a.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
   const b = insertModel(db, { filePath: 'batch-b.stl', printed: 0, print_status: 'unprinted', print_count: 0 });
-  const partId = db.prepare(
-    "INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('M3 nut', 5, 'pcs', 0)"
-  ).run().lastInsertRowid;
+  const partId = db.prepare("INSERT INTO parts (name, quantity, unit, low_stock) VALUES ('M3 nut', 5, 'pcs', 0)").run().lastInsertRowid;
   printEvents.logPrintEventsBatch(db, {
     modelIds: [a, b],
     outcome: 'printed',
@@ -220,11 +216,12 @@ test('a batch log removes parts once per model and rolls back when stock runs ou
   assert.strictEqual(db.prepare('SELECT quantity FROM parts WHERE id = ?').get(partId).quantity, 1);
 
   assert.throws(
-    () => printEvents.logPrintEventsBatch(db, {
-      modelIds: [a, b],
-      outcome: 'printed',
-      parts: [{ id: partId, quantity: 1 }]
-    }),
+    () =>
+      printEvents.logPrintEventsBatch(db, {
+        modelIds: [a, b],
+        outcome: 'printed',
+        parts: [{ id: partId, quantity: 1 }]
+      }),
     /Not enough "M3 nut"/
   );
   assert.strictEqual(db.prepare('SELECT quantity FROM parts WHERE id = ?').get(partId).quantity, 1);
@@ -251,9 +248,17 @@ test('in-queue matches queued and printing models (the library Queue tab)', () =
   assert.strictEqual(printEvents.modelMatchesPrintFilter({ print_status: 'want' }, 'in-queue'), false);
   assert.strictEqual(printEvents.modelMatchesPrintFilter({ printed: 1, print_status: 'printed' }, 'in-queue'), false);
   const db = new Database(':memory:');
-  db.exec("CREATE TABLE models (id INTEGER PRIMARY KEY, print_status TEXT); INSERT INTO models (print_status) VALUES ('queued'), ('printing'), ('want'), (NULL)");
+  db.exec(
+    "CREATE TABLE models (id INTEGER PRIMARY KEY, print_status TEXT); INSERT INTO models (print_status) VALUES ('queued'), ('printing'), ('want'), (NULL)"
+  );
   const bound = printEvents.printFilterSqlBound('in-queue');
-  assert.deepStrictEqual(db.prepare(`SELECT id FROM models WHERE ${bound.sql} ORDER BY id`).all(...bound.params).map((r) => r.id), [1, 2]);
+  assert.deepStrictEqual(
+    db
+      .prepare(`SELECT id FROM models WHERE ${bound.sql} ORDER BY id`)
+      .all(...bound.params)
+      .map((r) => r.id),
+    [1, 2]
+  );
   db.close();
 });
 
@@ -283,10 +288,7 @@ test('save helper maps legacy printed checkbox without wiping counts', () => {
   const stamped = printEvents.resolvePrintFieldsOnSave(existing, { printStatus: 'queued' });
   assert.strictEqual(stamped.print_status, 'queued');
   assert.strictEqual(stamped.printed, 1);
-  const preserved = printEvents.resolvePrintFieldsOnSave(
-    { printed: 0, print_status: 'want', print_count: 0, last_printed_at: null },
-    { printed: 0 }
-  );
+  const preserved = printEvents.resolvePrintFieldsOnSave({ printed: 0, print_status: 'want', print_count: 0, last_printed_at: null }, { printed: 0 });
   assert.strictEqual(preserved.print_status, 'want');
 });
 

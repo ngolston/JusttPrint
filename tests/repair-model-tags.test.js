@@ -76,10 +76,7 @@ test('rebuilds model_tags when foreign keys still reference models_old', () => {
   db.prepare('DELETE FROM model_tags WHERE model_id = ?').run(1);
   assert.deepStrictEqual(links(db), []);
   db.prepare('INSERT INTO model_tags (model_id, tag_id) VALUES (?, ?)').run(2, 1);
-  assert.throws(
-    () => db.prepare('INSERT INTO model_tags (model_id, tag_id) VALUES (?, ?)').run(3, 1),
-    /FOREIGN KEY/
-  );
+  assert.throws(() => db.prepare('INSERT INTO model_tags (model_id, tag_id) VALUES (?, ?)').run(3, 1), /FOREIGN KEY/);
   db.close();
 });
 
@@ -104,10 +101,7 @@ test('drops a leftover models_old table after retargeting foreign keys', () => {
   const result = repairModelTags(db);
   assert.strictEqual(result.rebuilt, true);
   assert.strictEqual(result.orphansRemoved, 0);
-  assert.strictEqual(
-    db.prepare("SELECT name FROM sqlite_master WHERE name = 'models_old'").get(),
-    undefined
-  );
+  assert.strictEqual(db.prepare("SELECT name FROM sqlite_master WHERE name = 'models_old'").get(), undefined);
   assert.deepStrictEqual(links(db), [{ model_id: 1, tag_id: 1 }]);
   db.close();
 });

@@ -2,13 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const {
-  shouldSkipDirectoryName,
-  shouldSkipFileName,
-  shouldSkipEntryPath,
-  isSkippedLibraryFile,
-  normalizeExcludeNames
-} = require('../src/core/scan-skip');
+const { shouldSkipDirectoryName, shouldSkipFileName, shouldSkipEntryPath, isSkippedLibraryFile, normalizeExcludeNames } = require('../src/core/scan-skip');
 
 function test(name, fn) {
   try {
@@ -26,10 +20,7 @@ test('skips dot folders, AppleDouble files, and __MACOSX', () => {
   assert.strictEqual(shouldSkipDirectoryName('Kitchen'), false);
   assert.strictEqual(shouldSkipFileName('._model.stl'), true);
   assert.strictEqual(shouldSkipFileName('model.stl'), false);
-  assert.strictEqual(
-    shouldSkipEntryPath('library/EInk Dashboard/.manyfold/derivatives/frame-leg.stl/render.stl'),
-    true
-  );
+  assert.strictEqual(shouldSkipEntryPath('library/EInk Dashboard/.manyfold/derivatives/frame-leg.stl/render.stl'), true);
   assert.strictEqual(shouldSkipEntryPath('library/Kitchen/Bagel Slicer/lid.3mf'), false);
   assert.strictEqual(shouldSkipEntryPath('__MACOSX/model.stl'), true);
 });

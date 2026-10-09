@@ -44,7 +44,9 @@
   font-variant-numeric: tabular-nums;
 }
 .jp-library-header__rail,
-.jp-library-header__view { display: contents; }
+.jp-library-header__view {
+  display: contents;
+}
 .jp-library-header__filter-count {
   display: inline-flex;
   align-items: center;
@@ -59,7 +61,10 @@
   font-weight: 700;
   box-sizing: border-box;
 }
-#jp-filter-button.is-open { background: var(--jp-accent-soft); border-color: var(--jp-accent-border); }
+#jp-filter-button.is-open {
+  background: var(--jp-accent-soft);
+  border-color: var(--jp-accent-border);
+}
 
 /* Segmented buttons: Grid / Wall / List, and the wall's tile size. */
 .jp-segmented {
@@ -89,15 +94,30 @@
   box-shadow: none;
   overflow: visible;
   cursor: pointer;
-  transition: background-color var(--jp-transition), color var(--jp-transition);
+  transition:
+    background-color var(--jp-transition),
+    color var(--jp-transition);
 }
-.jp-library-header .jp-segmented--text .jp-segmented__btn { width: 30px; }
-.jp-library-header .jp-segmented__btn:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
-.jp-library-header .jp-segmented__btn.active { background: var(--jp-accent-soft); color: var(--jp-accent); }
-.jp-library-header .jp-segmented__btn:focus-visible { outline: none; box-shadow: var(--jp-focus-ring); }
+.jp-library-header .jp-segmented--text .jp-segmented__btn {
+  width: 30px;
+}
+.jp-library-header .jp-segmented__btn:hover {
+  background: var(--jp-surface-hover);
+  color: var(--jp-text);
+}
+.jp-library-header .jp-segmented__btn.active {
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent);
+}
+.jp-library-header .jp-segmented__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
 
 /* The Folders toggle (folders/FolderTree.tsx) as a secondary button. */
-.folder-rail-toggle__icon { display: none; }
+.folder-rail-toggle__icon {
+  display: none;
+}
 /* Icon only here (the header row is full); the word stays for screen readers. */
 .jp-library-header .folder-rail-toggle {
   display: inline-flex;
@@ -114,9 +134,14 @@
   color: var(--jp-text);
   font: 500 var(--jp-text-ui) var(--jp-font);
   line-height: 1;
-  transition: background-color var(--jp-transition), border-color var(--jp-transition);
+  transition:
+    background-color var(--jp-transition),
+    border-color var(--jp-transition);
 }
-.jp-library-header .folder-rail-toggle__icon { display: inline; color: var(--jp-text-2); }
+.jp-library-header .folder-rail-toggle__icon {
+  display: inline;
+  color: var(--jp-text-2);
+}
 .jp-library-header .folder-rail-toggle > span {
   position: absolute;
   width: 1px;
@@ -125,15 +150,33 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.jp-library-header .jp-tab { padding: 0 var(--jp-space-3); }
-.jp-library-header .folder-rail-toggle:hover { background: var(--jp-surface-hover); border-color: var(--jp-border-strong); }
-.jp-library-header .folder-rail-toggle.active { background: var(--jp-accent-soft); border-color: var(--jp-accent-border); font-weight: 500; }
-.jp-library-header .folder-rail-toggle.active .folder-rail-toggle__icon { color: var(--jp-accent); }
-.jp-library-header .folder-rail-toggle:focus-visible { outline: none; box-shadow: var(--jp-focus-ring); }
+.jp-library-header .jp-tab {
+  padding: 0 var(--jp-space-3);
+}
+.jp-library-header .folder-rail-toggle:hover {
+  background: var(--jp-surface-hover);
+  border-color: var(--jp-border-strong);
+}
+.jp-library-header .folder-rail-toggle.active {
+  background: var(--jp-accent-soft);
+  border-color: var(--jp-accent-border);
+  font-weight: 500;
+}
+.jp-library-header .folder-rail-toggle.active .folder-rail-toggle__icon {
+  color: var(--jp-accent);
+}
+.jp-library-header .folder-rail-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
 
 /* The active filters (#current-filter, filters/Sidebar.tsx) as one row of chips. */
-.jp-library-header__chips:not(:has(#current-filter.visible)) { display: none; }
-.jp-library-header__chips { margin-top: var(--jp-space-3); }
+.jp-library-header__chips:not(:has(#current-filter.visible)) {
+  display: none;
+}
+.jp-library-header__chips {
+  margin-top: var(--jp-space-3);
+}
 .jp-library-header #current-filter.visible {
   display: flex;
   flex-direction: row;
@@ -148,11 +191,22 @@
   font-size: var(--jp-text-meta);
   color: var(--jp-text-2);
 }
-.jp-library-header #current-filter-body { display: flex; flex-wrap: wrap; align-items: center; gap: var(--jp-space-2) var(--jp-space-3); }
+.jp-library-header #current-filter-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2) var(--jp-space-3);
+}
 .jp-library-header .filter-count,
-.jp-library-header .no-results { font-size: var(--jp-text-meta); color: var(--jp-text-2); }
+.jp-library-header .no-results {
+  font-size: var(--jp-text-meta);
+  color: var(--jp-text-2);
+}
 .jp-library-header .filter-pills-container,
-.jp-library-header .filter-pills-search-chain { margin: 0; gap: var(--jp-space-2); }
+.jp-library-header .filter-pills-search-chain {
+  margin: 0;
+  gap: var(--jp-space-2);
+}
 .jp-library-header .filter-pill {
   padding: 3px 6px 3px 10px;
   border: 1px solid var(--jp-border-strong);
@@ -163,10 +217,25 @@
   font-size: var(--jp-text-small);
   transition: border-color var(--jp-transition);
 }
-.jp-library-header .filter-pill:hover { transform: none; background: var(--jp-surface-2); border-color: var(--jp-accent-border); }
-.jp-library-header .filter-pill.inverted { border-color: rgba(239, 79, 85, 0.5); background: var(--jp-danger-soft); box-shadow: none; }
-.jp-library-header .filter-remove { margin-left: var(--jp-space-1); background: transparent; color: var(--jp-text-2); }
-.jp-library-header .filter-remove:hover { background: var(--jp-surface-hover); color: var(--jp-text); }
+.jp-library-header .filter-pill:hover {
+  transform: none;
+  background: var(--jp-surface-2);
+  border-color: var(--jp-accent-border);
+}
+.jp-library-header .filter-pill.inverted {
+  border-color: rgba(239, 79, 85, 0.5);
+  background: var(--jp-danger-soft);
+  box-shadow: none;
+}
+.jp-library-header .filter-remove {
+  margin-left: var(--jp-space-1);
+  background: transparent;
+  color: var(--jp-text-2);
+}
+.jp-library-header .filter-remove:hover {
+  background: var(--jp-surface-hover);
+  color: var(--jp-text);
+}
 .jp-library-header .search-boolean-toolbar {
   margin: 0;
   padding: 2px var(--jp-space-2);
@@ -174,9 +243,15 @@
   border-radius: var(--jp-radius-pill);
   background: var(--jp-surface-1);
 }
-.jp-library-header .search-boolean-toolbar[hidden] { display: none; }
-.jp-library-header .search-boolean-toolbar-label { color: var(--jp-text-3); }
-.jp-library-header .search-boolean-op-link { color: var(--jp-accent); }
+.jp-library-header .search-boolean-toolbar[hidden] {
+  display: none;
+}
+.jp-library-header .search-boolean-toolbar-label {
+  color: var(--jp-text-3);
+}
+.jp-library-header .search-boolean-op-link {
+  color: var(--jp-accent);
+}
 .jp-library-header #clear-all-filters-button.clear-filter-button {
   display: inline-flex;
   width: auto;
@@ -189,14 +264,22 @@
   color: var(--jp-accent);
   font: 500 var(--jp-text-meta) var(--jp-font);
 }
-.jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled) { background: var(--jp-accent-soft); }
-.jp-library-header #clear-all-filters-button[hidden] { display: none; }
+.jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled) {
+  background: var(--jp-accent-soft);
+}
+.jp-library-header #clear-all-filters-button[hidden] {
+  display: none;
+}
 
-.jp-library-empty { padding: var(--jp-space-8) 0; }
+.jp-library-empty {
+  padding: var(--jp-space-8) 0;
+}
 
 /* ---- Filter popover ------------------------------------------------------------------------ */
 
-.jp-library-header__top { position: relative; }
+.jp-library-header__top {
+  position: relative;
+}
 .jp-filter-popover {
   position: absolute;
   top: calc(100% + var(--jp-space-1));
@@ -213,7 +296,9 @@
   color: var(--jp-text);
   overflow: hidden;
 }
-.jp-filter-popover[hidden] { display: none; }
+.jp-filter-popover[hidden] {
+  display: none;
+}
 .jp-filter-popover__head {
   display: flex;
   align-items: center;
@@ -221,13 +306,31 @@
   padding: var(--jp-space-3) var(--jp-space-3) var(--jp-space-2) var(--jp-space-4);
   border-bottom: 1px solid var(--jp-border);
 }
-.jp-filter-popover__title { font-weight: 600; }
-.jp-filter-popover__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--jp-space-3) 0 var(--jp-space-4); }
+.jp-filter-popover__title {
+  font-weight: 600;
+}
+.jp-filter-popover__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--jp-space-3) 0 var(--jp-space-4);
+}
 /* The old filter section, unfolded (its "More filters" fold is for the sidebar). */
-.jp-filter-popover .filter-section { width: 100%; margin: 0; padding: 0; }
-.jp-filter-popover .filter-stack { display: block; }
-.jp-filter-popover #filter-stack-toggle { display: none; }
-.jp-filter-popover .form-group { width: auto; padding: 0 var(--jp-space-4); }
+.jp-filter-popover .filter-section {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.jp-filter-popover .filter-stack {
+  display: block;
+}
+.jp-filter-popover #filter-stack-toggle {
+  display: none;
+}
+.jp-filter-popover .form-group {
+  width: auto;
+  padding: 0 var(--jp-space-4);
+}
 
 /* ---- Model cards (spec §16-§19, §29) ------------------------------------------------------ */
 
@@ -249,9 +352,16 @@
   color: var(--jp-text);
   font-family: var(--jp-font);
   cursor: pointer;
-  transition: border-color var(--jp-transition), background-color var(--jp-transition);
+  transition:
+    border-color var(--jp-transition),
+    background-color var(--jp-transition);
 }
-.file-grid .file-item.jp-model-card:hover { transform: none; border-color: var(--jp-border-strong); background: var(--jp-surface-2); box-shadow: none; }
+.file-grid .file-item.jp-model-card:hover {
+  transform: none;
+  border-color: var(--jp-border-strong);
+  background: var(--jp-surface-2);
+  box-shadow: none;
+}
 /* Selected: a 1px cyan border and a faint inner highlight (spec §17). */
 .file-grid .file-item.jp-model-card.selected {
   border-color: var(--jp-accent);
@@ -267,7 +377,11 @@
   background: var(--jp-preview-bg);
   overflow: hidden;
 }
-.jp-model-card__preview .thumbnail-wrapper { display: block; width: 100%; height: 100%; }
+.jp-model-card__preview .thumbnail-wrapper {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .file-grid .jp-model-card .thumbnail-container.jp-model-card__image {
   position: relative;
   width: 100% !important;
@@ -279,7 +393,11 @@
   outline: none;
   transform: none;
 }
-.file-grid .jp-model-card .thumbnail-container.jp-model-card__image:hover { outline: none; box-shadow: none; transform: none; }
+.file-grid .jp-model-card .thumbnail-container.jp-model-card__image:hover {
+  outline: none;
+  box-shadow: none;
+  transform: none;
+}
 .jp-model-card__image img {
   display: block;
   width: 100%;
@@ -288,8 +406,14 @@
   border-radius: 0;
 }
 /* Carousel: the halves of the preview step through the images; small chevrons on hover. */
-.file-grid .jp-model-card .thumbnail-nav-left { justify-content: flex-start; padding-left: 6px; }
-.file-grid .jp-model-card .thumbnail-nav-right { justify-content: flex-end; padding-right: 6px; }
+.file-grid .jp-model-card .thumbnail-nav-left {
+  justify-content: flex-start;
+  padding-left: 6px;
+}
+.file-grid .jp-model-card .thumbnail-nav-right {
+  justify-content: flex-end;
+  padding-right: 6px;
+}
 .file-grid .jp-model-card .thumbnail-nav-left::before,
 .file-grid .jp-model-card .thumbnail-nav-right::after {
   content: '';
@@ -300,11 +424,26 @@
   transform: rotate(45deg);
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
 }
-.file-grid .jp-model-card .thumbnail-nav-right::after { transform: rotate(-135deg); }
-.file-grid .jp-model-card .thumbnail-count-badge { bottom: 8px !important; right: 8px !important; font-size: var(--jp-text-badge) !important; font-weight: 600 !important; }
+.file-grid .jp-model-card .thumbnail-nav-right::after {
+  transform: rotate(-135deg);
+}
+.file-grid .jp-model-card .thumbnail-count-badge {
+  bottom: 8px !important;
+  right: 8px !important;
+  font-size: var(--jp-text-badge) !important;
+  font-weight: 600 !important;
+}
 
 /* New / Archive at the top-left. */
-.jp-model-card__flags { position: absolute; top: var(--jp-space-2); left: var(--jp-space-2); z-index: 12; display: flex; gap: var(--jp-space-1); pointer-events: none; }
+.jp-model-card__flags {
+  position: absolute;
+  top: var(--jp-space-2);
+  left: var(--jp-space-2);
+  z-index: 12;
+  display: flex;
+  gap: var(--jp-space-1);
+  pointer-events: none;
+}
 .file-grid .jp-model-card .jp-model-card__flag {
   position: static;
   transform: none;
@@ -315,10 +454,19 @@
   color: var(--jp-accent);
   font: 600 var(--jp-text-badge) / 1.4 var(--jp-font);
 }
-.file-grid .jp-model-card .archive-status.jp-model-card__flag { color: var(--jp-warning); }
+.file-grid .jp-model-card .archive-status.jp-model-card__flag {
+  color: var(--jp-warning);
+}
 
 /* Favorite and More at the top-right; More appears on hover or focus, Favorite also once set (spec §34). */
-.jp-model-card__actions { position: absolute; top: 6px; right: 6px; z-index: 12; display: flex; gap: 2px; }
+.jp-model-card__actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 12;
+  display: flex;
+  gap: 2px;
+}
 .file-grid .jp-model-card .jp-model-card__action {
   all: unset;
   box-sizing: border-box;
@@ -333,15 +481,32 @@
   cursor: pointer;
   opacity: 0;
   pointer-events: auto;
-  transition: opacity var(--jp-transition), background-color var(--jp-transition), color var(--jp-transition);
+  transition:
+    opacity var(--jp-transition),
+    background-color var(--jp-transition),
+    color var(--jp-transition);
 }
-.file-grid .jp-model-card .jp-model-card__action::before { display: none; }
-.file-grid .jp-model-card .jp-model-card__action:hover { background: rgba(8, 16, 23, 0.85); transform: none; }
-.file-grid .jp-model-card .jp-model-card__action:focus-visible { opacity: 1; box-shadow: var(--jp-focus-ring); }
-.file-grid .jp-model-card .model-favorite-btn.is-favorited { opacity: 1; color: var(--jp-danger); background: rgba(8, 16, 23, 0.6); }
+.file-grid .jp-model-card .jp-model-card__action::before {
+  display: none;
+}
+.file-grid .jp-model-card .jp-model-card__action:hover {
+  background: rgba(8, 16, 23, 0.85);
+  transform: none;
+}
+.file-grid .jp-model-card .jp-model-card__action:focus-visible {
+  opacity: 1;
+  box-shadow: var(--jp-focus-ring);
+}
+.file-grid .jp-model-card .model-favorite-btn.is-favorited {
+  opacity: 1;
+  color: var(--jp-danger);
+  background: rgba(8, 16, 23, 0.6);
+}
 .file-grid .jp-model-card:hover .jp-model-card__action,
 .file-grid .jp-model-card.selected .jp-model-card__action,
-.file-grid .jp-model-card:focus-within .jp-model-card__action { opacity: 1; }
+.file-grid .jp-model-card:focus-within .jp-model-card__action {
+  opacity: 1;
+}
 
 /* Rating at the bottom-left of the preview: on hover, or always once rated. */
 .file-grid .jp-model-card .model-engagement-bar.jp-model-card__rating {
@@ -360,12 +525,33 @@
 }
 .file-grid .jp-model-card .model-engagement-bar.jp-model-card__rating.is-rated,
 .file-grid .jp-model-card:hover .model-engagement-bar.jp-model-card__rating,
-.file-grid .jp-model-card .model-engagement-bar.jp-model-card__rating:focus-within { opacity: 1; }
-.file-grid .jp-model-card .jp-model-card__rating .model-star { font-size: 14px; padding: 1px; color: var(--jp-text-3); transform: none; }
+.file-grid .jp-model-card .model-engagement-bar.jp-model-card__rating:focus-within {
+  opacity: 1;
+}
+.file-grid .jp-model-card .jp-model-card__rating .model-star {
+  font-size: 14px;
+  padding: 1px;
+  color: var(--jp-text-3);
+  transform: none;
+}
 .file-grid .jp-model-card .jp-model-card__rating .model-star.is-filled,
-.file-grid .jp-model-card .jp-model-card__rating .model-star:hover { color: var(--jp-warning); transform: none; }
-.file-grid .jp-model-card .jp-model-card__rating .model-star:focus-visible { outline: none; box-shadow: var(--jp-focus-ring); border-radius: 2px; }
-.file-grid .jp-group-card .jp-model-card__rating .model-favorite-btn { width: 22px; height: 22px; min-width: 22px; margin-left: var(--jp-space-1); font-size: 13px; background: none; }
+.file-grid .jp-model-card .jp-model-card__rating .model-star:hover {
+  color: var(--jp-warning);
+  transform: none;
+}
+.file-grid .jp-model-card .jp-model-card__rating .model-star:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: 2px;
+}
+.file-grid .jp-group-card .jp-model-card__rating .model-favorite-btn {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  margin-left: var(--jp-space-1);
+  font-size: 13px;
+  background: none;
+}
 
 /* Footer: title, designer (or folder), badges and print status. */
 .jp-model-card__body {
@@ -406,12 +592,29 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.file-grid .jp-model-card button.jp-model-card__byline:hover { color: var(--jp-text); text-decoration: underline; }
-.file-grid .jp-model-card button.jp-model-card__byline:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: 2px; }
+.file-grid .jp-model-card button.jp-model-card__byline:hover {
+  color: var(--jp-text);
+  text-decoration: underline;
+}
+.file-grid .jp-model-card button.jp-model-card__byline:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+  border-radius: 2px;
+}
 .file-grid .jp-model-card span.jp-model-card__byline,
-.file-grid .jp-group-card .jp-model-card__byline { cursor: inherit; }
-.jp-model-card__badges { display: flex; align-items: center; gap: 6px; margin-top: auto; min-width: 0; }
-.jp-model-card__badges .jp-badge { flex: none; text-transform: uppercase; }
+.file-grid .jp-group-card .jp-model-card__byline {
+  cursor: inherit;
+}
+.jp-model-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  min-width: 0;
+}
+.jp-model-card__badges .jp-badge {
+  flex: none;
+  text-transform: uppercase;
+}
 .file-grid .jp-model-card .print-status.jp-status {
   all: unset;
   box-sizing: border-box;
@@ -427,19 +630,59 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.file-grid .jp-model-card .print-status.jp-status--success { background: var(--jp-success-soft); color: var(--jp-success); }
-.file-grid .jp-model-card .print-status.jp-status--warning { background: var(--jp-warning-soft); color: var(--jp-warning); }
-.file-grid .jp-model-card .print-status.jp-status--danger { background: var(--jp-danger-soft); color: var(--jp-danger); }
-.file-grid .jp-model-card .print-status.jp-status--accent { background: var(--jp-accent-soft); color: var(--jp-accent); }
-.file-grid .jp-model-card .print-status.jp-status--neutral { background: var(--jp-neutral-soft); color: var(--jp-text-2); }
-.file-grid .jp-model-card .print-status.jp-status:focus-visible { box-shadow: var(--jp-focus-ring); }
-.jp-group-card .jp-model-card__badges .jp-status { margin-left: auto; }
+.file-grid .jp-model-card .print-status.jp-status--success {
+  background: var(--jp-success-soft);
+  color: var(--jp-success);
+}
+.file-grid .jp-model-card .print-status.jp-status--warning {
+  background: var(--jp-warning-soft);
+  color: var(--jp-warning);
+}
+.file-grid .jp-model-card .print-status.jp-status--danger {
+  background: var(--jp-danger-soft);
+  color: var(--jp-danger);
+}
+.file-grid .jp-model-card .print-status.jp-status--accent {
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent);
+}
+.file-grid .jp-model-card .print-status.jp-status--neutral {
+  background: var(--jp-neutral-soft);
+  color: var(--jp-text-2);
+}
+.file-grid .jp-model-card .print-status.jp-status:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-group-card .jp-model-card__badges .jp-status {
+  margin-left: auto;
+}
 
 /* Group cards: the stack corner and the expand chevron. */
-.file-grid .jp-group-card .parent-model-group-thumbnail { position: relative; width: 100%; height: 100%; margin: 0; border-radius: 0; background: var(--jp-preview-bg); }
-.file-grid .jp-group-card .parent-model-group-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
-.file-grid .jp-group-card .parent-model-group-details { margin: 0; }
-.file-grid .jp-group-card .parent-model-group-title-row { display: flex; align-items: center; gap: var(--jp-space-1); min-width: 0; margin: 0; }
+.file-grid .jp-group-card .parent-model-group-thumbnail {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: var(--jp-preview-bg);
+}
+.file-grid .jp-group-card .parent-model-group-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+.file-grid .jp-group-card .parent-model-group-details {
+  margin: 0;
+}
+.file-grid .jp-group-card .parent-model-group-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-1);
+  min-width: 0;
+  margin: 0;
+}
 .file-grid .jp-group-card .parent-model-group-title {
   min-width: 0;
   color: var(--jp-text);
@@ -450,22 +693,51 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.file-grid .jp-group-card .parent-model-group-chevron { flex: none; color: var(--jp-text-2); padding: 0 2px; cursor: pointer; }
-.file-grid .jp-group-card .parent-model-group-chevron:hover { color: var(--jp-accent); }
-.file-grid .jp-group-card .parent-model-group-meta { margin: 0; padding: 0; background: none; font-size: var(--jp-text-meta); color: var(--jp-text-2); }
-.file-grid .jp-group-card.expanded { border-color: var(--jp-accent-border); }
+.file-grid .jp-group-card .parent-model-group-chevron {
+  flex: none;
+  color: var(--jp-text-2);
+  padding: 0 2px;
+  cursor: pointer;
+}
+.file-grid .jp-group-card .parent-model-group-chevron:hover {
+  color: var(--jp-accent);
+}
+.file-grid .jp-group-card .parent-model-group-meta {
+  margin: 0;
+  padding: 0;
+  background: none;
+  font-size: var(--jp-text-meta);
+  color: var(--jp-text-2);
+}
+.file-grid .jp-group-card.expanded {
+  border-color: var(--jp-accent-border);
+}
 
 /* Children of an expanded group: a cyan bar along the top of each card. */
-.file-grid .jp-model-card.parent-model-group-child { border-top: 2px solid var(--jp-accent-border); }
+.file-grid .jp-model-card.parent-model-group-child {
+  border-top: 2px solid var(--jp-accent-border);
+}
 
 /* ---- Details column (the old sidebar on the right) ------------------------------------------ */
 
-.jp-details-empty { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding: var(--jp-space-6); box-sizing: border-box; }
+.jp-details-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--jp-space-6);
+  box-sizing: border-box;
+}
 
 /* ---- Scan and thumbnail jobs in the shell sidebar (scan/Progress.tsx) ----------------------- */
 
-.jp-jobs:empty { display: none; }
-.jp-jobs { margin: 0 10px; }
+.jp-jobs:empty {
+  display: none;
+}
+.jp-jobs {
+  margin: 0 10px;
+}
 .jp-jobs .progress-section {
   display: flex;
   flex-direction: column;
@@ -530,8 +802,14 @@
   font: 500 var(--jp-text-meta) var(--jp-font);
   box-shadow: none;
 }
-.jp-jobs .stop-button:hover:not(:disabled) { background: var(--jp-danger); color: var(--jp-text); }
-.jp-jobs .progress-actions { display: flex; gap: var(--jp-space-2); }
+.jp-jobs .stop-button:hover:not(:disabled) {
+  background: var(--jp-danger);
+  color: var(--jp-text);
+}
+.jp-jobs .progress-actions {
+  display: flex;
+  gap: var(--jp-space-2);
+}
 .jp-jobs .jp-job-button {
   height: 30px;
   padding: 0 var(--jp-space-3);
@@ -542,18 +820,29 @@
   font: 500 var(--jp-text-meta) var(--jp-font);
   cursor: pointer;
 }
-.jp-jobs .jp-job-button:hover { background: var(--jp-accent); color: var(--jp-on-accent); }
-.jp-jobs .performance-notice { margin: 0; color: var(--jp-text-3); font-size: var(--jp-text-badge); font-style: normal; text-align: left; }
+.jp-jobs .jp-job-button:hover {
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.jp-jobs .performance-notice {
+  margin: 0;
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-badge);
+  font-style: normal;
+  text-align: left;
+}
 
 /* The old filter controls in the popover, in the new look (tokens; the old markup is kept). */
-.jp-filter-popover .form-group { margin-bottom: var(--jp-space-3); }
+.jp-filter-popover .form-group {
+  margin-bottom: var(--jp-space-3);
+}
 .jp-filter-popover .form-group label {
   margin-bottom: 6px;
   font: 500 var(--jp-text-small) var(--jp-font);
   color: var(--jp-text-2);
   letter-spacing: 0;
 }
-.jp-filter-popover .form-group input:not([type="checkbox"]):not([type="radio"]),
+.jp-filter-popover .form-group input:not([type='checkbox']):not([type='radio']),
 .jp-filter-popover .form-group select {
   height: var(--jp-control-height);
   padding: 0 32px 0 var(--jp-space-3);
@@ -565,11 +854,22 @@
   font: 400 var(--jp-text-meta) var(--jp-font);
   transition: border-color var(--jp-transition);
 }
-.jp-filter-popover .form-group select { background-position: right 12px center; background-size: 10px; }
-.jp-filter-popover .form-group input:not([type="checkbox"]):not([type="radio"]):focus,
-.jp-filter-popover .form-group select:focus { border-color: var(--jp-accent); background-color: var(--jp-surface-2); box-shadow: 0 0 0 3px var(--jp-accent-soft); }
-.jp-filter-popover .input-with-icon { width: 100%; }
-.jp-filter-popover .input-with-icon input { padding-right: 72px; }
+.jp-filter-popover .form-group select {
+  background-position: right 12px center;
+  background-size: 10px;
+}
+.jp-filter-popover .form-group input:not([type='checkbox']):not([type='radio']):focus,
+.jp-filter-popover .form-group select:focus {
+  border-color: var(--jp-accent);
+  background-color: var(--jp-surface-2);
+  box-shadow: 0 0 0 3px var(--jp-accent-soft);
+}
+.jp-filter-popover .input-with-icon {
+  width: 100%;
+}
+.jp-filter-popover .input-with-icon input {
+  padding-right: 72px;
+}
 .jp-filter-popover .input-with-icon .icon-button {
   width: 28px;
   height: 28px;
@@ -580,7 +880,9 @@
   background: transparent;
   font-size: 13px;
 }
-.jp-filter-popover .input-with-icon .icon-button:hover { background: var(--jp-surface-hover); }
+.jp-filter-popover .input-with-icon .icon-button:hover {
+  background: var(--jp-surface-hover);
+}
 /* The ☰ list buttons beside the selects. */
 .jp-filter-popover .list-button.icon-button {
   width: var(--jp-control-height);
@@ -595,8 +897,15 @@
   font-size: 15px;
   box-shadow: none;
 }
-.jp-filter-popover .list-button.icon-button:hover { background: var(--jp-surface-hover); color: var(--jp-text); border-color: var(--jp-border-strong); }
-.jp-filter-popover .search-notes-toggle { font-size: var(--jp-text-small); color: var(--jp-text-2); }
+.jp-filter-popover .list-button.icon-button:hover {
+  background: var(--jp-surface-hover);
+  color: var(--jp-text);
+  border-color: var(--jp-border-strong);
+}
+.jp-filter-popover .search-notes-toggle {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-2);
+}
 .jp-filter-popover #edit-mode-toggle {
   height: var(--jp-control-height);
   padding: 0 var(--jp-space-4);
@@ -606,13 +915,17 @@
   color: var(--jp-text);
   font: 500 var(--jp-text-ui) var(--jp-font);
 }
-.jp-filter-popover #edit-mode-toggle:hover { background: var(--jp-surface-hover); }
+.jp-filter-popover #edit-mode-toggle:hover {
+  background: var(--jp-surface-hover);
+}
 
 /* ---- Wall and list in the shell ------------------------------------------------------------- */
 
 /* Previews sit on the graphite preview surface everywhere (spec §18). */
 body.jp-shell-on .file-grid .thumbnail-container,
-body.jp-shell-on .file-grid .parent-model-group-thumbnail { background: var(--jp-preview-bg); }
+body.jp-shell-on .file-grid .parent-model-group-thumbnail {
+  background: var(--jp-preview-bg);
+}
 
 body.jp-shell-on .file-grid .list-view-header {
   top: 0 !important;
@@ -631,13 +944,31 @@ body.jp-shell-on .file-grid .file-item-list {
   background: var(--jp-surface-1);
   box-shadow: none;
   font-family: var(--jp-font);
-  transition: border-color var(--jp-transition), background-color var(--jp-transition);
+  transition:
+    border-color var(--jp-transition),
+    background-color var(--jp-transition);
 }
-body.jp-shell-on .file-grid .file-item-list:hover { transform: none; border-color: var(--jp-border-strong); background: var(--jp-surface-2); box-shadow: none; }
-body.jp-shell-on .file-grid .file-item-list.selected { outline: none; border-color: var(--jp-accent); background: var(--jp-surface-2); }
-body.jp-shell-on .file-grid .file-item-list .thumbnail-container { border-radius: var(--jp-radius-sm); }
+body.jp-shell-on .file-grid .file-item-list:hover {
+  transform: none;
+  border-color: var(--jp-border-strong);
+  background: var(--jp-surface-2);
+  box-shadow: none;
+}
+body.jp-shell-on .file-grid .file-item-list.selected {
+  outline: none;
+  border-color: var(--jp-accent);
+  background: var(--jp-surface-2);
+}
+body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
+  border-radius: var(--jp-radius-sm);
+}
 
 /* Keyboard focus on a card, a row or a tile (spec §37: visible focus). */
-.file-grid .file-item:focus { outline: none; }
+.file-grid .file-item:focus {
+  outline: none;
+}
 .file-grid .file-item:focus-visible,
-.file-grid .file-item.jp-model-card:focus-visible { outline: 2px solid var(--jp-accent); outline-offset: 2px; }
+.file-grid .file-item.jp-model-card:focus-visible {
+  outline: 2px solid var(--jp-accent);
+  outline-offset: 2px;
+}

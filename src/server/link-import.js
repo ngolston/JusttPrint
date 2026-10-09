@@ -13,8 +13,17 @@ const https = require('https');
 const { Readable } = require('stream');
 
 const {
-  SITES, fallbackName, findModelLinks, fromMakerWorld, fromPrintables, fromThingiversePage, imageType,
-  isAllowedImageUrl, linkKey, parseModelLink, printablesQuery
+  SITES,
+  fallbackName,
+  findModelLinks,
+  fromMakerWorld,
+  fromPrintables,
+  fromThingiversePage,
+  imageType,
+  isAllowedImageUrl,
+  linkKey,
+  parseModelLink,
+  printablesQuery
 } = require('../core/link-import');
 
 const TIMEOUT_MS = 15000;
@@ -157,7 +166,7 @@ async function fetchModelInfo(link, fetchImpl = httpsFetch) {
 
 /** A picture as a data URL (JPEG, PNG or WebP from an allowed host), or throws. */
 async function fetchImage(url, fetchImpl = httpsFetch) {
-  if (!isAllowedImageUrl(url)) throw new Error('The picture is not on the site\'s image server');
+  if (!isAllowedImageUrl(url)) throw new Error("The picture is not on the site's image server");
   const response = await request(fetchImpl, url, { headers: { accept: 'image/jpeg,image/png,image/webp' } });
   if (!response.ok) throw new Error(`The picture could not be loaded (${response.status})`);
   const buffer = await readLimited(response, MAX_IMAGE_BYTES);
@@ -171,8 +180,12 @@ async function fetchImage(url, fetchImpl = httpsFetch) {
  * source is that link. Map of key ("printables:3161") → { filePath, fileName }.
  */
 function knownModels(db) {
-  const rows = db.prepare(`SELECT filePath, fileName, source FROM models
-    WHERE filePath LIKE 'url::%' OR source LIKE '%printables.com%' OR source LIKE '%thingiverse.com%' OR source LIKE '%makerworld.com%'`).all();
+  const rows = db
+    .prepare(
+      `SELECT filePath, fileName, source FROM models
+    WHERE filePath LIKE 'url::%' OR source LIKE '%printables.com%' OR source LIKE '%thingiverse.com%' OR source LIKE '%makerworld.com%'`
+    )
+    .all();
   const known = new Map();
   for (const row of rows) {
     const fromPath = String(row.filePath || '').startsWith('url::') ? parseModelLink(row.filePath.slice(5)) : null;
@@ -192,8 +205,15 @@ function checkLinks(db, text) {
   return {
     links: links.map((link) => {
       const existing = known.get(linkKey(link));
-      return { site: link.site, siteLabel: SITES[link.site].label, id: link.id, url: link.url, profileId: link.profileId || null, name: link.slug ? fallbackName(link) : null,
-        existing: existing ? { filePath: existing.filePath, fileName: existing.fileName } : null };
+      return {
+        site: link.site,
+        siteLabel: SITES[link.site].label,
+        id: link.id,
+        url: link.url,
+        profileId: link.profileId || null,
+        name: link.slug ? fallbackName(link) : null,
+        existing: existing ? { filePath: existing.filePath, fileName: existing.fileName } : null
+      };
     }),
     unsupported,
     skipped
@@ -211,8 +231,7 @@ async function importLink(raw, deps, options = {}) {
   if (!link) throw new Error('Not a Printables, Thingiverse or MakerWorld model link');
   // With a download folder, files are downloaded; none chosen (empty `profileIds`/`fileIds`): no download.
   const chosenNone = (Array.isArray(options.profileIds) && !options.profileIds.length) || (Array.isArray(options.fileIds) && !options.fileIds.length);
-  const downloading = !!options.downloadFolder && !chosenNone
-    && (link.site === 'makerworld' ? !!download : !!downloadFiles);
+  const downloading = !!options.downloadFolder && !chosenNone && (link.site === 'makerworld' ? !!download : !!downloadFiles);
   const existing = knownModels(db).get(linkKey(link));
   const exists = (warning = null) => ({ status: 'exists', filePath: existing.filePath, name: existing.fileName, designer: null, picture: false, warning });
   // An online model already in the library can still get its files.
@@ -226,12 +245,21 @@ async function importLink(raw, deps, options = {}) {
   if (downloading && link.site !== 'makerworld') {
     try {
       info = await fetchModelInfo(link, fetchImpl).catch(() => null);
-      const result = await downloadFiles({ url: link.url, folder: options.downloadFolder, fileIds: Array.isArray(options.fileIds) ? options.fileIds : null },
-        { ...(options.downloadOptions || {}), info });
+      const result = await downloadFiles(
+        { url: link.url, folder: options.downloadFolder, fileIds: Array.isArray(options.fileIds) ? options.fileIds : null },
+        { ...(options.downloadOptions || {}), info }
+      );
       const main = result.mainFile ? db.prepare('SELECT fileName, designer FROM models WHERE filePath = ?').get(result.mainFile) : null;
       return {
-        status: 'downloaded', filePath: result.mainFile, name: (main && main.fileName) || (info && info.name) || null, designer: (main && main.designer) || null,
-        picture: true, warning: result.warning || null, folder: result.folder, saved: result.saved, notScanned: result.notScanned || []
+        status: 'downloaded',
+        filePath: result.mainFile,
+        name: (main && main.fileName) || (info && info.name) || null,
+        designer: (main && main.designer) || null,
+        picture: true,
+        warning: result.warning || null,
+        folder: result.folder,
+        saved: result.saved,
+        notScanned: result.notScanned || []
       };
     } catch (error) {
       warning = `Not downloaded: ${error.message.replace(/\.$/, '')}. ${existing ? 'The online model stays.' : 'Added as an online model.'}`;
@@ -250,14 +278,21 @@ async function importLink(raw, deps, options = {}) {
       const result = await download({ url: link.url, folder: options.downloadFolder, ...chosen, mainProfileId: linkProfile }, options.downloadOptions || {});
       const main = result.mainFile ? db.prepare('SELECT fileName, designer FROM models WHERE filePath = ?').get(result.mainFile) : null;
       return {
-        status: 'downloaded', filePath: result.mainFile, name: (main && main.fileName) || null, designer: (main && main.designer) || null,
-        picture: true, warning: result.warning || null, folder: result.folder, saved: result.saved
+        status: 'downloaded',
+        filePath: result.mainFile,
+        name: (main && main.fileName) || null,
+        designer: (main && main.designer) || null,
+        picture: true,
+        warning: result.warning || null,
+        folder: result.folder,
+        saved: result.saved
       };
     } catch (error) {
       const what = existing ? 'The online model stays.' : 'Added as an online model.';
-      warning = error.code === 'SIGN_IN'
-        ? `Not downloaded: sign in to MakerWorld to download. ${what}`
-        : `Not downloaded: ${error.message.replace(/\.$/, '')}. ${what}`;
+      warning =
+        error.code === 'SIGN_IN'
+          ? `Not downloaded: sign in to MakerWorld to download. ${what}`
+          : `Not downloaded: ${error.message.replace(/\.$/, '')}. ${what}`;
       if (existing) return exists(warning);
     }
   }

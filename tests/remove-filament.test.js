@@ -17,7 +17,11 @@ function test(name, fn) {
   }
 }
 
-const tables = () => database.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((row) => row.name);
+const tables = () =>
+  database.db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .all()
+    .map((row) => row.name);
 
 test('a database from before 7.0 loses its filament tables and settings, not its prints', () => {
   database.db = new Database(':memory:');
@@ -38,7 +42,13 @@ test('a database from before 7.0 loses its filament tables and settings, not its
   `);
   removeFilamentData();
   assert.deepStrictEqual(tables(), ['models', 'print_events', 'settings']);
-  assert.deepStrictEqual(database.db.prepare('SELECT key FROM settings').all().map((row) => row.key), ['uiTheme']);
+  assert.deepStrictEqual(
+    database.db
+      .prepare('SELECT key FROM settings')
+      .all()
+      .map((row) => row.key),
+    ['uiTheme']
+  );
   assert.strictEqual(database.db.prepare('SELECT COUNT(*) AS n FROM print_events').get().n, 1, 'the print history stays');
   removeFilamentData(); // twice is harmless
   database.db.close();

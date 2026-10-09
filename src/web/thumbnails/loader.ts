@@ -95,12 +95,13 @@ export async function loadModelData(filePath: string): Promise<ModelData | null>
   if (!window.parseWorkerUrl) throw new Error('The parse worker is not available.');
 
   const buffer = await tryRead(filePath);
-  const extraBuffers = buffer && (fileExtension === 'step' || fileExtension === 'stp')
-    ? await stepAssemblyBuffers(filePath, buffer).catch((error) => {
-      console.warn('STEP assembly resolve failed:', error);
-      return [];
-    })
-    : [];
+  const extraBuffers =
+    buffer && (fileExtension === 'step' || fileExtension === 'stp')
+      ? await stepAssemblyBuffers(filePath, buffer).catch((error) => {
+          console.warn('STEP assembly resolve failed:', error);
+          return [];
+        })
+      : [];
   // Without the bytes the worker fetches the file itself.
   const url = `${window.location.origin}${filePath.includes('::') ? '/api/download/' : '/api/file/'}${encodeURIComponent(filePath)}`;
 
@@ -117,14 +118,21 @@ export async function loadModelData(filePath: string): Promise<ModelData | null>
     if (shared) {
       sharedJobs.set(id, done);
     } else {
-      worker.onmessage = (event: MessageEvent<WorkerReply>) => { if (event.data?.id === id) done(event.data); };
+      worker.onmessage = (event: MessageEvent<WorkerReply>) => {
+        if (event.data?.id === id) done(event.data);
+      };
       worker.onerror = (event) => done({ id, success: false, error: event.message || 'Parse worker failed' });
     }
     const transfer = [buffer, ...extraBuffers].filter((b): b is ArrayBuffer => !!b);
-    worker.postMessage({
-      id, fileExtension, url,
-      arrayBuffer: buffer || undefined,
-      extraBuffers: extraBuffers.length ? extraBuffers : undefined
-    }, transfer);
+    worker.postMessage(
+      {
+        id,
+        fileExtension,
+        url,
+        arrayBuffer: buffer || undefined,
+        extraBuffers: extraBuffers.length ? extraBuffers : undefined
+      },
+      transfer
+    );
   });
 }

@@ -3,8 +3,7 @@ import css from './tokens.css?raw';
 import { THEME_ACCENTS } from '../startup/theme';
 
 /** The design tokens from tokens.css (hex colors only). */
-const tokens = Object.fromEntries([...css
-  .matchAll(/--(jp-[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1], m[2]]));
+const tokens = Object.fromEntries([...css.matchAll(/--(jp-[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1], m[2]]));
 
 const channel = (value: number) => {
   const c = value / 255;
@@ -40,12 +39,19 @@ describe('token contrast (spec §37, WCAG 2.2 AA)', () => {
   });
 
   it('status badge text reaches 4.5:1 on its tinted background', () => {
-    const soft = Object.fromEntries([...css
-      .matchAll(/--(jp-[a-z]+-soft):\s*rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)].map((m) => [m[1], m.slice(2).map(Number)]));
+    const soft = Object.fromEntries(
+      [...css.matchAll(/--(jp-[a-z]+-soft):\s*rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)].map((m) => [m[1], m.slice(2).map(Number)])
+    );
     const over = (rgba: number[], hex: string) => {
       const n = parseInt(hex.slice(1), 16);
       const base = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-      return `#${base.map((b, i) => Math.round(rgba[i] * rgba[3] + b * (1 - rgba[3])).toString(16).padStart(2, '0')).join('')}`;
+      return `#${base
+        .map((b, i) =>
+          Math.round(rgba[i] * rgba[3] + b * (1 - rgba[3]))
+            .toString(16)
+            .padStart(2, '0')
+        )
+        .join('')}`;
     };
     for (const tone of ['success', 'warning', 'danger', 'accent']) {
       for (const surface of ['jp-surface-1', 'jp-surface-2']) {

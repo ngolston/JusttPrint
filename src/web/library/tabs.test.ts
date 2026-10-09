@@ -21,9 +21,20 @@ describe('library tabs', () => {
     expect(extraFilterCount({ ...state, printed: 'printed' })).toBe(0);
     expect(extraFilterCount({ ...state, printed: 'failed' })).toBe(1);
     expect(extraFilterCount({ ...state, printed: 'printed', favorite: 'favorited' })).toBe(2);
-    expect(extraFilterCount({
-      ...state, designer: ['A'], tags: ['x', 'y'], fileType: 'stl', ratingMin: '3', directory: '/lib/a',
-      tokens: [{ t: 'clause', field: 'all', value: 'cube' }, { t: 'op', op: 'OR' }, { t: 'filter', kind: 'license', value: 'MIT' }]
-    })).toBe(7);
+    expect(
+      extraFilterCount({
+        ...state,
+        designer: ['A'],
+        tags: ['x', 'y'],
+        fileType: 'stl',
+        ratingMin: '3',
+        directory: '/lib/a',
+        tokens: [
+          { t: 'clause', field: 'all', value: 'cube' },
+          { t: 'op', op: 'OR' },
+          { t: 'filter', kind: 'license', value: 'MIT' }
+        ]
+      })
+    ).toBe(7);
   });
 });

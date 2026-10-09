@@ -34,7 +34,10 @@ function listStepExternalFileNames(data) {
 }
 
 function siblingStepPath(filePath, fileName) {
-  const safeName = String(fileName || '').replace(/\\/g, '/').split('/').pop();
+  const safeName = String(fileName || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .pop();
   if (!filePath || !safeName) return null;
   if (filePath.includes('::')) {
     const idx = filePath.indexOf('::');

@@ -32,10 +32,13 @@ function setProgress(next: ScanProgress | null) {
 
 /** The running scan's progress, or null when none runs. */
 export function useScanProgress(): ScanProgress | null {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }, () => progress);
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => progress
+  );
 }
 
 /** Reload what depends on the library's contents: pickers, the folder tree, the grid. */
@@ -51,11 +54,12 @@ async function refreshLibraryViews() {
 const SKIPPED_NOTICE_SETTING = 'hideSkippedFileSizeNotice';
 
 async function skippedNotice(count: number) {
-  if (count <= 0 || await settings.get<string | null>(SKIPPED_NOTICE_SETTING).catch(() => null) === '1') return;
-  const message = count === 1
-    ? '1 file was skipped because it is larger than the max file size. You can set the max file size under Settings > Performance.'
-    : `${count} files were skipped because they are larger than the max file size. You can set the max file size under Settings > Performance.`;
-  if (await showMessage('Files Skipped', message, ['Okay', 'Never show again']) === 'Never show again') {
+  if (count <= 0 || (await settings.get<string | null>(SKIPPED_NOTICE_SETTING).catch(() => null)) === '1') return;
+  const message =
+    count === 1
+      ? '1 file was skipped because it is larger than the max file size. You can set the max file size under Settings > Performance.'
+      : `${count} files were skipped because they are larger than the max file size. You can set the max file size under Settings > Performance.`;
+  if ((await showMessage('Files Skipped', message, ['Okay', 'Never show again'])) === 'Never show again') {
     await settings.save(SKIPPED_NOTICE_SETTING, '1');
   }
 }
@@ -107,7 +111,7 @@ export async function scanFolders(dirs: string[], options: { stlHome?: boolean }
   if (missing.length) startThumbnailJob('missing', { background: true, quiet: true });
 
   if (failures.length) await showMessage('Scan Error', `Some folders could not be scanned:\n\n${failures.join('\n')}`);
-  if (found > 0 && await showMessage('New Models Found', `${found} new model(s) found, would you like to see them?`, ['Yes', 'No']) === 'Yes') {
+  if (found > 0 && (await showMessage('New Models Found', `${found} new model(s) found, would you like to see them?`, ['Yes', 'No'])) === 'Yes') {
     filterActions.showAddedSince(started);
     navigate('library');
   }

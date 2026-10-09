@@ -11,20 +11,24 @@ const MAX_DESCRIPTION = 2000;
 
 /** Made on first use, so a restored older database gets the tables too. */
 function ensureCollectionsSchema(db) {
-  db.prepare(`CREATE TABLE IF NOT EXISTS collections (
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS collections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE COLLATE NOCASE,
     description TEXT NOT NULL DEFAULT '',
     created_by TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
-  )`).run();
-  db.prepare(`CREATE TABLE IF NOT EXISTS collection_models (
+  )`
+  ).run();
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS collection_models (
     collection_id INTEGER NOT NULL,
     model_id INTEGER NOT NULL,
     added_at TEXT NOT NULL,
     PRIMARY KEY (collection_id, model_id)
-  )`).run();
+  )`
+  ).run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_collection_models_model ON collection_models(model_id)').run();
 }
 
@@ -35,14 +39,18 @@ function httpError(status, message) {
 }
 
 function cleanName(name) {
-  const text = String(name || '').replace(/\s+/g, ' ').trim();
+  const text = String(name || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!text) throw httpError(400, 'Give the collection a name');
   if (text.length > MAX_NAME) throw httpError(400, `Collection names are at most ${MAX_NAME} characters`);
   return text;
 }
 
 function cleanDescription(description) {
-  return String(description || '').trim().slice(0, MAX_DESCRIPTION);
+  return String(description || '')
+    .trim()
+    .slice(0, MAX_DESCRIPTION);
 }
 
 function findOrThrow(db, id) {
@@ -70,25 +78,34 @@ const summary = (row) => ({
 /** Every collection with its model count and a cover (its most recently added model). */
 function listCollections(db) {
   ensureCollectionsSchema(db);
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT c.*,
       (SELECT COUNT(*) FROM collection_models cm JOIN models m ON m.id = cm.model_id WHERE cm.collection_id = c.id) AS model_count,
       (SELECT m.filePath FROM collection_models cm JOIN models m ON m.id = cm.model_id WHERE cm.collection_id = c.id
         ORDER BY cm.added_at DESC, m.id DESC LIMIT 1) AS cover_path
     FROM collections c
-    ORDER BY c.name COLLATE NOCASE`).all().map(summary);
+    ORDER BY c.name COLLATE NOCASE`
+    )
+    .all()
+    .map(summary);
 }
 
 /** A collection and its models (newest added first), with the columns the model cards use. */
 function getCollection(db, id) {
   ensureCollectionsSchema(db);
   const row = findOrThrow(db, id);
-  const models = db.prepare(`
+  const models = db
+    .prepare(
+      `
     SELECT m.id, m.filePath, m.fileName, m.designer, m.license, m.source, m.size, m.print_status, m.print_count,
       m.last_printed_at, m.printed, m.rating, m.favorite, m.bundleKey, m.bundleLabel, m.bundleKind, cm.added_at
     FROM collection_models cm JOIN models m ON m.id = cm.model_id
     WHERE cm.collection_id = ?
-    ORDER BY cm.added_at DESC, m.id DESC`).all(row.id);
+    ORDER BY cm.added_at DESC, m.id DESC`
+    )
+    .all(row.id);
   return { ...summary({ ...row, model_count: models.length, cover_path: models[0]?.filePath }), models };
 }
 
@@ -97,7 +114,8 @@ function createCollection(db, { name, description, createdBy } = {}, now = new D
   const clean = cleanName(name);
   assertNameFree(db, clean);
   const at = now.toISOString();
-  const info = db.prepare('INSERT INTO collections (name, description, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+  const info = db
+    .prepare('INSERT INTO collections (name, description, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
     .run(clean, cleanDescription(description), createdBy || null, at, at);
   return summary({ ...findOrThrow(db, info.lastInsertRowid), model_count: 0 });
 }
@@ -108,8 +126,7 @@ function updateCollection(db, id, { name, description } = {}, now = new Date()) 
   const nextName = name === undefined || name === null ? row.name : cleanName(name);
   if (nextName.toLowerCase() !== row.name.toLowerCase()) assertNameFree(db, nextName, row.id);
   const nextDescription = description === undefined || description === null ? row.description : cleanDescription(description);
-  db.prepare('UPDATE collections SET name = ?, description = ?, updated_at = ? WHERE id = ?')
-    .run(nextName, nextDescription, now.toISOString(), row.id);
+  db.prepare('UPDATE collections SET name = ?, description = ?, updated_at = ? WHERE id = ?').run(nextName, nextDescription, now.toISOString(), row.id);
   return listCollections(db).find((c) => c.id === row.id);
 }
 
@@ -166,8 +183,12 @@ function membership(db, filePaths) {
   const ids = modelIdsFor(db, filePaths);
   const counts = new Map();
   if (ids.length) {
-    const rows = db.prepare(`SELECT collection_id, COUNT(*) AS n FROM collection_models
-      WHERE model_id IN (${ids.map(() => '?').join(',')}) GROUP BY collection_id`).all(...ids);
+    const rows = db
+      .prepare(
+        `SELECT collection_id, COUNT(*) AS n FROM collection_models
+      WHERE model_id IN (${ids.map(() => '?').join(',')}) GROUP BY collection_id`
+      )
+      .all(...ids);
     for (const row of rows) counts.set(row.collection_id, Number(row.n));
   }
   return { models: ids.length, collections: listCollections(db).map((c) => ({ ...c, selectedInIt: counts.get(c.id) || 0 })) };

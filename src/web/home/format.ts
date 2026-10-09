@@ -8,8 +8,12 @@ export function greeting(hour: number): string {
 }
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 3600], ['month', 30 * 24 * 3600], ['week', 7 * 24 * 3600],
-  ['day', 24 * 3600], ['hour', 3600], ['minute', 60]
+  ['year', 365 * 24 * 3600],
+  ['month', 30 * 24 * 3600],
+  ['week', 7 * 24 * 3600],
+  ['day', 24 * 3600],
+  ['hour', 3600],
+  ['minute', 60]
 ];
 
 /** "just now", "5 minutes ago", "yesterday", "3 weeks ago"; '' for a bad date. */

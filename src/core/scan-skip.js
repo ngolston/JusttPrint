@@ -30,7 +30,9 @@ function normalizeExcludeNames(list) {
   const set = new Set();
   const raw = Array.isArray(list) ? list : String(list || '').split(/[\r\n,]+/);
   for (const item of raw) {
-    const trimmed = String(item || '').trim().replace(/^[/\\]+|[/\\]+$/g, '');
+    const trimmed = String(item || '')
+      .trim()
+      .replace(/^[/\\]+|[/\\]+$/g, '');
     if (!trimmed || trimmed === '.' || trimmed === '..') continue;
     const seg = trimmed.split(/[/\\]/).filter(Boolean).pop();
     if (seg) set.add(seg.toLowerCase());

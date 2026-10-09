@@ -39,10 +39,21 @@ test('keys and tokens are hidden from non-admins', async () => {
 test('viewers get the menu items that only open, download or copy', () => {
   const sep = { type: 'separator' };
   const items = [
-    { label: 'Preview' }, sep, { label: 'Download' }, { label: 'Copy Path' }, sep,
-    { label: 'Open in Slicer' }, { label: 'Tag from Folder' }, sep, { label: 'Remove from Library' }, { label: 'Delete from Disk' }
+    { label: 'Preview' },
+    sep,
+    { label: 'Download' },
+    { label: 'Copy Path' },
+    sep,
+    { label: 'Open in Slicer' },
+    { label: 'Tag from Folder' },
+    sep,
+    { label: 'Remove from Library' },
+    { label: 'Delete from Disk' }
   ];
-  assert.deepStrictEqual(viewerMenuItems(items).map((item) => item.label || '-'), ['Preview', '-', 'Download', 'Copy Path', '-', 'Open in Slicer']);
+  assert.deepStrictEqual(
+    viewerMenuItems(items).map((item) => item.label || '-'),
+    ['Preview', '-', 'Download', 'Copy Path', '-', 'Open in Slicer']
+  );
 });
 
 test('display preferences are kept per user, with the server-wide value as the default', async () => {
@@ -61,11 +72,15 @@ test('display preferences are kept per user, with the server-wide value as the d
   assert.strictEqual(await get(alice, 'uiTheme'), 'modern-cyan');
   const token = { user: { id: 0, username: 'API token', role: 'admin' } };
   assert.strictEqual(await get(token, 'gridView'), 'list', 'the API token and the server use the server-wide value');
-  assert.strictEqual(database.db.prepare("SELECT value FROM settings WHERE key = 'gridView'").get().value, 'list', 'saving a preference leaves the default alone');
+  assert.strictEqual(
+    database.db.prepare("SELECT value FROM settings WHERE key = 'gridView'").get().value,
+    'list',
+    'saving a preference leaves the default alone'
+  );
   await save(bob, 'stlHomeDirectories', '["/lib"]');
   assert.strictEqual(await get(alice, 'stlHomeDirectories'), '["/lib"]', 'other settings stay server-wide');
   forgetUserSettings(11);
-  assert.strictEqual(await get(alice, 'gridView'), 'list', 'a deleted user\'s preferences are removed');
+  assert.strictEqual(await get(alice, 'gridView'), 'list', "a deleted user's preferences are removed");
   database.db.close();
   database.db = null;
 });

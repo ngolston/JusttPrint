@@ -38,9 +38,15 @@ const volume = path.join(tmp, 'models');
 const other = path.join(tmp, 'outside');
 const data = path.join(volume, 'appdata');
 for (const dir of [
-  path.join(volume, 'Benchy'), path.join(volume, 'cars', 'Supra'), path.join(volume, 'item 10'), path.join(volume, 'item 9'),
-  path.join(volume, '.hidden'), data, path.join(other, 'secret')
-]) fs.mkdirSync(dir, { recursive: true });
+  path.join(volume, 'Benchy'),
+  path.join(volume, 'cars', 'Supra'),
+  path.join(volume, 'item 10'),
+  path.join(volume, 'item 9'),
+  path.join(volume, '.hidden'),
+  data,
+  path.join(other, 'secret')
+])
+  fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(volume, 'part.stl'), 'solid');
 fs.symlinkSync(path.join(volume, 'cars'), path.join(volume, 'cars-link'));
 fs.symlinkSync(other, path.join(volume, 'elsewhere'));
@@ -56,13 +62,19 @@ test('places: existing, absolute, not blocked', () => {
 test('lists subfolders: sorted naturally, no files, hidden or blocked folders, links to blocked ones', () => {
   const listing = browse(volume);
   assert.strictEqual(listing.path, volume);
-  assert.deepStrictEqual(listing.folders.map((f) => f.name), ['Benchy', 'cars', 'cars-link', 'elsewhere', 'item 9', 'item 10']);
+  assert.deepStrictEqual(
+    listing.folders.map((f) => f.name),
+    ['Benchy', 'cars', 'cars-link', 'elsewhere', 'item 9', 'item 10']
+  );
   assert.strictEqual(listing.parent, path.dirname(volume));
   assert.strictEqual(browse(path.join(volume, 'cars')).parent, volume);
 });
 
 test('folders outside the places can be browsed; blocked folders, links into them and bad paths cannot', () => {
-  assert.deepStrictEqual(browse(path.join(volume, 'cars', '..', '..', 'outside')).folders.map((f) => f.name), ['secret']);
+  assert.deepStrictEqual(
+    browse(path.join(volume, 'cars', '..', '..', 'outside')).folders.map((f) => f.name),
+    ['secret']
+  );
   assert.match(browse(data).error, /cannot be browsed/);
   assert.match(browse(path.join(volume, 'data-link')).error, /cannot be browsed/);
   assert.match(browse('relative').error, /Not a folder path/);

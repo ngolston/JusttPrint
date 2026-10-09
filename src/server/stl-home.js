@@ -149,7 +149,9 @@ function stopWatching() {
 async function startWatching() {
   stopWatching();
   if (!watchingEnabled()) return;
-  const roots = readStlHomeDirectories().map((dir) => String(dir).trim()).filter(Boolean);
+  const roots = readStlHomeDirectories()
+    .map((dir) => String(dir).trim())
+    .filter(Boolean);
   if (!roots.length) return;
   const queue = new ChangeQueue({ scan: rescanChangedFolders });
   watchQueue = queue;
@@ -164,10 +166,12 @@ async function startWatching() {
       onChange: (folder, changedPath) => queue.add(watcher.root, folder, changedPath)
     });
     watchers.push(watcher);
-    started.push(watcher.start().then(() => {
-      if (watcher.error) console.warn(`[Watch] ${watcher.root}: ${watcher.error}`);
-      else console.log(`[Watch] Watching ${watcher.folderCount} folder(s) under ${watcher.root}`);
-    }));
+    started.push(
+      watcher.start().then(() => {
+        if (watcher.error) console.warn(`[Watch] ${watcher.root}: ${watcher.error}`);
+        else console.log(`[Watch] Watching ${watcher.folderCount} folder(s) under ${watcher.root}`);
+      })
+    );
   }
   await Promise.all(started);
 }

@@ -7,24 +7,17 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const fflate = require('fflate');
-const {
-  extractZipEntryBuffer,
-  extractWithFflate,
-  findZipEntry,
-  isFragileZipError
-} = require('../src/core/zip-extract');
+const { extractZipEntryBuffer, extractWithFflate, findZipEntry, isFragileZipError } = require('../src/core/zip-extract');
 
 let tempDir;
 
 function makeFake3mf(label) {
-  return Buffer.from(fflate.zipSync({
-    '[Content_Types].xml': fflate.strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>'
-    ),
-    '3D/3dmodel.model': fflate.strToU8(
-      `<?xml version="1.0"?><model unit="millimeter">${label}</model>`
-    )
-  }));
+  return Buffer.from(
+    fflate.zipSync({
+      '[Content_Types].xml': fflate.strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>'),
+      '3D/3dmodel.model': fflate.strToU8(`<?xml version="1.0"?><model unit="millimeter">${label}</model>`)
+    })
+  );
 }
 
 async function writeOuterZip(filePath, files, compression) {
@@ -49,15 +42,16 @@ describe('zip-extract nested 3mf', () => {
     const left = makeFake3mf('left');
     const right = makeFake3mf('right');
     const zipPath = path.join(tempDir, 'Main+Files-deflate.zip');
-    await writeOuterZip(zipPath, {
-      'kraken-ams-left-no-support-boxes-1.00.3mf': left,
-      'kraken-ams-right-1.00.3mf': right
-    }, 'DEFLATE');
-
-    const extractedLeft = await extractZipEntryBuffer(
+    await writeOuterZip(
       zipPath,
-      'kraken-ams-left-no-support-boxes-1.00.3mf'
+      {
+        'kraken-ams-left-no-support-boxes-1.00.3mf': left,
+        'kraken-ams-right-1.00.3mf': right
+      },
+      'DEFLATE'
     );
+
+    const extractedLeft = await extractZipEntryBuffer(zipPath, 'kraken-ams-left-no-support-boxes-1.00.3mf');
     const extractedRight = await extractZipEntryBuffer(zipPath, 'kraken-ams-right-1.00.3mf');
 
     assert.deepEqual(extractedLeft, left);
@@ -67,14 +61,15 @@ describe('zip-extract nested 3mf', () => {
   test('extracts stored (uncompressed) 3mf entries from an outer zip', async () => {
     const left = makeFake3mf('stored-left');
     const zipPath = path.join(tempDir, 'Main+Files-store.zip');
-    await writeOuterZip(zipPath, {
-      'nested/kraken-ams-left-no-support-boxes-1.00.3mf': left
-    }, 'STORE');
-
-    const extracted = await extractZipEntryBuffer(
+    await writeOuterZip(
       zipPath,
-      'nested/kraken-ams-left-no-support-boxes-1.00.3mf'
+      {
+        'nested/kraken-ams-left-no-support-boxes-1.00.3mf': left
+      },
+      'STORE'
     );
+
+    const extracted = await extractZipEntryBuffer(zipPath, 'nested/kraken-ams-left-no-support-boxes-1.00.3mf');
     assert.deepEqual(extracted, left);
   });
 
@@ -82,18 +77,19 @@ describe('zip-extract nested 3mf', () => {
     const left = makeFake3mf('hash-left');
     const right = makeFake3mf('hash-right');
     const zipPath = path.join(tempDir, 'Kraken AMS.zip');
-    await writeOuterZip(zipPath, {
-      'kraken-ams-left-no-support-boxes-1.00.3mf': left,
-      'kraken-ams-right-1.00.3mf': right
-    }, 'DEFLATE');
+    await writeOuterZip(
+      zipPath,
+      {
+        'kraken-ams-left-no-support-boxes-1.00.3mf': left,
+        'kraken-ams-right-1.00.3mf': right
+      },
+      'DEFLATE'
+    );
 
     const [leftHash, rightHash, leftHashAgain] = await Promise.all([
-      extractZipEntryBuffer(zipPath, 'kraken-ams-left-no-support-boxes-1.00.3mf')
-        .then((buf) => crypto.createHash('md5').update(buf).digest('hex')),
-      extractZipEntryBuffer(zipPath, 'kraken-ams-right-1.00.3mf')
-        .then((buf) => crypto.createHash('md5').update(buf).digest('hex')),
-      extractZipEntryBuffer(zipPath, 'kraken-ams-left-no-support-boxes-1.00.3mf')
-        .then((buf) => crypto.createHash('md5').update(buf).digest('hex'))
+      extractZipEntryBuffer(zipPath, 'kraken-ams-left-no-support-boxes-1.00.3mf').then((buf) => crypto.createHash('md5').update(buf).digest('hex')),
+      extractZipEntryBuffer(zipPath, 'kraken-ams-right-1.00.3mf').then((buf) => crypto.createHash('md5').update(buf).digest('hex')),
+      extractZipEntryBuffer(zipPath, 'kraken-ams-left-no-support-boxes-1.00.3mf').then((buf) => crypto.createHash('md5').update(buf).digest('hex'))
     ]);
 
     assert.equal(leftHash, crypto.createHash('md5').update(left).digest('hex'));
@@ -159,10 +155,7 @@ describe('zip-extract nested 3mf', () => {
 
     const StreamZip = require('node-stream-zip');
     const zip = new StreamZip.async({ file: zipPath });
-    await assert.rejects(
-      async () => zip.entryData('model.3mf'),
-      /Invalid local header/i
-    );
+    await assert.rejects(async () => zip.entryData('model.3mf'), /Invalid local header/i);
     await zip.close();
 
     const recovered = await extractZipEntryBuffer(zipPath, 'model.3mf');

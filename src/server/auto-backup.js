@@ -49,7 +49,9 @@ function listBackups(dir, fileSystem = fs) {
     try {
       const stat = fileSystem.statSync(path.join(dir, name));
       if (stat.isFile()) backups.push({ name, path: path.join(dir, name), size: stat.size, date: stat.mtime.toISOString() });
-    } catch (_) { /* removed meanwhile */ }
+    } catch (_) {
+      /* removed meanwhile */
+    }
   }
   return backups.sort((a, b) => {
     const [stampA, countA] = sortKey(a.name);
@@ -189,7 +191,9 @@ function runBackup(reason = 'manual') {
       const message = error && error.message ? error.message : String(error);
       try {
         persistSetting('autoBackupLastError', message);
-      } catch (_) { /* database closed */ }
+      } catch (_) {
+        /* database closed */
+      }
       console.error(`[Backup] ${reason} backup failed:`, message);
       return { success: false, message };
     }
@@ -265,7 +269,9 @@ function saveSettings(input = {}) {
     updates.autoBackupKeep = String(keep);
   }
   if ('directory' in input) {
-    const dir = String(input.directory || '').trim().replace(/\/+$/, '');
+    const dir = String(input.directory || '')
+      .trim()
+      .replace(/\/+$/, '');
     if (dir) {
       const problem = folderProblem(dir, { appDir, dataDir: app.getPath('userData') });
       if (problem) throw new Error(problem);

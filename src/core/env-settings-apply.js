@@ -26,17 +26,20 @@ function applyEnvSettings() {
 function applyDockerEnvSettingIfNeeded(key, envValue) {
   if (!database.db || !envValue || !String(envValue).trim()) return;
   const trimmed = String(envValue).trim();
-  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' ||
-    process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
+  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
   try {
     const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
     const current = row?.value != null ? String(row.value).trim() : '';
     if (!force && current !== '') return;
-    database.db.prepare(`
+    database.db
+      .prepare(
+        `
       INSERT INTO settings (key, value)
       VALUES (?, ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(key, trimmed);
+    `
+      )
+      .run(key, trimmed);
     console.log(`Startup env applied setting ${key}:`, trimmed, force ? '(JUSTTPRINT_ENV_OVERRIDES_SETTINGS)' : '');
   } catch (e) {
     console.error(`Error applying env to setting ${key}:`, e);
@@ -60,21 +63,28 @@ function applyStlHomeEnvIfNeeded(envValue) {
   if (!database.db || !envValue || !String(envValue).trim()) return;
   const paths = dedupePathList(parseExcludePathList(envValue));
   if (!paths.length) return;
-  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' ||
-    process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
+  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
   try {
     if (!force && !stlHomeDirectoriesAreUnset()) return;
     const json = JSON.stringify(paths);
-    database.db.prepare(`
+    database.db
+      .prepare(
+        `
       INSERT INTO settings (key, value)
       VALUES ('stlHomeDirectories', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(json);
-    database.db.prepare(`
+    `
+      )
+      .run(json);
+    database.db
+      .prepare(
+        `
       INSERT INTO settings (key, value)
       VALUES ('stlHome', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(paths[0]);
+    `
+      )
+      .run(paths[0]);
     console.log('Startup env applied setting stlHomeDirectories:', json, force ? '(JUSTTPRINT_ENV_OVERRIDES_SETTINGS)' : '');
   } catch (e) {
     console.error('Error applying STL_HOME:', e);
@@ -90,17 +100,20 @@ function applyStlHomeExcludeEnvIfNeeded(envValue) {
   if (!database.db || !envValue || !String(envValue).trim()) return;
   const paths = parseExcludePathList(envValue);
   if (!paths.length) return;
-  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' ||
-    process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
+  const force = process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === '1' || process.env.JUSTTPRINT_ENV_OVERRIDES_SETTINGS === 'true';
   try {
     const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('stlHomeExcludeDirectories');
     if (!force && !excludeDirectoriesSettingIsEmpty(row?.value)) return;
     const json = JSON.stringify(paths);
-    database.db.prepare(`
+    database.db
+      .prepare(
+        `
       INSERT INTO settings (key, value)
       VALUES ('stlHomeExcludeDirectories', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(json);
+    `
+      )
+      .run(json);
     console.log('Startup env applied setting stlHomeExcludeDirectories:', json, force ? '(JUSTTPRINT_ENV_OVERRIDES_SETTINGS)' : '');
   } catch (e) {
     console.error('Error applying STL_HOME_EXCLUDE:', e);

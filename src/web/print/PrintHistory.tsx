@@ -1,15 +1,26 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  models, parts as partApi, printers as printerApi, prints,
-  type Part, type PrintEvent, type Printer
-} from '../api';
+import { models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer } from '../api';
 import { exposeGlobal, showMessage } from '../page';
 import { getCurrentUser, roleAllows, useCan } from '../session';
 import {
-  OUTCOME_LABELS, STATUSES, STATUS_LABELS, badgeClassNames, badgeText, badgeTitle, bundleSummary,
-  detailsHint, effectiveStatus, filterLabel, formatPrintDate, friendlyError, modelMatchesPrintFilter,
-  partOptionLabel, printerOptionLabel, toDatetimeLocalValue, type PrintModel
+  OUTCOME_LABELS,
+  STATUSES,
+  STATUS_LABELS,
+  badgeClassNames,
+  badgeText,
+  badgeTitle,
+  bundleSummary,
+  detailsHint,
+  effectiveStatus,
+  filterLabel,
+  formatPrintDate,
+  friendlyError,
+  modelMatchesPrintFilter,
+  partOptionLabel,
+  printerOptionLabel,
+  toDatetimeLocalValue,
+  type PrintModel
 } from './printStatus';
 
 /** A model as the details panel and the grid pass it in. */
@@ -37,14 +48,20 @@ let openStatusMenuImpl: ((anchor: HTMLElement, filePath: string) => void) | null
 async function refreshAfterChange(filePaths: string | string[]) {
   const paths = Array.isArray(filePaths) ? filePaths : [filePaths];
   for (const filePath of paths) {
-    try { await window.updateModelElement?.(filePath); } catch { /* keep going */ }
+    try {
+      await window.updateModelElement?.(filePath);
+    } catch {
+      /* keep going */
+    }
   }
   const current = window.getCurrentModelFilePath?.();
   if (current && paths.includes(current)) {
     try {
       const model = await models.get<PrintDetailsModel>(current);
       if (model) window.detailsPrint?.show(model);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -96,7 +113,9 @@ const printHistory = {
   /** Set the print status of several models and refresh their cards. */
   setStatus: setStatusForPaths,
   openStatusMenu: (anchor: HTMLElement, filePath: string) => openStatusMenuImpl?.(anchor, filePath),
-  populateDetails: async (model: PrintDetailsModel) => { window.detailsPrint?.show(model); },
+  populateDetails: async (model: PrintDetailsModel) => {
+    window.detailsPrint?.show(model);
+  },
   modelMatchesPrintFilter,
   filterLabel,
   bundleSummary,
@@ -131,7 +150,11 @@ function LogPrintDialog() {
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const loadPrinters = () => printerApi.list().then(setPrinterList).catch(() => setPrinterList([]));
+  const loadPrinters = () =>
+    printerApi
+      .list()
+      .then(setPrinterList)
+      .catch(() => setPrinterList([]));
 
   async function open(paths: string[]) {
     setFilePaths(paths);
@@ -144,21 +167,22 @@ function LogPrintDialog() {
     setPartQuantity('1');
     setChosenParts([]);
     setStatus('');
-    const [allParts] = await Promise.all([
-      partApi.list().catch(() => [] as Part[]),
-      loadPrinters()
-    ]);
+    const [allParts] = await Promise.all([partApi.list().catch(() => [] as Part[]), loadPrinters()]);
     setPartList(allParts);
     dialogRef.current?.showModal();
   }
 
   useEffect(() => {
     openLogDialogImpl = open;
-    return () => { if (openLogDialogImpl === open) openLogDialogImpl = null; };
+    return () => {
+      if (openLogDialogImpl === open) openLogDialogImpl = null;
+    };
   });
 
   useEffect(() => {
-    const onPrintersChanged = () => { if (dialogRef.current?.open) loadPrinters(); };
+    const onPrintersChanged = () => {
+      if (dialogRef.current?.open) loadPrinters();
+    };
     document.addEventListener('printers-changed', onPrintersChanged);
     return () => document.removeEventListener('printers-changed', onPrintersChanged);
   }, []);
@@ -168,9 +192,9 @@ function LogPrintDialog() {
     if (!part) return;
     const qty = clampQuantity(partQuantity);
     const existing = chosenParts.find((c) => c.part.id === part.id);
-    setChosenParts(existing
-      ? chosenParts.map((c) => (c === existing ? { ...c, quantity: Math.min(9999, c.quantity + qty) } : c))
-      : [...chosenParts, { part, quantity: qty }]);
+    setChosenParts(
+      existing ? chosenParts.map((c) => (c === existing ? { ...c, quantity: Math.min(9999, c.quantity + qty) } : c)) : [...chosenParts, { part, quantity: qty }]
+    );
     setPartId('');
     setPartQuantity('1');
   }
@@ -219,7 +243,11 @@ function LogPrintDialog() {
         <div className="form-group">
           <label htmlFor="log-print-outcome">Outcome</label>
           <select id="log-print-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-            {Object.entries(OUTCOME_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {Object.entries(OUTCOME_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-group">
@@ -230,7 +258,11 @@ function LogPrintDialog() {
           <label htmlFor="log-print-printer-select">Printer used</label>
           <select id="log-print-printer-select" value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
             <option value="">Select printer (optional)…</option>
-            {printerList.map((p) => <option key={p.id} value={String(p.id)}>{printerOptionLabel(p)}</option>)}
+            {printerList.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {printerOptionLabel(p)}
+              </option>
+            ))}
           </select>
         </div>
         <div className="form-group">
@@ -238,40 +270,99 @@ function LogPrintDialog() {
           <div className="log-print-parts-add">
             <select id="log-print-part-select" value={partId} onChange={(e) => setPartId(e.target.value)}>
               <option value="">Add part…</option>
-              {partList.map((p) => <option key={p.id} value={String(p.id)}>{partOptionLabel(p)}</option>)}
+              {partList.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {partOptionLabel(p)}
+                </option>
+              ))}
             </select>
-            <input type="number" id="log-print-part-qty" min="1" max="9999" value={partQuantity} title="Quantity of this part per copy"
-              aria-label="Quantity per copy" onChange={(e) => setPartQuantity(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPart(); } }} />
-            <button type="button" id="log-print-part-add" onClick={addPart}>Add</button>
+            <input
+              type="number"
+              id="log-print-part-qty"
+              min="1"
+              max="9999"
+              value={partQuantity}
+              title="Quantity of this part per copy"
+              aria-label="Quantity per copy"
+              onChange={(e) => setPartQuantity(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addPart();
+                }
+              }}
+            />
+            <button type="button" id="log-print-part-add" onClick={addPart}>
+              Add
+            </button>
           </div>
           <p className="setting-description">Quantity is per copy. Saving removes that many from Parts Stock for every copy and every model in this log.</p>
-          <div id="log-print-parts" className="tags-list" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
+          <div
+            id="log-print-parts"
+            className="tags-list"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.preventDefault();
+            }}
+          >
             {chosenParts.map((c) => (
-              <span key={c.part.id} className="item-chip part-chip" data-part-id={String(c.part.id)} data-part-name={c.part.name || 'Part'}
-                data-stock={String(Number(c.part.quantity) || 0)}>
-                {c.part.name} × <input type="number" className="part-chip-qty" min="1" max="9999" value={c.quantity} aria-label="Quantity per copy"
-                  onChange={(e) => setChosenParts(chosenParts.map((d) => (d === c ? { ...d, quantity: clampQuantity(e.target.value) } : d)))} />
-                <span className="part-chip-stock">{Number(c.part.quantity) || 0}{c.part.unit ? ` ${c.part.unit}` : ''} in stock</span>
-                <span className="item-chip-remove" title="Remove" onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setChosenParts(chosenParts.filter((d) => d !== c));
-                }}>×</span>
+              <span
+                key={c.part.id}
+                className="item-chip part-chip"
+                data-part-id={String(c.part.id)}
+                data-part-name={c.part.name || 'Part'}
+                data-stock={String(Number(c.part.quantity) || 0)}
+              >
+                {c.part.name} ×{' '}
+                <input
+                  type="number"
+                  className="part-chip-qty"
+                  min="1"
+                  max="9999"
+                  value={c.quantity}
+                  aria-label="Quantity per copy"
+                  onChange={(e) => setChosenParts(chosenParts.map((d) => (d === c ? { ...d, quantity: clampQuantity(e.target.value) } : d)))}
+                />
+                <span className="part-chip-stock">
+                  {Number(c.part.quantity) || 0}
+                  {c.part.unit ? ` ${c.part.unit}` : ''} in stock
+                </span>
+                <span
+                  className="item-chip-remove"
+                  title="Remove"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setChosenParts(chosenParts.filter((d) => d !== c));
+                  }}
+                >
+                  ×
+                </span>
               </span>
             ))}
           </div>
-          <p id="log-print-parts-summary" className="setting-description">{partsSummary}</p>
+          <p id="log-print-parts-summary" className="setting-description">
+            {partsSummary}
+          </p>
         </div>
         <div className="form-group">
           <label htmlFor="log-print-notes">Notes</label>
-          <textarea id="log-print-notes" placeholder="Optional — layer height, what failed, who it was for" value={notes}
-            onChange={(e) => setNotes(e.target.value)} />
+          <textarea
+            id="log-print-notes"
+            placeholder="Optional — layer height, what failed, who it was for"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </div>
-        <p id="log-print-status" className="print-history-hint">{status}</p>
+        <p id="log-print-status" className="print-history-hint">
+          {status}
+        </p>
         <div className="dialog-buttons">
-          <button type="submit" id="log-print-save" disabled={saving}>Save</button>
-          <button type="button" id="log-print-cancel" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          <button type="submit" id="log-print-save" disabled={saving}>
+            Save
+          </button>
+          <button type="button" id="log-print-cancel" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </div>
       </form>
     </dialog>
@@ -285,9 +376,13 @@ function StatusMenu() {
 
   useEffect(() => {
     // Viewers cannot change the print status.
-    const open = (anchor: HTMLElement, filePath: string) => { if (roleAllows(getCurrentUser()?.role, 'editor')) setMenu({ anchor, filePath }); };
+    const open = (anchor: HTMLElement, filePath: string) => {
+      if (roleAllows(getCurrentUser()?.role, 'editor')) setMenu({ anchor, filePath });
+    };
     openStatusMenuImpl = open;
-    return () => { if (openStatusMenuImpl === open) openStatusMenuImpl = null; };
+    return () => {
+      if (openStatusMenuImpl === open) openStatusMenuImpl = null;
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -296,7 +391,9 @@ function StatusMenu() {
     const rect = menu.anchor.getBoundingClientRect();
     el.style.left = `${Math.min(rect.left, window.innerWidth - el.offsetWidth - 8)}px`;
     el.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - el.offsetHeight - 8)}px`;
-    const onOutside = (event: MouseEvent) => { if (!el.contains(event.target as Node)) setMenu(null); };
+    const onOutside = (event: MouseEvent) => {
+      if (!el.contains(event.target as Node)) setMenu(null);
+    };
     document.addEventListener('mousedown', onOutside);
     return () => document.removeEventListener('mousedown', onOutside);
   }, [menu]);
@@ -305,12 +402,19 @@ function StatusMenu() {
   return createPortal(
     <div className="print-status-menu" role="menu" ref={ref}>
       {STATUSES.map((status) => (
-        <button key={status} type="button" className={`print-status-menu-item print-status-${status}`} onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setMenu(null);
-          setStatusForPaths([menu.filePath], status);
-        }}>{STATUS_LABELS[status]}</button>
+        <button
+          key={status}
+          type="button"
+          className={`print-status-menu-item print-status-${status}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setMenu(null);
+            setStatusForPaths([menu.filePath], status);
+          }}
+        >
+          {STATUS_LABELS[status]}
+        </button>
       ))}
     </div>,
     document.body
@@ -319,7 +423,14 @@ function StatusMenu() {
 
 const LOG_PRINT_ICON = (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-    <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.992 11h3.5m-3.5-4h7m-11-1h-3m3 6h-3m3 6h-3m6 3.939c-1.581-.103-2.595-.377-3.328-1.11C4.492 19.656 4.492 17.77 4.492 14v-4c0-3.771 0-5.657 1.172-6.828S8.72 2 12.492 2h.5c3.771 0 5.657 0 6.829 1.172S20.992 6.229 20.992 10v.5m-1.136 3.94l.695.692a1.496 1.496 0 0 1 0 2.12L16.91 20.95a2 2 0 0 1-1.05.551l-2.258.488a.5.5 0 0 1-.597-.593l.48-2.235c.074-.397.268-.762.554-1.047l3.688-3.674a1.51 1.51 0 0 1 2.13 0" />
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M9.992 11h3.5m-3.5-4h7m-11-1h-3m3 6h-3m3 6h-3m6 3.939c-1.581-.103-2.595-.377-3.328-1.11C4.492 19.656 4.492 17.77 4.492 14v-4c0-3.771 0-5.657 1.172-6.828S8.72 2 12.492 2h.5c3.771 0 5.657 0 6.829 1.172S20.992 6.229 20.992 10v.5m-1.136 3.94l.695.692a1.496 1.496 0 0 1 0 2.12L16.91 20.95a2 2 0 0 1-1.05.551l-2.258.488a.5.5 0 0 1-.597-.593l.48-2.235c.074-.397.268-.762.554-1.047l3.688-3.674a1.51 1.51 0 0 1 2.13 0"
+    />
   </svg>
 );
 
@@ -329,20 +440,41 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => 
   return (
     <li className={`print-history-item outcome-${event.outcome}`}>
       <div className="print-history-item-main">
-        <span className="print-history-outcome">{OUTCOME_LABELS[event.outcome] || event.outcome}{Number(event.quantity) > 1 ? ` ×${event.quantity}` : ''}</span>
+        <span className="print-history-outcome">
+          {OUTCOME_LABELS[event.outcome] || event.outcome}
+          {Number(event.quantity) > 1 ? ` ×${event.quantity}` : ''}
+        </span>
         <span className="print-history-when">{formatPrintDate(event.printed_at)}</span>
       </div>
       {printerName && (
         <div className="print-history-printer">
           🖨️ {event.printer_type && <span className="print-history-printer-type">{event.printer_type}</span>}
           {printerName}
-          {event.printer_model && <> <span className="print-history-printer-model">({event.printer_model})</span></>}
+          {event.printer_model && (
+            <>
+              {' '}
+              <span className="print-history-printer-model">({event.printer_model})</span>
+            </>
+          )}
         </div>
       )}
       {parts && <div className="print-history-parts">{parts}</div>}
       {event.notes && <div className="print-history-notes">{event.notes}</div>}
-      {onDelete && <button type="button" className="print-history-delete icon-button" title="Delete this log entry" aria-label="Delete print log"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}>×</button>}
+      {onDelete && (
+        <button
+          type="button"
+          className="print-history-delete icon-button"
+          title="Delete this log entry"
+          aria-label="Delete print log"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          ×
+        </button>
+      )}
     </li>
   );
 }
@@ -361,16 +493,20 @@ function DetailsPrint() {
   const [status, setStatus] = useState('unprinted');
   const [history, setHistory] = useState<HistoryState | null>(null);
 
-  useEffect(() => exposeGlobal('detailsPrint', {
-    show: (next: PrintDetailsModel) => {
-      setModel(next);
-      setStatus(effectiveStatus(next));
-    },
-    clear: () => {
-      setModel(null);
-      setStatus('unprinted');
-    }
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('detailsPrint', {
+        show: (next: PrintDetailsModel) => {
+          setModel(next);
+          setStatus(effectiveStatus(next));
+        },
+        clear: () => {
+          setModel(null);
+          setStatus('unprinted');
+        }
+      }),
+    []
+  );
 
   useEffect(() => {
     if (!model?.id) {
@@ -379,13 +515,17 @@ function DetailsPrint() {
     }
     let current = true;
     prints.events(model.id).then(
-      (events) => { if (current) setHistory({ model, events: events || [], failed: false }); },
+      (events) => {
+        if (current) setHistory({ model, events: events || [], failed: false });
+      },
       (error) => {
         console.error('Error loading print history:', error);
         if (current) setHistory({ model, events: null, failed: true });
       }
     );
-    return () => { current = false; };
+    return () => {
+      current = false;
+    };
   }, [model]);
 
   const logPrint = () => {
@@ -418,35 +558,70 @@ function DetailsPrint() {
 
   return (
     <>
-      {statusSlot && createPortal(
-        <div className="form-group print-lifecycle-group">
-          <label htmlFor="model-print-status">Print status</label>
-          <div className="print-lifecycle-controls">
-            <select id="model-print-status" value={status} disabled={!canEdit} onChange={(e) => {
-              const filePath = window.getCurrentModelFilePath?.();
-              setStatus(e.target.value);
-              if (filePath && e.target.value) setStatusForPaths([filePath], e.target.value);
-            }}>
-              {STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}
-            </select>
-            {canEdit && <button type="button" id="log-print-button" className="icon-button log-print-icon-button" title="Log a print"
-              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>}
-          </div>
-          <p id="print-history-hint" className="print-history-hint">{model ? detailsHint(model) : ''}</p>
-        </div>,
-        statusSlot
-      )}
-      {historySlot && createPortal(
-        <div className="form-group print-history-group">
-          <div className="print-history-label-row">
-            <label>Print history</label>
-            {canEdit && <button type="button" id="log-print-history-button" className="icon-button log-print-icon-button" title="Log a print"
-              aria-label="Log a print" onClick={logPrint}>{LOG_PRINT_ICON}</button>}
-          </div>
-          <ul id="print-history-list" className="print-history-list" aria-label="Print history">{historyItems}</ul>
-        </div>,
-        historySlot
-      )}
+      {statusSlot &&
+        createPortal(
+          <div className="form-group print-lifecycle-group">
+            <label htmlFor="model-print-status">Print status</label>
+            <div className="print-lifecycle-controls">
+              <select
+                id="model-print-status"
+                value={status}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  const filePath = window.getCurrentModelFilePath?.();
+                  setStatus(e.target.value);
+                  if (filePath && e.target.value) setStatusForPaths([filePath], e.target.value);
+                }}
+              >
+                {STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {STATUS_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              {canEdit && (
+                <button
+                  type="button"
+                  id="log-print-button"
+                  className="icon-button log-print-icon-button"
+                  title="Log a print"
+                  aria-label="Log a print"
+                  onClick={logPrint}
+                >
+                  {LOG_PRINT_ICON}
+                </button>
+              )}
+            </div>
+            <p id="print-history-hint" className="print-history-hint">
+              {model ? detailsHint(model) : ''}
+            </p>
+          </div>,
+          statusSlot
+        )}
+      {historySlot &&
+        createPortal(
+          <div className="form-group print-history-group">
+            <div className="print-history-label-row">
+              <label>Print history</label>
+              {canEdit && (
+                <button
+                  type="button"
+                  id="log-print-history-button"
+                  className="icon-button log-print-icon-button"
+                  title="Log a print"
+                  aria-label="Log a print"
+                  onClick={logPrint}
+                >
+                  {LOG_PRINT_ICON}
+                </button>
+              )}
+            </div>
+            <ul id="print-history-list" className="print-history-list" aria-label="Print history">
+              {historyItems}
+            </ul>
+          </div>,
+          historySlot
+        )}
     </>
   );
 }

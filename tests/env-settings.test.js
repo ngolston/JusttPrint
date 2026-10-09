@@ -39,12 +39,17 @@ test('scan exclusions are stored one per line', () => {
 });
 
 test('AI settings are validated', () => {
-  const ok = byKey(settingsFromEnv({
-    JUSTTPRINT_AI_SERVICE: 'Claude',
-    JUSTTPRINT_AI_API_KEY: ' sk-test ',
-    JUSTTPRINT_AI_MODEL: 'claude-haiku-4-5',
-    JUSTTPRINT_AI_ENDPOINT: 'https://llm.local/v1/'
-  }, ctx));
+  const ok = byKey(
+    settingsFromEnv(
+      {
+        JUSTTPRINT_AI_SERVICE: 'Claude',
+        JUSTTPRINT_AI_API_KEY: ' sk-test ',
+        JUSTTPRINT_AI_MODEL: 'claude-haiku-4-5',
+        JUSTTPRINT_AI_ENDPOINT: 'https://llm.local/v1/'
+      },
+      ctx
+    )
+  );
   assert.deepStrictEqual(ok, { aiService: 'claude', apiKey: 'sk-test', aiModel: 'claude-haiku-4-5', apiEndpoint: 'https://llm.local/v1' });
   assert.strictEqual(settingsFromEnv({ JUSTTPRINT_AI_SERVICE: 'skynet' }, ctx).errors.length, 1);
   assert.strictEqual(settingsFromEnv({ JUSTTPRINT_AI_ENDPOINT: 'not a url' }, ctx).errors.length, 1);
@@ -55,15 +60,24 @@ test('folder watching can be switched off', () => {
 });
 
 test('automatic backup settings are validated', () => {
-  const ok = byKey(settingsFromEnv({
-    JUSTTPRINT_AUTO_BACKUP: 'yes',
-    JUSTTPRINT_BACKUP_INTERVAL_HOURS: '12',
-    JUSTTPRINT_BACKUP_KEEP: ' 14 ',
-    JUSTTPRINT_BACKUP_DIR: '/mnt/backups/'
-  }, ctx));
+  const ok = byKey(
+    settingsFromEnv(
+      {
+        JUSTTPRINT_AUTO_BACKUP: 'yes',
+        JUSTTPRINT_BACKUP_INTERVAL_HOURS: '12',
+        JUSTTPRINT_BACKUP_KEEP: ' 14 ',
+        JUSTTPRINT_BACKUP_DIR: '/mnt/backups/'
+      },
+      ctx
+    )
+  );
   assert.deepStrictEqual(ok, { autoBackupEnabled: '1', autoBackupIntervalHours: '12', autoBackupKeep: '14', autoBackupDirectory: '/mnt/backups' });
-  for (const [name, value] of [['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '0'], ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '1.5'],
-    ['JUSTTPRINT_BACKUP_KEEP', 'all'], ['JUSTTPRINT_BACKUP_DIR', 'backups']]) {
+  for (const [name, value] of [
+    ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '0'],
+    ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', '1.5'],
+    ['JUSTTPRINT_BACKUP_KEEP', 'all'],
+    ['JUSTTPRINT_BACKUP_DIR', 'backups']
+  ]) {
     assert.match(settingsFromEnv({ [name]: value }, ctx).errors[0] || '', new RegExp(name), `${name}=${value}`);
   }
 });

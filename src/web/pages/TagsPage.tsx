@@ -59,7 +59,9 @@ function TagRow({ tag, all, max }: { tag: Tag; all: Tag[]; max: number }) {
       committing.current = true;
       setDraft(tag.name);
       setEditing(false);
-      queueMicrotask(() => { committing.current = false; });
+      queueMicrotask(() => {
+        committing.current = false;
+      });
     }
   }
 
@@ -68,21 +70,46 @@ function TagRow({ tag, all, max }: { tag: Tag; all: Tag[]; max: number }) {
     <li className="jp-tag-row" data-tag-name={tag.name}>
       <div className="jp-tag-row__main">
         {editing ? (
-          <input className="jp-tag-row__input" aria-label={`Rename tag ${tag.name}`} autoFocus spellCheck={false} value={draft}
-            onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onFocus={(event) => event.target.select()}
-            onBlur={() => void commit()} />
+          <input
+            className="jp-tag-row__input"
+            aria-label={`Rename tag ${tag.name}`}
+            autoFocus
+            spellCheck={false}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKeyDown}
+            onFocus={(event) => event.target.select()}
+            onBlur={() => void commit()}
+          />
         ) : (
-          <button type="button" className="jp-tag-row__name" title={`Show models tagged ${tag.name}`} disabled={!tag.model_count}
-            onClick={() => showModels(tag)}>
+          <button
+            type="button"
+            className="jp-tag-row__name"
+            title={`Show models tagged ${tag.name}`}
+            disabled={!tag.model_count}
+            onClick={() => showModels(tag)}
+          >
             <span className="jp-tag">{tag.name}</span>
           </button>
         )}
-        <span className="jp-tag-row__count">{tag.model_count ? `${tag.model_count.toLocaleString()} ${tag.model_count === 1 ? 'model' : 'models'}` : 'Unused'}</span>
+        <span className="jp-tag-row__count">
+          {tag.model_count ? `${tag.model_count.toLocaleString()} ${tag.model_count === 1 ? 'model' : 'models'}` : 'Unused'}
+        </span>
       </div>
-      <span className="jp-tag-row__bar" aria-hidden="true"><span style={{ width: `${share}%` }} /></span>
+      <span className="jp-tag-row__bar" aria-hidden="true">
+        <span style={{ width: `${share}%` }} />
+      </span>
       <span className="jp-tag-row__actions">
         <IconButton size="sm" icon={Library} label={`Show models tagged ${tag.name}`} disabled={!tag.model_count} onClick={() => showModels(tag)} />
-        <IconButton size="sm" icon={Pencil} label={`Rename ${tag.name}`} onClick={() => { setDraft(tag.name); setEditing(true); }} />
+        <IconButton
+          size="sm"
+          icon={Pencil}
+          label={`Rename ${tag.name}`}
+          onClick={() => {
+            setDraft(tag.name);
+            setEditing(true);
+          }}
+        />
         <IconButton size="sm" icon={Trash2} label={`Delete ${tag.name}`} onClick={() => void deleteTag(tag)} />
       </span>
     </li>
@@ -113,21 +140,49 @@ export function TagsPage() {
       <header className="jp-page__header jp-queue__header">
         <div>
           <h1 className="jp-page-title">Tags</h1>
-          <p className="jp-meta">{list ? `${list.length} ${list.length === 1 ? 'tag' : 'tags'}${unused ? ` • ${unused} unused` : ''}` : 'Organize your models with tags.'}</p>
+          <p className="jp-meta">
+            {list ? `${list.length} ${list.length === 1 ? 'tag' : 'tags'}${unused ? ` • ${unused} unused` : ''}` : 'Organize your models with tags.'}
+          </p>
         </div>
-        <Button icon={Sparkles} onClick={() => window.openAiConfig?.()}>AI Tagging</Button>
+        <Button icon={Sparkles} onClick={() => window.openAiConfig?.()}>
+          AI Tagging
+        </Button>
       </header>
 
       <div className="jp-tags__toolbar">
-        <form className="jp-tags__create" onSubmit={(event) => { event.preventDefault(); void add(); }}>
-          <input id="jp-new-tag" className="jp-input" placeholder="New tag name" aria-label="New tag name" value={newName}
-            onChange={(event) => setNewName(event.target.value)} />
-          <Button type="submit" variant="primary" icon={Plus} disabled={!newName.trim()}>Create</Button>
+        <form
+          className="jp-tags__create"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void add();
+          }}
+        >
+          <input
+            id="jp-new-tag"
+            className="jp-input"
+            placeholder="New tag name"
+            aria-label="New tag name"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+          <Button type="submit" variant="primary" icon={Plus} disabled={!newName.trim()}>
+            Create
+          </Button>
         </form>
-        <SearchBox className="jp-tags__search" label="Search tags" placeholder="Search tags" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <SearchBox
+          className="jp-tags__search"
+          label="Search tags"
+          placeholder="Search tags"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
         <div className="jp-chip-row" role="group" aria-label="Order">
-          <button type="button" className={cx('jp-chip', sort === 'count' && 'is-selected')} aria-pressed={sort === 'count'} onClick={() => setSort('count')}>Most used</button>
-          <button type="button" className={cx('jp-chip', sort === 'name' && 'is-selected')} aria-pressed={sort === 'name'} onClick={() => setSort('name')}>A–Z</button>
+          <button type="button" className={cx('jp-chip', sort === 'count' && 'is-selected')} aria-pressed={sort === 'count'} onClick={() => setSort('count')}>
+            Most used
+          </button>
+          <button type="button" className={cx('jp-chip', sort === 'name' && 'is-selected')} aria-pressed={sort === 'name'} onClick={() => setSort('name')}>
+            A–Z
+          </button>
           <button type="button" className={cx('jp-chip', unusedOnly && 'is-selected')} aria-pressed={unusedOnly} onClick={() => setUnusedOnly(!unusedOnly)}>
             Unused <span className="jp-chip__count">{unused}</span>
           </button>
@@ -135,7 +190,11 @@ export function TagsPage() {
       </div>
 
       {!list ? (
-        <div className="jp-home__skeleton"><Skeleton height={44} /><Skeleton height={44} /><Skeleton height={44} /></div>
+        <div className="jp-home__skeleton">
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+        </div>
       ) : !list.length ? (
         <Panel>
           <EmptyState icon={Tags} title="No tags yet">
@@ -144,15 +203,29 @@ export function TagsPage() {
         </Panel>
       ) : !shown.length ? (
         <Panel>
-          <EmptyState icon={Tags} title="No tags match"
-            action={<Button onClick={() => { setSearch(''); setUnusedOnly(false); }}>Clear search</Button>}>
+          <EmptyState
+            icon={Tags}
+            title="No tags match"
+            action={
+              <Button
+                onClick={() => {
+                  setSearch('');
+                  setUnusedOnly(false);
+                }}
+              >
+                Clear search
+              </Button>
+            }
+          >
             Try another search.
           </EmptyState>
         </Panel>
       ) : (
         <>
           <ul className="jp-card jp-tags__list" aria-label="Tags">
-            {page.shown.map((tag) => <TagRow key={tag.id} tag={tag} all={list} max={max} />)}
+            {page.shown.map((tag) => (
+              <TagRow key={tag.id} tag={tag} all={list} max={max} />
+            ))}
           </ul>
           <ShowMoreButton remaining={page.remaining} onClick={page.more} />
         </>

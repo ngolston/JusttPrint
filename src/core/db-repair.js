@@ -1,9 +1,7 @@
 'use strict';
 
 function tableExists(db, name) {
-  return Boolean(
-    db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name)
-  );
+  return Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
 }
 
 function modelTagsSchema(db) {
@@ -30,13 +28,17 @@ function modelTagsForeignKeysBroken(db) {
 }
 
 function countOrphanModelTags(db) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT COUNT(*) AS n
     FROM model_tags mt
     LEFT JOIN models m ON m.id = mt.model_id
     LEFT JOIN tags t ON t.id = mt.tag_id
     WHERE m.id IS NULL OR t.id IS NULL
-  `).get().n;
+  `
+    )
+    .get().n;
 }
 
 function recreateModelTagsIndexes(db) {
@@ -47,21 +49,27 @@ function recreateModelTagsIndexes(db) {
 function rebuildModelTagsTable(db) {
   const before = db.prepare('SELECT COUNT(*) AS n FROM model_tags').get().n;
   db.prepare('DROP TABLE IF EXISTS model_tags_new').run();
-  db.prepare(`CREATE TABLE model_tags_new (
+  db.prepare(
+    `CREATE TABLE model_tags_new (
     model_id INTEGER,
     tag_id INTEGER,
     FOREIGN KEY(model_id) REFERENCES models(id),
     FOREIGN KEY(tag_id) REFERENCES tags(id),
     PRIMARY KEY(model_id, tag_id)
-  )`).run();
-  const inserted = db.prepare(`
+  )`
+  ).run();
+  const inserted = db
+    .prepare(
+      `
     INSERT INTO model_tags_new (model_id, tag_id)
     SELECT DISTINCT mt.model_id, mt.tag_id
     FROM model_tags mt
     INNER JOIN models m ON m.id = mt.model_id
     INNER JOIN tags t ON t.id = mt.tag_id
     WHERE mt.model_id IS NOT NULL AND mt.tag_id IS NOT NULL
-  `).run();
+  `
+    )
+    .run();
   db.prepare('DROP TABLE model_tags').run();
   db.prepare('ALTER TABLE model_tags_new RENAME TO model_tags').run();
   recreateModelTagsIndexes(db);
@@ -70,11 +78,15 @@ function rebuildModelTagsTable(db) {
 
 function dropLeftoverModelsOld(db) {
   if (!tableExists(db, 'models_old')) return false;
-  const stillReferenced = db.prepare(`
+  const stillReferenced = db
+    .prepare(
+      `
     SELECT name FROM sqlite_master
     WHERE name != 'models_old'
       AND sql LIKE '%models_old%'
-  `).all();
+  `
+    )
+    .all();
   if (stillReferenced.length > 0) return false;
   db.prepare('DROP TABLE models_old').run();
   return true;
@@ -107,9 +119,7 @@ function repairModelTags(db) {
       const droppedOld = dropLeftoverModelsOld(db);
       return { rebuilt, droppedOld };
     });
-    console.log(
-      `Rebuilt model_tags. Kept ${result.rebuilt.kept} link(s), removed ${result.rebuilt.dropped} orphan(s).`
-    );
+    console.log(`Rebuilt model_tags. Kept ${result.rebuilt.kept} link(s), removed ${result.rebuilt.dropped} orphan(s).`);
     if (result.droppedOld) console.log('Dropped leftover models_old table');
     return { ok: true, rebuilt: true, orphansRemoved: result.rebuilt.dropped };
   }
@@ -117,11 +127,13 @@ function repairModelTags(db) {
   const orphans = countOrphanModelTags(db);
   if (orphans > 0) {
     console.log(`Found ${orphans} orphaned model_tags records. Cleaning up...`);
-    db.prepare(`
+    db.prepare(
+      `
       DELETE FROM model_tags
       WHERE NOT EXISTS (SELECT 1 FROM models m WHERE m.id = model_tags.model_id)
          OR NOT EXISTS (SELECT 1 FROM tags t WHERE t.id = model_tags.tag_id)
-    `).run();
+    `
+    ).run();
     console.log('Orphaned records cleaned up');
     return { ok: true, rebuilt: false, orphansRemoved: orphans };
   }

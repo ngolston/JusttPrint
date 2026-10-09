@@ -8,8 +8,15 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import {
-  FINISHES, STUDIO_DEFAULTS, backdropHex, isImageOnlyExtension, isPreviewableExtension, previewExtension,
-  type ApplyOptions, type CameraView, type StudioSettings
+  FINISHES,
+  STUDIO_DEFAULTS,
+  backdropHex,
+  isImageOnlyExtension,
+  isPreviewableExtension,
+  previewExtension,
+  type ApplyOptions,
+  type CameraView,
+  type StudioSettings
 } from './studio';
 import { loadLibraryFileBuffer } from './files';
 import { loadModelData } from '../thumbnails/loader';
@@ -50,7 +57,6 @@ interface Bridge {
   getChituboxImages?: (filePath: string) => Promise<string[]>;
   getVoxlImages?: (filePath: string) => Promise<string[]>;
 }
-
 
 const bridge = () => window.electron as (Bridge & typeof window.electron) | undefined;
 
@@ -159,7 +165,9 @@ export interface LoadContext {
 
 /** Load one library file for the preview: a three.js object, or the embedded picture of image-only formats. */
 export async function loadPreviewObject(filePath: string, ctx: LoadContext): Promise<LoadedObject | ImageOnlyPreview> {
-  const check = () => { if (!ctx.isCurrent()) throw new PreviewCancelled(); };
+  const check = () => {
+    if (!ctx.isCurrent()) throw new PreviewCancelled();
+  };
   check();
   const ext = previewExtension(filePath);
   if (!isPreviewableExtension(ext)) throw new Error(`Unsupported file type: ${ext}`);
@@ -174,13 +182,15 @@ export async function loadPreviewObject(filePath: string, ctx: LoadContext): Pro
   }
 
   if (['step', 'stp', 'lys', 'obj', 'ply', 'igs', 'iges'].includes(ext)) {
-    ctx.status(ext === 'lys'
-      ? 'Parsing LYS mesh...\nLarge supported scenes can take a moment.'
-      : ext === 'igs' || ext === 'iges'
-        ? 'Tessellating IGES file...\nThis can take time for large CAD models.'
-        : ext === 'step' || ext === 'stp'
-          ? 'Tessellating STEP file...\nThis can take time for large CAD models.'
-          : `Loading ${ext.toUpperCase()} mesh...`);
+    ctx.status(
+      ext === 'lys'
+        ? 'Parsing LYS mesh...\nLarge supported scenes can take a moment.'
+        : ext === 'igs' || ext === 'iges'
+          ? 'Tessellating IGES file...\nThis can take time for large CAD models.'
+          : ext === 'step' || ext === 'stp'
+            ? 'Tessellating STEP file...\nThis can take time for large CAD models.'
+            : `Loading ${ext.toUpperCase()} mesh...`
+    );
     const data = await loadModelData(filePath);
     check();
     if (!data) throw new Error(`Failed to parse ${ext.toUpperCase()} geometry`);
@@ -200,7 +210,12 @@ export async function loadPreviewObject(filePath: string, ctx: LoadContext): Pro
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({
-      color: 0x4a9eff, metalness: 0.3, roughness: 0.6, flatShading: false, emissive: 0x002244, emissiveIntensity: 0.2
+      color: 0x4a9eff,
+      metalness: 0.3,
+      roughness: 0.6,
+      flatShading: false,
+      emissive: 0x002244,
+      emissiveIntensity: 0.2
     });
     return { object: new THREE.Mesh(geometry, material) };
   }
@@ -229,9 +244,10 @@ export async function loadPreviewObject(filePath: string, ctx: LoadContext): Pro
   if (!hasColorData(object)) applyDefaultMetalMaterial(object);
   else ensureLitMaterials(object);
   const meta = json.metadata || {};
-  const note = meta.previewSimplified && meta.sourceTriangles && meta.keptTriangles
-    ? `Simplified preview (${meta.keptTriangles.toLocaleString('en-US')} of ${meta.sourceTriangles.toLocaleString('en-US')} triangles)`
-    : undefined;
+  const note =
+    meta.previewSimplified && meta.sourceTriangles && meta.keptTriangles
+      ? `Simplified preview (${meta.keptTriangles.toLocaleString('en-US')} of ${meta.sourceTriangles.toLocaleString('en-US')} triangles)`
+      : undefined;
   return { object, note };
 }
 
@@ -278,7 +294,6 @@ export function arrangeBundle(objects: { object: THREE.Object3D; name: string }[
 
 // ---------------------------------------------------------------- scene
 
-
 const isPlateLike = (size: THREE.Vector3) => size.y > 0 && size.y < Math.max(size.x, size.z, 1) * 0.35;
 
 export class PreviewEngine {
@@ -316,7 +331,12 @@ export class PreviewEngine {
   private resizeObserver: ResizeObserver | null = null;
   private disposed = false;
 
-  constructor(private canvas: HTMLCanvasElement, private container: HTMLElement, settings: StudioSettings, private events: EngineEvents) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private container: HTMLElement,
+    settings: StudioSettings,
+    private events: EngineEvents
+  ) {
     this.settings = { ...settings };
     const width = container.clientWidth || 1;
     const height = container.clientHeight || 1;
@@ -325,7 +345,12 @@ export class PreviewEngine {
     this.camera.position.set(100, 100, 100);
 
     this.renderer = new THREE.WebGLRenderer({
-      canvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'default', failIfMajorPerformanceCaveat: false
+      canvas,
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'default',
+      failIfMajorPerformanceCaveat: false
     });
     this.renderer.debug.checkShaderErrors = false;
     this.renderer.setSize(width, height);
@@ -363,10 +388,22 @@ export class PreviewEngine {
     this.ground.receiveShadow = true;
     this.ground.renderOrder = -1;
     this.room.add(this.ground);
-    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshPhysicalMaterial({
-      color: 0x16171c, metalness: 0.08, roughness: 0.42, transparent: true, opacity: 0.22, envMapIntensity: 0.2,
-      side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
-    }));
+    this.floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x16171c,
+        metalness: 0.08,
+        roughness: 0.42,
+        transparent: true,
+        opacity: 0.22,
+        envMapIntensity: 0.2,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1
+      })
+    );
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.receiveShadow = true;
     this.floor.renderOrder = 1;
@@ -447,7 +484,9 @@ export class PreviewEngine {
   focusPart(partId: string, view: CameraView = 'iso') {
     this.focusPartId = partId || 'all';
     const all = this.focusPartId === 'all';
-    this.parts.forEach((part) => { part.object.visible = all || part.id === this.focusPartId; });
+    this.parts.forEach((part) => {
+      part.object.visible = all || part.id === this.focusPartId;
+    });
     const target = this.focusObject();
     if (target) {
       const box = new THREE.Box3().setFromObject(target);
@@ -460,7 +499,10 @@ export class PreviewEngine {
       this.frameCamera(size, view, new THREE.Vector3(center.x, box.min.y, center.z));
     }
     this.applySettings(this.settings, { materials: false, room: true, reflection: true });
-    this.events.parts(this.parts.map(({ id, name }) => ({ id, name })), this.focusPartId);
+    this.events.parts(
+      this.parts.map(({ id, name }) => ({ id, name })),
+      this.focusPartId
+    );
   }
 
   setSitOnFace(enabled: boolean) {
@@ -504,7 +546,9 @@ export class PreviewEngine {
     try {
       dataUrl = this.renderer.domElement.toDataURL('image/png');
     } finally {
-      hidden.forEach(([obj, visible]) => { obj.visible = visible; });
+      hidden.forEach(([obj, visible]) => {
+        obj.visible = visible;
+      });
       this.scene.background = previousBackground;
       this.applySettings(this.settings, { materials: false, room: true, reflection: true });
     }
@@ -598,7 +642,7 @@ export class PreviewEngine {
     const maxDim = Math.max(size.x, size.y, size.z, 1);
     const lookY = oy + (plate ? size.y * 0.7 : size.y * 0.4);
     const dist = plate ? span * (name === 'fit' ? 0.85 : 0.98) : maxDim * (name === 'fit' ? 1.45 : 1.7);
-    const elev = plate ? Math.max(size.y * 2.8, span * 0.26) : (lookY - oy) + dist * 0.42;
+    const elev = plate ? Math.max(size.y * 2.8, span * 0.26) : lookY - oy + dist * 0.42;
     const side = plate ? 1.05 : 1.15;
     const lift = plate ? size.y : 0;
     const views: Record<CameraView, [number, number, number]> = {
@@ -608,7 +652,7 @@ export class PreviewEngine {
       left: [ox - dist * side, lookY + lift, oz],
       right: [ox + dist * side, lookY + lift, oz],
       top: [ox + 0.01, oy + Math.max(dist * 1.05, span * 1.1), oz + 0.01],
-      fit: [ox + dist, oy + (plate ? elev : (lookY - oy) + dist * 0.38), oz + dist]
+      fit: [ox + dist, oy + (plate ? elev : lookY - oy + dist * 0.38), oz + dist]
     };
     const pos = views[name] || views.iso;
     this.camera.position.set(pos[0], pos[1], pos[2]);
@@ -623,7 +667,9 @@ export class PreviewEngine {
     this.parts = [];
     this.focusPartId = 'all';
     const marked: THREE.Object3D[] = [];
-    root.traverse((child) => { if (child !== root && child.userData?.previewPart) marked.push(child); });
+    root.traverse((child) => {
+      if (child !== root && child.userData?.previewPart) marked.push(child);
+    });
     let candidates = marked;
     if (candidates.length < 2 && (root as THREE.Group).isGroup) {
       const kids = root.children.filter((child) => (child as THREE.Mesh).isMesh || (child as THREE.Group).isGroup);
@@ -643,7 +689,10 @@ export class PreviewEngine {
         object
       }));
     }
-    this.events.parts(this.parts.map(({ id, name }) => ({ id, name })), this.focusPartId);
+    this.events.parts(
+      this.parts.map(({ id, name }) => ({ id, name })),
+      this.focusPartId
+    );
   }
 
   private focusObject(): THREE.Object3D | null {
@@ -714,9 +763,16 @@ export class PreviewEngine {
     const normal = this.worldFaceNormal(hit);
     if (!normal) return;
     if (!this.faceHighlight) {
-      this.faceHighlight = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({
-        color: 0x4a9eff, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthTest: false
-      }));
+      this.faceHighlight = new THREE.Mesh(
+        new THREE.CircleGeometry(1, 40),
+        new THREE.MeshBasicMaterial({
+          color: 0x4a9eff,
+          transparent: true,
+          opacity: 0.42,
+          side: THREE.DoubleSide,
+          depthTest: false
+        })
+      );
       this.faceHighlight.renderOrder = 20;
       this.scene.add(this.faceHighlight);
     }
@@ -889,7 +945,9 @@ export class PreviewEngine {
       const mesh = asMesh(child);
       const originals: THREE.Material[] | undefined = mesh?.userData.originalMaterial;
       if (!mesh || !originals) return;
-      materialsOf(mesh).forEach((mat) => { if (mat && !originals.includes(mat)) mat.dispose(); });
+      materialsOf(mesh).forEach((mat) => {
+        if (mat && !originals.includes(mat)) mat.dispose();
+      });
       mesh.material = mesh.userData.originalWasArray ? originals.map((mat) => mat?.clone()) : originals[0]?.clone();
     });
   }
@@ -947,7 +1005,9 @@ export class PreviewEngine {
         return material;
       });
       const originals: THREE.Material[] = mesh.userData.originalMaterial || [];
-      materialsOf(mesh).forEach((mat) => { if (mat && !originals.includes(mat)) mat.dispose(); });
+      materialsOf(mesh).forEach((mat) => {
+        if (mat && !originals.includes(mat)) mat.dispose();
+      });
       mesh.material = mesh.userData.originalWasArray ? next : next[0];
     });
     this.updateEdges();
@@ -976,7 +1036,9 @@ export class PreviewEngine {
         lines.quaternion.copy(mesh.getWorldQuaternion(new THREE.Quaternion()));
         lines.scale.copy(mesh.getWorldScale(new THREE.Vector3()));
         group.add(lines);
-      } catch { /* skip dense meshes */ }
+      } catch {
+        /* skip dense meshes */
+      }
     });
     this.edges = group;
     this.turntable.add(group);
@@ -985,7 +1047,10 @@ export class PreviewEngine {
   private disposeReflection(object: THREE.Object3D) {
     object.traverse((child) => {
       const mesh = asMesh(child);
-      if (mesh) materialsOf(mesh).forEach((mat) => { if (mat?.userData?.previewReflection) mat.dispose(); });
+      if (mesh)
+        materialsOf(mesh).forEach((mat) => {
+          if (mat?.userData?.previewReflection) mat.dispose();
+        });
     });
   }
 

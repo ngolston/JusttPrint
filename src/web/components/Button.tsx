@@ -43,8 +43,14 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 /** A square icon-only button with an accessible name and a matching tooltip. */
 export function IconButton({ icon: Icon, label, size = 'md', pressed, className, type = 'button', ...rest }: IconButtonProps) {
   return (
-    <button type={type} className={cx('jp-icon-btn', `jp-icon-btn--${size}`, pressed && 'is-pressed', className)}
-      aria-label={label} title={label} aria-pressed={pressed === undefined ? undefined : pressed} {...rest}>
+    <button
+      type={type}
+      className={cx('jp-icon-btn', `jp-icon-btn--${size}`, pressed && 'is-pressed', className)}
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed === undefined ? undefined : pressed}
+      {...rest}
+    >
       <Icon size={size === 'sm' ? 16 : 18} aria-hidden="true" />
     </button>
   );

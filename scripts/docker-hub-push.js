@@ -28,9 +28,7 @@ if (!dockerHubUsernameRaw) {
 
 const dockerHubUsername = dockerHubUsernameRaw.toLowerCase();
 if (dockerHubUsername !== dockerHubUsernameRaw) {
-  console.warn(
-    `Note: DOCKER_HUB_USERNAME normalized to "${dockerHubUsername}" (Docker Hub namespaces are lowercase).`
-  );
+  console.warn(`Note: DOCKER_HUB_USERNAME normalized to "${dockerHubUsername}" (Docker Hub namespaces are lowercase).`);
 }
 
 const imageName = 'justtprint';
@@ -59,7 +57,7 @@ function buildImage() {
   console.log(`Building container image (${runtimeLabel})...`);
   console.log(`Image: ${fullImageName}`);
   console.log('');
-  
+
   // Podman fails to push images that still reference library/* base layers because
   // Docker Hub requests multi-repository auth scopes (e.g. library/node:pull).
   const runtime = containerRuntime.getRuntime();
@@ -69,7 +67,7 @@ function buildImage() {
     console.error('Failed to build container image');
     process.exit(1);
   }
-  
+
   console.log('');
   console.log(`✓ Container image built successfully (${runtimeLabel})`);
 }
@@ -81,19 +79,19 @@ function tagImage() {
   console.log(`  Version tag: ${versionTag}`);
   console.log(`  Latest tag: ${latestTag}`);
   console.log('');
-  
+
   // Tag with version
   if (!exec(`${runtime} tag ${fullImageName} ${versionTag}`)) {
     console.error('Failed to tag image with version');
     process.exit(1);
   }
-  
+
   // Tag as latest
   if (!exec(`${runtime} tag ${fullImageName} ${latestTag}`)) {
     console.error('Failed to tag image as latest');
     process.exit(1);
   }
-  
+
   console.log('');
   console.log('✓ Container image tagged successfully');
 }
@@ -114,11 +112,11 @@ function printPushAuthHelp() {
 // Push image to Docker Hub
 function pushImage(tag = null) {
   const tagsToPush = tag ? [tag] : [versionTag, latestTag];
-  
+
   console.log('Pushing Docker image to Docker Hub...');
   console.log(`Repository: ${fullImageName}`);
   console.log('');
-  
+
   const runtime = containerRuntime.getRuntime();
   // Check if the container runtime is available and responsive
   try {
@@ -128,7 +126,7 @@ function pushImage(tag = null) {
     console.error(`Please run: ${containerRuntime.loginHint()}`);
     process.exit(1);
   }
-  
+
   if (containerRuntime.isPodmanOnWindows()) {
     console.log('Syncing Docker Hub credentials into Podman VM...');
     if (!containerRuntime.syncAuthToPodmanMachine()) {
@@ -153,7 +151,7 @@ function pushImage(tag = null) {
     console.log(`✓ Pushed ${imageTag}`);
     console.log('');
   }
-  
+
   console.log('✓ All images pushed to Docker Hub successfully');
   console.log('');
   console.log('Your image is now available at:');
@@ -181,11 +179,8 @@ function buildAndPushMultiArch() {
   }
 
   console.log(`Building ${fullImageName} for ${platforms} and pushing ${versionTag} and ${latestTag}...`);
-  console.log('Platforms other than this machine\'s are emulated, so expect this to take a while.');
-  const ok = exec(
-    `${runtime} buildx build --builder ${builder} --platform ${platforms} ` +
-    `-t ${versionTag} -t ${latestTag} --push .`
-  );
+  console.log("Platforms other than this machine's are emulated, so expect this to take a while.");
+  const ok = exec(`${runtime} buildx build --builder ${builder} --platform ${platforms} ` + `-t ${versionTag} -t ${latestTag} --push .`);
   if (!ok) {
     printPushAuthHelp();
     process.exit(1);
@@ -200,19 +195,19 @@ switch (command) {
   case 'build':
     buildImage();
     break;
-    
+
   case 'tag':
     tagImage();
     break;
-    
+
   case 'push':
     pushImage();
     break;
-    
+
   case 'push-version':
     pushImage(versionTag);
     break;
-    
+
   case 'push-latest':
     pushImage(latestTag);
     break;
@@ -220,7 +215,7 @@ switch (command) {
   case 'multiarch':
     buildAndPushMultiArch();
     break;
-    
+
   case 'all':
     console.log('=== Docker Hub Complete Workflow ===');
     console.log(`Version: ${version}`);
@@ -238,7 +233,7 @@ switch (command) {
     console.log('Your JusttPrint Docker image is now available on Docker Hub!');
     console.log(`Pull it with: docker pull ${latestTag}`);
     break;
-    
+
   default:
     console.log('Docker Hub Push Script for JusttPrint');
     console.log('');
@@ -262,9 +257,3 @@ switch (command) {
     console.log('  npm run docker:hub:all');
     process.exit(1);
 }
-
-
-
-
-
-

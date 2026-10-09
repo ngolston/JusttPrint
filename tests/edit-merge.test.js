@@ -25,10 +25,12 @@ test('the same change from both is not a conflict', () => {
 });
 
 test('a field someone else changed meanwhile is a conflict, with both values', () => {
-  assert.deepStrictEqual(findConflicts({ designer: 'Cat', notes: 'x' }, { designer: 'Bob' }, { designer: 'Ann' }),
-    [{ field: 'designer', theirs: 'Cat', yours: 'Bob' }]);
-  assert.deepStrictEqual(findConflicts({ notes: 'line 1\nline 2' }, { notes: 'line 1\nmine' }, { notes: 'line 1' }),
-    [{ field: 'notes', theirs: 'line 1\nline 2', yours: 'line 1\nmine' }]);
+  assert.deepStrictEqual(findConflicts({ designer: 'Cat', notes: 'x' }, { designer: 'Bob' }, { designer: 'Ann' }), [
+    { field: 'designer', theirs: 'Cat', yours: 'Bob' }
+  ]);
+  assert.deepStrictEqual(findConflicts({ notes: 'line 1\nline 2' }, { notes: 'line 1\nmine' }, { notes: 'line 1' }), [
+    { field: 'notes', theirs: 'line 1\nline 2', yours: 'line 1\nmine' }
+  ]);
 });
 
 test('empty, null and missing count as the same; spaces around do not count', () => {
@@ -43,7 +45,7 @@ test('only fields in the base and the save are checked', () => {
   assert.deepStrictEqual(findConflicts(null, { designer: 'Bob' }, { designer: 'Ann' }), []);
 });
 
-test('tags merge: both people\'s additions and removals are kept', () => {
+test("tags merge: both people's additions and removals are kept", () => {
   // Stored: someone else added "red" and removed "old". This edit added "boat" and removed "toy".
   assert.deepStrictEqual(mergeTagLists(['red', 'toy'], ['old', 'toy'], ['boat', 'old']), ['boat', 'red']);
   assert.deepStrictEqual(mergeTagLists([{ name: 'a' }], ['a'], ['a', 'b']), ['a', 'b']);

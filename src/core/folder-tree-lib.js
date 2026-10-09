@@ -168,7 +168,10 @@ function ancestorChain(filePath) {
   const zipSep = normalized.indexOf('::');
   if (zipSep !== -1) {
     zipPath = normalizeDir(normalized.slice(0, zipSep));
-    entryPath = normalized.slice(zipSep + 2).replace(/\\/g, '/').replace(/\/+$/, '');
+    entryPath = normalized
+      .slice(zipSep + 2)
+      .replace(/\\/g, '/')
+      .replace(/\/+$/, '');
   }
   const diskFile = zipPath || normalized;
   const diskDir = zipPath ? dirnameNorm(zipPath) : dirnameNorm(diskFile);
@@ -211,7 +214,9 @@ function toDirectoryFilter(path, isBundle) {
  * A trailing slash or `::` keeps `folder` from also matching `folder2`.
  */
 function directoryFilterLikePrefix(directoryPath) {
-  let directory = String(directoryPath || '').replace(/\\/g, '/').trim();
+  let directory = String(directoryPath || '')
+    .replace(/\\/g, '/')
+    .trim();
   if (!directory) return '';
   if (!directory.endsWith('/') && !directory.endsWith('::')) {
     directory += '/';

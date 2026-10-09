@@ -8,9 +8,24 @@ import type { GridModel } from '../grid/layout';
 import { selection } from '../selection';
 import { syncThumbnailFromField } from '../thumbnails/cache';
 import {
-  bindCardMenu, bindGroupMenu, cardClick, currentModelPath, exitMultiEdit, groupClick, isBundleShown,
-  isMultiEdit, navigateDetails, openCardPreview, resetSelectionAndDetails, selectAllShown, showCardMenu, showModelDetails,
-  syncSelectionWithModels, toggleGroup, toggleMultiEdit, enterMultiEdit
+  bindCardMenu,
+  bindGroupMenu,
+  cardClick,
+  currentModelPath,
+  exitMultiEdit,
+  groupClick,
+  isBundleShown,
+  isMultiEdit,
+  navigateDetails,
+  openCardPreview,
+  resetSelectionAndDetails,
+  selectAllShown,
+  showCardMenu,
+  showModelDetails,
+  syncSelectionWithModels,
+  toggleGroup,
+  toggleMultiEdit,
+  enterMultiEdit
 } from './details';
 import { changeGroupTags, groupImagesVersion, groupListColumns, groupPrintSummary, groupTagNames, invalidateGroupImages, loadGroupImages } from './groups';
 import { isModelNew } from './match';
@@ -18,9 +33,11 @@ import { expandedGroups, mergeModel, rebuildGrid, refreshGrid, showModels, shown
 import { directoryLabel, folderFilterFor, formatFileSize, parentDirectory } from './paths';
 import { openSourceUrl, removeFromSelected, saveEngagement, saveModelField, saveSelectedField } from './saving';
 
-const tagNames = (tags: unknown): string[] => (Array.isArray(tags) ? tags : [])
-  .map((t) => (typeof t === 'string' ? t : (t as { name?: string })?.name || '')).filter(Boolean)
-  .sort((a, b) => String(a).localeCompare(String(b)));
+const tagNames = (tags: unknown): string[] =>
+  (Array.isArray(tags) ? tags : [])
+    .map((t) => (typeof t === 'string' ? t : (t as { name?: string })?.name || ''))
+    .filter(Boolean)
+    .sort((a, b) => String(a).localeCompare(String(b)));
 
 /** Reload the pickers that list a kind of value (after one was added, renamed or removed). */
 function reloadPickers(kind?: string) {
@@ -64,9 +81,13 @@ window.gridHost = {
   openPreview: openCardPreview,
   bindCardMenu,
   showCardMenu,
-  filterByDirectory: (filePath) => { window.folderTree?.show(folderFilterFor(filePath)); },
+  filterByDirectory: (filePath) => {
+    window.folderTree?.show(folderFilterFor(filePath));
+  },
   filterBySelect,
-  filterByTag: (name) => { filterByTag(name); },
+  filterByTag: (name) => {
+    filterByTag(name);
+  },
   saveField: (filePath, field, value) => saveModelField(field, value, filePath),
   tagNames: async (model) => {
     let id = model.id;
@@ -92,13 +113,17 @@ window.gridHost = {
   toggleGroup,
   bindGroupMenu,
   isBundleDetailsGroup: isBundleShown,
-  openBundlePreview: (record) => { window.openBundlePreview?.(record as never); },
+  openBundlePreview: (record) => {
+    window.openBundlePreview?.(record as never);
+  },
   saveGroupField: saveEngagement
 };
 
 window.detailsHost = {
   saveField: (filePath, field, value, base) => saveModelField(field, value, filePath, base),
-  openSource: (url) => { openSourceUrl(url); },
+  openSource: (url) => {
+    openSourceUrl(url);
+  },
   valuesChanged: async (kind) => reloadPickers(kind)
 };
 
@@ -112,11 +137,15 @@ window.multiEditHost = {
   },
   saveField: (field, value) => saveSelectedField(field, value),
   removeFromSelected,
-  openSource: (url) => { openSourceUrl(url); }
+  openSource: (url) => {
+    openSourceUrl(url);
+  }
 };
 
 window.bundleHost = {
-  openModel: (filePath) => { showModelDetails(filePath); },
+  openModel: (filePath) => {
+    showModelDetails(filePath);
+  },
   tagNames: groupTagNames,
   changeTags: changeGroupTags,
   tagCreated: async () => reloadPickers('tag')
@@ -140,7 +169,7 @@ window.shortcutHost = {
 async function refreshModelThumbnails(filePath: string) {
   await new Promise((resolve) => setTimeout(resolve, 200));
   try {
-    const model = await callAction<GridModel & { thumbnail?: string } | null>('get-model', filePath);
+    const model = await callAction<(GridModel & { thumbnail?: string }) | null>('get-model', filePath);
     if (!model) return;
     syncThumbnailFromField(filePath, model.thumbnail);
     if (mergeModel({ ...model })) refreshGrid();

@@ -14,7 +14,13 @@ declare global {
   }
 }
 
-const EXPIRY: [number, string][] = [[0, 'Never'], [1, 'After 1 day'], [7, 'After 7 days'], [30, 'After 30 days'], [90, 'After 90 days']];
+const EXPIRY: [number, string][] = [
+  [0, 'Never'],
+  [1, 'After 1 day'],
+  [7, 'After 7 days'],
+  [30, 'After 30 days'],
+  [90, 'After 90 days']
+];
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -41,9 +47,21 @@ function useQr(url: string | null) {
     }
     let current = true;
     const options = { margin: 1, errorCorrectionLevel: 'M' as const, color: { dark: '#000000', light: '#ffffff' } };
-    QRCode.toString(url, { ...options, type: 'svg' }).then((markup) => { if (current) setSvg(markup); }, () => {});
-    QRCode.toDataURL(url, { ...options, width: 512 }).then((data) => { if (current) setPng(data); }, () => {});
-    return () => { current = false; };
+    QRCode.toString(url, { ...options, type: 'svg' }).then(
+      (markup) => {
+        if (current) setSvg(markup);
+      },
+      () => {}
+    );
+    QRCode.toDataURL(url, { ...options, width: 512 }).then(
+      (data) => {
+        if (current) setPng(data);
+      },
+      () => {}
+    );
+    return () => {
+      current = false;
+    };
   }, [url]);
   return { svg, png };
 }
@@ -85,8 +103,13 @@ export function ShareDialog() {
       void reload(next);
     };
     const offGlobal = exposeGlobal('openShare', show);
-    const offEvent = onServerEvent('open-share-dialog', (next: ShareTarget) => { if (next) show(next); });
-    return () => { offGlobal(); offEvent(); };
+    const offEvent = onServerEvent('open-share-dialog', (next: ShareTarget) => {
+      if (next) show(next);
+    });
+    return () => {
+      offGlobal();
+      offEvent();
+    };
   }, []);
 
   async function create() {
@@ -126,8 +149,13 @@ export function ShareDialog() {
   }
 
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title={`Share ${name}`} className="jp-share"
-      footer={<Button onClick={() => setOpen(false)}>Close</Button>}>
+    <Modal
+      open={open}
+      onClose={() => setOpen(false)}
+      title={`Share ${name}`}
+      className="jp-share"
+      footer={<Button onClick={() => setOpen(false)}>Close</Button>}
+    >
       <p className="jp-meta jp-share__intro">
         Anyone with the link can see {target?.kind === 'collection' ? 'the models in this collection (also ones added later)' : 'this model'}: names, pictures,
         designer, license, tags and source. Notes and file locations are never shown. No login is needed.
@@ -137,17 +165,24 @@ export function ShareDialog() {
         <div className="jp-share__created">
           <div className="jp-share__qr" role="img" aria-label="QR code of the link" dangerouslySetInnerHTML={{ __html: qr.svg }} />
           <div className="jp-share__link">
-            <label className="jp-label" htmlFor="jp-share-url">Link</label>
+            <label className="jp-label" htmlFor="jp-share-url">
+              Link
+            </label>
             <input id="jp-share-url" ref={urlRef} className="jp-input" readOnly value={shownUrl} onFocus={(event) => event.target.select()} />
             <div className="jp-share__buttons">
-              <Button variant="primary" icon={Copy} id="jp-share-copy" onClick={() => copy(shownUrl)}>Copy Link</Button>
+              <Button variant="primary" icon={Copy} id="jp-share-copy" onClick={() => copy(shownUrl)}>
+                Copy Link
+              </Button>
               {qr.png && (
                 <a className="jp-btn jp-btn--secondary jp-btn--md" href={qr.png} download={`${name.replace(/[^\w.-]+/g, '_')}-qr.png`}>
-                  <Download size={16} aria-hidden="true" /><span>Save QR Code</span>
+                  <Download size={16} aria-hidden="true" />
+                  <span>Save QR Code</span>
                 </a>
               )}
             </div>
-            <p className="jp-meta">{created.allowDownload ? 'Downloads allowed' : 'View only'} · {expiryLabel(created)}</p>
+            <p className="jp-meta">
+              {created.allowDownload ? 'Downloads allowed' : 'View only'} · {expiryLabel(created)}
+            </p>
           </div>
         </div>
       ) : (
@@ -159,16 +194,28 @@ export function ShareDialog() {
           <label className="jp-share__expiry">
             <span className="jp-label">Link expires</span>
             <select id="jp-share-expires" className="jp-input" value={expires} onChange={(event) => setExpires(Number(event.target.value))}>
-              {EXPIRY.map(([days, label]) => <option key={days} value={days}>{label}</option>)}
+              {EXPIRY.map(([days, label]) => (
+                <option key={days} value={days}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
-          <Button variant="primary" icon={Link2} id="jp-share-create" disabled={busy} onClick={create}>Create Link</Button>
+          <Button variant="primary" icon={Link2} id="jp-share-create" disabled={busy} onClick={create}>
+            Create Link
+          </Button>
         </div>
       )}
-      <p className="jp-share__status" role="status" id="jp-share-status">{status}</p>
+      <p className="jp-share__status" role="status" id="jp-share-status">
+        {status}
+      </p>
 
       <h3 className="jp-share__heading">Links to {target?.kind === 'collection' ? 'this collection' : 'this model'}</h3>
-      {links === null ? <p className="jp-meta">Loading…</p> : links.length === 0 ? <p className="jp-meta">None yet.</p> : (
+      {links === null ? (
+        <p className="jp-meta">Loading…</p>
+      ) : links.length === 0 ? (
+        <p className="jp-meta">None yet.</p>
+      ) : (
         <ul className="jp-share__list" id="jp-share-links">
           {links.map((link) => (
             <li key={link.token} className={link.expired ? 'is-expired' : undefined}>
@@ -185,7 +232,11 @@ export function ShareDialog() {
           ))}
         </ul>
       )}
-      {created && <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>Create Another Link</Button>}
+      {created && (
+        <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>
+          Create Another Link
+        </Button>
+      )}
     </Modal>
   );
 }

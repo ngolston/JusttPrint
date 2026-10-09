@@ -13,10 +13,6 @@ const { getModelByFilePath } = require('../../core/models');
 const { extractModelFromZip, find3dModelZipEntry, isLikelyValidZipBuffer, isMacOsResourceForkEntry, openZip } = require('../../core/zip-entries');
 const { filter3MFMetadataBySettings, parse3MFModelXML } = require('../../core/three-mf');
 const { compressDataUrl } = require('../../core/thumbnail-compress');
-const { extractLysPreviewEntry } = require('../../core/extract-lys-preview');
-const { extractF3dPreviewEntry } = require('../../core/extract-f3d-preview');
-const { extractChituboxPreviewEntry } = require('../../core/extract-chitubox-preview');
-const { extractVoxlPreviewEntry } = require('../../core/extract-voxl-preview');
 
 // 3MF preview worker/caching
 const preview3mfWorkers = new Map();
@@ -25,20 +21,11 @@ const preview3mfCache = new Map();
 
 const PREVIEW_3MF_CACHE_LIMIT = 1;
 
-const PREVIEW_3MF_MAX_FILE_SIZE_MB = Math.max(
-  10,
-  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB || '200', 10) || 200
-);
+const PREVIEW_3MF_MAX_FILE_SIZE_MB = Math.max(10, Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_FILE_SIZE_MB || '200', 10) || 200);
 
-const PREVIEW_3MF_WORKER_MEMORY_MB = Math.max(
-  512,
-  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB || '2048', 10) || 2048
-);
+const PREVIEW_3MF_WORKER_MEMORY_MB = Math.max(512, Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_WORKER_MEMORY_MB || '2048', 10) || 2048);
 
-const PREVIEW_3MF_MAX_DISK_CACHE_MB = Math.max(
-  50,
-  Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_DISK_CACHE_MB || '150', 10) || 150
-);
+const PREVIEW_3MF_MAX_DISK_CACHE_MB = Math.max(50, Number.parseInt(process.env.JUSTTPRINT_PREVIEW_3MF_MAX_DISK_CACHE_MB || '150', 10) || 150);
 
 function getPreview3mfCacheDir() {
   return path.join(app.getPath('userData'), '3mf-preview-cache');
@@ -110,16 +97,12 @@ function normalizePreview3mfTypedArrays(json) {
       for (const key of Object.keys(data.attributes)) {
         const attr = data.attributes[key];
         if (attr && attr.array != null && !Array.isArray(attr.array)) {
-          attr.array = ArrayBuffer.isView(attr.array)
-            ? Array.from(attr.array)
-            : Object.values(attr.array);
+          attr.array = ArrayBuffer.isView(attr.array) ? Array.from(attr.array) : Object.values(attr.array);
         }
       }
     }
     if (data.index && data.index.array != null && !Array.isArray(data.index.array)) {
-      data.index.array = ArrayBuffer.isView(data.index.array)
-        ? Array.from(data.index.array)
-        : Object.values(data.index.array);
+      data.index.array = ArrayBuffer.isView(data.index.array) ? Array.from(data.index.array) : Object.values(data.index.array);
     }
   }
   return json;
@@ -132,24 +115,24 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
     return [];
   }
 
-  const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
+  const opts = options && typeof options === 'object' && !Array.isArray(options) ? options : {};
   const verbose = opts.verbose === true || process.env.JUSTTPRINT_DEBUG_3MF === '1';
   const maxImagesRaw = Number(opts.maxImages);
-  const maxImages = Number.isFinite(maxImagesRaw) && maxImagesRaw > 0
-    ? Math.min(Math.floor(maxImagesRaw), 250)
-    : 250;
+  const maxImages = Number.isFinite(maxImagesRaw) && maxImagesRaw > 0 ? Math.min(Math.floor(maxImagesRaw), 250) : 250;
   const compress = opts.compress !== false;
-  const log = (...args) => { if (verbose) console.log(...args); };
-  
+  const log = (...args) => {
+    if (verbose) console.log(...args);
+  };
+
   // Check if this is a zip entry
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
-  
+
   // Skip macOS resource-fork entries (._*) - not valid 3MF
   if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
     return [];
   }
-  
+
   if (pathInfo.isZipEntry) {
     // Extract to temp file first
     try {
@@ -159,22 +142,22 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       return [];
     }
   }
-  
+
   try {
     log('Starting to process 3MF file:', actualFilePath);
-    
+
     // Check if file exists
     if (!fs.existsSync(actualFilePath)) {
       console.error('File does not exist:', actualFilePath);
       return [];
     }
-    
+
     const data = await fs.promises.readFile(actualFilePath);
     if (!isLikelyValidZipBuffer(data)) {
       log('Skipping non-ZIP or too-small file (e.g. macOS ._ file):', actualFilePath, 'size:', data.length);
       return [];
     }
-    
+
     // A 3MF file is a zip
     let contents;
     try {
@@ -189,94 +172,96 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       return [];
     }
     log('Zip contents loaded successfully');
-    
+
     // Log all files in the 3MF
     log('\nContents of 3MF file:', actualFilePath);
     log('Number of files in archive:', Object.keys(contents.files).length);
     if (verbose) {
       log('All files in archive:');
-      Object.keys(contents.files).forEach(filename => {
+      Object.keys(contents.files).forEach((filename) => {
         const file = contents.files[filename];
         log(' -', filename, file.dir ? '(directory)' : `(${file.size} bytes)`);
       });
     }
-    
+
     // Parse 3dmodel.model XML file to extract metadata
     try {
       const modelXmlFile = find3dModelZipEntry(contents);
-      
+
       if (modelXmlFile && !modelXmlFile.dir) {
         log('Found 3dmodel.model file, parsing metadata...');
         const xmlContent = modelXmlFile.read('string');
         const parsedMetadata = parse3MFModelXML(xmlContent);
-        
+
         // Filter metadata based on user settings
         const filteredMetadata = filter3MFMetadataBySettings(parsedMetadata);
-        
+
         // Update database if we found any metadata
         if (filteredMetadata.designer || filteredMetadata.parentModel || filteredMetadata.notes || filteredMetadata.license) {
           log('Parsed metadata from 3dmodel.model:', filteredMetadata);
-          
+
           // Use original filePath for database lookup (not actualFilePath which might be a temp file)
           const dbFilePath = filePath;
-          
+
           // Get the model from database to check existing values
           let existingModel = getModelByFilePath(dbFilePath);
-          
+
           // If model doesn't exist, create it (similar to add-multiple-thumbnails handler)
           if (!existingModel) {
             log('Model not found in database, creating entry with metadata...');
             const fileName = path.basename(dbFilePath);
             // Handle zip entry paths - extract just the entry name
-            const finalFileName = dbFilePath.includes('::') 
-              ? dbFilePath.split('::').pop() 
-              : fileName;
+            const finalFileName = dbFilePath.includes('::') ? dbFilePath.split('::').pop() : fileName;
             const dateAdded = new Date().toISOString();
-            
-            database.db.prepare(`
+
+            database.db
+              .prepare(
+                `
               INSERT INTO models (filePath, fileName, designer, parentModel, notes, license, dateAdded, isNew)
               VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-            `).run(
-              dbFilePath,
-              finalFileName,
-              filteredMetadata.designer || null,
-              filteredMetadata.parentModel || null,
-              filteredMetadata.notes || null,
-              filteredMetadata.license || null,
-              dateAdded
-            );
-            
+            `
+              )
+              .run(
+                dbFilePath,
+                finalFileName,
+                filteredMetadata.designer || null,
+                filteredMetadata.parentModel || null,
+                filteredMetadata.notes || null,
+                filteredMetadata.license || null,
+                dateAdded
+              );
+
             log(`Created model entry for ${dbFilePath} with metadata`);
           } else {
             // Model exists - only update fields that are empty/null in the database
             const updates = {};
             const conditions = [];
             const values = [];
-            
+
             if (filteredMetadata.designer && (!existingModel.designer || existingModel.designer.trim() === '')) {
               updates.designer = filteredMetadata.designer;
               values.push(filteredMetadata.designer);
               conditions.push('designer = ?');
             }
-            
+
             if (filteredMetadata.parentModel && (!existingModel.parentModel || existingModel.parentModel.trim() === '')) {
               updates.parentModel = filteredMetadata.parentModel;
               values.push(filteredMetadata.parentModel);
               conditions.push('parentModel = ?');
             }
-            
+
             if (filteredMetadata.notes && (!existingModel.notes || existingModel.notes.trim() === '')) {
               updates.notes = filteredMetadata.notes;
               values.push(filteredMetadata.notes);
               conditions.push('notes = ?');
             }
-            
+
             if (filteredMetadata.license && (!existingModel.license || existingModel.license.trim() === '')) {
               updates.license = filteredMetadata.license;
               values.push(filteredMetadata.license);
               conditions.push('license = ?');
             }
-            
+
             // Update database if we have any fields to update
             if (Object.keys(updates).length > 0) {
               values.push(dbFilePath);
@@ -300,7 +285,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
     } catch (metadataError) {
       console.warn('Error parsing 3MF metadata (continuing with thumbnail extraction):', metadataError);
     }
-    
+
     // Helper to check if file is an image and not a system file
     const isImage = (path) => {
       const normalized = path.replace(/\\/g, '/');
@@ -313,21 +298,18 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
     const getMimeType = (path) => {
       const ext = path.split('.').pop().toLowerCase();
       const mimeMap = {
-        'jpg': 'jpeg',
-        'jpeg': 'jpeg',
-        'png': 'png',
-        'gif': 'gif',
-        'webp': 'webp'
+        jpg: 'jpeg',
+        jpeg: 'jpeg',
+        png: 'png',
+        gif: 'gif',
+        webp: 'webp'
       };
       return mimeMap[ext] || 'png';
     };
 
     // Normalized archive path (zip may use \ or /; match Auxiliaries at any depth)
     const isInAuxiliariesPath = (normLower) =>
-      normLower.startsWith('auxiliaries/') ||
-      normLower.includes('/auxiliaries/') ||
-      normLower.startsWith('auxiliary/') ||
-      normLower.includes('/auxiliary/');
+      normLower.startsWith('auxiliaries/') || normLower.includes('/auxiliaries/') || normLower.startsWith('auxiliary/') || normLower.includes('/auxiliary/');
 
     // Helper to calculate score for an image to determine priority
     const calculateScore = (path, size) => {
@@ -406,9 +388,7 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
     const imageFiles = [];
     const toExtract = allImages.slice(0, MAX_3MF_IMAGES_TO_EXTRACT);
     if (allImages.length > MAX_3MF_IMAGES_TO_EXTRACT) {
-      log(
-        `3MF has ${allImages.length} image entries; extracting ${MAX_3MF_IMAGES_TO_EXTRACT} highest-priority (memory / DB safety cap).`
-      );
+      log(`3MF has ${allImages.length} image entries; extracting ${MAX_3MF_IMAGES_TO_EXTRACT} highest-priority (memory / DB safety cap).`);
     }
 
     for (const imgObj of toExtract) {
@@ -419,11 +399,13 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
       if (compress) {
         try {
           dataUrl = compressDataUrl(dataUrl) || dataUrl;
-        } catch (_) { /* keep original */ }
+        } catch (_) {
+          /* keep original */
+        }
       }
       imageFiles.push(dataUrl);
     }
-    
+
     log('\nExtracted total images:', imageFiles.length);
     if (imageFiles.length === 0) {
       log('No images found in 3MF file. Expected under Auxiliaries/ (any subfolder), 3D/Textures/, or 3D/Texture/.');
@@ -437,242 +419,6 @@ ipcMain.handle('get3MFImages', async (event, filePath, options = {}) => {
   }
 });
 
-ipcMain.handle('getLYSImages', async (event, filePath, options = {}) => {
-  if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
-    return [];
-  }
-
-  const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
-  const compress = opts.compress !== false;
-
-  const pathInfo = parseZipPath(filePath);
-  let actualFilePath = filePath;
-
-  if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
-    return [];
-  }
-
-  if (pathInfo.isZipEntry) {
-    try {
-      actualFilePath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-    } catch (error) {
-      console.error('Error extracting zip entry for LYS preview:', error);
-      return [];
-    }
-  }
-
-  try {
-    if (!fs.existsSync(actualFilePath)) {
-      console.error('File does not exist:', actualFilePath);
-      return [];
-    }
-
-    const data = await fs.promises.readFile(actualFilePath);
-    const entry = extractLysPreviewEntry(new Uint8Array(data));
-    if (!entry || !entry.bytes || !entry.bytes.length) {
-      return [];
-    }
-
-    const ext = path.extname(entry.name || '').toLowerCase().replace(/^\./, '') || 'png';
-    const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
-    const mimeType = mimeMap[ext] || 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) { /* keep original */ }
-    }
-    return [dataUrl];
-  } catch (error) {
-    console.error('Error reading LYS preview:', error);
-    return [];
-  }
-});
-
-ipcMain.handle('getF3DImages', async (event, filePath, options = {}) => {
-  if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
-    return [];
-  }
-
-  const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
-  const compress = opts.compress !== false;
-
-  const pathInfo = parseZipPath(filePath);
-  let actualFilePath = filePath;
-
-  if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
-    return [];
-  }
-
-  if (pathInfo.isZipEntry) {
-    try {
-      actualFilePath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-    } catch (error) {
-      console.error('Error extracting zip entry for F3D preview:', error);
-      return [];
-    }
-  }
-
-  let fh;
-  try {
-    if (!fs.existsSync(actualFilePath)) {
-      console.error('File does not exist:', actualFilePath);
-      return [];
-    }
-
-    fh = await fs.promises.open(actualFilePath, 'r');
-    const { size } = await fh.stat();
-    const handle = fh;
-    const entry = await extractF3dPreviewEntry({
-      size,
-      read: async (offset, length) => {
-        const buf = Buffer.alloc(Math.max(0, Math.min(length, size - offset)));
-        const { bytesRead } = await handle.read(buf, 0, buf.length, offset);
-        return new Uint8Array(buf.subarray(0, bytesRead));
-      }
-    });
-    if (!entry || !entry.bytes || !entry.bytes.length) {
-      return [];
-    }
-
-    const ext = path.extname(entry.name || '').toLowerCase().replace(/^\./, '') || 'png';
-    const mimeMap = { jpg: 'jpeg', jpeg: 'jpeg', png: 'png', gif: 'gif', webp: 'webp', bmp: 'bmp' };
-    const mimeType = mimeMap[ext] || 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) { /* keep original */ }
-    }
-    return [dataUrl];
-  } catch (error) {
-    console.error('Error reading F3D preview:', error);
-    return [];
-  } finally {
-    await fh?.close();
-  }
-});
-
-ipcMain.handle('getChituboxImages', async (event, filePath, options = {}) => {
-  if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
-    return [];
-  }
-
-  const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
-  const compress = opts.compress !== false;
-
-  const pathInfo = parseZipPath(filePath);
-  let actualFilePath = filePath;
-
-  if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
-    return [];
-  }
-
-  if (pathInfo.isZipEntry) {
-    try {
-      actualFilePath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-    } catch (error) {
-      console.error('Error extracting zip entry for ChiTuBox preview:', error);
-      return [];
-    }
-  }
-
-  try {
-    if (!fs.existsSync(actualFilePath)) {
-      console.error('File does not exist:', actualFilePath);
-      return [];
-    }
-
-    const data = await fs.promises.readFile(actualFilePath);
-    const entry = extractChituboxPreviewEntry(new Uint8Array(data));
-    if (!entry || !entry.bytes || !entry.bytes.length) {
-      return [];
-    }
-
-    let dataUrl = `data:image/png;base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) { /* keep original */ }
-    }
-    return [dataUrl];
-  } catch (error) {
-    console.error('Error reading ChiTuBox preview:', error);
-    return [];
-  }
-});
-
-ipcMain.handle('getVoxlImages', async (event, filePath, options = {}) => {
-  if (isUrlModel(filePath)) return [];
-  if (/[\\\/]__macosx[\\\/]/i.test(filePath)) {
-    return [];
-  }
-
-  const opts = (options && typeof options === 'object' && !Array.isArray(options)) ? options : {};
-  const compress = opts.compress !== false;
-
-  const pathInfo = parseZipPath(filePath);
-  let actualFilePath = filePath;
-
-  if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
-    return [];
-  }
-
-  if (pathInfo.isZipEntry) {
-    try {
-      actualFilePath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-    } catch (error) {
-      console.error('Error extracting zip entry for VOXL preview:', error);
-      return [];
-    }
-  }
-
-  let fh;
-  try {
-    if (!fs.existsSync(actualFilePath)) {
-      console.error('File does not exist:', actualFilePath);
-      return [];
-    }
-
-    fh = await fs.promises.open(actualFilePath, 'r');
-    const { size } = await fh.stat();
-    const handle = fh;
-    const entry = await extractVoxlPreviewEntry({
-      size,
-      read: async (offset, length) => {
-        const buf = Buffer.alloc(Math.max(0, Math.min(length, size - offset)));
-        const { bytesRead } = await handle.read(buf, 0, buf.length, offset);
-        return new Uint8Array(buf.subarray(0, bytesRead));
-      }
-    });
-    if (!entry || !entry.bytes || !entry.bytes.length) {
-      return [];
-    }
-
-    const mime = (entry.mimeType || 'image/png').toLowerCase();
-    const mimeType = mime.includes('jpeg') || mime.includes('jpg')
-      ? 'jpeg'
-      : mime.includes('webp')
-        ? 'webp'
-        : 'png';
-    let dataUrl = `data:image/${mimeType};base64,${Buffer.from(entry.bytes).toString('base64')}`;
-    if (compress) {
-      try {
-        dataUrl = compressDataUrl(dataUrl) || dataUrl;
-      } catch (_) { /* keep original */ }
-    }
-    return [dataUrl];
-  } catch (error) {
-    console.error('Error reading VOXL preview:', error);
-    return [];
-  } finally {
-    await fh?.close();
-  }
-});
-
 ipcMain.handle('get3MFSTL', async (event, filePath) => {
   if (isUrlModel(filePath)) return null;
   try {
@@ -680,11 +426,11 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
     const pathInfo = parseZipPath(filePath);
     let actualFilePath = filePath;
     let shouldCleanup = false;
-    
+
     if (pathInfo.isZipEntry && isMacOsResourceForkEntry(pathInfo.entryPath)) {
       return null;
     }
-    
+
     if (pathInfo.isZipEntry) {
       // Extract to temp file first
       try {
@@ -695,35 +441,35 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
         return null;
       }
     }
-    
+
     const data = await fs.promises.readFile(actualFilePath);
     if (!isLikelyValidZipBuffer(data)) {
       return null;
     }
-    
+
     let contents;
     try {
       contents = openZip(data);
     } catch (zipError) {
       return null;
     }
-    
+
     // Look for STL files in the 3MF
     for (const [entryPath, file] of Object.entries(contents.files)) {
       if (entryPath.endsWith('.stl')) {
         // Extract STL payload into dedicated OS temp dir
         const tempPath = path.join(ensureExtractTempDir(), `${EXTRACT_TEMP_FILE_PREFIX}${Date.now()}.stl`);
         await fs.promises.writeFile(tempPath, file.read());
-        
+
         // Clean up intermediate zip-entry extract if needed
         if (shouldCleanup && actualFilePath !== filePath) {
           await cleanupExtractTempFile(actualFilePath);
         }
-        
+
         return tempPath;
       }
     }
-    
+
     // Clean up intermediate temp file if needed
     if (shouldCleanup && actualFilePath !== filePath) {
       try {
@@ -732,7 +478,7 @@ ipcMain.handle('get3MFSTL', async (event, filePath) => {
         console.error('Error cleaning up temp file:', cleanupError);
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error extracting STL from 3MF:', error);
@@ -778,7 +524,7 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     throw new Error(`parse-3mf-preview: filePath must be a string, received ${typeof filePath}`);
   }
   if (isUrlModel(filePath)) throw new Error('URL-only model has no file to preview');
-  
+
   const pathInfo = parseZipPath(filePath);
   let actualFilePath = filePath;
   let shouldCleanup = false;
@@ -800,11 +546,11 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
 
   if (fileStat && fileStat.size > PREVIEW_3MF_MAX_FILE_SIZE_MB * 1024 * 1024) {
     if (shouldCleanup && actualFilePath !== filePath) {
-      try { await fs.promises.unlink(actualFilePath); } catch {}
+      try {
+        await fs.promises.unlink(actualFilePath);
+      } catch {}
     }
-    throw new Error(
-      `3MF preview skipped: file is too large (${Math.round(fileStat.size / 1024 / 1024)}MB > ${PREVIEW_3MF_MAX_FILE_SIZE_MB}MB)`
-    );
+    throw new Error(`3MF preview skipped: file is too large (${Math.round(fileStat.size / 1024 / 1024)}MB > ${PREVIEW_3MF_MAX_FILE_SIZE_MB}MB)`);
   }
 
   cancelAllPreview3mfWorkers();
@@ -821,7 +567,9 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
     preview3mfCache.delete(cacheKey);
     preview3mfCache.set(cacheKey, cached);
     if (shouldCleanup && actualFilePath !== filePath) {
-      try { await fs.promises.unlink(actualFilePath); } catch {}
+      try {
+        await fs.promises.unlink(actualFilePath);
+      } catch {}
     }
     return normalizePreview3mfTypedArrays(cached);
   }
@@ -837,11 +585,15 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
         preview3mfCache.set(cacheKey, parsed);
         trimPreview3mfMemoryCache();
         if (shouldCleanup && actualFilePath !== filePath) {
-          try { await fs.promises.unlink(actualFilePath); } catch {}
+          try {
+            await fs.promises.unlink(actualFilePath);
+          } catch {}
         }
         return parsed;
       }
-      try { await fs.promises.unlink(cachePath); } catch {}
+      try {
+        await fs.promises.unlink(cachePath);
+      } catch {}
     } catch (error) {
       if (error && error.code !== 'ENOENT') {
         console.error('Error reading 3MF preview cache:', error);
@@ -868,7 +620,9 @@ const parse3mfPreviewHandler = async (event, filePath, requestId) => {
       preview3mfWorkers.delete(requestId);
       terminatePreview3mfWorker(entry);
       if (shouldCleanup && actualFilePath !== filePath) {
-        try { await fs.promises.unlink(actualFilePath); } catch {}
+        try {
+          await fs.promises.unlink(actualFilePath);
+        } catch {}
       }
     };
 

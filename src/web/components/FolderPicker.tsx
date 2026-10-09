@@ -4,7 +4,10 @@ import { callAction } from '../api';
 import { Button, cx } from './Button';
 import { Modal } from './Overlay';
 
-interface Entry { name: string; path: string }
+interface Entry {
+  name: string;
+  path: string;
+}
 
 /** What browse-folders returns (src/server/folder-browse.js). */
 interface Listing {
@@ -88,7 +91,9 @@ export function FolderPicker() {
       setTyped(next.initial || '');
       void go(next.initial || null, true);
     };
-    return () => { open = null; };
+    return () => {
+      open = null;
+    };
   }, []);
 
   const finish = (folder: string | null) => {
@@ -105,21 +110,36 @@ export function FolderPicker() {
   const activePlace = places.filter(inPlace).sort((a, b) => b.path.length - a.path.length)[0];
 
   return (
-    <Modal open={!!request} onClose={() => finish(null)} title={request?.title || 'Choose Folder'} className="jp-folder-picker"
-      footer={(
+    <Modal
+      open={!!request}
+      onClose={() => finish(null)}
+      title={request?.title || 'Choose Folder'}
+      className="jp-folder-picker"
+      footer={
         <>
-          <Button variant="secondary" onClick={() => finish(null)}>Cancel</Button>
+          <Button variant="secondary" onClick={() => finish(null)}>
+            Cancel
+          </Button>
           <Button id="folder-picker-choose" variant="primary" disabled={!current || loading} onClick={() => finish(current)}>
             {request?.confirmLabel || 'Choose This Folder'}
           </Button>
         </>
-      )}>
+      }
+    >
       <div id="folder-picker-dialog">
         {places.length > 0 && (
           <div className="jp-folder-picker__places" role="group" aria-label="Places">
             {places.map((place) => (
-              <button key={place.path} type="button" className={cx('jp-folder-picker__place', place === activePlace && 'is-active')}
-                title={place.path} onClick={() => { edited.current = false; void go(place.path); }}>
+              <button
+                key={place.path}
+                type="button"
+                className={cx('jp-folder-picker__place', place === activePlace && 'is-active')}
+                title={place.path}
+                onClick={() => {
+                  edited.current = false;
+                  void go(place.path);
+                }}
+              >
                 <HardDrive size={14} aria-hidden="true" />
                 <span>{place.path}</span>
               </button>
@@ -127,17 +147,51 @@ export function FolderPicker() {
           </div>
         )}
 
-        <form className="jp-folder-picker__bar" onSubmit={(event) => { event.preventDefault(); edited.current = false; void go(typed.trim()); }}>
-          <button type="button" className="jp-icon-btn jp-icon-btn--sm" aria-label="Up one folder" title="Up one folder"
-            disabled={!listing?.parent || loading} onClick={() => { edited.current = false; void go(listing?.parent); }}>
+        <form
+          className="jp-folder-picker__bar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            edited.current = false;
+            void go(typed.trim());
+          }}
+        >
+          <button
+            type="button"
+            className="jp-icon-btn jp-icon-btn--sm"
+            aria-label="Up one folder"
+            title="Up one folder"
+            disabled={!listing?.parent || loading}
+            onClick={() => {
+              edited.current = false;
+              void go(listing?.parent);
+            }}
+          >
             <ArrowUp size={16} aria-hidden="true" />
           </button>
-          <input type="text" id="folder-picker-path" className="jp-input" aria-label="Folder path" spellCheck={false} autoComplete="off"
-            value={typed} placeholder="/models" onChange={(event) => { edited.current = true; setTyped(event.target.value); }} />
-          <Button type="submit" size="sm" disabled={!typed.trim() || loading}>Go</Button>
+          <input
+            type="text"
+            id="folder-picker-path"
+            className="jp-input"
+            aria-label="Folder path"
+            spellCheck={false}
+            autoComplete="off"
+            value={typed}
+            placeholder="/models"
+            onChange={(event) => {
+              edited.current = true;
+              setTyped(event.target.value);
+            }}
+          />
+          <Button type="submit" size="sm" disabled={!typed.trim() || loading}>
+            Go
+          </Button>
         </form>
 
-        {error && <p className="jp-folder-picker__error" role="alert">{error}</p>}
+        {error && (
+          <p className="jp-folder-picker__error" role="alert">
+            {error}
+          </p>
+        )}
 
         <ul ref={listRef} id="folder-picker-list" className="jp-folder-picker__list" aria-busy={loading}>
           {!loading && listing && !places.length && (
@@ -146,7 +200,15 @@ export function FolderPicker() {
           {!loading && current && !listing?.folders.length && <li className="jp-folder-picker__empty">No subfolders here.</li>}
           {listing?.folders.map((folder) => (
             <li key={folder.path}>
-              <button type="button" className="jp-folder-picker__folder" onClick={() => { edited.current = false; void go(folder.path); }} title={folder.path}>
+              <button
+                type="button"
+                className="jp-folder-picker__folder"
+                onClick={() => {
+                  edited.current = false;
+                  void go(folder.path);
+                }}
+                title={folder.path}
+              >
                 <Folder size={16} aria-hidden="true" />
                 <span>{folder.name}</span>
               </button>

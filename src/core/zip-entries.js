@@ -16,7 +16,7 @@ function isMacOsResourceForkEntry(entryPath) {
 // Minimum ZIP is 22 bytes (end-of-central-directory). 3MF is ZIP-based (starts with PK).
 function isLikelyValidZipBuffer(data) {
   if (!Buffer.isBuffer(data) || data.length < 22) return false;
-  return data[0] === 0x50 && data[1] === 0x4B; // PK
+  return data[0] === 0x50 && data[1] === 0x4b; // PK
 }
 
 // Helper function to extract model from zip to temp file or specified destination

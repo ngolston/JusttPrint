@@ -12,7 +12,10 @@ import { useAdopt } from '../shell/adopt';
 import { NAV } from '../shell/nav';
 import { useCan } from '../session';
 
-const scanLibrary = () => NAV.flatMap((section) => section.items).find((item) => item.id === 'scan')?.run?.();
+const scanLibrary = () =>
+  NAV.flatMap((section) => section.items)
+    .find((item) => item.id === 'scan')
+    ?.run?.();
 
 function useFilters() {
   return useSyncExternalStore(subscribeFilters, getFilterState);
@@ -74,23 +77,43 @@ function LibraryEmpty() {
   if (!filtered) {
     return (
       <div className="jp-library-empty">
-        <EmptyState icon={Library} title="Your library is empty"
-          action={canEdit ? (
-            <>
-              <Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>Scan Library</Button>
-              <Button icon={Upload} onClick={() => window.openUpload?.()}>Upload Models</Button>
-              <Button icon={Link2} onClick={() => window.openLinkImport?.()}>Add Links</Button>
-            </>
-          ) : undefined}>
-          {canEdit ? 'Scan your model folders (STL Home), upload models, or add links from Printables, Thingiverse or MakerWorld.' : 'An editor or admin adds the models.'}
+        <EmptyState
+          icon={Library}
+          title="Your library is empty"
+          action={
+            canEdit ? (
+              <>
+                <Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>
+                  Scan Library
+                </Button>
+                <Button icon={Upload} onClick={() => window.openUpload?.()}>
+                  Upload Models
+                </Button>
+                <Button icon={Link2} onClick={() => window.openLinkImport?.()}>
+                  Add Links
+                </Button>
+              </>
+            ) : undefined
+          }
+        >
+          {canEdit
+            ? 'Scan your model folders (STL Home), upload models, or add links from Printables, Thingiverse or MakerWorld.'
+            : 'An editor or admin adds the models.'}
         </EmptyState>
       </div>
     );
   }
   return (
     <div className="jp-library-empty">
-      <EmptyState icon={FilterX} title="No models match"
-        action={<Button icon={FilterX} onClick={() => document.getElementById('clear-all-filters-button')?.click()}>Clear filters</Button>}>
+      <EmptyState
+        icon={FilterX}
+        title="No models match"
+        action={
+          <Button icon={FilterX} onClick={() => document.getElementById('clear-all-filters-button')?.click()}>
+            Clear filters
+          </Button>
+        }
+      >
         Try another tab, or clear the filters and search.
       </EmptyState>
     </div>
@@ -124,12 +147,16 @@ export function LibraryHeader() {
       <div className="jp-library-header__top">
         <h1 className="jp-library-header__title">Your Library</h1>
         <div className="jp-library-header__bar">
-          <Tabs<LibraryTab | 'none'> label="Show" items={LIBRARY_TABS} value={tab ?? 'none'}
+          <Tabs<LibraryTab | 'none'>
+            label="Show"
+            items={LIBRARY_TABS}
+            value={tab ?? 'none'}
             onChange={(id) => {
               if (id === 'none') return;
               const info = tabInfo(id);
               applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
-            }} />
+            }}
+          />
           <div className="jp-library-header__tools">
             <span className="jp-library-header__count" id="jp-library-count" title={`${total.toLocaleString()} models in the library`}>
               {view.toLocaleString()} {view === 1 ? 'model' : 'models'}
@@ -137,20 +164,41 @@ export function LibraryHeader() {
             <div className="jp-library-header__rail" ref={setRail} />
             <div className="jp-library-header__view" ref={setTools} />
             {canUpload && (
-              <Button icon={Upload} id="jp-upload-button" onClick={() => window.openUpload?.()} title="Upload model files into a library folder (or drop them on the page)">
+              <Button
+                icon={Upload}
+                id="jp-upload-button"
+                onClick={() => window.openUpload?.()}
+                title="Upload model files into a library folder (or drop them on the page)"
+              >
                 Upload
               </Button>
             )}
             {canUpload && (
-              <Button icon={Link2} id="jp-links-button" onClick={() => window.openLinkImport?.()} title="Add models from Printables, Thingiverse or MakerWorld links">
+              <Button
+                icon={Link2}
+                id="jp-links-button"
+                onClick={() => window.openLinkImport?.()}
+                title="Add models from Printables, Thingiverse or MakerWorld links"
+              >
                 Add Links
               </Button>
             )}
-            <button type="button" ref={setFilterButton} id="jp-filter-button" className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}`}
-              aria-expanded={open} aria-controls="jp-filter-popover" onClick={() => setOpen(!open)}>
+            <button
+              type="button"
+              ref={setFilterButton}
+              id="jp-filter-button"
+              className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}`}
+              aria-expanded={open}
+              aria-controls="jp-filter-popover"
+              onClick={() => setOpen(!open)}
+            >
               <SlidersHorizontal size={16} aria-hidden="true" />
               <span>Filter</span>
-              {extra > 0 && <span className="jp-library-header__filter-count" aria-label={`${extra} filters set`}>{extra}</span>}
+              {extra > 0 && (
+                <span className="jp-library-header__filter-count" aria-label={`${extra} filters set`}>
+                  {extra}
+                </span>
+              )}
             </button>
           </div>
         </div>

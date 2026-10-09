@@ -14,7 +14,14 @@ export function useLibraryData<T>(load: () => Promise<T>): T | null {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const fetchNow = () => { load().then((value) => { if (alive) setData(value); }, () => {}); };
+    const fetchNow = () => {
+      load().then(
+        (value) => {
+          if (alive) setData(value);
+        },
+        () => {}
+      );
+    };
     const refresh = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(fetchNow, 1000);
@@ -31,4 +38,3 @@ export function useLibraryData<T>(load: () => Promise<T>): T | null {
   }, [load]);
   return data;
 }
-

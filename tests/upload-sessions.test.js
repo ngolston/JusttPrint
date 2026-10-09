@@ -64,7 +64,11 @@ test('a wrong offset says where the upload stands', async () => {
     await store.writePiece(id, MAKER, 0, body('abc'), { maxPieceBytes: 3 });
     await assert.rejects(store.writePiece(id, MAKER, 0, body('abc'), { maxPieceBytes: 3 }), (error) => error.status === 409 && error.received === 3);
     await assert.rejects(store.writePiece(id, MAKER, 6, body('x'), { maxPieceBytes: 3 }), (error) => error.status === 409);
-    assert.throws(() => store.finish(id, MAKER), (error) => error.status === 409 && error.received === 3, 'not complete');
+    assert.throws(
+      () => store.finish(id, MAKER),
+      (error) => error.status === 409 && error.received === 3,
+      'not complete'
+    );
   } finally {
     cleanup();
   }
@@ -116,8 +120,14 @@ test('only the user who started an upload may add to it', async () => {
   try {
     const { id } = store.start({ user: MAKER, folder, name: 'a.stl', size: 3, maxBytes: MAX });
     await assert.rejects(store.writePiece(id, OTHER, 0, body('abc'), { maxPieceBytes: 3 }), (error) => error.status === 403);
-    assert.throws(() => store.abort(id, OTHER), (error) => error.status === 403);
-    assert.throws(() => store.status('nope', MAKER), (error) => error.status === 404);
+    assert.throws(
+      () => store.abort(id, OTHER),
+      (error) => error.status === 403
+    );
+    assert.throws(
+      () => store.status('nope', MAKER),
+      (error) => error.status === 404
+    );
   } finally {
     cleanup();
   }
@@ -126,9 +136,18 @@ test('only the user who started an upload may add to it', async () => {
 test('the size limit and free disk space are checked before anything is sent', () => {
   const { folder, store, cleanup } = setup({ freeBytes: () => 100 * 1024 * 1024 });
   try {
-    assert.throws(() => store.start({ user: MAKER, folder, name: 'a.stl', size: MAX + 1, maxBytes: MAX }), (error) => error.status === 413);
-    assert.throws(() => store.start({ user: MAKER, folder, name: 'a.stl', size: 50 * 1024 * 1024, maxBytes: 1e12 }), (error) => error.status === 507 && /Not enough free space/.test(error.message));
-    assert.throws(() => store.start({ user: MAKER, folder, name: 'a.stl', size: -1, maxBytes: MAX }), (error) => error.status === 400);
+    assert.throws(
+      () => store.start({ user: MAKER, folder, name: 'a.stl', size: MAX + 1, maxBytes: MAX }),
+      (error) => error.status === 413
+    );
+    assert.throws(
+      () => store.start({ user: MAKER, folder, name: 'a.stl', size: 50 * 1024 * 1024, maxBytes: 1e12 }),
+      (error) => error.status === 507 && /Not enough free space/.test(error.message)
+    );
+    assert.throws(
+      () => store.start({ user: MAKER, folder, name: 'a.stl', size: -1, maxBytes: MAX }),
+      (error) => error.status === 400
+    );
     assert.deepStrictEqual(fs.readdirSync(folder), []);
   } finally {
     cleanup();
@@ -147,7 +166,10 @@ test('cancelling deletes the temp file; uploads left for a day are cleaned up', 
     clock.t += 2 * 60 * 60 * 1000;
     assert.strictEqual(store.sweep(), 1);
     assert.deepStrictEqual(fs.readdirSync(folder), []);
-    assert.throws(() => store.status(second.id, MAKER), (error) => error.status === 404);
+    assert.throws(
+      () => store.status(second.id, MAKER),
+      (error) => error.status === 404
+    );
   } finally {
     cleanup();
   }

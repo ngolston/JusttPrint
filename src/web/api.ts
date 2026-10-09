@@ -4,7 +4,10 @@
  */
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -69,8 +72,7 @@ export interface ServerAccessInfo {
 export const serverAccess = {
   info: () => callAction<ServerAccessInfo>('get-server-access-info'),
   /** Change the logged-in user's own password (logs them out everywhere). */
-  setPassword: (currentPassword: string, newPassword: string) =>
-    callAction<unknown>('set-server-password', currentPassword, newPassword),
+  setPassword: (currentPassword: string, newPassword: string) => callAction<unknown>('set-server-password', currentPassword, newPassword),
   regenerateToken: () => callAction<{ apiToken: string }>('regenerate-server-api-token')
 };
 
@@ -121,7 +123,11 @@ interface UploadSession {
 
 /** An upload error; `received` is where the server's copy stands, when it said. */
 export class UploadError extends ApiError {
-  constructor(message: string, status: number, readonly received?: number) {
+  constructor(
+    message: string,
+    status: number,
+    readonly received?: number
+  ) {
     super(message, status);
     this.name = 'UploadError';
   }
@@ -130,7 +136,7 @@ export class UploadError extends ApiError {
 async function uploadRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin', ...init });
   if (response.status === 401) window.location.href = '/login';
-  const data = await response.json().catch(() => ({})) as T & { error?: string; received?: number };
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string; received?: number };
   if (!response.ok || data.error) throw new UploadError(data.error || `HTTP ${response.status}`, response.status, data.received);
   return data;
 }
@@ -147,7 +153,11 @@ function sendPiece(id: string, offset: number, piece: Blob, onProgress: (loaded:
     request.upload.onprogress = (event) => onProgress(event.loaded);
     request.onload = () => {
       let data: { error?: string; received?: number } = {};
-      try { data = JSON.parse(request.responseText || '{}'); } catch { /* not JSON (a proxy's error page) */ }
+      try {
+        data = JSON.parse(request.responseText || '{}');
+      } catch {
+        /* not JSON (a proxy's error page) */
+      }
       if (request.status === 401) window.location.href = '/login';
       if (request.status >= 200 && request.status < 300 && !data.error) resolve({ received: Number(data.received) });
       else reject(new UploadError(data.error || `HTTP ${request.status}`, request.status, data.received));
@@ -167,10 +177,18 @@ export const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 30000, 30000, 300
 /** Errors that sending again cannot fix (bad file, no permission, too large, disk full, upload gone). */
 const isPermanent = (status: number) => [400, 403, 404, 413, 507].includes(status);
 
-const wait = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
-  const timer = setTimeout(resolve, ms);
-  signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new UploadError('Cancelled', 0)); }, { once: true });
-});
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(new UploadError('Cancelled', 0));
+      },
+      { once: true }
+    );
+  });
 
 export interface UploadOptions {
   chunkBytes: number;
@@ -224,7 +242,11 @@ export async function uploadFile(file: File, folder: string, options: UploadOpti
       }
       if (isPermanent(status)) throw error;
       if (attempt >= RETRY_DELAYS_MS.length) {
-        throw new UploadError(`The connection was lost. Upload again to continue from ${Math.round((received / Math.max(1, file.size)) * 100)}%.`, status, received);
+        throw new UploadError(
+          `The connection was lost. Upload again to continue from ${Math.round((received / Math.max(1, file.size)) * 100)}%.`,
+          status,
+          received
+        );
       }
       const delay = RETRY_DELAYS_MS[attempt++];
       onRetry?.(attempt, delay);
@@ -278,8 +300,7 @@ export const tags = {
   list: () => callAction<Tag[]>('get-all-tags'),
   create: (name: string) => callAction<{ id: number; name: string }>('save-tag', name),
   /** Renaming onto an existing name merges the two tags. */
-  rename: (id: number, newName: string) =>
-    callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
+  rename: (id: number, newName: string) => callAction<{ success: boolean; id: number; name: string; merged: boolean }>('rename-tag', id, newName),
   remove: (id: number) => callAction<boolean>('delete-tag', id)
 };
 
@@ -420,7 +441,16 @@ export const library = {
 };
 
 /** Dashboard Recent Activity (src/core/recent-activity.js), newest first. */
-export interface PrintActivity { kind: 'print'; id: number; at: string; outcome: string; quantity: number; filePath: string; fileName: string | null; printer: string | null }
+export interface PrintActivity {
+  kind: 'print';
+  id: number;
+  at: string;
+  outcome: string;
+  quantity: number;
+  filePath: string;
+  fileName: string | null;
+  printer: string | null;
+}
 export type ActivityItem = PrintActivity | { kind: 'added'; at: string; day: string; count: number };
 
 export interface ServerGpuInfo {
@@ -428,8 +458,21 @@ export interface ServerGpuInfo {
   serverMode?: boolean;
   glBackend?: string;
   activeRenderer?: string | null;
+  /** The WebGL of the server's thumbnail renderer (headless Chromium); null when it is not running. */
+  workerWebgl?: {
+    vendor: string | null;
+    renderer: string | null;
+    version: string | null;
+    shadingLanguage: string | null;
+    maxTextureSize: number | null;
+    webgl2: boolean;
+  } | null;
   usingSwiftShader?: boolean;
-  nvidia?: { available: boolean; message?: string; gpus?: { index: string; name: string; driverVersion: string; memoryTotalMiB: string; memoryUsedMiB: string; utilizationPercent: string }[] } | null;
+  nvidia?: {
+    available: boolean;
+    message?: string;
+    gpus?: { index: string; name: string; driverVersion: string; memoryTotalMiB: string; memoryUsedMiB: string; utilizationPercent: string }[];
+  } | null;
   nvidiaVisibleDevices?: string | null;
   nvidiaDriverCapabilities?: string | null;
   warnings?: string[];
@@ -459,8 +502,7 @@ export const backup = {
   restore: (base64: string) => callAction<{ success: boolean; message?: string }>('restore-database', { base64 }),
   exportLibrary: () => callAction<FileResult>('export-library'),
   /** Merges a library export (JSON text) into the library. */
-  importLibrary: (json: string) =>
-    callAction<{ success: boolean; imported?: number; updated?: number; message?: string }>('import-library', { json })
+  importLibrary: (json: string) => callAction<{ success: boolean; imported?: number; updated?: number; message?: string }>('import-library', { json })
 };
 
 /** Automatic backups (src/server/auto-backup.js), as Settings → Backup shows them. */
@@ -705,8 +747,11 @@ export const dedup = {
   /** Deletes the file from disk (permanently) and removes it from the library. */
   deleteFile: (filePath: string) => callAction<boolean>('delete-file', filePath),
   /** Same geometry, different files (src/server/geometry-job.js). */
-  geometryGroups: (filters: Record<string, unknown> | null) =>
-    callAction<{ groups: DuplicateGroup[]; missing: number; running: boolean; processed: number; total: number }>('get-geometry-duplicates', filters ? { filters } : null),
+  geometryGroups: (filters: Record<string, unknown> | null, includeZip = false) =>
+    callAction<{ groups: DuplicateGroup[]; missing: number; running: boolean; processed: number; total: number }>('get-geometry-duplicates', {
+      ...(filters ? { filters } : {}),
+      includeZip
+    }),
   /** Starts fingerprinting in the background; progress comes as geometry-progress events. */
   startGeometry: (filters: Record<string, unknown> | null) =>
     callAction<{ started?: boolean; alreadyRunning?: boolean; total: number }>('start-geometry-scan', filters ? { filters } : null)
@@ -747,9 +792,10 @@ export const prints = {
   log: (filePath: string, input: LogPrintInput) => callAction<unknown>('log-print-event', { ...input, filePath }),
   logMany: (filePaths: string[], input: LogPrintInput) => callAction<unknown>('log-print-events-batch', { ...input, filePaths }),
   removeEvent: (id: number) => callAction<unknown>('delete-print-event', id),
-  setStatus: (filePaths: string[], printStatus: string) => (filePaths.length === 1
-    ? callAction<unknown>('set-print-status', { filePath: filePaths[0], printStatus })
-    : callAction<unknown>('set-print-status-batch', { filePaths, printStatus }))
+  setStatus: (filePaths: string[], printStatus: string) =>
+    filePaths.length === 1
+      ? callAction<unknown>('set-print-status', { filePath: filePaths[0], printStatus })
+      : callAction<unknown>('set-print-status-batch', { filePaths, printStatus })
 };
 
 /** The full model record (fields vary; only the ones the screens read are typed where used). */

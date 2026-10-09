@@ -2,6 +2,19 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.8.0] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
+
+**Changes:**
+- **Same geometry finds models inside ZIP files:** **Find: Same geometry** on the Duplicates page now also reads the STL and 3MF files inside ZIP files (when ZIP archives are turned on in Settings), so a model you have both loose and zipped shows up as one group.
+- **The System Report names the server's GPU:** **JusttPrint Backend GPU** now shows the GPU the thumbnail renderer actually uses (for example SwiftShader, or the NVIDIA card), with its vendor, WebGL version and largest texture size.
+- **Development:** ESLint (`npm run lint`) and Prettier (`npm run format`, `npm run format:check`) are set up, and `npm test` runs both: ESLint errors and unformatted files fail the tests. The code was formatted once in its own commit, which `.git-blame-ignore-revs` skips (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+- **Development:** the largest server files are split: port 80, the Puter AI proxy and the library file routes moved out of `src/server/http.js`; Generate Tags and Pull Metadata out of `ipc/context-menu.js`; saving models out of `ipc/models.js` (into `ipc/model-save.js`); the LYS, F3D, Chitubox and VOXL pictures out of `ipc/previews.js`.
+
+**Fixes:**
+- The System Report can be scrolled with the keyboard.
+
 ## [7.7.1] - 2026-10-08
 
 **Fixes:**

@@ -38,7 +38,9 @@ const SITES = {
  * link JusttPrint keeps (one form per model, so the same model is recognized however it was copied).
  */
 function parseModelLink(raw) {
-  let text = String(raw || '').trim().replace(/[)\]>.,;'"]+$/, '');
+  let text = String(raw || '')
+    .trim()
+    .replace(/[)\]>.,;'"]+$/, '');
   if (!text) return null;
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) text = `https://${text}`;
   let url;
@@ -99,7 +101,11 @@ function findModelLinks(text) {
 
 /** "3d-benchy" → "3d Benchy": a name from the link when the site tells us nothing. */
 function nameFromSlug(slug) {
-  const words = String(slug || '').replace(/[-_]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const words = String(slug || '')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
@@ -109,7 +115,9 @@ function fallbackName(link) {
 }
 
 const clean = (value, max = 300) => {
-  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  const text = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return text ? text.slice(0, max) : null;
 };
 
@@ -157,11 +165,15 @@ function fromMakerWorld(body) {
   };
 }
 
-const decodeEntities = (text) => String(text || '')
-  .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-  .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-  .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-  .replace(/&amp;/g, '&');
+const decodeEntities = (text) =>
+  String(text || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 
 /** "https://creativecommons.org/licenses/by-sa/4.0/" → "CC BY-SA 4.0"; other values as they are. */
 function licenseName(value) {
@@ -181,7 +193,9 @@ function structuredData(html) {
     try {
       const data = JSON.parse(match[1]);
       for (const item of Array.isArray(data) ? data : [data]) if (item && typeof item === 'object') records.push(item);
-    } catch (_) { /* not JSON: skip */ }
+    } catch (_) {
+      /* not JSON: skip */
+    }
   }
   return records;
 }

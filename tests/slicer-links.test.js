@@ -24,7 +24,7 @@ test('only orcaslicer:// slicers use the links', () => {
   assert.ok(!isOrcaLinkSlicer(null));
 });
 
-test('the address ends in a plain file name with the model\'s extension', () => {
+test("the address ends in a plain file name with the model's extension", () => {
   assert.strictEqual(linkFileName('/lib/Designer A/Benchy Boat.STL'), 'Benchy_Boat.stl');
   assert.strictEqual(linkFileName('/lib/pack.zip::inner/Gear (v2).3mf'), 'Gear_v2.3mf');
   assert.strictEqual(linkFileName('/lib/Café déco.stl'), 'Cafe_deco.stl');
@@ -40,7 +40,10 @@ test('each file gets its own token, which expires after 30 minutes', () => {
   assert.strictEqual(files.length, 2);
   assert.notStrictEqual(files[0].token, files[1].token);
   assert.match(files[0].token, /^[A-Za-z0-9_-]{22}$/);
-  assert.deepStrictEqual(files.map((f) => f.name), ['a.stl', 'b.3mf']);
+  assert.deepStrictEqual(
+    files.map((f) => f.name),
+    ['a.stl', 'b.3mf']
+  );
   assert.strictEqual(_links.get(files[0].token).filePath, '/lib/a.stl');
   issueSlicerFileLinks(['/lib/c.stl'], t0 + 31 * 60 * 1000);
   assert.ok(!_links.has(files[0].token), 'expired tokens are dropped');

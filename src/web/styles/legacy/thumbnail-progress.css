@@ -65,8 +65,12 @@
 }
 
 @keyframes tp-sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(320%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 .tp-meta {
@@ -104,7 +108,10 @@
   font-weight: 500;
   cursor: pointer;
   box-shadow: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .tp-cancel {

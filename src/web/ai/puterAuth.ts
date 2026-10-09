@@ -34,14 +34,18 @@ const changed = () => listeners.forEach((listener) => listener());
 /** Called when the login changes, or a sign-in starts or ends. Returns the unsubscribe. */
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 function storeToken(token: string | null) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
-  } catch { /* private mode: the login lasts until the page closes */ }
+  } catch {
+    /* private mode: the login lasts until the page closes */
+  }
   memoryToken = token;
   changed();
 }
@@ -84,7 +88,10 @@ function startPending(): Pending {
   if (pending) return pending;
   let resolve!: (token: string) => void;
   let reject!: (error: Error) => void;
-  const promise = new Promise<string>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<string>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   promise.catch(() => {});
   pending = { promise, resolve, reject, needsClick: false };
   return pending;
@@ -103,7 +110,10 @@ export function openSignInWindow(): boolean {
   if (watchClosed) clearInterval(watchClosed);
   // Closing the popup without signing in cancels; give a late message a moment to arrive.
   watchClosed = setInterval(() => {
-    if (popup.closed) setTimeout(() => { if (pending === current) settle(null); }, 500);
+    if (popup.closed)
+      setTimeout(() => {
+        if (pending === current) settle(null);
+      }, 500);
   }, 500);
   return true;
 }

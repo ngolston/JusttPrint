@@ -6,15 +6,28 @@ const { createClientDialogs, REQUEST_CHANNEL } = require('./client-dialogs');
 
 const pending = [];
 function test(name, fn) {
-  pending.push(Promise.resolve().then(fn).then(
-    () => console.log('ok ' + name),
-    (err) => { console.error('FAIL ' + name + ':', err.message); process.exitCode = 1; }
-  ));
+  pending.push(
+    Promise.resolve()
+      .then(fn)
+      .then(
+        () => console.log('ok ' + name),
+        (err) => {
+          console.error('FAIL ' + name + ':', err.message);
+          process.exitCode = 1;
+        }
+      )
+  );
 }
 
 const quiet = { warn() {} };
 function fakeSocket() {
-  return { readyState: 1, sent: [], send(text) { this.sent.push(JSON.parse(text)); } };
+  return {
+    readyState: 1,
+    sent: [],
+    send(text) {
+      this.sent.push(JSON.parse(text));
+    }
+  };
 }
 
 test('a message box goes to the browser that asked and returns its answer', async () => {

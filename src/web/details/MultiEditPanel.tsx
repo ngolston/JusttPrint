@@ -101,7 +101,11 @@ export function MultiEditPanel() {
   const selectionLoad = useRef(0);
   const host = window.multiEditHost;
 
-  const reloadOptions = () => { loadOptions().then(setOptions).catch(() => {}); };
+  const reloadOptions = () => {
+    loadOptions()
+      .then(setOptions)
+      .catch(() => {});
+  };
 
   const selectionChanged = () => {
     const paths = window.multiEditHost?.selectedPaths() || [];
@@ -111,21 +115,29 @@ export function MultiEditPanel() {
       setOnSelected({ tags: [] });
       return;
     }
-    loadOnSelected(paths).then((next) => { if (load === selectionLoad.current) setOnSelected(next); }).catch(() => {});
+    loadOnSelected(paths)
+      .then((next) => {
+        if (load === selectionLoad.current) setOnSelected(next);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => selection.subscribe(() => selectionChanged()), []);
-  useEffect(() => exposeGlobal('multiEdit', {
-    open: () => {
-      window.clearTimeout(sourceTimer.current);
-      setSource('');
-      setPicked({ designer: '', parentModel: '', license: '' });
-      reloadOptions();
-      selectionChanged();
-    },
-    selectionChanged,
-    reloadOptions
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('multiEdit', {
+        open: () => {
+          window.clearTimeout(sourceTimer.current);
+          setSource('');
+          setPicked({ designer: '', parentModel: '', license: '' });
+          reloadOptions();
+          selectionChanged();
+        },
+        selectionChanged,
+        reloadOptions
+      }),
+    []
+  );
 
   async function save(field: Field, value: string | string[]) {
     if (!host || !host.selectedPaths().length) return false;
@@ -174,7 +186,10 @@ export function MultiEditPanel() {
     const tag = String(name || '').trim();
     if (!tag || !host) return;
     const n = host.selectedPaths().length;
-    const answer = await showMessage('Remove Tag', `Are you sure you want to remove the tag "${tag}" from ${n} selected file${n === 1 ? '' : 's'}?`, ['Yes', 'No']);
+    const answer = await showMessage('Remove Tag', `Are you sure you want to remove the tag "${tag}" from ${n} selected file${n === 1 ? '' : 's'}?`, [
+      'Yes',
+      'No'
+    ]);
     if (answer !== 'Yes') return;
     await host.removeFromSelected('tags', tag);
     selectionChanged();
@@ -199,10 +214,17 @@ export function MultiEditPanel() {
       <div className="jp-multi__control">
         <select id={id} value={picked[field]} onChange={(e) => pickValue(field, e.target.value)}>
           <option value="">{empty}</option>
-          {values.map((v) => <option key={v} value={v}>{v}</option>)}
+          {values.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
           {picked[field] && !values.includes(picked[field]) && <option value={picked[field]}>{picked[field]}</option>}
         </select>
-        {listButton(`Search existing ${PROMPTS[field]}s`, async () => { const v = await pickFromList(list); if (v) await pickValue(field, v); })}
+        {listButton(`Search existing ${PROMPTS[field]}s`, async () => {
+          const v = await pickFromList(list);
+          if (v) await pickValue(field, v);
+        })}
         {addButton(`New ${PROMPTS[field]}`, () => addNewValue(field), `${id}-add`)}
       </div>
     </div>
@@ -216,8 +238,12 @@ export function MultiEditPanel() {
       </div>
 
       <div className="jp-details__actions">
-        <Button id="select-all-button" icon={ListChecks} title="Select every model shown in the library" onClick={() => host?.selectAllVisible()}>Select All</Button>
-        <Button id="clear-selection-button" icon={X} onClick={() => host?.clearSelection()}>Clear Selection</Button>
+        <Button id="select-all-button" icon={ListChecks} title="Select every model shown in the library" onClick={() => host?.selectAllVisible()}>
+          Select All
+        </Button>
+        <Button id="clear-selection-button" icon={X} onClick={() => host?.clearSelection()}>
+          Clear Selection
+        </Button>
       </div>
 
       <section className="jp-details__section">
@@ -226,22 +252,37 @@ export function MultiEditPanel() {
           <div className="jp-multi__row">
             <label htmlFor="multi-print-status">Status</label>
             <div className="jp-multi__control">
-              <select id="multi-print-status" value="" onChange={async (e) => {
-                const paths = host?.selectedPaths() || [];
-                const status = e.target.value;
-                if (!paths.length || !status) return;
-                await window.PrintHistory?.setStatus(paths, status);
-              }}>
+              <select
+                id="multi-print-status"
+                value=""
+                onChange={async (e) => {
+                  const paths = host?.selectedPaths() || [];
+                  const status = e.target.value;
+                  if (!paths.length || !status) return;
+                  await window.PrintHistory?.setStatus(paths, status);
+                }}
+              >
                 <option value="">No change</option>
-                {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
         </div>
-        <Button id="multi-log-print-button" className="jp-multi__wide" icon={ClipboardPen} onClick={() => {
-          const paths = host?.selectedPaths() || [];
-          if (paths.length) window.PrintHistory?.openLogDialog({ filePaths: paths });
-        }}>Log a Print on Selected</Button>
+        <Button
+          id="multi-log-print-button"
+          className="jp-multi__wide"
+          icon={ClipboardPen}
+          onClick={() => {
+            const paths = host?.selectedPaths() || [];
+            if (paths.length) window.PrintHistory?.openLogDialog({ filePaths: paths });
+          }}
+        >
+          Log a Print on Selected
+        </Button>
       </section>
 
       <section className="jp-details__section">
@@ -250,15 +291,30 @@ export function MultiEditPanel() {
           <div className="jp-multi__row">
             <label htmlFor="multi-source">Source</label>
             <div className="jp-multi__control">
-              <input type="text" id="multi-source" placeholder="Enter a link or name…" spellCheck={false} value={source}
+              <input
+                type="text"
+                id="multi-source"
+                placeholder="Enter a link or name…"
+                spellCheck={false}
+                value={source}
                 onChange={(e) => {
                   const value = e.target.value;
                   setSource(value);
                   window.clearTimeout(sourceTimer.current);
-                  sourceTimer.current = window.setTimeout(() => { save('source', value.trim()); }, 500);
-                }} />
-              <button type="button" id="multi-open-source-button" className="jp-icon-btn jp-icon-btn--sm jp-multi__tool" title="Open in browser"
-                aria-label="Open in browser" disabled={!source.trim()} onClick={() => host?.openSource(source.trim())}>
+                  sourceTimer.current = window.setTimeout(() => {
+                    save('source', value.trim());
+                  }, 500);
+                }}
+              />
+              <button
+                type="button"
+                id="multi-open-source-button"
+                className="jp-icon-btn jp-icon-btn--sm jp-multi__tool"
+                title="Open in browser"
+                aria-label="Open in browser"
+                disabled={!source.trim()}
+                onClick={() => host?.openSource(source.trim())}
+              >
                 <ExternalLink size={16} aria-hidden="true" />
               </button>
             </div>
@@ -277,7 +333,11 @@ export function MultiEditPanel() {
             <div className="jp-multi__control">
               <select id="multi-tag-select" className="jp-multi__picker" value="" onChange={(e) => addTag(e.target.value)}>
                 <option value="">Add a tag…</option>
-                {options.tags.map((t) => <option key={t} value={t}>{t}</option>)}
+                {options.tags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
               {listButton('Search existing tags', async () => addTag(await pickFromList('tag')))}
               {addButton('New tag', addNewTag, 'multi-add-tag')}
@@ -286,19 +346,33 @@ export function MultiEditPanel() {
           <div className="jp-multi__row">
             <label htmlFor="multi-tag-remove-select">Remove</label>
             <div className="jp-multi__control">
-              <select id="multi-tag-remove-select" className="jp-multi__picker" value="" disabled={!onSelected.tags.length} onChange={(e) => removeTag(e.target.value)}>
+              <select
+                id="multi-tag-remove-select"
+                className="jp-multi__picker"
+                value=""
+                disabled={!onSelected.tags.length}
+                onChange={(e) => removeTag(e.target.value)}
+              >
                 <option value="">{onSelected.tags.length ? 'Remove a tag…' : 'None to remove'}</option>
-                {onSelected.tags.map((t) => <option key={t} value={t}>{t}</option>)}
+                {onSelected.tags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
               {listButton('Search tags to remove from the selection', async () => removeTag(await pickFromList('tag', true)))}
             </div>
           </div>
         </div>
-        <Button id="multi-edit-tags-button" variant="ghost" size="sm" icon={Tags} className="jp-multi__manage" onClick={() => window.openTagManager?.()}>Manage Tags</Button>
+        <Button id="multi-edit-tags-button" variant="ghost" size="sm" icon={Tags} className="jp-multi__manage" onClick={() => window.openTagManager?.()}>
+          Manage Tags
+        </Button>
       </section>
 
       <div className="jp-details__footer">
-        <Button id="exit-multi-edit-button" className="jp-multi__wide" onClick={() => host?.exit()}>Exit Multi-Edit Mode</Button>
+        <Button id="exit-multi-edit-button" className="jp-multi__wide" onClick={() => host?.exit()}>
+          Exit Multi-Edit Mode
+        </Button>
       </div>
     </div>,
     slot

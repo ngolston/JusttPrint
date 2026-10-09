@@ -20,14 +20,15 @@ const secret = crypto.randomBytes(24).toString('hex');
 
 let socket = null;
 let browser = null;
+/** The worker page, for questions about the Chromium that renders (its WebGL). */
+let workerPage = null;
 let restartTimer = null;
 let stopped = false;
 
 /** True for the WebSocket upgrade request that carries the worker's cookie. */
 function isWorkerRequest(req) {
   const value = parseCookies(req && req.headers && req.headers.cookie)[COOKIE];
-  return !!value && value.length === secret.length
-    && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(secret));
+  return !!value && value.length === secret.length && crypto.timingSafeEqual(Buffer.from(value), Buffer.from(secret));
 }
 
 /** The WebSocket server calls these when the worker connects and when any socket closes. */
@@ -50,11 +51,15 @@ function send(channel, ...args) {
 /** Chromium flags: software WebGL (SwiftShader) unless JUSTTPRINT_CHROMIUM_ARGS replaces them. */
 function chromiumArgs() {
   const custom = String(process.env.JUSTTPRINT_CHROMIUM_ARGS || '').trim();
-  const gpu = custom
-    ? custom.split(/\s+/)
-    : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-  return ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio', '--disable-crash-reporter',
-    `--crash-dumps-dir=${path.join(chromiumHome(), 'crashes')}`, ...gpu];
+  const gpu = custom ? custom.split(/\s+/) : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+  return [
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--mute-audio',
+    '--disable-crash-reporter',
+    `--crash-dumps-dir=${path.join(chromiumHome(), 'crashes')}`,
+    ...gpu
+  ];
 }
 
 /**
@@ -67,7 +72,9 @@ function chromiumHome() {
   for (const sub of ['config', 'cache', 'crashes']) {
     try {
       fs.mkdirSync(path.join(dir, sub), { recursive: true });
-    } catch (_) { /* reported by the launch */ }
+    } catch (_) {
+      /* reported by the launch */
+    }
   }
   return dir;
 }
@@ -104,6 +111,7 @@ async function start(options) {
     browser = launched;
     launched.on('disconnected', () => {
       browser = null;
+      workerPage = null;
       socket = null;
       if (stopped) return;
       console.warn('[Thumbnail worker] Chromium stopped; restarting in 10 seconds');
@@ -122,6 +130,7 @@ async function start(options) {
       { name: COOKIE, value: secret, domain: '127.0.0.1', path: '/', httpOnly: true }
     );
     await page.goto(`${origin}/?pv-thumbnail-worker=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    workerPage = page;
     console.log('[Thumbnail worker] Headless Chromium started');
   } catch (error) {
     browser = null;
@@ -147,8 +156,35 @@ function stop() {
     try {
       const child = current.process();
       if (child) child.kill('SIGKILL');
-    } catch (_) { /* already gone */ }
+    } catch (_) {
+      /* already gone */
+    }
   }
 }
 
-module.exports = { COOKIE, isWorkerRequest, attach, detach, ready, send, start, stop };
+/**
+ * What the Chromium that renders thumbnails reports for WebGL: { vendor, renderer, version,
+ * shadingLanguage, maxTextureSize, webgl2 }, or null when it is not running. This is the GPU the
+ * server's thumbnails actually use (System Report).
+ */
+async function webglInfo() {
+  const page = workerPage;
+  if (!page || page.isClosed()) return null;
+  return page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    const gl2 = canvas.getContext('webgl2');
+    const gl = gl2 || canvas.getContext('webgl');
+    if (!gl) return { vendor: null, renderer: null, version: null, shadingLanguage: null, maxTextureSize: null, webgl2: false };
+    const debug = gl.getExtension('WEBGL_debug_renderer_info');
+    return {
+      vendor: String(debug ? gl.getParameter(debug.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR)),
+      renderer: String(debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)),
+      version: String(gl.getParameter(gl.VERSION)),
+      shadingLanguage: String(gl.getParameter(gl.SHADING_LANGUAGE_VERSION)),
+      maxTextureSize: Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)),
+      webgl2: !!gl2
+    };
+  });
+}
+
+module.exports = { COOKIE, isWorkerRequest, attach, detach, ready, send, start, stop, webglInfo };

@@ -140,5 +140,9 @@ function Screens() {
 
 const root = document.getElementById('react-root');
 if (root) {
-  createRoot(root).render(<StrictMode><Screens /></StrictMode>);
+  createRoot(root).render(
+    <StrictMode>
+      <Screens />
+    </StrictMode>
+  );
 }

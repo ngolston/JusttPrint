@@ -48,9 +48,14 @@ function parseExcludePathList(raw) {
       if (Array.isArray(parsed)) {
         return parsed.map((entry) => String(entry || '').trim()).filter(Boolean);
       }
-    } catch (_) { /* treat as a delimited list */ }
+    } catch (_) {
+      /* treat as a delimited list */
+    }
   }
-  return text.split(/[\r\n,;]+/).map((entry) => entry.trim()).filter(Boolean);
+  return text
+    .split(/[\r\n,;]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function excludeDirectoriesSettingIsEmpty(value) {
@@ -107,7 +112,9 @@ function getLibraryRootPaths() {
       for (const home of readStlHomeDirectories()) add(home);
       add(database.db.prepare('SELECT value FROM settings WHERE key = ?').get('directoryPath')?.value);
     }
-  } catch (_) { /* db not ready */ }
+  } catch (_) {
+    /* db not ready */
+  }
   return roots;
 }
 
@@ -135,4 +142,15 @@ function readScannedDirectorySetting() {
   }
 }
 
-module.exports = { dedupePathList, excludeDirectoriesSettingIsEmpty, getLibraryRootPaths, getScanExcludeNames, isUrlModel, parseExcludePathList, parseZipPath, readScannedDirectorySetting, readStlHomeDirectories, assertContainerPath };
+module.exports = {
+  dedupePathList,
+  excludeDirectoriesSettingIsEmpty,
+  getLibraryRootPaths,
+  getScanExcludeNames,
+  isUrlModel,
+  parseExcludePathList,
+  parseZipPath,
+  readScannedDirectorySetting,
+  readStlHomeDirectories,
+  assertContainerPath
+};

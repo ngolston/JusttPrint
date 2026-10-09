@@ -40,9 +40,10 @@ export function groupFromGeometryData(geometries: GeometryData[]): THREE.Group {
     else geometry.computeVertexNormals();
     if (data.uv && data.uv.length >= (data.position.length / 3) * 2) geometry.setAttribute('uv', new THREE.BufferAttribute(data.uv, 2));
     if (data.index) geometry.setIndex(new THREE.BufferAttribute(data.index, 1));
-    const meshMaterial = data.color && data.color.length >= 3
-      ? new THREE.MeshStandardMaterial({ color: new THREE.Color(data.color[0], data.color[1], data.color[2]), metalness: 0.3, roughness: 0.4 })
-      : material;
+    const meshMaterial =
+      data.color && data.color.length >= 3
+        ? new THREE.MeshStandardMaterial({ color: new THREE.Color(data.color[0], data.color[1], data.color[2]), metalness: 0.3, roughness: 0.4 })
+        : material;
     const mesh = new THREE.Mesh(geometry, meshMaterial);
     if (data.matrix) mesh.applyMatrix4(new THREE.Matrix4().fromArray(data.matrix));
     group.add(mesh);

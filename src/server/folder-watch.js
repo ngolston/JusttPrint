@@ -82,7 +82,9 @@ class TreeWatcher {
       let entries = [];
       try {
         entries = await this.fs.promises.readdir(current, { withFileTypes: true });
-      } catch (_) { /* removed meanwhile, or unreadable */ }
+      } catch (_) {
+        /* removed meanwhile, or unreadable */
+      }
       for (const entry of entries) {
         if (entry.isDirectory() && !isHidden(entry.name)) stack.push(path.join(current, entry.name));
       }
@@ -100,9 +102,10 @@ class TreeWatcher {
     } catch (error) {
       const code = error && error.code ? error.code : '';
       if (dir === this.root || code === 'ENOSPC' || code === 'EMFILE') {
-        this.error = code === 'ENOSPC'
-          ? `The system ran out of folder watches after ${this.watchers.size} folders (raise fs.inotify.max_user_watches on the host).`
-          : `Cannot watch ${dir}: ${code || error.message}`;
+        this.error =
+          code === 'ENOSPC'
+            ? `The system ran out of folder watches after ${this.watchers.size} folders (raise fs.inotify.max_user_watches on the host).`
+            : `Cannot watch ${dir}: ${code || error.message}`;
       }
       return false;
     }
@@ -113,7 +116,9 @@ class TreeWatcher {
       if (watched === dir || watched.startsWith(`${dir}/`)) {
         try {
           watcher.close();
-        } catch (_) { /* already closed */ }
+        } catch (_) {
+          /* already closed */
+        }
         this.watchers.delete(watched);
       }
     }
@@ -131,13 +136,19 @@ class TreeWatcher {
     if (this.isIgnoredDir(changed)) return;
     this.onChange(dir, changed);
     // A new folder (created, or moved in with its contents): watch it and scan it; a removed one: stop.
-    this.fs.promises.stat(changed).then((stat) => {
-      if (!stat.isDirectory() || this.closed || this.watchers.has(changed)) return;
-      this.onChange(changed, null);
-      return this.watchTree(changed);
-    }, () => {
-      if (this.watchers.has(changed)) this.unwatchTree(changed);
-    }).catch(() => {});
+    this.fs.promises
+      .stat(changed)
+      .then(
+        (stat) => {
+          if (!stat.isDirectory() || this.closed || this.watchers.has(changed)) return;
+          this.onChange(changed, null);
+          return this.watchTree(changed);
+        },
+        () => {
+          if (this.watchers.has(changed)) this.unwatchTree(changed);
+        }
+      )
+      .catch(() => {});
   }
 
   close() {
@@ -145,7 +156,9 @@ class TreeWatcher {
     for (const watcher of this.watchers.values()) {
       try {
         watcher.close();
-      } catch (_) { /* already closed */ }
+      } catch (_) {
+        /* already closed */
+      }
     }
     this.watchers.clear();
   }
@@ -197,14 +210,16 @@ class ChangeQueue {
       try {
         const stat = await this.fs.promises.stat(file);
         if (stat.isFile() && stat.mtimeMs > recent) return true;
-      } catch (_) { /* deleted: settled */ }
+      } catch (_) {
+        /* deleted: settled */
+      }
     }
     return false;
   }
 
   async flush() {
     if (this.flushing || this.stopped || !this.pending.size) return;
-    if (this.now() - this.firstChange < this.maxSettleMs && await this.stillWriting()) {
+    if (this.now() - this.firstChange < this.maxSettleMs && (await this.stillWriting())) {
       this.arm(this.quietMs);
       return;
     }

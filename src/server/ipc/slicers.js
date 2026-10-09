@@ -90,12 +90,12 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
         slicersArray = [slicersArray];
       }
     }
-    
+
     // Validate that we have an array
     if (!Array.isArray(slicersArray)) {
       throw new Error('slicers parameter must be an array');
     }
-    
+
     // Ensure the slicers table exists before clearing and saving
     const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
     if (!tableExists) {
@@ -113,21 +113,24 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
         throw new Error(`"${name}" is already used. Each slicer needs its own name.`);
       }
       seenNames.add(nameKey);
-      const pathKey = slicerPath.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+      const pathKey = slicerPath
+        .replace(/[\\/]+/g, '/')
+        .replace(/\/+$/, '')
+        .toLowerCase();
       if (seenPaths.has(pathKey)) {
         throw new Error(`"${slicerPath}" is already used. Each slicer needs its own path.`);
       }
       seenPaths.add(pathKey);
     }
-    
+
     // Use a transaction to ensure atomicity
     database.db.transaction(() => {
       // Drop all existing entries
       database.db.prepare('DELETE FROM slicers').run();
-      
+
       // Insert new entries
       const insert = database.db.prepare('INSERT INTO slicers (name, path) VALUES (?, ?)');
-      slicersArray.forEach(slicer => {
+      slicersArray.forEach((slicer) => {
         // Validate slicer object
         if (slicer && typeof slicer === 'object' && slicer.name && slicer.path) {
           insert.run(slicer.name, slicer.path);
@@ -136,7 +139,7 @@ const clearAndSaveSlicersHandler = async (event, slicers) => {
         }
       });
     })();
-    
+
     return true;
   } catch (error) {
     console.error('Error clearing and saving slicers:', error);
@@ -186,7 +189,7 @@ function slicerCommand(slicer, filePaths) {
  */
 const openFileInSlicerHandler = async (event, options = {}) => {
   const { filePaths, slicerId, slicerName } = options || {};
-  const paths = (Array.isArray(filePaths) ? filePaths : (filePaths ? [filePaths] : [])).filter(Boolean);
+  const paths = (Array.isArray(filePaths) ? filePaths : filePaths ? [filePaths] : []).filter(Boolean);
   if (!paths.length) {
     throw new Error('No file paths provided');
   }
@@ -213,25 +216,29 @@ ipcMain.handle('open-file-in-slicer', openFileInSlicerHandler);
 function ensureSlicersTableExists() {
   try {
     console.debug('Checking if slicers table exists...');
-    
+
     // Check if the slicers table exists
     const tableExists = database.db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='slicers'`).get();
-    
+
     if (!tableExists) {
       console.log('Slicers table does not exist. Creating it...');
-      
+
       // Create the slicers table
-      database.db.prepare(`CREATE TABLE IF NOT EXISTS slicers (
+      database.db
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS slicers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           path TEXT NOT NULL
-      )`).run();
-      
+      )`
+        )
+        .run();
+
       console.log('Slicers table created successfully');
     } else {
       console.debug('Slicers table already exists');
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error ensuring slicers table exists:', error);

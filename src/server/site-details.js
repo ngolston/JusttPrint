@@ -33,17 +33,25 @@ const DOWNLOAD_HOSTS = ['bblmw.com', 'bambulab.com', 'amazonaws.com', 'aliyuncs.
 let tableReady = false;
 function table() {
   if (!tableReady) {
-    database.db.prepare(`CREATE TABLE IF NOT EXISTS site_details (
+    database.db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS site_details (
       key TEXT PRIMARY KEY,
       data TEXT NOT NULL,
       fetched_at TEXT NOT NULL
-    )`).run();
+    )`
+      )
+      .run();
     // Which downloaded file holds which print profile of a model.
-    database.db.prepare(`CREATE TABLE IF NOT EXISTS site_files (
+    database.db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS site_files (
       file_path TEXT PRIMARY KEY,
       key TEXT NOT NULL,
       profile_id TEXT NOT NULL
-    )`).run();
+    )`
+      )
+      .run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_site_files_key ON site_files(key)').run();
     tableReady = true;
   }
@@ -62,7 +70,9 @@ let captchaUntil = 0;
 
 function captchaError() {
   const minutes = Math.max(1, Math.ceil((captchaUntil - Date.now()) / 60000));
-  const error = new Error(`MakerWorld wants to check that you are not a robot, which only a browser can do. Download the model on MakerWorld in your browser (then drop the file on JusttPrint), or try again in ${minutes} min`);
+  const error = new Error(
+    `MakerWorld wants to check that you are not a robot, which only a browser can do. Download the model on MakerWorld in your browser (then drop the file on JusttPrint), or try again in ${minutes} min`
+  );
   error.code = 'CAPTCHA';
   return error;
 }
@@ -106,11 +116,17 @@ async function addTranslations(details, deps) {
  * still in the library (a moved or deleted file is forgotten).
  */
 function downloadsFor(key) {
-  const rows = table().prepare(`SELECT f.file_path AS filePath, f.profile_id AS profileId, m.fileName AS fileName
-    FROM site_files f LEFT JOIN models m ON m.filePath = f.file_path WHERE f.key = ? ORDER BY f.file_path`).all(key);
+  const rows = table()
+    .prepare(
+      `SELECT f.file_path AS filePath, f.profile_id AS profileId, m.fileName AS fileName
+    FROM site_files f LEFT JOIN models m ON m.filePath = f.file_path WHERE f.key = ? ORDER BY f.file_path`
+    )
+    .all(key);
   const gone = rows.filter((row) => !row.fileName && !fs.existsSync(row.filePath));
   for (const row of gone) table().prepare('DELETE FROM site_files WHERE file_path = ?').run(row.filePath);
-  return rows.filter((row) => !gone.includes(row)).map((row) => ({ profileId: row.profileId, filePath: row.filePath, fileName: row.fileName || path.basename(row.filePath) }));
+  return rows
+    .filter((row) => !gone.includes(row))
+    .map((row) => ({ profileId: row.profileId, filePath: row.filePath, fileName: row.fileName || path.basename(row.filePath) }));
 }
 
 /**
@@ -140,13 +156,19 @@ async function printablesSiteDetails(link, fetchImpl) {
   if (body.errors && body.errors.length) throw new Error(`Printables: ${body.errors[0].message}`);
   const print = body.data && body.data.print;
   if (!print) return null;
-  const files = await require('./site-files').listFiles(link.url, fetchImpl).catch(() => []);
+  const files = await require('./site-files')
+    .listFiles(link.url, fetchImpl)
+    .catch(() => []);
   return printablesDetails(print, files, link.url);
 }
 
 /** A Thingiverse model's details: its page, and with an API token its tags, categories and files too. */
 async function thingiverseSiteDetails(link, fetchImpl) {
-  const response = await fetchImpl(SITES.thingiverse.canonical(link.id), { headers: { 'user-agent': USER_AGENT, accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const response = await fetchImpl(SITES.thingiverse.canonical(link.id), {
+    headers: { 'user-agent': USER_AGENT, accept: 'text/html' },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
   const html = (await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8');
   if (isBlocked(response, html)) throw new Error('Thingiverse asked for a browser check and did not answer');
   const fromPage = response.ok ? fromThingiversePage(html, link.id) : null;
@@ -223,13 +245,15 @@ async function downloadLink(apiPath, fetchImpl) {
     let json = {};
     try {
       json = JSON.parse(text);
-    } catch (_) { /* handled below */ }
+    } catch (_) {
+      /* handled below */
+    }
     if (response.status === 418 || json.captchaId || /not a robot/i.test(json.error || '')) {
       captchaUntil = Date.now() + CAPTCHA_PAUSE_MS;
       throw captchaError();
     }
     if (response.status === 401 || /log ?in/i.test(json.error || '')) {
-      if (attempt === 0 && await account.refresh(fetchImpl)) continue;
+      if (attempt === 0 && (await account.refresh(fetchImpl))) continue;
       throw signInError('Your MakerWorld sign-in has expired. Sign in again');
     }
     if (!response.ok) throw new Error(json.error || `MakerWorld answered ${response.status}`);
@@ -296,12 +320,19 @@ async function finishFolder(target, details, link, mainName, ctx) {
   const isStlHomeScan = readStlHomeDirectories().some((home) => isInsideOrSame(target, home));
   await scanUploadedFolder(target, rootFor(target, ctx.roots), { isStlHomeScan });
   const prefix = `${target.replace(/[\\%_]/g, (c) => `\\${c}`)}${path.sep}%`;
-  database.db.prepare(`UPDATE models SET
+  database.db
+    .prepare(
+      `UPDATE models SET
       designer = CASE WHEN designer IS NULL OR designer = '' OR designer = 'Unknown' THEN ? ELSE designer END,
       license = CASE WHEN license IS NULL OR license = '' OR license = 'Unknown' THEN ? ELSE license END,
       source = CASE WHEN source IS NULL OR source = '' THEN ? ELSE source END
-    WHERE filePath LIKE ? ESCAPE '\\'`).run(details.designer.name || null, details.license, link.url, prefix);
-  const inLibrary = database.db.prepare("SELECT filePath FROM models WHERE filePath LIKE ? ESCAPE '\\' ORDER BY filePath").all(prefix).map((row) => row.filePath);
+    WHERE filePath LIKE ? ESCAPE '\\'`
+    )
+    .run(details.designer.name || null, details.license, link.url, prefix);
+  const inLibrary = database.db
+    .prepare("SELECT filePath FROM models WHERE filePath LIKE ? ESCAPE '\\' ORDER BY filePath")
+    .all(prefix)
+    .map((row) => row.filePath);
 
   // One model, not the link and the files side by side: the online model goes into the files.
   const named = mainName ? path.join(target, mainName) : null;
@@ -346,8 +377,9 @@ async function finishManualFolder({ url, folder, files = null }) {
  * watcher already added under the old name moves with it. Answers the main file's name, or null.
  */
 function nameMainFile(target, details, added = null) {
-  const files = fs.readdirSync(target).filter((name) => !name.startsWith('.') && fs.statSync(path.join(target, name)).isFile()
-    && (!added || added.includes(name)));
+  const files = fs
+    .readdirSync(target)
+    .filter((name) => !name.startsWith('.') && fs.statSync(path.join(target, name)).isFile() && (!added || added.includes(name)));
   const threeMfs = files.filter((name) => /\.3mf$/i.test(name));
   const main = files.length === 1 ? files[0] : threeMfs.length === 1 ? threeMfs[0] : null;
   if (!main) return null;
@@ -379,7 +411,9 @@ function earlierFolder(key, ctx) {
   for (const { filePath } of downloadsFor(key)) {
     try {
       return require('./uploads').checkWritableFolder(path.dirname(filePath), ctx);
-    } catch (_) { /* moved, read-only, outside the library: a new folder then */ }
+    } catch (_) {
+      /* moved, read-only, outside the library: a new folder then */
+    }
   }
   return null;
 }
@@ -397,7 +431,10 @@ function earlierFolder(key, ctx) {
  * download partway (its robot check), what was saved is kept and `missing` lists the rest.
  * Answers { folder, saved, inLibrary, mainFile, missing, warning }.
  */
-async function download({ url, folder, profileId = 'default', profileIds = null, mainProfileId = null }, { event = null, fetchImpl = httpsFetch, onProgress = null } = {}) {
+async function download(
+  { url, folder, profileId = 'default', profileIds = null, mainProfileId = null },
+  { event = null, fetchImpl = httpsFetch, onProgress = null } = {}
+) {
   const link = makerWorldLink(url);
   const key = linkKey(link);
   if (!account.authHeaders()) throw signInError();
@@ -409,23 +446,38 @@ async function download({ url, folder, profileId = 'default', profileIds = null,
 
   const { details } = (await getDetails(link.url, { event, fetchImpl })) || {};
   if (!details) throw new Error('MakerWorld has no model with this number');
-  if (!details.profiles.length) throw new Error('This model has no print profile to download. MakerWorld only lets a browser download its separate files: open it on MakerWorld');
+  if (!details.profiles.length)
+    throw new Error('This model has no print profile to download. MakerWorld only lets a browser download its separate files: open it on MakerWorld');
   const wantedId = profileId && !['default', 'all'].includes(profileId) ? String(profileId) : null;
   // The profiles chosen by number (`profileIds`), else all, else one: a profile the link named
   // that is gone is the default one.
   const picked = Array.isArray(profileIds) ? new Set(profileIds.map(String)) : null;
-  const chosen = picked ? details.profiles.filter((p) => picked.has(p.id))
-    : profileId === 'all' ? details.profiles
+  const chosen = picked
+    ? details.profiles.filter((p) => picked.has(p.id))
+    : profileId === 'all'
+      ? details.profiles
       : [(wantedId && details.profiles.find((p) => p.id === wantedId)) || details.profiles[0]];
   if (!chosen.length) throw new Error('Choose the print profiles to download');
 
   // Profiles already downloaded into a folder that can be added to are skipped.
   renameProfileFiles(key);
   const reused = earlierFolder(key, ctx);
-  const have = new Set(reused ? downloadsFor(key).filter((d) => path.dirname(d.filePath) === reused).map((d) => d.profileId) : []);
+  const have = new Set(
+    reused
+      ? downloadsFor(key)
+          .filter((d) => path.dirname(d.filePath) === reused)
+          .map((d) => d.profileId)
+      : []
+  );
   const todo = chosen.filter((p) => !have.has(p.id));
   if (!todo.length && reused) {
-    return { folder: reused, saved: [], ...(await finishFolder(reused, details, link, mainFileOf(key, details, mainProfileId || wantedId), ctx)), missing: [], warning: null };
+    return {
+      folder: reused,
+      saved: [],
+      ...(await finishFolder(reused, details, link, mainFileOf(key, details, mainProfileId || wantedId), ctx)),
+      missing: [],
+      warning: null
+    };
   }
   const target = reused || makeModelFolder(parent, details);
 
@@ -481,8 +533,12 @@ function mainFileOf(key, details, mainProfileId) {
  */
 function renameProfileFiles(key = null) {
   const { candidateName } = require('./uploads');
-  const rows = table().prepare(`SELECT f.file_path AS filePath, f.key, f.profile_id AS profileId, d.data
-    FROM site_files f JOIN site_details d ON d.key = f.key ${key ? 'WHERE f.key = ?' : ''}`).all(...(key ? [key] : []));
+  const rows = table()
+    .prepare(
+      `SELECT f.file_path AS filePath, f.key, f.profile_id AS profileId, d.data
+    FROM site_files f JOIN site_details d ON d.key = f.key ${key ? 'WHERE f.key = ?' : ''}`
+    )
+    .all(...(key ? [key] : []));
   let moved = 0;
   for (const row of rows) {
     let details;
@@ -532,7 +588,12 @@ const OLDER_RENAME_KEY = 'makerWorldOlderRenameDone';
 async function renameOlderDownloads({ fetchImpl = httpsFetch, force = false } = {}) {
   if (!force && setting(OLDER_RENAME_KEY) === '1') return 0;
   const { candidateName } = require('./uploads');
-  const tracked = new Set(table().prepare('SELECT file_path FROM site_files').all().map((row) => row.file_path));
+  const tracked = new Set(
+    table()
+      .prepare('SELECT file_path FROM site_files')
+      .all()
+      .map((row) => row.file_path)
+  );
   const rows = database.db.prepare("SELECT filePath, source FROM models WHERE source LIKE '%makerworld.com%' AND filePath NOT LIKE 'url::%'").all();
   const folders = new Map();
   for (const row of rows) {
@@ -545,7 +606,9 @@ async function renameOlderDownloads({ fetchImpl = httpsFetch, force = false } = 
   for (const [folder, link] of folders) {
     const key = linkKey(link);
     const prefix = `${folder.replace(/[\\%_]/g, (c) => `\\${c}`)}${path.sep}%`;
-    const inFolder = database.db.prepare("SELECT filePath, source FROM models WHERE filePath LIKE ? ESCAPE '\\'").all(prefix)
+    const inFolder = database.db
+      .prepare("SELECT filePath, source FROM models WHERE filePath LIKE ? ESCAPE '\\'")
+      .all(prefix)
       .filter((row) => path.dirname(row.filePath) === folder);
     // Only a folder of this one model's files.
     if (!inFolder.length || inFolder.some((row) => linkKey(parseModelLink(row.source)) !== key || tracked.has(row.filePath))) continue;
@@ -586,7 +649,9 @@ async function renameOlderDownloads({ fetchImpl = httpsFetch, force = false } = 
 }
 
 /** For tests: no pause between profile downloads. */
-const setProfileGap = (ms) => { profileGapMs = ms; };
+const setProfileGap = (ms) => {
+  profileGapMs = ms;
+};
 
 /** Whether files can be saved in a library folder: { ok, error } (the download dialog checks before downloading). */
 function checkFolder(folder) {
@@ -600,6 +665,29 @@ function checkFolder(folder) {
 }
 
 /** For tests: forget a robot check. */
-const resetCaptchaPause = () => { captchaUntil = 0; };
+const resetCaptchaPause = () => {
+  captchaUntil = 0;
+};
 
-module.exports = { DOWNLOAD_HOSTS, downloadsFor, renameOlderDownloads, earlierFolder, finishFolder, makeModelFolder, renameProfileFiles, saveTo, setProfileGap, siteFilesTable: table, checkFolder, finishManualFolder, nameMainFile, prepareManualFolder, resetCaptchaPause, download, getDetails, isAllowedDownloadUrl, makerWorldLink, signInError };
+module.exports = {
+  DOWNLOAD_HOSTS,
+  downloadsFor,
+  renameOlderDownloads,
+  earlierFolder,
+  finishFolder,
+  makeModelFolder,
+  renameProfileFiles,
+  saveTo,
+  setProfileGap,
+  siteFilesTable: table,
+  checkFolder,
+  finishManualFolder,
+  nameMainFile,
+  prepareManualFolder,
+  resetCaptchaPause,
+  download,
+  getDetails,
+  isAllowedDownloadUrl,
+  makerWorldLink,
+  signInError
+};

@@ -38,12 +38,12 @@ async function saveThumbnail(filePath, thumbnail) {
 function addMultipleThumbnails(thumbnailString, newThumbnails) {
   if (!newThumbnails || newThumbnails.length === 0) return thumbnailString;
   const thumbnails = parseThumbnails(thumbnailString);
-  
+
   // Add all new thumbnails, avoiding duplicates by checking the full string
   for (const newThumbnail of newThumbnails) {
     if (newThumbnail && typeof newThumbnail === 'string' && newThumbnail.length > 0) {
       // Check if this exact thumbnail already exists
-      const exists = thumbnails.some(t => t === newThumbnail);
+      const exists = thumbnails.some((t) => t === newThumbnail);
       if (!exists) {
         thumbnails.push(newThumbnail);
       }

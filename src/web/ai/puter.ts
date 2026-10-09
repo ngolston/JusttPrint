@@ -6,17 +6,27 @@
 import { onServerEvent } from '../page';
 import { ensureToken, forgetToken } from './puterAuth';
 
-const responseText = (response: unknown) => (typeof response === 'string' ? response
-  : response && typeof response === 'object'
-    ? String((response as { text?: string; content?: string; message?: string }).text || (response as { content?: string }).content || (response as { message?: string }).message || JSON.stringify(response))
-    : String(response || ''));
+const responseText = (response: unknown) =>
+  typeof response === 'string'
+    ? response
+    : response && typeof response === 'object'
+      ? String(
+          (response as { text?: string; content?: string; message?: string }).text ||
+            (response as { content?: string }).content ||
+            (response as { message?: string }).message ||
+            JSON.stringify(response)
+        )
+      : String(response || '');
 
 /** Friendlier messages for the usual failures. */
 function explain(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error || '');
-  if (/timeout|Network|Failed to fetch/.test(message)) return 'Network error: Unable to connect to Puter.com API. Please check your internet connection. If running in Docker, ensure the container or browser has internet access.';
-  if (/CORS|Access-Control-Allow-Origin/.test(message)) return 'Puter.com API blocked by browser CORS policy. The JusttPrint backend proxy should handle this — try refreshing the page.';
-  if (message.includes('403')) return 'Puter.com API access denied (403). This may be due to CORS restrictions or API limitations. Please try using a different AI service or check puter.com documentation.';
+  if (/timeout|Network|Failed to fetch/.test(message))
+    return 'Network error: Unable to connect to Puter.com API. Please check your internet connection. If running in Docker, ensure the container or browser has internet access.';
+  if (/CORS|Access-Control-Allow-Origin/.test(message))
+    return 'Puter.com API blocked by browser CORS policy. The JusttPrint backend proxy should handle this — try refreshing the page.';
+  if (message.includes('403'))
+    return 'Puter.com API access denied (403). This may be due to CORS restrictions or API limitations. Please try using a different AI service or check puter.com documentation.';
   if (message.includes('Forbidden')) return 'Puter.com API access forbidden. This service may require additional setup or have usage restrictions.';
   return message || 'Unknown error';
 }

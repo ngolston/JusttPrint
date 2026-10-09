@@ -9,10 +9,17 @@ const shim = require('./runtime');
 
 const pending = [];
 function test(name, fn) {
-  pending.push(Promise.resolve().then(fn).then(
-    () => console.log('ok ' + name),
-    (err) => { console.error('FAIL ' + name + ':', err.message); process.exitCode = 1; }
-  ));
+  pending.push(
+    Promise.resolve()
+      .then(fn)
+      .then(
+        () => console.log('ok ' + name),
+        (err) => {
+          console.error('FAIL ' + name + ':', err.message);
+          process.exitCode = 1;
+        }
+      )
+  );
 }
 
 test('app paths follow JUSTTPRINT_USER_DATA and XDG_CONFIG_HOME', () => {
@@ -59,7 +66,8 @@ test('trashItem moves files into a trash folder on the same drive, with restore 
     const info = fs.readFileSync(path.join(trash, 'info', 'part.stl.trashinfo'), 'utf8');
     assert.match(info, /^\[Trash Info\]\nPath=.*part\.stl\nDeletionDate=\d{4}-/);
   } finally {
-    if (savedDataHome === undefined) delete process.env.XDG_DATA_HOME; else process.env.XDG_DATA_HOME = savedDataHome;
+    if (savedDataHome === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = savedDataHome;
     fs.rmSync(base, { recursive: true, force: true });
   }
 });

@@ -21,37 +21,48 @@ function test(name, fn) {
 
 function createDb() {
   const db = new Database(':memory:');
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filePath TEXT UNIQUE,
       fileName TEXT
     )
-  `).run();
-  db.prepare(`
+  `
+  ).run();
+  db.prepare(
+    `
     CREATE TABLE tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE
     )
-  `).run();
-  db.prepare(`
+  `
+  ).run();
+  db.prepare(
+    `
     CREATE TABLE model_tags (
       model_id INTEGER,
       tag_id INTEGER,
       UNIQUE(model_id, tag_id)
     )
-  `).run();
+  `
+  ).run();
   return db;
 }
 
 function tagsFor(db, filePath) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT tags.name FROM tags
     JOIN model_tags ON model_tags.tag_id = tags.id
     JOIN models ON models.id = model_tags.model_id
     WHERE models.filePath = ?
     ORDER BY tags.name COLLATE NOCASE
-  `).all(filePath).map((row) => row.name);
+  `
+    )
+    .all(filePath)
+    .map((row) => row.name);
 }
 
 test('auto tag on scan is off unless the setting is enabled and folder levels are positive', () => {

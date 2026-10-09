@@ -2,12 +2,7 @@
 
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  decodeChituboxPreview,
-  chituboxPreviewPng,
-  extractChituboxPreviewEntry,
-  readChituboxPreviewHeader
-} = require('../src/core/extract-chitubox-preview');
+const { decodeChituboxPreview, chituboxPreviewPng, extractChituboxPreviewEntry, readChituboxPreviewHeader } = require('../src/core/extract-chitubox-preview');
 
 function writeU32(buf, off, value) {
   buf[off] = value & 0xff;

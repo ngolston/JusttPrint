@@ -45,29 +45,54 @@ export interface FilterState {
 }
 
 export const SORT_OPTIONS: [string, string][] = [
-  ['name-asc', 'Name (A-Z)'], ['name-desc', 'Name (Z-A)'],
-  ['size-asc', 'Size (Smallest First)'], ['size-desc', 'Size (Largest First)'],
-  ['date-asc', 'Modified (Oldest First)'], ['date-desc', 'Modified (Newest First)'],
-  ['dateadded-asc', 'Date Added (Oldest First)'], ['dateadded-desc', 'Date Added (Newest First)'],
-  ['directory-asc', 'Parent Directory (A-Z)'], ['directory-desc', 'Parent Directory (Z-A)'],
-  ['designer-asc', 'Designer (A-Z)'], ['designer-desc', 'Designer (Z-A)'],
-  ['parentmodel-asc', 'Parent Model (A-Z)'], ['parentmodel-desc', 'Parent Model (Z-A)'],
-  ['printed-asc', 'Printed (Not Printed First)'], ['printed-desc', 'Printed (Printed First)'],
-  ['printstatus-asc', 'Print Status (Printing First)'], ['printstatus-desc', 'Print Status (Unprinted First)'],
-  ['printcount-desc', 'Print Count (Most First)'], ['printcount-asc', 'Print Count (Least First)'],
-  ['lastprinted-desc', 'Last Printed (Newest First)'], ['lastprinted-asc', 'Last Printed (Oldest First)'],
-  ['rating-desc', 'Rating (Highest First)'], ['rating-asc', 'Rating (Lowest First)']
+  ['name-asc', 'Name (A-Z)'],
+  ['name-desc', 'Name (Z-A)'],
+  ['size-asc', 'Size (Smallest First)'],
+  ['size-desc', 'Size (Largest First)'],
+  ['date-asc', 'Modified (Oldest First)'],
+  ['date-desc', 'Modified (Newest First)'],
+  ['dateadded-asc', 'Date Added (Oldest First)'],
+  ['dateadded-desc', 'Date Added (Newest First)'],
+  ['directory-asc', 'Parent Directory (A-Z)'],
+  ['directory-desc', 'Parent Directory (Z-A)'],
+  ['designer-asc', 'Designer (A-Z)'],
+  ['designer-desc', 'Designer (Z-A)'],
+  ['parentmodel-asc', 'Parent Model (A-Z)'],
+  ['parentmodel-desc', 'Parent Model (Z-A)'],
+  ['printed-asc', 'Printed (Not Printed First)'],
+  ['printed-desc', 'Printed (Printed First)'],
+  ['printstatus-asc', 'Print Status (Printing First)'],
+  ['printstatus-desc', 'Print Status (Unprinted First)'],
+  ['printcount-desc', 'Print Count (Most First)'],
+  ['printcount-asc', 'Print Count (Least First)'],
+  ['lastprinted-desc', 'Last Printed (Newest First)'],
+  ['lastprinted-asc', 'Last Printed (Oldest First)'],
+  ['rating-desc', 'Rating (Highest First)'],
+  ['rating-asc', 'Rating (Lowest First)']
 ];
 export const DEFAULT_SORT = 'date-desc';
 
 export function emptyFilterState(): FilterState {
   return {
-    designer: [], license: [], parentModel: [], tags: [],
+    designer: [],
+    license: [],
+    parentModel: [],
+    tags: [],
     combine: { designer: 'OR', license: 'OR', parentModel: 'OR', tags: 'AND' },
-    printed: 'all', isNew: 'all', favorite: 'all', rating: 'all', ratingMin: 'all', fileType: '',
-    tokens: [], awaiting: false,
+    printed: 'all',
+    isNew: 'all',
+    favorite: 'all',
+    rating: 'all',
+    ratingMin: 'all',
+    fileType: '',
+    tokens: [],
+    awaiting: false,
     inverted: { designer: false, license: false, parentModel: false, tag: false, search: false },
-    directory: '', dateAdded: null, includeNotes: true, sort: DEFAULT_SORT, viewingEntireLibrary: false
+    directory: '',
+    dateAdded: null,
+    includeNotes: true,
+    sort: DEFAULT_SORT,
+    viewingEntireLibrary: false
   };
 }
 
@@ -91,33 +116,34 @@ function collapseAdjacentOps(tokens: SearchToken[]) {
 
 /** The tokens the server gets: empty or invalid ones dropped, no dangling operator at the end. */
 export function normalizeTokens(tokens: SearchToken[]): SearchToken[] {
-  const out = tokens.filter((tok) => {
-    if (tok.t === 'clause') return !!tok.value.trim();
-    if (tok.t === 'op') return tok.op === 'AND' || tok.op === 'OR';
-    if (tok.t === 'not') return true;
-    if (tok.t === 'filter') {
-      if (!SINGLE_KINDS.includes(tok.kind)) return false;
-      const v = tok.value.trim();
-      if (tok.kind === 'printed') return PRINTED_VALUES.has(v);
-      if (tok.kind === 'isNew') return v === 'new' || v === 'not-new';
-      if (tok.kind === 'favorite') return v === 'favorited' || v === 'not-favorited';
-      if (tok.kind === 'rating') return v === 'unrated' || /^[1-5]$/.test(v);
-      if (tok.kind === 'ratingMin') return /^[1-5]$/.test(v);
-      return !!v;
-    }
-    if (tok.t === 'filterMulti') {
-      return MULTI_TOKEN_KINDS.includes(tok.kind) && tok.values.some((x) => x.trim());
-    }
-    return false;
-  }).map((tok) => ({ ...tok }) as SearchToken);
+  const out = tokens
+    .filter((tok) => {
+      if (tok.t === 'clause') return !!tok.value.trim();
+      if (tok.t === 'op') return tok.op === 'AND' || tok.op === 'OR';
+      if (tok.t === 'not') return true;
+      if (tok.t === 'filter') {
+        if (!SINGLE_KINDS.includes(tok.kind)) return false;
+        const v = tok.value.trim();
+        if (tok.kind === 'printed') return PRINTED_VALUES.has(v);
+        if (tok.kind === 'isNew') return v === 'new' || v === 'not-new';
+        if (tok.kind === 'favorite') return v === 'favorited' || v === 'not-favorited';
+        if (tok.kind === 'rating') return v === 'unrated' || /^[1-5]$/.test(v);
+        if (tok.kind === 'ratingMin') return /^[1-5]$/.test(v);
+        return !!v;
+      }
+      if (tok.t === 'filterMulti') {
+        return MULTI_TOKEN_KINDS.includes(tok.kind) && tok.values.some((x) => x.trim());
+      }
+      return false;
+    })
+    .map((tok) => ({ ...tok }) as SearchToken);
   collapseAdjacentOps(out);
   while (out.length && (out[out.length - 1].t === 'op' || out[out.length - 1].t === 'not')) out.pop();
   return out;
 }
 
 export const hasSearchQuery = (state: FilterState) => normalizeTokens(state.tokens).length > 0;
-export const hasMultiValues = (state: FilterState) =>
-  (['designer', 'license', 'parentModel', 'tags'] as MultiKind[]).some((k) => state[k].length > 0);
+export const hasMultiValues = (state: FilterState) => (['designer', 'license', 'parentModel', 'tags'] as MultiKind[]).some((k) => state[k].length > 0);
 
 /** Values and how they combine: one value is OR (the server treats it the same either way). */
 function effective(state: FilterState, kind: MultiKind): { values: string[]; combine: Combine } {
@@ -177,7 +203,12 @@ export function serverFilters(state: FilterState): ServerFilters {
 }
 
 const listOf = (primary: unknown, legacy: unknown): string[] => {
-  const out = Array.isArray(primary) ? primary.map(String).map((x) => x.trim()).filter(Boolean) : [];
+  const out = Array.isArray(primary)
+    ? primary
+        .map(String)
+        .map((x) => x.trim())
+        .filter(Boolean)
+    : [];
   if (!out.length && legacy != null && String(legacy).trim()) out.push(String(legacy).trim());
   return out;
 };
@@ -229,11 +260,13 @@ export function describePayload(f: ServerFilters | null | undefined, labels: Lab
     parts.push(`Folder: ${bits[bits.length - 1] || f.directory}`);
   }
   if (f.dateAdded) parts.push('Date added');
-  const tokens = Array.isArray(f.searchTokens) ? f.searchTokens as SearchToken[] : [];
-  const clauses = Array.isArray(f.searchClauses) ? f.searchClauses as { field?: string }[] : [];
-  const notesOff = f.searchIncludeNotes === false
-    && (tokens.some(allFieldsSearch) || clauses.some((c) => !c.field || c.field === 'all') || (!tokens.length && !clauses.length && !!f.search))
-    ? ' · notes off' : '';
+  const tokens = Array.isArray(f.searchTokens) ? (f.searchTokens as SearchToken[]) : [];
+  const clauses = Array.isArray(f.searchClauses) ? (f.searchClauses as { field?: string }[]) : [];
+  const notesOff =
+    f.searchIncludeNotes === false &&
+    (tokens.some(allFieldsSearch) || clauses.some((c) => !c.field || c.field === 'all') || (!tokens.length && !clauses.length && !!f.search))
+      ? ' · notes off'
+      : '';
   if (tokens.length) parts.push(`Query${notesOff}`);
   else if (clauses.length) parts.push(`Search${notesOff}`);
   else if (f.search && String(f.search).trim()) parts.push(`Search: ${String(f.search).trim()}${notesOff}`);
@@ -243,8 +276,15 @@ export function describePayload(f: ServerFilters | null | undefined, labels: Lab
 // ------------------------------------------------------------------ the filter strip
 
 export const SEARCH_FIELD_LABELS: Record<string, string> = {
-  all: 'All fields', fileName: 'File name', designer: 'Designer', parentModel: 'Parent model', notes: 'Notes',
-  filePath: 'Path', source: 'Source', license: 'License', tag: 'Tag name'
+  all: 'All fields',
+  fileName: 'File name',
+  designer: 'Designer',
+  parentModel: 'Parent model',
+  notes: 'Notes',
+  filePath: 'Path',
+  source: 'Source',
+  license: 'License',
+  tag: 'Tag name'
 };
 
 const display = (value: string) => (value === '__none__' ? '(empty)' : value);
@@ -260,17 +300,28 @@ export function atomLabel(tok: SearchToken, labels: Labels): string {
   if (tok.t !== 'filter') return 'Filter';
   const v = display(tok.value);
   switch (tok.kind) {
-    case 'designer': return `Designer: ${v}`;
-    case 'license': return `License: ${v}`;
-    case 'parentModel': return `Parent: ${v}`;
-    case 'tag': return `Tag: ${v}`;
-    case 'fileType': return `Type: ${v}`;
-    case 'printed': return labels.printed(tok.value);
-    case 'isNew': return tok.value === 'new' ? 'New models only' : 'Exclude new models';
-    case 'favorite': return tok.value === 'favorited' ? 'Favorites' : 'Not favorites';
-    case 'rating': return tok.value === 'unrated' ? 'Rating: Unrated' : `Rating: ${tok.value} star${tok.value === '1' ? '' : 's'}`;
-    case 'ratingMin': return `Min rating: ${tok.value}+`;
-    default: return 'Filter';
+    case 'designer':
+      return `Designer: ${v}`;
+    case 'license':
+      return `License: ${v}`;
+    case 'parentModel':
+      return `Parent: ${v}`;
+    case 'tag':
+      return `Tag: ${v}`;
+    case 'fileType':
+      return `Type: ${v}`;
+    case 'printed':
+      return labels.printed(tok.value);
+    case 'isNew':
+      return tok.value === 'new' ? 'New models only' : 'Exclude new models';
+    case 'favorite':
+      return tok.value === 'favorited' ? 'Favorites' : 'Not favorites';
+    case 'rating':
+      return tok.value === 'unrated' ? 'Rating: Unrated' : `Rating: ${tok.value} star${tok.value === '1' ? '' : 's'}`;
+    case 'ratingMin':
+      return `Min rating: ${tok.value}+`;
+    default:
+      return 'Filter';
   }
 }
 
@@ -303,9 +354,21 @@ export interface FilterStrip {
 export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
   const single = (key: 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin') => state[key] !== 'all';
   const queryActive = hasSearchQuery(state);
-  const active = !!(state.designer.length || state.license.length || state.parentModel.length || single('printed') || single('isNew')
-    || single('favorite') || single('rating') || single('ratingMin') || state.tags.length || state.fileType
-    || queryActive || state.directory || state.dateAdded);
+  const active = !!(
+    state.designer.length ||
+    state.license.length ||
+    state.parentModel.length ||
+    single('printed') ||
+    single('isNew') ||
+    single('favorite') ||
+    single('rating') ||
+    single('ratingMin') ||
+    state.tags.length ||
+    state.fileType ||
+    queryActive ||
+    state.directory ||
+    state.dateAdded
+  );
 
   const chain: StripItem[] = [];
   const tokens = queryActive ? state.tokens : [];
@@ -326,8 +389,11 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
     } else if (tok.t === 'filter' || tok.t === 'filterMulti') {
       const invertKind = ATOM_INVERT[tok.kind];
       chain.push({
-        kind: 'chip', className: 'filter-pill-search-clause filter-pill-query-atom', text: atomLabel(tok, labels),
-        inverted: !!(invertKind && state.inverted[invertKind]), remove
+        kind: 'chip',
+        className: 'filter-pill-search-clause filter-pill-query-atom',
+        text: atomLabel(tok, labels),
+        inverted: !!(invertKind && state.inverted[invertKind]),
+        remove
       });
     }
   });
@@ -336,8 +402,11 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
     state.tags.forEach((tag, i) => {
       if (i > 0) chain.push({ kind: 'connector' });
       chain.push({
-        kind: 'chip', className: 'filter-pill-search-clause filter-pill-tag-chip', text: `Tag: ${tag}`,
-        inverted: state.inverted.tag, remove: { type: 'tag', value: tag }
+        kind: 'chip',
+        className: 'filter-pill-search-clause filter-pill-tag-chip',
+        text: `Tag: ${tag}`,
+        inverted: state.inverted.tag,
+        remove: { type: 'tag', value: tag }
       });
     });
     if (state.tags.length > 1) chain.push({ kind: 'combineHint', text: `(${state.combine.tags === 'AND' ? 'all' : 'any'})` });
@@ -349,8 +418,11 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
     if (!values.length) return;
     const mode = values.length > 1 ? ` (${state.combine[kind] === 'AND' ? 'all' : 'any'})` : '';
     chips.push({
-      kind: 'chip', className: '', text: `${title}: ${values.map((v) => (v === '__none__' ? none : v)).join(', ')}${mode}`,
-      inverted: state.inverted[kind], remove: { type: 'multi', kind }
+      kind: 'chip',
+      className: '',
+      text: `${title}: ${values.map((v) => (v === '__none__' ? none : v)).join(', ')}${mode}`,
+      inverted: state.inverted[kind],
+      remove: { type: 'multi', kind }
     });
   };
   multi('designer', 'Designer', 'No designer');
@@ -374,11 +446,20 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
 export function sidebarAtoms(state: FilterState): SearchToken[] {
   const atoms: SearchToken[] = [];
   const singles: [AtomKind, 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin'][] = [
-    ['printed', 'printed'], ['isNew', 'isNew'], ['favorite', 'favorite'], ['rating', 'rating'], ['ratingMin', 'ratingMin']
+    ['printed', 'printed'],
+    ['isNew', 'isNew'],
+    ['favorite', 'favorite'],
+    ['rating', 'rating'],
+    ['ratingMin', 'ratingMin']
   ];
   for (const [kind, key] of singles) if (state[key] !== 'all') atoms.push({ t: 'filter', kind, value: state[key] });
   if (state.fileType.trim()) atoms.push({ t: 'filter', kind: 'fileType', value: state.fileType.trim() });
-  const pairs: [MultiKind, AtomKind][] = [['designer', 'designer'], ['license', 'license'], ['parentModel', 'parentModel'], ['tags', 'tag']];
+  const pairs: [MultiKind, AtomKind][] = [
+    ['designer', 'designer'],
+    ['license', 'license'],
+    ['parentModel', 'parentModel'],
+    ['tags', 'tag']
+  ];
   for (const [key, kind] of pairs) {
     const { values, combine } = effective(state, key);
     if (values.length === 1) atoms.push({ t: 'filter', kind, value: values[0] });
@@ -399,8 +480,7 @@ export function clearSidebarKinds(state: FilterState, kinds: Set<AtomKind>): Fil
   return next;
 }
 
-const kindsOf = (atoms: SearchToken[]) =>
-  new Set(atoms.flatMap((a) => (a.t === 'filter' || a.t === 'filterMulti' ? [a.kind] : [])));
+const kindsOf = (atoms: SearchToken[]) => new Set(atoms.flatMap((a) => (a.t === 'filter' || a.t === 'filterMulti' ? [a.kind] : [])));
 
 /** Press AND/OR or NOT with no query yet: the sidebar filters become the query (AND-joined). */
 function materialize(state: FilterState): FilterState {

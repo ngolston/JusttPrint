@@ -26,7 +26,8 @@ for (const name of Object.keys(ACTIONS)) {
 const bridge = fs.readFileSync(path.join(ROOT, 'server-bridge.js'), 'utf8');
 const methodToChannel = {};
 for (const match of bridge.matchAll(/'([A-Za-z0-9]+)': '([^']+)'/g)) methodToChannel[match[1]] = match[2];
-const webUi = fs.readdirSync(ROOT)
+const webUi = fs
+  .readdirSync(ROOT)
   .filter((file) => file.endsWith('.js') && file !== 'server-bridge.js')
   .map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');
@@ -63,9 +64,24 @@ assert.ok(!isAction('toString'), 'object prototype keys are not actions');
 // server stay admin-only.
 for (const name of [...VIEWER_ACTIONS, ...EDITOR_ACTIONS]) assert.ok(isAction(name), `role list names ${name}, which is not an action`);
 for (const name of VIEWER_ACTIONS) assert.ok(!EDITOR_ACTIONS.has(name), `${name} is in both role lists`);
-for (const name of ['get-server-access-info', 'get-mcp-connection-info', 'regenerate-server-api-token', 'list-users', 'create-user',
-  'update-user', 'delete-user', 'restore-database', 'backup-database', 'import-library', 'restart-server', 'apply-tls-settings',
-  'purge-models', 'organize-library-run', 'save-slicer', 'test-ai-config']) {
+for (const name of [
+  'get-server-access-info',
+  'get-mcp-connection-info',
+  'regenerate-server-api-token',
+  'list-users',
+  'create-user',
+  'update-user',
+  'delete-user',
+  'restore-database',
+  'backup-database',
+  'import-library',
+  'restart-server',
+  'apply-tls-settings',
+  'purge-models',
+  'organize-library-run',
+  'save-slicer',
+  'test-ai-config'
+]) {
   assert.strictEqual(requiredRole(name), 'admin', `${name} must need an admin`);
 }
 for (const name of ['save-model', 'move-files', 'delete-file', 'save-tag', 'log-print-event', 'add-uploaded-files', 'scan-directory']) {

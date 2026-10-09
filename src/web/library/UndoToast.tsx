@@ -9,17 +9,33 @@ export function UndoToast() {
   const [entry, setEntry] = useState<UndoEntry | null>(null);
   const [undone, setUndone] = useState<string | null>(null);
 
-  useEffect(() => onUndoChange((latest) => { setEntry(latest); if (latest) setUndone(null); }), []);
+  useEffect(
+    () =>
+      onUndoChange((latest) => {
+        setEntry(latest);
+        if (latest) setUndone(null);
+      }),
+    []
+  );
 
   useEffect(() => {
     if (!entry && !undone) return undefined;
-    const timer = window.setTimeout(() => { setEntry(null); setUndone(null); }, undone ? 4000 : SHOW_MS);
+    const timer = window.setTimeout(
+      () => {
+        setEntry(null);
+        setUndone(null);
+      },
+      undone ? 4000 : SHOW_MS
+    );
     return () => window.clearTimeout(timer);
   }, [entry, undone]);
 
   // Ctrl/Cmd+Z (KeyboardShortcutsDialog.tsx) reports what it undid here too.
   useEffect(() => {
-    const onUndone = (event: Event) => { setEntry(null); setUndone((event as CustomEvent<string>).detail); };
+    const onUndone = (event: Event) => {
+      setEntry(null);
+      setUndone((event as CustomEvent<string>).detail);
+    };
     window.addEventListener('jp-undone', onUndone);
     return () => window.removeEventListener('jp-undone', onUndone);
   }, []);
@@ -37,12 +53,24 @@ export function UndoToast() {
         {entry ? (
           <>
             <span className="jp-undo-toast__text">{entry.label}</span>
-            <button type="button" className="jp-undo-toast__button" onClick={undo}>Undo</button>
+            <button type="button" className="jp-undo-toast__button" onClick={undo}>
+              Undo
+            </button>
           </>
         ) : (
           <span className="jp-undo-toast__text">Undone: {undone}</span>
         )}
-        <button type="button" className="jp-undo-toast__close" aria-label="Dismiss" onClick={() => { setEntry(null); setUndone(null); }}>×</button>
+        <button
+          type="button"
+          className="jp-undo-toast__close"
+          aria-label="Dismiss"
+          onClick={() => {
+            setEntry(null);
+            setUndone(null);
+          }}
+        >
+          ×
+        </button>
       </div>
     </div>
   );

@@ -48,21 +48,21 @@ async function translateFree(texts, fetchImpl = httpsFetch) {
     if (!response.ok || Number(body.responseStatus) !== 200) {
       throw new Error(body.responseDetails ? `MyMemory: ${body.responseDetails}` : `MyMemory answered ${response.status}`);
     }
-    const lines = String(body.responseData && body.responseData.translatedText || '').split('\n');
+    const lines = String((body.responseData && body.responseData.translatedText) || '').split('\n');
     // A batch that comes back with a different number of lines is translated name by name.
     if (lines.length === batch.length) result.push(...lines);
-    else if (batch.length > 1) for (const text of batch) result.push(...await translateFree([text], fetchImpl));
+    else if (batch.length > 1) for (const text of batch) result.push(...(await translateFree([text], fetchImpl)));
     else result.push(lines.join(' '));
   }
   return result;
 }
 
-const PROMPT = (texts) => `Translate each of these 3D model file names into short, natural English. Answer with only a JSON array of strings, the same length and order as the input, nothing else.\n\n${JSON.stringify(texts)}`;
+const PROMPT = (texts) =>
+  `Translate each of these 3D model file names into short, natural English. Answer with only a JSON array of strings, the same length and order as the input, nothing else.\n\n${JSON.stringify(texts)}`;
 
 /** The AI's answer → its JSON array of names, or throws. */
 function parseAiAnswer(content, count) {
-  const text = typeof content === 'string' ? content
-    : (content && (content.message && content.message.content || content.text || content.content)) || '';
+  const text = typeof content === 'string' ? content : (content && ((content.message && content.message.content) || content.text || content.content)) || '';
   const match = /\[[\s\S]*\]/.exec(String(text));
   const list = match ? JSON.parse(match[0]) : null;
   if (!Array.isArray(list) || list.length !== count) throw new Error('The AI service did not answer with the translations');
@@ -108,7 +108,10 @@ async function translateNames(names, mode, deps = {}) {
     const texts = wanted.map((item) => item.name);
     const translated = mode === 'ai' ? await translateAi(texts, deps) : await translateFree(texts, deps.fetchImpl);
     wanted.forEach((item, k) => {
-      const text = String(translated[k] || '').replace(/\s+/g, ' ').trim().slice(0, 255);
+      const text = String(translated[k] || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 255);
       if (text && text !== item.name) english[item.i] = text;
     });
     return { english, by: mode, error: null };

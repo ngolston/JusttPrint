@@ -11,12 +11,7 @@ const database = require('../core/database');
 const { getDatabasePath } = require('../core/db-path');
 const { initializeDatabase, verifyDatabaseIntegrity } = require('../core/db-init');
 const { cleanupExtractTempDirectory, ensureExtractTempDir } = require('../core/extract-temp');
-const {
-  applyDockerEnvSettingIfNeeded,
-  applyEnvSettings,
-  applyStlHomeEnvIfNeeded,
-  applyStlHomeExcludeEnvIfNeeded
-} = require('../core/env-settings-apply');
+const { applyDockerEnvSettingIfNeeded, applyEnvSettings, applyStlHomeEnvIfNeeded, applyStlHomeExcludeEnvIfNeeded } = require('../core/env-settings-apply');
 const { app } = require('./runtime');
 require('./ipc'); // registers every IPC channel
 const { getServerAuth } = require('./auth');
@@ -54,7 +49,9 @@ function closeDatabaseOnQuit() {
   thumbnailWorker.stop();
   try {
     requestThumbnailJobCancel();
-  } catch (_) { /* job state not initialized */ }
+  } catch (_) {
+    /* job state not initialized */
+  }
   try {
     closeAllClients(1001, 'JusttPrint backend shutting down');
     closeHttpServer();
@@ -117,7 +114,9 @@ async function start() {
   setImmediate(() => {
     try {
       ensureExtractTempDir();
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
     cleanupExtractTempDirectory({ maxAgeMs: 0, includeLegacyOsTempRoot: false }).catch((error) => {
       console.warn('Extract temp cleanup on startup failed:', error.message);
     });
@@ -151,7 +150,8 @@ async function start() {
   }
   // Older downloads (before JusttPrint kept track of them) once, a little later: it may ask MakerWorld for titles.
   setTimeout(() => {
-    require('./site-details').renameOlderDownloads()
+    require('./site-details')
+      .renameOlderDownloads()
       .catch((error) => console.error('[MakerWorld] Could not rename older downloads:', error));
   }, 20000).unref?.();
   startServerStlHomeScans();
@@ -172,7 +172,9 @@ async function start() {
 app.on('will-quit', closeDatabaseOnQuit);
 app.on('before-quit', beforeQuit);
 
-app.whenReady().then(() => start().catch((error) => {
-  console.error('Startup Error: Failed to start application properly:', error);
-  app.quit();
-}));
+app.whenReady().then(() =>
+  start().catch((error) => {
+    console.error('Startup Error: Failed to start application properly:', error);
+    app.quit();
+  })
+);

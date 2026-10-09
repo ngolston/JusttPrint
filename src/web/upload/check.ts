@@ -9,7 +9,10 @@ export function extensionOf(name: string): string {
   return dot > 0 ? name.slice(dot).toLowerCase() : '';
 }
 
-export function checkFile(file: Pick<File, 'name' | 'size'>, info: Pick<UploadInfo, 'extensions' | 'maxBytes'> & Partial<Pick<UploadInfo, 'scanMaxBytes'>>): FileCheck {
+export function checkFile(
+  file: Pick<File, 'name' | 'size'>,
+  info: Pick<UploadInfo, 'extensions' | 'maxBytes'> & Partial<Pick<UploadInfo, 'scanMaxBytes'>>
+): FileCheck {
   if (file.name.startsWith('.')) return { ok: false, reason: 'hidden files are not uploaded' };
   const ext = extensionOf(file.name);
   if (!info.extensions.includes(ext)) {
@@ -18,7 +21,10 @@ export function checkFile(file: Pick<File, 'name' | 'size'>, info: Pick<UploadIn
   if (file.size > info.maxBytes) return { ok: false, reason: 'larger than the upload limit' };
   if (info.scanMaxBytes && file.size > info.scanMaxBytes) {
     const mb = Math.round(info.scanMaxBytes / 1024 / 1024);
-    return { ok: true, warning: `Larger than the scan limit (${mb} MB): it is saved, but added to the library only after an admin raises the limit (Settings → General → Performance) and scans again.` };
+    return {
+      ok: true,
+      warning: `Larger than the scan limit (${mb} MB): it is saved, but added to the library only after an admin raises the limit (Settings → General → Performance) and scans again.`
+    };
   }
   return { ok: true };
 }

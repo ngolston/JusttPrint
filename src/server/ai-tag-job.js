@@ -18,8 +18,14 @@ function summary() {
   let withTags = 0;
   for (const result of job.results.values()) if (result.tags.length) withTags++;
   return {
-    id: job.id, by: job.by, batch: job.batch, total: job.filePaths.length, processed: job.results.size,
-    withTags, running: job.running, stopping: job.stopping
+    id: job.id,
+    by: job.by,
+    batch: job.batch,
+    total: job.filePaths.length,
+    processed: job.results.size,
+    withTags,
+    running: job.running,
+    stopping: job.stopping
   };
 }
 
@@ -28,7 +34,16 @@ const announce = () => events.broadcast('ai-tag-job', summary());
 /** Start a run, or null while another is running. */
 function start(by, filePaths) {
   if (job && job.running) return null;
-  job = { id: nextId++, by: by || null, batch: filePaths.length > 1, filePaths: filePaths.slice(), results: new Map(), running: true, stopping: false, startedAt: Date.now() };
+  job = {
+    id: nextId++,
+    by: by || null,
+    batch: filePaths.length > 1,
+    filePaths: filePaths.slice(),
+    results: new Map(),
+    running: true,
+    stopping: false,
+    startedAt: Date.now()
+  };
   announce();
   return job;
 }

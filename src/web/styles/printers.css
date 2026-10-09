@@ -1,10 +1,31 @@
 /* Printers page (pages/PrintersPage.tsx; spec §44). */
 
-.jp-printers { max-width: 1280px; }
-.jp-printers__header-actions { display: flex; gap: var(--jp-space-2); }
-.jp-printers__layout { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: var(--jp-space-4); align-items: start; }
-@media (max-width: 1100px) { .jp-printers__layout { grid-template-columns: minmax(0, 1fr); } }
-.jp-printers__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--jp-space-3); }
+.jp-printers {
+  max-width: 1280px;
+}
+.jp-printers__header-actions {
+  display: flex;
+  gap: var(--jp-space-2);
+}
+.jp-printers__layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: var(--jp-space-4);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .jp-printers__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.jp-printers__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-3);
+}
 
 .jp-printer-card {
   all: unset;
@@ -20,11 +41,22 @@
   background: var(--jp-surface-1);
   color: var(--jp-text);
   cursor: pointer;
-  transition: border-color var(--jp-transition), background-color var(--jp-transition);
+  transition:
+    border-color var(--jp-transition),
+    background-color var(--jp-transition);
 }
-.jp-printer-card:hover { border-color: var(--jp-border-strong); background: var(--jp-surface-2); }
-.jp-printer-card.is-selected { border-color: var(--jp-accent); background: var(--jp-surface-2); box-shadow: inset 0 0 0 1px var(--jp-accent-soft); }
-.jp-printer-card:focus-visible { box-shadow: var(--jp-focus-ring); }
+.jp-printer-card:hover {
+  border-color: var(--jp-border-strong);
+  background: var(--jp-surface-2);
+}
+.jp-printer-card.is-selected {
+  border-color: var(--jp-accent);
+  background: var(--jp-surface-2);
+  box-shadow: inset 0 0 0 1px var(--jp-accent-soft);
+}
+.jp-printer-card:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+}
 .jp-printer-card__icon,
 .jp-printer-detail__icon {
   display: inline-flex;
@@ -36,37 +68,171 @@
   background: var(--jp-preview-bg);
   color: var(--jp-text-2);
 }
-.jp-printer-card__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.jp-printer-card__name { font-size: var(--jp-text-title); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jp-printer-card__meta { font-size: var(--jp-text-meta); color: var(--jp-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jp-printer-card__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--jp-space-2); }
-.jp-printer-card__side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.jp-printer-card__prints { font-size: var(--jp-text-small); color: var(--jp-text-3); white-space: nowrap; }
+.jp-printer-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-printer-card__name {
+  font-size: var(--jp-text-title);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-printer-card__meta {
+  font-size: var(--jp-text-meta);
+  color: var(--jp-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-printer-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--jp-space-2);
+}
+.jp-printer-card__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.jp-printer-card__prints {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-3);
+  white-space: nowrap;
+}
 
-.jp-printers__detail { padding: var(--jp-space-5); }
-.jp-printer-detail__header { display: flex; align-items: center; gap: var(--jp-space-4); }
-.jp-printer-detail__name { margin: 0; font-size: 22px; font-weight: 650; color: var(--jp-text); }
-.jp-printer-detail__identity .jp-meta { margin: 2px 0 0; padding: 0; }
-.jp-printer-detail__actions { display: flex; flex-wrap: wrap; gap: var(--jp-space-2); margin: var(--jp-space-4) 0 0; }
-.jp-printer-detail__actions a.jp-btn { text-decoration: none; }
-.jp-printer-detail__section { margin-top: var(--jp-space-5); padding-top: var(--jp-space-4); border-top: 1px solid var(--jp-border); }
-.jp-printer-detail__section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--jp-space-3); }
-.jp-printers .jp-details__heading { margin: 0 0 var(--jp-space-3); font-size: var(--jp-text-title); font-weight: 600; color: var(--jp-text); }
-.jp-printers .jp-props { display: flex; flex-direction: column; gap: 6px; }
-.jp-printers .jp-prop { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: var(--jp-space-3); font-size: var(--jp-text-meta); }
-.jp-printers .jp-prop__label { color: var(--jp-text-2); }
-.jp-printers .jp-prop__value { color: var(--jp-text); overflow-wrap: anywhere; }
-.jp-printer-detail__notes { white-space: pre-wrap; }
-.jp-printer-detail__empty { margin: 0; color: var(--jp-text-3); font-size: var(--jp-text-meta); }
+.jp-printers__detail {
+  padding: var(--jp-space-5);
+}
+.jp-printer-detail__header {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-4);
+}
+.jp-printer-detail__name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--jp-text);
+}
+.jp-printer-detail__identity .jp-meta {
+  margin: 2px 0 0;
+  padding: 0;
+}
+.jp-printer-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
+  margin: var(--jp-space-4) 0 0;
+}
+.jp-printer-detail__actions a.jp-btn {
+  text-decoration: none;
+}
+.jp-printer-detail__section {
+  margin-top: var(--jp-space-5);
+  padding-top: var(--jp-space-4);
+  border-top: 1px solid var(--jp-border);
+}
+.jp-printer-detail__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+}
+.jp-printers .jp-details__heading {
+  margin: 0 0 var(--jp-space-3);
+  font-size: var(--jp-text-title);
+  font-weight: 600;
+  color: var(--jp-text);
+}
+.jp-printers .jp-props {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-printers .jp-prop {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: var(--jp-space-3);
+  font-size: var(--jp-text-meta);
+}
+.jp-printers .jp-prop__label {
+  color: var(--jp-text-2);
+}
+.jp-printers .jp-prop__value {
+  color: var(--jp-text);
+  overflow-wrap: anywhere;
+}
+.jp-printer-detail__notes {
+  white-space: pre-wrap;
+}
+.jp-printer-detail__empty {
+  margin: 0;
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-meta);
+}
 
-.jp-printer-detail__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.jp-printer-detail__list--log { margin-top: var(--jp-space-3); }
-.jp-printer-detail__item { display: flex; align-items: center; gap: var(--jp-space-3); padding: var(--jp-space-2) 0; color: var(--jp-text-2); }
-.jp-printer-detail__item + .jp-printer-detail__item { border-top: 1px solid var(--jp-border); }
-.jp-printer-detail__item .is-warning { color: var(--jp-warning); }
-.jp-printer-detail__item-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.jp-printer-detail__item-title { color: var(--jp-text); font-size: var(--jp-text-ui); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jp-printer-detail__item-meta { font-size: var(--jp-text-small); color: var(--jp-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jp-printer-detail__model { all: unset; display: flex; flex-direction: column; flex: 1; min-width: 0; cursor: pointer; }
-.jp-printer-detail__model:hover .jp-printer-detail__item-title { text-decoration: underline; }
-.jp-printer-detail__model:focus-visible { box-shadow: var(--jp-focus-ring); border-radius: var(--jp-radius-sm); }
+.jp-printer-detail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jp-printer-detail__list--log {
+  margin-top: var(--jp-space-3);
+}
+.jp-printer-detail__item {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-2) 0;
+  color: var(--jp-text-2);
+}
+.jp-printer-detail__item + .jp-printer-detail__item {
+  border-top: 1px solid var(--jp-border);
+}
+.jp-printer-detail__item .is-warning {
+  color: var(--jp-warning);
+}
+.jp-printer-detail__item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.jp-printer-detail__item-title {
+  color: var(--jp-text);
+  font-size: var(--jp-text-ui);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-printer-detail__item-meta {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-printer-detail__model {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+.jp-printer-detail__model:hover .jp-printer-detail__item-title {
+  text-decoration: underline;
+}
+.jp-printer-detail__model:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+  border-radius: var(--jp-radius-sm);
+}

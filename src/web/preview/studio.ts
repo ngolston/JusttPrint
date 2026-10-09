@@ -113,7 +113,9 @@ export function loadStudioSettings(storage: Pick<Storage, 'getItem'> | null = sa
 export function saveStudioSettings(settings: StudioSettings, storage: Pick<Storage, 'setItem'> | null = safeStorage()) {
   try {
     storage?.setItem(STUDIO_STORAGE_KEY, JSON.stringify(settings));
-  } catch { /* storage full or blocked */ }
+  } catch {
+    /* storage full or blocked */
+  }
 }
 
 function safeStorage(): Storage | null {
@@ -155,7 +157,7 @@ export function applyOptionsFor(key: keyof StudioSettings): ApplyOptions | null 
 
 /** The file's extension, inside a ZIP too. */
 export function previewExtension(filePath: string): string {
-  const pathForExt = filePath.includes('::') ? (filePath.split('::')[1] || '') : filePath;
+  const pathForExt = filePath.includes('::') ? filePath.split('::')[1] || '' : filePath;
   return (pathForExt.split('.').pop() || '').toLowerCase();
 }
 

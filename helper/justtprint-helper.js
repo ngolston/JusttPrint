@@ -94,19 +94,23 @@ function notifyError(message) {
   const title = 'JusttPrint Helper';
   try {
     if (process.platform === 'darwin') {
-      const child = spawn('osascript', [
-        '-e',
-        'display alert ' + JSON.stringify(title) + ' message ' + JSON.stringify(message)
-      ], { detached: true, stdio: 'ignore' });
+      const child = spawn('osascript', ['-e', 'display alert ' + JSON.stringify(title) + ' message ' + JSON.stringify(message)], {
+        detached: true,
+        stdio: 'ignore'
+      });
       child.unref();
     } else if (process.platform === 'win32') {
       const safe = String(message).replace(/'/g, "''");
-      const child = spawn('powershell.exe', [
-        '-NoProfile',
-        '-STA',
-        '-Command',
-        "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('" + safe + "','" + title + "')"
-      ], { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-STA',
+          '-Command',
+          "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('" + safe + "','" + title + "')"
+        ],
+        { detached: true, stdio: 'ignore', windowsHide: false }
+      );
       child.unref();
     } else {
       const child = spawn('notify-send', [title, message], { detached: true, stdio: 'ignore' });
@@ -290,7 +294,7 @@ function protocolInstalled() {
 
 function fileNameFromModelPath(filePath, index) {
   const entry = String(filePath).includes('::') ? String(filePath).split('::').pop() : String(filePath);
-  const base = entry.split(/[/\\]/).pop() || ('model-' + index);
+  const base = entry.split(/[/\\]/).pop() || 'model-' + index;
   const cleaned = base.replace(/[<>:"|?*\u0000-\u001f]/g, '_');
   return String(index + 1) + '-' + cleaned;
 }
@@ -314,31 +318,35 @@ function downloadFile(urlString, destPath, { tlsInsecure, allowedOrigin, redirec
       return;
     }
     const lib = url.protocol === 'https:' ? https : http;
-    const req = lib.get(url, {
-      rejectUnauthorized: !tlsInsecure,
-      headers: { 'User-Agent': 'JusttPrintHelper' }
-    }, (res) => {
-      const status = res.statusCode || 0;
-      if (status >= 300 && status < 400 && res.headers.location) {
-        res.resume();
-        if (remaining <= 0) {
-          reject(new Error('Too many redirects downloading ' + urlString));
+    const req = lib.get(
+      url,
+      {
+        rejectUnauthorized: !tlsInsecure,
+        headers: { 'User-Agent': 'JusttPrintHelper' }
+      },
+      (res) => {
+        const status = res.statusCode || 0;
+        if (status >= 300 && status < 400 && res.headers.location) {
+          res.resume();
+          if (remaining <= 0) {
+            reject(new Error('Too many redirects downloading ' + urlString));
+            return;
+          }
+          const next = new URL(res.headers.location, url).toString();
+          downloadFile(next, destPath, { tlsInsecure, allowedOrigin, redirectsLeft: remaining - 1 }).then(resolve, reject);
           return;
         }
-        const next = new URL(res.headers.location, url).toString();
-        downloadFile(next, destPath, { tlsInsecure, allowedOrigin, redirectsLeft: remaining - 1 }).then(resolve, reject);
-        return;
+        if (status !== 200) {
+          res.resume();
+          reject(new Error('Download failed (' + status + ') for ' + urlString));
+          return;
+        }
+        const out = fs.createWriteStream(destPath);
+        res.pipe(out);
+        out.on('finish', () => out.close(() => resolve(destPath)));
+        out.on('error', reject);
       }
-      if (status !== 200) {
-        res.resume();
-        reject(new Error('Download failed (' + status + ') for ' + urlString));
-        return;
-      }
-      const out = fs.createWriteStream(destPath);
-      res.pipe(out);
-      out.on('finish', () => out.close(() => resolve(destPath)));
-      out.on('error', reject);
-    });
+    );
     req.on('error', reject);
   });
 }
@@ -350,7 +358,7 @@ function sweepOldDownloads(root) {
   } catch (error) {
     return;
   }
-  const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   names.forEach((name) => {
     const full = path.join(root, name);
     try {
@@ -393,18 +401,20 @@ async function handleUrl(rawUrl) {
 }
 
 function printHelp() {
-  console.log([
-    'JusttPrint helper — send library models to a slicer on this computer.',
-    '',
-    '  node justtprint-helper.js install --origin http://host:5000 [--insecure]',
-    '  node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer',
-    '  node justtprint-helper.js status',
-    '  node justtprint-helper.js uninstall',
-    '',
-    'From the JusttPrint web UI, use Slicer Settings to download a helper package for your JusttPrint backend.',
-    'Use --insecure when the JusttPrint backend\'s certificate is self-signed.',
-    'Slicer paths saved in JusttPrint are used unless this computer has a slicer of the same name.'
-  ].join('\n'));
+  console.log(
+    [
+      'JusttPrint helper — send library models to a slicer on this computer.',
+      '',
+      '  node justtprint-helper.js install --origin http://host:5000 [--insecure]',
+      '  node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer',
+      '  node justtprint-helper.js status',
+      '  node justtprint-helper.js uninstall',
+      '',
+      'From the JusttPrint web UI, use Slicer Settings to download a helper package for your JusttPrint backend.',
+      "Use --insecure when the JusttPrint backend's certificate is self-signed.",
+      'Slicer paths saved in JusttPrint are used unless this computer has a slicer of the same name.'
+    ].join('\n')
+  );
 }
 
 function parseCli(argv) {

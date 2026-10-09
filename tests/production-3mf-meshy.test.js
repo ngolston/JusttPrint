@@ -6,12 +6,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fflate = require('fflate');
-const {
-  zipHasSplitModelParts,
-  modelHasPlacementTransforms,
-  extractAllMeshesFast,
-  shouldUseFastPath
-} = require('../threemf-mesh-extract.js');
+const { zipHasSplitModelParts, modelHasPlacementTransforms, extractAllMeshesFast, shouldUseFastPath } = require('../threemf-mesh-extract.js');
 const { Simple3MFLoader, collectSlicerSkipIds } = require('../src/core/threemf-loader-simple.js');
 const { parseSvgPathContours } = require('../threemf-svg-extrude.js');
 

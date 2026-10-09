@@ -85,7 +85,10 @@ function sanitizePathSegment(name) {
   let segment = String(name == null ? '' : name);
   segment = segment.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ');
   segment = segment.replace(/\s+/g, ' ').trim();
-  segment = segment.replace(/^[. ]+/, '').replace(/[. ]+$/g, '').trim();
+  segment = segment
+    .replace(/^[. ]+/, '')
+    .replace(/[. ]+$/g, '')
+    .trim();
   if (!segment || segment === '.' || segment === '..') return '';
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(segment)) {
     segment += '_';
@@ -443,9 +446,7 @@ function withFreeSpace(plan, freeBytes) {
   const enough = !needsCopy || (known && free >= base.copyBytes + SPACE_MARGIN_BYTES);
   let spaceError = null;
   if (base.ok && needsCopy && !enough) {
-    spaceError = known
-      ? 'Not enough free disk space to copy the files before removing the originals.'
-      : 'Could not read free space on the destination.';
+    spaceError = known ? 'Not enough free disk space to copy the files before removing the originals.' : 'Could not read free space on the destination.';
   }
   return {
     ...base,
@@ -535,10 +536,7 @@ async function relocatePlannedFile(move, deps = {}) {
     }
   }
 
-  const tempPath = path.join(
-    path.dirname(move.to),
-    `.justtprint-copy-${crypto.randomBytes(8).toString('hex')}`
-  );
+  const tempPath = path.join(path.dirname(move.to), `.justtprint-copy-${crypto.randomBytes(8).toString('hex')}`);
   try {
     await mkdir(path.dirname(move.to));
     await copyFile(move.from, tempPath);

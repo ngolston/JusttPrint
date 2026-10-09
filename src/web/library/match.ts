@@ -29,7 +29,8 @@ const only = (list: string[]) => (list.length === 1 ? list[0] : '');
 
 export function modelMatchesFilters(model: MatchModel, f: FilterState): boolean {
   const designer = only(f.designer);
-  if (designer && (designer === '__none__' ? !blank(model.designer) : (model.designer || '').trim().toLowerCase() !== designer.trim().toLowerCase())) return false;
+  if (designer && (designer === '__none__' ? !blank(model.designer) : (model.designer || '').trim().toLowerCase() !== designer.trim().toLowerCase()))
+    return false;
   const license = only(f.license);
   if (license && (license === '__none__' ? !blank(model.license) : model.license !== license)) return false;
   const parent = only(f.parentModel);

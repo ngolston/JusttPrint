@@ -12,7 +12,9 @@ function firstExistingRoot(roots, existsSync = fs.existsSync) {
   for (const root of roots || []) {
     try {
       if (root && existsSync(root)) return root;
-    } catch (_) { /* unreadable: try the next one */ }
+    } catch (_) {
+      /* unreadable: try the next one */
+    }
   }
   return null;
 }

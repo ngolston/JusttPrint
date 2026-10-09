@@ -12,9 +12,27 @@ const path = require('path');
 
 /** Kernel and runtime file systems that never hold models. */
 const PSEUDO_FS = new Set([
-  'proc', 'sysfs', 'cgroup', 'cgroup2', 'devpts', 'devtmpfs', 'mqueue', 'securityfs', 'debugfs',
-  'tracefs', 'pstore', 'bpf', 'configfs', 'fusectl', 'hugetlbfs', 'nsfs', 'autofs', 'binfmt_misc',
-  'rpc_pipefs', 'efivarfs', 'selinuxfs'
+  'proc',
+  'sysfs',
+  'cgroup',
+  'cgroup2',
+  'devpts',
+  'devtmpfs',
+  'mqueue',
+  'securityfs',
+  'debugfs',
+  'tracefs',
+  'pstore',
+  'bpf',
+  'configfs',
+  'fusectl',
+  'hugetlbfs',
+  'nsfs',
+  'autofs',
+  'binfmt_misc',
+  'rpc_pipefs',
+  'efivarfs',
+  'selinuxfs'
 ]);
 
 /** Most folders one listing returns; a bigger folder says so (`truncated`). */

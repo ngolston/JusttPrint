@@ -126,7 +126,9 @@ function bearerToken(req) {
 
 function requestIsHttps(req) {
   if (req.secure || (req.socket && req.socket.encrypted)) return true;
-  const forwarded = String((req.headers && req.headers['x-forwarded-proto']) || '').split(',')[0].trim();
+  const forwarded = String((req.headers && req.headers['x-forwarded-proto']) || '')
+    .split(',')[0]
+    .trim();
   return forwarded.toLowerCase() === 'https';
 }
 
@@ -141,9 +143,7 @@ function originAllowed(req, extraOrigins = []) {
     return false;
   }
   if (extraOrigins.includes(parsed.origin)) return true;
-  const hosts = [req.headers.host, req.headers['x-forwarded-host']]
-    .filter(Boolean)
-    .map((value) => String(value).split(',')[0].trim().toLowerCase());
+  const hosts = [req.headers.host, req.headers['x-forwarded-host']].filter(Boolean).map((value) => String(value).split(',')[0].trim().toLowerCase());
   return hosts.includes(parsed.host.toLowerCase());
 }
 
@@ -156,13 +156,24 @@ function parseTrustProxy(value) {
   if (!text || text.toLowerCase() === 'false' || text === '0') return false;
   if (text.toLowerCase() === 'true') return true;
   if (/^\d+$/.test(text)) return Number(text);
-  return text.split(',').map((part) => part.trim()).filter(Boolean);
+  return text
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 function escapeHtml(text) {
-  return String(text).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]));
+  return String(text).replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]
+  );
 }
 
 /** Only allow same-site relative redirects after login. */
@@ -222,7 +233,15 @@ function loginPageHtml(next, error, username = '') {
  * @param {() => number} [deps.now]
  * @param {() => string[]} [deps.extraOrigins] Origins allowed besides this server (e.g. the desktop UI).
  */
-function createServerAuth({ getSetting, setSetting, users = createMemoryUserStore(), env = process.env, logger = console, now = Date.now, extraOrigins = () => [] }) {
+function createServerAuth({
+  getSetting,
+  setSetting,
+  users = createMemoryUserStore(),
+  env = process.env,
+  logger = console,
+  now = Date.now,
+  extraOrigins = () => []
+}) {
   const loginFailures = new Map();
   // The signing secret and API token are checked on every request: read them once, then keep them.
   const remembered = new Map();
@@ -327,16 +346,18 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
         logger.log(`[Auth] The old JusttPrint password is now the password of the admin account "${username}".`);
       }
       if (generated) {
-        logger.warn([
-          '',
-          '================================================================',
-          ' JusttPrint admin login (shown once):',
-          `   user name: ${username}`,
-          `   password:  ${generated}`,
-          ' Change it under Settings > Users, or set JUSTTPRINT_PASSWORD.',
-          '================================================================',
-          ''
-        ].join('\n'));
+        logger.warn(
+          [
+            '',
+            '================================================================',
+            ' JusttPrint admin login (shown once):',
+            `   user name: ${username}`,
+            `   password:  ${generated}`,
+            ' Change it under Settings > Users, or set JUSTTPRINT_PASSWORD.',
+            '================================================================',
+            ''
+          ].join('\n')
+        );
       }
       return generated ? { source, username, password: generated } : { source, username };
     }
@@ -451,13 +472,7 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
   }
 
   function sessionCookie(req, value, maxAgeMs) {
-    const parts = [
-      `${SESSION_COOKIE}=${encodeURIComponent(value)}`,
-      'Path=/',
-      'HttpOnly',
-      'SameSite=Lax',
-      `Max-Age=${Math.floor(maxAgeMs / 1000)}`
-    ];
+    const parts = [`${SESSION_COOKIE}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${Math.floor(maxAgeMs / 1000)}`];
     if (requestIsHttps(req)) parts.push('Secure');
     return parts.join('; ');
   }
@@ -519,7 +534,10 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Vary', 'Origin');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID');
+      res.header(
+        'Access-Control-Allow-Headers',
+        'Origin, X-Requested-With, Content-Type, Accept, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID'
+      );
       res.header('Access-Control-Expose-Headers', 'Mcp-Session-Id, MCP-Protocol-Version');
     }
     if (req.method === 'OPTIONS') {
@@ -635,7 +653,10 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
 
       if (loginBlocked(ip)) {
         if (isForm) {
-          res.status(429).type('html').send(loginPageHtml(next, 'Too many attempts. Try again in 15 minutes.', username));
+          res
+            .status(429)
+            .type('html')
+            .send(loginPageHtml(next, 'Too many attempts. Try again in 15 minutes.', username));
         } else {
           res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
         }
@@ -655,7 +676,9 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
       loginFailures.delete(ip);
       try {
         users.touchLogin(row.id, isoNow());
-      } catch (_) { /* database closed during a restore */ }
+      } catch (_) {
+        /* database closed during a restore */
+      }
       res.setHeader('Set-Cookie', sessionCookie(req, userSessionToken(row), SESSION_TTL_MS));
       if (isForm) {
         res.redirect(303, next);
@@ -671,9 +694,11 @@ function createServerAuth({ getSetting, setSetting, users = createMemoryUserStor
 
     app.get('/api/auth/status', (req, res) => {
       const user = authenticate(req);
-      res.json(user
-        ? { authenticated: true, user: { id: user.id, username: user.username, role: user.role, roleLabel: ROLE_LABELS[user.role] } }
-        : { authenticated: false });
+      res.json(
+        user
+          ? { authenticated: true, user: { id: user.id, username: user.username, role: user.role, roleLabel: ROLE_LABELS[user.role] } }
+          : { authenticated: false }
+      );
     });
   }
 

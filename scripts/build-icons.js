@@ -17,8 +17,9 @@ const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
 const ASSETS = path.join(ROOT, 'assets');
-const CHROME = process.env.JUSTTPRINT_CHROMIUM
-  || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome'].find((p) => fs.existsSync(p));
+const CHROME =
+  process.env.JUSTTPRINT_CHROMIUM ||
+  ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome'].find((p) => fs.existsSync(p));
 
 const mark = `data:image/svg+xml;base64,${fs.readFileSync(path.join(ASSETS, 'icon-mark.svg')).toString('base64')}`;
 const font = `data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')).toString('base64')}`;
@@ -64,7 +65,9 @@ async function render(page, html, size, out, { transparent = false, width = 512,
 async function resize(page, png, size, transparent) {
   const src = `data:image/png;base64,${png.toString('base64')}`;
   await page.setViewportSize({ width: size, height: size });
-  await page.setContent(`<html><body style="margin:0;background:transparent"><img src="${src}" style="width:${size}px;height:${size}px;display:block"></body></html>`);
+  await page.setContent(
+    `<html><body style="margin:0;background:transparent"><img src="${src}" style="width:${size}px;height:${size}px;display:block"></body></html>`
+  );
   await page.waitForTimeout(50);
   return page.screenshot({ omitBackground: transparent, clip: { x: 0, y: 0, width: size, height: size } });
 }
@@ -111,8 +114,13 @@ function ico(images) {
   console.log('wrote assets/pwa-icon-192.png, pwa-icon-512.png, apple-touch-icon.png, pwa-maskable-192.png, favicon.ico');
   // The placeholder, inline so its letters use Inter.
   const placeholder = fs.readFileSync(path.join(ASSETS, 'placeholder.svg'), 'utf8');
-  await render(page, `<style>@font-face { font-family: 'Inter JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }</style>${placeholder}`,
-    662, a('3d.png'), { transparent: true, width: 662, height: 377 });
+  await render(
+    page,
+    `<style>@font-face { font-family: 'Inter JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }</style>${placeholder}`,
+    662,
+    a('3d.png'),
+    { transparent: true, width: 662, height: 377 }
+  );
   // The README logo.
   await render(page, wordmark, 1400, path.join(ROOT, 'docs/images/logo-wordmark.png'), { transparent: true, width: 1400, height: 440 });
 

@@ -14,8 +14,6 @@ const serverTls = require('./server-tls');
 const { registerHelperBundleRoute } = require('../../helper/install-bundle');
 const { parseTrustProxy } = require('./server-auth');
 const { RESPONSE_CHANNEL: DIALOG_RESPONSE_CHANNEL } = require('./client-dialogs');
-const { parseZipPath } = require('../core/library-paths');
-const { cleanupExtractTempFile } = require('../core/extract-temp');
 const { clientDialogs } = require('./dialogs');
 const { isServableStaticPath } = require('./server-paths');
 const { getServerAuth } = require('./auth');
@@ -23,16 +21,15 @@ const { ROLE_LABELS, roleAllows } = require('./users');
 const { registerUploadRoutes } = require('./uploads');
 const { registerSharePages } = require('./share-pages');
 const { registerSlicerFileRoutes } = require('./slicer-links');
-const { extractModelFromZip } = require('../core/zip-entries');
-const { libraryPathAllowed } = require('./path-context');
+const { registerLibraryFileRoutes } = require('./library-file-routes');
+const { registerPuterAiProxyRoute } = require('./puter-ai-proxy');
+const { startPort80Server, stopPort80Server, syncPort80Server } = require('./port80');
 const { getMcpToolContext } = require('./mcp-tools');
 const os = require('os');
 const https = require('https');
 const express = require('express');
 const WebSocket = require('ws');
 const { version } = require('../../package.json');
-
-const PING_INTERVAL = 30000; // 30 seconds
 
 /** Middleware: the logged-in user (req.user, set by requireAuth) must have at least this role. */
 function requireRole(role) {
@@ -47,8 +44,6 @@ let httpServer = null;
 
 let httpServerEpoch = 0;
 
-let http80Server = null;
-
 let wss = null; // WebSocket server
 
 let wsClients = null; // WebSocket clients Set
@@ -59,7 +54,11 @@ let letsEncryptRenewInFlight = false;
 function closeAllClients(code, reason) {
   if (!wsClients) return;
   wsClients.forEach((client) => {
-    try { client.close(code, reason); } catch (_) { /* ignore */ }
+    try {
+      client.close(code, reason);
+    } catch (_) {
+      /* ignore */
+    }
   });
 }
 
@@ -68,7 +67,11 @@ function closeClientsOfUser(userId, code, reason) {
   if (!wsClients || !userId) return;
   wsClients.forEach((client) => {
     if (!client.user || client.user.id !== userId) return;
-    try { client.close(code, reason); } catch (_) { /* ignore */ }
+    try {
+      client.close(code, reason);
+    } catch (_) {
+      /* ignore */
+    }
   });
 }
 
@@ -96,171 +99,6 @@ function resolveAppTls() {
   });
 }
 
-/**
- * Optional TLS for server mode. Env JUSTTPRINT_TLS_* / SSL_* overrides UI settings.
- */
-function loadOptionalServerTlsOptions() {
-  return resolveAppTls().options || null;
-}
-
-function formatPort80BindError(err) {
-  if (!err) return 'Failed to bind port 80.';
-  if (err.code === 'EACCES') {
-    return 'Could not bind port 80 (permission denied). Let\'s Encrypt HTTP-01 and HTTP redirect need port 80. Run as administrator/root, or in Docker publish 80:80.';
-  }
-  if (err.code === 'EADDRINUSE') {
-    return 'Port 80 is already in use. Stop the other listener or disable HTTP-01 / redirect.';
-  }
-  return err.message || 'Failed to bind port 80.';
-}
-
-function stopPort80Server() {
-  return new Promise((resolve) => {
-    if (!http80Server) {
-      resolve();
-      return;
-    }
-    const server = http80Server;
-    http80Server = null;
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    try {
-      server.close(() => finish());
-    } catch (_) {
-      finish();
-      return;
-    }
-    setTimeout(finish, 2000);
-  });
-}
-
-function startPort80Server() {
-  return new Promise((resolve, reject) => {
-    if (http80Server) {
-      resolve();
-      return;
-    }
-    const http = require('http');
-    const server = http.createServer((req, res) => {
-      serverTls.handleAcmeOrRedirectRequest(req, res, {
-        getSetting: getSettingValueOr,
-        appPort: getAppListenPort(),
-        tlsActive: !!resolveAppTls().options
-      });
-    });
-    server.once('error', (err) => {
-      http80Server = null;
-      const message = formatPort80BindError(err);
-      serverTls.setLastTlsError(message);
-      reject(new Error(message));
-    });
-    server.listen(80, '0.0.0.0', () => {
-      http80Server = server;
-      console.log('[TLS] HTTP listener on 0.0.0.0:80 (ACME HTTP-01 / optional redirect)');
-      resolve();
-    });
-  });
-}
-
-async function syncPort80Server() {
-  if (!serverTls.shouldBindAcmeHttpPort(getSettingValueOr)) {
-    await stopPort80Server();
-    return { running: false };
-  }
-  await startPort80Server();
-  return { running: true };
-}
-
-/**
- * Proxy Puter AI chat requests server-side to avoid CORS (api.puter.com only allows https://puter.com).
- * The browser still uses Puter.js for authentication/captcha; only the drivers/call is proxied.
- */
-function registerPuterAiProxyRoute(expressApp) {
-  expressApp.post('/api/puter-ai/chat', express.json({ limit: '50mb' }), async (req, res) => {
-    try {
-      const { prompt, imageUrl, model, authToken } = req.body || {};
-      if (!prompt || typeof prompt !== 'string') {
-        res.status(400).json({ error: 'prompt is required' });
-        return;
-      }
-
-      let args;
-      if (imageUrl && typeof imageUrl === 'string') {
-        const isVideo = /\.(mp4|webm|mov|avi|mkv)(\?|$)/i.test(imageUrl) || imageUrl.startsWith('data:video/');
-        const mediaBlock = isVideo ? { video_url: { url: imageUrl } } : { image_url: { url: imageUrl } };
-        args = {
-          vision: true,
-          messages: [{ content: [prompt, mediaBlock] }],
-          model: model || 'gpt-5-nano'
-        };
-      } else {
-        args = {
-          messages: [{ content: prompt }],
-          model: model || 'gpt-5-nano'
-        };
-      }
-
-      const puterBody = JSON.stringify({
-        interface: 'puter-chat-completion',
-        driver: 'ai-chat',
-        test_mode: false,
-        method: 'complete',
-        args,
-        auth_token: authToken || undefined
-      });
-
-      const puterResponse = await fetch('https://api.puter.com/drivers/call', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;actually=json',
-          'Origin': 'https://puter.com',
-          'Referer': 'https://puter.com/'
-        },
-        body: puterBody
-      });
-
-      let data;
-      const puterRawBody = await puterResponse.text();
-      try {
-        data = puterRawBody ? JSON.parse(puterRawBody) : {};
-      } catch (parseErr) {
-        res.status(502).json({ error: `Invalid response from Puter API (${puterResponse.status})`, details: puterRawBody.slice(0, 500) });
-        return;
-      }
-
-      if (!puterResponse.ok || data.success === false) {
-        const errMsg = data?.error?.message || data?.message || `Puter API error (${puterResponse.status})`;
-        const code = data?.error?.code || data?.code;
-        res.status(puterResponse.status >= 400 ? puterResponse.status : 500).json({ error: errMsg, code, details: data });
-        return;
-      }
-
-      const result = data.result;
-      let chatText;
-      if (typeof result === 'string') {
-        chatText = result;
-      } else if (result?.message?.content) {
-        chatText = result.message.content;
-      } else if (typeof result?.text === 'string') {
-        chatText = result.text;
-      } else if (result != null) {
-        chatText = JSON.stringify(result);
-      } else {
-        chatText = '';
-      }
-
-      res.json({ response: chatText });
-    } catch (err) {
-      console.error('[Puter AI Proxy] Error:', err);
-      res.status(500).json({ error: err.message || 'Puter AI proxy error' });
-    }
-  });
-}
-
 // HTTP Server Function
 function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   const expressApp = express();
@@ -280,9 +118,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     // JS eval); the STEP library is built without dynamic JS (vendor/occt-import-js/BUILD.md).
     // Puter.js runs only on its own sign-in popup (puter-signin.html), which hands the login token
     // back to the page.
-    const scriptSrc = req.path === '/puter-signin.html'
-      ? "script-src 'self' https://js.puter.com"
-      : "script-src 'self' 'wasm-unsafe-eval'";
+    const scriptSrc = req.path === '/puter-signin.html' ? "script-src 'self' https://js.puter.com" : "script-src 'self' 'wasm-unsafe-eval'";
     res.setHeader('Content-Security-Policy', `${scriptSrc}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -338,241 +174,71 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
 
   // Now register static file serving AFTER the route handler
   // This ensures the route handler takes precedence for the root path
-  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
-        res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-      }
-      if (filePath.endsWith('.wasm')) {
-        res.setHeader('Content-Type', 'application/wasm');
-      }
-      if (filePath.endsWith(`${path.sep}sw.js`) || filePath.endsWith('/sw.js') || filePath.endsWith('sw.js')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        res.setHeader('Service-Worker-Allowed', '/');
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-      if (/\.(js|css|html|webmanifest)$/i.test(filePath)) {
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-    }
-  })));
-
-  // Serve files via HTTP for server mode (UNC paths or Docker-mounted paths)
-  expressApp.get('/api/file/*', (req, res) => {
-    try {
-      // Extract file path from URL (everything after /api/file/)
-      const filePath = decodeURIComponent(req.path.replace('/api/file/', ''));
-      if (!libraryPathAllowed(filePath)) {
-        res.status(403).send('File is outside the library folders');
-        return;
-      }
-      
-      // Library paths are absolute container paths. A client path (e.g. C:\ from another computer) is not on the server.
-      if (!filePath.startsWith('/')) {
-        res.status(404).setHeader('X-File-Not-On-Server', '1').send('File not in the JusttPrint backend (the path is on another computer).');
-        return;
-      }
-      
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        res.status(404).send('File not found');
-        return;
-      }
-      
-      // Set appropriate content type
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        '.stl': 'application/octet-stream',
-        '.3mf': 'application/octet-stream',
-        '.zip': 'application/zip',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.obj': 'application/octet-stream',
-        '.svg': 'image/svg+xml',
-        '.step': 'application/octet-stream',
-        '.stp': 'application/octet-stream',
-        '.3ds': 'application/octet-stream',
-        '.amf': 'application/octet-stream',
-        '.dae': 'application/octet-stream',
-        '.ply': 'application/octet-stream',
-        '.x3d': 'application/octet-stream',
-        '.blender': 'application/octet-stream',
-        '.dxf': 'application/octet-stream',
-        '.dwg': 'application/octet-stream',
-        '.fbx': 'application/octet-stream',
-        '.f3d': 'application/octet-stream',
-        '.f3z': 'application/octet-stream',
-        '.chitubox': 'application/octet-stream',
-        '.voxl': 'application/octet-stream',
-        '.gcode': 'application/octet-stream',
-        '.igs': 'application/octet-stream',
-        '.iges': 'application/octet-stream',
-        '.lys': 'application/octet-stream',
-        '.lyt': 'application/octet-stream'
-      };
-      
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
-      
-      // Stream the file
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-      
-      fileStream.on('error', (error) => {
-        console.error('Error serving file:', error);
-        if (!res.headersSent) {
-          res.status(500).send('Error reading file');
+  expressApp.use(
+    staticWebAssetsOnly(
+      express.static(appDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.webmanifest') || filePath.endsWith('manifest.json')) {
+            res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+          }
+          if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+          }
+          if (filePath.endsWith(`${path.sep}sw.js`) || filePath.endsWith('/sw.js') || filePath.endsWith('sw.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+            res.setHeader('Service-Worker-Allowed', '/');
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+          if (/\.(js|css|html|webmanifest)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
         }
-      });
-    } catch (error) {
-      console.error('Error in file serving endpoint:', error);
-      res.status(500).send('Error serving file');
-    }
-  });
+      })
+    )
+  );
+
+  // Library files for the browser: /api/file (viewing) and /api/download (saving), library-file-routes.js.
+  registerLibraryFileRoutes(expressApp);
 
   registerHelperBundleRoute(expressApp, appDir);
 
-  // Download endpoint for server mode - handles both regular files and zip entries
-  expressApp.get('/api/download/*', async (req, res) => {
-    try {
-      // Extract file path from URL (everything after /api/download/)
-      const filePath = decodeURIComponent(req.path.replace('/api/download/', ''));
-      
-      // Check if this is a zip entry
-      const pathInfo = parseZipPath(filePath);
-      if (!libraryPathAllowed(pathInfo.isZipEntry ? pathInfo.zipPath : filePath)) {
-        res.status(403).send('File is outside the library folders');
-        return;
-      }
-      let actualFilePath = filePath;
-      let fileName = path.basename(filePath);
-      let fileData = null;
-      
-      if (pathInfo.isZipEntry) {
-        // Extract zip entry to temp file and stream it
-        try {
-          const tempPath = await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
-          actualFilePath = tempPath;
-          fileName = path.basename(pathInfo.entryPath);
-        } catch (error) {
-          console.error('Error extracting zip entry:', error);
-          res.status(500).send('Error extracting file from zip');
-          return;
-        }
-      }
-      
-      // Library, backup and extract-temp paths are all absolute container paths.
-      if (!actualFilePath.startsWith('/')) {
-        res.status(400).send('Invalid path: expected an absolute path');
-        return;
-      }
-
-      // Check if file exists
-      if (!fs.existsSync(actualFilePath)) {
-        res.status(404).send('File not found');
-        return;
-      }
-      
-      // Set appropriate content type
-      const ext = path.extname(fileName).toLowerCase();
-      const mimeTypes = {
-        '.stl': 'application/octet-stream',
-        '.3mf': 'application/octet-stream',
-        '.zip': 'application/zip',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.obj': 'application/octet-stream',
-        '.svg': 'image/svg+xml',
-        '.step': 'application/octet-stream',
-        '.stp': 'application/octet-stream',
-        '.3ds': 'application/octet-stream',
-        '.amf': 'application/octet-stream',
-        '.dae': 'application/octet-stream',
-        '.ply': 'application/octet-stream',
-        '.x3d': 'application/octet-stream',
-        '.blender': 'application/octet-stream',
-        '.dxf': 'application/octet-stream',
-        '.dwg': 'application/octet-stream',
-        '.fbx': 'application/octet-stream',
-        '.f3d': 'application/octet-stream',
-        '.f3z': 'application/octet-stream',
-        '.chitubox': 'application/octet-stream',
-        '.voxl': 'application/octet-stream',
-        '.gcode': 'application/octet-stream',
-        '.igs': 'application/octet-stream',
-        '.iges': 'application/octet-stream',
-        '.lys': 'application/octet-stream',
-        '.lyt': 'application/octet-stream'
-      };
-      
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
-      
-      // Set Content-Disposition header to trigger download with proper filename
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-      
-      // Stream the file
-      const fileStream = fs.createReadStream(actualFilePath);
-      fileStream.pipe(res);
-      
-      fileStream.on('error', (error) => {
-        console.error('Error serving download:', error);
-        if (!res.headersSent) {
-          res.status(500).send('Error reading file');
-        }
-      });
-      
-      // Clean up temp file after streaming (for zip entries)
-      if (pathInfo.isZipEntry) {
-        fileStream.on('end', () => {
-          setTimeout(() => {
-            cleanupExtractTempFile(actualFilePath).catch(() => {});
-          }, 1000);
-        });
-      }
-    } catch (error) {
-      console.error('Error in download endpoint:', error);
-      res.status(500).send('Error serving download');
-    }
-  });
-
   // Serve static assets
-  expressApp.use(staticWebAssetsOnly(express.static(appDir, {
-    setHeaders: (res, filePath) => {
-      // Set proper MIME types
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        '.html': 'text/html',
-        '.css': 'text/css',
-        '.js': 'application/javascript',
-        '.json': 'application/json',
-        '.webmanifest': 'application/manifest+json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-        '.bmp': 'image/bmp',
-        '.webp': 'image/webp',
-        '.wasm': 'application/wasm'
-      };
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
-      if (path.basename(filePath) === 'sw.js') {
-        res.setHeader('Service-Worker-Allowed', '/');
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-      if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
-        res.setHeader('Cache-Control', 'no-cache');
-      }
-    }
-  })));
+  expressApp.use(
+    staticWebAssetsOnly(
+      express.static(appDir, {
+        setHeaders: (res, filePath) => {
+          // Set proper MIME types
+          const ext = path.extname(filePath).toLowerCase();
+          const mimeTypes = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.json': 'application/json',
+            '.webmanifest': 'application/manifest+json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.bmp': 'image/bmp',
+            '.webp': 'image/webp',
+            '.wasm': 'application/wasm'
+          };
+          if (mimeTypes[ext]) {
+            res.setHeader('Content-Type', mimeTypes[ext]);
+          }
+          if (path.basename(filePath) === 'sw.js') {
+            res.setHeader('Service-Worker-Allowed', '/');
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+          if (['.js', '.css', '.html', '.webmanifest'].includes(ext)) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+        }
+      })
+    )
+  );
 
   // Other page paths get the page too (SPA routing).
   expressApp.get('*', (req, res) => {
@@ -581,7 +247,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       res.status(404).type('text/plain').send('Not Found');
       return;
     }
-    
+
     sendIndexHtml(res);
   });
 
@@ -730,7 +396,7 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
       channel,
       args
     });
-    wsClients.forEach(client => {
+    wsClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
@@ -765,7 +431,6 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
  * Serve the Electron desktop UI over http://127.0.0.1 so third-party scripts (e.g. Puter.js)
  * are not loaded from file://, which they reject and replace with an intrusive error page.
  */
-
 
 // Stop HTTP server function
 function stopHttpServer() {
@@ -808,7 +473,11 @@ function stopHttpServer() {
     }
 
     if (typeof server.closeAllConnections === 'function') {
-      try { server.closeAllConnections(); } catch (_) { /* ignore */ }
+      try {
+        server.closeAllConnections();
+      } catch (_) {
+        /* ignore */
+      }
     }
 
     // Close HTTP server
@@ -879,7 +548,9 @@ function getHttpServerListenPort() {
   try {
     const addr = httpServer.address();
     if (addr && typeof addr === 'object' && addr.port) return addr.port;
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   return null;
 }
 
@@ -912,7 +583,9 @@ async function restartHttpServerNow() {
       try {
         if (typeof httpServer.closeAllConnections === 'function') httpServer.closeAllConnections();
         httpServer.close();
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
       httpServer = null;
     }
     if (resolveAppTls().options) {
@@ -1020,7 +693,7 @@ async function maybeRenewLetsEncryptCertificate() {
       serverTls.setLastTlsError(port80.message);
       return;
     }
-    console.log('[TLS] Renewing Let\'s Encrypt certificate...');
+    console.log("[TLS] Renewing Let's Encrypt certificate...");
     await serverTls.obtainLetsEncryptCertificate({
       certsDir: getTlsCertsDir(),
       domain: getSettingValueOr('tlsDomain', ''),
@@ -1030,11 +703,32 @@ async function maybeRenewLetsEncryptCertificate() {
     });
     await reloadTlsHttpListener();
   } catch (err) {
-    serverTls.setLastTlsError(err.message || 'Let\'s Encrypt renewal failed');
+    serverTls.setLastTlsError(err.message || "Let's Encrypt renewal failed");
     console.warn('[TLS] Renewal failed:', err.message);
   } finally {
     letsEncryptRenewInFlight = false;
   }
 }
 
-module.exports = { closeAllClients, closeClientsOfUser, closeHttpServer, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, maybeRenewLetsEncryptCertificate, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, startHttpServer, stopPort80Server, syncPort80Server };
+module.exports = {
+  closeAllClients,
+  closeClientsOfUser,
+  closeHttpServer,
+  ensurePort80ForAcme,
+  getAppListenPort,
+  getConfiguredHttpPort,
+  getHttpServerListenPort,
+  getServerListenPort,
+  getTlsCertsDir,
+  getTlsStatusForUi,
+  httpServerRunning,
+  maybeRenewLetsEncryptCertificate,
+  parseListenPort,
+  persistTlsSettingsFromPayload,
+  reloadTlsHttpListener,
+  resolveAppTls,
+  restartHttpServer,
+  startHttpServer,
+  stopPort80Server,
+  syncPort80Server
+};

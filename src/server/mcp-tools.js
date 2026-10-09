@@ -43,7 +43,7 @@ function resolveModelForMcp(args) {
 }
 
 function normalizeMcpTagNames(raw) {
-  const list = Array.isArray(raw) ? raw : (raw == null || raw === '' ? [] : [raw]);
+  const list = Array.isArray(raw) ? raw : raw == null || raw === '' ? [] : [raw];
   const out = [];
   const seen = new Set();
   for (const item of list) {
@@ -58,26 +58,35 @@ function normalizeMcpTagNames(raw) {
 }
 
 function getModelTagNamesForMcp(modelId) {
-  return database.db.prepare(`
+  return database.db
+    .prepare(
+      `
     SELECT t.name FROM tags t
     JOIN model_tags mt ON mt.tag_id = t.id
     WHERE mt.model_id = ?
     ORDER BY t.name COLLATE NOCASE
-  `).all(modelId).map((row) => row.name);
+  `
+    )
+    .all(modelId)
+    .map((row) => row.name);
 }
 
 const MCP_METADATA_TYPES = new Set(['designer', 'parentModel', 'license']);
 
 function renameMetadataForMcp(args) {
-  const type = String(args && args.type || '').trim();
-  const oldName = String(args && args.oldName || '').trim();
-  const newName = String(args && args.newName || '').trim();
+  const type = String((args && args.type) || '').trim();
+  const oldName = String((args && args.oldName) || '').trim();
+  const newName = String((args && args.newName) || '').trim();
   if (!MCP_METADATA_TYPES.has(type)) throw new Error('type must be designer, parentModel, or license');
   if (!oldName || !newName) throw new Error('oldName and newName are required');
-  const existing = database.db.prepare(`
+  const existing = database.db
+    .prepare(
+      `
     SELECT COUNT(*) as count FROM models
     WHERE ${type} = ? AND ${type} IS NOT NULL AND ${type} != ''
-  `).get(newName);
+  `
+    )
+    .get(newName);
   const existingCount = existing ? existing.count : 0;
   const result = database.db.prepare(`UPDATE models SET ${type} = ? WHERE ${type} = ?`).run(newName, oldName);
   return {
@@ -89,8 +98,8 @@ function renameMetadataForMcp(args) {
 }
 
 function deleteMetadataForMcp(args) {
-  const type = String(args && args.type || '').trim();
-  const name = String(args && args.name || '').trim();
+  const type = String((args && args.type) || '').trim();
+  const name = String((args && args.name) || '').trim();
   if (!MCP_METADATA_TYPES.has(type)) throw new Error('type must be designer, parentModel, or license');
   if (!name) throw new Error('name is required');
   const result = database.db.prepare(`UPDATE models SET ${type} = NULL WHERE ${type} = ?`).run(name);
@@ -197,11 +206,16 @@ function getMcpToolContext() {
         throw new Error('Provide id or filePath');
       }
       if (!model) return null;
-      const tags = database.db.prepare(`
+      const tags = database.db
+        .prepare(
+          `
         SELECT t.name FROM tags t
         JOIN model_tags mt ON mt.tag_id = t.id
         WHERE mt.model_id = ?
-      `).all(model.id).map((t) => t.name);
+      `
+        )
+        .all(model.id)
+        .map((t) => t.name);
       if (!includeThumbnails) {
         const stored = readThumbnailColumn(model.filePath);
         applyThumbnailFlags(Object.assign(model, { thumbnail: stored }));
@@ -308,13 +322,17 @@ function getMcpToolContext() {
     },
     getModelsMissingThumbnails: async (limit) => {
       const cap = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 500);
-      return database.db.prepare(`
+      return database.db
+        .prepare(
+          `
         SELECT id, filePath, fileName, size, designer
         FROM models
         WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
         ORDER BY fileName COLLATE NOCASE ASC
         LIMIT ?
-      `).all(cap);
+      `
+        )
+        .all(cap);
     },
     getThumbnails: async (args) => {
       const model = resolveModelForMcp(args);
@@ -390,7 +408,10 @@ function getMcpToolContext() {
       const scanningLibrary = paths.length === 0;
       if (scanningLibrary) {
         const cap = Math.min(Math.max(parseInt(args.limit, 10) || 500, 1), 2000);
-        paths = database.db.prepare('SELECT filePath FROM models ORDER BY fileName COLLATE NOCASE LIMIT ?').all(cap).map((r) => r.filePath);
+        paths = database.db
+          .prepare('SELECT filePath FROM models ORDER BY fileName COLLATE NOCASE LIMIT ?')
+          .all(cap)
+          .map((r) => r.filePath);
       }
       const missingOnly = args.missingOnly !== undefined ? !!args.missingOnly : scanningLibrary;
       const results = [];
@@ -403,7 +424,10 @@ function getMcpToolContext() {
       }
       return { checked: paths.length, missingCount, results };
     },
-    getAllMetadata: async () => database.db.prepare(`
+    getAllMetadata: async () =>
+      database.db
+        .prepare(
+          `
       SELECT 'designer' as type, designer as name, COUNT(*) as model_count
       FROM models
       WHERE designer IS NOT NULL AND designer != ''
@@ -419,12 +443,14 @@ function getMcpToolContext() {
       WHERE license IS NOT NULL AND license != ''
       GROUP BY license
       ORDER BY type, name
-    `).all(),
+    `
+        )
+        .all(),
     pull3mfMetadata: async (args) => {
       let filePaths = resolveMcpFilePaths(args);
       if (!filePaths.length) throw new Error('Provide filePaths, filePath, or id');
       const threeMFFiles = filePaths.filter((fp) => {
-        const target = fp.includes('::') ? (fp.split('::')[1] || '') : fp;
+        const target = fp.includes('::') ? fp.split('::')[1] || '' : fp;
         return path.extname(target).toLowerCase() === '.3mf';
       });
       if (!threeMFFiles.length) throw new Error('No 3MF files provided');
@@ -432,7 +458,8 @@ function getMcpToolContext() {
       for (const filePath of threeMFFiles) {
         const model = getModelByFilePath(filePath, { includeThumbnail: false });
         if (!model) continue;
-        const hasData = (model.designer && String(model.designer).trim()) ||
+        const hasData =
+          (model.designer && String(model.designer).trim()) ||
           (model.parentModel && String(model.parentModel).trim()) ||
           (model.notes && String(model.notes).trim()) ||
           (model.license && String(model.license).trim());
@@ -463,15 +490,19 @@ function getMcpToolContext() {
               errorCount += 1;
               continue;
             }
-            database.db.prepare(`
+            database.db
+              .prepare(
+                `
               UPDATE models SET designer = ?, parentModel = ?, notes = ?, license = ? WHERE filePath = ?
-            `).run(
-              filteredMetadata.designer || null,
-              filteredMetadata.parentModel || null,
-              filteredMetadata.notes || null,
-              filteredMetadata.license || null,
-              filePath
-            );
+            `
+              )
+              .run(
+                filteredMetadata.designer || null,
+                filteredMetadata.parentModel || null,
+                filteredMetadata.notes || null,
+                filteredMetadata.license || null,
+                filePath
+              );
             results.push({ filePath, success: true, action: 'updated' });
             successCount += 1;
           } else {
@@ -536,20 +567,22 @@ function getMcpToolContext() {
       const directory = String(args.directory || '').trim();
       if (!directory) throw new Error('directory is required');
       const limit = Math.min(Math.max(parseInt(args.limit, 10) || 100, 1), 500);
-      const models = database.db.prepare(`
+      const models = database.db
+        .prepare(
+          `
         SELECT ${MODEL_LIST_COLUMNS} FROM models
         WHERE REPLACE(LOWER(filePath), CHAR(92), '/') LIKE ?
         ORDER BY fileName COLLATE NOCASE
         LIMIT ?
-      `).all(directoryScanPrefixSqlParam(directory), limit);
+      `
+        )
+        .all(directoryScanPrefixSqlParam(directory), limit);
       return { count: models.length, models };
     },
     scanDirectory: async (args) => {
       let directory = String(args.directory || '').trim();
       if (!directory) {
-        directory = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('directoryPath')?.value
-          || readStlHomeDirectories()[0]
-          || '';
+        directory = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('directoryPath')?.value || readStlHomeDirectories()[0] || '';
       }
       if (!directory) throw new Error('directory is required (no last-scanned folder is saved)');
       const result = await scanDirectoryHandler(mcpIpcEvent(), directory, {});
@@ -621,19 +654,16 @@ function getMcpToolContext() {
     },
     exportLibrary: async (args) => {
       const exportData = buildLibraryExportData();
-      const destPath = String(args.destPath || '').trim() || path.join(
-        path.dirname(getDatabasePath()),
-        `justtprint-library-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-      );
+      const destPath =
+        String(args.destPath || '').trim() ||
+        path.join(path.dirname(getDatabasePath()), `justtprint-library-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
       await fs.promises.writeFile(destPath, JSON.stringify(exportData, null, 2), 'utf8');
       return { success: true, filePath: destPath, modelCount: exportData.models.length };
     },
     backupDatabase: async (args) => {
       const dbPath = getDatabasePath();
-      const destPath = String(args.destPath || '').trim() || path.join(
-        path.dirname(dbPath),
-        `justtprint-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
-      );
+      const destPath =
+        String(args.destPath || '').trim() || path.join(path.dirname(dbPath), `justtprint-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
       if (path.resolve(destPath) === path.resolve(dbPath)) {
         throw new Error('destPath cannot be the live database file');
       }

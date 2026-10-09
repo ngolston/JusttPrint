@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent
+} from 'react';
 import { cachedThumbnail, fetchPrimaryThumbnail, isImageOnlyMiss } from '../thumbnails/cache';
 import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQueue } from '../thumbnails/cards';
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
@@ -114,18 +122,20 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
       // The list query leaves the blob out: fetch the stored primary image.
       if (alreadyAsked('primary')) return;
       requested.current = { model, kind: 'primary' };
-      fetchPrimaryThumbnail(model.filePath).then((thumbnail) => {
-        if (thumbnail && !isFailurePlaceholder(thumbnail)) {
-          model.thumbnail = thumbnail;
-          model.hasThumbnail = true;
-          if (carouselView && multiple) loadAllThumbnails(model);
-          else window.libraryGrid?.refresh();
-        } else if (carouselView && !imageOnlyMiss) {
-          // Flagged as having one, but it is empty: render it again.
-          model.hasThumbnail = false;
-          queueCardThumbnail(model, container, priority);
-        }
-      }).catch(() => {});
+      fetchPrimaryThumbnail(model.filePath)
+        .then((thumbnail) => {
+          if (thumbnail && !isFailurePlaceholder(thumbnail)) {
+            model.thumbnail = thumbnail;
+            model.hasThumbnail = true;
+            if (carouselView && multiple) loadAllThumbnails(model);
+            else window.libraryGrid?.refresh();
+          } else if (carouselView && !imageOnlyMiss) {
+            // Flagged as having one, but it is empty: render it again.
+            model.hasThumbnail = false;
+            queueCardThumbnail(model, container, priority);
+          }
+        })
+        .catch(() => {});
     } else if (current && multiple && all.length < 2 && carouselView) {
       if (alreadyAsked('all')) return;
       requested.current = { model, kind: 'all' };
@@ -150,8 +160,18 @@ if (typeof window !== 'undefined') {
   });
 }
 
-function Carousel({ host, model, images, style, children }: {
-  host: CardHost; model: GridModel; images: string[]; style: CSSProperties; children: (src: string) => React.ReactNode;
+function Carousel({
+  host,
+  model,
+  images,
+  style,
+  children
+}: {
+  host: CardHost;
+  model: GridModel;
+  images: string[];
+  style: CSSProperties;
+  children: (src: string) => React.ReactNode;
 }) {
   const [index, setIndex] = useState(0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,21 +190,51 @@ function Carousel({ host, model, images, style, children }: {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = null;
       pendingDefaultSaves.delete(model.filePath);
-      setDefaultThumbnail(model, next).then(() => setIndex(0)).catch((error) => console.error('Error saving default thumbnail:', error));
+      setDefaultThumbnail(model, next)
+        .then(() => setIndex(0))
+        .catch((error) => console.error('Error saving default thumbnail:', error));
     };
     pendingDefaultSaves.set(model.filePath, save);
     saveTimer.current = setTimeout(save, 2000);
   }
 
   return (
-    <div className="thumbnail-wrapper" style={{ position: 'relative', ...style }} data-file-path={model.filePath}
-      data-thumbnails-count={images.length} data-current-index={position}>
-      <div className="thumbnail-nav-left" title="Previous image" onClick={(event) => step(-1, event)}
-        style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }} />
-      <div className="thumbnail-nav-right" title="Next image" onClick={(event) => step(1, event)}
-        style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }} />
-      <div className="thumbnail-count-badge" title={`Image ${position + 1} of ${images.length} - Click left/right to navigate`}
-        style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0, 0, 0, 0.7)', color: '#fff', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 'bold', zIndex: 11, pointerEvents: 'none' }}>
+    <div
+      className="thumbnail-wrapper"
+      style={{ position: 'relative', ...style }}
+      data-file-path={model.filePath}
+      data-thumbnails-count={images.length}
+      data-current-index={position}
+    >
+      <div
+        className="thumbnail-nav-left"
+        title="Previous image"
+        onClick={(event) => step(-1, event)}
+        style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+      />
+      <div
+        className="thumbnail-nav-right"
+        title="Next image"
+        onClick={(event) => step(1, event)}
+        style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+      />
+      <div
+        className="thumbnail-count-badge"
+        title={`Image ${position + 1} of ${images.length} - Click left/right to navigate`}
+        style={{
+          position: 'absolute',
+          bottom: 8,
+          right: 8,
+          background: 'rgba(0, 0, 0, 0.7)',
+          color: '#fff',
+          padding: '4px 8px',
+          borderRadius: 12,
+          fontSize: 12,
+          fontWeight: 'bold',
+          zIndex: 11,
+          pointerEvents: 'none'
+        }}
+      >
         {position + 1}/{images.length}
       </div>
       {children(images[position])}
@@ -215,10 +265,19 @@ function RatingStars({ engagement, label = 'Rating' }: { engagement: ReturnType<
   return (
     <div className="model-rating" role="radiogroup" aria-label={label}>
       {[1, 2, 3, 4, 5].map((star) => (
-        <button key={star} type="button" tabIndex={-1} className={`model-star${star <= shown ? ' is-filled' : ''}`} data-star={star}
-          role="radio" aria-checked={star === rating} aria-label={`${star} star${star === 1 ? '' : 's'}`}
-          onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(null)}
-          onClick={(event) => save('rating', rating === star ? 0 : star, event)}>
+        <button
+          key={star}
+          type="button"
+          tabIndex={-1}
+          className={`model-star${star <= shown ? ' is-filled' : ''}`}
+          data-star={star}
+          role="radio"
+          aria-checked={star === rating}
+          aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          onMouseEnter={() => setHover(star)}
+          onMouseLeave={() => setHover(null)}
+          onClick={(event) => save('rating', rating === star ? 0 : star, event)}
+        >
           {star <= shown ? '★' : '☆'}
         </button>
       ))}
@@ -252,13 +311,18 @@ function CardPrintStatus({ model }: { model: GridModel }) {
   const info = printStatusInfo(effectiveStatus(model as PrintModel));
   const Icon = info.icon ?? TONE_ICONS[info.tone];
   return (
-    <button type="button" tabIndex={-1} className={`print-status jp-status jp-status--${info.tone}`} title={`${badgeTitle(model as PrintModel)}\nClick to log a print; Shift-click to set the status.`}
+    <button
+      type="button"
+      tabIndex={-1}
+      className={`print-status jp-status jp-status--${info.tone}`}
+      title={`${badgeTitle(model as PrintModel)}\nClick to log a print; Shift-click to set the status.`}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
         if (event.shiftKey) window.PrintHistory?.openStatusMenu(event.currentTarget, model.filePath);
         else void window.PrintHistory?.openLogDialog({ filePaths: [model.filePath] });
-      }}>
+      }}
+    >
       <Icon size={12} aria-hidden="true" />
       <span>{info.label}</span>
     </button>
@@ -279,8 +343,17 @@ function TagLinks({ host, names }: { host: CardHost; names: string[] }) {
     <>
       {names.map((name, index) => (
         <span key={name}>
-          <span className="tag-filter-link" title={`Filter by tag: ${name}`}
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); host.filterByTag(name); }}>{name}</span>
+          <span
+            className="tag-filter-link"
+            title={`Filter by tag: ${name}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              host.filterByTag(name);
+            }}
+          >
+            {name}
+          </span>
           {index < names.length - 1 ? ', ' : ''}
         </span>
       ))}
@@ -295,8 +368,15 @@ function useTagNames(host: CardHost, model: GridModel): string[] | null | undefi
   useEffect(() => {
     if (known || loaded?.path === model.filePath) return;
     let live = true;
-    host.tagNames(model).then((names) => { if (live) setLoaded({ path: model.filePath, names }); }).catch(() => {});
-    return () => { live = false; };
+    host
+      .tagNames(model)
+      .then((names) => {
+        if (live) setLoaded({ path: model.filePath, names });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
   });
   if (known) return known;
   return loaded?.path === model.filePath ? loaded.names : undefined;
@@ -305,14 +385,19 @@ function useTagNames(host: CardHost, model: GridModel): string[] | null | undefi
 /** A setter that marks a style !important (the list view's name colour overrides a stylesheet rule). */
 const importantColor = (color: string) => (element: HTMLElement | null) => element?.style.setProperty('color', color, 'important');
 
-const FOLDER_ICON = 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z';
-const ARCHIVE_ICON = 'M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80ZM447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z';
-const DESIGNER_ICON = 'm352-522 86-87-56-57-44 44-56-56 43-44-45-45-87 87 159 158Zm328 329 87-87-45-45-44 43-56-56 43-44-57-56-86 86 158 159Zm24-567 57 57-57-57ZM290-120H120v-170l175-175L80-680l200-200 216 216 151-152q12-12 27-18t31-6q16 0 31 6t27 18l53 54q12 12 18 27t6 31q0 16-6 30.5T816-647L665-495l215 215L680-80 465-295 290-120Zm-90-80h56l392-391-57-57-391 392v56Zm420-419-29-29 57 57-28-28Z';
+const FOLDER_ICON =
+  'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z';
+const ARCHIVE_ICON =
+  'M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80ZM447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z';
+const DESIGNER_ICON =
+  'm352-522 86-87-56-57-44 44-56-56 43-44-45-45-87 87 159 158Zm328 329 87-87-45-45-44 43-56-56 43-44-57-56-86 86 158 159Zm24-567 57 57-57-57ZM290-120H120v-170l175-175L80-680l200-200 216 216 151-152q12-12 27-18t31-6q16 0 31 6t27 18l53 54q12 12 18 27t6 31q0 16-6 30.5T816-647L665-495l215 215L680-80 465-295 290-120Zm-90-80h56l392-391-57-57-391 392v56Zm420-419-29-29 57 57-28-28Z';
 
 function Icon({ path, fill }: { path: string; fill: string }) {
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, flexShrink: 0, marginRight: 6 }}>
-      <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill={fill}><path d={path} /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill={fill}>
+        <path d={path} />
+      </svg>
     </div>
   );
 }
@@ -356,11 +441,22 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     if (view === 'list' && fileInfoRef.current) applyColumns(fileInfoRef.current);
   });
 
-  const classes = ['file-item', `file-item-${view}`, view === 'preview' && 'preview-tile', tile && 'jp-model-card', host.isSelected(model.filePath) && 'selected', ...bandClasses]
-    .filter(Boolean).join(' ');
+  const classes = [
+    'file-item',
+    `file-item-${view}`,
+    view === 'preview' && 'preview-tile',
+    tile && 'jp-model-card',
+    host.isSelected(model.filePath) && 'selected',
+    ...bandClasses
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const cardStyle: CSSProperties = {
-    position: 'absolute', top: position.top, left: position.left, pointerEvents: 'auto',
+    position: 'absolute',
+    top: position.top,
+    left: position.left,
+    pointerEvents: 'auto',
     width: view === 'list' ? `calc(100% - ${position.left * 2}px)` : position.width
   };
   if (fixedHeight) Object.assign(cardStyle, { height: position.height, minHeight: position.height, maxHeight: position.height });
@@ -372,30 +468,50 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     Object.assign(cardStyle, tileStyle(position));
   }
 
-  const thumbSize: CSSProperties = view === 'list'
-    ? { width: 48, height: 48, flexShrink: 0, position: 'relative' }
-    : view === 'preview'
-      ? { width: '100%', height: '100%', flex: 1, minHeight: 0, marginBottom: 0 }
-      : {};
+  const thumbSize: CSSProperties =
+    view === 'list'
+      ? { width: 48, height: 48, flexShrink: 0, position: 'relative' }
+      : view === 'preview'
+        ? { width: '100%', height: '100%', flex: 1, minHeight: 0, marginBottom: 0 }
+        : {};
   const imageSize: CSSProperties = view === 'list' ? { width: 48, height: 48 } : { width: '100%', height: '100%' };
 
   const thumbnail = (src: string | null) => (
     <div className="thumbnail-container" style={{ position: 'relative', ...thumbSize }}>
-      <div className="thumbnail-render-slot" ref={setRenderSlot} aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }} />
-      <button type="button" className="thumbnail-menu-button" title="Menu" onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const rect = event.currentTarget.getBoundingClientRect();
-        host.showCardMenu(model.filePath, rect.left, rect.bottom);
-      }}>...</button>
+      <div
+        className="thumbnail-render-slot"
+        ref={setRenderSlot}
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }}
+      />
+      <button
+        type="button"
+        className="thumbnail-menu-button"
+        title="Menu"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const rect = event.currentTarget.getBoundingClientRect();
+          host.showCardMenu(model.filePath, rect.left, rect.bottom);
+        }}
+      >
+        ...
+      </button>
       <img src={src || 'assets/3d.png'} alt="" style={imageSize} />
-      {host.isNew(model) && <div className="new-status" title="New model — clears once you edit it">New</div>}
+      {host.isNew(model) && (
+        <div className="new-status" title="New model — clears once you edit it">
+          New
+        </div>
+      )}
     </div>
   );
-  const thumbnailBlock = images
-    ? <Carousel host={host} model={model} images={images} style={view === 'preview' ? { width: '100%', height: '100%' } : thumbSize}>{(src) => thumbnail(src)}</Carousel>
-    : thumbnail(current);
+  const thumbnailBlock = images ? (
+    <Carousel host={host} model={model} images={images} style={view === 'preview' ? { width: '100%', height: '100%' } : thumbSize}>
+      {(src) => thumbnail(src)}
+    </Carousel>
+  ) : (
+    thumbnail(current)
+  );
 
   const onClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (view === 'preview' && (event.target as HTMLElement).closest('.preview-tile-open-btn')) return;
@@ -420,9 +536,17 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     }
   };
   const common = {
-    ref: cardRef, className: classes, style: cardStyle, onClick, onKeyDown,
-    tabIndex: 0, role: 'group', 'aria-label': cardLabel(model, selected),
-    'data-filepath': model.filePath, 'data-index': index, 'data-layout-key': layoutKey,
+    ref: cardRef,
+    className: classes,
+    style: cardStyle,
+    onClick,
+    onKeyDown,
+    tabIndex: 0,
+    role: 'group',
+    'aria-label': cardLabel(model, selected),
+    'data-filepath': model.filePath,
+    'data-index': index,
+    'data-layout-key': layoutKey,
     'data-parent-group-key': bandClasses.length ? parentGroupKey : undefined
   };
 
@@ -436,7 +560,14 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
 
   if (view === 'preview') {
     return (
-      <div {...common} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); host.openPreview(null, model.filePath, false); }}>
+      <div
+        {...common}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          host.openPreview(null, model.filePath, false);
+        }}
+      >
         {thumbnailBlock}
         <div className="preview-tile-check" aria-hidden="true" />
         <div className="preview-tile-overlay">
@@ -446,11 +577,18 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             <div className={`preview-tile-name${zipFile ? ' zip-file' : ''}`}>{name}</div>
           </div>
           <div className="preview-tile-actions">
-            <button type="button" className="preview-tile-open-btn" title="Open preview" onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              host.openPreview(cardRef.current, model.filePath, true);
-            }}>Preview</button>
+            <button
+              type="button"
+              className="preview-tile-open-btn"
+              title="Open preview"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                host.openPreview(cardRef.current, model.filePath, true);
+              }}
+            >
+              Preview
+            </button>
           </div>
         </div>
         <PrintBadge host={host} model={model} />
@@ -463,35 +601,85 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     const designer = text(model.designer);
     const parentModel = text(model.parentModel);
     const added = model.dateAdded ? new Date(String(model.dateAdded)) : null;
-    const badgeStyle: CSSProperties = { position: 'static', top: 'auto', right: 'auto', left: 'auto', fontSize: 11, padding: '2px 6px', borderRadius: 3, display: 'inline-block', zIndex: 'auto', margin: 0 };
+    const badgeStyle: CSSProperties = {
+      position: 'static',
+      top: 'auto',
+      right: 'auto',
+      left: 'auto',
+      fontSize: 11,
+      padding: '2px 6px',
+      borderRadius: 3,
+      display: 'inline-block',
+      zIndex: 'auto',
+      margin: 0
+    };
     const column: CSSProperties = { display: 'flex', alignItems: 'center', flexShrink: 0 };
     const small: CSSProperties = { fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
     return (
       <div {...common}>
         {thumbnailBlock}
         <div className="file-info" ref={fileInfoRef} style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <div className={`file-name${zipFile ? ' zip-file' : ''}`} data-list-col="name" title={name} ref={importantColor(zipFile ? '#4ade80' : '#fff')}
-            style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{name}</div>
+          <div
+            className={`file-name${zipFile ? ' zip-file' : ''}`}
+            data-list-col="name"
+            title={name}
+            ref={importantColor(zipFile ? '#4ade80' : '#fff')}
+            style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
+          >
+            {name}
+          </div>
           <div className="file-size-column" data-list-col="size" style={{ ...column, justifyContent: 'center' }}>
             {!!model.size && <span style={{ fontSize: 12, color: '#aaa', fontFamily: 'monospace' }}>{host.formatSize(Number(model.size))}</span>}
           </div>
           <div className="date-added-column" data-list-col="dateadded" style={{ ...column, justifyContent: 'center' }}>
-            {added
-              ? <span title={added.toLocaleString()} style={{ fontSize: 12, color: '#aaa', fontFamily: 'monospace' }}>{added.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
-              : <span style={{ fontSize: 12, color: '#666' }}>—</span>}
+            {added ? (
+              <span title={added.toLocaleString()} style={{ fontSize: 12, color: '#aaa', fontFamily: 'monospace' }}>
+                {added.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: '#666' }}>—</span>
+            )}
           </div>
-          <div className="directory-info-column" data-list-col="directory" style={{ ...column, overflow: 'hidden', cursor: directory ? 'pointer' : undefined }}
-            onClick={directory ? (event) => { event.preventDefault(); event.stopPropagation(); host.filterByDirectory(model.filePath); } : undefined}>
+          <div
+            className="directory-info-column"
+            data-list-col="directory"
+            style={{ ...column, overflow: 'hidden', cursor: directory ? 'pointer' : undefined }}
+            onClick={
+              directory
+                ? (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    host.filterByDirectory(model.filePath);
+                  }
+                : undefined
+            }
+          >
             <Icon path={zipEntry ? ARCHIVE_ICON : FOLDER_ICON} fill={zipEntry ? '#22c55e' : '#e3e3e3'} />
-            <span className="directory-info" title={directory ? host.directoryFullPath(model.filePath) || directory : undefined}
-              style={{ ...small, color: directory ? '#4a9eff' : '#888', cursor: directory ? 'pointer' : 'default', fontWeight: directory ? 500 : 400, flex: 1, minWidth: 0 }}>{directory}</span>
+            <span
+              className="directory-info"
+              title={directory ? host.directoryFullPath(model.filePath) || directory : undefined}
+              style={{
+                ...small,
+                color: directory ? '#4a9eff' : '#888',
+                cursor: directory ? 'pointer' : 'default',
+                fontWeight: directory ? 500 : 400,
+                flex: 1,
+                minWidth: 0
+              }}
+            >
+              {directory}
+            </span>
           </div>
           <div className="designer-info-column" data-list-col="designer" style={{ ...column, overflow: 'hidden' }}>
             <Icon path={DESIGNER_ICON} fill="#a855f7" />
-            <span className="designer-info" title={designer || undefined} style={{ ...small, color: designer ? '#aaa' : '#666', flex: 1, minWidth: 0 }}>{model.designer ? String(model.designer) : ''}</span>
+            <span className="designer-info" title={designer || undefined} style={{ ...small, color: designer ? '#aaa' : '#666', flex: 1, minWidth: 0 }}>
+              {model.designer ? String(model.designer) : ''}
+            </span>
           </div>
           <div className="parent-model-column" data-list-col="parentmodel" style={{ ...column, overflow: 'hidden' }}>
-            <span className="parent-model-info" title={parentModel || undefined} style={{ ...small, color: parentModel ? '#aaa' : '#666' }}>{model.parentModel ? String(model.parentModel) : ''}</span>
+            <span className="parent-model-info" title={parentModel || undefined} style={{ ...small, color: parentModel ? '#aaa' : '#666' }}>
+              {model.parentModel ? String(model.parentModel) : ''}
+            </span>
           </div>
           <div className="print-status-column" data-list-col="printed" style={{ ...column, justifyContent: 'center' }}>
             <PrintBadge host={host} model={model} style={badgeStyle} />
@@ -505,7 +693,9 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             {zipEntry && (
               <>
                 <Icon path={ARCHIVE_ICON} fill="#e3e3e3" />
-                <div className="archive-status" style={badgeStyle}>Archive</div>
+                <div className="archive-status" style={badgeStyle}>
+                  Archive
+                </div>
               </>
             )}
           </div>
@@ -542,8 +732,12 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
 
   const preview = (src: string | null) => (
     <div className="thumbnail-container jp-model-card__image">
-      <div className="thumbnail-render-slot" ref={setRenderSlot} aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }} />
+      <div
+        className="thumbnail-render-slot"
+        ref={setRenderSlot}
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }}
+      />
       <img src={src || 'assets/3d.png'} alt="" loading="lazy" draggable={false} />
     </div>
   );
@@ -555,29 +749,58 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
   };
 
   return (
-    <div {...common} data-rating={rating} data-favorite={favorite ? '1' : '0'}
-      onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); host.openPreview(null, model.filePath, false); }}>
+    <div
+      {...common}
+      data-rating={rating}
+      data-favorite={favorite ? '1' : '0'}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        host.openPreview(null, model.filePath, false);
+      }}
+    >
       <div className="jp-model-card__preview">
-        {images
-          ? <Carousel host={host} model={model} images={images} style={{ width: '100%', height: '100%' }}>{(src) => preview(src)}</Carousel>
-          : preview(current)}
+        {images ? (
+          <Carousel host={host} model={model} images={images} style={{ width: '100%', height: '100%' }}>
+            {(src) => preview(src)}
+          </Carousel>
+        ) : (
+          preview(current)
+        )}
         <div className="jp-model-card__flags">
-          {host.isNew(model) && <span className="new-status jp-model-card__flag" title="New model — clears once you edit it">New</span>}
+          {host.isNew(model) && (
+            <span className="new-status jp-model-card__flag" title="New model — clears once you edit it">
+              New
+            </span>
+          )}
           {zipEntry && <span className="archive-status jp-model-card__flag">Archive</span>}
         </div>
         <div className="jp-model-card__actions">
-          <button type="button" tabIndex={-1} className={cx('model-favorite-btn jp-model-card__action', favorite && 'is-favorited')} aria-pressed={favorite}
-            aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'} title={favorite ? 'Remove from favorites' : 'Add to favorites'}
-            onClick={(event) => save('favorite', !favorite, event)}>
+          <button
+            type="button"
+            tabIndex={-1}
+            className={cx('model-favorite-btn jp-model-card__action', favorite && 'is-favorited')}
+            aria-pressed={favorite}
+            aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            onClick={(event) => save('favorite', !favorite, event)}
+          >
             <Heart size={16} aria-hidden="true" fill={favorite ? 'currentColor' : 'none'} />
           </button>
-          <button type="button" tabIndex={-1} className="thumbnail-menu-button jp-model-card__action" aria-label="More actions" title="More actions"
-            aria-haspopup="menu" onClick={(event) => {
+          <button
+            type="button"
+            tabIndex={-1}
+            className="thumbnail-menu-button jp-model-card__action"
+            aria-label="More actions"
+            title="More actions"
+            aria-haspopup="menu"
+            onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               const rect = event.currentTarget.getBoundingClientRect();
               host.showCardMenu(model.filePath, rect.left, rect.bottom);
-            }}>
+            }}
+          >
             <MoreHorizontal size={16} aria-hidden="true" />
           </button>
         </div>
@@ -586,16 +809,38 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
         </div>
       </div>
       <div className="jp-model-card__body">
-        <div className="file-name jp-model-card__title" title={displayFileName(model)}>{title}</div>
-        {designer
-          ? <button type="button" tabIndex={-1} className="jp-model-card__byline designer-info" title={`Show models by ${designer}`}
-              onClick={stop(() => host.filterBySelect('designer-select', designer))}>{designer}</button>
-          : directory
-            ? <button type="button" tabIndex={-1} className="jp-model-card__byline directory-link" title={`Show the folder ${host.directoryFullPath(model.filePath) || directory}`}
-                onClick={stop(() => host.filterByDirectory(model.filePath))}>{directory}</button>
-            : <span className="jp-model-card__byline" />}
+        <div className="file-name jp-model-card__title" title={displayFileName(model)}>
+          {title}
+        </div>
+        {designer ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            className="jp-model-card__byline designer-info"
+            title={`Show models by ${designer}`}
+            onClick={stop(() => host.filterBySelect('designer-select', designer))}
+          >
+            {designer}
+          </button>
+        ) : directory ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            className="jp-model-card__byline directory-link"
+            title={`Show the folder ${host.directoryFullPath(model.filePath) || directory}`}
+            onClick={stop(() => host.filterByDirectory(model.filePath))}
+          >
+            {directory}
+          </button>
+        ) : (
+          <span className="jp-model-card__byline" />
+        )}
         <div className="jp-model-card__badges">
-          {format && <span className="jp-badge" title="File type">{format}</span>}
+          {format && (
+            <span className="jp-badge" title="File type">
+              {format}
+            </span>
+          )}
           <CardPrintStatus model={model} />
         </div>
       </div>

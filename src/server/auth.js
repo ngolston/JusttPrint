@@ -23,7 +23,9 @@ function getServerAuth() {
       users: createSqliteUserStore(() => database.db),
       extraOrigins: () => {
         const origins = String(process.env.JUSTTPRINT_ALLOWED_ORIGINS || '')
-          .split(',').map((origin) => origin.trim()).filter(Boolean);
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean);
         return origins;
       }
     });

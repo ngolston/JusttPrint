@@ -7,7 +7,15 @@ const nameOf = (profile: MakerWorldProfile) => profile.nameEnglish || profile.na
  * MakerWorld): name, plates, weight, print time and AMS need. Downloaded ones show ticked and
  * cannot be changed.
  */
-export function ProfileChecklist({ profiles, chosen, onChange, downloaded = [], disabled = false, mainId = null, id }: {
+export function ProfileChecklist({
+  profiles,
+  chosen,
+  onChange,
+  downloaded = [],
+  disabled = false,
+  mainId = null,
+  id
+}: {
   profiles: MakerWorldProfile[];
   chosen: string[];
   onChange: (ids: string[]) => void;
@@ -23,9 +31,15 @@ export function ProfileChecklist({ profiles, chosen, onChange, downloaded = [], 
   return (
     <div className="jp-mw-profiles" id={id}>
       <div className="jp-mw-profiles__top">
-        <span className="jp-mw-profiles__count">Print profiles: {count} of {open.length} chosen{downloaded.length ? ` (${downloaded.length} downloaded)` : ''}</span>
-        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(open.map((p) => p.id))}>All</button>
-        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange([])}>None</button>
+        <span className="jp-mw-profiles__count">
+          Print profiles: {count} of {open.length} chosen{downloaded.length ? ` (${downloaded.length} downloaded)` : ''}
+        </span>
+        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange(open.map((p) => p.id))}>
+          All
+        </button>
+        <button type="button" className="jp-mw-profiles__all" disabled={disabled} onClick={() => onChange([])}>
+          None
+        </button>
       </div>
       <ul className="jp-mw-profiles__list">
         {profiles.map((profile, index) => {
@@ -33,8 +47,12 @@ export function ProfileChecklist({ profiles, chosen, onChange, downloaded = [], 
           return (
             <li key={profile.id}>
               <label className={`jp-mw-download__row${done ? ' is-done' : ''}`}>
-                <input type="checkbox" checked={done || chosen.includes(profile.id)} disabled={disabled || done}
-                  onChange={(event) => toggle(profile.id, event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={done || chosen.includes(profile.id)}
+                  disabled={disabled || done}
+                  onChange={(event) => toggle(profile.id, event.target.checked)}
+                />
                 <span className="jp-mw-profiles__name">
                   {index + 1}. {nameOf(profile)}
                   {profile.id === mainId && <span className="jp-mw-profiles__tag">in the link</span>}

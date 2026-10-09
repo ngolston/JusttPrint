@@ -52,8 +52,12 @@ export class RenderQueue<T> {
 
   constructor(private options: QueueOptions<T>) {}
 
-  get size() { return this.tasks.length; }
-  get active() { return this.running.size; }
+  get size() {
+    return this.tasks.length;
+  }
+  get active() {
+    return this.running.size;
+  }
 
   /** The waiting job for a model (grid cards only). */
   find(filePath: string): RenderTask<T> | undefined {

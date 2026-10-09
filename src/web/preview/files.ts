@@ -25,7 +25,11 @@ function toArrayBuffer(raw: unknown): ArrayBuffer | null {
 /** An error page or JSON instead of a model file. */
 function looksLikeHtmlOrJson(buf: ArrayBuffer): boolean {
   if (!buf || buf.byteLength < 1) return true;
-  const start = new TextDecoder('latin1').decode(new Uint8Array(buf, 0, Math.min(80, buf.byteLength))).trimStart().slice(0, 20).toLowerCase();
+  const start = new TextDecoder('latin1')
+    .decode(new Uint8Array(buf, 0, Math.min(80, buf.byteLength)))
+    .trimStart()
+    .slice(0, 20)
+    .toLowerCase();
   return start.startsWith('<!') || start.startsWith('<html') || start.startsWith('{') || start.startsWith('file not');
 }
 
@@ -34,7 +38,9 @@ export async function loadLibraryFileBuffer(filePath: string): Promise<ArrayBuff
   let serverMode = false;
   try {
     serverMode = !!(await bridge()?.isServerMode?.());
-  } catch { /* desktop */ }
+  } catch {
+    /* desktop */
+  }
   const isZipEntry = String(filePath || '').includes('::');
 
   // Desktop local files: IPC first (the UI origin can answer /api/file with HTML).

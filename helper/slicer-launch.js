@@ -142,9 +142,7 @@ function invalidSlicerPathError(slicerPath, name) {
   }
   if (stat && stat.isFile()) return null;
 
-  const detail = stat && stat.isDirectory()
-    ? `${raw} is a folder. Choose the slicer program inside it.`
-    : `${label} was not found at ${raw}.`;
+  const detail = stat && stat.isDirectory() ? `${raw} is a folder. Choose the slicer program inside it.` : `${label} was not found at ${raw}.`;
   const error = new Error(`${detail} Open Slicer Settings and choose the installed program.`);
   error.code = 'INVALID_SLICER';
   return error;

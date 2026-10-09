@@ -44,7 +44,9 @@ function listFiles(dir, fileSystem = fs) {
     try {
       const stat = fileSystem.statSync(path.join(dir, name));
       if (stat.isFile()) files.push({ name, path: path.join(dir, name), size: stat.size, mtimeMs: stat.mtimeMs });
-    } catch (_) { /* removed meanwhile */ }
+    } catch (_) {
+      /* removed meanwhile */
+    }
   }
   return files;
 }

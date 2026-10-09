@@ -2,24 +2,20 @@
 'use strict';
 
 const assert = require('assert');
-const {
-  MCP_PROTOCOL_VERSION,
-  listToolDefinitions,
-  buildMcpClientConfig,
-  toDataUrl,
-  handleMcpJsonRpc
-} = require('../src/server/mcp-server');
+const { MCP_PROTOCOL_VERSION, listToolDefinitions, buildMcpClientConfig, toDataUrl, handleMcpJsonRpc } = require('../src/server/mcp-server');
 
 function test(name, fn) {
   try {
     const result = fn();
     if (result && typeof result.then === 'function') {
-      return result.then(() => {
-        console.log(`ok ${name}`);
-      }).catch((err) => {
-        console.error(`FAIL ${name}:`, err.message);
-        process.exitCode = 1;
-      });
+      return result
+        .then(() => {
+          console.log(`ok ${name}`);
+        })
+        .catch((err) => {
+          console.error(`FAIL ${name}:`, err.message);
+          process.exitCode = 1;
+        });
     }
     console.log(`ok ${name}`);
   } catch (err) {
@@ -29,52 +25,55 @@ function test(name, fn) {
 }
 
 function mockCtx(overrides) {
-  return Object.assign({
-    getVersion: () => '2.2.9',
-    searchModels: async (filters) => ({ models: [], filters }),
-    getModel: async (args) => ({ id: args.id || 1, filePath: args.filePath || '/m.stl' }),
-    updateModel: async (args) => ({ ok: true, id: args.id }),
-    getLibraryStats: async () => ({ totalModels: 3 }),
-    getFolderTree: async () => ({ roots: [] }),
-    listTags: async () => [{ id: 1, name: 'benchy' }],
-    addTag: async (name) => ({ id: 2, name }),
-    renameTag: async (args) => ({ ok: true, name: args.newName }),
-    deleteTag: async (args) => ({ ok: true, id: args.id, name: args.name }),
-    addModelTags: async (args) => ({ ok: true, tags: args.tags }),
-    removeModelTags: async (args) => ({ ok: true, tags: args.tags }),
-    getPrintEvents: async () => ({ events: [] }),
-    logPrintEvent: async (args) => ({ eventId: 1, outcome: args.outcome }),
-    deletePrintEvent: async (eventId) => ({ deleted: true, eventId }),
-    listParentModels: async () => ['kit'],
-    renameMetadata: async (args) => ({ success: true, type: args.type }),
-    deleteMetadata: async (args) => ({ success: true, type: args.type }),
-    listDesigners: async () => ['A'],
-    listLicenses: async () => ['CC'],
-    getModelsMissingThumbnails: async (limit) => [{ id: 1, limit }],
-    getThumbnails: async () => ({ thumbnails: [] }),
-    setThumbnail: async () => ({ ok: true }),
-    addThumbnail: async () => ({ ok: true }),
-    setDefaultThumbnail: async (args) => ({ ok: true, index: args.index }),
-    deleteThumbnail: async (args) => ({ ok: true, index: args.index }),
-    findDuplicates: async (args) => ({ groupCount: 0, groups: [], includeZip: args.includeZip }),
-    getHashStatus: async () => ({ generating: false, missingHash: 0 }),
-    calculateMissingHashes: async () => ({ started: true, total: 0 }),
-    checkFilesExist: async () => ({ checked: 0, missingCount: 0, results: [] }),
-    getAllMetadata: async () => [],
-    pull3mfMetadata: async () => ({ success: true }),
-    generateTags: async () => ({ tags: [] }),
-    updateModelsBatch: async (models) => ({ success: true, count: models.length }),
-    logPrintEventsBatch: async () => [],
-    getModelsByDirectory: async (args) => ({ count: 0, directory: args.directory, models: [] }),
-    scanDirectory: async (args) => ({ success: true, directory: args.directory }),
-    removeModel: async (args) => ({ success: true, confirm: args.confirm }),
-    trashFile: async (args) => ({ success: true, confirm: args.confirm }),
-    listSlicers: async () => [],
-    openInSlicer: async () => ({ success: true }),
-    moveFiles: async () => ({ success: true }),
-    exportLibrary: async () => ({ success: true }),
-    backupDatabase: async () => ({ success: true })
-  }, overrides);
+  return Object.assign(
+    {
+      getVersion: () => '2.2.9',
+      searchModels: async (filters) => ({ models: [], filters }),
+      getModel: async (args) => ({ id: args.id || 1, filePath: args.filePath || '/m.stl' }),
+      updateModel: async (args) => ({ ok: true, id: args.id }),
+      getLibraryStats: async () => ({ totalModels: 3 }),
+      getFolderTree: async () => ({ roots: [] }),
+      listTags: async () => [{ id: 1, name: 'benchy' }],
+      addTag: async (name) => ({ id: 2, name }),
+      renameTag: async (args) => ({ ok: true, name: args.newName }),
+      deleteTag: async (args) => ({ ok: true, id: args.id, name: args.name }),
+      addModelTags: async (args) => ({ ok: true, tags: args.tags }),
+      removeModelTags: async (args) => ({ ok: true, tags: args.tags }),
+      getPrintEvents: async () => ({ events: [] }),
+      logPrintEvent: async (args) => ({ eventId: 1, outcome: args.outcome }),
+      deletePrintEvent: async (eventId) => ({ deleted: true, eventId }),
+      listParentModels: async () => ['kit'],
+      renameMetadata: async (args) => ({ success: true, type: args.type }),
+      deleteMetadata: async (args) => ({ success: true, type: args.type }),
+      listDesigners: async () => ['A'],
+      listLicenses: async () => ['CC'],
+      getModelsMissingThumbnails: async (limit) => [{ id: 1, limit }],
+      getThumbnails: async () => ({ thumbnails: [] }),
+      setThumbnail: async () => ({ ok: true }),
+      addThumbnail: async () => ({ ok: true }),
+      setDefaultThumbnail: async (args) => ({ ok: true, index: args.index }),
+      deleteThumbnail: async (args) => ({ ok: true, index: args.index }),
+      findDuplicates: async (args) => ({ groupCount: 0, groups: [], includeZip: args.includeZip }),
+      getHashStatus: async () => ({ generating: false, missingHash: 0 }),
+      calculateMissingHashes: async () => ({ started: true, total: 0 }),
+      checkFilesExist: async () => ({ checked: 0, missingCount: 0, results: [] }),
+      getAllMetadata: async () => [],
+      pull3mfMetadata: async () => ({ success: true }),
+      generateTags: async () => ({ tags: [] }),
+      updateModelsBatch: async (models) => ({ success: true, count: models.length }),
+      logPrintEventsBatch: async () => [],
+      getModelsByDirectory: async (args) => ({ count: 0, directory: args.directory, models: [] }),
+      scanDirectory: async (args) => ({ success: true, directory: args.directory }),
+      removeModel: async (args) => ({ success: true, confirm: args.confirm }),
+      trashFile: async (args) => ({ success: true, confirm: args.confirm }),
+      listSlicers: async () => [],
+      openInSlicer: async () => ({ success: true }),
+      moveFiles: async () => ({ success: true }),
+      exportLibrary: async () => ({ success: true }),
+      backupDatabase: async () => ({ success: true })
+    },
+    overrides
+  );
 }
 
 test('lists expected tools', () => {
@@ -115,12 +114,15 @@ test('toDataUrl accepts data URLs and raw base64', () => {
 
 async function runAsync() {
   await test('initialize returns protocol and server info', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test' } }
-    }, mockCtx());
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 'test' } }
+      },
+      mockCtx()
+    );
     assert.strictEqual(res.result.protocolVersion, MCP_PROTOCOL_VERSION);
     assert.strictEqual(res.result.serverInfo.name, 'justtprint');
     assert.strictEqual(res.result.serverInfo.version, '2.2.9');
@@ -128,10 +130,13 @@ async function runAsync() {
   });
 
   await test('notifications/initialized returns null', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      method: 'notifications/initialized'
-    }, mockCtx());
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        method: 'notifications/initialized'
+      },
+      mockCtx()
+    );
     assert.strictEqual(res, null);
   });
 
@@ -142,29 +147,35 @@ async function runAsync() {
   });
 
   await test('tools/call search_models', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'tools/call',
-      params: { name: 'search_models', arguments: { search: 'boat', limit: 10 } }
-    }, mockCtx({
-      searchModels: async (filters) => {
-        assert.strictEqual(filters.search, 'boat');
-        assert.strictEqual(filters.limit, 10);
-        return [{ id: 1, fileName: 'boat.stl' }];
-      }
-    }));
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name: 'search_models', arguments: { search: 'boat', limit: 10 } }
+      },
+      mockCtx({
+        searchModels: async (filters) => {
+          assert.strictEqual(filters.search, 'boat');
+          assert.strictEqual(filters.limit, 10);
+          return [{ id: 1, fileName: 'boat.stl' }];
+        }
+      })
+    );
     assert.strictEqual(res.result.isError, undefined);
     assert.ok(res.result.content[0].text.includes('boat.stl'));
   });
 
   await test('tools/call unknown tool is tool error not jsonrpc error', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 4,
-      method: 'tools/call',
-      params: { name: 'nope', arguments: {} }
-    }, mockCtx());
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'tools/call',
+        params: { name: 'nope', arguments: {} }
+      },
+      mockCtx()
+    );
     assert.strictEqual(res.result.isError, true);
     assert.ok(res.result.content[0].text.includes('Unknown tool'));
   });
@@ -176,17 +187,20 @@ async function runAsync() {
 
   await test('set_thumbnail converts raw base64', async () => {
     let received;
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 6,
-      method: 'tools/call',
-      params: { name: 'set_thumbnail', arguments: { id: 9, image: 'iVBORw0KGgoAAAANS' } }
-    }, mockCtx({
-      setThumbnail: async (args) => {
-        received = args;
-        return { ok: true };
-      }
-    }));
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 6,
+        method: 'tools/call',
+        params: { name: 'set_thumbnail', arguments: { id: 9, image: 'iVBORw0KGgoAAAANS' } }
+      },
+      mockCtx({
+        setThumbnail: async (args) => {
+          received = args;
+          return { ok: true };
+        }
+      })
+    );
     assert.ok(received.image.startsWith('data:image/png;base64,'));
     assert.strictEqual(received.id, 9);
     assert.ok(res.result.content[0].text.includes('ok'));
@@ -194,51 +208,60 @@ async function runAsync() {
 
   await test('tools/call delete_tag', async () => {
     let received;
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 7,
-      method: 'tools/call',
-      params: { name: 'delete_tag', arguments: { name: 'obsolete' } }
-    }, mockCtx({
-      deleteTag: async (args) => {
-        received = args;
-        return { success: true, name: args.name };
-      }
-    }));
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 7,
+        method: 'tools/call',
+        params: { name: 'delete_tag', arguments: { name: 'obsolete' } }
+      },
+      mockCtx({
+        deleteTag: async (args) => {
+          received = args;
+          return { success: true, name: args.name };
+        }
+      })
+    );
     assert.strictEqual(received.name, 'obsolete');
     assert.strictEqual(res.result.isError, undefined);
     assert.ok(res.result.content[0].text.includes('obsolete'));
   });
 
   await test('tools/call rename_tag', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 8,
-      method: 'tools/call',
-      params: { name: 'rename_tag', arguments: { id: 3, newName: 'boat' } }
-    }, mockCtx({
-      renameTag: async (args) => {
-        assert.strictEqual(args.id, 3);
-        assert.strictEqual(args.newName, 'boat');
-        return { success: true, name: args.newName };
-      }
-    }));
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 8,
+        method: 'tools/call',
+        params: { name: 'rename_tag', arguments: { id: 3, newName: 'boat' } }
+      },
+      mockCtx({
+        renameTag: async (args) => {
+          assert.strictEqual(args.id, 3);
+          assert.strictEqual(args.newName, 'boat');
+          return { success: true, name: args.newName };
+        }
+      })
+    );
     assert.ok(res.result.content[0].text.includes('boat'));
   });
 
   await test('tools/call find_duplicates', async () => {
-    const res = await handleMcpJsonRpc({
-      jsonrpc: '2.0',
-      id: 9,
-      method: 'tools/call',
-      params: { name: 'find_duplicates', arguments: { includeZip: true, limit: 10 } }
-    }, mockCtx({
-      findDuplicates: async (args) => {
-        assert.strictEqual(args.includeZip, true);
-        assert.strictEqual(args.limit, 10);
-        return { groupCount: 1, groups: [{ hash: 'abc', files: [] }] };
-      }
-    }));
+    const res = await handleMcpJsonRpc(
+      {
+        jsonrpc: '2.0',
+        id: 9,
+        method: 'tools/call',
+        params: { name: 'find_duplicates', arguments: { includeZip: true, limit: 10 } }
+      },
+      mockCtx({
+        findDuplicates: async (args) => {
+          assert.strictEqual(args.includeZip, true);
+          assert.strictEqual(args.limit, 10);
+          return { groupCount: 1, groups: [{ hash: 'abc', files: [] }] };
+        }
+      })
+    );
     assert.ok(res.result.content[0].text.includes('abc'));
   });
 }

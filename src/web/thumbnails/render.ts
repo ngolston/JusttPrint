@@ -42,7 +42,11 @@ function createRenderer(target: HTMLCanvasElement): THREE.WebGLRenderer {
 
 /** Drop the shared renderer (the next render makes a new one). Never forces a context loss. */
 export function resetThumbnailRenderer() {
-  try { renderer?.dispose(); } catch { /* ignore */ }
+  try {
+    renderer?.dispose();
+  } catch {
+    /* ignore */
+  }
   renderer = null;
   canvas?.remove();
   canvas = null;
@@ -67,10 +71,14 @@ function sharedRenderer(contextReuse: number): THREE.WebGLRenderer {
       resetThumbnailRenderer();
       throw new WebGLUnavailableError(String((error as Error)?.message || error));
     }
-    canvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
-      resetThumbnailRenderer();
-    }, false);
+    canvas.addEventListener(
+      'webglcontextlost',
+      (event) => {
+        event.preventDefault();
+        resetThumbnailRenderer();
+      },
+      false
+    );
   }
   uses++;
   return renderer!;

@@ -1,14 +1,14 @@
 // Server mode bridge - replaces window.electron when served via HTTP
-(function() {
+(function () {
   'use strict';
-  
+
   console.log('[Bridge] Server bridge script starting...');
-  
+
   if (typeof window === 'undefined') {
     console.error('[Bridge] window is undefined, cannot initialize');
     return;
   }
-  
+
   // Don't initialize bridge in Electron windows (hidden window in server mode)
   // Only initialize in browser contexts (where window.electron doesn't exist from preload)
   // Check if window.electron already exists with methods from preload.js (not from bridge)
@@ -24,10 +24,10 @@
   if (!window.electron) {
     window.electron = {};
   }
-  window.electron.isServerThumbnailWorker = function() {
+  window.electron.isServerThumbnailWorker = function () {
     return Promise.resolve(new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1');
   };
-  
+
   // CRITICAL: Initialize window.electron immediately, before anything else
   // This prevents "Cannot read properties of undefined" errors
   if (!window.electron) {
@@ -36,7 +36,7 @@
   } else {
     console.log('[Bridge] window.electron already exists, will extend it');
   }
-  
+
   // CRITICAL: Initialize _electronEventListeners immediately
   if (!window._electronEventListeners) {
     window._electronEventListeners = {};
@@ -44,13 +44,13 @@
   } else {
     console.log('[Bridge] window._electronEventListeners already exists');
   }
-  
+
   // Define on() method IMMEDIATELY so it's always available
   // Events that arrive before anything listens for them (the page's modules load after this
   // script) wait here, and go to the first listener for their channel.
   const pendingEvents = {};
 
-  window.electron.on = function(channel, callback) {
+  window.electron.on = function (channel, callback) {
     if (!window._electronEventListeners) {
       window._electronEventListeners = {};
     }
@@ -67,13 +67,13 @@
   console.log('[Bridge] window.electron.on method defined');
 
   /** Remove a listener added with on(). */
-  window.electron.off = function(channel, callback) {
+  window.electron.off = function (channel, callback) {
     const list = window._electronEventListeners && window._electronEventListeners[channel];
     if (!list) return;
     const index = list.indexOf(callback);
     if (index !== -1) list.splice(index, 1);
   };
-  
+
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${wsProtocol}//${window.location.host}`;
   let ws = null;
@@ -86,10 +86,10 @@
   const MAX_IPC_IN_FLIGHT = 6;
   let ipcInFlight = 0;
   const ipcWaitQueue = [];
-  const BRIDGE_DEBUG = (typeof window !== 'undefined' && window.JUSTTPRINT_BRIDGE_DEBUG === true);
+  const BRIDGE_DEBUG = typeof window !== 'undefined' && window.JUSTTPRINT_BRIDGE_DEBUG === true;
 
   function acquireIpcSlot() {
-    return new Promise(function(resolve) {
+    return new Promise(function (resolve) {
       if (ipcInFlight < MAX_IPC_IN_FLIGHT) {
         ipcInFlight++;
         resolve();
@@ -112,15 +112,15 @@
 
   // Promise that resolves when WebSocket connects (so first load doesn't run before bridge is ready)
   let connectionReadyResolve;
-  let connectionReady = new Promise(function(resolve) {
+  let connectionReady = new Promise(function (resolve) {
     connectionReadyResolve = resolve;
   });
-  window.electron.whenConnected = function() {
+  window.electron.whenConnected = function () {
     return connectionReady;
   };
 
   function resetConnectionReady() {
-    connectionReady = new Promise(function(resolve) {
+    connectionReady = new Promise(function (resolve) {
       connectionReadyResolve = resolve;
     });
   }
@@ -248,7 +248,9 @@
       buttonRow.appendChild(ok);
 
       let answer = null;
-      form.addEventListener('submit', () => { answer = input.value; });
+      form.addEventListener('submit', () => {
+        answer = input.value;
+      });
       cancel.addEventListener('click', () => dialog.close());
       dialog.addEventListener('close', () => {
         dialog.remove();
@@ -264,7 +266,7 @@
       input.select();
     });
   }
-  
+
   // The server refuses the WebSocket without a session (expired, or the password changed).
   function redirectToLoginIfLoggedOut() {
     if (!/^https?:$/.test(window.location.protocol)) return;
@@ -276,7 +278,9 @@
           window.location.href = '/login?next=' + encodeURIComponent(next);
         }
       })
-      .catch(() => { /* server unreachable: keep reconnecting */ });
+      .catch(() => {
+        /* server unreachable: keep reconnecting */
+      });
   }
 
   function connect() {
@@ -293,36 +297,41 @@
       console.log('[Bridge] Attempting WebSocket connection to:', wsUrl);
       ws = new WebSocket(wsUrl);
       const socket = ws;
-      
+
       socket.onopen = () => {
         if (ws !== socket) {
           // Stale socket; a newer connect() replaced us.
-          try { socket.close(); } catch (e) { /* ignore */ }
+          try {
+            socket.close();
+          } catch (e) {
+            /* ignore */
+          }
           return;
         }
         markConnected(socket);
       };
-      
+
       socket.onmessage = (event) => {
         if (BRIDGE_DEBUG) {
           console.log('[Bridge] Received WebSocket message:', String(event.data).substring(0, 200));
         }
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.type === 'hello') {
             clientId = data.clientId || null;
           } else if (data.type === 'event' && data.channel === 'server-dialog-request') {
             // The server asks this browser to show a dialog and waits for the answer.
             const [dialogId, kind, options] = data.args || [];
-            const answer = kind === 'input'
-              ? showBrowserInput(options).then((value) => ({ value }))
-              : showBrowserMessage(
-                options.title || 'JusttPrint',
-                [options.message, options.detail].filter(Boolean).join('\n\n'),
-                options.buttons,
-                options.cancelId
-              ).then((result) => ({ response: result.index }));
+            const answer =
+              kind === 'input'
+                ? showBrowserInput(options).then((value) => ({ value }))
+                : showBrowserMessage(
+                    options.title || 'JusttPrint',
+                    [options.message, options.detail].filter(Boolean).join('\n\n'),
+                    options.buttons,
+                    options.cancelId
+                  ).then((result) => ({ response: result.index }));
             answer.then((result) => {
               if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'event', channel: 'server-dialog-response', args: [dialogId, result] }));
@@ -336,14 +345,14 @@
           console.error('Error parsing WebSocket message:', error);
         }
       };
-      
+
       socket.onerror = (error) => {
         console.error('[Bridge] WebSocket error:', error);
         if (ws === socket) {
           connectInFlight = false;
         }
       };
-      
+
       socket.onclose = (event) => {
         console.log('[Bridge] WebSocket disconnected. Code:', event.code, 'Reason:', event.reason, 'Clean:', event.wasClean);
         if (ws === socket) {
@@ -367,7 +376,7 @@
       console.error('Error connecting WebSocket:', error);
     }
   }
-  
+
   /** Turn an API response into the action's result, or throw its error. */
   function readApiResponse(response) {
     if (response.status === 401) redirectToLoginIfLoggedOut();
@@ -375,7 +384,7 @@
     if (response.ok && type.indexOf('application/octet-stream') === 0) {
       return response.arrayBuffer();
     }
-    return response.text().then(function(text) {
+    return response.text().then(function (text) {
       let data;
       try {
         // Long calls start with keep-alive spaces; JSON.parse skips them.
@@ -384,7 +393,7 @@
         throw new Error('Unexpected response from the JusttPrint backend (HTTP ' + response.status + ')');
       }
       if (!response.ok || Object.prototype.hasOwnProperty.call(data, 'error')) {
-        throw new Error(data.error || ('HTTP ' + response.status));
+        throw new Error(data.error || 'HTTP ' + response.status);
       }
       let result = data.result;
       // Binary results of long calls arrive as base64.
@@ -411,12 +420,12 @@
       'read-model-file': 180000,
       'extract-model-from-zip': 180000,
       'parse-3mf-preview': 300000,
-      'get3MFSTL': 180000,
-      'get3MFImages': 120000,
-      'getLYSImages': 120000,
-      'getF3DImages': 120000,
-      'getChituboxImages': 120000,
-      'getVoxlImages': 120000,
+      get3MFSTL: 180000,
+      get3MFImages: 120000,
+      getLYSImages: 120000,
+      getF3DImages: 120000,
+      getChituboxImages: 120000,
+      getVoxlImages: 120000,
       'get-file-stats': 120000,
       'calculate-file-hash': 300000,
       'scan-directory': 600000
@@ -424,9 +433,11 @@
     var timeoutMs = heavyIpcChannels[channel] || 30000;
 
     // Queue until a slot is free, then start the per-call timeout (queue wait does not burn it).
-    return acquireIpcSlot().then(function() {
+    return acquireIpcSlot().then(function () {
       const controller = new AbortController();
-      const timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+      const timer = setTimeout(function () {
+        controller.abort();
+      }, timeoutMs);
       const headers = { 'Content-Type': 'application/json' };
       if (clientId) headers['X-JusttPrint-Client'] = clientId;
       return fetch('/api/actions/' + encodeURIComponent(channel), {
@@ -437,181 +448,181 @@
         signal: controller.signal
       })
         .then(readApiResponse)
-        .catch(function(error) {
+        .catch(function (error) {
           if (error && error.name === 'AbortError') {
             console.error('[Bridge] Call timed out:', channel);
             throw new Error('IPC call timeout: ' + channel);
           }
           throw error;
         })
-        .finally(function() {
+        .finally(function () {
           clearTimeout(timer);
           releaseIpcSlot();
         });
     });
   }
-  
+
   // Store original electron if it exists (for fallback)
   const originalElectron = window.electron || {};
   console.log('[Bridge] Stored originalElectron, now creating methods...');
-  
+
   // Map of method names to IPC channels (from preload.js)
   const methodToChannel = {
-    'loadDirectory': 'load-directory',
-    'saveDirectory': 'save-directory',
-    'scanDirectory': 'scan-directory',
-    'getModel': 'get-model',
-    'getModelsFiltered': 'get-models-filtered',
-    'getFolderTree': 'get-folder-tree',
-    'saveModel': 'save-model',
-    'saveModelBatch': 'save-model-batch',
-    'updateModelsBatch': 'update-models-batch',
-    'saveThumbnail': 'save-thumbnail',
-    'getDesigners': 'get-designers',
-    'getLicenses': 'get-licenses',
-    'showItemInFolder': 'show-item-in-folder',
-    'openPath': 'open-path',
-    'getAllModels': 'get-all-models',
-    'getTotalModelCount': 'getTotalModelCount',
-    'getParentModels': 'get-parent-models',
-    'getAllTags': 'get-all-tags',
-    'saveTag': 'save-tag',
-    'renameTag': 'rename-tag',
-    'deleteTag': 'delete-tag',
-    'getAllParts': 'get-all-parts',
-    'savePart': 'save-part',
-    'deletePart': 'delete-part',
-    'getAllPrinters': 'get-all-printers',
-    'savePrinter': 'save-printer',
-    'deletePrinter': 'delete-printer',
-    'getPrinterMaintenanceLogs': 'get-printer-maintenance-logs',
-    'savePrinterMaintenanceLog': 'save-printer-maintenance-log',
-    'deletePrinterMaintenanceLog': 'delete-printer-maintenance-log',
-    'getPrinterReminders': 'get-printer-reminders',
-    'savePrinterReminder': 'save-printer-reminder',
-    'deletePrinterReminder': 'delete-printer-reminder',
-    'completePrinterReminder': 'complete-printer-reminder',
-    'getPrintEvents': 'get-print-events',
-    'logPrintEvent': 'log-print-event',
-    'logPrintEventsBatch': 'log-print-events-batch',
-    'deletePrintEvent': 'delete-print-event',
-    'setPrintStatus': 'set-print-status',
-    'setPrintStatusBatch': 'set-print-status-batch',
-    'getStats': 'get-stats',
-    'getModelTags': 'get-model-tags',
-    'getGroupTags': 'get-group-tags',
-    'getSetting': 'get-setting',
-    'saveSetting': 'save-setting',
-    'getServerAccessInfo': 'get-server-access-info',
-    'setServerPassword': 'set-server-password',
-    'regenerateServerApiToken': 'regenerate-server-api-token',
-    'getAppVersion': 'get-app-version',
-    'purgeThumbnails': 'purge-thumbnails',
-    'startServerThumbnailJob': 'start-server-thumbnail-job',
-    'cancelServerThumbnailJob': 'cancel-server-thumbnail-job',
-    'getServerThumbnailJobStatus': 'get-server-thumbnail-job-status',
-    'reportServerThumbnailProgress': 'report-server-thumbnail-progress',
-    'reportServerThumbnailComplete': 'report-server-thumbnail-complete',
-    'reportServerThumbnailError': 'report-server-thumbnail-error',
-    'deleteFile': 'delete-file',
-    'fetchThangsPage': 'fetch-thangs-page',
-    'clearNewFlags': 'clear-new-model-flags',
-    'getAdditionalFileTypesCatalog': 'get-additional-file-types-catalog',
-    'get3MFImages': 'get3MFImages',
-    'getLYSImages': 'getLYSImages',
-    'getF3DImages': 'getF3DImages',
-    'getChituboxImages': 'getChituboxImages',
-    'getVoxlImages': 'getVoxlImages',
-    'get3MFSTL': 'get3MFSTL',
-    'extractModelFromZip': 'extract-model-from-zip',
-    'deleteTempFile': 'delete-temp-file',
-    'calculateFileHash': 'calculate-file-hash',
-    'getThumbnail': 'getThumbnail',
-    'getAllThumbnails': 'get-all-thumbnails',
-    'addThumbnail': 'add-thumbnail',
-    'addMultipleThumbnails': 'add-multiple-thumbnails',
-    'setDefaultThumbnail': 'set-default-thumbnail',
-    'deleteThumbnail': 'delete-thumbnail',
-    'checkForUpdates': 'check-for-updates',
-    'openUpdatePage': 'open-update-page',
-    'getModelsWithoutThumbnails': 'get-models-without-thumbnails',
-    'getModelsWithDefaultThumbnails': 'get-models-with-default-thumbnails',
-    'getSlicers': 'get-slicers',
-    'openFileInSlicer': 'open-file-in-slicer',
-    'saveSlicer': 'save-slicer',
-    'deleteSlicer': 'delete-slicer',
-    'getFileStats': 'get-file-stats',
-    'getAllModelReferences': 'get-all-model-references',
-    'pull3MFMetadata': 'pull-3mf-metadata',
-    'readModelFile': 'read-model-file',
-    'parse3MFPreview': 'parse-3mf-preview',
-    'cancel3MFPreview': 'cancel-3mf-preview',
-    'getGpuInfo': 'get-gpu-info'
+    loadDirectory: 'load-directory',
+    saveDirectory: 'save-directory',
+    scanDirectory: 'scan-directory',
+    getModel: 'get-model',
+    getModelsFiltered: 'get-models-filtered',
+    getFolderTree: 'get-folder-tree',
+    saveModel: 'save-model',
+    saveModelBatch: 'save-model-batch',
+    updateModelsBatch: 'update-models-batch',
+    saveThumbnail: 'save-thumbnail',
+    getDesigners: 'get-designers',
+    getLicenses: 'get-licenses',
+    showItemInFolder: 'show-item-in-folder',
+    openPath: 'open-path',
+    getAllModels: 'get-all-models',
+    getTotalModelCount: 'getTotalModelCount',
+    getParentModels: 'get-parent-models',
+    getAllTags: 'get-all-tags',
+    saveTag: 'save-tag',
+    renameTag: 'rename-tag',
+    deleteTag: 'delete-tag',
+    getAllParts: 'get-all-parts',
+    savePart: 'save-part',
+    deletePart: 'delete-part',
+    getAllPrinters: 'get-all-printers',
+    savePrinter: 'save-printer',
+    deletePrinter: 'delete-printer',
+    getPrinterMaintenanceLogs: 'get-printer-maintenance-logs',
+    savePrinterMaintenanceLog: 'save-printer-maintenance-log',
+    deletePrinterMaintenanceLog: 'delete-printer-maintenance-log',
+    getPrinterReminders: 'get-printer-reminders',
+    savePrinterReminder: 'save-printer-reminder',
+    deletePrinterReminder: 'delete-printer-reminder',
+    completePrinterReminder: 'complete-printer-reminder',
+    getPrintEvents: 'get-print-events',
+    logPrintEvent: 'log-print-event',
+    logPrintEventsBatch: 'log-print-events-batch',
+    deletePrintEvent: 'delete-print-event',
+    setPrintStatus: 'set-print-status',
+    setPrintStatusBatch: 'set-print-status-batch',
+    getStats: 'get-stats',
+    getModelTags: 'get-model-tags',
+    getGroupTags: 'get-group-tags',
+    getSetting: 'get-setting',
+    saveSetting: 'save-setting',
+    getServerAccessInfo: 'get-server-access-info',
+    setServerPassword: 'set-server-password',
+    regenerateServerApiToken: 'regenerate-server-api-token',
+    getAppVersion: 'get-app-version',
+    purgeThumbnails: 'purge-thumbnails',
+    startServerThumbnailJob: 'start-server-thumbnail-job',
+    cancelServerThumbnailJob: 'cancel-server-thumbnail-job',
+    getServerThumbnailJobStatus: 'get-server-thumbnail-job-status',
+    reportServerThumbnailProgress: 'report-server-thumbnail-progress',
+    reportServerThumbnailComplete: 'report-server-thumbnail-complete',
+    reportServerThumbnailError: 'report-server-thumbnail-error',
+    deleteFile: 'delete-file',
+    fetchThangsPage: 'fetch-thangs-page',
+    clearNewFlags: 'clear-new-model-flags',
+    getAdditionalFileTypesCatalog: 'get-additional-file-types-catalog',
+    get3MFImages: 'get3MFImages',
+    getLYSImages: 'getLYSImages',
+    getF3DImages: 'getF3DImages',
+    getChituboxImages: 'getChituboxImages',
+    getVoxlImages: 'getVoxlImages',
+    get3MFSTL: 'get3MFSTL',
+    extractModelFromZip: 'extract-model-from-zip',
+    deleteTempFile: 'delete-temp-file',
+    calculateFileHash: 'calculate-file-hash',
+    getThumbnail: 'getThumbnail',
+    getAllThumbnails: 'get-all-thumbnails',
+    addThumbnail: 'add-thumbnail',
+    addMultipleThumbnails: 'add-multiple-thumbnails',
+    setDefaultThumbnail: 'set-default-thumbnail',
+    deleteThumbnail: 'delete-thumbnail',
+    checkForUpdates: 'check-for-updates',
+    openUpdatePage: 'open-update-page',
+    getModelsWithoutThumbnails: 'get-models-without-thumbnails',
+    getModelsWithDefaultThumbnails: 'get-models-with-default-thumbnails',
+    getSlicers: 'get-slicers',
+    openFileInSlicer: 'open-file-in-slicer',
+    saveSlicer: 'save-slicer',
+    deleteSlicer: 'delete-slicer',
+    getFileStats: 'get-file-stats',
+    getAllModelReferences: 'get-all-model-references',
+    pull3MFMetadata: 'pull-3mf-metadata',
+    readModelFile: 'read-model-file',
+    parse3MFPreview: 'parse-3mf-preview',
+    cancel3MFPreview: 'cancel-3mf-preview',
+    getGpuInfo: 'get-gpu-info'
   };
-  
+
   // Create proxy methods for all IPC calls IMMEDIATELY and SYNCHRONOUSLY
   // This ensures all methods exist before any other script tries to use them
   console.log('[Bridge] Creating', Object.keys(methodToChannel).length, 'methods from methodToChannel...');
-  Object.keys(methodToChannel).forEach(method => {
+  Object.keys(methodToChannel).forEach((method) => {
     // Store original method if it exists (before we overwrite it)
     const originalMethod = originalElectron[method];
-    
+
     // Create the method immediately - don't wait for WebSocket connection
-    window.electron[method] = function(...args) {
+    window.electron[method] = function (...args) {
       // Every call goes to the server's HTTP API (makeIpcCall)
       // The original methods from preload.js won't work in a browser anyway
       return makeIpcCall(methodToChannel[method], ...args);
     };
   });
   console.log('[Bridge] Created all methods from methodToChannel');
-  
+
   // Ensure all event listener methods are available immediately
   console.log('[Bridge] Creating event listener methods...');
-  window.electron.onOpenTagManager = function(callback) {
+  window.electron.onOpenTagManager = function (callback) {
     window.electron.on('open-tag-manager', callback);
   };
 
-  window.electron.onOpenPrinterManagement = function(callback) {
+  window.electron.onOpenPrinterManagement = function (callback) {
     window.electron.on('open-printer-management', callback);
   };
 
-  window.electron.onOpenPartsStock = function(callback) {
+  window.electron.onOpenPartsStock = function (callback) {
     window.electron.on('open-parts-stock', callback);
   };
-  
-  window.electron.onOpenGuide = function(callback) {
+
+  window.electron.onOpenGuide = function (callback) {
     window.electron.on('open-guide', callback);
   };
-  
-  window.electron.onOpenAbout = function(callback) {
+
+  window.electron.onOpenAbout = function (callback) {
     window.electron.on('open-about', async () => {
       await callback();
     });
   };
-  
-  window.electron.onOpenServerModeInfo = function(callback) {
+
+  window.electron.onOpenServerModeInfo = function (callback) {
     window.electron.on('open-server-mode-info', async () => {
       await callback();
     });
   };
-  
-  window.electron.onOpenDeDup = function(callback) {
+
+  window.electron.onOpenDeDup = function (callback) {
     window.electron.on('open-dedup', callback);
   };
-  
-  window.electron.onGenerateMissingThumbnails = function(callback) {
+
+  window.electron.onGenerateMissingThumbnails = function (callback) {
     window.electron.on('generate-missing-thumbnails', callback);
   };
-  
-  window.electron.onPingRequest = function(callback) {
+
+  window.electron.onPingRequest = function (callback) {
     window.electron.on('ping', callback);
   };
-  
-  window.electron.onRefreshGrid = function(callback) {
+
+  window.electron.onRefreshGrid = function (callback) {
     window.electron.on('refresh-grid', callback);
   };
-  
-  window.electron.onThumbnailAdded = function(callback) {
+
+  window.electron.onThumbnailAdded = function (callback) {
     window.electron.on('thumbnail-added', (data) => {
       // In server mode via WebSocket, data comes directly as the first argument
       // The WebSocket handler calls: listener(...(data.args || []))
@@ -619,17 +630,15 @@
       callback(data);
     });
   };
-  
-  window.electron.onOpenThemeSettings = function(callback) {
+
+  window.electron.onOpenThemeSettings = function (callback) {
     window.electron.on('open-theme-settings', callback);
   };
-  
-  window.electron.onStartPrintRoulette = function(callback) {
+
+  window.electron.onStartPrintRoulette = function (callback) {
     window.electron.on('start-print-roulette', callback);
   };
-  
 
-  
   // Commands the server hands to this browser. Nothing runs on the server: files download
   // here, and Send to Slicer opens a justtprint:// link for the helper on this computer.
   window.electron.on('execute-client-command', (commandData) => {
@@ -651,7 +660,7 @@
   });
 
   /** Open the helper link for an open-in-slicer command from the server. */
-  window.electron.launchSlicerCommand = function(command) {
+  window.electron.launchSlicerCommand = function (command) {
     if (!window.JusttPrintSlicerProtocol) {
       alert('Send to Slicer needs slicer-protocol.js, which did not load. Download the file and open it in your slicer.');
       return;
@@ -664,15 +673,15 @@
   };
 
   // WebSocket events call listeners with the broadcast args only (no IPC event object).
-  window.electron.onDbCleanup = function(callback) {
+  window.electron.onDbCleanup = function (callback) {
     window.electron.on('db-cleanup', callback);
   };
-  
-  window.electron.on3MFPreviewStatus = function(callback) {
+
+  window.electron.on3MFPreviewStatus = function (callback) {
     window.electron.on('3mf-preview-status', (requestId, message) => callback(requestId, message));
   };
-  
-  window.electron.receive = function(channel, callback) {
+
+  window.electron.receive = function (channel, callback) {
     const validChannels = ['preview-model', 'preview-bundle-models', 'download-model'];
     if (validChannels.includes(channel)) {
       console.log('[Bridge] Registering receive listener for channel:', channel);
@@ -683,56 +692,56 @@
       console.warn('[Bridge] Attempted to register receive listener for invalid channel:', channel);
     }
   };
-  
-  window.electron.pong = function() {
+
+  window.electron.pong = function () {
     window.electron.send('pong');
   };
-  
+
   // isServerMode is always true in the browser bridge (this file only loads in server mode).
   // getAppVersion uses methodToChannel -> IPC get-app-version (package.json), not a hardcoded string.
-  
-  window.electron.isServerMode = function() {
+
+  window.electron.isServerMode = function () {
     return Promise.resolve(true);
   };
 
   // The React screens send this with their API calls, like ipcInvoke does (src/web/api.ts).
-  window.electron.getClientId = function() {
+  window.electron.getClientId = function () {
     return clientId;
   };
-  
-  window.electron.invoke = function(channel, ...args) {
+
+  window.electron.invoke = function (channel, ...args) {
     return makeIpcCall(channel, ...args);
   };
 
   // Override showMessage and showMessageBox with browser implementations
   // (These are in methodToChannel but we want custom browser dialogs)
-  window.electron.showMessage = function(title, message, buttons = ['OK']) {
-    return showBrowserMessage(title, message, buttons).then(result => result.label);
+  window.electron.showMessage = function (title, message, buttons = ['OK']) {
+    return showBrowserMessage(title, message, buttons).then((result) => result.label);
   };
 
-  window.electron.showMessageBox = function(options = {}) {
+  window.electron.showMessageBox = function (options = {}) {
     const title = options.title || 'Message';
     const messageParts = [options.message, options.detail].filter(Boolean);
     const message = messageParts.join('\n\n');
     const buttons = options.buttons || ['OK'];
-    return showBrowserMessage(title, message, buttons).then(result => ({
+    return showBrowserMessage(title, message, buttons).then((result) => ({
       response: result.index,
       checkboxChecked: false
     }));
   };
 
-  window.electron.showInputDialog = function(options) {
+  window.electron.showInputDialog = function (options) {
     return showBrowserInput(options || {});
   };
 
-  window.electron.openUpdatePage = function(isBeta) {
+  window.electron.openUpdatePage = function (isBeta) {
     return makeIpcCall('open-update-page', isBeta).then((url) => {
       if (url) window.open(url, '_blank', 'noopener');
       return true;
     });
   };
 
-  window.electron.openExternal = function(url) {
+  window.electron.openExternal = function (url) {
     try {
       window.open(url, '_blank', 'noopener');
     } catch (error) {
@@ -740,10 +749,10 @@
     }
     return Promise.resolve(true);
   };
-  
+
   // Events the page sends itself ('open-tag-manager', 'clear-new-flags', ...) stay in this page.
   // Only the answer to a Puter AI request goes to the server, which is waiting for it.
-  window.electron.send = function(channel, ...args) {
+  window.electron.send = function (channel, ...args) {
     if (channel === 'puter-ai-chat-response') {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'event', channel, args }));
@@ -754,14 +763,14 @@
     }
     setTimeout(() => dispatchToListeners(channel, args), 0);
   };
-  
+
   // Copy over any other methods from original that we haven't overridden
-  Object.keys(originalElectron).forEach(key => {
+  Object.keys(originalElectron).forEach((key) => {
     if (!window.electron[key] && typeof originalElectron[key] === 'function') {
       window.electron[key] = originalElectron[key];
     }
   });
-  
+
   // Verify critical methods exist (debug check)
   console.log('[Bridge] Verifying critical methods...');
   if (typeof window.electron.getSetting !== 'function') {
@@ -774,7 +783,7 @@
   } else {
     console.log('[Bridge] ✓ receive method exists');
   }
-  
+
   // Signal that bridge is ready
   window._electronBridgeReady = true;
   console.log('[Bridge] Server bridge initialized, all methods available. Total methods:', Object.keys(window.electron).length);
@@ -782,7 +791,7 @@
   console.log('[Bridge] _electronEventListeners initialized:', !!window._electronEventListeners);
   // preview-model is handled only by preview.js (loaded first after this bridge) to avoid
   // racing window.openPreview and duplicate opens when both bridge and preview registered.
-  
+
   // Connect when script loads
   connect();
 })();

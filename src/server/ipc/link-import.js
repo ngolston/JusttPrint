@@ -24,12 +24,16 @@ ipcMain.handle('check-model-links', async (event, text) => checkLinks(database.d
 ipcMain.handle('import-model-link', async (event, url, options) => {
   const { download } = require('../site-details');
   const { downloadFiles } = require('../site-files');
-  const result = await importLink(url, { db: database.db, saveModel, saveThumbnail, download, downloadFiles }, {
-    downloadFolder: options && typeof options.downloadFolder === 'string' ? options.downloadFolder : null,
-    profileIds: options && Array.isArray(options.profileIds) ? options.profileIds.filter((id) => typeof id === 'string').slice(0, 200) : null,
-    fileIds: options && Array.isArray(options.fileIds) ? options.fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null,
-    downloadOptions: { event, onProgress: (progress) => events.toCaller(event, 'makerworld-download-progress', progress) }
-  });
+  const result = await importLink(
+    url,
+    { db: database.db, saveModel, saveThumbnail, download, downloadFiles },
+    {
+      downloadFolder: options && typeof options.downloadFolder === 'string' ? options.downloadFolder : null,
+      profileIds: options && Array.isArray(options.profileIds) ? options.profileIds.filter((id) => typeof id === 'string').slice(0, 200) : null,
+      fileIds: options && Array.isArray(options.fileIds) ? options.fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null,
+      downloadOptions: { event, onProgress: (progress) => events.toCaller(event, 'makerworld-download-progress', progress) }
+    }
+  );
   if (result.status === 'added' || result.status === 'downloaded') refreshSoon();
   return result;
 });

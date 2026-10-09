@@ -36,7 +36,8 @@ function findConflicts(stored, changes, base) {
   return conflicts;
 }
 
-const tagSet = (list) => new Set((Array.isArray(list) ? list : []).map((tag) => String(typeof tag === 'string' ? tag : tag?.name || '').trim()).filter(Boolean));
+const tagSet = (list) =>
+  new Set((Array.isArray(list) ? list : []).map((tag) => String(typeof tag === 'string' ? tag : tag?.name || '').trim()).filter(Boolean));
 
 /** The stored tags with this edit's additions and removals applied (sorted). */
 function mergeTagLists(stored, base, next) {

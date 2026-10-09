@@ -15,7 +15,15 @@ import { refreshGrid } from './models';
 /** At most this many images in a group card's carousel. */
 const MAX_IMAGES = 12;
 
-type Child = GridModel & { thumbnail?: string; hasThumbnail?: number | boolean; size?: number; dateAdded?: string; modifiedDate?: string; designer?: string | null; id?: number | string | null };
+type Child = GridModel & {
+  thumbnail?: string;
+  hasThumbnail?: number | boolean;
+  size?: number;
+  dateAdded?: string;
+  modifiedDate?: string;
+  designer?: string | null;
+  id?: number | string | null;
+};
 
 const cache = new Map<string, string[]>();
 let version = 0;
@@ -44,12 +52,15 @@ async function preferredImages() {
   return preferred!;
 }
 
-const primaryOf = (field: string | null | undefined) => String(field || '').split('::').find((t) => t && t !== '3d.png') || null;
+const primaryOf = (field: string | null | undefined) =>
+  String(field || '')
+    .split('::')
+    .find((t) => t && t !== '3d.png') || null;
 
 async function usable(images: (string | null | undefined)[]): Promise<string[]> {
   const out: string[] = [];
   for (const image of images) {
-    if (!image || image === '3d.png' || isFailurePlaceholder(image) || await isMostlyEmpty(image)) continue;
+    if (!image || image === '3d.png' || isFailurePlaceholder(image) || (await isMostlyEmpty(image))) continue;
     if (!out.includes(image)) out.push(image);
   }
   return out;
@@ -137,13 +148,18 @@ export function loadGroupImages(record: GroupRecord, onImages: (images: string[]
       await show([valid]);
       if (!stored) await saveThumbnailIfReal(children[0].filePath, valid);
     }
-  })().catch(() => { /* the placeholder stays */ });
-  return () => { stopped = true; };
+  })().catch(() => {
+    /* the placeholder stays */
+  });
+  return () => {
+    stopped = true;
+  };
 }
 
-const tagNames = (tags: unknown): string[] => [...new Set((Array.isArray(tags) ? tags : [])
-  .map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '').trim()).filter(Boolean))]
-  .sort((a, b) => a.localeCompare(b));
+const tagNames = (tags: unknown): string[] =>
+  [
+    ...new Set((Array.isArray(tags) ? tags : []).map((t) => String(typeof t === 'string' ? t : (t as { name?: string })?.name || '').trim()).filter(Boolean))
+  ].sort((a, b) => a.localeCompare(b));
 
 /** Every tag any model of the group has. */
 export async function groupTagNames(record: GroupRecord): Promise<string[]> {
@@ -156,7 +172,7 @@ export async function groupTagNames(record: GroupRecord): Promise<string[]> {
     }
   }
   const models = await Promise.all((record.children as Child[]).map((c) => callAction<{ tags?: unknown } | null>('get-model', c.filePath).catch(() => null)));
-  return tagNames(models.flatMap((m) => (Array.isArray(m?.tags) ? m!.tags as unknown[] : [])));
+  return tagNames(models.flatMap((m) => (Array.isArray(m?.tags) ? (m!.tags as unknown[]) : [])));
 }
 
 /** Add or remove tags on every model of a group, and update their cards. */
@@ -164,14 +180,17 @@ export async function changeGroupTags(record: GroupRecord, { addTags = [], remov
   const add = tagNames(addTags);
   const remove = new Set(tagNames(removeTags));
   if (!add.length && !remove.size) return false;
-  const models = (await Promise.all((record.children as Child[]).map((c) => callAction<Record<string, unknown> & { filePath: string } | null>('get-model', c.filePath).catch(() => null))))
-    .filter((m): m is Record<string, unknown> & { filePath: string } => !!m);
+  const models = (
+    await Promise.all(
+      (record.children as Child[]).map((c) => callAction<(Record<string, unknown> & { filePath: string }) | null>('get-model', c.filePath).catch(() => null))
+    )
+  ).filter((m): m is Record<string, unknown> & { filePath: string } => !!m);
   if (!models.length) return false;
   for (const model of models) {
     model.tags = tagNames([...tagNames(model.tags), ...add]).filter((t) => !remove.has(t));
   }
   try {
-    if (!await callAction<boolean>('update-models-batch', models)) throw new Error('Bulk update returned false');
+    if (!(await callAction<boolean>('update-models-batch', models))) throw new Error('Bulk update returned false');
   } catch (error) {
     console.error('Error saving group tags, saving one at a time:', error);
     for (const model of models) await callAction('save-model', model).catch((e) => console.error('Error saving tags:', model.filePath, e));

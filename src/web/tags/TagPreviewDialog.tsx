@@ -3,8 +3,21 @@ import { callAction, models, settings } from '../api';
 import { ModalDialog } from '../components/ModalDialog';
 import { onServerEvent, refreshTagRelatedUi, showMessage } from '../page';
 import {
-  STRATEGY_HELP, canApply, emptyReview, finishBatch, hasEntry, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry, withResult,
-  type MergeStrategy, type Review, type ReviewEntry
+  STRATEGY_HELP,
+  canApply,
+  emptyReview,
+  finishBatch,
+  hasEntry,
+  mergeTags,
+  pickedTags,
+  rateLimitDetail,
+  setTicked,
+  tickKey,
+  upsertEntry,
+  withResult,
+  type MergeStrategy,
+  type Review,
+  type ReviewEntry
 } from './review';
 import { currentAiTagJob, dismissAiTagJob, getAiTagJob, setReviewing, stopAiTagJob, useAiTagJob } from './aiJob';
 
@@ -15,11 +28,14 @@ interface ModelRecord {
   tags?: string[];
 }
 
-const PLACEHOLDER = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>';
+const PLACEHOLDER =
+  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>';
 
 /** The first stored image (data URL) of a model's thumbnail field, if any. */
 function storedThumbnail(model: ModelRecord): string | null {
-  const first = String(model.thumbnail || '').split('::').find((t) => t.startsWith('data:image'));
+  const first = String(model.thumbnail || '')
+    .split('::')
+    .find((t) => t.startsWith('data:image'));
   return first || null;
 }
 
@@ -39,8 +55,15 @@ function Thumbnail({ entry }: { entry: ReviewEntry }) {
   useEffect(() => {
     if (src || !/\.(3mf|lys|f3d|chitubox|voxl)$/i.test(entry.filePath)) return;
     let current = true;
-    callAction<string | null>('getThumbnail', entry.filePath).then((image) => { if (current && image?.startsWith('data:image')) setSrc(image); }, () => {});
-    return () => { current = false; };
+    callAction<string | null>('getThumbnail', entry.filePath).then(
+      (image) => {
+        if (current && image?.startsWith('data:image')) setSrc(image);
+      },
+      () => {}
+    );
+    return () => {
+      current = false;
+    };
   }, [entry.filePath]);
   return (
     <div className="tag-review-thumb">
@@ -85,7 +108,10 @@ export function TagPreviewDialog() {
       runId.current = id;
       setReviewing(id);
       setReview(next);
-      settings.get<string | null>('aiTagMergeStrategy').then((s) => setStrategy((s as MergeStrategy) || 'merge'), () => {});
+      settings.get<string | null>('aiTagMergeStrategy').then(
+        (s) => setStrategy((s as MergeStrategy) || 'merge'),
+        () => {}
+      );
       if (!dialogRef.current?.open) dialogRef.current?.showModal();
     };
     const update = (change: (review: Review) => Review) => {
@@ -123,7 +149,9 @@ export function TagPreviewDialog() {
           showMessage('Rate Limit Exceeded', detail);
         }
       }),
-      onServerEvent('batch-tag-generation-complete', (id?: number) => { if (!otherRun(id)) update(finishBatch); })
+      onServerEvent('batch-tag-generation-complete', (id?: number) => {
+        if (!otherRun(id)) update(finishBatch);
+      })
     ];
     // The run as the JusttPrint backend has it: every model, with the suggestions so far.
     window.openAiTagReview = async () => {
@@ -145,7 +173,12 @@ export function TagPreviewDialog() {
       const loadedByPath = new Map(run.filePaths.map((p, i) => [p, loaded[i]]));
       for (const result of latest.results) {
         if (results.has(result.filePath)) continue;
-        update((review) => upsertEntry(review, toEntry(result.filePath, loadedByPath.get(result.filePath) ?? null, undefined, { generatedTags: result.tags, error: result.error })));
+        update((review) =>
+          upsertEntry(
+            review,
+            toEntry(result.filePath, loadedByPath.get(result.filePath) ?? null, undefined, { generatedTags: result.tags, error: result.error })
+          )
+        );
       }
       if (!latest.running) update(finishBatch);
     };
@@ -172,27 +205,32 @@ export function TagPreviewDialog() {
     setApplying({ done, total: picks.length });
     // Five at a time.
     for (let i = 0; i < picks.length; i += 5) {
-      await Promise.all(picks.slice(i, i + 5).map(async ({ entry, tags }) => {
-        try {
-          const model = await models.get<ModelRecord>(entry.filePath);
-          if (!model) throw new Error('Model not found');
-          await callAction('save-model', { ...model, tags: mergeTags(entry.existingTags, tags, strategy) });
-          applied += tags.length;
-        } catch (error) {
-          console.error(`Error applying tags to ${entry.filePath}:`, error);
-          failed++;
-        }
-        done++;
-        setApplying({ done, total: picks.length });
-      }));
+      await Promise.all(
+        picks.slice(i, i + 5).map(async ({ entry, tags }) => {
+          try {
+            const model = await models.get<ModelRecord>(entry.filePath);
+            if (!model) throw new Error('Model not found');
+            await callAction('save-model', { ...model, tags: mergeTags(entry.existingTags, tags, strategy) });
+            applied += tags.length;
+          } catch (error) {
+            console.error(`Error applying tags to ${entry.filePath}:`, error);
+            failed++;
+          }
+          done++;
+          setApplying({ done, total: picks.length });
+        })
+      );
     }
     setApplying(null);
     const succeeded = picks.length - failed;
     if (succeeded > 0) {
       await refreshTagRelatedUi();
-      await showMessage('Success', failed
-        ? `Tags applied to ${succeeded} model(s) (${failed} failed). ${applied} tag(s) applied.`
-        : `Tags applied successfully to ${succeeded} model(s)! ${applied} tag(s) applied.`);
+      await showMessage(
+        'Success',
+        failed
+          ? `Tags applied to ${succeeded} model(s) (${failed} failed). ${applied} tag(s) applied.`
+          : `Tags applied successfully to ${succeeded} model(s)! ${applied} tag(s) applied.`
+      );
     } else {
       await showMessage('Error', 'Failed to apply tags.');
     }
@@ -211,7 +249,10 @@ export function TagPreviewDialog() {
   const rateLimited = review?.entries.map((e) => rateLimitDetail(e.error)).find(Boolean);
 
   return (
-    <ModalDialog id="tag-preview-dialog" title={title} dialogRef={dialogRef}
+    <ModalDialog
+      id="tag-preview-dialog"
+      title={title}
+      dialogRef={dialogRef}
       onClose={() => {
         closedRun.current = true;
         setReview(null);
@@ -221,28 +262,51 @@ export function TagPreviewDialog() {
         const run = currentAiTagJob();
         if (id != null && run?.id === id && !run.running) dismissAiTagJob(id);
       }}
-      footer={(
+      footer={
         <>
-          <button type="button" id="tag-preview-apply" disabled={!ready || !!applying} title={ready ? undefined : 'Please wait for tags to finish generating'}
-            onClick={apply}>{applying ? `Applying ${applying.done} / ${applying.total}...` : 'Apply Selected Tags'}</button>
+          <button
+            type="button"
+            id="tag-preview-apply"
+            disabled={!ready || !!applying}
+            title={ready ? undefined : 'Please wait for tags to finish generating'}
+            onClick={apply}
+          >
+            {applying ? `Applying ${applying.done} / ${applying.total}...` : 'Apply Selected Tags'}
+          </button>
           {runActive && (
-            <button type="button" id="tag-preview-stop" disabled={job?.stopping} onClick={() => stopAiTagJob()}>{job?.stopping ? 'Stopping...' : 'Stop'}</button>
+            <button type="button" id="tag-preview-stop" disabled={job?.stopping} onClick={() => stopAiTagJob()}>
+              {job?.stopping ? 'Stopping...' : 'Stop'}
+            </button>
           )}
-          <button type="button" id="tag-preview-cancel" disabled={!!applying} onClick={close}
-            title={runActive ? 'Keeps running; Review in the sidebar opens it again' : undefined}>{runActive ? 'Run in Background' : 'Cancel'}</button>
+          <button
+            type="button"
+            id="tag-preview-cancel"
+            disabled={!!applying}
+            onClick={close}
+            title={runActive ? 'Keeps running; Review in the sidebar opens it again' : undefined}
+          >
+            {runActive ? 'Run in Background' : 'Cancel'}
+          </button>
         </>
-      )}>
+      }
+    >
       {single && (
         <div id="tag-preview-model-info" className="tag-review-model-info">
           <div className="tag-review-label">Model:</div>
-          <div id="tag-preview-model-name" className="tag-review-model-name">{single.fileName}</div>
-          <div id="tag-preview-model-path" className="tag-review-model-path">{single.filePath}</div>
+          <div id="tag-preview-model-name" className="tag-review-model-name">
+            {single.fileName}
+          </div>
+          <div id="tag-preview-model-path" className="tag-review-model-path">
+            {single.filePath}
+          </div>
         </div>
       )}
       <p className="setting-description">
         Review and select which tags to apply to {single ? 'this model' : 'these models'}. Uncheck any tags you don't want to include.
       </p>
-      <p id="tag-preview-status" className="setting-description" hidden={!rateLimited}>{rateLimited && `Rate limit exceeded: ${rateLimited}`}</p>
+      <p id="tag-preview-status" className="setting-description" hidden={!rateLimited}>
+        {rateLimited && `Rate limit exceeded: ${rateLimited}`}
+      </p>
       <div id="tag-preview-container" className="tag-review-list">
         {review && !review.entries.length && <div className="tag-review-waiting">Generating tags for {review.expected} model(s)...</div>}
         {review?.entries.map((entry) => {
@@ -261,7 +325,11 @@ export function TagPreviewDialog() {
               {entry.existingTags.length > 0 && (
                 <div className="tag-review-existing">
                   <div className="tag-review-label">Existing tags ({entry.existingTags.length}):</div>
-                  {entry.existingTags.map((tag) => <span key={tag} className="tag-review-chip">{tag}</span>)}
+                  {entry.existingTags.map((tag) => (
+                    <span key={tag} className="tag-review-chip">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
               {tags.length > 0 ? (
@@ -270,20 +338,33 @@ export function TagPreviewDialog() {
                   <div className="tag-review-tags">
                     {tags.map((tag, i) => (
                       <label key={tag} className="tag-review-tag">
-                        <input type="checkbox" value={tag} data-file-path={entry.filePath} checked={!review.unticked.has(keys[i])}
-                          onChange={(e) => setReview(setTicked(review, [keys[i]], e.target.checked))} />
+                        <input
+                          type="checkbox"
+                          value={tag}
+                          data-file-path={entry.filePath}
+                          checked={!review.unticked.has(keys[i])}
+                          onChange={(e) => setReview(setTicked(review, [keys[i]], e.target.checked))}
+                        />
                         <span>{tag}</span>
                       </label>
                     ))}
                   </div>
                   <div className="tag-review-bulk">
-                    <button type="button" onClick={() => setReview(setTicked(review, keys, true))}>Select All</button>
-                    <button type="button" onClick={() => setReview(setTicked(review, keys, false))}>Clear Selection</button>
+                    <button type="button" onClick={() => setReview(setTicked(review, keys, true))}>
+                      Select All
+                    </button>
+                    <button type="button" onClick={() => setReview(setTicked(review, keys, false))}>
+                      Clear Selection
+                    </button>
                   </div>
                 </>
               ) : (
                 <div className={`tag-review-status${limit ? ' is-error' : ''}`}>
-                  {entry.generatedTags === undefined ? 'Generating tags...' : limit ? `Rate limit exceeded: ${limit}` : entry.error || 'No tags generated for this model'}
+                  {entry.generatedTags === undefined
+                    ? 'Generating tags...'
+                    : limit
+                      ? `Rate limit exceeded: ${limit}`
+                      : entry.error || 'No tags generated for this model'}
                 </div>
               )}
             </div>
@@ -291,7 +372,9 @@ export function TagPreviewDialog() {
         })}
         {review && (
           <div id="tag-preview-merge-strategy" className="tag-review-strategy">
-            <div>Merge Strategy: <span>{strategy}</span></div>
+            <div>
+              Merge Strategy: <span>{strategy}</span>
+            </div>
             <div>{STRATEGY_HELP[strategy] || STRATEGY_HELP.merge}</div>
           </div>
         )}

@@ -13,9 +13,20 @@ const { version } = require('../../../package.json');
  * values.
  */
 const PER_USER_SETTING_KEYS = new Set([
-  'gridView', 'lastUsedView', 'listViewColumnLayout', 'perFolderView', 'previewTileSize', 'sortOption',
-  'searchIncludeNotes', 'recentFolderFilters', 'folderRailOpen', 'organizeLibraryLayers', 'dedupPreferredDirectory',
-  'hideSkippedFileSizeNotice', 'hasRunBefore', 'uiTheme'
+  'gridView',
+  'lastUsedView',
+  'listViewColumnLayout',
+  'perFolderView',
+  'previewTileSize',
+  'sortOption',
+  'searchIncludeNotes',
+  'recentFolderFilters',
+  'folderRailOpen',
+  'organizeLibraryLayers',
+  'dedupPreferredDirectory',
+  'hideSkippedFileSizeNotice',
+  'hasRunBefore',
+  'uiTheme'
 ]);
 
 /** Server-wide settings any user may save: the update check and the accepted terms. Everything else needs an admin. */
@@ -43,12 +54,14 @@ let userSettingsDb = null;
 function userSettingsTable() {
   const db = database.db;
   if (userSettingsDb !== db) {
-    db.prepare(`CREATE TABLE IF NOT EXISTS user_settings (
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS user_settings (
       user_id INTEGER NOT NULL,
       key TEXT NOT NULL,
       value TEXT,
       PRIMARY KEY (user_id, key)
-    )`).run();
+    )`
+    ).run();
     userSettingsDb = db;
   }
   return db;
@@ -108,7 +121,8 @@ const saveSettingHandler = async (event, key, value) => {
     }
     const userId = accountId(event);
     if (userId && isPerUserSetting(key)) {
-      userSettingsTable().prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)')
+      userSettingsTable()
+        .prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)')
         .run(userId, key, value == null ? null : String(value));
       return true;
     }

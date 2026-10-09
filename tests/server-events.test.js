@@ -20,7 +20,18 @@ const frames = [];
 const open = { readyState: 1, send: (text) => frames.push(JSON.parse(text)) };
 assert.strictEqual(events.sendTo(open, 'execute-client-command', { type: 'open-in-slicer' }), true);
 assert.deepStrictEqual(frames, [{ type: 'event', channel: 'execute-client-command', args: [{ type: 'open-in-slicer' }] }]);
-assert.strictEqual(events.sendTo({ readyState: 3, send() { throw new Error('closed'); } }, 'x'), false);
+assert.strictEqual(
+  events.sendTo(
+    {
+      readyState: 3,
+      send() {
+        throw new Error('closed');
+      }
+    },
+    'x'
+  ),
+  false
+);
 assert.strictEqual(events.sendTo(null, 'x'), false);
 
 console.log('server-events tests passed');

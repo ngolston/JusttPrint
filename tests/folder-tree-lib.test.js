@@ -2,13 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const {
-  normalizeDir,
-  ancestorChain,
-  toDirectoryFilter,
-  directoryFilterLikePrefix,
-  buildFolderForest
-} = require('../src/core/folder-tree-lib');
+const { normalizeDir, ancestorChain, toDirectoryFilter, directoryFilterLikePrefix, buildFolderForest } = require('../src/core/folder-tree-lib');
 
 function test(name, fn) {
   try {
@@ -71,11 +65,9 @@ test('directory filter prefix matches mixed-slash zip entries and not sibling fo
 });
 
 test('STL Home is labeled and nested counts include children', () => {
-  const forest = buildFolderForest([
-    'C:/Models/Patreon/Dragons/a.stl',
-    'C:/Models/Patreon/Dragons/b.3mf',
-    'C:/Models/Prints/box.stl'
-  ], { stlHome: 'C:/Models' });
+  const forest = buildFolderForest(['C:/Models/Patreon/Dragons/a.stl', 'C:/Models/Patreon/Dragons/b.3mf', 'C:/Models/Prints/box.stl'], {
+    stlHome: 'C:/Models'
+  });
   assert.strictEqual(forest.roots.length, 1);
   assert.strictEqual(forest.roots[0].label, 'STL Home');
   assert.strictEqual(forest.roots[0].count, 3);
@@ -89,18 +81,13 @@ test('STL Home is labeled and nested counts include children', () => {
 });
 
 test('does not emit a drive-letter root above STL Home', () => {
-  const forest = buildFolderForest([
-    'C:/Models/a.stl'
-  ], { stlHome: 'C:/Models' });
+  const forest = buildFolderForest(['C:/Models/a.stl'], { stlHome: 'C:/Models' });
   assert.strictEqual(forest.roots.length, 1);
   assert.strictEqual(forest.roots[0].path, 'C:/Models');
 });
 
 test('zip bundles are marked and counted', () => {
-  const forest = buildFolderForest([
-    'C:/Models/pack.zip::folder/part.stl',
-    'C:/Models/pack.zip::folder/other.3mf'
-  ], { stlHome: 'C:/Models' });
+  const forest = buildFolderForest(['C:/Models/pack.zip::folder/part.stl', 'C:/Models/pack.zip::folder/other.3mf'], { stlHome: 'C:/Models' });
   const zip = findNode(forest.roots, 'C:/Models/pack.zip');
   assert.ok(zip);
   assert.strictEqual(zip.isBundle, true);
@@ -111,11 +98,7 @@ test('zip bundles are marked and counted', () => {
 });
 
 test('orphan scans cluster by shared prefix, not the whole drive', () => {
-  const forest = buildFolderForest([
-    'D:/USB/Dragons/a.stl',
-    'D:/USB/Cats/b.stl',
-    'E:/Prints/foo.stl'
-  ], { stlHome: 'C:/Models' });
+  const forest = buildFolderForest(['D:/USB/Dragons/a.stl', 'D:/USB/Cats/b.stl', 'E:/Prints/foo.stl'], { stlHome: 'C:/Models' });
   const labels = forest.roots.map((r) => r.path).sort();
   assert.ok(labels.includes('D:/USB'), labels.join(','));
   assert.ok(labels.includes('E:/Prints'), labels.join(','));
@@ -124,19 +107,14 @@ test('orphan scans cluster by shared prefix, not the whole drive', () => {
 });
 
 test('UNC paths keep the share as a root when that is the scan dir', () => {
-  const forest = buildFolderForest([
-    '//nas/share/lib/Patreon/a.stl',
-    '//nas/share/lib/Prints/b.stl'
-  ], { stlHome: '//nas/share/lib' });
+  const forest = buildFolderForest(['//nas/share/lib/Patreon/a.stl', '//nas/share/lib/Prints/b.stl'], { stlHome: '//nas/share/lib' });
   assert.strictEqual(forest.roots.length, 1);
   assert.strictEqual(forest.roots[0].label, 'STL Home');
   assert.strictEqual(forest.roots[0].count, 2);
 });
 
 test('case-insensitive matching against STL Home', () => {
-  const forest = buildFolderForest([
-    'c:\\models\\patreon\\a.stl'
-  ], { stlHome: 'C:/Models' });
+  const forest = buildFolderForest(['c:\\models\\patreon\\a.stl'], { stlHome: 'C:/Models' });
   assert.strictEqual(forest.roots.length, 1);
   assert.strictEqual(forest.roots[0].label, 'STL Home');
   assert.strictEqual(forest.roots[0].count, 1);

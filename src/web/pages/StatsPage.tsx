@@ -22,7 +22,9 @@ function storedPeriod(): PeriodId {
   try {
     const value = localStorage.getItem(PERIOD_KEY);
     if (PERIODS.some((period) => period.id === value)) return value as PeriodId;
-  } catch { /* private window */ }
+  } catch {
+    /* private window */
+  }
   return '12';
 }
 
@@ -60,7 +62,11 @@ function topRoundedBar(x: number, y: number, w: number, h: number, r = 4): strin
   return `M${x} ${y + h}V${y + radius}Q${x} ${y} ${x + radius} ${y}H${x + w - radius}Q${x + w} ${y} ${x + w} ${y + radius}V${y + h}Z`;
 }
 
-interface Series { key: string; label: string; color: string }
+interface Series {
+  key: string;
+  label: string;
+  color: string;
+}
 
 /**
  * Columns per month, stacked by series, one axis. Hover or focus a month for its numbers.
@@ -89,7 +95,9 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
           {ticks(top).map((tick) => (
             <g key={tick} className="jp-chart__grid">
               <line x1={left} x2={width - 4} y1={y(tick)} y2={y(tick)} />
-              <text x={left - 8} y={y(tick)} dy="0.32em" textAnchor="end">{fmt(tick)}</text>
+              <text x={left - 8} y={y(tick)} dy="0.32em" textAnchor="end">
+                {fmt(tick)}
+              </text>
             </g>
           ))}
           {months.map((month, index) => {
@@ -105,18 +113,32 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
                   // 2px surface gap between stacked segments.
                   const h = Math.max(1, y0 - y1 - (partIndex > 0 ? 2 : 0));
                   const isTop = partIndex === parts.length - 1;
-                  return isTop
-                    ? <path key={part.s.key} d={topRoundedBar(cx - barW / 2, y1, barW, h)} fill={part.s.color} />
-                    : <rect key={part.s.key} x={cx - barW / 2} y={y1} width={barW} height={h} fill={part.s.color} />;
+                  return isTop ? (
+                    <path key={part.s.key} d={topRoundedBar(cx - barW / 2, y1, barW, h)} fill={part.s.color} />
+                  ) : (
+                    <rect key={part.s.key} x={cx - barW / 2} y={y1} width={barW} height={h} fill={part.s.color} />
+                  );
                 })}
-                {(index % every === 0) && (
-                  <text className="jp-chart__x" x={cx} y={height - 8} textAnchor="middle">{monthLabel(month.month, index === 0)}</text>
+                {index % every === 0 && (
+                  <text className="jp-chart__x" x={cx} y={height - 8} textAnchor="middle">
+                    {monthLabel(month.month, index === 0)}
+                  </text>
                 )}
                 {/* Hit area: the whole column, wider than the bar. */}
-                <rect className="jp-chart__hit" role="img" x={left + band * index} y={8} width={band} height={plotH} tabIndex={0}
+                <rect
+                  className="jp-chart__hit"
+                  role="img"
+                  x={left + band * index}
+                  y={8}
+                  width={band}
+                  height={plotH}
+                  tabIndex={0}
                   aria-label={`${monthTitle(month.month)}: ${series.map((s) => `${s.label} ${valueOf(month, s.key)}`).join(', ')}`}
-                  onMouseEnter={() => setActive(index)} onMouseLeave={() => setActive(null)}
-                  onFocus={() => setActive(index)} onBlur={() => setActive(null)} />
+                  onMouseEnter={() => setActive(index)}
+                  onMouseLeave={() => setActive(null)}
+                  onFocus={() => setActive(index)}
+                  onBlur={() => setActive(null)}
+                />
               </g>
             );
           })}
@@ -124,8 +146,7 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
         </svg>
       )}
       {activeMonth && active != null && (
-        <div className="jp-chart__tooltip" role="presentation"
-          style={{ left: Math.min(Math.max(8, left + band * active + band / 2), width - 8), top: 4 }}>
+        <div className="jp-chart__tooltip" role="presentation" style={{ left: Math.min(Math.max(8, left + band * active + band / 2), width - 8), top: 4 }}>
           <div className="jp-chart__tooltip-title">{monthTitle(activeMonth.month)}</div>
           {series.map((s) => (
             <div key={s.key} className="jp-chart__tooltip-row">
@@ -143,7 +164,12 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
 function Legend({ series }: { series: readonly Series[] }) {
   return (
     <ul className="jp-chart__legend" aria-label="Legend">
-      {series.map((s) => <li key={s.key}><span className="jp-chart__swatch" style={{ background: s.color }} />{s.label}</li>)}
+      {series.map((s) => (
+        <li key={s.key}>
+          <span className="jp-chart__swatch" style={{ background: s.color }} />
+          {s.label}
+        </li>
+      ))}
     </ul>
   );
 }
@@ -153,12 +179,23 @@ function MonthTable({ months, series }: { months: Month[]; series: readonly Seri
   return (
     <div className="jp-stats__table-wrap">
       <table className="jp-stats__table">
-        <thead><tr><th scope="col">Month</th>{series.map((s) => <th key={s.key} scope="col">{s.label}</th>)}</tr></thead>
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            {series.map((s) => (
+              <th key={s.key} scope="col">
+                {s.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody>
           {months.map((month) => (
             <tr key={month.month}>
               <th scope="row">{monthTitle(month.month)}</th>
-              {series.map((s) => <td key={s.key}>{fmt(Number((month as unknown as Record<string, number>)[s.key]) || 0)}</td>)}
+              {series.map((s) => (
+                <td key={s.key}>{fmt(Number((month as unknown as Record<string, number>)[s.key]) || 0)}</td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -167,7 +204,13 @@ function MonthTable({ months, series }: { months: Month[]; series: readonly Seri
   );
 }
 
-interface Ranked { key: string | number; label: ReactNode; title: string; value: number; detail?: string }
+interface Ranked {
+  key: string | number;
+  label: ReactNode;
+  title: string;
+  value: number;
+  detail?: string;
+}
 
 /** A ranked list with bars on one scale and the value written beside each. */
 function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty: string }) {
@@ -181,7 +224,10 @@ function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty
           <span className="jp-ranked__track">
             <span className="jp-ranked__bar" style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }} />
           </span>
-          <span className="jp-ranked__value">{fmt(row.value)}{row.detail && <span className="jp-ranked__detail"> · {row.detail}</span>}</span>
+          <span className="jp-ranked__value">
+            {fmt(row.value)}
+            {row.detail && <span className="jp-ranked__detail"> · {row.detail}</span>}
+          </span>
         </li>
       ))}
     </ol>
@@ -191,7 +237,9 @@ function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty
 function StatsSkeleton() {
   return (
     <div className="jp-stats__tiles">
-      {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={88} radius="lg" />)}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} height={88} radius="lg" />
+      ))}
     </div>
   );
 }
@@ -212,10 +260,19 @@ export function StatsPage() {
   useEffect(() => {
     const mine = ++ticket.current;
     setError('');
-    statistics.get(Number(period))
-      .then((result) => { if (mine === ticket.current) setStats(result); })
-      .catch((err) => { if (mine === ticket.current) setError(err instanceof Error ? err.message : String(err)); });
-    try { localStorage.setItem(PERIOD_KEY, period); } catch { /* private window */ }
+    statistics
+      .get(Number(period))
+      .then((result) => {
+        if (mine === ticket.current) setStats(result);
+      })
+      .catch((err) => {
+        if (mine === ticket.current) setError(err instanceof Error ? err.message : String(err));
+      });
+    try {
+      localStorage.setItem(PERIOD_KEY, period);
+    } catch {
+      /* private window */
+    }
   }, [period, counts]);
 
   const totals = stats?.totals;
@@ -229,20 +286,31 @@ export function StatsPage() {
       <header className="jp-page__header jp-stats__header">
         <div>
           <h1 className="jp-page-title">Statistics</h1>
-          <p className="jp-meta">From your print log and library, {periodText}{stats ? ` (${monthTitle(stats.from)} – ${monthTitle(stats.to)})` : ''}.</p>
+          <p className="jp-meta">
+            From your print log and library, {periodText}
+            {stats ? ` (${monthTitle(stats.from)} – ${monthTitle(stats.to)})` : ''}.
+          </p>
         </div>
         <Tabs<PeriodId> label="Period" items={PERIODS.map((p) => ({ id: p.id, label: p.label }))} value={period} onChange={setPeriod} />
       </header>
 
-      {error && <EmptyState icon={BarChart3} title="Could not load the statistics" tone="danger">{error}</EmptyState>}
+      {error && (
+        <EmptyState icon={BarChart3} title="Could not load the statistics" tone="danger">
+          {error}
+        </EmptyState>
+      )}
       {!stats && !error && <StatsSkeleton />}
 
       {stats && totals && (
         <>
           <div className="jp-stats__tiles" id="jp-stats-tiles">
             <StatCard icon={Printer} value={fmt(totals.printed)} label="Prints" />
-            <StatCard icon={CheckCircle2} tone="success" value={percent(totals.successRate)}
-              label={finished ? `Success rate (${fmt(totals.printed)} of ${fmt(finished)})` : 'Success rate'} />
+            <StatCard
+              icon={CheckCircle2}
+              tone="success"
+              value={percent(totals.successRate)}
+              label={finished ? `Success rate (${fmt(totals.printed)} of ${fmt(finished)})` : 'Success rate'}
+            />
             <StatCard icon={CircleX} tone="danger" value={fmt(totals.failed)} label="Failed" />
             <StatCard icon={Ban} tone="neutral" value={fmt(totals.cancelled)} label="Cancelled" />
             <StatCard icon={FilePlus2} tone="violet" value={fmt(added)} label="Models added" />
@@ -257,8 +325,14 @@ export function StatsPage() {
                     {showTable ? 'Show chart' : 'Show table'}
                   </Button>
                 </div>
-                {showTable ? <MonthTable months={stats.byMonth} series={OUTCOMES} /> : <MonthChart months={stats.byMonth} series={OUTCOMES} label="Prints per month by outcome" />}
-                <p className="jp-meta jp-stats__note">Success rate counts printed out of printed and failed; cancelled prints are left out. Months are in UTC.</p>
+                {showTable ? (
+                  <MonthTable months={stats.byMonth} series={OUTCOMES} />
+                ) : (
+                  <MonthChart months={stats.byMonth} series={OUTCOMES} label="Prints per month by outcome" />
+                )}
+                <p className="jp-meta jp-stats__note">
+                  Success rate counts printed out of printed and failed; cancelled prints are left out. Months are in UTC.
+                </p>
               </>
             ) : (
               <EmptyState icon={Printer} title="No prints logged in this period">
@@ -269,32 +343,63 @@ export function StatsPage() {
 
           <div className="jp-stats__grid">
             <Panel title="Top designers">
-              <RankedBars unit="prints" empty="No printed models with a designer yet."
-                rows={stats.designers.map((d) => ({ key: d.name, label: d.name, title: d.name, value: d.printed, detail: `${d.models} ${d.models === 1 ? 'model' : 'models'}` }))} />
+              <RankedBars
+                unit="prints"
+                empty="No printed models with a designer yet."
+                rows={stats.designers.map((d) => ({
+                  key: d.name,
+                  label: d.name,
+                  title: d.name,
+                  value: d.printed,
+                  detail: `${d.models} ${d.models === 1 ? 'model' : 'models'}`
+                }))}
+              />
             </Panel>
             <Panel title="Most printed models">
-              <RankedBars unit="prints" empty="Nothing printed yet."
-                rows={stats.models.map((m) => ({ key: m.id, label: m.fileName, title: m.filePath, value: m.printed }))} />
+              <RankedBars
+                unit="prints"
+                empty="Nothing printed yet."
+                rows={stats.models.map((m) => ({ key: m.id, label: m.fileName, title: m.filePath, value: m.printed }))}
+              />
             </Panel>
             <Panel title="Printers">
-              <RankedBars unit="prints" empty="No prints are logged with a printer."
+              <RankedBars
+                unit="prints"
+                empty="No prints are logged with a printer."
                 rows={stats.printers.map((p) => ({
                   key: p.id ?? 'none',
-                  label: p.id == null ? 'No printer' : (p.name || 'Unnamed printer'),
+                  label: p.id == null ? 'No printer' : p.name || 'Unnamed printer',
                   title: p.name || 'No printer',
                   value: p.printed,
                   detail: `${percent(p.successRate)} success`
-                }))} />
+                }))}
+              />
             </Panel>
           </div>
 
           <Panel title="Models added per month" className="jp-stats__wide">
-            {added > 0
-              ? <MonthChart months={stats.byMonth} series={[{ key: 'added', label: 'Models added', color: 'var(--jp-series-1)' }]} label="Models added to the library per month" height={180} />
-              : <p className="jp-meta jp-stats__empty">No models were added in this period.</p>}
+            {added > 0 ? (
+              <MonthChart
+                months={stats.byMonth}
+                series={[{ key: 'added', label: 'Models added', color: 'var(--jp-series-1)' }]}
+                label="Models added to the library per month"
+                height={180}
+              />
+            ) : (
+              <p className="jp-meta jp-stats__empty">No models were added in this period.</p>
+            )}
             <div className="jp-stats__chart-bar">
               <span className="jp-meta">File types, sizes and metadata completeness are in Library Stats.</span>
-              <Button size="sm" variant="ghost" icon={Database} onClick={() => { void findMenuAction('Library Stats')?.(); }}>Library Stats</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={Database}
+                onClick={() => {
+                  void findMenuAction('Library Stats')?.();
+                }}
+              >
+                Library Stats
+              </Button>
             </div>
           </Panel>
         </>

@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildDisplayRecords, buildLayoutRows, cellPosition, dedupeModels, normalizePath, scrollTopForSelection,
-  viewMetrics, visibleRows, CARD, cardPreviewHeight, type DisplayRecord, type GridModel, type Layout
+  buildDisplayRecords,
+  buildLayoutRows,
+  cellPosition,
+  dedupeModels,
+  normalizePath,
+  scrollTopForSelection,
+  viewMetrics,
+  visibleRows,
+  CARD,
+  cardPreviewHeight,
+  type DisplayRecord,
+  type GridModel,
+  type Layout
 } from './layout';
 
 const none = { bundles: new Set<string>(), parentModels: new Set<string>() };
@@ -25,32 +36,32 @@ describe('dedupeModels', () => {
 
 describe('buildDisplayRecords', () => {
   it('groups models with the same parent model at the first one, case-insensitively', () => {
-    const records = buildDisplayRecords([
-      model(1, '/a.stl', { parentModel: 'Dragon' }),
-      model(2, '/b.stl'),
-      model(3, '/c.stl', { parentModel: 'dragon ' })
-    ], none);
+    const records = buildDisplayRecords(
+      [model(1, '/a.stl', { parentModel: 'Dragon' }), model(2, '/b.stl'), model(3, '/c.stl', { parentModel: 'dragon ' })],
+      none
+    );
     expect(records.map((record) => record.type)).toEqual(['group', 'model']);
     const group = records[0];
-    expect(group.type === 'group' && [group.groupKind, group.groupKey, group.groupLabel, group.children.length, group.expanded])
-      .toEqual(['parentModel', 'parent:dragon', 'Dragon', 2, false]);
+    expect(group.type === 'group' && [group.groupKind, group.groupKey, group.groupLabel, group.children.length, group.expanded]).toEqual([
+      'parentModel',
+      'parent:dragon',
+      'Dragon',
+      2,
+      false
+    ]);
   });
 
   it('shows the children after an expanded group', () => {
-    const records = buildDisplayRecords([
-      model(1, '/a.stl', { parentModel: 'P' }),
-      model(2, '/b.stl', { parentModel: 'P' })
-    ], { bundles: new Set(), parentModels: new Set(['parent:p']) });
+    const records = buildDisplayRecords([model(1, '/a.stl', { parentModel: 'P' }), model(2, '/b.stl', { parentModel: 'P' })], {
+      bundles: new Set(),
+      parentModels: new Set(['parent:p'])
+    });
     expect(records.map((record) => record.key)).toEqual(['group:parent:p', 'child:parent:p:id:1', 'child:parent:p:id:2']);
     expect(records[1].type === 'model' && records[1].parentGroupKey).toBe('parent:p');
   });
 
   it('bundles ZIP entries by archive before grouping by parent model', () => {
-    const records = buildDisplayRecords([
-      model(1, '/z/pack.zip::a.stl'),
-      model(2, '/z/pack.zip::b.stl'),
-      model(3, '/loose.stl')
-    ], none);
+    const records = buildDisplayRecords([model(1, '/z/pack.zip::a.stl'), model(2, '/z/pack.zip::b.stl'), model(3, '/loose.stl')], none);
     const bundle = records[0];
     expect(bundle.type === 'group' && [bundle.groupKind, bundle.groupKey, bundle.groupLabel]).toEqual(['bundle', 'bundle:zip:/z/pack.zip', 'pack.zip']);
   });
@@ -62,11 +73,18 @@ describe('buildDisplayRecords', () => {
 });
 
 describe('layout', () => {
-  const five = buildDisplayRecords([1, 2, 3, 4, 5].map((id) => model(id, `/${id}.stl`)), none);
+  const five = buildDisplayRecords(
+    [1, 2, 3, 4, 5].map((id) => model(id, `/${id}.stl`)),
+    none
+  );
 
   it('fills rows to the column count and stacks them with gaps', () => {
     const layout = buildLayoutRows(five, 2, 'detailed', 490, 450, 10, 20);
-    expect(layout.rows.map((row) => [row.records.length, row.top])).toEqual([[2, 10], [2, 520], [1, 1030]]);
+    expect(layout.rows.map((row) => [row.records.length, row.top])).toEqual([
+      [2, 10],
+      [2, 520],
+      [1, 1030]
+    ]);
     expect(layout.totalHeight).toBe(1030 + 490 + 10);
   });
 
@@ -83,7 +101,12 @@ describe('layout', () => {
     expect(metrics.cellWidth).toBe(Math.floor((956 - 48 - 3 * 16) / 4));
     expect(metrics.cellHeight).toBe(cardPreviewHeight(metrics.cellWidth) + CARD.footer);
     const row = buildLayoutRows(five, 4, 'detailed', metrics.cellHeight, metrics.groupHeight, metrics.paddingVertical, metrics.verticalGap).rows[0];
-    expect(cellPosition(row, 3, metrics, 'detailed')).toEqual({ top: CARD.paddingTop, left: 24 + 3 * (metrics.cellWidth + 16), width: metrics.cellWidth, height: metrics.cellHeight });
+    expect(cellPosition(row, 3, metrics, 'detailed')).toEqual({
+      top: CARD.paddingTop,
+      left: 24 + 3 * (metrics.cellWidth + 16),
+      width: metrics.cellWidth,
+      height: metrics.cellHeight
+    });
     expect(viewMetrics({ view: 'detailed', width: 1536 - 220, previewSize: 'm' }).columns).toBe(5);
     expect(viewMetrics({ view: 'detailed', width: 150, previewSize: 'm' }).columns).toBe(1);
     // A phone (390 px): two compact cards (spec §36).
@@ -98,7 +121,10 @@ describe('layout', () => {
   });
 
   it('lists only rows near the viewport, and centers the selection', () => {
-    const many = buildDisplayRecords(Array.from({ length: 40 }, (_, i) => model(i, `/${i}.stl`)), none);
+    const many = buildDisplayRecords(
+      Array.from({ length: 40 }, (_, i) => model(i, `/${i}.stl`)),
+      none
+    );
     const layout = buildLayoutRows(many, 1, 'list', 52, 52, 10, 4);
     const shown = visibleRows(layout, 560, 300, 104);
     expect(shown[0].top).toBeGreaterThanOrEqual(560 - 104 - 52);
@@ -110,7 +136,15 @@ describe('layout', () => {
   });
 
   it('centers the row of a selected model, or of a group holding the selection', () => {
-    const group: DisplayRecord = { type: 'group', key: 'group:parent:g', groupKind: 'parentModel', groupKey: 'parent:g', groupLabel: 'G', children: [model(9, 'grouped.stl')], expanded: false };
+    const group: DisplayRecord = {
+      type: 'group',
+      key: 'group:parent:g',
+      groupKind: 'parentModel',
+      groupKey: 'parent:g',
+      groupLabel: 'G',
+      children: [model(9, 'grouped.stl')],
+      expanded: false
+    };
     const layout: Layout = {
       totalHeight: 4000,
       rows: [

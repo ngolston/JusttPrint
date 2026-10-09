@@ -13,7 +13,9 @@ export const thumbKey = (filePath: string) => {
   let p = filePath;
   try {
     p = decodeURIComponent(p);
-  } catch { /* as is */ }
+  } catch {
+    /* as is */
+  }
   p = p.replace(/\\/g, '/').trim();
   return /^[a-zA-Z]:\//.test(p) ? p.charAt(0).toUpperCase() + p.slice(1) : p;
 };
@@ -57,7 +59,7 @@ export async function fetchPrimaryThumbnail(filePath: string): Promise<string | 
 
 /** Save a render as the model's thumbnail, unless it is failure art or blank. True when saved. */
 export async function saveThumbnailIfReal(filePath: string, thumbnail: string | null): Promise<boolean> {
-  if (!isRealImage(thumbnail) || await isMostlyEmpty(thumbnail)) return false;
+  if (!isRealImage(thumbnail) || (await isMostlyEmpty(thumbnail))) return false;
   await callAction('save-thumbnail', filePath, thumbnail);
   setCachedThumbnail(filePath, thumbnail);
   return true;

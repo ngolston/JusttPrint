@@ -9,7 +9,9 @@
 const { licenseName } = require('./link-import');
 
 const clean = (value, max = 500) => {
-  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  const text = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return text ? text.slice(0, max) : null;
 };
 
@@ -18,11 +20,16 @@ const number = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const decodeEntities = (text) => String(text || '')
-  .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-  .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-  .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-  .replace(/&amp;/g, '&');
+const decodeEntities = (text) =>
+  String(text || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 
 /** A description's HTML → plain text with paragraphs (links keep their address). No HTML is kept. */
 function htmlToText(html) {
@@ -37,8 +44,12 @@ function htmlToText(html) {
     .replace(/<li\b[^>]*>/gi, '• ')
     .replace(/<[^>]+>/g, '');
   return decodeEntities(text)
-    .split('\n').map((line) => line.replace(/[ \t]+/g, ' ').trim())
-    .join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 20000);
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 20000);
 }
 
 /** YouTube video ids in a description (links and embedded players), without repeats. */
@@ -113,13 +124,15 @@ function makerWorldDetails(body, url) {
   const extension = body.designExtension || {};
   const instances = Array.isArray(body.instances) ? body.instances : [];
   const defaultId = String(body.defaultInstanceId || '');
-  const profiles = instances.map(profileOf)
+  const profiles = instances
+    .map(profileOf)
     // The default profile first.
     .sort((a, b) => (b.id === defaultId) - (a.id === defaultId));
   const tags = (Array.isArray(body.tags) ? body.tags : []).map((t) => clean(t, 80)).filter(Boolean);
   const tagsEnglish = (Array.isArray(body.tagsTranslated) ? body.tagsTranslated : []).map((t) => clean(t, 80));
   const pictures = (Array.isArray(extension.design_pictures) ? extension.design_pictures : [])
-    .map((p) => clean(p && p.url, 2000)).filter((u) => u && /^https:\/\//i.test(u));
+    .map((p) => clean(p && p.url, 2000))
+    .filter((u) => u && /^https:\/\//i.test(u));
   return {
     site: 'makerworld',
     url,
@@ -165,9 +178,12 @@ function splitName(name) {
  * `maxBytes` bytes (Chinese characters take 3), cut at a word.
  */
 function safeStem(title, maxChars = 80, maxBytes = 200) {
-  let text = String(title || '').normalize('NFC')
+  let text = String(title || '')
+    .normalize('NFC')
     .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ')
-    .replace(/\s+/g, ' ').trim().replace(/^\.+/, '');
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '');
   // Long titles are cut at a word, not in the middle of one.
   while (text.length > maxChars || Buffer.byteLength(text, 'utf8') > maxBytes) {
     const limit = Math.min(text.length - 1, maxChars);

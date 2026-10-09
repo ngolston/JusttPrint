@@ -116,7 +116,9 @@ function parse3mfFast(zip: Unzipped): THREE.BufferGeometry {
   const extract = worker.ThreeMFMeshExtract;
   if (!extract) throw new Error('3MF fast extractor is not available');
   const decoder = new TextDecoder();
-  const xmlParts = Object.keys(zip).filter((name) => name.toLowerCase().endsWith('.model')).map((name) => decoder.decode(zip[name]));
+  const xmlParts = Object.keys(zip)
+    .filter((name) => name.toLowerCase().endsWith('.model'))
+    .map((name) => decoder.decode(zip[name]));
   if (!xmlParts.length) throw new Error('No .model parts found in 3MF file');
   const mesh = extract.extractAllMeshesFast(xmlParts, THUMBNAIL_3MF_TARGET_TRIANGLES);
   const geometry = new THREE.BufferGeometry();
@@ -183,9 +185,8 @@ function appendCadMeshes(group: THREE.Group, meshes: OcctMesh[] | undefined) {
 async function parseCad(buffer: ArrayBuffer, extraBuffers: ArrayBuffer[], format: 'step' | 'iges'): Promise<THREE.Group> {
   const lib = await occt();
   const label = format === 'iges' ? 'IGES' : 'STEP';
-  const read = (bytes: ArrayBuffer, kind: 'step' | 'iges') => (kind === 'iges'
-    ? lib.ReadIgesFile(new Uint8Array(bytes), STEP_TESS_PARAMS)
-    : lib.ReadStepFile(new Uint8Array(bytes), STEP_TESS_PARAMS));
+  const read = (bytes: ArrayBuffer, kind: 'step' | 'iges') =>
+    kind === 'iges' ? lib.ReadIgesFile(new Uint8Array(bytes), STEP_TESS_PARAMS) : lib.ReadStepFile(new Uint8Array(bytes), STEP_TESS_PARAMS);
   const group = new THREE.Group();
   const primary = read(buffer, format);
   if (!primary || primary.success === false) {
@@ -277,7 +278,7 @@ function send(id: string, object: THREE.Object3D | THREE.BufferGeometry) {
 
 async function parse(request: ParseRequest) {
   const { id, fileExtension: ext, url } = request;
-  const buffer = async () => tightArrayBuffer(request.arrayBuffer) || await fetchArrayBuffer(url);
+  const buffer = async () => tightArrayBuffer(request.arrayBuffer) || (await fetchArrayBuffer(url));
   try {
     if (ext === 'stl') {
       const data = await buffer();
@@ -312,7 +313,9 @@ async function parse(request: ParseRequest) {
 // One file at a time (STEP tessellation is memory-hungry).
 let queue: Promise<void> = Promise.resolve();
 worker.onmessage = (event) => {
-  queue = queue.then(() => parse(event.data)).catch((error) => {
-    worker.postMessage({ id: event.data?.id, success: false, error: errorMessage(error) });
-  });
+  queue = queue
+    .then(() => parse(event.data))
+    .catch((error) => {
+      worker.postMessage({ id: event.data?.id, success: false, error: errorMessage(error) });
+    });
 };

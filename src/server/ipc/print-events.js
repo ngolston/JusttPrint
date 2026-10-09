@@ -29,7 +29,9 @@ function announcing(handler) {
     try {
       const paths = touchedPaths(payload, result);
       if (paths.length) events.broadcastToOthers(event, 'models-changed', { filePaths: paths, by: event && event.user ? event.user.username : null });
-    } catch (_) { /* the change itself succeeded */ }
+    } catch (_) {
+      /* the change itself succeeded */
+    }
     return result;
   };
 }

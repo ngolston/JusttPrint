@@ -46,7 +46,11 @@ test('collections hold models from any folders, newest added first', () => {
   assert.strictEqual(c.addToCollection(db, made.id, ['/lib/a/benchy.stl'], at(2)).added, 0, 'a model is in a collection once');
   c.addToCollection(db, made.id, ['/lib/pack.zip::inner/part.stl'], at(3));
   const detail = c.getCollection(db, made.id);
-  assert.deepStrictEqual(detail.models.map((m) => m.fileName), ['pack.zip::inner/part.stl', 'gear.stl', 'benchy.stl'], 'same time: newer id first');
+  assert.deepStrictEqual(
+    detail.models.map((m) => m.fileName),
+    ['pack.zip::inner/part.stl', 'gear.stl', 'benchy.stl'],
+    'same time: newer id first'
+  );
   const [summary] = c.listCollections(db);
   assert.strictEqual(summary.modelCount, 3);
   assert.strictEqual(summary.coverPath, '/lib/pack.zip::inner/part.stl');
@@ -57,10 +61,19 @@ test('collections hold models from any folders, newest added first', () => {
 test('names are unique ignoring case, and required', () => {
   const db = createDb();
   c.createCollection(db, { name: 'Voron parts' });
-  assert.throws(() => c.createCollection(db, { name: 'VORON PARTS' }), (e) => e.status === 409);
-  assert.throws(() => c.createCollection(db, { name: '   ' }), (e) => e.status === 400);
+  assert.throws(
+    () => c.createCollection(db, { name: 'VORON PARTS' }),
+    (e) => e.status === 409
+  );
+  assert.throws(
+    () => c.createCollection(db, { name: '   ' }),
+    (e) => e.status === 400
+  );
   const other = c.createCollection(db, { name: 'Other' });
-  assert.throws(() => c.updateCollection(db, other.id, { name: 'voron parts' }), (e) => e.status === 409);
+  assert.throws(
+    () => c.updateCollection(db, other.id, { name: 'voron parts' }),
+    (e) => e.status === 409
+  );
   assert.strictEqual(c.updateCollection(db, other.id, { name: 'OTHER', description: 'misc' }).name, 'OTHER', 'changing only the case is fine');
 });
 
@@ -70,7 +83,10 @@ test('a model that leaves the library leaves its collections', () => {
   c.addToCollection(db, made.id, ['/lib/a/benchy.stl', '/lib/b/gear.stl']);
   db.prepare("DELETE FROM models WHERE filePath = '/lib/b/gear.stl'").run();
   assert.strictEqual(c.listCollections(db)[0].modelCount, 1);
-  assert.deepStrictEqual(c.getCollection(db, made.id).models.map((m) => m.fileName), ['benchy.stl']);
+  assert.deepStrictEqual(
+    c.getCollection(db, made.id).models.map((m) => m.fileName),
+    ['benchy.stl']
+  );
 });
 
 test('membership says how many of the chosen models each collection holds', () => {
@@ -81,7 +97,13 @@ test('membership says how many of the chosen models each collection holds', () =
   c.addToCollection(db, b.id, ['/lib/a/benchy.stl']);
   const result = c.membership(db, ['/lib/a/benchy.stl', '/lib/b/gear.stl']);
   assert.strictEqual(result.models, 2);
-  assert.deepStrictEqual(result.collections.map((x) => [x.name, x.selectedInIt]), [['A', 2], ['B', 1]]);
+  assert.deepStrictEqual(
+    result.collections.map((x) => [x.name, x.selectedInIt]),
+    [
+      ['A', 2],
+      ['B', 1]
+    ]
+  );
 });
 
 test('share links: a model, a collection, expiry, revoke, and a deleted collection', () => {
@@ -90,7 +112,10 @@ test('share links: a model, a collection, expiry, revoke, and a deleted collecti
   assert.match(model.token, /^[A-Za-z0-9_-]{24}$/);
   const shown = shares.resolveShareLink(db, model.token, at(1));
   assert.strictEqual(shown.title, 'benchy.stl');
-  assert.deepStrictEqual(shown.models.map((m) => [m.fileName, m.tags]), [['benchy.stl', ['boat']]]);
+  assert.deepStrictEqual(
+    shown.models.map((m) => [m.fileName, m.tags]),
+    [['benchy.stl', ['boat']]]
+  );
   assert.ok(!('notes' in shown.models[0]), 'notes are never shared');
 
   const col = c.createCollection(db, { name: 'Shared', description: 'For friends' });
@@ -103,14 +128,23 @@ test('share links: a model, a collection, expiry, revoke, and a deleted collecti
 
   shares.revokeShareLink(db, model.token);
   assert.strictEqual(shares.resolveShareLink(db, model.token, at(1)), null);
-  assert.throws(() => shares.revokeShareLink(db, model.token), (e) => e.status === 404);
+  assert.throws(
+    () => shares.revokeShareLink(db, model.token),
+    (e) => e.status === 404
+  );
   const forever = shares.createShareLink(db, { kind: 'collection', targetId: col.id }, T0);
   c.deleteCollection(db, col.id);
   shares.revokeLinksOf(db, 'collection', col.id);
   assert.strictEqual(shares.resolveShareLink(db, forever.token, at(1)), null);
   assert.strictEqual(shares.resolveShareLink(db, 'not-a-token!', at(1)), null);
-  assert.throws(() => shares.createShareLink(db, { kind: 'model', filePath: '/nope.stl' }), (e) => e.status === 404);
-  assert.throws(() => shares.createShareLink(db, { kind: 'folder', targetId: 1 }), (e) => e.status === 400);
+  assert.throws(
+    () => shares.createShareLink(db, { kind: 'model', filePath: '/nope.stl' }),
+    (e) => e.status === 404
+  );
+  assert.throws(
+    () => shares.createShareLink(db, { kind: 'folder', targetId: 1 }),
+    (e) => e.status === 400
+  );
 });
 
 test('the public page escapes library text, keeps unsafe links out and shows no paths or notes', () => {
@@ -119,7 +153,9 @@ test('the public page escapes library text, keeps unsafe links out and shows no 
   c.addToCollection(db, col.id, ['/lib/a/benchy.stl', '/lib/b/gear.stl']);
   const link = shares.createShareLink(db, { kind: 'collection', targetId: col.id, allowDownload: false });
   const share = shares.resolveShareLink(db, link.token);
-  share.models.forEach((m) => { m.hasThumbnail = false; });
+  share.models.forEach((m) => {
+    m.hasThumbnail = false;
+  });
   const html = sharePageHtml(share);
   assert.ok(!html.includes('<script>alert(1)</script>') && html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
   assert.ok(!html.includes('<b>bold</b>') && !html.includes('<i>two</i>'));

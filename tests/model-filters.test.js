@@ -37,8 +37,10 @@ function createDb() {
 
 function names(db, filters) {
   const { conditions, params } = buildModelFilterConditions(filters);
-  return db.prepare(`SELECT fileName FROM models WHERE 1${sqlAndFilterConditions(conditions)} ORDER BY id`)
-    .all(...params).map((row) => row.fileName);
+  return db
+    .prepare(`SELECT fileName FROM models WHERE 1${sqlAndFilterConditions(conditions)} ORDER BY id`)
+    .all(...params)
+    .map((row) => row.fileName);
 }
 
 const query = [

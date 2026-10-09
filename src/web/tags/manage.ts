@@ -50,9 +50,7 @@ export function mergeTarget(all: Tag[], tag: Tag, name: string): Tag | undefined
 export async function renameTag(all: Tag[], tag: Tag, name: string): Promise<boolean> {
   const trimmed = name.trim();
   if (!trimmed) {
-    const message = tag.model_count > 0
-      ? `This tag is used by ${tag.model_count} model(s). Delete "${tag.name}"?`
-      : `Delete the tag "${tag.name}"?`;
+    const message = tag.model_count > 0 ? `This tag is used by ${tag.model_count} model(s). Delete "${tag.name}"?` : `Delete the tag "${tag.name}"?`;
     return deleteTag(tag, message);
   }
   const existing = mergeTarget(all, tag, trimmed);

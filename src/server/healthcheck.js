@@ -20,16 +20,19 @@ const port = Number(listen.port) || Number(process.env.JUSTTPRINT_PORT) || 5000;
 const scheme = listen.scheme === 'https' ? 'https' : 'http';
 const client = require(scheme);
 
-const req = client.get({
-  host: '127.0.0.1',
-  port,
-  path: '/api/health',
-  timeout: 4000,
-  // The certificate is issued for the public host name, not 127.0.0.1.
-  rejectUnauthorized: false
-}, (res) => {
-  res.resume();
-  process.exit(res.statusCode === 200 ? 0 : 1);
-});
+const req = client.get(
+  {
+    host: '127.0.0.1',
+    port,
+    path: '/api/health',
+    timeout: 4000,
+    // The certificate is issued for the public host name, not 127.0.0.1.
+    rejectUnauthorized: false
+  },
+  (res) => {
+    res.resume();
+    process.exit(res.statusCode === 200 ? 0 : 1);
+  }
+);
 req.on('timeout', () => req.destroy(new Error('timeout')));
 req.on('error', () => process.exit(1));

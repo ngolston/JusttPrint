@@ -30,9 +30,28 @@ export function isImageOnly(ext: string): boolean {
 }
 
 const LABELS: Record<string, string> = {
-  '3ds': '3DS', amf: 'AMF', blender: 'Blender', dae: 'DAE', dxf: 'DXF', dwg: 'DWG', fbx: 'FBX', f3d: 'F3D', f3z: 'F3Z',
-  chitubox: 'ChiTuBox', gcode: 'G-code', igs: 'IGES', iges: 'IGES', lys: 'LYS', lyt: 'LYT', obj: 'OBJ', ply: 'PLY',
-  step: 'STEP', stp: 'STEP', svg: 'SVG', voxl: 'VOXL', x3d: 'X3D'
+  '3ds': '3DS',
+  amf: 'AMF',
+  blender: 'Blender',
+  dae: 'DAE',
+  dxf: 'DXF',
+  dwg: 'DWG',
+  fbx: 'FBX',
+  f3d: 'F3D',
+  f3z: 'F3Z',
+  chitubox: 'ChiTuBox',
+  gcode: 'G-code',
+  igs: 'IGES',
+  iges: 'IGES',
+  lys: 'LYS',
+  lyt: 'LYT',
+  obj: 'OBJ',
+  ply: 'PLY',
+  step: 'STEP',
+  stp: 'STEP',
+  svg: 'SVG',
+  voxl: 'VOXL',
+  x3d: 'X3D'
 };
 
 /** The text a placeholder shows for a format. */
@@ -56,7 +75,9 @@ function draw(key: string, paint: (ctx: CanvasRenderingContext2D) => void): stri
   let url = '3d.png';
   try {
     url = canvas.toDataURL('image/png');
-  } catch { /* keep 3d.png */ }
+  } catch {
+    /* keep 3d.png */
+  }
   drawn.set(key, url);
   return url;
 }
@@ -113,7 +134,9 @@ export function isRealImage(thumb: unknown): thumb is string {
 
 /** The real images in a model's thumbnail field (images joined by `::`). */
 export function imagesIn(thumbnailField: string | null | undefined): string[] {
-  return String(thumbnailField || '').split('::').filter(isRealImage);
+  return String(thumbnailField || '')
+    .split('::')
+    .filter(isRealImage);
 }
 
 /** True when an image is (nearly) empty: under 0.5% opaque pixels, e.g. a model drawn off camera. */

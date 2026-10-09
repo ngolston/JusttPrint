@@ -110,8 +110,7 @@ function isPodmanOnWindows() {
 }
 
 function getHostAuthFile() {
-  const authFile = process.env.REGISTRY_AUTH_FILE
-    || path.join(os.homedir(), '.config', 'containers', 'auth.json');
+  const authFile = process.env.REGISTRY_AUTH_FILE || path.join(os.homedir(), '.config', 'containers', 'auth.json');
   return fs.existsSync(authFile) ? authFile : null;
 }
 
@@ -153,5 +152,5 @@ module.exports = {
   runQuiet,
   syncAuthToPodmanMachine,
   usesWsl,
-  wslCommandExists,
+  wslCommandExists
 };

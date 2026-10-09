@@ -7,20 +7,35 @@ function setup(render: (task: RenderTask<string | null>) => Promise<string | nul
   const order: string[] = [];
   let drops = 0;
   const queue = new RenderQueue<string | null>({
-    render: async (task) => { order.push(task.filePath); return render(task); },
+    render: async (task) => {
+      order.push(task.filePath);
+      return render(task);
+    },
     wait: () => Promise.resolve(),
-    onDrop: () => { drops++; }
+    onDrop: () => {
+      drops++;
+    }
   });
   return { queue, order, drops: () => drops };
 }
 
 function task(filePath: string, priority: number, over: Partial<RenderTask<string | null>> = {}) {
   const result: { value?: string | null; error?: Error } = {};
-  const t: RenderTask<string | null> = { filePath, priority, resolve: (v) => { result.value = v; }, reject: (e) => { result.error = e; }, ...over };
+  const t: RenderTask<string | null> = {
+    filePath,
+    priority,
+    resolve: (v) => {
+      result.value = v;
+    },
+    reject: (e) => {
+      result.error = e;
+    },
+    ...over
+  };
   return { t, result };
 }
 
-const card = (connected = true) => ({ isConnected: connected } as HTMLElement);
+const card = (connected = true) => ({ isConnected: connected }) as HTMLElement;
 
 describe('RenderQueue', () => {
   it('runs the lowest priority number first, within the limit', async () => {
@@ -94,7 +109,10 @@ describe('RenderQueue', () => {
 
   it('retries a failed render once, then gives up', async () => {
     let calls = 0;
-    const { queue } = setup(async () => { calls++; throw new Error('bad mesh'); });
+    const { queue } = setup(async () => {
+      calls++;
+      throw new Error('bad mesh');
+    });
     const realSetTimeout = globalThis.setTimeout;
     (globalThis as { setTimeout: unknown }).setTimeout = (fn: () => void) => realSetTimeout(fn, 0);
     try {
@@ -110,7 +128,10 @@ describe('RenderQueue', () => {
 
   it('does not retry without WebGL', async () => {
     let calls = 0;
-    const { queue } = setup(async () => { calls++; throw new Error('Error creating WebGL context.'); });
+    const { queue } = setup(async () => {
+      calls++;
+      throw new Error('Error creating WebGL context.');
+    });
     const t = task('/x', 1);
     queue.add(t.t);
     for (let i = 0; i < 4; i++) await flush();

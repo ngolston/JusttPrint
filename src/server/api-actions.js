@@ -222,43 +222,143 @@ const ACTIONS = {
 
 /** Actions that only read: every logged-in user. */
 const VIEWER_ACTIONS = new Set([
-  'get-model', 'get-designers', 'get-licenses', 'get-all-models', 'get-models-filtered', 'get-parent-models',
-  'get-additional-file-types-catalog', 'get-model-count-by-file-type-ids', 'getTotalModelCount', 'get-folder-tree',
-  'get-all-model-references', 'load-directory', 'extract-model-from-zip', 'delete-temp-file', 'get-file-stats',
-  'get3MFImages', 'getLYSImages', 'getF3DImages', 'getChituboxImages', 'getVoxlImages', 'get3MFSTL', 'read-model-file',
-  'parse-3mf-preview', 'cancel-3mf-preview', 'getThumbnail', 'get-all-thumbnails', 'get-server-thumbnail-job-status', 'get-ai-tag-job',
-  'get-all-tags', 'get-model-tags', 'get-group-tags', 'get-all-metadata', 'get-duplicates', 'is-generating-hashes',
-  'getModelsWithoutHash', 'show-context-menu', 'execute-context-menu-action',
-  'get-all-parts', 'get-all-printers', 'get-printer-maintenance-logs', 'get-printer-reminders', 'get-print-events',
-  'get-slicers', 'open-file-in-slicer', 'get-upload-info',
+  'get-model',
+  'get-designers',
+  'get-licenses',
+  'get-all-models',
+  'get-models-filtered',
+  'get-parent-models',
+  'get-additional-file-types-catalog',
+  'get-model-count-by-file-type-ids',
+  'getTotalModelCount',
+  'get-folder-tree',
+  'get-all-model-references',
+  'load-directory',
+  'extract-model-from-zip',
+  'delete-temp-file',
+  'get-file-stats',
+  'get3MFImages',
+  'getLYSImages',
+  'getF3DImages',
+  'getChituboxImages',
+  'getVoxlImages',
+  'get3MFSTL',
+  'read-model-file',
+  'parse-3mf-preview',
+  'cancel-3mf-preview',
+  'getThumbnail',
+  'get-all-thumbnails',
+  'get-server-thumbnail-job-status',
+  'get-ai-tag-job',
+  'get-all-tags',
+  'get-model-tags',
+  'get-group-tags',
+  'get-all-metadata',
+  'get-duplicates',
+  'is-generating-hashes',
+  'getModelsWithoutHash',
+  'show-context-menu',
+  'execute-context-menu-action',
+  'get-all-parts',
+  'get-all-printers',
+  'get-printer-maintenance-logs',
+  'get-printer-reminders',
+  'get-print-events',
+  'get-slicers',
+  'open-file-in-slicer',
+  'get-upload-info',
   // Each user changes their own password.
   'set-server-password',
   // Settings: non-admins read only what is not secret, and save only display preferences (ipc/settings.js).
-  'get-setting', 'save-setting', 'get-app-version', 'check-for-updates', 'open-update-page',
-  'get-stats', 'get-library-storage', 'get-library-counts', 'get-recent-activity', 'get-recent-prints', 'get-print-statistics',
+  'get-setting',
+  'save-setting',
+  'get-app-version',
+  'check-for-updates',
+  'open-update-page',
+  'get-stats',
+  'get-library-storage',
+  'get-library-counts',
+  'get-recent-activity',
+  'get-recent-prints',
+  'get-print-statistics',
   // The thumbnail renderer reads the GPU backend in every browser.
   'get-gpu-info',
-  'get-collections', 'get-collection', 'get-collection-membership',
-  'get-site-details', 'get-geometry-duplicates', 'get-geometry-scan'
+  'get-collections',
+  'get-collection',
+  'get-collection-membership',
+  'get-site-details',
+  'get-geometry-duplicates',
+  'get-geometry-scan'
 ]);
 
 /** Actions that change the library: editors and admins. */
 const EDITOR_ACTIONS = new Set([
-  'save-model', 'save-model-batch', 'update-models-batch', 'clear-new-model-flags', 'add-uploaded-files',
-  'start-geometry-scan', 'stop-geometry-scan',
-  'check-model-links', 'import-model-link', 'list-site-files', 'site-download-files', 'thingiverse-token-status',
-  'makerworld-account-status', 'makerworld-sign-in', 'makerworld-sign-out', 'makerworld-download', 'makerworld-check-folder', 'makerworld-prepare-folder', 'makerworld-add-files',
-  'browse-folders', 'scan-directory', 'save-directory', 'trash-file', 'delete-file', 'move-files', 'calculate-file-hash',
-  'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
-  'get-models-without-thumbnails', 'get-models-with-default-thumbnails', 'start-server-thumbnail-job', 'cancel-server-thumbnail-job',
-  'stop-ai-tag-job', 'dismiss-ai-tag-job',
-  'save-tag', 'rename-tag', 'delete-tag', 'rename-metadata', 'delete-metadata', 'pull-3mf-metadata', 'generateMissingHashes',
-  'save-part', 'delete-part', 'save-printer', 'delete-printer',
-  'save-printer-maintenance-log', 'delete-printer-maintenance-log', 'save-printer-reminder', 'delete-printer-reminder',
-  'complete-printer-reminder', 'log-print-event', 'log-print-events-batch', 'delete-print-event', 'set-print-status',
+  'save-model',
+  'save-model-batch',
+  'update-models-batch',
+  'clear-new-model-flags',
+  'add-uploaded-files',
+  'start-geometry-scan',
+  'stop-geometry-scan',
+  'check-model-links',
+  'import-model-link',
+  'list-site-files',
+  'site-download-files',
+  'thingiverse-token-status',
+  'makerworld-account-status',
+  'makerworld-sign-in',
+  'makerworld-sign-out',
+  'makerworld-download',
+  'makerworld-check-folder',
+  'makerworld-prepare-folder',
+  'makerworld-add-files',
+  'browse-folders',
+  'scan-directory',
+  'save-directory',
+  'trash-file',
+  'delete-file',
+  'move-files',
+  'calculate-file-hash',
+  'save-thumbnail',
+  'add-thumbnail',
+  'add-multiple-thumbnails',
+  'set-default-thumbnail',
+  'delete-thumbnail',
+  'get-models-without-thumbnails',
+  'get-models-with-default-thumbnails',
+  'start-server-thumbnail-job',
+  'cancel-server-thumbnail-job',
+  'stop-ai-tag-job',
+  'dismiss-ai-tag-job',
+  'save-tag',
+  'rename-tag',
+  'delete-tag',
+  'rename-metadata',
+  'delete-metadata',
+  'pull-3mf-metadata',
+  'generateMissingHashes',
+  'save-part',
+  'delete-part',
+  'save-printer',
+  'delete-printer',
+  'save-printer-maintenance-log',
+  'delete-printer-maintenance-log',
+  'save-printer-reminder',
+  'delete-printer-reminder',
+  'complete-printer-reminder',
+  'log-print-event',
+  'log-print-events-batch',
+  'delete-print-event',
+  'set-print-status',
   'set-print-status-batch',
-  'create-collection', 'update-collection', 'delete-collection', 'add-to-collection', 'remove-from-collection',
-  'create-share-link', 'get-share-links', 'revoke-share-link'
+  'create-collection',
+  'update-collection',
+  'delete-collection',
+  'add-to-collection',
+  'remove-from-collection',
+  'create-share-link',
+  'get-share-links',
+  'revoke-share-link'
 ]);
 
 /** The least role an action needs: viewer, editor or admin. */
@@ -270,14 +370,22 @@ function requiredRole(name) {
 
 function matchesKind(kind, value) {
   switch (kind) {
-    case 'string': return typeof value === 'string';
-    case 'number': return typeof value === 'number' && Number.isFinite(value);
-    case 'boolean': return typeof value === 'boolean';
-    case 'object': return typeof value === 'object' && !Array.isArray(value);
-    case 'array': return Array.isArray(value);
-    case 'id': return (typeof value === 'number' && Number.isFinite(value)) || (typeof value === 'string' && value !== '');
-    case 'any': return true;
-    default: throw new Error(`Unknown argument kind: ${kind}`);
+    case 'string':
+      return typeof value === 'string';
+    case 'number':
+      return typeof value === 'number' && Number.isFinite(value);
+    case 'boolean':
+      return typeof value === 'boolean';
+    case 'object':
+      return typeof value === 'object' && !Array.isArray(value);
+    case 'array':
+      return Array.isArray(value);
+    case 'id':
+      return (typeof value === 'number' && Number.isFinite(value)) || (typeof value === 'string' && value !== '');
+    case 'any':
+      return true;
+    default:
+      throw new Error(`Unknown argument kind: ${kind}`);
   }
 }
 
@@ -297,7 +405,8 @@ function assertActionArgs(name, args) {
       if (!optional) throw new Error(`${name}: argument ${index + 1} is required (${kind})`);
       return;
     }
-    if (!matchesKind(kind, value)) throw new Error(`${name}: argument ${index + 1} must be ${kind === 'id' ? 'an id' : `a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind}`}`);
+    if (!matchesKind(kind, value))
+      throw new Error(`${name}: argument ${index + 1} must be ${kind === 'id' ? 'an id' : `a${/^[aeiou]/.test(kind) ? 'n' : ''} ${kind}`}`);
   });
 }
 

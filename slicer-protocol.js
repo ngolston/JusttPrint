@@ -115,18 +115,17 @@
     } catch (error) {
       throw new Error('Invalid server origin');
     }
-    const allowed = (Array.isArray(allowedOrigins) ? allowedOrigins : []).map((entry) => {
-      try {
-        return new URL(entry).origin;
-      } catch (error) {
-        return '';
-      }
-    }).filter(Boolean);
+    const allowed = (Array.isArray(allowedOrigins) ? allowedOrigins : [])
+      .map((entry) => {
+        try {
+          return new URL(entry).origin;
+        } catch (error) {
+          return '';
+        }
+      })
+      .filter(Boolean);
     if (!allowed.includes(actual)) {
-      throw new Error(
-        'This JusttPrint server is not allowed: ' + actual +
-        '. Run: node justtprint-helper.js install --origin ' + actual
-      );
+      throw new Error('This JusttPrint server is not allowed: ' + actual + '. Run: node justtprint-helper.js install --origin ' + actual);
     }
     return actual;
   }
@@ -144,7 +143,9 @@
       };
     }
     if (!requested || !requested.slicerPath) {
-      throw new Error('No slicer path. Add the slicer in JusttPrint settings, or run: node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer');
+      throw new Error(
+        'No slicer path. Add the slicer in JusttPrint settings, or run: node justtprint-helper.js add-slicer --name "OrcaSlicer" --path /path/to/slicer'
+      );
     }
     return {
       name: name || 'Slicer',
@@ -175,8 +176,7 @@
       throw new Error(commandData.message || 'Could not open the slicer');
     }
     if (commandData && commandData.type === 'open-in-orcaslicer') {
-      const hrefs = (Array.isArray(commandData.files) ? commandData.files : [])
-        .map((file) => buildOrcaSlicerOpenUrl(window.location.origin, file));
+      const hrefs = (Array.isArray(commandData.files) ? commandData.files : []).map((file) => buildOrcaSlicerOpenUrl(window.location.origin, file));
       if (!hrefs.length) throw new Error('No model files to open in OrcaSlicer');
       hrefs.forEach((href, index) => {
         if (index === 0) openAppLink(href);

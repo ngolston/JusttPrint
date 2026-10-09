@@ -26,7 +26,9 @@ export interface RecentFolder {
 export const MAX_RECENT = 8;
 
 export function normalizePath(p: string | null | undefined): string {
-  return String(p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  return String(p || '')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
 }
 
 export function pathsEqual(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -46,7 +48,9 @@ export function directoryOfFile(filePath: string | null | undefined): string {
   if (!raw || raw.startsWith('url::')) return '';
   if (raw.includes('::')) {
     const [zipPath, entryPath] = raw.split('::');
-    const entryDir = String(entryPath || '').replace(/\\/g, '/').replace(/\/[^/]+$/, '');
+    const entryDir = String(entryPath || '')
+      .replace(/\\/g, '/')
+      .replace(/\/[^/]+$/, '');
     return entryDir && entryDir !== entryPath ? `${zipPath}::${entryDir}` : `${zipPath}::`;
   }
   const n = raw.replace(/\\/g, '/');

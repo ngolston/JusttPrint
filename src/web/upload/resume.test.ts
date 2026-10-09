@@ -8,7 +8,9 @@ describe('upload resume', () => {
     const store = new Map<string, string>();
     (globalThis as unknown as { localStorage: Pick<Storage, 'getItem' | 'setItem'> }).localStorage = {
       getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => { store.set(key, value); }
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      }
     };
   });
 

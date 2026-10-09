@@ -130,14 +130,16 @@ test('schedules reminders and marking completed creates log entry and rolls repe
 test('tracks prints logged to a printer', () => {
   const db = createTestDb();
   const printEvents = require('../src/core/print-events');
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filePath TEXT UNIQUE,
       fileName TEXT,
       printed INTEGER DEFAULT 0
     )
-  `).run();
+  `
+  ).run();
   printEvents.migratePrintLifecycle(db);
   const model = db.prepare('INSERT INTO models (filePath, fileName) VALUES (?, ?)').run('c:/test.stl', 'test.stl');
 
@@ -191,7 +193,8 @@ test('supports printer types: FDM, SLA, SLS, DLP, LCD, MJF, DMLS, SLM', () => {
 test('migrates older schema without printer_type column safely', () => {
   const db = new Database(':memory:');
   // Create old table structure without printer_type
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE printers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nickname TEXT NOT NULL,
@@ -204,12 +207,15 @@ test('migrates older schema without printer_type column safely', () => {
       created_at DATETIME NOT NULL,
       updated_at DATETIME NOT NULL
     )
-  `).run();
+  `
+  ).run();
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO printers (nickname, created_at, updated_at)
     VALUES ('Legacy Ender', datetime('now'), datetime('now'))
-  `).run();
+  `
+  ).run();
 
   // Run ensurePrinterSchema migration
   printerManager.ensurePrinterSchema(db);
@@ -227,4 +233,3 @@ test('migrates older schema without printer_type column safely', () => {
   });
   assert.equal(updated.printer_type, 'FDM');
 });
-

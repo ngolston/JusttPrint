@@ -2,15 +2,7 @@
 'use strict';
 
 const assert = require('assert');
-const {
-  createServerAuth,
-  hashPassword,
-  verifyPasswordHash,
-  originAllowed,
-  parseCookies,
-  safeNextPath,
-  SESSION_COOKIE
-} = require('../src/server/server-auth');
+const { createServerAuth, hashPassword, verifyPasswordHash, originAllowed, parseCookies, safeNextPath, SESSION_COOKIE } = require('../src/server/server-auth');
 const { createMemoryUserStore, createSqliteUserStore, roleAllows } = require('../src/server/users');
 
 function test(name, fn) {
@@ -57,13 +49,34 @@ function req({ cookie, authorization, origin, host = 'nas.local:5000', query, me
 
 function routesOf(auth) {
   const routes = {};
-  const app = { get: (p, ...h) => { routes['GET ' + p] = h.pop(); }, post: (p, ...h) => { routes['POST ' + p] = h.pop(); } };
+  const app = {
+    get: (p, ...h) => {
+      routes['GET ' + p] = h.pop();
+    },
+    post: (p, ...h) => {
+      routes['POST ' + p] = h.pop();
+    }
+  };
   auth.registerRoutes(app, { urlencoded: () => null, json: () => null });
   return routes;
 }
 
 function fakeRes() {
-  return { headers: {}, statusCode: 200, setHeader(k, v) { this.headers[k] = v; }, json(b) { this.body = b; }, status(c) { this.statusCode = c; return this; }, redirect() {} };
+  return {
+    headers: {},
+    statusCode: 200,
+    setHeader(k, v) {
+      this.headers[k] = v;
+    },
+    json(b) {
+      this.body = b;
+    },
+    status(c) {
+      this.statusCode = c;
+      return this;
+    },
+    redirect() {}
+  };
 }
 
 /** Log in through the real route and return the response (Set-Cookie in headers). */
@@ -99,7 +112,10 @@ test('JUSTTPRINT_PASSWORD sets the admin password, JUSTTPRINT_USERNAME its name'
   assert.strictEqual(auth.ensureCredentials().source, 'env');
   assert.ok(auth.verifyLogin('nick', 'from-the-env'), 'user names ignore case');
   assert.ok(!auth.verifyLogin('admin', 'from-the-env'));
-  assert.deepStrictEqual(auth.listUsers().map((u) => [u.username, u.role, u.fromEnv]), [['Nick', 'admin', true]]);
+  assert.deepStrictEqual(
+    auth.listUsers().map((u) => [u.username, u.role, u.fromEnv]),
+    [['Nick', 'admin', true]]
+  );
 });
 
 test('a changed JUSTTPRINT_PASSWORD replaces the old one and logs that user out', () => {
@@ -164,10 +180,12 @@ test('logins keep working while the database cannot be read (restore)', () => {
   const settings = new Map();
   const store = createMemoryUserStore();
   let readable = true;
-  const guarded = (fn) => (...args) => {
-    if (!readable) throw new Error('The database is not open');
-    return fn(...args);
-  };
+  const guarded =
+    (fn) =>
+    (...args) => {
+      if (!readable) throw new Error('The database is not open');
+      return fn(...args);
+    };
   const users = Object.fromEntries(Object.entries(store).map(([key, fn]) => [key, guarded(fn)]));
   const auth = createServerAuth({
     getSetting: guarded((key) => settings.get(key)),
@@ -206,7 +224,7 @@ test('wrong passwords and unknown users do not log in, and repeated failures are
   assert.strictEqual(login(auth, 'library-pass').statusCode, 429);
 });
 
-test('changing your password logs out your sessions, not other users\' sessions', () => {
+test("changing your password logs out your sessions, not other users' sessions", () => {
   const { auth, admin } = withAdmin();
   auth.createUser({ username: 'maker', password: 'maker-pass', role: 'editor' });
   const mine = cookieOf(login(auth, 'library-pass'));
@@ -218,7 +236,7 @@ test('changing your password logs out your sessions, not other users\' sessions'
   assert.ok(auth.verifyLogin('admin', 'another-pass'));
 });
 
-test('an admin resetting a password or deleting a user ends that user\'s sessions', () => {
+test("an admin resetting a password or deleting a user ends that user's sessions", () => {
   const { auth, admin } = withAdmin();
   const user = auth.createUser({ username: 'maker', password: 'maker-pass', role: 'editor' });
   let cookie = cookieOf(login(auth, 'maker-pass', 'maker'));
@@ -268,7 +286,7 @@ test('a tampered session cookie is rejected', () => {
   assert.ok(!auth.isAuthenticated(req({ cookie: `${name}=${later.join('.')}` })), 'longer expiry');
   const otherUser = [...parts];
   otherUser[1] = '1';
-  assert.ok(!auth.isAuthenticated(req({ cookie: `${name}=${otherUser.join('.')}` })), 'someone else\'s id');
+  assert.ok(!auth.isAuthenticated(req({ cookie: `${name}=${otherUser.join('.')}` })), "someone else's id");
 });
 
 test('session cookies from before accounts are no longer accepted', () => {
@@ -281,7 +299,7 @@ test('session cookies from before accounts are no longer accepted', () => {
   assert.ok(!auth.isAuthenticated(req({ cookie: `${SESSION_COOKIE}=${legacy}` })));
 });
 
-test('the API token and the server\'s own session act as an admin', () => {
+test("the API token and the server's own session act as an admin", () => {
   const { auth } = makeAuth();
   const token = auth.apiToken();
   assert.ok(token.startsWith('pv_'));
@@ -300,7 +318,9 @@ test('download tokens work only for downloads and expire after 15 minutes', () =
   assert.ok(!auth.isAuthenticated(req({ query: { token } })));
   const download = req({ query: { token }, path: '/api/download//lib/a.stl' });
   let passed = false;
-  auth.requireAuth(download, fakeRes(), () => { passed = true; });
+  auth.requireAuth(download, fakeRes(), () => {
+    passed = true;
+  });
   assert.ok(passed);
   assert.strictEqual(download.user.role, 'viewer', 'a download link only reads');
   clock.t += 16 * 60 * 1000;
@@ -345,8 +365,19 @@ test('roles rank viewer < editor < admin', () => {
 test('requireAuth lets public paths through and blocks the rest', () => {
   const { auth } = makeAuth();
   let passed = 0;
-  const next = () => { passed++; };
-  const res = { redirect(code, to) { this.redirected = to; }, status(c) { this.code = c; return this; }, json() {} };
+  const next = () => {
+    passed++;
+  };
+  const res = {
+    redirect(code, to) {
+      this.redirected = to;
+    },
+    status(c) {
+      this.code = c;
+      return this;
+    },
+    json() {}
+  };
   auth.requireAuth(req({ path: '/login' }), res, next);
   auth.requireAuth(req({ path: '/api/health' }), res, next);
   assert.strictEqual(passed, 2);

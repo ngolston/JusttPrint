@@ -46,7 +46,9 @@ async function waitFor(fn, timeoutMs, everyMs = 2000) {
     try {
       const value = await fn();
       if (value) return value;
-    } catch (_) { /* not ready yet */ }
+    } catch (_) {
+      /* not ready yet */
+    }
     if (Date.now() > end) return null;
     await sleep(everyMs);
   }
@@ -70,10 +72,29 @@ async function main() {
   const gid = typeof process.getgid === 'function' ? process.getgid() : 1000;
 
   console.log(`# Starting ${NAME} (PUID ${uid}, PGID ${gid})`);
-  docker(['run', '-d', '--name', NAME, '-p', '127.0.0.1::5000',
-    '-v', `${models}:/mnt/models:ro`, '-v', `${data}:/root/.config/justtprint`,
-    '-e', `PUID=${uid}`, '-e', `PGID=${gid}`, '-e', `JUSTTPRINT_PASSWORD=${PASSWORD}`,
-    '-e', 'STL_HOME=/mnt/models', '-e', 'JUSTTPRINT_ENABLE_ZIP=true', image]);
+  docker([
+    'run',
+    '-d',
+    '--name',
+    NAME,
+    '-p',
+    '127.0.0.1::5000',
+    '-v',
+    `${models}:/mnt/models:ro`,
+    '-v',
+    `${data}:/root/.config/justtprint`,
+    '-e',
+    `PUID=${uid}`,
+    '-e',
+    `PGID=${gid}`,
+    '-e',
+    `JUSTTPRINT_PASSWORD=${PASSWORD}`,
+    '-e',
+    'STL_HOME=/mnt/models',
+    '-e',
+    'JUSTTPRINT_ENABLE_ZIP=true',
+    image
+  ]);
 
   let stoppedCleanly = false;
   try {
@@ -87,7 +108,10 @@ async function main() {
     const healthy = await waitFor(() => docker(['inspect', '-f', '{{.State.Health.Status}}', NAME]) === 'healthy', 180000, 5000);
     check('Docker reports the container healthy (HEALTHCHECK)', !!healthy, docker(['inspect', '-f', '{{.State.Health.Status}}', NAME]));
     // The slim image has no ps: ask Docker for the processes and their user ids.
-    const server = docker(['top', NAME, '-eo', 'pid,uid,args']).split('\n').find((line) => /src\/server\/index\.js/.test(line)) || '';
+    const server =
+      docker(['top', NAME, '-eo', 'pid,uid,args'])
+        .split('\n')
+        .find((line) => /src\/server\/index\.js/.test(line)) || '';
     const serverUid = server.trim().split(/\s+/)[1];
     check(`the server runs as PUID ${uid}, not root`, serverUid === String(uid) && serverUid !== '0', server.trim() || 'no server process');
 
@@ -105,20 +129,32 @@ async function main() {
     };
 
     console.log('\n# Library');
-    const scanned = await waitFor(async () => ((await action('get-stats')).totalModels === FIXTURE_MODELS), 120000);
+    const scanned = await waitFor(async () => (await action('get-stats')).totalModels === FIXTURE_MODELS, 120000);
     check(`the STL Home scan finds the ${FIXTURE_MODELS} fixture models`, !!scanned, JSON.stringify(await action('get-stats').catch((e) => e.message)));
     const page = await fetch(`${base}/`, { headers: { cookie, accept: 'text/html' } });
     const html = await page.text();
     check('the web UI page loads', page.ok && /web-build\/app\.js/.test(html), `HTTP ${page.status}`);
     const script = await fetch(`${base}/web-build/app.js`, { headers: { cookie } });
-    check('the built web UI is in the image', script.ok && Number(script.headers.get('content-length') || (await script.arrayBuffer()).byteLength) > 100000, `HTTP ${script.status}`);
+    check(
+      'the built web UI is in the image',
+      script.ok && Number(script.headers.get('content-length') || (await script.arrayBuffer()).byteLength) > 100000,
+      `HTTP ${script.status}`
+    );
     // The server renders thumbnails for new models itself; no browser is open here.
     const rendered = await waitFor(async () => (await action('get-all-models')).find((model) => model.hasThumbnail), 240000, 5000);
     const image = rendered ? String((await action('get-model', rendered.filePath)).thumbnail || '') : '';
-    check('the server renders thumbnails in the container\'s Chromium (no browser open)', image.startsWith('data:image'), rendered ? image.slice(0, 40) : 'none');
+    check(
+      "the server renders thumbnails in the container's Chromium (no browser open)",
+      image.startsWith('data:image'),
+      rendered ? image.slice(0, 40) : 'none'
+    );
     const dbFile = path.join(data, 'data', 'justtprint.db');
     const owner = fs.existsSync(dbFile) ? fs.statSync(dbFile) : null;
-    check(`the database in the data volume belongs to PUID ${uid}`, !!owner && owner.uid === uid && owner.gid === gid, owner ? `${owner.uid}:${owner.gid}` : 'missing');
+    check(
+      `the database in the data volume belongs to PUID ${uid}`,
+      !!owner && owner.uid === uid && owner.gid === gid,
+      owner ? `${owner.uid}:${owner.gid}` : 'missing'
+    );
 
     console.log('\n# Stop');
     docker(['stop', '-t', '60', NAME]);

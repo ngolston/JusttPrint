@@ -29,19 +29,19 @@ ipcMain.handle('trash-file', async (event, filePath) => {
     console.error('Error in trash-file handler:', error);
     throw error;
   }
-  
+
   // Simple path normalization - replace all backslashes with forward slashes
-  const normalizedPath = filePath.replace(/\\/g, "/");
+  const normalizedPath = filePath.replace(/\\/g, '/');
   console.debug('trash-file handler received path:', filePath);
   console.debug('Normalized path:', normalizedPath);
-  
+
   try {
     if (!isUrlModel(filePath)) {
       console.debug('Attempting trashItem with path:', normalizedPath);
       await shell.trashItem(normalizedPath);
       console.debug('trashItem succeeded');
     }
-    
+
     // Remove from database (for both file and URL-only models)
     await new Promise((resolve, reject) => {
       console.debug('Deleting from database:', normalizedPath);
@@ -54,11 +54,11 @@ ipcMain.handle('trash-file', async (event, filePath) => {
       })();
       resolve();
     });
-    
+
     return true;
   } catch (err) {
-    console.error("Error moving file to trash:", err);
-    console.error("Error details:", {
+    console.error('Error moving file to trash:', err);
+    console.error('Error details:', {
       message: err.message,
       code: err.code,
       path: normalizedPath
@@ -76,15 +76,15 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     } catch (validationError) {
       throw new Error(validationError.message);
     }
-    
+
     console.debug('main: delete-file handler called with:', filePath);
     const result = await deleteFile(filePath);
-    
+
     // Send refresh-grid event to update the UI after file deletion
     if (result) {
       events.broadcast('refresh-grid');
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error deleting file:', error);
@@ -108,7 +108,7 @@ const purgeModelsHandler = async (event, options = {}) => {
         detail: 'This will remove all model data from the database. This action cannot be undone.',
         buttons: ['Cancel', 'Purge All Models'],
         defaultId: 0,
-        cancelId: 0,
+        cancelId: 0
       });
       doPurge = result.response === 1; // User clicked "Purge All Models"
     }
@@ -156,7 +156,7 @@ ipcMain.handle('extract-model-from-zip', async (event, filePath) => {
       // Not a zip entry, return original path
       return filePath;
     }
-    
+
     return await extractModelFromZip(pathInfo.zipPath, pathInfo.entryPath);
   } catch (error) {
     console.error('Error extracting model from zip:', error);
@@ -192,7 +192,7 @@ ipcMain.handle('move-files', async (event, filePaths, destinationFolder) => {
     events.broadcast('refresh-grid');
     return true;
   } catch (error) {
-    console.error("Error moving files:", error);
+    console.error('Error moving files:', error);
     throw error;
   }
 });
@@ -219,9 +219,7 @@ const getFileStatsHandler = async (event, filePath) => {
           const entries = await zip.entries();
           const entry = findZipEntry(entries, pathInfo.entryPath);
           if (!entry) {
-            const err = new Error(
-              `ENOENT: no such file or directory, zip entry '${pathInfo.entryPath}' in '${pathInfo.zipPath}'`
-            );
+            const err = new Error(`ENOENT: no such file or directory, zip entry '${pathInfo.entryPath}' in '${pathInfo.zipPath}'`);
             err.code = 'ENOENT';
             throw err;
           }

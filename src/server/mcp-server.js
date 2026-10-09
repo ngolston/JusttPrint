@@ -9,23 +9,21 @@
 const crypto = require('crypto');
 
 const MCP_PROTOCOL_VERSION = '2025-03-26';
-const SUPPORTED_PROTOCOL_VERSIONS = new Set([
-  '2024-11-05',
-  '2025-03-26',
-  '2025-06-18',
-  '2025-11-25'
-]);
+const SUPPORTED_PROTOCOL_VERSIONS = new Set(['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25']);
 const SERVER_NAME = 'justtprint';
 
 const TOOL_DEFINITIONS = [
   {
     name: 'search_models',
-    description:
-      'Search and filter the JusttPrint library. Returns model metadata without thumbnail image data. Use get_model for full details.',
+    description: 'Search and filter the JusttPrint library. Returns model metadata without thumbnail image data. Use get_model for full details.',
     inputSchema: {
       type: 'object',
       properties: {
-        search: { type: 'string', description: 'Free-text search across name, designer, tags, path, source, and license. Notes are included unless the app setting searchIncludeNotes is off.' },
+        search: {
+          type: 'string',
+          description:
+            'Free-text search across name, designer, tags, path, source, and license. Notes are included unless the app setting searchIncludeNotes is off.'
+        },
         designer: { type: 'string', description: 'Filter by designer name' },
         tags: {
           type: 'array',
@@ -34,7 +32,11 @@ const TOOL_DEFINITIONS = [
         },
         directory: { type: 'string', description: 'Filter to models under this directory path' },
         fileType: { type: 'string', description: 'File type filter such as stl, 3mf, zip, obj, step' },
-        printed: { type: 'string', description: 'Print status filter (unprinted, printed, want, queued, printing, failed, ever-printed, never-printed, in-queue (queued or printing), or all)' },
+        printed: {
+          type: 'string',
+          description:
+            'Print status filter (unprinted, printed, want, queued, printing, failed, ever-printed, never-printed, in-queue (queued or printing), or all)'
+        },
         limit: { type: 'integer', description: 'Max results (default 50, max 500)' },
         offset: { type: 'integer', description: 'Result offset for pagination' }
       }
@@ -42,8 +44,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_model',
-    description:
-      'Get full details for one model by id or filePath, including tags. Thumbnail images are omitted unless includeThumbnails is true.',
+    description: 'Get full details for one model by id or filePath, including tags. Thumbnail images are omitted unless includeThumbnails is true.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -102,8 +103,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'rename_tag',
-    description:
-      'Rename a tag by id or current name. If the new name already exists, model links are merged onto that tag and the old tag is removed.',
+    description: 'Rename a tag by id or current name. If the new name already exists, model links are merged onto that tag and the old tag is removed.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -116,8 +116,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'delete_tag',
-    description:
-      'Delete a tag by id or name and unlink it from all models. Use list_tags first to confirm the tag and its model_count.',
+    description: 'Delete a tag by id or name and unlink it from all models. Use list_tags first to confirm the tag and its model_count.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -209,8 +208,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'rename_metadata',
-    description:
-      'Rename a designer, parentModel, or license value across all models. Merges if the new name already exists.',
+    description: 'Rename a designer, parentModel, or license value across all models. Merges if the new name already exists.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -245,8 +243,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_models_missing_thumbnails',
-    description:
-      'List models that have no custom thumbnail. Use filePath to open the model file locally, generate an image, then call set_thumbnail.',
+    description: 'List models that have no custom thumbnail. Use filePath to open the model file locally, generate an image, then call set_thumbnail.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -282,8 +279,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'add_thumbnail',
-    description:
-      'Append a thumbnail and make it the default. Same image format as set_thumbnail.',
+    description: 'Append a thumbnail and make it the default. Same image format as set_thumbnail.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -310,8 +306,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'delete_thumbnail',
-    description:
-      'Delete a non-default thumbnail by 0-based index. Cannot delete the active (index 0) thumbnail or the last remaining thumbnail.',
+    description: 'Delete a non-default thumbnail by 0-based index. Cannot delete the active (index 0) thumbnail or the last remaining thumbnail.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -324,8 +319,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'find_duplicates',
-    description:
-      'Find duplicate models grouped by file hash (DeDup). Returns hash groups with file paths, names, and sizes. Read-only.',
+    description: 'Find duplicate models grouped by file hash (DeDup). Returns hash groups with file paths, names, and sizes. Read-only.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -373,8 +367,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'check_files_exist',
-    description:
-      'Check whether model files still exist on disk. Pass filePaths, or omit to scan the library (capped). Zip entries check the archive file.',
+    description: 'Check whether model files still exist on disk. Pass filePaths, or omit to scan the library (capped). Zip entries check the archive file.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -405,8 +398,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'generate_tags',
-    description:
-      'AI-generate tags for a model from its thumbnail. Returns suggested tags. Set apply true to merge them onto the model.',
+    description: 'AI-generate tags for a model from its thumbnail. Returns suggested tags. Set apply true to merge them onto the model.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -487,8 +479,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'scan_directory',
-    description:
-      'Scan a folder and add/update models in the library. Long-running. Omit directory to rescan the last scanned folder.',
+    description: 'Scan a folder and add/update models in the library. Long-running. Omit directory to rescan the last scanned folder.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -498,8 +489,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'remove_model',
-    description:
-      'Remove one or more models from the library only. Files stay on disk. Requires confirm: true.',
+    description: 'Remove one or more models from the library only. Files stay on disk. Requires confirm: true.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -513,8 +503,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'trash_file',
-    description:
-      'Move model file(s) to the system trash and remove them from the library. Zip entries are not trashed. Requires confirm: true.',
+    description: 'Move model file(s) to the system trash and remove them from the library. Zip entries are not trashed. Requires confirm: true.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -533,7 +522,8 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'open_in_slicer',
-    description: 'Open one or more models in a configured slicer on the user\'s computer. The open JusttPrint browser tabs hand the files to the JusttPrint helper, which downloads them and starts the slicer there. Nothing runs on the server.',
+    description:
+      "Open one or more models in a configured slicer on the user's computer. The open JusttPrint browser tabs hand the files to the JusttPrint helper, which downloads them and starts the slicer there. Nothing runs on the server.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -793,9 +783,7 @@ async function callTool(name, args, ctx) {
 
 function initializeResult(params, getVersion) {
   const requested = params && params.protocolVersion;
-  const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.has(requested)
-    ? requested
-    : MCP_PROTOCOL_VERSION;
+  const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.has(requested) ? requested : MCP_PROTOCOL_VERSION;
   return {
     protocolVersion,
     capabilities: {

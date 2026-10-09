@@ -42,18 +42,27 @@ function StorageIndicator() {
   const volume = storage.volume;
   const percent = volume ? Math.round((volume.usedBytes / volume.totalBytes) * 100) : 0;
   return (
-    <div className="jp-storage" title={volume ? `Library files: ${formatBytes(storage.libraryBytes)} (${storage.modelCount} models)\nVolume: ${volume.path}` : undefined}>
+    <div
+      className="jp-storage"
+      title={volume ? `Library files: ${formatBytes(storage.libraryBytes)} (${storage.modelCount} models)\nVolume: ${volume.path}` : undefined}
+    >
       <div className="jp-storage__title">Library Storage</div>
       {volume ? (
         <>
           <ProgressBar value={volume.usedBytes} max={volume.totalBytes} label="Library volume used" />
           <div className="jp-storage__figures">
-            <span>{formatBytes(volume.usedBytes)} of {formatBytes(volume.totalBytes)}</span>
+            <span>
+              {formatBytes(volume.usedBytes)} of {formatBytes(volume.totalBytes)}
+            </span>
             <span>{percent}%</span>
           </div>
         </>
       ) : (
-        <div className="jp-storage__figures"><span>{formatBytes(storage.libraryBytes)} in {storage.modelCount} models</span></div>
+        <div className="jp-storage__figures">
+          <span>
+            {formatBytes(storage.libraryBytes)} in {storage.modelCount} models
+          </span>
+        </div>
       )}
     </div>
   );
@@ -63,11 +72,20 @@ function NavRow({ item, active, badge }: { item: NavItem; active: boolean; badge
   const Icon = item.icon;
   return (
     <li>
-      <button type="button" className={cx('jp-nav__row', active && 'is-active')} aria-current={active ? 'page' : undefined}
-        title={item.label} onClick={() => (item.page ? navigate(item.page) : item.run?.())}>
+      <button
+        type="button"
+        className={cx('jp-nav__row', active && 'is-active')}
+        aria-current={active ? 'page' : undefined}
+        title={item.label}
+        onClick={() => (item.page ? navigate(item.page) : item.run?.())}
+      >
         <Icon size={18} aria-hidden="true" />
         <span className="jp-nav__label">{item.label}</span>
-        {badge ? <span className="jp-nav__badge" aria-label={`${badge} in the queue`}>{badge}</span> : null}
+        {badge ? (
+          <span className="jp-nav__badge" aria-label={`${badge} in the queue`}>
+            {badge}
+          </span>
+        ) : null}
       </button>
     </li>
   );
@@ -90,7 +108,9 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
         <X size={18} aria-hidden="true" />
       </button>
       <button type="button" className="jp-brand" onClick={() => navigate('home')} title="Home">
-        <span className="jp-brand__logo"><img src="assets/logo.png" alt="" /></span>
+        <span className="jp-brand__logo">
+          <img src="assets/logo.png" alt="" />
+        </span>
         <span className="jp-brand__text">
           <span className="jp-brand__name">JusttPrint</span>
           <span className="jp-brand__tagline">Your 3D Printing Library</span>
@@ -148,28 +168,49 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
 
   return (
     <header className="jp-topbar">
-      <button type="button" className="jp-topbar__menu jp-icon-btn jp-icon-btn--md" aria-label="Menu" title="Menu"
-        aria-controls="jp-sidebar" aria-expanded={menuOpen} onClick={onMenu}>
+      <button
+        type="button"
+        className="jp-topbar__menu jp-icon-btn jp-icon-btn--md"
+        aria-label="Menu"
+        title="Menu"
+        aria-controls="jp-sidebar"
+        aria-expanded={menuOpen}
+        onClick={onMenu}
+      >
         <MenuIcon size={20} aria-hidden="true" />
       </button>
-      <SearchBox ref={input} className="jp-topbar__search" label="Search the library" value={text}
-        placeholder="Search models, designers, tags, or anything..." shortcut={shortcutLabel(navigator.platform)}
-        onChange={(event) => setText(event.target.value)} onKeyDown={onKeyDown} />
+      <SearchBox
+        ref={input}
+        className="jp-topbar__search"
+        label="Search the library"
+        value={text}
+        placeholder="Search models, designers, tags, or anything..."
+        shortcut={shortcutLabel(navigator.platform)}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={onKeyDown}
+      />
       <div className="jp-topbar__actions">
-        <Menu label="Account" items={itemsFor(ACCOUNT, user?.role).map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))}
+        <Menu
+          label="Account"
+          items={itemsFor(ACCOUNT, user?.role).map((item) => ({ id: item.id, label: item.label, icon: item.icon, onSelect: item.run }))}
           trigger={(props) => (
-            <button type="button" className="jp-account" aria-label={user ? undefined : 'Account'}
-              title={user ? `${user.username} · ${user.roleLabel}` : 'Account'} {...props}>
+            <button
+              type="button"
+              className="jp-account"
+              aria-label={user ? undefined : 'Account'}
+              title={user ? `${user.username} · ${user.roleLabel}` : 'Account'}
+              {...props}
+            >
               <CircleUserRound size={26} aria-hidden="true" />
               {user && (
                 <span className="jp-account__who" id="jp-account-who">
-                  <span className="jp-account__name">{user.username}</span>{' '}
-                  <span className="jp-account__role">{user.roleLabel}</span>
+                  <span className="jp-account__name">{user.username}</span> <span className="jp-account__role">{user.roleLabel}</span>
                 </span>
               )}
               <ChevronDown size={16} aria-hidden="true" />
             </button>
-          )} />
+          )}
+        />
       </div>
     </header>
   );
@@ -178,21 +219,37 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
 /** Phones (spec §36): the main destinations at the bottom, and Menu for the rest. */
 function BottomNav({ page, onMenu }: { page: PageId; onMenu: () => void }) {
   const queue = useQueueCount();
-  const items: [PageId, string, typeof Home][] = [['home', 'Home', Home], ['library', 'Library', Library], ['queue', 'Queue', ListChecks], ['printers', 'Printers', Printer]];
+  const items: [PageId, string, typeof Home][] = [
+    ['home', 'Home', Home],
+    ['library', 'Library', Library],
+    ['queue', 'Queue', ListChecks],
+    ['printers', 'Printers', Printer]
+  ];
   return (
     <nav className="jp-bottom-nav" id="jp-bottom-nav" aria-label="Main (phone)">
       {items.map(([id, label, Icon]) => (
-        <button key={id} type="button" className={cx('jp-bottom-nav__item', page === id && 'is-active')} aria-current={page === id ? 'page' : undefined}
-          onClick={() => navigate(id)}>
+        <button
+          key={id}
+          type="button"
+          className={cx('jp-bottom-nav__item', page === id && 'is-active')}
+          aria-current={page === id ? 'page' : undefined}
+          onClick={() => navigate(id)}
+        >
           <span className="jp-bottom-nav__icon">
             <Icon size={20} aria-hidden="true" />
-            {id === 'queue' && queue > 0 && <span className="jp-bottom-nav__badge" aria-label={`${queue} in the queue`}>{queue}</span>}
+            {id === 'queue' && queue > 0 && (
+              <span className="jp-bottom-nav__badge" aria-label={`${queue} in the queue`}>
+                {queue}
+              </span>
+            )}
           </span>
           <span>{label}</span>
         </button>
       ))}
       <button type="button" className="jp-bottom-nav__item" aria-controls="jp-sidebar" onClick={onMenu}>
-        <span className="jp-bottom-nav__icon"><MenuIcon size={20} aria-hidden="true" /></span>
+        <span className="jp-bottom-nav__icon">
+          <MenuIcon size={20} aria-hidden="true" />
+        </span>
         <span>Menu</span>
       </button>
     </nav>
@@ -212,7 +269,14 @@ function DetailsDrawerBar() {
   useEffect(() => () => bar?.remove(), [bar]);
   if (!bar) return null;
   return createPortal(
-    <button type="button" className="jp-icon-btn jp-icon-btn--md" id="jp-details-close" aria-label="Close details" title="Close details" onClick={hideDetailsPanels}>
+    <button
+      type="button"
+      className="jp-icon-btn jp-icon-btn--md"
+      id="jp-details-close"
+      aria-label="Close details"
+      title="Close details"
+      onClick={hideDetailsPanels}
+    >
       <X size={18} aria-hidden="true" />
     </button>,
     bar
@@ -241,22 +305,40 @@ const narrow = (query: string) => typeof window !== 'undefined' && window.matchM
 function SkipLink({ page }: { page: PageId }) {
   return (
     <nav className="jp-skip-nav" aria-label="Skip links">
-      <a href={isOverlayPage(page) ? '#jp-content' : '#library-content'} className="jp-skip" onClick={(event) => {
-        event.preventDefault();
-        const target = isOverlayPage(page)
-          ? document.querySelector<HTMLElement>('.jp-page')
-          : document.querySelector<HTMLElement>('.file-grid .file-item') ?? document.querySelector<HTMLElement>('.jp-library-header');
-        if (!target) return;
-        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-        target.focus();
-      }}>Skip to content</a>
+      <a
+        href={isOverlayPage(page) ? '#jp-content' : '#library-content'}
+        className="jp-skip"
+        onClick={(event) => {
+          event.preventDefault();
+          const target = isOverlayPage(page)
+            ? document.querySelector<HTMLElement>('.jp-page')
+            : (document.querySelector<HTMLElement>('.file-grid .file-item') ?? document.querySelector<HTMLElement>('.jp-library-header'));
+          if (!target) return;
+          if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+          target.focus();
+        }}
+      >
+        Skip to content
+      </a>
     </nav>
   );
 }
 
 const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1';
 
-const PAGE_TITLES: Record<PageId, string> = { home: 'Home', library: 'Library', queue: 'Print Queue', printers: 'Printers', stats: 'Statistics', collections: 'Collections', tags: 'Tags', duplicates: 'Duplicates', organize: 'Organize Library', settings: 'Settings', help: 'Help' };
+const PAGE_TITLES: Record<PageId, string> = {
+  home: 'Home',
+  library: 'Library',
+  queue: 'Print Queue',
+  printers: 'Printers',
+  stats: 'Statistics',
+  collections: 'Collections',
+  tags: 'Tags',
+  duplicates: 'Duplicates',
+  organize: 'Organize Library',
+  settings: 'Settings',
+  help: 'Help'
+};
 /** The least role a page needs: the role of its sidebar entry. */
 function pageRole(page: PageId) {
   return NAV.flatMap((section) => section.items).find((item) => item.page === page)?.role || 'viewer';
@@ -306,12 +388,17 @@ export function AppShell() {
   }, [detailsOpen, menuOpen, page]);
 
   // A page change closes the menu drawer.
-  useEffect(() => { setMenuOpen(false); }, [page, section]);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [page, section]);
 
   // What a page or a drawer covers is out of reach for the keyboard and screen readers (spec §37).
   useEffect(() => {
     const covered = isOverlayPage(page);
-    const set = (selector: string, value: boolean) => document.querySelectorAll<HTMLElement>(selector).forEach((el) => { el.inert = value; });
+    const set = (selector: string, value: boolean) =>
+      document.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+        el.inert = value;
+      });
     // Not all of .main-content: some older dialogs (Quick Start Guide) live inside it.
     set('.grid-view-selector, .file-grid, #folder-rail', covered || menuOpen);
     set('.sidebar', covered || (menuOpen && narrow('(max-width: 700px)')));
@@ -344,7 +431,9 @@ export function AppShell() {
 
   useEffect(() => {
     if (!menuOpen) return undefined;
-    const onKey = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [menuOpen]);

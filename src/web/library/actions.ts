@@ -77,7 +77,7 @@ async function refreshAfterTagManagerClose() {
 
 /** Clear the New flag on every model, after asking. */
 export async function clearNewFlags() {
-  if (await showMessage('Clear New Flag', 'This will clear the New flag from every model in your library. Continue?', ['Yes', 'No']) !== 'Yes') return;
+  if ((await showMessage('Clear New Flag', 'This will clear the New flag from every model in your library. Continue?', ['Yes', 'No'])) !== 'Yes') return;
   try {
     const result = await callAction<{ cleared?: number }>('clear-new-model-flags');
     for (const model of gridElement()?.currentModels || []) model.isNew = 0;
@@ -134,7 +134,7 @@ export async function logOut() {
 async function modelImagesChanged(filePath: string, searchIfHidden: boolean) {
   await pause(300);
   try {
-    const model = await callAction<GridModel & { thumbnail?: string } | null>('get-model', filePath);
+    const model = await callAction<(GridModel & { thumbnail?: string }) | null>('get-model', filePath);
     if (!model) return;
     syncThumbnailFromField(filePath, model.thumbnail);
     if (mergeModel({ ...model })) refreshGrid();
@@ -162,25 +162,31 @@ function addImage(filePaths: string | string[]) {
   input.type = 'file';
   input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp';
   input.style.display = 'none';
-  input.addEventListener('change', () => {
-    const file = input.files?.[0];
-    input.remove();
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        // The server sends thumbnail-added for each, which updates the cards.
-        for (const filePath of paths) await callAction('add-thumbnail', filePath, reader.result as string);
-      } catch (error) {
-        await showMessage('Error', `Error adding image: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    };
-    reader.onerror = () => showMessage('Error', 'Error reading image file');
-    reader.readAsDataURL(file);
-  }, { once: true });
+  input.addEventListener(
+    'change',
+    () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          // The server sends thumbnail-added for each, which updates the cards.
+          for (const filePath of paths) await callAction('add-thumbnail', filePath, reader.result as string);
+        } catch (error) {
+          await showMessage('Error', `Error adding image: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      };
+      reader.onerror = () => showMessage('Error', 'Error reading image file');
+      reader.readAsDataURL(file);
+    },
+    { once: true }
+  );
   document.body.appendChild(input);
   input.click();
-  setTimeout(() => { if (!input.files?.length) input.remove(); }, 60000);
+  setTimeout(() => {
+    if (!input.files?.length) input.remove();
+  }, 60000);
 }
 
 /** Download (model menu): the server sends the file from /api/download (also ZIP entries). */
@@ -239,8 +245,10 @@ if (typeof window !== 'undefined') {
   let pendingDetails = false;
   const editingDetails = () => {
     const active = document.activeElement as HTMLElement | null;
-    return !!document.querySelector('#notes-modal-dialog[open]')
-      || !!(active && active.closest('#model-details, #details-fields-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+    return (
+      !!document.querySelector('#notes-modal-dialog[open]') ||
+      !!(active && active.closest('#model-details, #details-fields-slot') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))
+    );
   };
   const refreshDetailsWhenFree = () => {
     if (!pendingDetails) return;
@@ -259,16 +267,22 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  onServerEvent('thumbnail-added', (data: { filePath?: string }) => { if (data?.filePath) modelImagesChanged(data.filePath, true); });
+  onServerEvent('thumbnail-added', (data: { filePath?: string }) => {
+    if (data?.filePath) modelImagesChanged(data.filePath, true);
+  });
   onServerEvent('thumbnail-deleted', (data: { filePath?: string }) => {
     if (!data?.filePath) return;
     invalidateThumbnail(data.filePath);
     modelImagesChanged(data.filePath, true);
   });
-  onServerEvent('thumbnail-default-changed', (data: { filePath?: string }) => { if (data?.filePath) modelImagesChanged(data.filePath, false); });
+  onServerEvent('thumbnail-default-changed', (data: { filePath?: string }) => {
+    if (data?.filePath) modelImagesChanged(data.filePath, false);
+  });
   onServerEvent('select-model-by-filepath', (filePath: string) => highlightModel(filePath));
   onServerEvent('add-image-request', (filePaths: string | string[]) => addImage(filePaths));
-  onServerEvent('download-model', (filePath: string) => { if (filePath) download(filePath); });
+  onServerEvent('download-model', (filePath: string) => {
+    if (filePath) download(filePath);
+  });
   onServerEvent('db-cleanup', (...args: unknown[]) => {
     // The message may come as the first or the second argument.
     const data = (args[1] ?? args[0]) as { message?: string } | undefined;

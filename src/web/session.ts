@@ -44,7 +44,7 @@ function set(user: CurrentUser | null) {
 export async function loadCurrentUser(): Promise<CurrentUser | null> {
   try {
     const response = await fetch('/api/auth/status', { credentials: 'same-origin' });
-    const data = await response.json() as { authenticated?: boolean; user?: CurrentUser };
+    const data = (await response.json()) as { authenticated?: boolean; user?: CurrentUser };
     set(data.authenticated && data.user ? data.user : null);
   } catch {
     /* offline: keep what we had */

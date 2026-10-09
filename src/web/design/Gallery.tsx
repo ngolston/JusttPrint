@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Box, CheckCircle2, ChevronDown, Clock, Copy, FolderOpen, Grid2x2, List, MoreHorizontal, Printer, Scan, SlidersHorizontal,
-  Sparkles, Star, Trash2
+  Box,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Copy,
+  FolderOpen,
+  Grid2x2,
+  List,
+  MoreHorizontal,
+  Printer,
+  Scan,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Trash2
 } from 'lucide-react';
 import { AddTagButton, Badge, PrintStatusBadge, StatusBadge, Tag } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
@@ -34,19 +47,36 @@ function Gallery() {
         <h2 className="jp-label">Typography</h2>
         <h1 className="jp-page-title">Good afternoon</h1>
         <h2 className="jp-section-title">Your Library</h2>
-        <div><div className="jp-model-title">Gridfinity Tool Holder</div><div className="jp-meta">Zack Freedman</div></div>
-        <div><button type="button" className="jp-link">View All</button></div>
+        <div>
+          <div className="jp-model-title">Gridfinity Tool Holder</div>
+          <div className="jp-meta">Zack Freedman</div>
+        </div>
+        <div>
+          <button type="button" className="jp-link">
+            View All
+          </button>
+        </div>
       </section>
 
       <section>
         <h2 className="jp-label">Buttons</h2>
         <div className="jp-gallery__row">
-          <Button variant="primary" size="lg" iconEnd={ChevronDown}>Open in Slicer</Button>
+          <Button variant="primary" size="lg" iconEnd={ChevronDown}>
+            Open in Slicer
+          </Button>
           <Button size="lg">Print</Button>
-          <Button variant="secondary" icon={SlidersHorizontal}>Filter</Button>
-          <Button variant="ghost" icon={Scan}>Scan Library</Button>
-          <Button variant="danger" icon={Trash2}>Delete</Button>
-          <Button variant="primary" disabled>Disabled</Button>
+          <Button variant="secondary" icon={SlidersHorizontal}>
+            Filter
+          </Button>
+          <Button variant="ghost" icon={Scan}>
+            Scan Library
+          </Button>
+          <Button variant="danger" icon={Trash2}>
+            Delete
+          </Button>
+          <Button variant="primary" disabled>
+            Disabled
+          </Button>
           <IconButton icon={Star} label={favorite ? 'Remove from favorites' : 'Add to favorites'} pressed={favorite} onClick={() => setFavorite(!favorite)} />
           <IconButton icon={MoreHorizontal} label="More actions" />
           <IconButton icon={Grid2x2} label="Grid view" />
@@ -57,23 +87,38 @@ function Gallery() {
       <section>
         <h2 className="jp-label">Badges, status, tags</h2>
         <div className="jp-gallery__row">
-          <Badge>3MF</Badge><Badge>PLA</Badge><Badge>PETG</Badge>
-          {statuses.map((s) => <PrintStatusBadge key={s} status={s} />)}
+          <Badge>3MF</Badge>
+          <Badge>PLA</Badge>
+          <Badge>PETG</Badge>
+          {statuses.map((s) => (
+            <PrintStatusBadge key={s} status={s} />
+          ))}
           <StatusBadge tone="success">Successful</StatusBadge>
           <StatusBadge tone="danger">Failed</StatusBadge>
         </div>
         <div className="jp-gallery__row">
-          <Tag>Organization</Tag><Tag>Gridfinity</Tag><Tag onRemove={() => {}}>Workshop</Tag><Tag onClick={() => {}}>Tools</Tag>
+          <Tag>Organization</Tag>
+          <Tag>Gridfinity</Tag>
+          <Tag onRemove={() => {}}>Workshop</Tag>
+          <Tag onClick={() => {}}>Tools</Tag>
           <AddTagButton onClick={() => {}} />
         </div>
       </section>
 
       <section>
         <h2 className="jp-label">Tabs and search</h2>
-        <Tabs label="Library state" value={tab} onChange={setTab} items={[
-          { id: 'all', label: 'All Models', icon: Grid2x2 }, { id: 'printed', label: 'Printed', icon: CheckCircle2 },
-          { id: 'unprinted', label: 'Unprinted' }, { id: 'queue', label: 'Queue', icon: Clock }, { id: 'favorites', label: 'Favorites', icon: Star }
-        ]} />
+        <Tabs
+          label="Library state"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { id: 'all', label: 'All Models', icon: Grid2x2 },
+            { id: 'printed', label: 'Printed', icon: CheckCircle2 },
+            { id: 'unprinted', label: 'Unprinted' },
+            { id: 'queue', label: 'Queue', icon: Clock },
+            { id: 'favorites', label: 'Favorites', icon: Star }
+          ]}
+        />
         <div className="jp-gallery__search">
           <SearchBox label="Search the library" placeholder="Search models, designers, tags, or anything..." shortcut={shortcutLabel(navigator.platform)} />
         </div>
@@ -94,11 +139,21 @@ function Gallery() {
           </Panel>
           <Panel title="Loading" labelledBy="gallery-loading">
             <div className="jp-gallery__stack">
-              <Skeleton width="60%" /><Skeleton width="40%" height={12} /><Skeleton width="100%" height={120} radius="lg" />
+              <Skeleton width="60%" />
+              <Skeleton width="40%" height={12} />
+              <Skeleton width="100%" height={120} radius="lg" />
             </div>
           </Panel>
           <Panel>
-            <EmptyState icon={FolderOpen} title="No models yet" action={<Button variant="primary" icon={Scan}>Scan Library</Button>}>
+            <EmptyState
+              icon={FolderOpen}
+              title="No models yet"
+              action={
+                <Button variant="primary" icon={Scan}>
+                  Scan Library
+                </Button>
+              }
+            >
               Add a folder under STL Home, then scan it.
             </EmptyState>
           </Panel>
@@ -113,18 +168,37 @@ function Gallery() {
       <section>
         <h2 className="jp-label">Menu, modal, drawer</h2>
         <div className="jp-gallery__row">
-          <Menu label="Model actions" items={[
-            { id: 'copy', label: 'Copy path', icon: Copy, onSelect: () => {} },
-            { id: 'ai', label: 'Generate Tags', icon: Sparkles, onSelect: () => {} },
-            { id: 'delete', label: 'Delete from Disk', icon: Trash2, danger: true, onSelect: () => {} }
-          ]} trigger={(props) => <Button {...props} iconEnd={ChevronDown}>More</Button>} />
+          <Menu
+            label="Model actions"
+            items={[
+              { id: 'copy', label: 'Copy path', icon: Copy, onSelect: () => {} },
+              { id: 'ai', label: 'Generate Tags', icon: Sparkles, onSelect: () => {} },
+              { id: 'delete', label: 'Delete from Disk', icon: Trash2, danger: true, onSelect: () => {} }
+            ]}
+            trigger={(props) => (
+              <Button {...props} iconEnd={ChevronDown}>
+                More
+              </Button>
+            )}
+          />
           <Button onClick={() => setModal(true)}>Open modal</Button>
           <Button onClick={() => setDrawer(true)}>Open drawer</Button>
         </div>
       </section>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Log Print"
-        footer={<><Button onClick={() => setModal(false)}>Cancel</Button><Button variant="primary" onClick={() => setModal(false)}>Save</Button></>}>
+      <Modal
+        open={modal}
+        onClose={() => setModal(false)}
+        title="Log Print"
+        footer={
+          <>
+            <Button onClick={() => setModal(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => setModal(false)}>
+              Save
+            </Button>
+          </>
+        }
+      >
         <p className="jp-meta">Modal content.</p>
       </Modal>
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Model details">

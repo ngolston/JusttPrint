@@ -30,14 +30,22 @@ export function ShareLinksDialog() {
     }
   }
 
-  useEffect(() => exposeGlobal('openShareLinks', () => {
-    setStatus('');
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-    void load();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openShareLinks', () => {
+        setStatus('');
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+        void load();
+      }),
+    []
+  );
 
   async function revoke(link: ShareLink) {
-    const answer = await showMessage('Turn Off Link', `Turn off this link to ${link.targetName || 'a removed item'}? Anyone who has it can no longer open it.`, ['Turn Off', 'Cancel']);
+    const answer = await showMessage(
+      'Turn Off Link',
+      `Turn off this link to ${link.targetName || 'a removed item'}? Anyone who has it can no longer open it.`,
+      ['Turn Off', 'Cancel']
+    );
     if (answer !== 'Turn Off') return;
     try {
       await shareLinks.revoke(link.token);
@@ -57,13 +65,25 @@ export function ShareLinksDialog() {
 
   const stale = (links || []).filter((link) => link.expired || !link.targetName).length;
   return (
-    <ModalDialog id="share-links-dialog" title="Share Links" dialogRef={dialogRef}
-      footer={<button type="button" id="close-share-links" onClick={() => dialogRef.current?.close()}>Close</button>}>
+    <ModalDialog
+      id="share-links-dialog"
+      title="Share Links"
+      dialogRef={dialogRef}
+      footer={
+        <button type="button" id="close-share-links" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
       <p className="setting-description">
         Links open a read-only page without logging in. Make one from a model&apos;s menu (Share…) or a collection&apos;s Share button.
       </p>
-      {links === null ? <p className="setting-description">Loading…</p> : links.length === 0 ? (
-        <p className="setting-description" id="share-links-empty">No share links.</p>
+      {links === null ? (
+        <p className="setting-description">Loading…</p>
+      ) : links.length === 0 ? (
+        <p className="setting-description" id="share-links-empty">
+          No share links.
+        </p>
       ) : (
         <ul className="jp-share__list jp-share__list--all" id="share-links-list">
           {links.map((link) => {
@@ -72,21 +92,33 @@ export function ShareLinksDialog() {
               <li key={link.token} className={link.expired || !link.targetName ? 'is-expired' : undefined}>
                 <span className="jp-share__list-text">
                   <span className="jp-share__list-name">
-                    {link.kind === 'collection' ? 'Collection' : 'Model'}: {link.targetName
-                      ? (link.kind === 'collection'
-                        ? <a href={`#/collections/${link.targetId}`} onClick={() => dialogRef.current?.close()}>{link.targetName}</a>
-                        : link.targetName)
-                      : <em>no longer in the library</em>}
+                    {link.kind === 'collection' ? 'Collection' : 'Model'}:{' '}
+                    {link.targetName ? (
+                      link.kind === 'collection' ? (
+                        <a href={`#/collections/${link.targetId}`} onClick={() => dialogRef.current?.close()}>
+                          {link.targetName}
+                        </a>
+                      ) : (
+                        link.targetName
+                      )
+                    ) : (
+                      <em>no longer in the library</em>
+                    )}
                   </span>
                   <span className="jp-meta">
                     {link.allowDownload ? 'Downloads' : 'View only'} · {expiryLabel(link)} · {link.views} {link.views === 1 ? 'view' : 'views'}
-                    {link.lastViewedAt ? ` (last ${timeAgo(link.lastViewedAt)})` : ''}{link.createdBy ? ` · by ${link.createdBy}` : ''} · {timeAgo(link.createdAt)}
+                    {link.lastViewedAt ? ` (last ${timeAgo(link.lastViewedAt)})` : ''}
+                    {link.createdBy ? ` · by ${link.createdBy}` : ''} · {timeAgo(link.createdAt)}
                   </span>
                 </span>
                 {!link.expired && link.targetName && (
-                  <button type="button" onClick={async () => setStatus(await copyText(url) ? 'Link copied.' : url)}>Copy</button>
+                  <button type="button" onClick={async () => setStatus((await copyText(url)) ? 'Link copied.' : url)}>
+                    Copy
+                  </button>
                 )}
-                <button type="button" className="danger-button" onClick={() => revoke(link)}>Turn Off</button>
+                <button type="button" className="danger-button" onClick={() => revoke(link)}>
+                  Turn Off
+                </button>
               </li>
             );
           })}
@@ -94,10 +126,14 @@ export function ShareLinksDialog() {
       )}
       {stale > 0 && (
         <div className="dialog-buttons mcp-inline-actions">
-          <button type="button" id="share-links-clean" onClick={revokeExpired}>Remove {stale} Expired or Broken</button>
+          <button type="button" id="share-links-clean" onClick={revokeExpired}>
+            Remove {stale} Expired or Broken
+          </button>
         </div>
       )}
-      <p className="setting-description" role="status" id="share-links-status">{status}</p>
+      <p className="setting-description" role="status" id="share-links-status">
+        {status}
+      </p>
     </ModalDialog>
   );
 }

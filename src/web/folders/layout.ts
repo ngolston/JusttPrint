@@ -29,7 +29,9 @@ export async function loadSavedWidths() {
     try {
       const saved = parseInt(String(await settings.get<string | null>(panel.setting)), 10);
       if (Number.isFinite(saved) && saved > 0) applyWidth(panel, saved);
-    } catch { /* keep the default */ }
+    } catch {
+      /* keep the default */
+    }
   }
 }
 

@@ -25,17 +25,20 @@ function set(next: Partial<typeof state>) {
 }
 
 export function useGridView() {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }, () => state);
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => state
+  );
 }
 
 const isView = (v: unknown): v is GridView => VIEWS.includes(v as GridView);
 
 async function folderViews(): Promise<Record<string, GridView>> {
   try {
-    const parsed = JSON.parse(await settings.get<string | null>('perFolderView') || '{}');
+    const parsed = JSON.parse((await settings.get<string | null>('perFolderView')) || '{}');
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
@@ -79,7 +82,7 @@ export async function loadGridView() {
   ]);
   set({
     view: view === 'small' ? 'preview' : isView(view) ? view : state.view,
-    previewSize: SIZES.includes(size as PreviewTileSize) ? size as PreviewTileSize : state.previewSize
+    previewSize: SIZES.includes(size as PreviewTileSize) ? (size as PreviewTileSize) : state.previewSize
   });
 }
 
@@ -89,4 +92,3 @@ declare global {
     viewingEntireLibrary?: boolean;
   }
 }
-

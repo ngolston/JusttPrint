@@ -5,14 +5,8 @@ const assert = require('node:assert/strict');
 const fflate = require('fflate');
 const { extractF3dPreview, extractF3dPreviewEntry } = require('../src/core/extract-f3d-preview');
 
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64'
-);
-const OTHER_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mP8z8BQz0AEYBxVAAAhGgIB/6Q9yQAAAABJRU5ErkJggg==',
-  'base64'
-);
+const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const OTHER_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mP8z8BQz0AEYBxVAAAhGgIB/6Q9yQAAAABJRU5ErkJggg==', 'base64');
 
 describe('extract-f3d-preview', () => {
   test('prefers FusionAssetName[Active]/Previews/big.png over small.png', async () => {

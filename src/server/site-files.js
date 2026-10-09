@@ -104,11 +104,18 @@ async function listFiles(url, fetchImpl = httpsFetch) {
   if (link.site === 'printables') {
     const data = await printablesGraphql(
       'query JusttPrintFiles($id: ID!) { print(id: $id) { stls { id name fileSize } gcodes { id name fileSize } slas { id name fileSize } otherFiles { id name fileSize } } }',
-      { id: link.id }, fetchImpl);
+      { id: link.id },
+      fetchImpl
+    );
     const print = data && data.print;
     if (!print) throw new Error('Printables has no model with this number');
     const files = [];
-    for (const [list, kind] of [[print.stls, 'stl'], [print.otherFiles, 'other'], [print.gcodes, 'gcode'], [print.slas, 'sla']]) {
+    for (const [list, kind] of [
+      [print.stls, 'stl'],
+      [print.otherFiles, 'other'],
+      [print.gcodes, 'gcode'],
+      [print.slas, 'sla']
+    ]) {
       for (const file of list || []) {
         const name = String(file.name || `file ${file.id}`);
         // Printables lists project files (.shapr, .f3z…) with the STLs: only model files start ticked.
@@ -125,7 +132,11 @@ async function listFiles(url, fetchImpl = httpsFetch) {
     id: String(file.id),
     name: String(file.name || `file ${file.id}`),
     size: Number(file.size) || null,
-    kind: path.extname(String(file.name || '')).slice(1).toLowerCase() || 'file',
+    kind:
+      path
+        .extname(String(file.name || ''))
+        .slice(1)
+        .toLowerCase() || 'file',
     model: MODEL_EXTENSIONS.test(String(file.name || ''))
   }));
 }
@@ -145,11 +156,15 @@ async function fileUrl(link, file, fetchImpl) {
   if (link.site === 'printables') {
     const data = await printablesGraphql(
       'mutation JusttPrintDownload($id: ID!, $printId: ID!, $fileType: DownloadFileTypeEnum!, $source: DownloadSourceEnum!) { getDownloadLink(id: $id, printId: $printId, fileType: $fileType, source: $source) { ok errors { field messages } output { link } } }',
-      { id: file.id, printId: link.id, fileType: file.kind, source: 'model_detail' }, fetchImpl);
+      { id: file.id, printId: link.id, fileType: file.kind, source: 'model_detail' },
+      fetchImpl
+    );
     const answer = data && data.getDownloadLink;
     if (!answer || !answer.ok || !answer.output || !answer.output.link) {
       const why = answer && answer.errors && answer.errors[0] && answer.errors[0].messages && answer.errors[0].messages[0];
-      throw new Error(why === 'files_cannot_be_downloaded' ? `Printables does not let ${file.name} be downloaded` : `Printables gave no download link for ${file.name}`);
+      throw new Error(
+        why === 'files_cannot_be_downloaded' ? `Printables does not let ${file.name} be downloaded` : `Printables gave no download link for ${file.name}`
+      );
     }
     return answer.output.link;
   }
@@ -167,7 +182,11 @@ async function fileUrl(link, file, fetchImpl) {
 /** The file name to save: no folders, no characters a file name cannot have. */
 function plainName(name, fallback) {
   // eslint-disable-next-line no-control-regex
-  const text = path.basename(String(name || '').replace(/\\/g, '/')).normalize('NFC').replace(/[\x00-\x1f\x7f:*?"<>|]/g, '_').trim();
+  const text = path
+    .basename(String(name || '').replace(/\\/g, '/'))
+    .normalize('NFC')
+    .replace(/[\x00-\x1f\x7f:*?"<>|]/g, '_')
+    .trim();
   return text && !text.startsWith('.') ? text.slice(0, 200) : fallback;
 }
 
@@ -195,11 +214,23 @@ async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = http
   const chosen = files.filter((file) => (wanted ? wanted.has(file.id) : file.model));
   if (!chosen.length) throw new Error(files.length ? 'Choose the files to download' : `${SITES[link.site].label} lists no files for this model`);
 
-  const model = info || await fetchModelInfo(link, fetchImpl).catch(() => null);
-  const details = { title: (model && model.name) || `${SITES[link.site].label} model ${link.id}`, titleEnglish: null, designer: { name: (model && model.designer) || null }, license: (model && model.license) || null };
+  const model = info || (await fetchModelInfo(link, fetchImpl).catch(() => null));
+  const details = {
+    title: (model && model.name) || `${SITES[link.site].label} model ${link.id}`,
+    titleEnglish: null,
+    designer: { name: (model && model.designer) || null },
+    license: (model && model.license) || null
+  };
 
   const reused = siteDetails.earlierFolder(key, ctx);
-  const have = new Set(reused ? siteDetails.downloadsFor(key).filter((d) => path.dirname(d.filePath) === reused).map((d) => d.profileId) : []);
+  const have = new Set(
+    reused
+      ? siteDetails
+          .downloadsFor(key)
+          .filter((d) => path.dirname(d.filePath) === reused)
+          .map((d) => d.profileId)
+      : []
+  );
   const todo = chosen.filter((file) => !have.has(`file:${file.id}`));
   const target = reused || siteDetails.makeModelFolder(parent, details);
 
@@ -212,14 +243,20 @@ async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = http
     try {
       if (i > 0) await new Promise((resolve) => setTimeout(resolve, fileGapMs));
       const from = await fileUrl(link, file, fetchImpl);
-      if (!allowedHost(link.site, from)) throw new Error(`${SITES[link.site].label}'s download link is on a server JusttPrint does not download from (${new URL(from).hostname})`);
+      if (!allowedHost(link.site, from))
+        throw new Error(`${SITES[link.site].label}'s download link is on a server JusttPrint does not download from (${new URL(from).hostname})`);
       await siteDetails.saveTo(from, tempPath, {
         fetchImpl,
         maxBytes: maxUploadBytes(),
-        onProgress: onProgress ? (received, total) => onProgress({ label: todo.length > 1 ? `${file.name} (${i + 1} of ${todo.length})` : file.name, received, total }) : null
+        onProgress: onProgress
+          ? (received, total) => onProgress({ label: todo.length > 1 ? `${file.name} (${i + 1} of ${todo.length})` : file.name, received, total })
+          : null
       });
       const name = path.basename(placeWithoutReplacing(tempPath, target, plainName(file.name, `file-${file.id}`)));
-      siteDetails.siteFilesTable().prepare('INSERT OR REPLACE INTO site_files (file_path, key, profile_id) VALUES (?, ?, ?)').run(path.join(target, name), key, `file:${file.id}`);
+      siteDetails
+        .siteFilesTable()
+        .prepare('INSERT OR REPLACE INTO site_files (file_path, key, profile_id) VALUES (?, ?, ?)')
+        .run(path.join(target, name), key, `file:${file.id}`);
       saved.push(name);
     } catch (error) {
       fs.rmSync(tempPath, { force: true });
@@ -239,7 +276,11 @@ async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = http
     mainName = siteDetails.nameMainFile(target, details, saved);
     if (mainName && !saved.includes(mainName)) {
       const before = saved.find((name) => !fs.existsSync(path.join(target, name)));
-      if (before) siteDetails.siteFilesTable().prepare('UPDATE site_files SET file_path = ? WHERE file_path = ?').run(path.join(target, mainName), path.join(target, before));
+      if (before)
+        siteDetails
+          .siteFilesTable()
+          .prepare('UPDATE site_files SET file_path = ? WHERE file_path = ?')
+          .run(path.join(target, mainName), path.join(target, before));
     }
   }
   const finished = await siteDetails.finishFolder(target, details, link, mainName, ctx);
@@ -273,6 +314,8 @@ async function setToken(value, fetchImpl = httpsFetch) {
 }
 
 /** For tests: no pause between files. */
-const setFileGap = (ms) => { fileGapMs = ms; };
+const setFileGap = (ms) => {
+  fileGapMs = ms;
+};
 
 module.exports = { FILE_HOSTS, downloadFiles, listFiles, plainName, setFileGap, setToken, thingiverseJson, tokenStatus };

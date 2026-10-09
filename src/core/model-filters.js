@@ -32,7 +32,7 @@ function getExtensionsForFileTypeFilter(fileTypeValue) {
   const lower = fileTypeValue.toLowerCase();
   if (lower === 'stl') return ['.stl'];
   if (lower === '3mf') return ['.3mf'];
-  const entry = ADDITIONAL_FILE_TYPES_CATALOG.find(e => e.id === lower || e.extensions.some(ext => ext.slice(1) === lower));
+  const entry = ADDITIONAL_FILE_TYPES_CATALOG.find((e) => e.id === lower || e.extensions.some((ext) => ext.slice(1) === lower));
   return entry ? entry.extensions : [`.${lower}`];
 }
 
@@ -94,25 +94,25 @@ function pushSearchClauseFragment(field, rawValue, params, filters) {
   switch (field) {
     case 'fileName':
       params.push(term);
-      return 'LOWER(COALESCE(fileName, \'\')) LIKE ?';
+      return "LOWER(COALESCE(fileName, '')) LIKE ?";
     case 'designer':
       params.push(term);
-      return 'LOWER(COALESCE(designer, \'\')) LIKE ?';
+      return "LOWER(COALESCE(designer, '')) LIKE ?";
     case 'parentModel':
       params.push(term);
-      return 'LOWER(COALESCE(parentModel, \'\')) LIKE ?';
+      return "LOWER(COALESCE(parentModel, '')) LIKE ?";
     case 'notes':
       params.push(term);
-      return 'LOWER(COALESCE(notes, \'\')) LIKE ?';
+      return "LOWER(COALESCE(notes, '')) LIKE ?";
     case 'filePath':
       params.push(term);
-      return 'LOWER(COALESCE(filePath, \'\')) LIKE ?';
+      return "LOWER(COALESCE(filePath, '')) LIKE ?";
     case 'source':
       params.push(term);
-      return 'LOWER(COALESCE(source, \'\')) LIKE ?';
+      return "LOWER(COALESCE(source, '')) LIKE ?";
     case 'license':
       params.push(term);
-      return 'LOWER(COALESCE(license, \'\')) LIKE ?';
+      return "LOWER(COALESCE(license, '')) LIKE ?";
     case 'tag':
       params.push(term);
       return 'EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?)';
@@ -208,7 +208,7 @@ function compileSidebarFilterClauseToSQL(tok, filters, params) {
       const f = {
         tags: names,
         tagCombine: combine,
-        tagInverted: !!filters.tagInverted,
+        tagInverted: !!filters.tagInverted
       };
       const cond = [];
       pushTagListSQL(cond, params, f);
@@ -248,7 +248,7 @@ function compileSidebarFilterClauseToSQL(tok, filters, params) {
       return '(LOWER(fileName) LIKE ?)';
     }
     const ph = exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ');
-    params.push(...exts.map(ext => `%${ext}`));
+    params.push(...exts.map((ext) => `%${ext}`));
     return `(${ph})`;
   }
   if (tok.kind === 'printed') {
@@ -402,9 +402,7 @@ function pushTagListSQL(conditions, params, filters) {
     const existsParts = [];
     for (const tn of tagNames) {
       params.push(tn);
-      existsParts.push(
-        'EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND t.name = ?)'
-      );
+      existsParts.push('EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND t.name = ?)');
     }
     inner = `(${existsParts.join(' AND ')})`;
   }
@@ -424,194 +422,174 @@ function buildModelFilterConditions(filters) {
   }
 
   // Designer filter (multi-value + legacy single)
-    const designers = normalizeFilterValueList(filters.designers, filters.designer);
-    if (designers.length) {
-      pushEqualityListCondition(
-        conditions,
-        params,
-        'designer',
-        designers,
-        filters.designerCombine === 'AND' ? 'AND' : 'OR',
-        !!filters.designerInverted,
-        true
-      );
-    }
+  const designers = normalizeFilterValueList(filters.designers, filters.designer);
+  if (designers.length) {
+    pushEqualityListCondition(conditions, params, 'designer', designers, filters.designerCombine === 'AND' ? 'AND' : 'OR', !!filters.designerInverted, true);
+  }
 
-    // License filter
-    const licenses = normalizeFilterValueList(filters.licenses, filters.license);
-    if (licenses.length) {
-      pushEqualityListCondition(
-        conditions,
-        params,
-        'license',
-        licenses,
-        filters.licenseCombine === 'AND' ? 'AND' : 'OR',
-        !!filters.licenseInverted,
-        false
-      );
-    }
+  // License filter
+  const licenses = normalizeFilterValueList(filters.licenses, filters.license);
+  if (licenses.length) {
+    pushEqualityListCondition(conditions, params, 'license', licenses, filters.licenseCombine === 'AND' ? 'AND' : 'OR', !!filters.licenseInverted, false);
+  }
 
-    // Parent model filter
-    const parentModels = normalizeFilterValueList(filters.parentModels, filters.parentModel);
-    if (parentModels.length) {
-      pushEqualityListCondition(
-        conditions,
-        params,
-        'parentModel',
-        parentModels,
-        filters.parentModelCombine === 'AND' ? 'AND' : 'OR',
-        !!filters.parentModelInverted,
-        false
-      );
-    }
-    
-    // Print status / history filter
-    if (filters.printed !== undefined && filters.printed !== 'all') {
-      const bound = printEvents.printFilterSqlBound(filters.printed);
-      if (bound) {
-        conditions.push(bound.sql);
-        if (bound.params.length) params.push(...bound.params);
-      }
-    }
+  // Parent model filter
+  const parentModels = normalizeFilterValueList(filters.parentModels, filters.parentModel);
+  if (parentModels.length) {
+    pushEqualityListCondition(
+      conditions,
+      params,
+      'parentModel',
+      parentModels,
+      filters.parentModelCombine === 'AND' ? 'AND' : 'OR',
+      !!filters.parentModelInverted,
+      false
+    );
+  }
 
-    const normalizedIsNew =
-      typeof filters.isNew === 'string' ? filters.isNew.trim().toLowerCase() : filters.isNew;
-    if (
-      normalizedIsNew !== undefined &&
-      normalizedIsNew !== null &&
-      normalizedIsNew !== '' &&
-      normalizedIsNew !== 'all' &&
-      normalizedIsNew !== 'undefined' &&
-      normalizedIsNew !== 'null'
-    ) {
-      if (normalizedIsNew === 'new') {
-        conditions.push("isNew = 1");
-      } else if (normalizedIsNew === 'not-new') {
-        conditions.push("(isNew = 0 OR isNew IS NULL)");
-      }
+  // Print status / history filter
+  if (filters.printed !== undefined && filters.printed !== 'all') {
+    const bound = printEvents.printFilterSqlBound(filters.printed);
+    if (bound) {
+      conditions.push(bound.sql);
+      if (bound.params.length) params.push(...bound.params);
     }
+  }
 
-    const normalizedFavorite =
-      typeof filters.favorite === 'string' ? filters.favorite.trim().toLowerCase() : filters.favorite;
-    if (
-      normalizedFavorite !== undefined &&
-      normalizedFavorite !== null &&
-      normalizedFavorite !== '' &&
-      normalizedFavorite !== 'all' &&
-      normalizedFavorite !== 'undefined' &&
-      normalizedFavorite !== 'null'
-    ) {
-      if (normalizedFavorite === 'favorited') {
-        conditions.push("favorite = 1");
-      } else if (normalizedFavorite === 'not-favorited') {
-        conditions.push("(favorite = 0 OR favorite IS NULL)");
-      }
+  const normalizedIsNew = typeof filters.isNew === 'string' ? filters.isNew.trim().toLowerCase() : filters.isNew;
+  if (
+    normalizedIsNew !== undefined &&
+    normalizedIsNew !== null &&
+    normalizedIsNew !== '' &&
+    normalizedIsNew !== 'all' &&
+    normalizedIsNew !== 'undefined' &&
+    normalizedIsNew !== 'null'
+  ) {
+    if (normalizedIsNew === 'new') {
+      conditions.push('isNew = 1');
+    } else if (normalizedIsNew === 'not-new') {
+      conditions.push('(isNew = 0 OR isNew IS NULL)');
     }
+  }
 
-    const normalizedRating =
-      typeof filters.rating === 'string' ? filters.rating.trim().toLowerCase() : filters.rating;
-    if (
-      normalizedRating !== undefined &&
-      normalizedRating !== null &&
-      normalizedRating !== '' &&
-      normalizedRating !== 'all' &&
-      normalizedRating !== 'undefined' &&
-      normalizedRating !== 'null'
-    ) {
-      if (normalizedRating === 'unrated') {
-        conditions.push("(rating = 0 OR rating IS NULL)");
-      } else if (/^[1-5]$/.test(String(normalizedRating))) {
-        conditions.push("rating = ?");
-        params.push(parseInt(normalizedRating, 10));
-      }
+  const normalizedFavorite = typeof filters.favorite === 'string' ? filters.favorite.trim().toLowerCase() : filters.favorite;
+  if (
+    normalizedFavorite !== undefined &&
+    normalizedFavorite !== null &&
+    normalizedFavorite !== '' &&
+    normalizedFavorite !== 'all' &&
+    normalizedFavorite !== 'undefined' &&
+    normalizedFavorite !== 'null'
+  ) {
+    if (normalizedFavorite === 'favorited') {
+      conditions.push('favorite = 1');
+    } else if (normalizedFavorite === 'not-favorited') {
+      conditions.push('(favorite = 0 OR favorite IS NULL)');
     }
+  }
 
-    const normalizedRatingMin =
-      typeof filters.ratingMin === 'string' ? filters.ratingMin.trim().toLowerCase() : filters.ratingMin;
-    if (
-      normalizedRatingMin !== undefined &&
-      normalizedRatingMin !== null &&
-      normalizedRatingMin !== '' &&
-      normalizedRatingMin !== 'all' &&
-      normalizedRatingMin !== 'undefined' &&
-      normalizedRatingMin !== 'null' &&
-      /^[1-5]$/.test(String(normalizedRatingMin))
-    ) {
-      conditions.push("rating >= ?");
-      params.push(parseInt(normalizedRatingMin, 10));
+  const normalizedRating = typeof filters.rating === 'string' ? filters.rating.trim().toLowerCase() : filters.rating;
+  if (
+    normalizedRating !== undefined &&
+    normalizedRating !== null &&
+    normalizedRating !== '' &&
+    normalizedRating !== 'all' &&
+    normalizedRating !== 'undefined' &&
+    normalizedRating !== 'null'
+  ) {
+    if (normalizedRating === 'unrated') {
+      conditions.push('(rating = 0 OR rating IS NULL)');
+    } else if (/^[1-5]$/.test(String(normalizedRating))) {
+      conditions.push('rating = ?');
+      params.push(parseInt(normalizedRating, 10));
     }
-    
-    // File type filter
-    if (filters.fileType) {
-      if (filters.fileType.toLowerCase() === 'zip') {
-        // For zip filter, show all models inside ZIP archives (entries with :: separator)
-        conditions.push("filePath LIKE ?");
-        params.push('%::%');
+  }
+
+  const normalizedRatingMin = typeof filters.ratingMin === 'string' ? filters.ratingMin.trim().toLowerCase() : filters.ratingMin;
+  if (
+    normalizedRatingMin !== undefined &&
+    normalizedRatingMin !== null &&
+    normalizedRatingMin !== '' &&
+    normalizedRatingMin !== 'all' &&
+    normalizedRatingMin !== 'undefined' &&
+    normalizedRatingMin !== 'null' &&
+    /^[1-5]$/.test(String(normalizedRatingMin))
+  ) {
+    conditions.push('rating >= ?');
+    params.push(parseInt(normalizedRatingMin, 10));
+  }
+
+  // File type filter
+  if (filters.fileType) {
+    if (filters.fileType.toLowerCase() === 'zip') {
+      // For zip filter, show all models inside ZIP archives (entries with :: separator)
+      conditions.push('filePath LIKE ?');
+      params.push('%::%');
+    } else {
+      const exts = getExtensionsForFileTypeFilter(filters.fileType);
+      if (exts.length === 1) {
+        conditions.push('LOWER(fileName) LIKE ?');
+        params.push(`%${exts[0]}`);
       } else {
-        const exts = getExtensionsForFileTypeFilter(filters.fileType);
-        if (exts.length === 1) {
-          conditions.push("LOWER(fileName) LIKE ?");
-          params.push(`%${exts[0]}`);
-        } else {
-          conditions.push("(" + exts.map(() => "LOWER(fileName) LIKE ?").join(" OR ") + ")");
-          params.push(...exts.map(ext => `%${ext}`));
-        }
+        conditions.push('(' + exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ') + ')');
+        params.push(...exts.map((ext) => `%${ext}`));
       }
     }
-    
-    // Directory filter. Stored zip entries mix separators (`C:\lib\pack.zip::folder/part.stl`),
-    // so compare a slash-normalized path instead of two LIKE patterns that each miss half the path.
-    if (filters.directory) {
-      const directoryPrefix = directoryFilterLikePrefix(filters.directory);
-      if (directoryPrefix) {
-        conditions.push("REPLACE(LOWER(filePath), CHAR(92), '/') LIKE ?");
-        params.push(directoryPrefix);
-      }
+  }
+
+  // Directory filter. Stored zip entries mix separators (`C:\lib\pack.zip::folder/part.stl`),
+  // so compare a slash-normalized path instead of two LIKE patterns that each miss half the path.
+  if (filters.directory) {
+    const directoryPrefix = directoryFilterLikePrefix(filters.directory);
+    if (directoryPrefix) {
+      conditions.push("REPLACE(LOWER(filePath), CHAR(92), '/') LIKE ?");
+      params.push(directoryPrefix);
     }
-    
-    // Search: token expression (AND/OR/NOT), legacy clauses, or single string
-    if (Array.isArray(filters.searchTokens) && filters.searchTokens.length) {
-      const combined = compileSearchTokensToSQL(filters.searchTokens, params, filters);
-      if (combined) {
-        if (filters.searchInverted) {
-          conditions.push(`NOT COALESCE((${combined}), 0)`);
-        } else {
-          conditions.push(`(${combined})`);
-        }
-      }
-    } else if (Array.isArray(filters.searchClauses) && filters.searchClauses.length) {
-      const op = filters.searchClauseOp === 'OR' ? ' OR ' : ' AND ';
-      const parts = [];
-      for (const c of filters.searchClauses) {
-        const val = c && String(c.value || '').trim();
-        if (!val) continue;
-        const frag = pushSearchClauseFragment(c.field || 'all', val, params, filters);
-        parts.push(`(${frag})`);
-      }
-      if (parts.length) {
-        const combined = parts.join(op);
-        if (filters.searchInverted) {
-          conditions.push(`NOT COALESCE((${combined}), 0)`);
-        } else {
-          conditions.push(`(${combined})`);
-        }
-      }
-    } else if (filters.search) {
-      const frag = pushSearchClauseFragment('all', filters.search, params, filters);
+  }
+
+  // Search: token expression (AND/OR/NOT), legacy clauses, or single string
+  if (Array.isArray(filters.searchTokens) && filters.searchTokens.length) {
+    const combined = compileSearchTokensToSQL(filters.searchTokens, params, filters);
+    if (combined) {
       if (filters.searchInverted) {
-        conditions.push(`NOT COALESCE((${frag}), 0)`);
+        conditions.push(`NOT COALESCE((${combined}), 0)`);
       } else {
-        conditions.push(frag);
+        conditions.push(`(${combined})`);
       }
     }
-
-    pushTagListSQL(conditions, params, filters);
-
-    // Date Added filter (filter by dateAdded >= specified date)
-    if (filters.dateAdded) {
-      conditions.push("dateAdded >= ?");
-      params.push(filters.dateAdded);
+  } else if (Array.isArray(filters.searchClauses) && filters.searchClauses.length) {
+    const op = filters.searchClauseOp === 'OR' ? ' OR ' : ' AND ';
+    const parts = [];
+    for (const c of filters.searchClauses) {
+      const val = c && String(c.value || '').trim();
+      if (!val) continue;
+      const frag = pushSearchClauseFragment(c.field || 'all', val, params, filters);
+      parts.push(`(${frag})`);
     }
+    if (parts.length) {
+      const combined = parts.join(op);
+      if (filters.searchInverted) {
+        conditions.push(`NOT COALESCE((${combined}), 0)`);
+      } else {
+        conditions.push(`(${combined})`);
+      }
+    }
+  } else if (filters.search) {
+    const frag = pushSearchClauseFragment('all', filters.search, params, filters);
+    if (filters.searchInverted) {
+      conditions.push(`NOT COALESCE((${frag}), 0)`);
+    } else {
+      conditions.push(frag);
+    }
+  }
+
+  pushTagListSQL(conditions, params, filters);
+
+  // Date Added filter (filter by dateAdded >= specified date)
+  if (filters.dateAdded) {
+    conditions.push('dateAdded >= ?');
+    params.push(filters.dateAdded);
+  }
 
   return { conditions, params };
 }

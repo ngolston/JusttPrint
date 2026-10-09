@@ -5,7 +5,8 @@ const printEvents = require('./print-events');
 const { applyThumbnailFlags, loadThumbnailForModel } = require('./thumbnails');
 const { repairModelTags } = require('./db-repair');
 
-const MODEL_DETAIL_COLUMNS = 'id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind';
+const MODEL_DETAIL_COLUMNS =
+  'id, filePath, fileName, designer, source, notes, printed, print_status, print_count, last_printed_at, parentModel, hash, size, license, modifiedDate, dateAdded, isNew, rating, favorite, bundleKey, bundleLabel, bundleKind';
 
 /** List queries omit thumbnail blobs; these flags are computed without returning the column. */
 const MODEL_LIST_THUMB_FLAGS =
@@ -18,8 +19,7 @@ const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
 
 const MODEL_LIST_COLUMNS = `${MODEL_DETAIL_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
 
-const MODEL_LIST_COLUMNS_QUALIFIED =
-  `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
+const MODEL_LIST_COLUMNS_QUALIFIED = `models.id, models.filePath, models.fileName, models.designer, models.source, models.notes, models.printed, models.print_status, models.print_count, models.last_printed_at, models.parentModel, models.hash, models.size, models.license, models.modifiedDate, models.dateAdded, models.isNew, models.rating, models.favorite, models.bundleKey, models.bundleLabel, models.bundleKind, ${MODEL_LIST_THUMB_FLAGS_QUALIFIED}`;
 
 function getModelByFilePath(filePath, { includeThumbnail = false } = {}) {
   if (!database.db || !filePath) return null;
@@ -95,9 +95,7 @@ function deleteModelsByFilePaths(filePaths) {
     for (let i = 0; i < paths.length; i += batchSize) {
       const batch = paths.slice(i, i + batchSize);
       const placeholders = batch.map(() => '?').join(',');
-      const rows = database.db.prepare(
-        `SELECT id, filePath, fileName FROM models WHERE filePath IN (${placeholders})`
-      ).all(...batch);
+      const rows = database.db.prepare(`SELECT id, filePath, fileName FROM models WHERE filePath IN (${placeholders})`).all(...batch);
       for (const row of rows) {
         found.add(row.filePath);
         ids.push(row.id);
@@ -125,4 +123,16 @@ function modelUserFieldsChanged(existing, finals) {
   );
 }
 
-module.exports = { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelJunctionRows, deleteModelsByFilePaths, deleteModelsByIds, getModelByFilePath, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable };
+module.exports = {
+  MODEL_DETAIL_COLUMNS,
+  MODEL_LIST_COLUMNS,
+  MODEL_LIST_COLUMNS_QUALIFIED,
+  deleteModelJunctionRows,
+  deleteModelsByFilePaths,
+  deleteModelsByIds,
+  getModelByFilePath,
+  getModelById,
+  modelUserFieldsChanged,
+  normalizeModelRating,
+  repairModelTagsTable
+};

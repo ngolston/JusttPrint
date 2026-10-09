@@ -20,11 +20,13 @@ function parseDirList(raw: string | null): string[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     const seen = new Set<string>();
-    return parsed.map((item) => String(item ?? '').trim()).filter((dir) => {
-      if (!dir || seen.has(dirKey(dir))) return false;
-      seen.add(dirKey(dir));
-      return true;
-    });
+    return parsed
+      .map((item) => String(item ?? '').trim())
+      .filter((dir) => {
+        if (!dir || seen.has(dirKey(dir))) return false;
+        seen.add(dirKey(dir));
+        return true;
+      });
   } catch {
     return [];
   }
@@ -52,8 +54,16 @@ interface Form {
 }
 
 const EMPTY: Form = {
-  homes: [], excluded: [], frequency: '60', pathMetadata: false, direction: 'fromModel',
-  useDesigner: true, useParentModel: true, designerIndex: '1', parentModelIndex: '0', watch: true
+  homes: [],
+  excluded: [],
+  frequency: '60',
+  pathMetadata: false,
+  direction: 'fromModel',
+  useDesigner: true,
+  useParentModel: true,
+  designerIndex: '1',
+  parentModelIndex: '0',
+  watch: true
 };
 
 /** What get-folder-watch-status returns (src/server/stl-home.js). */
@@ -72,11 +82,22 @@ function watchSummary(status: WatchStatus | null): string {
 }
 
 async function loadForm(): Promise<Form> {
-  const keys = ['stlHomeDirectories', 'stlHome', 'stlHomeExcludeDirectories', 'stlHomeUpdateFrequency', 'pathMetadataStlHomeEnabled',
-    'pathMetadataStlHomeDirection', 'pathMetadataUseDesigner', 'pathMetadataUseParentModel', 'pathMetadataDesignerIndex', 'pathMetadataParentModelIndex',
-    'stlHomeWatch'];
-  const [homes, legacy, excluded, frequency, enabled, direction, useDesigner, useParent, designerIndex, parentIndex, watch] =
-    await Promise.all(keys.map((key) => settings.get<string | null>(key)));
+  const keys = [
+    'stlHomeDirectories',
+    'stlHome',
+    'stlHomeExcludeDirectories',
+    'stlHomeUpdateFrequency',
+    'pathMetadataStlHomeEnabled',
+    'pathMetadataStlHomeDirection',
+    'pathMetadataUseDesigner',
+    'pathMetadataUseParentModel',
+    'pathMetadataDesignerIndex',
+    'pathMetadataParentModelIndex',
+    'stlHomeWatch'
+  ];
+  const [homes, legacy, excluded, frequency, enabled, direction, useDesigner, useParent, designerIndex, parentIndex, watch] = await Promise.all(
+    keys.map((key) => settings.get<string | null>(key))
+  );
   const list = parseDirList(homes);
   return {
     homes: list.length ? list : parseLegacyHome(legacy),
@@ -93,8 +114,20 @@ async function loadForm(): Promise<Form> {
 }
 
 /** An editable list of directories: Remove per row, and a path field with Add (or Enter). */
-function DirList({ id, items, empty, placeholder, pickTitle, onChange }: {
-  id: string; items: string[]; empty: string; placeholder: string; pickTitle: string; onChange: (items: string[]) => void;
+function DirList({
+  id,
+  items,
+  empty,
+  placeholder,
+  pickTitle,
+  onChange
+}: {
+  id: string;
+  items: string[];
+  empty: string;
+  placeholder: string;
+  pickTitle: string;
+  onChange: (items: string[]) => void;
 }) {
   const [draft, setDraft] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
@@ -115,20 +148,42 @@ function DirList({ id, items, empty, placeholder, pickTitle, onChange }: {
   return (
     <>
       <ul id={`${id}-list`} className="stl-home-exclude-list">
-        {items.length === 0 ? <li className="stl-home-exclude-empty">{empty}</li> : items.map((item, index) => (
-          <li key={item} className="stl-home-exclude-item">
-            <span className="stl-home-exclude-path" title={item}>{item}</span>
-            <button type="button" className="secondary-button stl-home-exclude-remove"
-              onClick={() => onChange(items.filter((_, other) => other !== index))}>Remove</button>
-          </li>
-        ))}
+        {items.length === 0 ? (
+          <li className="stl-home-exclude-empty">{empty}</li>
+        ) : (
+          items.map((item, index) => (
+            <li key={item} className="stl-home-exclude-item">
+              <span className="stl-home-exclude-path" title={item}>
+                {item}
+              </span>
+              <button type="button" className="secondary-button stl-home-exclude-remove" onClick={() => onChange(items.filter((_, other) => other !== index))}>
+                Remove
+              </button>
+            </li>
+          ))
+        )}
       </ul>
       <div className="stl-home-exclude-add-row" ref={endRef}>
-        <input type="text" id={`${id}-input`} placeholder={placeholder} autoComplete="off" value={draft}
+        <input
+          type="text"
+          id={`${id}-input`}
+          placeholder={placeholder}
+          autoComplete="off"
+          value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add(); } }} />
-        <button type="button" id={`${id}-browse`} className="secondary-button" onClick={browse}>Browse…</button>
-        <button type="button" id={`${id}-add`} className="secondary-button" onClick={() => add()}>Add</button>
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button type="button" id={`${id}-browse`} className="secondary-button" onClick={browse}>
+          Browse…
+        </button>
+        <button type="button" id={`${id}-add`} className="secondary-button" onClick={() => add()}>
+          Add
+        </button>
       </div>
     </>
   );
@@ -144,13 +199,19 @@ export function StlHomeDialog() {
   const [saving, setSaving] = useState(false);
   const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null);
 
-  useEffect(() => exposeGlobal('openStlHome', () => {
-    callAction<WatchStatus>('get-folder-watch-status').then(setWatchStatus, () => setWatchStatus(null));
-    loadForm()
-      .then(setForm)
-      .catch((error) => console.error('[STL Home] Could not load the settings:', error))
-      .finally(() => { if (!dialogRef.current?.open) dialogRef.current?.showModal(); });
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openStlHome', () => {
+        callAction<WatchStatus>('get-folder-watch-status').then(setWatchStatus, () => setWatchStatus(null));
+        loadForm()
+          .then(setForm)
+          .catch((error) => console.error('[STL Home] Could not load the settings:', error))
+          .finally(() => {
+            if (!dialogRef.current?.open) dialogRef.current?.showModal();
+          });
+      }),
+    []
+  );
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((previous) => ({ ...previous, [key]: value }));
 
@@ -194,24 +255,38 @@ export function StlHomeDialog() {
   );
 
   return (
-    <ModalDialog id="stl-home-dialog" title="STL Home" dialogRef={dialogRef}
-      description={(
+    <ModalDialog
+      id="stl-home-dialog"
+      title="STL Home"
+      dialogRef={dialogRef}
+      description={
         <>
           <p className="warning-text">Warning: Scanning large directories may impact performance.</p>
           <p className="setting-description">Directories in this list are scanned when you save, and again on the schedule below.</p>
         </>
-      )}
-      footer={(
+      }
+      footer={
         <>
-          <button type="button" id="save-stl-home-button" className="is-primary" disabled={saving} onClick={save}>Save</button>
-          <button type="button" id="cancel-stl-home-button" onClick={() => dialogRef.current?.close()}>Cancel</button>
+          <button type="button" id="save-stl-home-button" className="is-primary" disabled={saving} onClick={save}>
+            Save
+          </button>
+          <button type="button" id="cancel-stl-home-button" onClick={() => dialogRef.current?.close()}>
+            Cancel
+          </button>
         </>
-      )}>
+      }
+    >
       <div className="form-group" id="stl-home-directories-group">
         <label htmlFor="stl-home-directories-input">Directories</label>
         <p className="setting-description">Paths inside the JusttPrint backend's container. Add more than one to cover separate libraries.</p>
-        <DirList id="stl-home-directories" items={form.homes} empty="No directories selected." placeholder="Enter a directory path" pickTitle="Add STL Home Directory"
-          onChange={(homes) => set('homes', homes)} />
+        <DirList
+          id="stl-home-directories"
+          items={form.homes}
+          empty="No directories selected."
+          placeholder="Enter a directory path"
+          pickTitle="Add STL Home Directory"
+          onChange={(homes) => set('homes', homes)}
+        />
       </div>
       <div className="form-group" id="stl-home-watch-group">
         <div className="form-group checkbox-container">
@@ -219,25 +294,51 @@ export function StlHomeDialog() {
           <label htmlFor="stl-home-watch">Watch these directories for changes</label>
         </div>
         <p className="setting-description">
-          New, changed and deleted files show up within seconds, without waiting for the next scan. Network shares (SMB/NFS) and Docker Desktop on Mac or Windows may not report changes; the timed scan below still covers them.
+          New, changed and deleted files show up within seconds, without waiting for the next scan. Network shares (SMB/NFS) and Docker Desktop on Mac or
+          Windows may not report changes; the timed scan below still covers them.
         </p>
-        {form.watch && watchSummary(watchStatus) && <p id="stl-home-watch-status" className="setting-description">{watchSummary(watchStatus)}</p>}
+        {form.watch && watchSummary(watchStatus) && (
+          <p id="stl-home-watch-status" className="setting-description">
+            {watchSummary(watchStatus)}
+          </p>
+        )}
       </div>
       <div className="form-group" id="stl-home-update-frequency-group">
         <label htmlFor="stl-home-update-frequency">Update Frequency (minutes):</label>
-        <input type="number" id="stl-home-update-frequency" min="1" max="1440" value={form.frequency}
-          onChange={(event) => set('frequency', event.target.value)} />
+        <input
+          type="number"
+          id="stl-home-update-frequency"
+          min="1"
+          max="1440"
+          value={form.frequency}
+          onChange={(event) => set('frequency', event.target.value)}
+        />
         <p className="setting-description">How often the STL Home directories are scanned in full, for changes that watching misses.</p>
       </div>
       <div className="form-group" id="stl-home-exclude-group">
         <label htmlFor="stl-home-exclude-input">Excluded directories</label>
-        <p className="setting-description">STL Home scans skip these directories and everything inside them. Use a full path, or a path relative to the STL Home directory being scanned. Folders starting with a dot, such as .manyfold and .git, are always skipped. Models already in the library stay until you remove them, except files found in those hidden folders, which the next scan can drop from the library.</p>
-        <DirList id="stl-home-exclude" items={form.excluded} empty="No directories excluded." placeholder="Enter a path to exclude" pickTitle="Exclude a Directory"
-          onChange={(excluded) => set('excluded', excluded)} />
+        <p className="setting-description">
+          STL Home scans skip these directories and everything inside them. Use a full path, or a path relative to the STL Home directory being scanned. Folders
+          starting with a dot, such as .manyfold and .git, are always skipped. Models already in the library stay until you remove them, except files found in
+          those hidden folders, which the next scan can drop from the library.
+        </p>
+        <DirList
+          id="stl-home-exclude"
+          items={form.excluded}
+          empty="No directories excluded."
+          placeholder="Enter a path to exclude"
+          pickTitle="Exclude a Directory"
+          onChange={(excluded) => set('excluded', excluded)}
+        />
       </div>
       <div className="form-group" id="stl-home-path-metadata-group">
         <div className="form-group checkbox-container stl-home-path-metadata-checkbox-row">
-          <input type="checkbox" id="stl-home-path-metadata-enabled" checked={form.pathMetadata} onChange={(event) => set('pathMetadata', event.target.checked)} />
+          <input
+            type="checkbox"
+            id="stl-home-path-metadata-enabled"
+            checked={form.pathMetadata}
+            onChange={(event) => set('pathMetadata', event.target.checked)}
+          />
           <label htmlFor="stl-home-path-metadata-enabled">Enable: use folder path to set Designer and Parent model</label>
         </div>
         <div id="stl-home-path-metadata-options" className={`stl-home-path-metadata-options${form.pathMetadata ? '' : ' grayed'}`}>
@@ -248,13 +349,18 @@ export function StlHomeDialog() {
               <option value="fromRoot">From Root</option>
             </select>
           </div>
-          <p className="setting-description stl-home-path-intro">When you run “Scan STL Home”, folder names are used to set Designer and Parent model. Values are only applied when the field is empty.</p>
+          <p className="setting-description stl-home-path-intro">
+            When you run “Scan STL Home”, folder names are used to set Designer and Parent model. Values are only applied when the field is empty.
+          </p>
           <p className="setting-description stl-home-path-direction-desc">
             {form.direction === 'fromRoot'
               ? 'From Root: level 0 = the STL Home directory that contains the file, 1 = first folder under it, 2 = second, etc.'
               : 'From Model: level 0 = parent of file, 1 = grandparent, 2 = great-grandparent, etc.'}
           </p>
-          <p className="setting-description stl-home-path-example"><span className="path-example">Example: /models/DESIGNER/PARENT/MODEL.3MF</span> — From Model: level 0 = PARENT, level 1 = DESIGNER. From Root: level 0 = models (STL Home), level 1 = DESIGNER, level 2 = PARENT.</p>
+          <p className="setting-description stl-home-path-example">
+            <span className="path-example">Example: /models/DESIGNER/PARENT/MODEL.3MF</span> — From Model: level 0 = PARENT, level 1 = DESIGNER. From Root:
+            level 0 = models (STL Home), level 1 = DESIGNER, level 2 = PARENT.
+          </p>
           <div className="path-metadata-indices">
             {indexField('useDesigner', 'designerIndex', 'designer', 'Designer')}
             {indexField('useParentModel', 'parentModelIndex', 'parent-model', 'Parent model')}

@@ -24,23 +24,29 @@ export function pathTreeRows(filePath: string | null | undefined): PathRow[] {
   const separator = filePath.indexOf('::');
   if (separator < 0) {
     const parts = segments(filePath);
-    return parts.map((part, index) => (index === parts.length - 1
-      ? { depth: index, kind: 'file', label: part.label }
-      : { depth: index, kind: 'folder', label: part.label, directory: filePath.slice(0, part.end) }));
+    return parts.map((part, index) =>
+      index === parts.length - 1
+        ? { depth: index, kind: 'file', label: part.label }
+        : { depth: index, kind: 'folder', label: part.label, directory: filePath.slice(0, part.end) }
+    );
   }
 
   const zipPath = filePath.slice(0, separator);
   const entryPath = filePath.slice(separator + 2);
   const zipParts = segments(zipPath);
-  const rows: PathRow[] = zipParts.map((part, index) => (index === zipParts.length - 1
-    ? { depth: index, kind: 'zip', label: part.label, directory: zipPath }
-    : { depth: index, kind: 'folder', label: part.label, directory: zipPath.slice(0, part.end) }));
+  const rows: PathRow[] = zipParts.map((part, index) =>
+    index === zipParts.length - 1
+      ? { depth: index, kind: 'zip', label: part.label, directory: zipPath }
+      : { depth: index, kind: 'folder', label: part.label, directory: zipPath.slice(0, part.end) }
+  );
   const entryParts = segments(entryPath);
   entryParts.forEach((part, index) => {
     const depth = zipParts.length + index;
-    rows.push(index === entryParts.length - 1
-      ? { depth, kind: 'file', label: part.label }
-      : { depth, kind: 'folder', label: part.label, directory: `${zipPath}::${entryPath.slice(0, part.end)}` });
+    rows.push(
+      index === entryParts.length - 1
+        ? { depth, kind: 'file', label: part.label }
+        : { depth, kind: 'folder', label: part.label, directory: `${zipPath}::${entryPath.slice(0, part.end)}` }
+    );
   });
   return rows;
 }

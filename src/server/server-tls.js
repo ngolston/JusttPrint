@@ -259,10 +259,7 @@ function buildSelfSignedAltNames(hostname) {
   add(hostname);
   add('localhost');
   add('127.0.0.1');
-  return [
-    ...[...dns].map((value) => ({ type: 2, value })),
-    ...[...ips].map((ip) => ({ type: 7, ip }))
-  ];
+  return [...[...dns].map((value) => ({ type: 2, value })), ...[...ips].map((ip) => ({ type: 7, ip }))];
 }
 
 async function generateSelfSignedCertificate({ certsDir, hostname }) {
@@ -274,20 +271,17 @@ async function generateSelfSignedCertificate({ certsDir, hostname }) {
   const altNames = buildSelfSignedAltNames(cn);
   const notBeforeDate = new Date();
   const notAfterDate = new Date(notBeforeDate.getTime() + SELF_SIGNED_DAYS * 24 * 60 * 60 * 1000);
-  const pems = await selfsigned.generate(
-    [{ name: 'commonName', value: cn }],
-    {
-      keySize: 2048,
-      algorithm: 'sha256',
-      notBeforeDate,
-      notAfterDate,
-      extensions: [
-        { name: 'basicConstraints', cA: false },
-        { name: 'keyUsage', digitalSignature: true, keyEncipherment: true },
-        { name: 'subjectAltName', altNames }
-      ]
-    }
-  );
+  const pems = await selfsigned.generate([{ name: 'commonName', value: cn }], {
+    keySize: 2048,
+    algorithm: 'sha256',
+    notBeforeDate,
+    notAfterDate,
+    extensions: [
+      { name: 'basicConstraints', cA: false },
+      { name: 'keyUsage', digitalSignature: true, keyEncipherment: true },
+      { name: 'subjectAltName', altNames }
+    ]
+  });
   if (!pems || !pems.cert || !pems.private) {
     throw new Error('Self-signed generator did not return a certificate and key.');
   }
@@ -320,11 +314,13 @@ async function loadOrCreateAccountKey(certsDir) {
 
 async function obtainLetsEncryptCertificate({ certsDir, domain, email, agreeTos, useStaging }) {
   const acme = require('acme-client');
-  const host = String(domain || '').trim().toLowerCase();
+  const host = String(domain || '')
+    .trim()
+    .toLowerCase();
   const mail = String(email || '').trim();
-  if (!host) throw new Error('Domain is required for Let\'s Encrypt.');
-  if (!mail || !mail.includes('@')) throw new Error('A contact email is required for Let\'s Encrypt.');
-  if (!agreeTos) throw new Error('You must agree to the Let\'s Encrypt Terms of Service.');
+  if (!host) throw new Error("Domain is required for Let's Encrypt.");
+  if (!mail || !mail.includes('@')) throw new Error("A contact email is required for Let's Encrypt.");
+  if (!agreeTos) throw new Error("You must agree to the Let's Encrypt Terms of Service.");
 
   const accountKey = await loadOrCreateAccountKey(certsDir);
   const client = new acme.Client({

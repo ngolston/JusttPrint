@@ -38,14 +38,33 @@ function Thumb({ filePath }: { filePath: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    fetchPrimaryThumbnail(filePath).then((thumb) => { if (live) setSrc(thumb); }, () => {});
-    return () => { live = false; };
+    fetchPrimaryThumbnail(filePath).then(
+      (thumb) => {
+        if (live) setSrc(thumb);
+      },
+      () => {}
+    );
+    return () => {
+      live = false;
+    };
   }, [filePath]);
   return <span className="jp-queue__thumb">{src ? <img src={src} alt="" loading="lazy" /> : <img src="assets/3d.png" alt="" />}</span>;
 }
 
-function Row({ filePath, name, meta, lead, status, actions }: {
-  filePath: string; name: string; meta: string; lead?: ReactNode; status?: ReactNode; actions: ReactNode;
+function Row({
+  filePath,
+  name,
+  meta,
+  lead,
+  status,
+  actions
+}: {
+  filePath: string;
+  name: string;
+  meta: string;
+  lead?: ReactNode;
+  status?: ReactNode;
+  actions: ReactNode;
 }) {
   return (
     <li className="jp-queue__row">
@@ -67,14 +86,22 @@ function Section({ id, title, count, children }: { id: string; title: string; co
   return (
     <section className="jp-card jp-queue__section" aria-labelledby={id}>
       <header className="jp-card__header">
-        <h2 className="jp-panel-title" id={id}>{title}{count ? <span className="jp-queue__count">{count}</span> : null}</h2>
+        <h2 className="jp-panel-title" id={id}>
+          {title}
+          {count ? <span className="jp-queue__count">{count}</span> : null}
+        </h2>
       </header>
       {children}
     </section>
   );
 }
 
-const loading = <div className="jp-home__skeleton"><Skeleton height={44} /><Skeleton height={44} /></div>;
+const loading = (
+  <div className="jp-home__skeleton">
+    <Skeleton height={44} />
+    <Skeleton height={44} />
+  </div>
+);
 
 /**
  * The Print Queue (spec §43): Printing now, Up next (queued) and Completed (recent successful
@@ -111,64 +138,132 @@ export function QueuePage() {
             {printing && queued ? `${printing.length} printing • ${queued.length} up next` : 'Models you are printing and want to print next.'}
           </p>
         </div>
-        <Button icon={Library} onClick={showInLibrary}>Show in Library</Button>
+        <Button icon={Library} onClick={showInLibrary}>
+          Show in Library
+        </Button>
       </header>
 
       <Section id="jp-queue-printing" title="Printing now" count={printing?.length}>
-        {!printing ? loading : !printing.length ? (
-          <EmptyState icon={LoaderCircle} title="Nothing is printing">Start a model from Up next, or set a model's print status to Printing.</EmptyState>
+        {!printing ? (
+          loading
+        ) : !printing.length ? (
+          <EmptyState icon={LoaderCircle} title="Nothing is printing">
+            Start a model from Up next, or set a model's print status to Printing.
+          </EmptyState>
         ) : (
           <ul className="jp-queue__list" aria-label="Printing now">
             {printing.map((model) => (
-              <Row key={model.filePath} filePath={model.filePath} name={cardTitle(model)} meta={modelMeta(model)}
+              <Row
+                key={model.filePath}
+                filePath={model.filePath}
+                name={cardTitle(model)}
+                meta={modelMeta(model)}
                 status={<StatusBadge tone="accent">Printing</StatusBadge>}
-                actions={(
+                actions={
                   <>
-                    <EditOnly><Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(model.filePath)}>Log Print</Button></EditOnly>
-                    <EditOnly><IconButton size="sm" icon={Undo2} label="Back to the queue" disabled={busy === model.filePath}
-                      onClick={() => run(model.filePath, 'queued')} /></EditOnly>
+                    <EditOnly>
+                      <Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(model.filePath)}>
+                        Log Print
+                      </Button>
+                    </EditOnly>
+                    <EditOnly>
+                      <IconButton
+                        size="sm"
+                        icon={Undo2}
+                        label="Back to the queue"
+                        disabled={busy === model.filePath}
+                        onClick={() => run(model.filePath, 'queued')}
+                      />
+                    </EditOnly>
                   </>
-                )} />
+                }
+              />
             ))}
           </ul>
         )}
       </Section>
 
       <Section id="jp-queue-next" title="Up next" count={queued?.length}>
-        {!queued ? loading : !queued.length ? (
-          <EmptyState icon={ListChecks} title="The queue is empty"
-            action={<Button icon={Library} onClick={() => navigate('library')}>Browse the Library</Button>}>
+        {!queued ? (
+          loading
+        ) : !queued.length ? (
+          <EmptyState
+            icon={ListChecks}
+            title="The queue is empty"
+            action={
+              <Button icon={Library} onClick={() => navigate('library')}>
+                Browse the Library
+              </Button>
+            }
+          >
             Set a model's print status to Queued (on its card or in its details) to line it up here.
           </EmptyState>
         ) : (
           <ol className="jp-queue__list" aria-label="Up next">
             {queued.map((model, index) => (
-              <Row key={model.filePath} filePath={model.filePath} name={cardTitle(model)} meta={modelMeta(model)}
-                lead={<span className="jp-queue__index" aria-hidden="true">{index + 1}</span>}
-                status={<StatusBadge tone="warning" icon={Clock}>In Queue</StatusBadge>}
-                actions={(
+              <Row
+                key={model.filePath}
+                filePath={model.filePath}
+                name={cardTitle(model)}
+                meta={modelMeta(model)}
+                lead={
+                  <span className="jp-queue__index" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                }
+                status={
+                  <StatusBadge tone="warning" icon={Clock}>
+                    In Queue
+                  </StatusBadge>
+                }
+                actions={
                   <EditOnly>
-                    <Button size="sm" icon={Play} disabled={busy === model.filePath} onClick={() => run(model.filePath, 'printing')}>Start</Button>
-                    <IconButton size="sm" icon={X} label="Remove from the queue" disabled={busy === model.filePath}
-                      onClick={() => run(model.filePath, 'unprinted')} />
+                    <Button size="sm" icon={Play} disabled={busy === model.filePath} onClick={() => run(model.filePath, 'printing')}>
+                      Start
+                    </Button>
+                    <IconButton
+                      size="sm"
+                      icon={X}
+                      label="Remove from the queue"
+                      disabled={busy === model.filePath}
+                      onClick={() => run(model.filePath, 'unprinted')}
+                    />
                   </EditOnly>
-                )} />
+                }
+              />
             ))}
           </ol>
         )}
       </Section>
 
       <Section id="jp-queue-completed" title="Completed">
-        {!completed ? loading : !completed.length ? (
-          <EmptyState icon={CheckCircle2} title="No prints logged yet">Log a print when one finishes; the latest successful prints show here.</EmptyState>
+        {!completed ? (
+          loading
+        ) : !completed.length ? (
+          <EmptyState icon={CheckCircle2} title="No prints logged yet">
+            Log a print when one finishes; the latest successful prints show here.
+          </EmptyState>
         ) : (
           <ul className="jp-queue__list" aria-label="Completed">
             {completed.map((event: PrintActivity) => (
-              <Row key={event.id} filePath={event.filePath} name={cardTitle({ filePath: event.filePath, fileName: event.fileName })}
+              <Row
+                key={event.id}
+                filePath={event.filePath}
+                name={cardTitle({ filePath: event.filePath, fileName: event.fileName })}
                 meta={[timeAgo(event.at), event.printer].filter(Boolean).join(' • ')}
                 status={<StatusBadge tone="success">{event.quantity > 1 ? `Printed ×${event.quantity}` : 'Printed'}</StatusBadge>}
-                actions={<EditOnly><IconButton size="sm" icon={RotateCcw} label="Queue it again" disabled={busy === event.filePath}
-                  onClick={() => run(event.filePath, 'queued')} /></EditOnly>} />
+                actions={
+                  <EditOnly>
+                    <IconButton
+                      size="sm"
+                      icon={RotateCcw}
+                      label="Queue it again"
+                      disabled={busy === event.filePath}
+                      onClick={() => run(event.filePath, 'queued')}
+                    />
+                  </EditOnly>
+                }
+              />
             ))}
           </ul>
         )}

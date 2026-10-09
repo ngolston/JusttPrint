@@ -63,12 +63,12 @@ async function calculateFileHash(filePath) {
     const hash = crypto.createHash('md5');
     const stream = fs.createReadStream(actualFilePath);
 
-    stream.on('error', err => {
+    stream.on('error', (err) => {
       console.error(`Error reading file for hashing: ${actualFilePath}`, err);
       reject(err);
     });
 
-    stream.on('data', chunk => {
+    stream.on('data', (chunk) => {
       try {
         hash.update(chunk);
       } catch (err) {
@@ -128,7 +128,9 @@ function resolveReadableDiskPath(diskPath) {
   for (const candidate of collectReadablePathCandidates(diskPath)) {
     try {
       if (fs.existsSync(candidate)) return candidate;
-    } catch (_) { /* ignore invalid paths */ }
+    } catch (_) {
+      /* ignore invalid paths */
+    }
   }
   return null;
 }
@@ -144,9 +146,7 @@ function resolveReadableModelPath(filePath) {
 
 function parseDuplicatesRequest(includeZipOrOptions) {
   if (includeZipOrOptions && typeof includeZipOrOptions === 'object' && !Array.isArray(includeZipOrOptions)) {
-    const filters = includeZipOrOptions.filters && typeof includeZipOrOptions.filters === 'object'
-      ? includeZipOrOptions.filters
-      : null;
+    const filters = includeZipOrOptions.filters && typeof includeZipOrOptions.filters === 'object' ? includeZipOrOptions.filters : null;
     return { includeZip: !!includeZipOrOptions.includeZip, filters };
   }
   return { includeZip: !!includeZipOrOptions, filters: null };
@@ -167,7 +167,9 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
       const zipClause = includeZip ? '' : " AND instr(filePath, '::') = 0";
       const outerFilter = buildModelFilterConditions(filters);
       const innerFilter = buildModelFilterConditions(filters);
-      const rows = database.db.prepare(`
+      const rows = database.db
+        .prepare(
+          `
         SELECT filePath, fileName, hash, size
         FROM models
         WHERE hash IS NOT NULL
@@ -187,7 +189,9 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
             HAVING COUNT(DISTINCT filePath) > 1
           )
         ORDER BY hash, filePath
-      `).all(...outerFilter.params, ...innerFilter.params);
+      `
+        )
+        .all(...outerFilter.params, ...innerFilter.params);
 
       // Group by hash; dedupe by filePath (DB can have duplicate rows for the same path)
       const groupsByHash = new Map();
@@ -222,7 +226,7 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
       lastError = error;
       console.error('Error getting duplicates (attempt ' + (attempt + 1) + '/' + maxRetries + '):', error);
       if (attempt < maxRetries - 1) {
-        await new Promise(r => setTimeout(r, retryDelayMs));
+        await new Promise((r) => setTimeout(r, retryDelayMs));
       }
     }
   }
@@ -232,16 +236,18 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
 ipcMain.handle('get-duplicates', getDuplicatesHandler);
 
 function countModelsNeedingHash({ includeSha256 = false, filters = null } = {}) {
-  const hashClause = includeSha256
-    ? `(hash IS NULL OR hash = '' OR LENGTH(hash) = 64)`
-    : `(hash IS NULL OR hash = '')`;
+  const hashClause = includeSha256 ? `(hash IS NULL OR hash = '' OR LENGTH(hash) = 64)` : `(hash IS NULL OR hash = '')`;
   const { conditions, params } = buildModelFilterConditions(filters);
-  const row = database.db.prepare(`
+  const row = database.db
+    .prepare(
+      `
     SELECT COUNT(*) as count FROM models
     WHERE ${hashClause}
       AND filePath NOT LIKE 'url::%'
       ${sqlAndFilterConditions(conditions)}
-  `).get(...params);
+  `
+    )
+    .get(...params);
   return row ? row.count : 0;
 }
 
@@ -265,13 +271,17 @@ async function calculateMissingHashesInternal(event, filters = null) {
     // Missing hashes, plus SHA256 (64 hex chars) that can be regenerated as MD5.
     // SHA256 still groups duplicates correctly — conversion is best-effort.
     const filterSql = buildModelFilterConditions(filters);
-    const modelsWithMissingHashes = database.db.prepare(`
+    const modelsWithMissingHashes = database.db
+      .prepare(
+        `
       SELECT filePath, fileName, size, hash
       FROM models
       WHERE (hash IS NULL OR hash = '' OR LENGTH(hash) = 64)
         AND filePath NOT LIKE 'url::%'
         ${sqlAndFilterConditions(filterSql.conditions)}
-    `).all(...filterSql.params);
+    `
+      )
+      .all(...filterSql.params);
 
     console.log(`Found ${modelsWithMissingHashes.length} models with missing or SHA256 hashes (need MD5)`);
 
@@ -301,7 +311,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
     // Process files in parallel with concurrency limit
     // Keep Docker/server concurrency low — high parallelism + thumb renders saturates UNC/CIFS.
     const concurrencyLimit = 4;
-    
+
     // Helper function to calculate hash with retry and timeout
     const calculateFileHashWithRetry = async (filePath, maxRetries = 2) => {
       let lastError;
@@ -310,26 +320,25 @@ async function calculateMissingHashesInternal(event, filters = null) {
           // Add timeout for file operations (especially important for network files in Docker)
           const timeoutMs = 300000; // 5 min for server mode, 1 min for normal
           const hashPromise = calculateFileHash(filePath);
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error(`Hash calculation timeout after ${timeoutMs}ms`)), timeoutMs)
-          );
-          
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error(`Hash calculation timeout after ${timeoutMs}ms`)), timeoutMs));
+
           return await Promise.race([hashPromise, timeoutPromise]);
         } catch (error) {
           lastError = error;
           // Only retry on certain errors (network issues, timeouts, temporary file system errors)
-          const isRetryableError = error.code === 'ETIMEDOUT' || 
-                                   error.code === 'ENOENT' || 
-                                   error.code === 'EACCES' ||
-                                   error.code === 'Z_BUF_ERROR' ||
-                                   error.message.includes('timeout') ||
-                                   error.message.includes('ENOTFOUND') ||
-                                   isFragileZipError(error);
-          
+          const isRetryableError =
+            error.code === 'ETIMEDOUT' ||
+            error.code === 'ENOENT' ||
+            error.code === 'EACCES' ||
+            error.code === 'Z_BUF_ERROR' ||
+            error.message.includes('timeout') ||
+            error.message.includes('ENOTFOUND') ||
+            isFragileZipError(error);
+
           if (attempt < maxRetries && isRetryableError) {
             console.warn(`Retry ${attempt + 1}/${maxRetries} for ${filePath}: ${error.message}`);
             // Exponential backoff: 1s, 2s, 4s
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             continue;
           }
           throw error;
@@ -349,7 +358,9 @@ async function calculateMissingHashesInternal(event, filters = null) {
             const hash = await calculateFileHashWithRetry(readablePath);
             updateHash.run(hash, model.filePath);
             successCount++;
-            console.debug(`Hash calculated for: ${model.filePath} (${successCount} succeeded, ${failedCount} failed, ${processedCount + 1}/${modelsWithMissingHashes.length} total)`);
+            console.debug(
+              `Hash calculated for: ${model.filePath} (${successCount} succeeded, ${failedCount} failed, ${processedCount + 1}/${modelsWithMissingHashes.length} total)`
+            );
           } catch (hashError) {
             if (hasSha256) {
               skippedCount++;
@@ -368,7 +379,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
           failedCount++;
           if (!firstError) firstError = `File not found: ${model.filePath}`;
         }
-        
+
         processedCount++;
         emitHashGenerationProgress(event, progressPayload());
       } catch (error) {
@@ -388,7 +399,9 @@ async function calculateMissingHashesInternal(event, filters = null) {
 
     isGeneratingHashes = false;
 
-    console.log(`Hash generation complete: ${successCount} succeeded, ${failedCount} failed, ${skippedCount} skipped out of ${modelsWithMissingHashes.length} total`);
+    console.log(
+      `Hash generation complete: ${successCount} succeeded, ${failedCount} failed, ${skippedCount} skipped out of ${modelsWithMissingHashes.length} total`
+    );
 
     const completePayload = {
       success: successCount,
@@ -399,8 +412,8 @@ async function calculateMissingHashesInternal(event, filters = null) {
     };
     emitHashGenerationComplete(event, completePayload);
 
-    return { 
-      calculated: successCount, 
+    return {
+      calculated: successCount,
       failed: failedCount,
       skipped: skippedCount,
       total: modelsWithMissingHashes.length,
@@ -479,7 +492,9 @@ module.exports = { countModelsNeedingHash, generateMissingHashesHandler, getDupl
 
 // Same geometry (src/server/geometry-job.js): the Duplicates page's second list.
 const geometryJob = require('../geometry-job');
-ipcMain.handle('get-geometry-duplicates', async (event, options) => geometryJob.duplicates(options && options.filters ? options.filters : null));
+ipcMain.handle('get-geometry-duplicates', async (event, options) =>
+  geometryJob.duplicates(options && options.filters ? options.filters : null, { includeZip: !!(options && options.includeZip) })
+);
 ipcMain.handle('start-geometry-scan', async (event, options) => geometryJob.start(options && options.filters ? options.filters : null));
 ipcMain.handle('get-geometry-scan', async () => geometryJob.status());
 ipcMain.handle('stop-geometry-scan', async () => geometryJob.stop());

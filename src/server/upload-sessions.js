@@ -65,7 +65,9 @@ function pipeLimited(input, output, maxBytes, tooLarge) {
     input.on('aborted', () => fail(httpError(499, 'The upload was cancelled')));
     input.on('error', fail);
     output.on('error', fail);
-    output.on('finish', () => { if (!failed) resolve(size); });
+    output.on('finish', () => {
+      if (!failed) resolve(size);
+    });
     input.pipe(output);
   });
 }
@@ -112,7 +114,9 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
         const received = fs.statSync(entry.tempPath).size;
         if (received > entry.size) continue;
         sessions.set(entry.id, { ...entry, received, busy: false });
-      } catch (_) { /* temp file gone */ }
+      } catch (_) {
+        /* temp file gone */
+      }
     }
   }
 
@@ -132,7 +136,9 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
     sessions.delete(session.id);
     try {
       fs.unlinkSync(session.tempPath);
-    } catch (_) { /* already gone */ }
+    } catch (_) {
+      /* already gone */
+    }
   }
 
   /**
@@ -157,7 +163,19 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
     const id = crypto.randomBytes(16).toString('hex');
     const tempPath = path.join(folder, `.${id}${TEMP_SUFFIX}`);
     fs.writeFileSync(tempPath, '', { flag: 'wx', mode: 0o644 });
-    const session = { id, userId: user.id, username: user.username, folder, name, size, received: 0, tempPath, startedAt: now(), touchedAt: now(), busy: false };
+    const session = {
+      id,
+      userId: user.id,
+      username: user.username,
+      folder,
+      name,
+      size,
+      received: 0,
+      tempPath,
+      startedAt: now(),
+      touchedAt: now(),
+      busy: false
+    };
     sessions.set(id, session);
     save();
     return publicSession(session);
@@ -182,9 +200,11 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
     try {
       const output = fs.createWriteStream(session.tempPath, { flags: 'r+', start: offset });
       const room = Math.min(maxPieceBytes, session.size - offset);
-      const written = await pipeLimited(input, output, room, () => (session.size - offset < maxPieceBytes
-        ? httpError(400, 'The piece goes past the end of the file')
-        : httpError(413, `A piece may be at most ${maxPieceBytes} bytes`)));
+      const written = await pipeLimited(input, output, room, () =>
+        session.size - offset < maxPieceBytes
+          ? httpError(400, 'The piece goes past the end of the file')
+          : httpError(413, `A piece may be at most ${maxPieceBytes} bytes`)
+      );
       session.received = offset + written;
       session.touchedAt = now();
       return { received: session.received, size: session.size };
@@ -192,7 +212,9 @@ function createUploadSessions({ stateFile, place, now = Date.now, idleMs = DEFAU
       // Keep only whole pieces: cut off what arrived of this one.
       try {
         fs.truncateSync(session.tempPath, session.received);
-      } catch (_) { /* gone */ }
+      } catch (_) {
+        /* gone */
+      }
       throw error;
     } finally {
       session.busy = false;

@@ -89,11 +89,18 @@ function Submenu({ items, run }: { items: ContextMenuItem[]; run: (item: Context
     setStyle(next);
   }, []);
   return (
-    <div className="html-context-menu-submenu" ref={ref}
-      style={style}>
+    <div className="html-context-menu-submenu" ref={ref} style={style}>
       {items.map((sub, i) => (
-        <div key={i} className={`html-context-menu-subitem${sub.enabled ? '' : ' is-disabled'}`}
-          onClick={(e) => { e.stopPropagation(); if (sub.enabled) run(sub, i); }}>{sub.label}</div>
+        <div
+          key={i}
+          className={`html-context-menu-subitem${sub.enabled ? '' : ' is-disabled'}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (sub.enabled) run(sub, i);
+          }}
+        >
+          {sub.label}
+        </div>
       ))}
     </div>
   );
@@ -107,20 +114,26 @@ export function ContextMenu() {
   const ref = useRef<HTMLDivElement>(null);
   const close = () => setOpen(null);
 
-  useEffect(() => exposeGlobal('contextMenu', {
-    show: async (target: unknown, x: number, y: number, options?: { showClose?: boolean }) => {
-      const menu = await callAction<ContextMenuData | null>('show-context-menu', target);
-      if (menu?.type === 'html-menu') {
-        setSubmenu(null);
-        setPosition(null);
-        setOpen({ menu, x, y, showClose: !!options?.showClose });
-      }
-    }
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('contextMenu', {
+        show: async (target: unknown, x: number, y: number, options?: { showClose?: boolean }) => {
+          const menu = await callAction<ContextMenuData | null>('show-context-menu', target);
+          if (menu?.type === 'html-menu') {
+            setSubmenu(null);
+            setPosition(null);
+            setOpen({ menu, x, y, showClose: !!options?.showClose });
+          }
+        }
+      }),
+    []
+  );
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
@@ -165,27 +178,51 @@ export function ContextMenu() {
   };
   return createPortal(
     <>
-      <div id="html-context-menu-backdrop" style={{ position: 'fixed', inset: 0, zIndex: 12999, background: 'transparent' }}
-        onPointerDown={dismiss} onClick={dismiss} />
-      <div id="html-context-menu" ref={ref} className={`html-context-menu${open.showClose ? ' html-context-menu-with-close' : ''}`}
-        style={{ left: position?.left ?? open.x, top: position?.top ?? open.y, visibility: position ? undefined : 'hidden' }}>
+      <div
+        id="html-context-menu-backdrop"
+        style={{ position: 'fixed', inset: 0, zIndex: 12999, background: 'transparent' }}
+        onPointerDown={dismiss}
+        onClick={dismiss}
+      />
+      <div
+        id="html-context-menu"
+        ref={ref}
+        className={`html-context-menu${open.showClose ? ' html-context-menu-with-close' : ''}`}
+        style={{ left: position?.left ?? open.x, top: position?.top ?? open.y, visibility: position ? undefined : 'hidden' }}
+      >
         {open.showClose && (
-          <button type="button" className="html-context-menu-close" onClick={(e) => { e.stopPropagation(); close(); }}>x</button>
+          <button
+            type="button"
+            className="html-context-menu-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              close();
+            }}
+          >
+            x
+          </button>
         )}
         {menu.items.map((item, index) => {
           if (item.type === 'separator') return <div key={index} className="html-context-menu-separator" />;
           const hasSubmenu = !!item.enabled && !!item.submenu?.length;
           return (
-            <div key={index} className={`html-context-menu-item${item.enabled ? '' : ' is-disabled'}`}
+            <div
+              key={index}
+              className={`html-context-menu-item${item.enabled ? '' : ' is-disabled'}`}
               style={hasSubmenu ? { paddingRight: 30 } : undefined}
-              onMouseEnter={() => { if (hasSubmenu) setSubmenu(index); }}
-              onMouseLeave={() => { if (hasSubmenu) setSubmenu(null); }}
+              onMouseEnter={() => {
+                if (hasSubmenu) setSubmenu(index);
+              }}
+              onMouseLeave={() => {
+                if (hasSubmenu) setSubmenu(null);
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!item.enabled) return;
                 if (hasSubmenu) setSubmenu(submenu === index ? null : index);
                 else run(item, index, null);
-              }}>
+              }}
+            >
               {item.label}
               {hasSubmenu && <span className="html-context-menu-arrow">▶</span>}
               {hasSubmenu && submenu === index && <Submenu items={item.submenu!} run={(sub, subIndex) => run(sub, index, subIndex)} />}

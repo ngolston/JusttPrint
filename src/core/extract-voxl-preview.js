@@ -116,9 +116,7 @@ async function extractVoxlPreviewEntry(input) {
   if (head.length >= 4 && head[0] === 0x56 && head[1] === 0x4f && head[2] === 0x58 && head[3] === 0x4c) {
     return extractV2(src);
   }
-  const firstNonSpace = head.find(
-    (b) => b !== 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d && b !== 0xef && b !== 0xbb && b !== 0xbf
-  );
+  const firstNonSpace = head.find((b) => b !== 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d && b !== 0xef && b !== 0xbb && b !== 0xbf);
   if (firstNonSpace === 0x7b) return extractV1(src);
   throw new Error('not a VOXL file');
 }

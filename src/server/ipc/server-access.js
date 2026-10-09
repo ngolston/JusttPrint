@@ -2,7 +2,23 @@
 
 const { flushSettingsToDisk, getSettingValueOr, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
-const { closeClientsOfUser, ensurePort80ForAcme, getAppListenPort, getConfiguredHttpPort, getHttpServerListenPort, getServerListenPort, getTlsCertsDir, getTlsStatusForUi, httpServerRunning, parseListenPort, persistTlsSettingsFromPayload, reloadTlsHttpListener, resolveAppTls, restartHttpServer, syncPort80Server } = require('../http');
+const {
+  closeClientsOfUser,
+  ensurePort80ForAcme,
+  getAppListenPort,
+  getConfiguredHttpPort,
+  getHttpServerListenPort,
+  getServerListenPort,
+  getTlsCertsDir,
+  getTlsStatusForUi,
+  httpServerRunning,
+  parseListenPort,
+  persistTlsSettingsFromPayload,
+  reloadTlsHttpListener,
+  resolveAppTls,
+  restartHttpServer,
+  syncPort80Server
+} = require('../http');
 const fs = require('fs');
 const { buildMcpClientConfig, listToolDefinitions, SERVER_NAME: MCP_SERVER_NAME } = require('../mcp-server');
 const serverTls = require('../server-tls');
@@ -31,7 +47,7 @@ function getMcpConnectionInfo() {
   const scheme = resolveAppTls().options ? 'https' : 'http';
   const localUrl = `${scheme}://127.0.0.1:${port}/mcp`;
   const urls = [`${scheme}://<server-host>:${port}/mcp`, localUrl, ...lanAddresses.map((ip) => `${scheme}://${ip}:${port}/mcp`)];
-  const primaryUrl = (lanAddresses[0] ? `${scheme}://${lanAddresses[0]}:${port}/mcp` : `${scheme}://0.0.0.0:${port}/mcp`);
+  const primaryUrl = lanAddresses[0] ? `${scheme}://${lanAddresses[0]}:${port}/mcp` : `${scheme}://0.0.0.0:${port}/mcp`;
   return {
     serverMode: true,
     enabled,
@@ -118,13 +134,13 @@ ipcMain.handle('apply-tls-settings', async (_event, payload = {}) => {
         throw new Error('Listen port must be between 1 and 65535.');
       }
       if (requested === 80 && (mode === serverTls.TLS_MODES.LETSENCRYPT || payload.tlsRedirectHttp)) {
-        throw new Error('Port 80 is reserved for Let\'s Encrypt HTTP-01 and HTTP redirect. Choose a different listen port.');
+        throw new Error("Port 80 is reserved for Let's Encrypt HTTP-01 and HTTP redirect. Choose a different listen port.");
       }
     }
     persistTlsSettingsFromPayload(payload || {});
     const listenPort = getAppListenPort();
     if (listenPort === 80 && (mode === serverTls.TLS_MODES.LETSENCRYPT || payload.tlsRedirectHttp)) {
-      throw new Error('Port 80 is reserved for Let\'s Encrypt HTTP-01 and HTTP redirect. Choose a different listen port.');
+      throw new Error("Port 80 is reserved for Let's Encrypt HTTP-01 and HTTP redirect. Choose a different listen port.");
     }
 
     if (mode === serverTls.TLS_MODES.CUSTOM) {
@@ -206,7 +222,8 @@ ipcMain.handle('generate-self-signed-cert', async (_event, payload = {}) => {
     if (!restart.success) throw new Error(restart.message);
     return {
       success: true,
-      message: 'Self-signed certificate generated (includes localhost and 127.0.0.1). Browsers and Chrome will warn until you trust it. ' + (restart.message || ''),
+      message:
+        'Self-signed certificate generated (includes localhost and 127.0.0.1). Browsers and Chrome will warn until you trust it. ' + (restart.message || ''),
       status: getTlsStatusForUi(),
       paths: generated
     };

@@ -6,7 +6,10 @@
 const KEY = 'justtprint.uploadSessions';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-interface Saved { id: string; at: number }
+interface Saved {
+  id: string;
+  at: number;
+}
 
 type FileLike = Pick<File, 'name' | 'size' | 'lastModified'>;
 
@@ -24,7 +27,9 @@ function read(now: number): Record<string, Saved> {
 function write(all: Record<string, Saved>) {
   try {
     localStorage.setItem(KEY, JSON.stringify(all));
-  } catch { /* private window: no resuming after a reload */ }
+  } catch {
+    /* private window: no resuming after a reload */
+  }
 }
 
 export function savedSession(folder: string, file: FileLike, now = Date.now()): string | null {

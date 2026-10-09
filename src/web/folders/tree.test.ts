@@ -1,20 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { clampWidth, FOLDERS } from './layout';
 import {
-  MAX_RECENT, directoryOfFile, findNode, findWithAncestors, folderName, matchesQuery, parseRecent, pathsEqual, pushRecent,
-  toDirectoryFilter, type FolderNode
+  MAX_RECENT,
+  directoryOfFile,
+  findNode,
+  findWithAncestors,
+  folderName,
+  matchesQuery,
+  parseRecent,
+  pathsEqual,
+  pushRecent,
+  toDirectoryFilter,
+  type FolderNode
 } from './tree';
 
-const forest: FolderNode[] = [{
-  path: '/lib', label: 'lib', count: 3, children: [
-    { path: '/lib/Designer A', label: 'Designer A', count: 2, children: [
-      { path: '/lib/Designer A/pack.zip', label: 'pack.zip', count: 1, isBundle: true, children: [
-        { path: '/lib/Designer A/pack.zip::parts', label: 'parts', count: 1 }
-      ] }
-    ] },
-    { path: '/lib/Other', label: 'Other', count: 1 }
-  ]
-}];
+const forest: FolderNode[] = [
+  {
+    path: '/lib',
+    label: 'lib',
+    count: 3,
+    children: [
+      {
+        path: '/lib/Designer A',
+        label: 'Designer A',
+        count: 2,
+        children: [
+          {
+            path: '/lib/Designer A/pack.zip',
+            label: 'pack.zip',
+            count: 1,
+            isBundle: true,
+            children: [{ path: '/lib/Designer A/pack.zip::parts', label: 'parts', count: 1 }]
+          }
+        ]
+      },
+      { path: '/lib/Other', label: 'Other', count: 1 }
+    ]
+  }
+];
 
 describe('folder tree helpers', () => {
   it('compares paths without case, separators or trailing slashes mattering', () => {

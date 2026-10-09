@@ -20,11 +20,15 @@ export function InstallAppDialog() {
   const [status, setStatus] = useState('');
   const isAdmin = useCan('admin');
 
-  useEffect(() => exposeGlobal('openInstallApp', () => {
-    setStatus('');
-    setWay(installWay(currentInstallContext()));
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
-  }), []);
+  useEffect(
+    () =>
+      exposeGlobal('openInstallApp', () => {
+        setStatus('');
+        setWay(installWay(currentInstallContext()));
+        if (!dialogRef.current?.open) dialogRef.current?.showModal();
+      }),
+    []
+  );
   useEffect(() => onInstallOfferChange(() => setWay(installWay(currentInstallContext()))), []);
 
   const install = async () => {
@@ -35,50 +39,90 @@ export function InstallAppDialog() {
 
   const httpsNote = (
     <p className="setting-description">
-      {isAdmin
-        ? <>Set up HTTPS in <button type="button" className="jp-link" onClick={() => { dialogRef.current?.close(); window.openHttpsSettings?.(); }}>Settings → HTTPS / SSL</button>, or put JusttPrint behind a reverse proxy with a certificate (see the Guide).</>
-        : <>Ask your JusttPrint admin to set up HTTPS (Settings → HTTPS / SSL).</>}
+      {isAdmin ? (
+        <>
+          Set up HTTPS in{' '}
+          <button
+            type="button"
+            className="jp-link"
+            onClick={() => {
+              dialogRef.current?.close();
+              window.openHttpsSettings?.();
+            }}
+          >
+            Settings → HTTPS / SSL
+          </button>
+          , or put JusttPrint behind a reverse proxy with a certificate (see the Guide).
+        </>
+      ) : (
+        <>Ask your JusttPrint admin to set up HTTPS (Settings → HTTPS / SSL).</>
+      )}
     </p>
   );
 
   return (
-    <ModalDialog id="install-app-dialog" title="Install App" dialogRef={dialogRef}
-      footer={<button type="button" id="close-install-app" onClick={() => dialogRef.current?.close()}>Close</button>}>
+    <ModalDialog
+      id="install-app-dialog"
+      title="Install App"
+      dialogRef={dialogRef}
+      footer={
+        <button type="button" id="close-install-app" onClick={() => dialogRef.current?.close()}>
+          Close
+        </button>
+      }
+    >
       <p className="setting-description">
-        Installed, JusttPrint opens from its own icon in a window without the browser&apos;s address bar. It is still this
-        same JusttPrint in your Docker container: nothing is copied to the device.
+        Installed, JusttPrint opens from its own icon in a window without the browser&apos;s address bar. It is still this same JusttPrint in your Docker
+        container: nothing is copied to the device.
       </p>
       <div id="install-app-steps" data-way={way}>
-        {way === 'installed' && <p><strong>JusttPrint is already installed</strong> and running as an app.</p>}
+        {way === 'installed' && (
+          <p>
+            <strong>JusttPrint is already installed</strong> and running as an app.
+          </p>
+        )}
         {way === 'prompt' && (
           <div className="dialog-buttons mcp-inline-actions">
-            <button type="button" id="install-app-button" onClick={install}>Install JusttPrint</button>
+            <button type="button" id="install-app-button" onClick={install}>
+              Install JusttPrint
+            </button>
           </div>
         )}
         {way === 'ios' && (
           <ol>
-            <li>Open JusttPrint in <strong>Safari</strong>.</li>
-            <li>Tap <strong>Share</strong> (the square with an arrow).</li>
-            <li>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+            <li>
+              Open JusttPrint in <strong>Safari</strong>.
+            </li>
+            <li>
+              Tap <strong>Share</strong> (the square with an arrow).
+            </li>
+            <li>
+              Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
+            </li>
           </ol>
         )}
         {way === 'browser-menu' && (
-          <p>Open the browser&apos;s menu (⋮) and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. If it is not
-            there, JusttPrint may already be installed on this device.</p>
+          <p>
+            Open the browser&apos;s menu (⋮) and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. If it is not there, JusttPrint may
+            already be installed on this device.
+          </p>
         )}
         {way === 'needs-https' && (
           <>
-            <p><strong>This browser installs apps only over HTTPS.</strong> JusttPrint is open over plain http, so the browser&apos;s
-              menu (⋮) offers <strong>Add to Home screen</strong> as a shortcut that opens in the browser.</p>
+            <p>
+              <strong>This browser installs apps only over HTTPS.</strong> JusttPrint is open over plain http, so the browser&apos;s menu (⋮) offers{' '}
+              <strong>Add to Home screen</strong> as a shortcut that opens in the browser.
+            </p>
             {httpsNote}
           </>
         )}
         {way === 'unsupported' && (
-          <p>This browser does not install web apps. Use Chrome or Edge (Android, Windows, Mac, Linux) or Safari (iPhone, iPad),
-            or add a bookmark.</p>
+          <p>This browser does not install web apps. Use Chrome or Edge (Android, Windows, Mac, Linux) or Safari (iPhone, iPad), or add a bookmark.</p>
         )}
       </div>
-      <p id="install-app-status" className="setting-description" role="status">{status}</p>
+      <p id="install-app-status" className="setting-description" role="status">
+        {status}
+      </p>
     </ModalDialog>
   );
 }

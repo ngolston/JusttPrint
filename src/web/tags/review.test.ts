@@ -1,8 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { canApply, emptyReview, finishBatch, hasEntry, mergeTags, pickedTags, rateLimitDetail, setTicked, tickKey, upsertEntry, withResult, type ReviewEntry } from './review';
+import {
+  canApply,
+  emptyReview,
+  finishBatch,
+  hasEntry,
+  mergeTags,
+  pickedTags,
+  rateLimitDetail,
+  setTicked,
+  tickKey,
+  upsertEntry,
+  withResult,
+  type ReviewEntry
+} from './review';
 
 const entry = (filePath: string, over: Partial<ReviewEntry> = {}): ReviewEntry => ({
-  filePath, fileName: filePath.split('/').pop()!, thumbnail: null, existingTags: [], ...over
+  filePath,
+  fileName: filePath.split('/').pop()!,
+  thumbnail: null,
+  existingTags: [],
+  ...over
 });
 
 describe('tag review', () => {

@@ -117,8 +117,8 @@ function arcToCenter(x1, y1, rx, ry, phi, fa, fs, x2, y2) {
   const num = Math.max(0, rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2);
   const den = rx2 * y1p2 + ry2 * x1p2;
   const coef = sign * Math.sqrt(num / den);
-  const cxp = coef * (rx * y1p) / ry;
-  const cyp = coef * -(ry * x1p) / rx;
+  const cxp = (coef * (rx * y1p)) / ry;
+  const cyp = (coef * -(ry * x1p)) / rx;
   const cx = cos * cxp - sin * cyp + (x1 + x2) / 2;
   const cy = sin * cxp + cos * cyp + (y1 + y2) / 2;
   const ux = (x1p - cxp) / rx;
@@ -272,9 +272,7 @@ function parseSvgPathContours(d, steps = 10) {
       if (!nums.values) break;
       i = nums.next;
       const p0 = { x, y };
-      const p1 = prevCmd === 'C' || prevCmd === 'S'
-        ? { x: 2 * x - cx, y: 2 * y - cy }
-        : { x, y };
+      const p1 = prevCmd === 'C' || prevCmd === 'S' ? { x: 2 * x - cx, y: 2 * y - cy } : { x, y };
       const p2 = {
         x: rel ? x + nums.values[0] : nums.values[0],
         y: rel ? y + nums.values[1] : nums.values[1]
@@ -300,8 +298,7 @@ function parseSvgPathContours(d, steps = 10) {
         x: rel ? x + nums.values[5] : nums.values[5],
         y: rel ? y + nums.values[6] : nums.values[6]
       };
-      sampleArc(p0, nums.values[0], nums.values[1], nums.values[2], nums.values[3], nums.values[4], p1, steps)
-        .forEach(push);
+      sampleArc(p0, nums.values[0], nums.values[1], nums.values[2], nums.values[3], nums.values[4], p1, steps).forEach(push);
       x = p1.x;
       y = p1.y;
       prevCmd = abs;
@@ -337,8 +334,7 @@ function pointInRing(pt, ring) {
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const a = ring[i];
     const b = ring[j];
-    const hit = ((a.y > pt.y) !== (b.y > pt.y))
-      && (pt.x < (b.x - a.x) * (pt.y - a.y) / ((b.y - a.y) || 1e-12) + a.x);
+    const hit = a.y > pt.y !== b.y > pt.y && pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y || 1e-12) + a.x;
     if (hit) inside = !inside;
   }
   return inside;
@@ -386,8 +382,7 @@ function pointInTri(p, a, b, c) {
   const s1 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   const s2 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
   const s3 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
-  return (s1 >= -1e-12 && s2 >= -1e-12 && s3 >= -1e-12)
-    || (s1 <= 1e-12 && s2 <= 1e-12 && s3 <= 1e-12);
+  return (s1 >= -1e-12 && s2 >= -1e-12 && s3 >= -1e-12) || (s1 <= 1e-12 && s2 <= 1e-12 && s3 <= 1e-12);
 }
 
 function earclip(points) {
@@ -423,11 +418,10 @@ function earclip(points) {
 
 function triangulateContours(contours) {
   if (!contours.length) return { points: [], faces: [] };
-  const ranked = contours
-    .map((pts) => ensureWinding(pts, true))
-    .sort((a, b) => Math.abs(ringArea(b)) - Math.abs(ringArea(a)));
+  const ranked = contours.map((pts) => ensureWinding(pts, true)).sort((a, b) => Math.abs(ringArea(b)) - Math.abs(ringArea(a)));
   const outer = ranked[0];
-  const holes = ranked.slice(1)
+  const holes = ranked
+    .slice(1)
     .filter((hole) => pointInRing(hole[0], outer))
     .map((hole) => ensureWinding(hole, false));
   const joined = joinHoles(outer, holes);
@@ -465,11 +459,7 @@ function extrudeSvgToMesh(svgText, targetBox, depthHint) {
   const cx = (src.minX + src.maxX) / 2;
   const cy = (src.minY + src.maxY) / 2;
   const z0 = targetBox.minZ;
-  const depth = Math.max(
-    Math.abs(targetBox.maxZ - targetBox.minZ),
-    depthHint || 0,
-    0.2
-  );
+  const depth = Math.max(Math.abs(targetBox.maxZ - targetBox.minZ), depthHint || 0, 0.2);
 
   const mapped = points.map((p) => ({
     x: (p.x - cx) * scale + ox,

@@ -6,15 +6,9 @@ const { compressThumbnailBlob, needsCompression, THUMBNAIL_MAX_STORED_CHARS, THU
 
 let isCompressingThumbnailsBackground = false;
 
-const THUMBNAIL_MIGRATION_DELAY_MS = Math.max(
-  15000,
-  Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_DELAY_MS || '30000', 10) || 30000
-);
+const THUMBNAIL_MIGRATION_DELAY_MS = Math.max(15000, Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_DELAY_MS || '30000', 10) || 30000);
 
-const THUMBNAIL_MIGRATION_MAX_PER_SESSION = Math.max(
-  25,
-  Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_MAX_PER_SESSION || '200', 10) || 200
-);
+const THUMBNAIL_MIGRATION_MAX_PER_SESSION = Math.max(25, Number.parseInt(process.env.JUSTTPRINT_THUMBNAIL_MIGRATION_MAX_PER_SESSION || '200', 10) || 200);
 
 const THUMBNAIL_MIGRATION_YIELD_MS = 25;
 
@@ -43,12 +37,16 @@ function clearThumbnailForPath(filePath, reason) {
 function purgeCorruptThumbnailsOnly(maxChars = THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS) {
   if (!database.db) return 0;
   try {
-    const result = database.db.prepare(`
+    const result = database.db
+      .prepare(
+        `
       UPDATE models
       SET thumbnail = NULL
       WHERE thumbnail IS NOT NULL
         AND LENGTH(thumbnail) > ?
-    `).run(maxChars);
+    `
+      )
+      .run(maxChars);
     if (result.changes > 0) {
       console.warn(`Cleared ${result.changes} thumbnail(s) over ${maxChars} chars (corrupt/oversized safeguard)`);
     }
@@ -65,23 +63,25 @@ async function compressExistingThumbnailsInBackground(reason) {
   try {
     purgeCorruptThumbnailsOnly();
 
-    const rows = database.db.prepare(`
+    const rows = database.db
+      .prepare(
+        `
       SELECT filePath, LENGTH(thumbnail) AS thumbLen
       FROM models
       WHERE thumbnail IS NOT NULL AND thumbnail != '' AND thumbnail != '3d.png'
         AND thumbnail LIKE 'data:image%'
         AND LENGTH(thumbnail) > ?
       ORDER BY LENGTH(thumbnail) DESC
-    `).all(THUMBNAIL_MAX_STORED_CHARS);
+    `
+      )
+      .all(THUMBNAIL_MAX_STORED_CHARS);
 
     if (rows.length === 0) return;
 
     const batch = rows.slice(0, THUMBNAIL_MIGRATION_MAX_PER_SESSION);
     const remaining = rows.length - batch.length;
     console.log(
-      `Migrating ${batch.length} legacy thumbnail(s) (${reason || 'startup'})` +
-      (remaining > 0 ? `; ${remaining} deferred to a later session` : '') +
-      '...'
+      `Migrating ${batch.length} legacy thumbnail(s) (${reason || 'startup'})` + (remaining > 0 ? `; ${remaining} deferred to a later session` : '') + '...'
     );
 
     let updated = 0;

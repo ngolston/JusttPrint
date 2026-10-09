@@ -13,7 +13,7 @@ export function EmbeddedDialog({ dialogId, opener }: { dialogId: string; opener:
   const [host, setHost] = useState<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
-    const dialog = host ? document.getElementById(dialogId) as WithShowModal | null : null;
+    const dialog = host ? (document.getElementById(dialogId) as WithShowModal | null) : null;
     if (!host || !dialog) return undefined;
     const restore = adopt(`#${CSS.escape(dialogId)}`, host);
     let alive = true;
@@ -32,7 +32,12 @@ export function EmbeddedDialog({ dialogId, opener }: { dialogId: string; opener:
       if (!dialog.open) dialog.show();
     };
     dialog.classList.add('is-embedded');
-    const onClose = () => { if (alive) setTimeout(() => { if (alive) open(); }, 0); };
+    const onClose = () => {
+      if (alive)
+        setTimeout(() => {
+          if (alive) open();
+        }, 0);
+    };
     if (dialog.open) dialog.close();
     dialog.addEventListener('close', onClose);
     open();
@@ -42,9 +47,13 @@ export function EmbeddedDialog({ dialogId, opener }: { dialogId: string; opener:
       if (dialog.open) dialog.close();
       if (opening) {
         // Swallow the late showModal() of the opener still loading; the next real one works again.
-        const late = () => { delete (dialog as Partial<WithShowModal>).showModal; };
+        const late = () => {
+          delete (dialog as Partial<WithShowModal>).showModal;
+        };
         dialog.showModal = late;
-        setTimeout(() => { if (dialog.showModal === late) delete (dialog as Partial<WithShowModal>).showModal; }, 10000);
+        setTimeout(() => {
+          if (dialog.showModal === late) delete (dialog as Partial<WithShowModal>).showModal;
+        }, 10000);
       } else {
         delete (dialog as Partial<WithShowModal>).showModal;
       }

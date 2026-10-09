@@ -11,7 +11,9 @@ export function SettingsRow({ item }: { item: SettingsItem }) {
   return (
     <li>
       <button type="button" className={cx('jp-settings-row', item.danger && 'is-danger')} onClick={item.run}>
-        <span className="jp-settings-row__icon"><Icon size={18} aria-hidden="true" /></span>
+        <span className="jp-settings-row__icon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
         <span className="jp-settings-row__text">
           <span className="jp-settings-row__label">{item.label}</span>
           <span className="jp-settings-row__description">{item.description}</span>
@@ -29,9 +31,13 @@ function EmbeddedSetting({ item }: { item: SettingsItem }) {
   return (
     <section className="jp-settings-form" id={`setting-${item.id}`} aria-labelledby={`setting-${item.id}-title`}>
       <header className="jp-settings-form__header">
-        <span className="jp-settings-row__icon"><Icon size={18} aria-hidden="true" /></span>
+        <span className="jp-settings-row__icon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
         <span className="jp-settings-row__text">
-          <h3 className="jp-settings-form__title" id={`setting-${item.id}-title`}>{item.label}</h3>
+          <h3 className="jp-settings-form__title" id={`setting-${item.id}-title`}>
+            {item.label}
+          </h3>
           <span className="jp-settings-row__description">{item.description}</span>
         </span>
       </header>
@@ -93,7 +99,9 @@ export function SettingsPage({ section }: { section: string }) {
       <header className="jp-page__header">
         <h1 className="jp-page-title">Settings</h1>
         <p className="jp-meta">
-          {user?.role === 'admin' ? 'Library, scanning, printers, AI, JusttPrint backend and backup settings.' : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
+          {user?.role === 'admin'
+            ? 'Library, scanning, printers, AI, JusttPrint backend and backup settings.'
+            : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
         </p>
       </header>
       <div className="jp-settings-layout">
@@ -101,13 +109,18 @@ export function SettingsPage({ section }: { section: string }) {
           <ul>
             {groups.map((group) => (
               <li key={group.id}>
-                <a href={`#/settings/${group.id}`} className={cx('jp-settings-index__link', active === group.id && 'is-active')}
+                <a
+                  href={`#/settings/${group.id}`}
+                  className={cx('jp-settings-index__link', active === group.id && 'is-active')}
                   aria-current={active === group.id ? 'true' : undefined}
                   onClick={(event) => {
                     event.preventDefault();
                     setActive(group.id);
                     document.getElementById(`settings-${group.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-                  }}>{group.label}</a>
+                  }}
+                >
+                  {group.label}
+                </a>
               </li>
             ))}
           </ul>
@@ -117,11 +130,19 @@ export function SettingsPage({ section }: { section: string }) {
             const rows = group.items.filter((item) => !item.embed);
             return (
               <section key={group.id} id={`settings-${group.id}`} className="jp-card jp-settings-group" aria-labelledby={`settings-${group.id}-title`}>
-                <h2 className="jp-settings-group__title" id={`settings-${group.id}-title`}>{group.label}</h2>
-                {group.items.filter((item) => item.embed).map((item) => <EmbeddedSetting key={item.id} item={item} />)}
+                <h2 className="jp-settings-group__title" id={`settings-${group.id}-title`}>
+                  {group.label}
+                </h2>
+                {group.items
+                  .filter((item) => item.embed)
+                  .map((item) => (
+                    <EmbeddedSetting key={item.id} item={item} />
+                  ))}
                 {rows.length > 0 && (
                   <ul className="jp-settings-list">
-                    {rows.map((item) => <SettingsRow key={item.id} item={item} />)}
+                    {rows.map((item) => (
+                      <SettingsRow key={item.id} item={item} />
+                    ))}
                   </ul>
                 )}
               </section>
@@ -138,7 +159,9 @@ export function HelpList() {
   const user = useCurrentUser();
   return (
     <ul className="jp-settings-list">
-      {itemsFor(HELP, user?.role, 'viewer').map((item) => <SettingsRow key={item.id} item={item} />)}
+      {itemsFor(HELP, user?.role, 'viewer').map((item) => (
+        <SettingsRow key={item.id} item={item} />
+      ))}
     </ul>
   );
 }

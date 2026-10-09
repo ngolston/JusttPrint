@@ -28,7 +28,15 @@ export function parseLegacyStlHome(raw: string | null | undefined): string[] {
   const text = String(raw || '').trim();
   if (!text) return [];
   if (text.startsWith('[')) return parseDirectoryList(text);
-  if (/[\r\n,;]/.test(text)) return parseDirectoryList(JSON.stringify(text.split(/[\r\n,;]+/).map((s) => s.trim()).filter(Boolean)));
+  if (/[\r\n,;]/.test(text))
+    return parseDirectoryList(
+      JSON.stringify(
+        text
+          .split(/[\r\n,;]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+    );
   return [text];
 }
 

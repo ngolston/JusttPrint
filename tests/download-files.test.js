@@ -54,7 +54,10 @@ test('leftovers in the data folder are listed and deleted on request only', () =
   write(path.join(data, 'justtprint.db.before-restore'));
   downloads.sweep({ dir: data, maxAgeMs: Number.MAX_SAFE_INTEGER });
   const listed = downloads.leftovers();
-  assert.deepStrictEqual(listed.files.map((f) => f.name).sort(), ['justtprint-backup-2026-01-01T00-00-00-000Z.db', 'justtprint-library-2026-01-01T00-00-00-000Z.json']);
+  assert.deepStrictEqual(listed.files.map((f) => f.name).sort(), [
+    'justtprint-backup-2026-01-01T00-00-00-000Z.db',
+    'justtprint-library-2026-01-01T00-00-00-000Z.json'
+  ]);
   assert.strictEqual(listed.totalBytes, 2);
   assert.deepStrictEqual(downloads.deleteLeftovers(), { count: 2, bytes: 2 });
   assert.deepStrictEqual(fs.readdirSync(data).sort(), ['downloads', 'justtprint.db', 'justtprint.db.before-restore']);

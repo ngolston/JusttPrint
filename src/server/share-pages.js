@@ -19,9 +19,17 @@ const { resolveShareLink, recordShareView } = require('../core/share-links');
 const { sendModelFile } = require('./model-file');
 
 function escapeHtml(text) {
-  return String(text == null ? '' : text).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]));
+  return String(text == null ? '' : text).replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]
+  );
 }
 
 function safeLink(url) {
@@ -44,7 +52,11 @@ function formatSize(bytes) {
 
 /** "Benchy" for "Benchy.stl", "part" for "pack.zip::inner/part.stl". */
 function displayName(fileName) {
-  const base = String(fileName || '').split('::').pop().split('/').pop();
+  const base = String(fileName || '')
+    .split('::')
+    .pop()
+    .split('/')
+    .pop();
   return base.replace(/\.[^.]+$/, '') || base;
 }
 
@@ -81,7 +93,8 @@ const STYLE = `
   @media (max-width: 720px) { .single { grid-template-columns: 1fr; } h1 { font-size: 22px; } }
 `;
 
-const PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
+const PLACEHOLDER =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
 
 function pageHtml(title, body) {
   return `<!doctype html>
@@ -102,9 +115,7 @@ ${body}
 }
 
 function thumbHtml(share, model) {
-  return model.hasThumbnail
-    ? `<img src="/s/${share.token}/thumb/${model.id}" alt="" loading="lazy">`
-    : PLACEHOLDER;
+  return model.hasThumbnail ? `<img src="/s/${share.token}/thumb/${model.id}" alt="" loading="lazy">` : PLACEHOLDER;
 }
 
 function downloadHtml(share, model) {
@@ -147,7 +158,9 @@ function sharePageHtml(share) {
       model.license && ['License', escapeHtml(model.license)],
       formatSize(model.size) && ['Size', formatSize(model.size)]
     ].filter(Boolean);
-    return pageHtml(displayName(model.fileName), `
+    return pageHtml(
+      displayName(model.fileName),
+      `
 <div class="single">
   <div class="thumb">${thumbHtml(share, model)}</div>
   <div>
@@ -157,21 +170,28 @@ function sharePageHtml(share) {
     ${tagsHtml(model)}
     <div class="actions">${downloadHtml(share, model)}${sourceHtml(model)}</div>
   </div>
-</div>`);
+</div>`
+    );
   }
   const n = share.models.length;
-  return pageHtml(share.title, `
+  return pageHtml(
+    share.title,
+    `
 <h1>${escapeHtml(share.title)}</h1>
 ${share.description ? `<p class="lead">${escapeHtml(share.description)}</p>` : ''}
 <p class="meta">A collection of ${n} ${n === 1 ? 'model' : 'models'}${share.allowDownload ? '' : ' (view only)'}${expiryText(share)}</p>
-${n ? `<div class="grid">${share.models.map((m) => cardHtml(share, m)).join('\n')}</div>` : '<p class="empty">This collection is empty.</p>'}`);
+${n ? `<div class="grid">${share.models.map((m) => cardHtml(share, m)).join('\n')}</div>` : '<p class="empty">This collection is empty.</p>'}`
+  );
 }
 
-const GONE_HTML = pageHtml('Link not available', `
+const GONE_HTML = pageHtml(
+  'Link not available',
+  `
 <div class="gone">
   <h1>This link is not available</h1>
   <p class="lead">It may have expired or been turned off by the person who shared it.</p>
-</div>`);
+</div>`
+);
 
 function noStore(res) {
   res.setHeader('Cache-Control', 'no-store');
