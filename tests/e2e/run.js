@@ -395,7 +395,7 @@ async function apiChecks(base, wsUrl) {
     !JSON.stringify((await invoke(base, ctxCookie(), 'get-setting', ['scannedDirectories'])).result || '').includes('Designer B')
   );
   check('home after login', (await http.request('/')).status === 200);
-  check('web asset served', (await http.request('/page-init.js')).status === 200);
+  check('web asset served', (await http.request('/slicer-protocol.js')).status === 200);
   for (const hidden of ['/main.js', '/spoolman.js', '/src/core/spoolman.js', '/package.json', '/node_modules/express/package.json', '/src/server/index.js']) {
     check(`${hidden} not served`, (await http.request(hidden)).status === 404);
   }
@@ -410,7 +410,7 @@ async function apiChecks(base, wsUrl) {
       !/unsafe-inline/.test(health.headers.get('content-security-policy') || '')
   );
   const cspOf = async (urlPath) => (await http.request(urlPath)).headers.get('content-security-policy') || '';
-  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/page-init.js')));
+  check('page scripts may not eval', !/'unsafe-eval'/.test(await cspOf('/slicer-protocol.js')));
   check(
     'the parse worker may not eval either (STEP library built without it)',
     !/'unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js')) && /'wasm-unsafe-eval'/.test(await cspOf('/web-build/parse-worker.js'))
@@ -3174,6 +3174,33 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       )) && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true'
     );
+    // The guide (src/web/QuickStartGuide.tsx): Next, the arrow keys, Back, and Finish on the last page.
+    const guidePage = () => fresh.textContent('#guide-progress-text').catch(() => '');
+    await fresh.click('#guide-next-button');
+    const onSecond = await fresh
+      .waitForFunction(() => /Page 2 of 5/.test(document.getElementById('guide-progress-text')?.textContent || ''), null, { timeout: 5000 })
+      .then(
+        () => true,
+        () => false
+      );
+    await fresh.waitForTimeout(500);
+    await fresh.keyboard.press('ArrowRight');
+    await fresh.waitForTimeout(600);
+    const third = await guidePage();
+    await fresh.click('#guide-back-button');
+    await fresh.waitForTimeout(600);
+    check(
+      'the guide pages forward and back (buttons and arrow keys)',
+      onSecond && /Page 3 of 5/.test(third) && /Page 2 of 5/.test(await guidePage()) && /Model Details/.test(await fresh.textContent('#guide-text')),
+      `${third} / ${await guidePage()}`
+    );
+    for (let k = 0; k < 3; k++) {
+      await fresh.click('#guide-next-button');
+      await fresh.waitForTimeout(600);
+    }
+    check('the last page says Finish', (await fresh.textContent('#guide-next-button')).trim() === 'Finish');
+    await fresh.click('#guide-next-button');
+    check('Finish closes the guide', !(await fresh.isVisible('#quickstart-guide')));
     await fresh.close();
 
     // Review Generated Tags (React, src/web/tags/TagPreviewDialog.tsx), driven by the events an AI run sends.
@@ -3469,7 +3496,7 @@ async function browserChecks(base, wsUrl, session) {
     );
     await page.click('#keyboard-shortcuts-dialog .dialog-buttons button');
     check('Keyboard Shortcuts closes', !(await page.isVisible('#keyboard-shortcuts-dialog')));
-    // Installing (src/web/install.ts, pwa.js): the service worker is there for the browser, and Install App says how.
+    // Installing (src/web/install.ts, startup/pageInit.ts): the service worker is there for the browser, and Install App says how.
     check(
       'the install service worker is active',
       await page

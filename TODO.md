@@ -9,7 +9,7 @@ Items are ordered from most important to least within each phase. Line numbers a
 ### How the container works today
 
 - The image runs the server on plain Node (`src/server/index.js` → `src/server/app.js`), with library logic in `src/core/` and the server in `src/server/`.
-- Thumbnails render in headless Chromium inside the container. The web UI is still the old desktop UI plus `server-bridge.js`, which forwards IPC calls over a WebSocket.
+- Thumbnails render in headless Chromium inside the container. The web UI is React and TypeScript (`src/web`), calling the HTTP API; the WebSocket only brings events and dialogs.
 - Server-initiated native dialogs answer Cancel, since there is no window to show them in.
 
 ### Target folder layout
@@ -103,7 +103,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
 
 ## 🟡 5. Medium: web UI can do everything
 
-- [ ] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** The rename, the `main.js` rewrite and the HTTP API are done, so new screens call `/api/actions/*` directly (`src/web/api.ts`). Mount React into parts of the existing page so the app keeps working throughout:
+- [x] **Rewrite the frontend in React + TypeScript (Vite), screen by screen.** The rename, the `main.js` rewrite and the HTTP API are done, so new screens call `/api/actions/*` directly (`src/web/api.ts`). Mount React into parts of the existing page so the app keeps working throughout:
   - [x] First a self-contained dialog, to set up Vite, TypeScript and the build in the Docker image. Server Access is in `src/web/` (built into `web-build/app.js` by `npm run build:web`, and by a stage in the Dockerfile).
   - [x] The dialogs and managers (4.2.0): tags, parts, filament, printers, stats, system report, backup/restore, about, shortcuts, every settings dialog, purge, metadata manager, STL Home, organize, de-dup.
   - [x] The model grid (virtualized), the details panel, the ZIP bundle and multi-edit panels, the 3D preview on current three.js (an imperative engine in `src/web/preview/engine.ts`; react-three-fiber was not needed), Manage Thumbnails, the Log Print dialog, the thumbnail renderer and parse worker, and the grid selection (`src/web/selection.ts`).
@@ -120,7 +120,7 @@ The Docker image runs on plain Node. `src/server/index.js` starts `src/server/ap
   - [x] The searchable list dialog (`src/web/components/ListPicker.tsx`).
   - [x] The grid's model list and groups, selection, the details and bundle panels, multi-edit mode and saving (`src/web/library/`).
   - [x] Startup, the theme and the update check (`src/web/startup/`), Puter AI (`src/web/ai/`), and the page and server events (`src/web/library/actions.ts`, `components/ServerProgressDialog.tsx`). `renderer.js`, `filament.js` and `grid-refresh.js` are gone.
-  - [ ] The page scripts left: `server-bridge.js` (the WebSocket and in-page message dialogs; React screens could call the HTTP API and an in-page dialog component directly), `guide.js` (Quick Start Guide), `page-init.js`, `pwa.js`, `slicer-protocol.js`, `step-assembly.js` and `stl-sanity.js` (the last two are also used by the parse worker).
+  - [x] The page scripts: `server-bridge.js` became [src/web/bridge/server.ts](src/web/bridge/server.ts) and [src/web/bridge/dialogs.ts](src/web/bridge/dialogs.ts) (only the 20 of its 90 methods still used), `guide.js` the React [QuickStartGuide.tsx](src/web/QuickStartGuide.tsx), `page-init.js` and `pwa.js` [startup/pageInit.ts](src/web/startup/pageInit.ts). Left as plain JavaScript on purpose: `slicer-protocol.js` (the Send to Slicer helper loads it too), `step-assembly.js` and `stl-sanity.js` (the parse worker loads them).
   - Test each screen in the browser against the container before moving on.
 - [x] **Audit every desktop-only action** and give each one a web equivalent:
   - [x] Folder pickers: Choose Folder ([src/web/components/FolderPicker.tsx](src/web/components/FolderPicker.tsx)), a server-side folder browser ([src/server/folder-browse.js](src/server/folder-browse.js)) that starts from the mounted volumes and library folders and follows the scan rule (no system, app or data folders). Used by Scan a Folder, STL Home, Duplicates and Organize.

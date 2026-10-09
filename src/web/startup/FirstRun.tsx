@@ -13,7 +13,6 @@ declare global {
     /** Show the welcome dialog (first run). */
     showWelcome?: () => void;
     logOutOfServer?: () => Promise<void>;
-    showGuide?: () => void;
   }
 }
 

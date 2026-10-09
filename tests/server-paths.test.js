@@ -17,7 +17,7 @@ function test(name, fn) {
 
 test('web assets are served', () => {
   for (const p of [
-    '/page-init.js',
+    '/slicer-protocol.js',
     '/assets/logo.png',
     '/web-build/parse-worker.js',
     '/vendor/occt-import-js.wasm',

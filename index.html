@@ -97,34 +97,6 @@
         <div id="grid-toolbar-slot" style="display: contents"></div>
       </div>
       <div class="file-grid"></div>
-      <dialog id="quickstart-guide" class="modal" style="width: 80%; max-width: 1000px;" tabindex="-1">
-        <div class="guide-content">
-          <div class="guide-header">
-            <h2>Quick Start Guide</h2>
-            <div class="guide-progress">
-              <div class="guide-progress-bar">
-                <div class="guide-progress-fill" id="guide-progress-fill"></div>
-              </div>
-              <div class="guide-progress-text" id="guide-progress-text">Page 1 of 5</div>
-            </div>
-          </div>
-          <div class="guide-scroll-container">
-            <img id="guide-image" src="" alt="Guide Image" class="guide-image">
-            <div id="guide-text" class="guide-text"></div>
-          </div>
-          <div class="guide-navigation">
-            <button id="guide-back-button" class="guide-nav-button">
-              <span class="guide-nav-icon">←</span>
-              <span>Back</span>
-            </button>
-            <button id="guide-close-button" class="guide-nav-button guide-nav-button-secondary">Close</button>
-            <button id="guide-next-button" class="guide-nav-button">
-              <span>Next</span>
-              <span class="guide-nav-icon">→</span>
-            </button>
-          </div>
-        </div>
-      </dialog>
     </div>
   </div>
   <div id="loading-overlay">
@@ -136,14 +108,10 @@
   </div>
 
   <script src="slicer-protocol.js"></script>
-  <script src="server-bridge.js"></script>
   <script src="step-assembly.js"></script>
   <script src="stl-sanity.js"></script>
-  <script src="guide.js"></script>
-  <script src="pwa.js"></script>
 
   <!-- React screens (src/web/, mounted by main.tsx) -->
-  <script src="page-init.js"></script>
   <script type="module" src="web-build/app.js"></script>
 </body>
 </html>

@@ -64,8 +64,8 @@ export default [
     languageOptions: { globals: { ...globals.browser, fflate: 'readonly' } }
   },
   {
-    // Plain scripts the page loads (no bundler): page wiring, the server bridge, the guide, the service worker.
-    files: ['page-init.js', 'server-bridge.js', 'guide.js', 'pwa.js', 'puter-signin.js', 'sw.js'],
+    // Plain scripts outside the app (no bundler): the Puter sign-in popup and the service worker.
+    files: ['puter-signin.js', 'sw.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'script',

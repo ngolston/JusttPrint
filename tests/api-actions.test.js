@@ -21,22 +21,24 @@ for (const name of Object.keys(ACTIONS)) {
   assert.ok(registered.has(name), `action ${name} has no ipcMain.handle in src/server/ipc`);
 }
 
-// Every handler the web UI calls is an action: window.electron.<method>() through the bridge's
-// method list, or window.electron.invoke('<channel>').
-const bridge = fs.readFileSync(path.join(ROOT, 'server-bridge.js'), 'utf8');
-const methodToChannel = {};
-for (const match of bridge.matchAll(/'([A-Za-z0-9]+)': '([^']+)'/g)) methodToChannel[match[1]] = match[2];
-const webUi = fs
-  .readdirSync(ROOT)
-  .filter((file) => file.endsWith('.js') && file !== 'server-bridge.js')
-  .map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8'))
+// Every handler the web UI calls is an action: the window.electron methods of the bridge's call
+// list (src/web/bridge/server.ts), callAction('<name>') and invoke('<name>').
+const bridge = fs.readFileSync(path.join(ROOT, 'src', 'web', 'bridge', 'server.ts'), 'utf8');
+const calls = bridge.slice(bridge.indexOf('const CALLS = {'), bridge.indexOf('} as const'));
+const bridgeChannels = [...calls.matchAll(/^\s+\w+: '([^']+)'/gm)].map((match) => match[1]);
+assert.ok(bridgeChannels.length >= 10, 'the bridge call list was not found');
+for (const channel of bridgeChannels) assert.ok(isAction(channel), `the bridge calls ${channel} but it is not in api-actions.js`);
+const webFiles = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return webFiles(full);
+    return /\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name) ? [full] : [];
+  });
+const webUi = webFiles(path.join(ROOT, 'src', 'web'))
+  .map((file) => fs.readFileSync(file, 'utf8'))
   .join('\n');
-for (const [method, channel] of Object.entries(methodToChannel)) {
-  if (!registered.has(channel) || !new RegExp(`\\.${method}\\(`).test(webUi)) continue;
-  assert.ok(isAction(channel), `the web UI calls ${method}() but ${channel} is not in api-actions.js`);
-}
-for (const match of webUi.matchAll(/\.invoke\(\s*['"]([^'"]+)['"]/g)) {
-  if (registered.has(match[1])) assert.ok(isAction(match[1]), `the web UI invokes ${match[1]} but it is not in api-actions.js`);
+for (const match of webUi.matchAll(/(?:\.invoke|callAction(?:<[^>(]*>)?)\(\s*['"]([^'"]+)['"]/g)) {
+  if (registered.has(match[1])) assert.ok(isAction(match[1]), `the web UI calls ${match[1]} but it is not in api-actions.js`);
 }
 
 // Argument checks.
