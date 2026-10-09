@@ -180,6 +180,7 @@ ipcMain.handle('organize-library-preview', async (event, payload) => {
     const sourceDir = payload && payload.sourceDir;
     const destDir = payload && payload.destDir;
     const plan = buildOrganizePlan(sourceDir, destDir, payload && payload.includeZips, payload && payload.layers);
+    /** @type {number | null} */
     let free = null;
     const spacePath = plan.destDir || destDir;
     if (spacePath) {
@@ -209,6 +210,7 @@ ipcMain.handle('organize-library-run', async (event, payload) => {
   try {
     const sourceDir = payload && payload.sourceDir;
     const destDir = payload && payload.destDir;
+    /** @type {number | null} */
     let free = null;
     try {
       free = await readFreeBytes(destDir);

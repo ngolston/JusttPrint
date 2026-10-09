@@ -240,6 +240,7 @@ const getDuplicatesHandler = async (event, includeZipOrOptions = false) => {
 
 ipcMain.handle('get-duplicates', getDuplicatesHandler);
 
+/** @param {{ includeSha256?: boolean, filters?: object | null }} [options] */
 function countModelsNeedingHash({ includeSha256 = false, filters = null } = {}) {
   const hashClause = includeSha256 ? `(hash IS NULL OR hash = '' OR LENGTH(hash) = 64)` : `(hash IS NULL OR hash = '')`;
   const { conditions, params } = buildModelFilterConditions(filters);
@@ -265,6 +266,7 @@ function emitHashGenerationComplete(event, payload) {
 }
 
 // Internal function to calculate missing hashes
+/** @param {object | null} [filters] */
 async function calculateMissingHashesInternal(event, filters = null) {
   if (isGeneratingHashes) {
     return { alreadyRunning: true, calculated: 0, failed: 0, total: 0 };
@@ -432,7 +434,7 @@ async function calculateMissingHashesInternal(event, filters = null) {
 }
 
 // Add IPC handler for generateMissingHashes (calls the same internal function)
-const generateMissingHashesHandler = async (event, filters = null) => {
+const generateMissingHashesHandler = async (event, /** @type {object | null} */ filters = null) => {
   // Check if hash generation is already in progress
   if (isGeneratingHashes) {
     console.debug('Hash generation already in progress, returning current status');

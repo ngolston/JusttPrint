@@ -356,6 +356,7 @@ class Simple3MFLoader {
       return isNegativeObjectName(name);
     };
 
+    /** @param {{ partId: string, name?: string } | null} [partInfo] */
     const collectMeshesFromObject = (objId, modelPath, parentMatrix, visited = new Set(), partInfo = null) => {
       if (!objId || !modelPath) return;
       const entry = resolveObjectEntry(objId, modelPath);

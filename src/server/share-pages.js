@@ -61,11 +61,12 @@ function formatSize(bytes) {
 
 /** "Benchy" for "Benchy.stl", "part" for "pack.zip::inner/part.stl". */
 function displayName(fileName) {
-  const base = String(fileName || '')
-    .split('::')
-    .pop()
-    .split('/')
-    .pop();
+  const base =
+    String(fileName || '')
+      .split('::')
+      .pop()
+      ?.split('/')
+      .pop() || '';
   return base.replace(/\.[^.]+$/, '') || base;
 }
 
@@ -116,10 +117,11 @@ const PLACEHOLDER =
 
 /** 'stl' or '3mf' when a shared model can be shown in 3D (also inside a ZIP file), else null. */
 function meshKind(model) {
-  const name = String(model.filePath || '')
-    .split('::')
-    .pop()
-    .toLowerCase();
+  const name = (
+    String(model.filePath || '')
+      .split('::')
+      .pop() || ''
+  ).toLowerCase();
   return name.endsWith('.stl') ? 'stl' : name.endsWith('.3mf') ? '3mf' : null;
 }
 

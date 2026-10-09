@@ -35,7 +35,7 @@ function renameTagForMcp(args) {
   }
   const existing = database.db.prepare('SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE').get(newName);
   if (existing && existing.id !== tag.id) {
-    /** @type {{ name: string, modelIds: number[], intoId: number, intoName: string, addedModelIds: number[] }} */
+    /** @type {{ name: string, modelIds: number[], intoId: number, intoName: string, addedModelIds: number[] } | null} */
     let undo = null;
     database.db.transaction(() => {
       const rows = database.db.prepare('SELECT model_id FROM model_tags WHERE tag_id = ?').all(tag.id);

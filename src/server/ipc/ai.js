@@ -61,6 +61,7 @@ let puterResponseListenerSet = false;
 
 const puterPendingRequests = new Map(); // Maps requestId -> { resolve, reject, webContents, wsClient }
 
+/** @param {any} [event] the request (its browser answers Puter's sign-in) */
 function createPuterIPCHandler(event = null) {
   console.debug('[Puter IPC Handler] createPuterIPCHandler called, has event:', !!event, 'event keys:', event ? Object.keys(event) : []);
 
@@ -82,7 +83,9 @@ function createPuterIPCHandler(event = null) {
   }
 
   // Extract webContents and wsClient from event if available
+  /** @type {any} */
   let webContents = null;
+  /** @type {any} */
   let wsClient = null;
 
   if (event) {

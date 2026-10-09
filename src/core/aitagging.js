@@ -5,8 +5,10 @@ const { OpenAI } = require('openai');
 const { libraryContextSnippet } = require('./library-context');
 const { isRateLimitError, rateLimitWaitMs, rateLimitUserMessage } = require('./ai-rate-limit');
 
+/** @type {import('openai').OpenAI | null} */
 let openaiClient = null;
 let currentService = 'openai';
+/** @type {((prompt: any, imageUrl: any, model: any) => Promise<any>) | null} */
 let puterIPC = null; // Will be set to IPC handler function for puter calls
 
 // OpenAI SDK requires a non-empty apiKey string even when the server ignores it.
@@ -35,7 +37,10 @@ const DEFAULT_OPTIONS = {
   tagCategories: ['object', 'style', 'complexity', 'material']
 };
 
-// Initialize OpenAI client with service type
+/**
+ * Initialize OpenAI client with service type
+ * @param {((prompt: any, imageUrl: any, model: any) => Promise<any>) | null} [puterIPCHandler]
+ */
 function initializeOpenAI(apiKey, baseURL, service = 'openai', puterIPCHandler = null) {
   // Normalize service to lowercase for comparison
   const normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
@@ -509,6 +514,7 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       // Claude's OpenAI-compatible layer ignores response_format; omit it to avoid 400s.
       const requestModel = model || defaultModelForService(currentService);
       /** @type {Record<string, any>} */
+      /** @type {import('openai').OpenAI.Chat.ChatCompletionCreateParamsNonStreaming} */
       const createPayload = {
         messages: [
           {
@@ -635,7 +641,10 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
   throw new Error('Max retries reached. Could not generate tags due to rate limiting.');
 }
 
-// Test AI configuration
+/**
+ * Test AI configuration
+ * @param {((prompt: any, imageUrl: any, model: any) => Promise<any>) | null} [puterIPCHandler]
+ */
 async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPCHandler = null) {
   // Normalize service to lowercase for comparison
   let normalizedService = service ? String(service).toLowerCase().trim() : 'openai';
@@ -739,6 +748,7 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
     // Minimal request: for Gemini use only model + messages (no max_tokens) to avoid 400 from gateways/proxies
     const testModel = model && model.trim() ? model.trim() : defaultModelForService(normalizedService);
     const isGemini = normalizedService === 'gemini' || (baseURL && baseURL.includes('generativelanguage.googleapis.com'));
+    /** @type {import('openai').OpenAI.Chat.ChatCompletionCreateParamsNonStreaming} */
     const payload = {
       messages: [{ role: 'user', content: 'test' }],
       model: testModel,

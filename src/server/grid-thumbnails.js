@@ -53,6 +53,10 @@ function firstImage(thumbnail) {
   return end === -1 ? thumbnail : thumbnail.slice(0, end);
 }
 
+/**
+ * @param {string | null | undefined} image
+ * @returns {image is string}
+ */
 const needsCopy = (image) => !!image && image.length > SMALL_ENOUGH_CHARS;
 
 /**
@@ -87,6 +91,7 @@ async function makeCopy(image, resize = thumbnailWorker.resizeImage) {
 }
 
 const state = { running: false, again: false };
+/** @type {NodeJS.Timeout | null} */
 let timer = null;
 
 /**
@@ -111,7 +116,7 @@ async function run({ resize } = {}) {
       if (db !== database.db) break; // The database was replaced (restore).
       const current = read.get(row.id);
       const image = current ? firstImage(current.thumbnail) : null;
-      if (!needsCopy(image) || image.length > MAX_SOURCE_CHARS) {
+      if (!image || !needsCopy(image) || image.length > MAX_SOURCE_CHARS) {
         if (image) save.run(row.id, null, image.length, new Date().toISOString());
         continue;
       }
@@ -173,7 +178,7 @@ function gridImage(filePath, loadOriginal) {
 }
 
 function stop() {
-  clearTimeout(timer);
+  if (timer) clearTimeout(timer);
   timer = null;
 }
 

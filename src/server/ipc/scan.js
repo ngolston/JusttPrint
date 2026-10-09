@@ -135,6 +135,10 @@ async function checkZipEntryExists(zipPath, entryPath) {
 }
 
 // Update the removeNonExistentFiles function
+/**
+ * @param {any} [window]
+ * @param {string[] | null} [excludeDirectories]
+ */
 async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeDirectories = null) {
   try {
     const excluded = compileExcludeDirs(excludeDirectories, scanDirectoryPath);
@@ -367,9 +371,11 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
       `);
 
       const ingestState = {
+        /** @type {any[]} */
         files: [],
         existingFilePaths: new Set(),
         newFilesCount: 0,
+        /** @type {string[]} */
         newFilePaths: []
       };
       let ingestChain = Promise.resolve();
@@ -548,7 +554,7 @@ ipcMain.handle('browse-folders', async (event, dir) => {
   const mounts = mountPoints();
   const places = [...mounts, ...(mounts.length ? [] : [os.homedir()]), ...ctx.roots];
   const isBlocked = (candidate) =>
-    isSystemDirectory(candidate) || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir)) || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir));
+    !!(isSystemDirectory(candidate) || (ctx.appDir && isInsideOrSame(candidate, ctx.appDir)) || (ctx.dataDir && isInsideOrSame(candidate, ctx.dataDir)));
   return browseFolders({ dir: dir || null, places, isBlocked });
 });
 

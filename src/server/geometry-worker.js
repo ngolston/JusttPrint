@@ -3,7 +3,10 @@
 // Worker thread: geometry fingerprints (src/core/geometry-signature.js), so a large mesh does not
 // hold up the JusttPrint backend. Messages: { id, filePath } → { id, ok, result | error }; filePath
 // may be a model inside a ZIP ("archive.zip::part.stl").
-const { parentPort } = require('worker_threads');
+const workerThreads = require('worker_threads');
+
+// This file only runs as a worker thread, so it always has a parent.
+const parentPort = /** @type {import('worker_threads').MessagePort} */ (workerThreads.parentPort);
 require('../core/log').install();
 const fs = require('fs');
 const path = require('path');

@@ -256,8 +256,10 @@ function createServerAuth({
   const remembered = new Map();
   // Users by id, so sessions keep working while the database is closed (during a restore).
   const userCache = new Map();
+  /** @type {string | null} */
   let dummyHash = null;
 
+  /** @param {() => string} create */
   function rememberedSetting(key, create) {
     if (!remembered.has(key)) {
       let value = getSetting(key);

@@ -20,6 +20,7 @@ const HOUR = 60 * 60 * 1000;
 /** How long a download file is kept. */
 const KEEP_MS = HOUR;
 
+/** @type {NodeJS.Timeout | null} */
 let timer = null;
 
 function dataDir() {

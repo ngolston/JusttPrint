@@ -178,9 +178,14 @@ async function thingiverseSiteDetails(link, fetchImpl) {
   const html = (await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8');
   const blocked = isBlocked(response, html);
   const fromPage = !blocked && response.ok ? fromThingiversePage(html, link.id) : null;
+  // The Thingiverse API's answers (with a token).
+  /** @type {any} */
   let thing = null;
+  /** @type {any} */
   let tags = null;
+  /** @type {any[] | null} */
   let files = null;
+  /** @type {any} */
   let ancestors = null;
   const siteFiles = require('./site-files');
   if (siteFiles.tokenStatus().hasToken) {
@@ -370,6 +375,7 @@ async function prepareManualFolder({ url, folder }) {
   return { folder: earlierFolder(linkKey(link), ctx) || makeModelFolder(parent, details) };
 }
 
+/** @param {{ url: string, folder: string, files?: string[] | null }} request */
 async function finishManualFolder({ url, folder, files = null }) {
   const link = makerWorldLink(url);
   const ctx = require('./path-context').networkPathContext();
@@ -385,6 +391,7 @@ async function finishManualFolder({ url, folder, files = null }) {
  * not given) after the model (English title, else title): the only file, else the only 3MF. Other
  * files are parts and keep their names, as do the files of earlier downloads. A model the folder
  * watcher already added under the old name moves with it. Answers the main file's name, or null.
+ * @param {string[] | null} [added]
  */
 function nameMainFile(target, details, added = null) {
   const files = fs
@@ -440,6 +447,8 @@ function earlierFolder(key, ctx) {
  * profile `mainProfileId`, else the default one) gets its print history. When MakerWorld stops a
  * download partway (its robot check), what was saved is kept and `missing` lists the rest.
  * Answers { folder, saved, inLibrary, mainFile, missing, warning }.
+ * @param {{ url: string, folder: string, profileId?: string, profileIds?: string[] | null, mainProfileId?: string | null }} request
+ * @param {{ event?: any, fetchImpl?: typeof httpsFetch, onProgress?: ((progress: { label: string, received: number, total: number }) => void) | null }} [options]
  */
 async function download(
   { url, folder, profileId = 'default', profileIds = null, mainProfileId = null },
@@ -493,6 +502,7 @@ async function download(
 
   const saved = [];
   const missing = [];
+  /** @type {string | null} */
   let warning = null;
   for (let i = 0; i < todo.length; i++) {
     const profile = todo[i];
@@ -540,6 +550,7 @@ function mainFileOf(key, details, mainProfileId) {
  * Give downloaded print profiles today's names (modelFileName) when an older version named them
  * differently; `key` limits it to one model. The library's model moves with its file (same row:
  * tags, notes and history stay). Uses the kept details only, no network. Answers how many moved.
+ * @param {string | null} [key]
  */
 function renameProfileFiles(key = null) {
   const { candidateName } = require('./uploads');
@@ -562,6 +573,7 @@ function renameProfileFiles(key = null) {
     const wanted = modelFileName(details, path.extname(row.filePath).toLowerCase() || '.3mf', details.profiles.length > 1 ? profile : null);
     if (path.basename(row.filePath) === wanted) continue;
     const folder = path.dirname(row.filePath);
+    /** @type {string | null} */
     let to = null;
     for (let n = 1; n < 1000 && !to; n++) {
       const candidate = path.join(folder, candidateName(wanted, n));
@@ -635,6 +647,7 @@ async function renameOlderDownloads({ fetchImpl = httpsFetch, force = false } = 
     if (!details) continue;
     const wanted = modelFileName(details, path.extname(main.filePath).toLowerCase());
     if (path.basename(main.filePath) === wanted) continue;
+    /** @type {string | null} */
     let to = null;
     for (let n = 1; n < 1000 && !to; n++) {
       const candidate = path.join(folder, candidateName(wanted, n));

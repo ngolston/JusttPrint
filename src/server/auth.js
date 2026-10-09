@@ -4,9 +4,13 @@ const database = require('../core/database');
 const { createServerAuth } = require('./server-auth');
 const { createSqliteUserStore } = require('./users');
 
+/** @type {ReturnType<typeof createServerAuth> | null} */
 let serverAuth = null;
 
-/** Logins, user accounts, API token and download tokens for the HTTP/WebSocket server. */
+/**
+ * Logins, user accounts, API token and download tokens for the HTTP/WebSocket server.
+ * @returns {ReturnType<typeof createServerAuth>}
+ */
 function getServerAuth() {
   if (!serverAuth) {
     serverAuth = createServerAuth({

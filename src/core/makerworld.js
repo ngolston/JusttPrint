@@ -93,7 +93,7 @@ function profileOf(instance) {
     })),
     downloads: number(instance.downloadCount),
     prints: number(instance.printCount),
-    rating: ratingCount ? Math.round((number(instance.ratingScoreTotal) / ratingCount) * 10) / 10 : null,
+    rating: ratingCount ? Math.round(((number(instance.ratingScoreTotal) || 0) / ratingCount) * 10) / 10 : null,
     ratingCount
   };
 }
@@ -169,7 +169,8 @@ function needsTranslation(name) {
 
 /** "腿部.stl" → { stem: "腿部", extension: ".stl" }. */
 function splitName(name) {
-  const match = /^(.*?)(\.[a-z0-9]{1,6})?$/i.exec(String(name || ''));
+  // Always matches (both parts may be empty).
+  const match = /** @type {RegExpExecArray} */ (/^(.*?)(\.[a-z0-9]{1,6})?$/i.exec(String(name || '')));
   return { stem: match[1], extension: match[2] || '' };
 }
 
@@ -203,6 +204,7 @@ const modelTitle = (details) => (details && (details.titleEnglish || details.tit
  * The main file's name for a model: "<English title, else title><extension>", or with several
  * print profiles "<profile> - <title><extension>": the profile first, so the cards of a model's
  * profiles (cut short in the grid) can be told apart.
+ * @param {{ id: string, name?: string | null, nameEnglish?: string | null } | null} [profile]
  */
 function modelFileName(details, extension, profile = null) {
   if (!profile) return `${safeStem(modelTitle(details), 150)}${extension}`;

@@ -25,6 +25,7 @@ function serverIpcEvent() {
   };
 }
 
+/** @type {NodeJS.Timeout | null} */
 let serverStlHomeTimer = null;
 
 let serverStlHomeScanRunning = false;
@@ -81,8 +82,10 @@ function startServerStlHomeScans() {
 const quietEvent = { sender: { send() {} } };
 
 let watchers = [];
+/** @type {{ stop: () => void } | null} */
 let watchQueue = null;
 let watchScanRunning = false;
+/** @type {NodeJS.Timeout | null} */
 let restartTimer = null;
 
 function watchingEnabled() {

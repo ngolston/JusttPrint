@@ -7,6 +7,7 @@ const { ipcMain } = require('./runtime');
 const { registerApiRoutes, registerClient, unregisterClient, CLIENT_HEADER } = require('./api');
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** @type {any} */
 let seenEvent = null;
 
 // Stand-in handlers under real action names that have no path rules.

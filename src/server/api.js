@@ -113,6 +113,7 @@ async function runAction(req, res, keepaliveMs) {
     fromNetwork: true
   };
 
+  /** @type {NodeJS.Timeout | null} */
   let keepalive = null;
   let streaming = false;
   const startStreaming = setTimeout(() => {
@@ -130,7 +131,7 @@ async function runAction(req, res, keepaliveMs) {
     outcome = { error: (error && error.message) || String(error) };
   } finally {
     clearTimeout(startStreaming);
-    clearInterval(keepalive);
+    if (keepalive) clearInterval(keepalive);
   }
   if (res.writableEnded || res.destroyed) return;
 

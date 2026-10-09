@@ -1,4 +1,7 @@
-const { parentPort } = require('worker_threads');
+const workerThreads = require('worker_threads');
+
+// This file only runs as a worker thread (ipc/scan.js), so it always has a parent.
+const parentPort = /** @type {import('worker_threads').MessagePort} */ (workerThreads.parentPort);
 // Worker threads have their own console: same levels and timestamps as the server.
 require('../core/log').install();
 const fs = require('fs');
@@ -50,6 +53,10 @@ function buildScanExtensionSet(scanExtensions) {
   return set;
 }
 
+/**
+ * @param {string[] | null} [scanExtensions]
+ * @param {string[] | null} [excludeDirectories]
+ */
 async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = false, scanExtensions = null, excludeDirectories = null) {
   const files = [];
   /** Model files (and zip entries) left out because they are larger than maxFileSize. */
@@ -116,6 +123,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
     // While we have capacity and items in queue, start processing
     while (activeOps < MAX_CONCURRENT_OPS && queue.length > 0) {
       const item = queue.shift();
+      if (!item) break;
       activeOps++;
 
       if (item.type === 'dir') {
@@ -218,6 +226,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
 async function scanZipFile(zipPath, maxFileSize, extSet = new Set(['.stl', '.3mf'])) {
   const files = [];
   let skippedDueToSize = 0;
+  /** @type {InstanceType<typeof StreamZip.async> | null} */
   let zip = null;
   try {
     zip = new StreamZip.async({ file: zipPath });

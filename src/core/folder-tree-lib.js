@@ -163,7 +163,9 @@ function inferOrphanRoots(orphanDirs) {
 function ancestorChain(filePath) {
   if (!filePath || isUrlModelPath(filePath)) return [];
   const normalized = filePath.replace(/\\/g, '/');
+  /** @type {string | null} */
   let zipPath = null;
+  /** @type {string | null} */
   let entryPath = null;
   const zipSep = normalized.indexOf('::');
   if (zipSep !== -1) {

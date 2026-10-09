@@ -68,7 +68,7 @@ const BACKUP_RUNNING = 'A backup is being written. Try again when it has finishe
 
 // Replaces the library database with an uploaded backup. The upload is checked in a temp
 // file first.
-ipcMain.handle('restore-database', async (event, payload = null) => {
+ipcMain.handle('restore-database', async (event, /** @type {{ base64?: string } | null} */ payload = null) => {
   if (!payload || !payload.base64) {
     return { success: false, message: 'Upload a backup file to restore.' };
   }
@@ -357,7 +357,7 @@ ipcMain.handle('export-library', async () => {
 });
 
 // Import library handler
-ipcMain.handle('import-library', async (event, payload = null) => {
+ipcMain.handle('import-library', async (event, /** @type {{ json?: string } | null} */ payload = null) => {
   const importLibraryData = async (importData) => {
     if (!importData.models || !Array.isArray(importData.models)) {
       throw new Error('Invalid library file format: missing models array');

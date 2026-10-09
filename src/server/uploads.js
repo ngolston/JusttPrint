@@ -57,9 +57,13 @@ function uploadChunkBytes(env = process.env) {
   return Math.max(MIN_CHUNK_BYTES, Math.round((Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_CHUNK_MB) * 1024 * 1024));
 }
 
+/** @type {ReturnType<typeof createUploadSessions> | null} */
 let sessionStore = null;
 
-/** The open piece-by-piece uploads (kept in uploads-pending.json in the data folder). */
+/**
+ * The open piece-by-piece uploads (kept in uploads-pending.json in the data folder).
+ * @returns {ReturnType<typeof createUploadSessions>}
+ */
 function uploadSessions() {
   if (!sessionStore) {
     const { app } = require('./runtime');
@@ -337,11 +341,12 @@ function registerUploadRoutes(expressApp, { requireRole }) {
   };
   if (!sweepTimer) {
     sweepTimer = setInterval(sweep, 60 * 60 * 1000);
-    if (sweepTimer.unref) sweepTimer.unref();
+    sweepTimer.unref();
     setImmediate(sweep);
   }
 }
 
+/** @type {NodeJS.Timeout | null} */
 let sweepTimer = null;
 
 module.exports = {

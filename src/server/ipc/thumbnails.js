@@ -34,6 +34,7 @@ ipcMain.handle('purge-thumbnails', async () => {
 // Server/Docker: bulk thumbnail jobs run in the hidden Electron window (WebGL),
 // so browser-tab focus throttling cannot stall Generate Missing / Regenerate.
 // ---------------------------------------------------------------------------
+/** @type {{ status: string, mode: string | null, cancelRequested: boolean }} */
 let serverThumbnailJob = {
   status: 'idle', // idle | running
   mode: null,

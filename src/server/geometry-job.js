@@ -83,6 +83,7 @@ function missing(filters) {
   });
 }
 
+/** @type {import('worker_threads').Worker | null} */
 let worker = null;
 const pending = new Map();
 let nextId = 1;
@@ -95,16 +96,17 @@ function fingerprint(filePath) {
       if (done) done(ok ? { result } : { error });
     });
     worker.on('error', (error) => {
-      for (const done of pending.values()) done({ error: error.message });
+      for (const done of pending.values()) done({ error: error instanceof Error ? error.message : String(error) });
       pending.clear();
       worker = null;
     });
     worker.unref();
   }
+  const active = worker;
   return new Promise((resolve) => {
     const id = nextId++;
     pending.set(id, resolve);
-    worker.postMessage({ id, filePath });
+    active.postMessage({ id, filePath });
   });
 }
 

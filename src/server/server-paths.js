@@ -147,7 +147,7 @@ function isInsideRoots(filePath, roots, realpath) {
  */
 function isLibraryPathAllowed(
   filePath,
-  { roots = [], isKnownModel = () => false, generatedDir = '', autoBackupDir = '', downloadsDir = '', isExtractTemp = () => false, realpath = null } = {}
+  { roots = [], isKnownModel = () => false, generatedDir = '', autoBackupDir = '', downloadsDir = '', isExtractTemp = () => false, realpath = undefined } = {}
 ) {
   const raw = String(filePath || '');
   if (!raw || raw.includes('\0')) return false;

@@ -149,7 +149,9 @@ function newestBackupDate(dir) {
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
 }
 
+/** @type {Promise<any> | null} */
 let running = null;
+/** @type {NodeJS.Timeout | null} */
 let timer = null;
 
 /** Back up now. Resolves to { success, backup?, removed?, message? }; never runs two at once. */

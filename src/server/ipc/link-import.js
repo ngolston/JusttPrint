@@ -9,9 +9,10 @@ const { checkLinks, importLink } = require('../link-import');
 const { saveModel } = require('./models');
 
 // Other browsers search again once a batch of imports goes quiet, not after every link.
+/** @type {NodeJS.Timeout | null} */
 let refreshTimer = null;
 function refreshSoon() {
-  clearTimeout(refreshTimer);
+  if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => events.broadcast('refresh-grid'), 1500);
   if (refreshTimer.unref) refreshTimer.unref();
 }

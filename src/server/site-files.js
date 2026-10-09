@@ -116,10 +116,11 @@ async function thingiverseJson(apiPath, fetchImpl = httpsFetch) {
 /** What Printables says about a G-code file: printer, material, time (hours), grams, layer, nozzle. */
 function gcodePrint(file) {
   const num = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null);
+  const hours = num(file.printDuration);
   return {
     printer: (file.printer && file.printer.name) || null,
     material: (file.material && file.material.name) || null,
-    seconds: num(file.printDuration) ? Math.round(num(file.printDuration) * 3600) : null,
+    seconds: hours ? Math.round(hours * 3600) : null,
     grams: num(file.weight),
     layerHeight: num(file.layerHeight),
     nozzle: num(file.nozzleDiameter)
@@ -237,6 +238,10 @@ function plainName(name, fallback) {
  * the rest; `notScanned` the saved files of types the library does not scan.
  * Answers { folder, saved, inLibrary, mainFile, missing, warning, notScanned }.
  */
+/**
+ * @param {{ url: string, folder: string, fileIds?: string[] | null }} request
+ * @param {{ fetchImpl?: typeof httpsFetch, onProgress?: ((progress: { label: string, received: number, total: number }) => void) | null, info?: any }} [options]
+ */
 async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = httpsFetch, onProgress = null, info = null } = {}) {
   const link = parseModelLink(url);
   if (!link || !['printables', 'thingiverse'].includes(link.site)) throw new Error('Not a Printables or Thingiverse model link');
@@ -274,6 +279,7 @@ async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = http
 
   const saved = [];
   const missing = [];
+  /** @type {string | null} */
   let warning = null;
   for (let i = 0; i < todo.length; i++) {
     const file = todo[i];
@@ -309,6 +315,7 @@ async function downloadFiles({ url, folder, fileIds = null }, { fetchImpl = http
   }
 
   // A single main file (the only one, or the only 3MF) is named after the model.
+  /** @type {string | null} */
   let mainName = null;
   if (saved.length && !reused) {
     mainName = siteDetails.nameMainFile(target, details, saved);
