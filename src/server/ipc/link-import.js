@@ -20,8 +20,31 @@ function refreshSoon() {
 ipcMain.handle('check-model-links', async (event, text) => checkLinks(database.db, text));
 
 /** Add one model link to the library (the dialog calls this link by link, to show progress). */
-ipcMain.handle('import-model-link', async (event, url) => {
-  const result = await importLink(url, { db: database.db, saveModel, saveThumbnail });
-  if (result.status === 'added') refreshSoon();
+/** `options.downloadFolder`: download MakerWorld models into that library folder (site-details.js). */
+ipcMain.handle('import-model-link', async (event, url, options) => {
+  const { download } = require('../site-details');
+  const { downloadFiles } = require('../site-files');
+  const result = await importLink(url, { db: database.db, saveModel, saveThumbnail, download, downloadFiles }, {
+    downloadFolder: options && typeof options.downloadFolder === 'string' ? options.downloadFolder : null,
+    profileIds: options && Array.isArray(options.profileIds) ? options.profileIds.filter((id) => typeof id === 'string').slice(0, 200) : null,
+    fileIds: options && Array.isArray(options.fileIds) ? options.fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null,
+    downloadOptions: { event, onProgress: (progress) => events.toCaller(event, 'makerworld-download-progress', progress) }
+  });
+  if (result.status === 'added' || result.status === 'downloaded') refreshSoon();
   return result;
 });
+
+/** The files of a Printables or Thingiverse model, to tick in Add Links: { files } or { needsToken, error }. */
+ipcMain.handle('list-site-files', async (event, url) => {
+  try {
+    return { files: await require('../site-files').listFiles(url) };
+  } catch (error) {
+    if (error.code === 'THINGIVERSE_TOKEN') return { files: [], needsToken: true, error: error.message };
+    throw error;
+  }
+});
+
+ipcMain.handle('thingiverse-token-status', async () => require('../site-files').tokenStatus());
+
+/** Admins only: check a Thingiverse API token and keep it ('' removes it). */
+ipcMain.handle('set-thingiverse-token', async (event, value) => require('../site-files').setToken(value));

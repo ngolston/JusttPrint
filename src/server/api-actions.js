@@ -36,7 +36,20 @@ const ACTIONS = {
 
   // Bulk import from Printables, Thingiverse and MakerWorld links (ipc/link-import.js)
   'check-model-links': ['string'],
-  'import-model-link': ['string'],
+  'import-model-link': ['string', 'object?'],
+  'list-site-files': ['string'],
+  'thingiverse-token-status': [],
+  'set-thingiverse-token': ['string'],
+
+  // MakerWorld details, sign-in and downloads (ipc/makerworld.js)
+  'get-site-details': ['string', 'boolean?'],
+  'makerworld-account-status': [],
+  'makerworld-sign-in': ['object'],
+  'makerworld-sign-out': [],
+  'makerworld-download': ['object'],
+  'makerworld-check-folder': ['string'],
+  'makerworld-prepare-folder': ['object'],
+  'makerworld-add-files': ['object'],
 
   // Scanning and library folders
   'load-directory': [],
@@ -221,13 +234,15 @@ const VIEWER_ACTIONS = new Set([
   'get-stats', 'get-library-storage', 'get-library-counts', 'get-recent-activity', 'get-recent-prints', 'get-print-statistics',
   // The thumbnail renderer reads the GPU backend in every browser.
   'get-gpu-info',
-  'get-collections', 'get-collection', 'get-collection-membership'
+  'get-collections', 'get-collection', 'get-collection-membership',
+  'get-site-details'
 ]);
 
 /** Actions that change the library: editors and admins. */
 const EDITOR_ACTIONS = new Set([
   'save-model', 'save-model-batch', 'update-models-batch', 'clear-new-model-flags', 'add-uploaded-files',
-  'check-model-links', 'import-model-link',
+  'check-model-links', 'import-model-link', 'list-site-files', 'thingiverse-token-status',
+  'makerworld-account-status', 'makerworld-sign-in', 'makerworld-sign-out', 'makerworld-download', 'makerworld-check-folder', 'makerworld-prepare-folder', 'makerworld-add-files',
   'browse-folders', 'scan-directory', 'save-directory', 'trash-file', 'delete-file', 'move-files', 'calculate-file-hash',
   'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
   'get-models-without-thumbnails', 'get-models-with-default-thumbnails', 'start-server-thumbnail-job', 'cancel-server-thumbnail-job',

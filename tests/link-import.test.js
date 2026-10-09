@@ -56,7 +56,8 @@ async function main() {
     image: { filePath: 'media/prints/3161/images/20206_70fde6a0/benchy.jpg' }, license: { name: 'Creative Commons — Public Domain' } } } };
   assert.deepStrictEqual(fromPrintables(printables), {
     name: '3D BENCHY', designer: 'Prusa Research', license: 'Creative Commons — Public Domain',
-    image: 'https://media.printables.com/media/prints/3161/images/20206_70fde6a0/thumbs/inside/640x480/jpg/benchy.jpg'
+    image: 'https://media.printables.com/media/prints/3161/images/20206_70fde6a0/thumbs/inside/640x480/jpg/benchy.jpg',
+    imageFallback: 'https://media.printables.com/media/prints/3161/images/20206_70fde6a0/benchy.jpg'
   });
   assert.strictEqual(fromPrintables({ data: { print: null } }), null);
   assert.strictEqual(printablesImageUrl('/media/x.png'), 'https://media.printables.com/media/x.png');
@@ -68,6 +69,7 @@ async function main() {
     image: 'https://makerworld.bblmw.com/makerworld/model/US46/design/ae66.png?x-oss-process=image/resize,w_640'
   });
   assert.strictEqual(fromMakerWorld({ id: 0, title: '' }), null, 'MakerWorld answers id 0 for a missing model');
+  assert.strictEqual(fromMakerWorld({ ...makerworld, title: '可活动的擎天柱', titleTranslated: 'Articulated Optimus Prime' }).name, 'Articulated Optimus Prime', 'the English title when there is one');
 
   const ld = { '@context': 'https://schema.org/', '@type': 'Product', name: '#3DBenchy - The jolly torture-test by CreativeTools.se',
     author: { '@type': 'Person', name: 'CreativeTools' }, license: 'https://creativecommons.org/publicdomain/zero/1.0/' };
@@ -109,10 +111,13 @@ async function main() {
     calls.push(String(url));
     if (url === 'https://api.printables.com/graphql/') {
       const { variables } = JSON.parse(options.body);
+      if (variables.id === '1839122') return answer({ data: { print: { ...printables.data.print, name: 'Parametric Laptop Stand', image: { filePath: 'media/prints/76a6/images/1378_5aaa/frame-1.png' } } } });
       return answer(variables.id === '3161' ? printables : { data: { print: null } });
     }
     if (String(url).startsWith('https://makerworld.com/api/v1/design-service/design/')) return answer(makerworld);
     if (String(url).startsWith('https://www.thingiverse.com/')) return answer('<title>Just a moment...</title>', { status: 403 });
+    // Newer pictures: no resized version (400), the original works.
+    if (String(url).includes('/thumbs/') && String(url).includes('frame-1')) return answer('{"error":"bad"}', { status: 400 });
     if (String(url).startsWith('https://media.printables.com/')) return answer(jpeg, { headers: { 'content-type': 'image/jpeg' } });
     if (String(url).startsWith('https://makerworld.bblmw.com/')) return answer('<html>oops</html>', { headers: { 'content-type': 'text/html' } });
     throw new Error(`unexpected fetch ${url}`);
@@ -147,6 +152,10 @@ async function main() {
     license: 'Creative Commons — Public Domain', source: 'https://www.printables.com/model/3161', markAsNew: true });
   assert.ok(db.prepare('SELECT thumbnail FROM models WHERE filePath = ?').get(added.filePath).thumbnail.startsWith('data:image/jpeg;base64,'));
   assert.strictEqual((await importLink('printables.com/model/3161', deps)).status, 'exists', 'the second time it is already there');
+
+  const newer = await importLink('https://www.printables.com/model/1839122-parametric-laptop-stand', deps);
+  assert.deepStrictEqual([newer.picture, newer.warning], [true, null], 'the original picture when there is no resized one');
+  assert.ok(calls.includes('https://media.printables.com/media/prints/76a6/images/1378_5aaa/frame-1.png'));
 
   const noPicture = await importLink('https://makerworld.com/en/models/19535-blv', deps);
   assert.strictEqual(noPicture.status, 'added');

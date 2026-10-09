@@ -143,6 +143,12 @@ async function start() {
     },
     sessionToken: () => getServerAuth().issueSessionToken()
   });
+  // Before scans and folder watching start: downloaded MakerWorld profiles get today's names.
+  try {
+    require('./site-details').renameProfileFiles();
+  } catch (error) {
+    console.error('[MakerWorld] Could not rename downloaded print profiles:', error);
+  }
   startServerStlHomeScans();
   startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });

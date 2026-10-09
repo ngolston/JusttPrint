@@ -163,7 +163,12 @@ export function PreviewDialog() {
   }
 
   async function openPreview(filePath: string) {
-    const token = await begin(filePath.split(/[/\\]/).pop() || filePath, filePath.startsWith('url::') ? [] : [filePath]);
+    // An online model (added from a link) has no file to draw.
+    if (filePath.startsWith('url::')) {
+      await showMessage('No 3D Preview', 'This is an online model: JusttPrint has a link to it, not its files. Download the files to see it in 3D (for MakerWorld models: Download to Library… in the MakerWorld section of its details).');
+      return;
+    }
+    const token = await begin(filePath.split(/[/\\]/).pop() || filePath, [filePath]);
     if (token !== tokenRef.current) return;
     const ext = previewExtension(filePath);
     setFileType(`Type: ${ext.toUpperCase()}`);
