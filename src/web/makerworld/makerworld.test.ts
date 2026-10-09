@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, linkParts, makerWorldUrl } from './makerworld';
+import { formatDuration, formatGrams, linkParts, makerWorldUrl, siteModelUrl } from './makerworld';
 
 describe('MakerWorld in the details panel', () => {
   it('finds the MakerWorld link of a model', () => {
@@ -8,6 +8,12 @@ describe('MakerWorld in the details panel', () => {
     expect(makerWorldUrl({ filePath: '/library/legs.stl', source: 'https://www.printables.com/model/1' })).toBeNull();
     expect(makerWorldUrl({ filePath: '/library/legs.stl', source: 'https://makerworld.com.evil.example/models/1' })).toBeNull();
     expect(makerWorldUrl(null)).toBeNull();
+  });
+
+  it('finds Printables and Thingiverse links too', () => {
+    expect(siteModelUrl({ filePath: 'url::https://www.printables.com/model/1839122' })).toEqual({ site: 'printables', url: 'https://www.printables.com/model/1839122' });
+    expect(siteModelUrl({ filePath: '/l/bear.stl', source: 'https://www.thingiverse.com/thing:7418273' })).toEqual({ site: 'thingiverse', url: 'https://www.thingiverse.com/thing:7418273' });
+    expect(siteModelUrl({ filePath: '/l/x.stl', source: 'https://thangs.com/m/1' })).toBeNull();
   });
 
   it('formats print time and weight', () => {

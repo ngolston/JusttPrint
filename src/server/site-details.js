@@ -16,7 +16,8 @@ const crypto = require('crypto');
 const { Readable, Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 const database = require('../core/database');
-const { linkKey, parseModelLink } = require('../core/link-import');
+const { SITES, fromThingiversePage, linkKey, parseModelLink } = require('../core/link-import');
+const { printablesDetails, thingiverseDetails } = require('../core/site-model-details');
 const { folderName, makerWorldDetails, modelFileName, splitName } = require('../core/makerworld');
 const { httpsFetch, isBlocked, readLimited, USER_AGENT } = require('./link-import');
 const translate = require('./translate');
@@ -123,9 +124,58 @@ async function getDetails(url, options = {}) {
   return result;
 }
 
+const PRINTABLES_FIELDS = `id name summary description datePublished firstPublish modified likesCount downloadCount makesCount displayCount
+  tags { name } category { path { name } } printDuration numPieces weight nozzleDiameters usedMaterial layerHeights
+  materials { name } images { filePath } license { name } user { publicUsername handle }`;
+
+/** A Printables model's details, from its GraphQL API (no account needed). */
+async function printablesSiteDetails(link, fetchImpl) {
+  const response = await fetchImpl('https://api.printables.com/graphql/', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json', origin: 'https://www.printables.com', 'user-agent': USER_AGENT },
+    body: JSON.stringify({ query: `query JusttPrintDetails($id: ID!) { print(id: $id) { ${PRINTABLES_FIELDS} } }`, variables: { id: link.id } }),
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  const body = JSON.parse((await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8'));
+  if (body.errors && body.errors.length) throw new Error(`Printables: ${body.errors[0].message}`);
+  const print = body.data && body.data.print;
+  if (!print) return null;
+  const files = await require('./site-files').listFiles(link.url, fetchImpl).catch(() => []);
+  return printablesDetails(print, files, link.url);
+}
+
+/** A Thingiverse model's details: its page, and with an API token its tags, categories and files too. */
+async function thingiverseSiteDetails(link, fetchImpl) {
+  const response = await fetchImpl(SITES.thingiverse.canonical(link.id), { headers: { 'user-agent': USER_AGENT, accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const html = (await readLimited(response, MAX_DESIGN_BYTES)).toString('utf8');
+  if (isBlocked(response, html)) throw new Error('Thingiverse asked for a browser check and did not answer');
+  const fromPage = response.ok ? fromThingiversePage(html, link.id) : null;
+  let thing = null;
+  let tags = null;
+  let files = null;
+  const siteFiles = require('./site-files');
+  if (siteFiles.tokenStatus().hasToken) {
+    try {
+      thing = await siteFiles.thingiverseJson(`/things/${link.id}`, fetchImpl);
+      tags = await siteFiles.thingiverseJson(`/things/${link.id}/tags`, fetchImpl).catch(() => null);
+      files = await siteFiles.listFiles(link.url, fetchImpl);
+    } catch (error) {
+      console.warn(`[Thingiverse] API details of ${link.url}: ${error.message}`);
+    }
+  }
+  return thingiverseDetails({ id: link.id, url: link.url, fromPage, html, thing, tags, files });
+}
+
+/** A model's details from its site: MakerWorld, Printables or Thingiverse; null when there is no such model. */
+async function siteModelDetails(link, fetchImpl) {
+  if (link.site === 'printables') return printablesSiteDetails(link, fetchImpl);
+  if (link.site === 'thingiverse') return thingiverseSiteDetails(link, fetchImpl);
+  return makerWorldDetails(await fetchDesign(link, fetchImpl), link.url);
+}
+
 async function fetchDetails(url, { refresh = false, event = null, fetchImpl = httpsFetch } = {}) {
   const link = parseModelLink(url);
-  if (!link || link.site !== 'makerworld') return null;
+  if (!link) return null;
   const key = linkKey(link);
   const row = table().prepare('SELECT data, fetched_at FROM site_details WHERE key = ?').get(key);
   const kept = row ? JSON.parse(row.data) : null;
@@ -135,8 +185,8 @@ async function fetchDetails(url, { refresh = false, event = null, fetchImpl = ht
     return { details: kept, fetchedAt: row.fetched_at, stale: false, error: null };
   }
   try {
-    const details = makerWorldDetails(await fetchDesign(link, fetchImpl), link.url);
-    if (!details) return { details: null, fetchedAt: null, stale: false, error: 'MakerWorld has no model with this number' };
+    const details = await siteModelDetails(link, fetchImpl);
+    if (!details) return { details: null, fetchedAt: null, stale: false, error: `${SITES[link.site].label} has no model with this number` };
     const deps = { fetchImpl, aiSettings: require('./ipc/ai').getAISettings(), puterHandler: event ? require('./ipc/ai').createPuterIPCHandler(event) : null };
     await addTranslations(details, deps);
     const fetchedAt = new Date().toISOString();
@@ -470,6 +520,71 @@ function renameProfileFiles(key = null) {
   return moved;
 }
 
+const OLDER_RENAME_KEY = 'makerWorldOlderRenameDone';
+
+/**
+ * Downloads from before JusttPrint kept track of them (no site_files row): name the main file of
+ * a MakerWorld model's folder after the model's English title (else its title). Only folders that
+ * hold nothing but that one model's files are touched, and only their single main file (the only
+ * file, or the only 3MF); part files keep their names. The library's model moves with its file.
+ * Answers how many were renamed. Runs once (`force` runs it again).
+ */
+async function renameOlderDownloads({ fetchImpl = httpsFetch, force = false } = {}) {
+  if (!force && setting(OLDER_RENAME_KEY) === '1') return 0;
+  const { candidateName } = require('./uploads');
+  const tracked = new Set(table().prepare('SELECT file_path FROM site_files').all().map((row) => row.file_path));
+  const rows = database.db.prepare("SELECT filePath, source FROM models WHERE source LIKE '%makerworld.com%' AND filePath NOT LIKE 'url::%'").all();
+  const folders = new Map();
+  for (const row of rows) {
+    const link = parseModelLink(row.source);
+    if (!link || link.site !== 'makerworld' || row.filePath.includes('::') || tracked.has(row.filePath)) continue;
+    const folder = path.dirname(row.filePath);
+    if (!folders.has(folder)) folders.set(folder, link);
+  }
+  let renamed = 0;
+  for (const [folder, link] of folders) {
+    const key = linkKey(link);
+    const prefix = `${folder.replace(/[\\%_]/g, (c) => `\\${c}`)}${path.sep}%`;
+    const inFolder = database.db.prepare("SELECT filePath, source FROM models WHERE filePath LIKE ? ESCAPE '\\'").all(prefix)
+      .filter((row) => path.dirname(row.filePath) === folder);
+    // Only a folder of this one model's files.
+    if (!inFolder.length || inFolder.some((row) => linkKey(parseModelLink(row.source)) !== key || tracked.has(row.filePath))) continue;
+    const threeMfs = inFolder.filter((row) => /\.3mf$/i.test(row.filePath));
+    const main = inFolder.length === 1 ? inFolder[0] : threeMfs.length === 1 ? threeMfs[0] : null;
+    if (!main || !fs.existsSync(main.filePath)) continue;
+    let details;
+    try {
+      ({ details } = (await getDetails(link.url, { fetchImpl })) || {});
+    } catch (error) {
+      console.warn(`[MakerWorld] Could not get the details of ${link.url} to rename ${main.filePath}: ${error.message}`);
+      continue;
+    }
+    if (!details) continue;
+    const wanted = modelFileName(details, path.extname(main.filePath).toLowerCase());
+    if (path.basename(main.filePath) === wanted) continue;
+    let to = null;
+    for (let n = 1; n < 1000 && !to; n++) {
+      const candidate = path.join(folder, candidateName(wanted, n));
+      if (candidate === main.filePath) break;
+      if (!fs.existsSync(candidate)) to = candidate;
+    }
+    if (!to) continue;
+    try {
+      fs.renameSync(main.filePath, to);
+    } catch (error) {
+      console.warn(`[MakerWorld] Could not rename ${main.filePath}: ${error.message}`);
+      continue;
+    }
+    // Right after the rename, so a folder rescan finds the model under its new name.
+    database.db.prepare('UPDATE models SET filePath = ?, fileName = ? WHERE filePath = ?').run(to, path.basename(to), main.filePath);
+    renamed++;
+    console.log(`[MakerWorld] Renamed ${path.basename(main.filePath)} to ${path.basename(to)}`);
+  }
+  database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(OLDER_RENAME_KEY, '1');
+  if (renamed) require('./events').broadcast('refresh-grid');
+  return renamed;
+}
+
 /** For tests: no pause between profile downloads. */
 const setProfileGap = (ms) => { profileGapMs = ms; };
 
@@ -487,4 +602,4 @@ function checkFolder(folder) {
 /** For tests: forget a robot check. */
 const resetCaptchaPause = () => { captchaUntil = 0; };
 
-module.exports = { DOWNLOAD_HOSTS, downloadsFor, earlierFolder, finishFolder, makeModelFolder, renameProfileFiles, saveTo, setProfileGap, siteFilesTable: table, checkFolder, finishManualFolder, nameMainFile, prepareManualFolder, resetCaptchaPause, download, getDetails, isAllowedDownloadUrl, makerWorldLink, signInError };
+module.exports = { DOWNLOAD_HOSTS, downloadsFor, renameOlderDownloads, earlierFolder, finishFolder, makeModelFolder, renameProfileFiles, saveTo, setProfileGap, siteFilesTable: table, checkFolder, finishManualFolder, nameMainFile, prepareManualFolder, resetCaptchaPause, download, getDetails, isAllowedDownloadUrl, makerWorldLink, signInError };

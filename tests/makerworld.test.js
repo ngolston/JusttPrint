@@ -181,7 +181,7 @@ async function main() {
   assert.strictEqual(designFetches, 2, 'Refresh fetches again');
   const offline = await siteDetails.getDetails(URL_, { refresh: true, fetchImpl: async () => { throw new Error('offline'); } });
   assert.ok(offline.stale && offline.details.title === design.title && /offline/.test(offline.error), 'older details are shown when MakerWorld cannot be reached');
-  assert.strictEqual(await siteDetails.getDetails('https://www.printables.com/model/1', { fetchImpl: world }), null);
+  assert.strictEqual(await siteDetails.getDetails('https://example.com/model/1', { fetchImpl: world }), null, 'only model links of the three sites have details');
 
   // --- Downloads ---
   const library = path.join(tmp, 'library');
@@ -383,6 +383,32 @@ async function main() {
   const notWritable = await importLink('https://makerworld.com/en/models/3006565', linkDeps, { downloadFolder: '/etc' });
   assert.strictEqual(notWritable.status, 'added');
   assert.match(notWritable.warning, /Not downloaded: .*Added as an online model/);
+  database.db.prepare('DELETE FROM models').run();
+
+  // Older downloads (not tracked): the single main file is named after the English title, once.
+  database.db.prepare('DELETE FROM models').run();
+  database.db.prepare('DELETE FROM site_files').run();
+  const oldDir = path.join(library, 'old download');
+  const mixedDir = path.join(library, 'mixed');
+  fs.mkdirSync(oldDir);
+  fs.mkdirSync(mixedDir);
+  for (const [dir, name, source] of [
+    [oldDir, 'Default parameters no supports.3mf', 'https://makerworld.com/en/models/3006565'],
+    [oldDir, 'legs.stl', 'https://makerworld.com/en/models/3006565'],
+    [mixedDir, 'p1s.3mf', 'https://makerworld.com/en/models/3006565'],
+    [mixedDir, 'benchy.stl', 'https://www.printables.com/model/3161']
+  ]) {
+    fs.writeFileSync(path.join(dir, name), 'x');
+    database.db.prepare("INSERT INTO models (filePath, fileName, source, notes) VALUES (?, ?, ?, 'kept')").run(path.join(dir, name), name, source);
+  }
+  assert.strictEqual(await siteDetails.renameOlderDownloads({ fetchImpl: world }), 1);
+  assert.deepStrictEqual(fs.readdirSync(oldDir).sort(), [`${T}.3mf`, 'legs.stl'].sort(), 'the 3MF takes the title; parts keep their names');
+  assert.strictEqual(database.db.prepare('SELECT notes FROM models WHERE filePath = ?').get(path.join(oldDir, `${T}.3mf`)).notes, 'kept', 'the model moves with its file');
+  assert.deepStrictEqual(fs.readdirSync(mixedDir).sort(), ['benchy.stl', 'p1s.3mf'], 'a folder with other models is left alone');
+  fs.renameSync(path.join(oldDir, `${T}.3mf`), path.join(oldDir, 'again.3mf'));
+  database.db.prepare('UPDATE models SET filePath = ? WHERE filePath = ?').run(path.join(oldDir, 'again.3mf'), path.join(oldDir, `${T}.3mf`));
+  assert.strictEqual(await siteDetails.renameOlderDownloads({ fetchImpl: world }), 0, 'only once');
+  assert.strictEqual(await siteDetails.renameOlderDownloads({ fetchImpl: world, force: true }), 1);
   database.db.prepare('DELETE FROM models').run();
 
   // A folder JusttPrint may not write to is caught before anything is downloaded.

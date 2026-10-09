@@ -149,6 +149,11 @@ async function start() {
   } catch (error) {
     console.error('[MakerWorld] Could not rename downloaded print profiles:', error);
   }
+  // Older downloads (before JusttPrint kept track of them) once, a little later: it may ask MakerWorld for titles.
+  setTimeout(() => {
+    require('./site-details').renameOlderDownloads()
+      .catch((error) => console.error('[MakerWorld] Could not rename older downloads:', error));
+  }, 20000).unref?.();
   startServerStlHomeScans();
   startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });

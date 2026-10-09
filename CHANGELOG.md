@@ -2,6 +2,20 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [7.7.0] - 2026-10-08
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update. On the first start, downloads from MakerWorld made before 7.6.0 are renamed once to the model's English title (see below).
+
+**Changes:**
+- **Printables and Thingiverse in the details panel:** models whose link or source is on Printables or Thingiverse get the same section as MakerWorld models: **The model** (title, model number, designer with a link to their page, license, categories, tags, dates, popularity, description), **Print settings** from Printables (print time, filament, pieces, material, nozzle, layer height, when the designer gave them), **Files** (which ones are downloaded, G-code marked), **Download to Library…** (tick the files; they go into the model's folder and the online model becomes them) and the **Video**. Thingiverse shows its page's details without an API token, and its tags, categories and files with one; without it, the section says so, with a button to **Settings → Integrations → Thingiverse** for admins.
+- **Same geometry on the Duplicates page:** **Find: Same geometry** finds the same model saved as different files, which file hashes cannot: an STL and its 3MF, a re-export, a copy moved or turned on the plate. Each STL and 3MF is read once (in the background, with progress; you can leave the page) and remembered until the file changes. The comparison uses the shape's surface area, volume, triangle count, its extents along its own axes and its handedness, so mirrored left and right parts of a kit are not matched, and a scaled copy is a different model. The same design meshed at another resolution is not matched either, and models inside ZIP files are not compared. **Keep this**, **Easy** and **Delete Selected** work as for identical files.
+- **Older MakerWorld downloads get the English title:** files downloaded before JusttPrint kept track of downloads (for example `Optimus Prime.3mf`, named after its print profile) are renamed once to the model's English title (`Articulated Optimus Prime.3mf`). Only folders holding nothing but that model's files are touched, and only their single main file (the only file, or the only 3MF); the library's model keeps its tags, notes and print history.
+- Removed the Thangs page scraper (`fetch-thangs-page`): nothing in JusttPrint used it any more, and it ran a headless browser for each call. The thumbnail renderer is the only user of headless Chromium now.
+- **Tests:** `npm run test:e2e:docker` builds the Docker image and runs the end-to-end checks against it, with the test folders mounted at the same paths.
+
+**Fixes:**
+- Leaving **Settings** while a form was still loading its values (AI Tagging, MakerWorld, Thingiverse) could pop that form up as a dialog over the next page. Running the end-to-end checks in the container, which is a little slower, found it.
+
 ## [7.6.0] - 2026-10-08
 
 **Upgrading:** no changes needed. Reload open browser tabs after the update. The library folder you download into must be writable: remove `:ro` from its volume in Docker. If your network limits outgoing traffic, the JusttPrint backend now also needs HTTPS to `api.bambulab.com` (MakerWorld sign-in), `api.mymemory.translated.net` (free translation of file names), `files.printables.com` (Printables downloads) and `api.thingiverse.com` and `cdn.thingiverse.com` (Thingiverse downloads); browsers load the video player from `www.youtube-nocookie.com` when you press Play.

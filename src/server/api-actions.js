@@ -38,6 +38,7 @@ const ACTIONS = {
   'check-model-links': ['string'],
   'import-model-link': ['string', 'object?'],
   'list-site-files': ['string'],
+  'site-download-files': ['object'],
   'thingiverse-token-status': [],
   'set-thingiverse-token': ['string'],
 
@@ -47,6 +48,10 @@ const ACTIONS = {
   'makerworld-sign-in': ['object'],
   'makerworld-sign-out': [],
   'makerworld-download': ['object'],
+  'get-geometry-duplicates': ['object?'],
+  'start-geometry-scan': ['object?'],
+  'get-geometry-scan': [],
+  'stop-geometry-scan': [],
   'makerworld-check-folder': ['string'],
   'makerworld-prepare-folder': ['object'],
   'makerworld-add-files': ['object'],
@@ -201,10 +206,9 @@ const ACTIONS = {
   'check-for-updates': ['any?'],
   'open-update-page': ['any?'],
 
-  // AI tagging, web pages, system report
+  // AI tagging, system report
   'test-ai-config': ['string?', 'string?', 'string?', 'string?'],
   'get-default-ai-prompt': [],
-  'fetch-thangs-page': ['string'],
   'get-stats': [],
   'get-library-storage': [],
   'get-library-counts': [],
@@ -235,13 +239,14 @@ const VIEWER_ACTIONS = new Set([
   // The thumbnail renderer reads the GPU backend in every browser.
   'get-gpu-info',
   'get-collections', 'get-collection', 'get-collection-membership',
-  'get-site-details'
+  'get-site-details', 'get-geometry-duplicates', 'get-geometry-scan'
 ]);
 
 /** Actions that change the library: editors and admins. */
 const EDITOR_ACTIONS = new Set([
   'save-model', 'save-model-batch', 'update-models-batch', 'clear-new-model-flags', 'add-uploaded-files',
-  'check-model-links', 'import-model-link', 'list-site-files', 'thingiverse-token-status',
+  'start-geometry-scan', 'stop-geometry-scan',
+  'check-model-links', 'import-model-link', 'list-site-files', 'site-download-files', 'thingiverse-token-status',
   'makerworld-account-status', 'makerworld-sign-in', 'makerworld-sign-out', 'makerworld-download', 'makerworld-check-folder', 'makerworld-prepare-folder', 'makerworld-add-files',
   'browse-folders', 'scan-directory', 'save-directory', 'trash-file', 'delete-file', 'move-files', 'calculate-file-hash',
   'save-thumbnail', 'add-thumbnail', 'add-multiple-thumbnails', 'set-default-thumbnail', 'delete-thumbnail',
@@ -251,7 +256,7 @@ const EDITOR_ACTIONS = new Set([
   'save-part', 'delete-part', 'save-printer', 'delete-printer',
   'save-printer-maintenance-log', 'delete-printer-maintenance-log', 'save-printer-reminder', 'delete-printer-reminder',
   'complete-printer-reminder', 'log-print-event', 'log-print-events-batch', 'delete-print-event', 'set-print-status',
-  'set-print-status-batch', 'fetch-thangs-page',
+  'set-print-status-batch',
   'create-collection', 'update-collection', 'delete-collection', 'add-to-collection', 'remove-from-collection',
   'create-share-link', 'get-share-links', 'revoke-share-link'
 ]);

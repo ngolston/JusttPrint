@@ -44,6 +44,15 @@ ipcMain.handle('list-site-files', async (event, url) => {
   }
 });
 
+/** Download a Printables or Thingiverse model's files from the details panel: { url, folder, fileIds }. */
+ipcMain.handle('site-download-files', async (event, request) => {
+  const { url, folder, fileIds } = request || {};
+  return require('../site-files').downloadFiles(
+    { url, folder, fileIds: Array.isArray(fileIds) ? fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null },
+    { onProgress: (progress) => events.toCaller(event, 'makerworld-download-progress', progress) }
+  );
+});
+
 ipcMain.handle('thingiverse-token-status', async () => require('../site-files').tokenStatus());
 
 /** Admins only: check a Thingiverse API token and keep it ('' removes it). */

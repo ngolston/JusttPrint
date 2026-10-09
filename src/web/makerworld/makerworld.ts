@@ -24,15 +24,30 @@ export interface MakerWorldProfile {
 }
 
 export interface MakerWorldFile {
+  /** Printables and Thingiverse: the file's number there (for downloads). */
+  id?: string;
   name: string;
   folder: string | null;
   size: number | null;
   type: string | null;
   english?: string | null;
+  /** Printables and Thingiverse: a model file (ticked to start), not G-code or a project file. */
+  model?: boolean;
 }
 
+/** Printables: what the designer says about printing it. */
+export interface PrintSettings {
+  seconds: number | null;
+  pieces: number | null;
+  grams: number | null;
+  nozzles: number[];
+  layerHeights: number[];
+  materials: string[];
+}
+
+/** A model's details from its site (src/core/makerworld.js, src/core/site-model-details.js). */
 export interface MakerWorldDetails {
-  site: 'makerworld';
+  site: 'makerworld' | 'printables' | 'thingiverse';
   url: string;
   id: string;
   title: string | null;
@@ -48,8 +63,14 @@ export interface MakerWorldDetails {
   videos: string[];
   profiles: MakerWorldProfile[];
   files: MakerWorldFile[];
+  printSettings?: PrintSettings | null;
+  /** Thingiverse without an API token: its files cannot be listed. */
+  filesNeedToken?: boolean;
+  stats?: { likes?: number | null; downloads?: number | null; prints?: number | null; views?: number | null; collections?: number | null; comments?: number | null };
   translation?: { mode: string; by: string | null; error: string | null };
 }
+
+export const SITE_LABELS: Record<string, string> = { makerworld: 'MakerWorld', printables: 'Printables', thingiverse: 'Thingiverse' };
 
 /** A downloaded print profile: the library file that holds it. */
 export interface ProfileDownload {
@@ -76,15 +97,32 @@ export interface AccountStatus {
 export const getSiteDetails = (url: string, refresh = false) => callAction<SiteDetailsResult | null>('get-site-details', url, refresh);
 export const accountStatus = () => callAction<AccountStatus>('makerworld-account-status');
 
-/** The MakerWorld model link of a model: its online-model path, else its source. Null for anything else. */
-export function makerWorldUrl(model: { filePath?: string | null; source?: unknown } | null): string | null {
+const MODEL_LINKS: [string, RegExp][] = [
+  ['makerworld', /^(?:https?:\/\/)?(?:www\.)?makerworld\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/\d+/i],
+  ['printables', /^(?:https?:\/\/)?(?:www\.)?printables\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?model\/\d+/i],
+  ['thingiverse', /^(?:https?:\/\/)?(?:www\.)?thingiverse\.com\/thing:\d+/i]
+];
+
+/**
+ * The MakerWorld, Printables or Thingiverse model link of a model: its online-model path, else
+ * its source. Null for anything else.
+ */
+export function siteModelUrl(model: { filePath?: string | null; source?: unknown } | null): { site: string; url: string } | null {
   if (!model) return null;
   const candidates = [model.filePath?.startsWith('url::') ? model.filePath.slice(5) : '', typeof model.source === 'string' ? model.source : ''];
   for (const raw of candidates) {
     const text = raw.trim();
-    if (/^(?:https?:\/\/)?(?:www\.)?makerworld\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/\d+/i.test(text)) return /^https?:/i.test(text) ? text : `https://${text}`;
+    for (const [site, pattern] of MODEL_LINKS) {
+      if (pattern.test(text)) return { site, url: /^https?:/i.test(text) ? text : `https://${text}` };
+    }
   }
   return null;
+}
+
+/** The MakerWorld model link of a model, or null. */
+export function makerWorldUrl(model: { filePath?: string | null; source?: unknown } | null): string | null {
+  const found = siteModelUrl(model);
+  return found && found.site === 'makerworld' ? found.url : null;
 }
 
 /** 326981 seconds → "90 h 50 min"; 2700 → "45 min". */
