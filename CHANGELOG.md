@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.13.2] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
 
 **Changes:**
 - **Development:** the older stylesheets (`src/web/styles/legacy/`, about 7,800 lines) are retired. Their rules moved into named files by area (`base-elements.css`, `jobs.css`, `library-cards.css`, `side-panels.css`, `startup-screens.css`, `dialog-content.css`, `utilities.css`) at the same place in the cascade, and the old variable aliases (`--surface`, `--border`, `--primary-accent`…) became the tokens they stood for. Nothing looks different: 190 screenshots across both color schemes, desktop, tablet and phone match the previous version.
