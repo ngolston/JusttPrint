@@ -43,7 +43,7 @@ Everything JusttPrint does today keeps a home (spec §53): parts stock, printer 
 - **Pages replace dialogs** where the spec makes them destinations (Printers, Filament, Tags, Duplicates, Organize, Settings). The existing React dialog bodies are reused inside pages wherever possible, so behaviour and tests carry over.
 - **Library.** The existing virtualized grid, selection, filters store and search keep working; the card and toolbar are redrawn. Filter chips and the folder tree move into a Filter popover and a folder panel.
 - **Details panel.** Composed from the existing details components (fields, filaments, notes, print history, path) in the render's order.
-- **Styles.** `src/web/styles/` holds `tokens.css`, `typography.css`, `layout.css`, `components.css` and a file per page. New components only use tokens. Since Phase 14 the older dialogs' rules live in `src/web/styles/legacy/`, bundled into `app.css` and drawn with the tokens; they shrink as those dialogs are redrawn.
+- **Styles.** `src/web/styles/` holds `tokens.css`, `typography.css`, `layout.css`, `components.css` and a file per page. New components only use tokens. Since Phase 14 the older dialogs' rules lived in `src/web/styles/legacy/`, bundled into `app.css` and drawn with the tokens; 7.13.1 redrew the dialogs and 7.14 moved what was left into named files by area (see TODO.md).
 - **Components** (`src/web/components/`): Button, IconButton, Badge, StatusBadge, Tag, Panel, StatCard, ProgressBar, Dropdown, Drawer, Modal, EmptyState, Skeleton, ActivityItem, PrinterRow, ModelCard, ModelGrid, ModelList, ModelPreview, ModelDetailsPanel, FilterBar, SearchBox, CommandPalette.
 
 ## Phases

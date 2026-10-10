@@ -1,15 +1,16 @@
 /*
  * JusttPrint styles. Built by Vite into web-build/app.css (index.html links it).
- * legacy/: the older dialogs' and panels' styles, drawn with the tokens (theme-vars.css maps
- * their variables). New UI uses only the files after them.
+ * The first files (base-elements.css to dialog-content.css) hold the older screens' styles, moved
+ * out of styles/legacy and drawn with the tokens; they come first so the newer files win.
  */
 @import '@fontsource-variable/inter/wght.css';
-@import './legacy/theme-vars.css';
-@import './legacy/base.css';
-@import './legacy/notes-markdown.css';
-@import './legacy/preview-wall.css';
-@import './legacy/thumbnail-progress.css';
-@import './legacy/organize-library.css';
+@import './base-elements.css';
+@import './jobs.css';
+@import './library-cards.css';
+@import './side-panels.css';
+@import './startup-screens.css';
+@import './dialog-content.css';
+@import './utilities.css';
 @import './tokens.css';
 @import './typography.css';
 @import './components.css';
