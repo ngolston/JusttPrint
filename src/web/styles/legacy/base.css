@@ -32,15 +32,6 @@ progress {
 }
 
 /* Selects and their option lists stay dark (some platforms draw options with a light fill). */
-select {
-  color: var(--jp-text) !important;
-  background-color: var(--jp-bg-2) !important;
-}
-
-select option {
-  background: var(--jp-surface-2);
-  color: var(--jp-text);
-}
 
 .container {
   display: flex;
@@ -130,23 +121,6 @@ body.server-mode #preview-slicer-menu {
   margin-bottom: -35px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 10px;
-  width: 85%;
-  padding: 0 20px;
-}
-
-.form-group label {
-  margin-bottom: 8px;
-  text-align: left;
-  font-weight: 500;
-  font-size: 13px;
-  color: rgba(var(--jp-overlay-rgb), 0.9);
-  letter-spacing: 0.02em;
-}
-
 .filter-section .search-models-field .input-with-icon {
   width: 100%;
 }
@@ -185,55 +159,7 @@ body.server-mode #preview-slicer-menu {
   cursor: pointer;
 }
 
-.form-group input[type='checkbox'],
-.form-group input[type='radio'] {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  margin: 0;
-  padding: 0;
-  flex-shrink: 0;
-  background-image: none !important;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.form-group input:not([type='checkbox']):not([type='radio']),
-.form-group textarea,
-.form-group select {
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-md);
-  background: var(--jp-bg-2);
-  color: var(--jp-text);
-  transition:
-    border-color var(--jp-transition),
-    box-shadow var(--jp-transition);
-  font-family: var(--jp-font);
-  font-size: var(--jp-text-ui);
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-}
-
 /* Only selects get the arrow. */
-.form-group select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aab9c5' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  padding-right: 36px;
-}
-
-.form-group input:not([type='checkbox']):not([type='radio']):focus,
-.form-group textarea:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--jp-accent);
-  box-shadow: 0 0 0 3px var(--jp-accent-soft);
-}
 
 /* Model name field - text input without dropdown arrow */
 #model-name {
@@ -268,10 +194,6 @@ body.server-mode #preview-slicer-menu {
 .notes-input-container .icon-button {
   flex-shrink: 0;
   margin-top: 0;
-}
-
-.form-group select {
-  color: var(--jp-text) !important;
 }
 
 /* SIMPLIFIED: .form-group select options inherit from global select option rules */
@@ -743,49 +665,7 @@ button:disabled {
   margin-bottom: 15px;
 }
 
-.checkbox-container {
-  display: flex;
-  flex-direction: row !important;
-  align-items: center;
-  width: 100%;
-  gap: 10px;
-  padding: 8px 10px;
-  margin-bottom: 15px;
-  margin-left: 0;
-}
-
-.checkbox-container label {
-  margin: 0;
-  cursor: default;
-  flex: 1;
-  pointer-events: none;
-}
-
-.checkbox-container input[type='checkbox'] {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  margin: 0;
-  padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-  -webkit-appearance: checkbox;
-  -moz-appearance: checkbox;
-  appearance: checkbox;
-}
-
 /* Override form-group column layout for checkbox containers */
-.form-group.checkbox-container {
-  flex-direction: row !important;
-}
-
-.form-group.checkbox-container label {
-  margin-bottom: 0;
-}
 
 /* STL Home: checkbox row – only checkbox + label in one row; native checkbox look, themed size */
 .stl-home-path-metadata-checkbox-row {
@@ -955,33 +835,12 @@ button:disabled {
 }
 
 /* STL Home dialog: ensure Cancel/Save buttons are clickable in Docker/server (browser) mode */
-#stl-home-dialog .dialog-buttons {
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-}
 
 /* File Type Settings dialog: ensure Save/Cancel buttons are clickable in Docker/server mode */
-#file-type-settings-dialog .dialog-buttons {
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-}
 
 /* Purge Models dialog: ensure Purge/Cancel buttons are clickable in Docker/server mode */
-#purge-models-dialog .dialog-buttons {
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-}
 
 /* Docker/Server mode: ensure ALL modal dialog buttons and fullscreen toggles are clickable */
-.modal .dialog-buttons,
-.modal .dialog-buttons button {
-  position: relative;
-  z-index: 1;
-  pointer-events: auto;
-}
 
 /* Additional file types grid in File Type Settings */
 .scan-file-types-grid {
@@ -2746,22 +2605,6 @@ dialog:not([open]) {
   pointer-events: none !important;
 }
 
-.modal {
-  border-radius: var(--jp-radius-xl);
-  padding: 28px;
-  background: var(--jp-surface-1);
-  color: var(--jp-text);
-  max-width: 1000px;
-  width: 80%;
-  box-sizing: border-box;
-  border: 1px solid var(--jp-border);
-  box-shadow: var(--jp-shadow-pop);
-}
-
-.modal::backdrop {
-  background: rgba(4, 9, 13, 0.6);
-}
-
 /* Keyboard shortcuts dialog */
 .keyboard-shortcuts-intro {
   margin: 0 0 1rem 0;
@@ -2796,100 +2639,15 @@ dialog:not([open]) {
   white-space: nowrap;
 }
 
-.dialog-buttons {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
-
-.dialog-buttons button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.dialog-buttons button[type='submit'] {
-  background: var(--primary-accent, var(--jp-accent));
-  color: var(--jp-on-accent);
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-weight: 500;
-  transition: background-color 0.15s ease;
-  box-shadow: none;
-}
-
-.dialog-buttons button[type='submit']:hover {
-  transform: none;
-  background: var(--primary-accent-hover, var(--jp-accent-hover));
-  box-shadow: none;
-}
-
-.dialog-buttons button[type='button'] {
-  background: transparent;
-  color: var(--jp-text);
-  border: 1px solid var(--border-strong, rgba(var(--jp-overlay-rgb), 0.16));
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-weight: 500;
-  transition: background-color 0.15s ease;
-}
-
-.dialog-buttons button[type='button']:hover {
-  background: var(--surface-raised, var(--jp-surface-2));
-  transform: none;
-}
-
 /* The dialog's main action (Save) when it is not a submit button. */
-.dialog-buttons button.is-primary {
-  background: var(--jp-accent);
-  color: var(--jp-on-accent);
-  border-color: transparent;
-  font-weight: 600;
-}
-
-.dialog-buttons button.is-primary:hover {
-  background: var(--jp-accent-hover);
-}
 
 /* Center cancel button in searchable list dialog */
-#searchable-list-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
 
 /* Center close button in backup-restore dialog */
-#backup-restore-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
 
 /* Center close button in stats dialog */
-#stats-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-#stats-dialog .dialog-buttons button {
-  width: auto;
-  flex: 0 0 auto;
-}
 
 /* Center close button in manage thumbnails dialog */
-#manage-thumbnails-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-#manage-thumbnails-dialog .dialog-buttons button {
-  width: auto;
-  flex: 0 0 auto;
-}
 
 /* Base styles for model detail dropdowns - will be overridden by .model-details rules */
 #model-parent,
@@ -3502,50 +3260,6 @@ dialog:not([open]) {
 /* Fullscreen toggle button for DeDup and Tag Manager modals */
 
 /* Modal fullscreen state — inset:0 so native <dialog> actually fills the viewport */
-.modal.modal-fullscreen {
-  width: 100vw;
-  max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
-  margin: 0;
-  inset: 0;
-  border-radius: 0;
-  padding: 24px;
-  box-sizing: border-box;
-}
-.modal.modal-fullscreen form {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-#tag-manager-dialog.modal-fullscreen {
-  width: 100vw;
-  max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
-  margin: 0;
-  inset: 0;
-  overflow: hidden;
-}
-#tag-manager-dialog.modal-fullscreen form {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-#tag-manager-dialog.modal-fullscreen .tag-manager-existing-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-#tag-manager-dialog.modal-fullscreen #tag-manager-list {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-}
 
 .zip-entry-badge {
   display: inline-block;
@@ -3589,24 +3303,6 @@ dialog:not([open]) {
 }
 
 /* Tag Manager Styles */
-#tag-manager-dialog {
-  min-width: 400px;
-}
-
-#tag-manager-dialog .modal-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 16px;
-  flex-shrink: 0;
-}
-
-#tag-manager-dialog .modal-header-row h3 {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-}
 
 .modal-fullscreen-icon-btn {
   width: 28px !important;
@@ -3622,20 +3318,6 @@ dialog:not([open]) {
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
-}
-
-#tag-manager-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-}
-
-#tag-manager-dialog .dialog-buttons button {
-  width: auto;
-  min-width: 88px;
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 8px 20px;
 }
 
 .modal-fullscreen-icon-btn svg {
@@ -3656,31 +3338,6 @@ dialog:not([open]) {
   display: block;
 }
 
-#tag-manager-search {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
-  border-radius: 12px;
-  background: rgba(var(--jp-overlay-rgb), 0.05);
-  backdrop-filter: blur(10px);
-  color: var(--jp-text);
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-#tag-manager-search:focus {
-  outline: none;
-  border-color: var(--jp-accent);
-  background: rgba(var(--jp-overlay-rgb), 0.08);
-  box-shadow:
-    0 0 0 3px rgba(var(--jp-accent-rgb), 0.1),
-    0 4px 12px rgba(var(--jp-accent-rgb), 0.2);
-}
-
-#tag-manager-search::placeholder {
-  color: var(--jp-text-3);
-}
-
 #clear-tag-search {
   opacity: 0.7;
   transition: opacity 0.2s;
@@ -3688,118 +3345,6 @@ dialog:not([open]) {
 
 #clear-tag-search:hover {
   opacity: 1;
-}
-
-#tag-manager-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 32px;
-  padding: 12px;
-  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
-  border-radius: 12px;
-  background: rgba(var(--jp-overlay-rgb), 0.05);
-  backdrop-filter: blur(10px);
-  width: 100%;
-  margin-top: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-#tag-manager-list .tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.2) 0%, rgba(var(--jp-accent-rgb), 0.2) 100%);
-  backdrop-filter: blur(10px);
-  color: var(--jp-text);
-  border: 1px solid rgba(var(--jp-accent-rgb), 0.5);
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-#tag-manager-list .tag .tag-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-  cursor: text;
-}
-
-#tag-manager-list .tag .tag-edit-input {
-  flex: 1;
-  min-width: 4em;
-  max-width: 220px;
-  margin: 0;
-  padding: 0 4px;
-  border: none;
-  border-radius: 4px;
-  background: rgba(var(--jp-shade-rgb), calc(0.35 * var(--jp-shade-strength)));
-  color: inherit;
-  font: inherit;
-  outline: none;
-  box-shadow: 0 0 0 1px rgba(var(--jp-accent-rgb), 0.6);
-}
-
-.tag-manager-hint {
-  margin: 0 0 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgba(var(--jp-overlay-rgb), 0.65);
-}
-
-#tag-manager-list .tag:hover {
-  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.5) 0%, rgba(var(--jp-accent-rgb), 0.3) 100%);
-  border-color: rgba(var(--jp-accent-rgb), 0.5);
-  transform: translateY(-1px);
-}
-
-#tag-manager-list .tag:has(.tag-edit-input) {
-  overflow: visible;
-}
-
-#tag-manager-list .tag:has(.tag-edit-input):hover {
-  transform: none;
-}
-
-#tag-manager-list .tag .tag-count {
-  background-color: rgba(var(--jp-overlay-rgb), 0.2);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 12px;
-  margin-left: 4px;
-}
-
-#tag-manager-list .tag .tag-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-weight: bold;
-  padding: 0 4px;
-  margin-left: 4px;
-  border-radius: 50%;
-  background-color: rgba(var(--jp-overlay-rgb), 0.1);
-  transition: background-color 0.2s;
-}
-
-#tag-manager-list .tag .tag-remove:hover {
-  background-color: rgba(var(--jp-overlay-rgb), 0.3);
-}
-
-#new-tag-manager-name {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid var(--jp-border-strong);
-  border-radius: 4px;
-  background-color: var(--jp-surface-hover);
-  color: var(--jp-text);
 }
 
 .item-chip {
@@ -3823,183 +3368,6 @@ dialog:not([open]) {
 }
 
 /* Metadata Editor Dialog */
-#metadata-editor-dialog {
-  min-width: 500px;
-}
-
-#metadata-editor-dialog .dialog-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-}
-
-.metadata-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--jp-border-strong);
-}
-
-.metadata-tab {
-  padding: 8px 16px;
-  background-color: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--jp-text);
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.metadata-tab:hover {
-  color: var(--jp-text);
-  background-color: rgba(var(--jp-overlay-rgb), 0.05);
-}
-
-.metadata-tab.active {
-  color: var(--jp-text);
-  font-weight: bold;
-  border-bottom-color: var(--jp-accent);
-  background-color: rgba(var(--jp-accent-rgb), 0.1);
-}
-
-#metadata-editor-search {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
-  border-radius: 12px;
-  background: rgba(var(--jp-overlay-rgb), 0.05);
-  backdrop-filter: blur(10px);
-  color: var(--jp-text);
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-#metadata-editor-search:focus {
-  outline: none;
-  border-color: var(--jp-accent);
-  background: rgba(var(--jp-overlay-rgb), 0.08);
-  box-shadow:
-    0 0 0 3px rgba(var(--jp-accent-rgb), 0.1),
-    0 4px 12px rgba(var(--jp-accent-rgb), 0.2);
-}
-
-#metadata-editor-search::placeholder {
-  color: var(--jp-text-3);
-}
-
-#clear-metadata-search {
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-#clear-metadata-search:hover {
-  opacity: 1;
-}
-
-#metadata-editor-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 32px;
-  padding: 12px;
-  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
-  border-radius: 12px;
-  background: rgba(var(--jp-overlay-rgb), 0.05);
-  backdrop-filter: blur(10px);
-  width: 100%;
-  margin-top: 8px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0;
-  background: transparent;
-  backdrop-filter: none;
-  border: none;
-  border-radius: 0;
-  font-size: 14px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: auto;
-}
-
-.metadata-item:hover {
-  background: transparent;
-  border-color: transparent;
-  transform: none;
-}
-
-.metadata-name {
-  flex: 1;
-  color: var(--jp-text);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  display: inline-block;
-  padding-right: 8px;
-  line-height: 1.4;
-}
-
-.metadata-count {
-  background: var(--primary-accent, var(--jp-accent));
-  color: var(--jp-on-accent);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  min-width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(var(--jp-accent-rgb), 0.3);
-}
-
-.metadata-rename,
-.metadata-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  border: none;
-  border-radius: 3px;
-  background-color: rgba(var(--jp-overlay-rgb), 0.1);
-  color: var(--jp-text);
-  font-size: 16px;
-  transition: all 0.2s;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.metadata-rename {
-  font-size: 14px;
-}
-
-.metadata-rename:hover {
-  background-color: rgba(var(--jp-accent-rgb), 0.3);
-  color: var(--jp-accent);
-}
-
-.metadata-delete:hover {
-  background-color: rgba(var(--jp-danger-rgb), 0.3);
-  color: var(--jp-danger);
-}
-
-#metadata-editor-list .no-metadata,
-#metadata-editor-list .error-message {
-  padding: 16px;
-  text-align: center;
-  color: var(--jp-text-3);
-  font-style: italic;
-}
 
 /* Thumbnail navigation overlay for multiple thumbnails in detailed view */
 .thumbnail-wrapper {
@@ -5416,12 +4784,6 @@ dialog:not([open]) {
 #log-print-dialog textarea {
   min-height: 72px;
   width: 100%;
-}
-
-.setting-description {
-  color: var(--jp-text-3);
-  font-size: 0.9em;
-  margin: 5px 0 10px 0;
 }
 
 #mcp-server-settings-dialog [hidden] {

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { metadata, type MetadataEntry, type MetadataType } from './api';
+import { Pencil, Trash2, Undo2 } from 'lucide-react';
+import { Button, IconButton, cx } from './components/Button';
 import { ModalDialog } from './components/ModalDialog';
 import { lastUndoId, onUndoChange, recordUndo, undoLast, type UndoEntry } from './library/undo';
 import { askText, exposeGlobal, showMessage } from './page';
@@ -163,76 +165,107 @@ export function MetadataEditorDialog() {
   }
 
   return (
-    <ModalDialog id="metadata-editor-dialog" title="Metadata Editor" dialogRef={dialogRef}>
-      <div className="metadata-tabs" role="tablist">
-        {TABS.map((candidate) => (
-          <button
-            key={candidate.type}
-            type="button"
-            role="tab"
-            aria-selected={candidate.type === type}
-            className={`metadata-tab${candidate.type === type ? ' active' : ''}`}
-            data-type={candidate.type}
-            onClick={() => {
-              setType(candidate.type);
-              setSearch('');
-            }}
-          >
-            {candidate.tab}
-          </button>
-        ))}
-      </div>
-      {lastChange && (
-        <div className="metadata-editor-undo" role="status">
-          <span>{lastChange.label}</span>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            id="metadata-editor-undo"
-            disabled={undoing}
-            onClick={async () => {
-              setUndoing(true);
-              try {
-                await undoLast(lastChange.id);
-              } finally {
-                setUndoing(false);
-              }
-            }}
-          >
-            Undo
-          </button>
-        </div>
-      )}
-      <div className="form-group">
-        <label id="metadata-type-label" htmlFor="metadata-editor-search">
-          {tab.heading}
-        </label>
-        <div className="input-with-icon">
-          <input type="text" id="metadata-editor-search" placeholder="Search..." value={search} onChange={(event) => setSearch(event.target.value)} />
-          <button type="button" id="clear-metadata-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
-            ×
-          </button>
-        </div>
-        <div id="metadata-editor-list" className="metadata-list">
-          {error ? (
-            <div className="error-message">{error}</div>
-          ) : rows.length === 0 ? (
-            <div className="no-metadata">No items found</div>
-          ) : (
-            rows.map((entry) => (
-              <div key={entry.name} className="metadata-item">
-                <span className="metadata-name">{entry.name}</span>
-                <span className="metadata-count">{entry.model_count}</span>
-                <button type="button" className="metadata-rename" title="Rename" aria-label={`Rename ${entry.name}`} onClick={() => rename(entry)}>
-                  ✎
-                </button>
-                <button type="button" className="metadata-delete" title="Delete" aria-label={`Delete ${entry.name}`} onClick={() => remove(entry)}>
-                  ×
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+    <ModalDialog
+      id="metadata-editor-dialog"
+      title="Metadata Editor"
+      dialogRef={dialogRef}
+      plain
+      className="jp-mgr"
+      headerClassName="jp-mgr__header"
+      headerRowClassName="jp-mgr__header-row"
+      footerClassName="jp-mgr__footer dialog-buttons"
+      description={
+        <>
+          <p className="jp-meta">Rename, merge or clear a designer, parent model or license on every model that has it.</p>
+          <div className="jp-tabs jp-mgr__tabs" role="tablist" aria-label="Metadata">
+            {TABS.map((candidate) => (
+              <button
+                key={candidate.type}
+                type="button"
+                role="tab"
+                aria-selected={candidate.type === type}
+                className={cx('jp-tab metadata-tab', candidate.type === type && 'is-selected active')}
+                data-type={candidate.type}
+                onClick={() => {
+                  setType(candidate.type);
+                  setSearch('');
+                }}
+              >
+                <span>{candidate.heading}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      }
+      footer={
+        <Button id="metadata-editor-close" onClick={() => dialogRef.current?.close()}>
+          Close
+        </Button>
+      }
+    >
+      <div className="jp-mgr__body">
+        {lastChange && (
+          <div className="metadata-editor-undo" role="status">
+            <span>{lastChange.label}</span>
+            <Button
+              size="sm"
+              id="metadata-editor-undo"
+              icon={Undo2}
+              disabled={undoing}
+              onClick={async () => {
+                setUndoing(true);
+                try {
+                  await undoLast(lastChange.id);
+                } finally {
+                  setUndoing(false);
+                }
+              }}
+            >
+              Undo
+            </Button>
+          </div>
+        )}
+        <section className="jp-mgr__section jp-mgr__section--grow">
+          <div className="jp-mgr__toolbar">
+            <div className="input-with-icon jp-mgr__search">
+              <input
+                type="text"
+                id="metadata-editor-search"
+                className="jp-input"
+                placeholder={`Search ${tab.heading.toLowerCase()}`}
+                aria-label={`Search ${tab.heading.toLowerCase()}`}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <button type="button" id="clear-metadata-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
+                ×
+              </button>
+            </div>
+            <span className="jp-meta" id="metadata-type-label">{`${rows.length} ${rows.length === 1 ? tab.one : tab.heading.toLowerCase()}`}</span>
+          </div>
+          <div id="metadata-editor-list" className="jp-mgr__list jp-mgr__list--scroll">
+            {error ? (
+              <div className="jp-mgr__empty error-message">{error}</div>
+            ) : rows.length === 0 ? (
+              <div className="jp-mgr__empty no-metadata">No {tab.heading.toLowerCase()} found</div>
+            ) : (
+              rows.map((entry) => (
+                <div key={entry.name} className="jp-mgr__row metadata-item">
+                  <div className="jp-mgr__row-main">
+                    <span className="jp-mgr__name metadata-name">{entry.name}</span>
+                    <span className="jp-meta metadata-count">{`${entry.model_count} model${entry.model_count === 1 ? '' : 's'}`}</span>
+                  </div>
+                  <div className="jp-mgr__row-actions">
+                    <Button size="sm" icon={Pencil} className="metadata-rename" aria-label={`Rename ${entry.name}`} onClick={() => rename(entry)}>
+                      Rename
+                    </Button>
+                    <IconButton size="sm" icon={Trash2} className="metadata-delete" label={`Delete ${entry.name}`} onClick={() => remove(entry)} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </ModalDialog>
   );

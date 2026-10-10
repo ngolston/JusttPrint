@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { tags as tagApi, type Tag } from './api';
+import { Plus, Undo2 } from 'lucide-react';
+import { Button } from './components/Button';
 import { ModalDialog } from './components/ModalDialog';
 import { exposeGlobal, refreshAfterTagManagerClose } from './page';
 import { createTag, deleteTag, renameTag } from './tags/manage';
@@ -98,70 +100,98 @@ export function TagManagerDialog() {
       title="Tag Manager"
       dialogRef={dialogRef}
       fullscreenToggle
+      plain
+      className="jp-mgr"
+      headerClassName="jp-mgr__header"
+      headerRowClassName="jp-mgr__header-row"
+      footerClassName="jp-mgr__footer dialog-buttons"
+      description={<p className="jp-meta">Create, rename, merge and delete tags. Renaming a tag to an existing name merges the two.</p>}
+      footer={
+        <Button id="tag-manager-close" onClick={() => dialogRef.current?.close()}>
+          Close
+        </Button>
+      }
       onClose={() => {
         if (changed.current) void refreshAfterTagManagerClose();
       }}
     >
-      <div className="form-group">
-        <label htmlFor="new-tag-manager-name">Create New Tag</label>
-        <div className="input-with-icon">
-          <input
-            type="text"
-            id="new-tag-manager-name"
-            placeholder="Enter tag name..."
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                void addTag();
-              }
-            }}
-          />
-          <button type="button" id="add-tag-manager-button" className="icon-button" title="Create tag" onClick={addTag}>
-            +
-          </button>
-        </div>
-      </div>
-      {lastChange && (
-        <div className="tag-manager-undo" role="status">
-          <span>{lastChange.label}</span>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            id="tag-manager-undo"
-            disabled={undoing}
-            onClick={async () => {
-              setUndoing(true);
-              try {
-                const label = await undoLast(lastChange.id);
-                if (label) {
-                  changed.current = true;
-                  await load();
+      <div className="jp-mgr__body">
+        <section className="jp-mgr__section">
+          <label className="jp-label" htmlFor="new-tag-manager-name">
+            New tag
+          </label>
+          <div className="jp-mgr__inline">
+            <input
+              type="text"
+              id="new-tag-manager-name"
+              className="jp-input"
+              placeholder="Tag name"
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void addTag();
                 }
-              } finally {
-                setUndoing(false);
-              }
-            }}
-          >
-            Undo
-          </button>
-        </div>
-      )}
-      <div className="form-group tag-manager-existing-group">
-        <label htmlFor="tag-manager-search">Existing Tags</label>
-        <p className="tag-manager-hint">Click a tag to rename it. Clear the name and press Enter to delete.</p>
-        <div className="input-with-icon">
-          <input type="text" id="tag-manager-search" placeholder="Search tags..." value={search} onChange={(event) => setSearch(event.target.value)} />
-          <button type="button" id="clear-tag-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
-            ×
-          </button>
-        </div>
-        <div id="tag-manager-list" className="tags-list">
-          {shown.map((tag) => (
-            <TagChip key={tag.id} tag={tag} onRename={(name) => rename(tag, name)} onDelete={() => removeTag(tag)} />
-          ))}
-        </div>
+              }}
+            />
+            <Button id="add-tag-manager-button" variant="primary" icon={Plus} title="Create tag" onClick={addTag}>
+              Add Tag
+            </Button>
+          </div>
+          {lastChange && (
+            <div className="tag-manager-undo" role="status">
+              <span>{lastChange.label}</span>
+              <Button
+                size="sm"
+                id="tag-manager-undo"
+                icon={Undo2}
+                disabled={undoing}
+                onClick={async () => {
+                  setUndoing(true);
+                  try {
+                    const label = await undoLast(lastChange.id);
+                    if (label) {
+                      changed.current = true;
+                      await load();
+                    }
+                  } finally {
+                    setUndoing(false);
+                  }
+                }}
+              >
+                Undo
+              </Button>
+            </div>
+          )}
+        </section>
+        <section className="jp-mgr__section jp-mgr__section--grow">
+          <div className="jp-mgr__toolbar">
+            <div className="input-with-icon jp-mgr__search">
+              <input
+                type="text"
+                id="tag-manager-search"
+                className="jp-input"
+                placeholder="Search tags"
+                aria-label="Search tags"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <button type="button" id="clear-tag-search" className="icon-button" title="Clear search" onClick={() => setSearch('')}>
+                ×
+              </button>
+            </div>
+            <span className="jp-meta">{`${shown.length} tag${shown.length === 1 ? '' : 's'}`}</span>
+          </div>
+          <p className="jp-meta jp-mgr__hint">Click a tag to rename it. Clear its name and press Enter to delete it.</p>
+          <div id="tag-manager-list" className="jp-mgr__chips">
+            {shown.length === 0 ? (
+              <p className="jp-meta">{search.trim() ? 'No tags match the search.' : 'No tags yet.'}</p>
+            ) : (
+              shown.map((tag) => <TagChip key={tag.id} tag={tag} onRename={(name) => rename(tag, name)} onDelete={() => removeTag(tag)} />)
+            )}
+          </div>
+        </section>
       </div>
     </ModalDialog>
   );
@@ -211,11 +241,11 @@ function TagChip({ tag, onRename, onDelete }: { tag: Tag; onRename: (name: strin
   }
 
   return (
-    <div className="tag" data-tag-id={tag.id} data-tag-name={tag.name} title={`${tag.name} — click to rename`} onClick={startEditing}>
+    <div className="tag jp-mgr__chip" data-tag-id={tag.id} data-tag-name={tag.name} title={`${tag.name} — click to rename`} onClick={startEditing}>
       {editing ? (
         <input
           type="text"
-          className="tag-edit-input"
+          className="tag-edit-input jp-input"
           aria-label={`Rename tag ${tag.name}`}
           spellCheck={false}
           autoFocus
@@ -229,10 +259,11 @@ function TagChip({ tag, onRename, onDelete }: { tag: Tag; onRename: (name: strin
       ) : (
         <span className="tag-text">{tag.name}</span>
       )}
-      <span className="tag-count">{tag.model_count}</span>
+      <span className="tag-count jp-mgr__chip-count">{tag.model_count}</span>
       <span
-        className="tag-remove"
+        className="tag-remove jp-mgr__chip-remove"
         title="Delete tag"
+        aria-label={`Delete tag ${tag.name}`}
         role="button"
         onClick={(event) => {
           event.preventDefault();
