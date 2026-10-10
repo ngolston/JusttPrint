@@ -233,7 +233,7 @@ export function AiConfigDialog() {
         {form.service === 'puter' && (
           <div className="form-group">
             <label>Puter account:</label>
-            <div className="dialog-buttons ai-prompt-actions">
+            <div className="ai-account-row">
               <span id="puter-account-status">{puterSignedIn ? 'Signed in' : 'Not signed in'}</span>
               {puterSignedIn ? (
                 <button type="button" id="puter-sign-out" onClick={() => signOut()}>

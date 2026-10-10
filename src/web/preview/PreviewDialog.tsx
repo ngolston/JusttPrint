@@ -1,3 +1,4 @@
+import { ImageDown, Printer, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { exposeGlobal, onServerEvent, showMessage } from '../page';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
@@ -677,23 +678,10 @@ export function PreviewDialog() {
             >
               <div id="preview-loading" className="preview-loading" style={{ display: loading ? 'flex' : 'none' }}>
                 {loading && 'error' in loading ? (
-                  <div style={{ color: 'var(--jp-danger)', textAlign: 'center', padding: 20, maxWidth: 500 }}>
-                    <p style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>{loading.title}</p>
-                    <p style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{loading.error}</p>
-                    <button
-                      type="button"
-                      onClick={close}
-                      style={{
-                        marginTop: 20,
-                        padding: '10px 20px',
-                        background: 'rgba(var(--jp-overlay-rgb), 0.1)',
-                        border: '1px solid rgba(var(--jp-overlay-rgb), 0.2)',
-                        borderRadius: 8,
-                        color: 'white',
-                        cursor: 'pointer',
-                        fontSize: 14
-                      }}
-                    >
+                  <div className="preview-error">
+                    <p className="preview-error__title">{loading.title}</p>
+                    <p className="preview-error__text">{loading.error}</p>
+                    <button type="button" className="preview-control-button" onClick={close}>
                       Close
                     </button>
                   </div>
@@ -722,7 +710,7 @@ export function PreviewDialog() {
                 disabled={!slicerPaths.length}
                 onClick={onSendToSlicer}
               >
-                <span>🖨️</span> Send to Slicer
+                <Printer size={16} aria-hidden="true" /> Send to Slicer
               </button>
               <button
                 type="button"
@@ -734,7 +722,7 @@ export function PreviewDialog() {
                   engineRef.current?.resetView();
                 }}
               >
-                <span>🔄</span> Reset View
+                <RotateCcw size={16} aria-hidden="true" /> Reset View
               </button>
               <button
                 type="button"
@@ -745,7 +733,7 @@ export function PreviewDialog() {
                 aria-hidden={!studioAvailable}
                 onClick={() => updateSetting('panelOpen', !settings.panelOpen)}
               >
-                <span>🎛️</span> Studio
+                <SlidersHorizontal size={16} aria-hidden="true" /> Studio
               </button>
               <button
                 type="button"
@@ -758,7 +746,7 @@ export function PreviewDialog() {
                   setSaveMenu(!saveMenu);
                 }}
               >
-                <span>💾</span> Save Image
+                <ImageDown size={16} aria-hidden="true" /> Save Image
               </button>
             </div>
             <div id="preview-slicer-menu" className={`preview-slicer-menu${slicerMenu ? '' : ' hidden'}`} role="menu" aria-label="Choose slicer">
