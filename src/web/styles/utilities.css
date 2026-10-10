@@ -1,0 +1,5 @@
+/* State helpers the older screens toggle (.hidden): last of the older styles, so they win over a display set above. */
+
+.hidden {
+  display: none;
+}

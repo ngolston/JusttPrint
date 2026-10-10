@@ -1,0 +1,2495 @@
+/*
+ * The library grid, wall and list: cards, groups of parent models, columns, status badges, panel resizing.
+ * Moved from the older stylesheets (styles/legacy, removed in 7.13.2), colors on the tokens.
+ */
+
+.parent-model-group.bundle-details-active {
+  outline: 2px solid color-mix(in srgb, var(--jp-accent) 65%, transparent);
+  outline-offset: 2px;
+}
+
+/* Grid view selector background - full width element */
+
+/* Grid view selector */
+.grid-view-selector {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  margin-left: calc(var(--sidebar-width, 350px) + 20px + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  background: transparent;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.view-button {
+  width: auto;
+  max-width: none;
+  margin-bottom: 0;
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 10px 20px;
+  background: var(--jp-surface-2);
+  border: 1px solid var(--jp-border);
+  border-radius: 10px;
+  color: var(--jp-text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  box-shadow: none;
+}
+
+.view-button:hover {
+  background: color-mix(in srgb, var(--jp-accent) 16%, var(--jp-surface-2));
+  border-color: color-mix(in srgb, var(--jp-accent) 45%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.view-button.active {
+  background: var(--jp-accent);
+  border-color: transparent;
+  color: var(--jp-on-accent);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  row-gap: 32px;
+  padding: 20px 24px;
+  margin-left: calc(var(--sidebar-width, 350px) + 20px + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  max-width: calc(100vw - (var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  box-sizing: border-box;
+  overflow: visible;
+  position: relative;
+}
+
+/* List view styles - Windows File Explorer style - Optimized */
+.file-item-list {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start;
+  padding: 8px 16px !important;
+  height: 56px !important;
+  border-bottom: 1px solid rgba(var(--jp-overlay-rgb), 0.05);
+  margin: 0 0 6px 0;
+  box-sizing: border-box;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  position: relative;
+  background: var(--jp-surface-1);
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.file-item-list:hover {
+  background: var(--jp-surface-2);
+  transform: none;
+  box-shadow: none;
+  border-color: var(--jp-border);
+}
+
+.file-item-list .thumbnail-container {
+  flex-shrink: 0 !important;
+  width: 60px !important;
+  height: 48px !important;
+  margin-right: 12px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  z-index: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--model-background-color, var(--jp-surface-1));
+  align-self: center !important;
+}
+
+.file-item-list .thumbnail-container img {
+  max-width: 48px;
+  max-height: 48px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0;
+}
+
+.file-item-list .print-status,
+.parent-model-group-list .print-status {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  display: inline-block;
+  background: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--jp-text);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.file-item-list .print-status:hover,
+.parent-model-group-list .print-status:hover {
+  background: rgba(var(--jp-shade-rgb), calc(0.75 * var(--jp-shade-strength)));
+  transform: scale(1.05);
+}
+
+.file-item-list .print-status.printed,
+.parent-model-group-list .print-status.printed {
+  background: rgba(var(--jp-success-rgb), 0.6);
+}
+
+.file-item-list .print-status.printed:hover,
+.parent-model-group-list .print-status.printed:hover {
+  background: rgba(var(--jp-success-rgb), 0.85);
+}
+
+.file-item-list .archive-status {
+  position: static !important;
+  display: inline-block;
+  background: rgba(var(--jp-warning-rgb), 0.6);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--jp-text);
+}
+
+.file-item-list .file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  padding: 0;
+  width: auto;
+}
+
+.file-item-list [data-list-col],
+.parent-model-group-list [data-list-col] {
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.file-item-list .file-name,
+.parent-model-group-list .file-name {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--jp-text);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.file-item-list .file-name.zip-file {
+  color: var(--jp-success) !important;
+}
+
+.file-item-list .file-size-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--jp-font-mono);
+}
+
+.file-item-list .directory-info-column,
+.file-item-list .designer-info-column {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.file-item-list .tags-info-column {
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  flex-shrink: 1;
+  min-width: 160px;
+}
+
+.file-item-list .directory-info-column svg,
+.file-item-list .designer-info-column svg,
+.file-item-list .print-status-column svg,
+.file-item-list .archive-status-column svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.file-item-list .print-status-column,
+.file-item-list .archive-status-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* List view header styles */
+.list-view-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px !important;
+  height: 44px !important;
+  border-bottom: 1px solid var(--jp-border);
+  background: var(--jp-surface-1);
+  position: sticky;
+  top: -10px !important;
+  z-index: 10;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.list-view-header-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.list-view-header [data-list-col] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.list-view-header [data-list-col='size'],
+.list-view-header [data-list-col='dateadded'],
+.list-view-header [data-list-col='printed'],
+.list-view-header [data-list-col='archive'] {
+  justify-content: center;
+}
+
+.list-view-header [data-list-col] .sortable-header {
+  width: auto !important;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.list-view-header [data-list-col] .sortable-header,
+.list-view-header [data-list-col] > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-view-header svg {
+  opacity: 0.6;
+}
+
+/* Sortable header styles */
+.list-view-header .sortable-header {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.list-view-header .sortable-header:hover {
+  background-color: transparent;
+  color: var(--jp-text);
+}
+
+.list-view-header .sortable-header.sort-active {
+  color: var(--jp-text) !important;
+  background-color: transparent;
+}
+
+.list-view-header .sort-indicator {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--jp-accent);
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.list-view-header .sortable-header.sort-active .sort-indicator {
+  color: var(--jp-accent-hover);
+}
+
+/* List view: column picker (toolbar, next to view mode buttons) + resize */
+.grid-view-selector .list-view-columns-toolbar-btn {
+  width: auto;
+  max-width: max-content;
+  margin-bottom: 0;
+  flex: 0 0 auto;
+  align-self: center;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--jp-text);
+  background: rgba(var(--jp-overlay-rgb), 0.06);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.grid-view-selector .list-view-columns-toolbar-btn:hover {
+  color: var(--jp-text);
+  background: rgba(var(--jp-accent-rgb), 0.18);
+  border-color: rgba(var(--jp-accent-rgb), 0.4);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Preview tile size S/M/L — global `button` uses width:90% and pill styling; reset like .view-button.
+   Scoped under .grid-view-selector so cascade beats generic rules and layout stays one row on WebKit/macOS. */
+.grid-view-selector:not(.preview-view-active) .preview-size-switcher {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.preview-size-switcher[hidden] {
+  display: none !important;
+}
+
+.grid-view-selector .preview-size-switcher {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  align-self: center !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box;
+  width: max-content !important;
+  max-width: 100%;
+  min-height: 0;
+  gap: 2px;
+  margin: 0 !important;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.35 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
+}
+
+.grid-view-selector .preview-size-switcher > button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 28px !important;
+  height: 26px !important;
+  margin: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 6px !important;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  align-self: center !important;
+  float: none !important;
+  box-sizing: border-box;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  line-height: 1 !important;
+  color: rgba(var(--jp-overlay-rgb), 0.75) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.grid-view-selector .preview-size-switcher > button::before {
+  content: none !important;
+  display: none !important;
+}
+
+.grid-view-selector .preview-size-switcher > button:hover {
+  color: var(--jp-text) !important;
+  background: rgba(var(--jp-overlay-rgb), 0.08) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.grid-view-selector .preview-size-switcher > button.active {
+  color: var(--jp-on-accent) !important;
+  background: var(--jp-accent) !important;
+}
+
+/* Global `button` sets display:flex and kills native [hidden]; restore hiding */
+#list-view-columns-toolbar-btn[hidden] {
+  display: none !important;
+}
+
+.list-view-col {
+  box-sizing: border-box;
+}
+
+.list-view-header .list-view-col {
+  cursor: grab;
+}
+
+.list-view-header .list-view-col.is-dragging {
+  opacity: 0.4;
+}
+
+.list-view-header .list-view-col.list-view-col-drop-before::before,
+.list-view-header .list-view-col.list-view-col-drop-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--jp-accent);
+  border-radius: 2px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.list-view-header .list-view-col.list-view-col-drop-before::before {
+  left: -2px;
+}
+
+.list-view-header .list-view-col.list-view-col-drop-after::after {
+  right: -2px;
+}
+
+.list-view-col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-right: -3px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.list-view-col-resize-handle:hover {
+  background: rgba(var(--jp-accent-rgb), 0.35);
+}
+
+.list-view-columns-popover {
+  min-width: 220px;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: rgba(var(--jp-surface-1-rgb), 0.98);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.list-view-columns-popover-hint {
+  margin: 0 0 8px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid rgba(var(--jp-overlay-rgb), 0.08);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--jp-text-2);
+}
+
+.list-view-columns-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--jp-text);
+  cursor: pointer;
+  user-select: none;
+}
+.list-view-columns-popover-row input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--jp-accent);
+}
+
+/* Parent model grouping */
+.parent-model-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 1px solid rgba(var(--jp-accent-rgb), 0.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.12), rgba(var(--jp-accent-rgb), 0.06));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  color: var(--jp-text);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.parent-model-group.file-item-detailed,
+.parent-model-group.file-item-preview {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: hidden;
+  background: rgba(var(--jp-overlay-rgb), 0.05);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.parent-model-group.file-item-detailed {
+  flex-direction: column;
+  width: 300px;
+  height: 490px !important;
+  padding: 12px 12px 0;
+}
+
+.parent-model-group.file-item-preview {
+  flex-direction: column;
+  width: 180px;
+  height: 220px;
+  padding: 12px;
+}
+
+.parent-model-group:hover,
+.parent-model-group:focus-visible {
+  border-color: rgba(var(--jp-accent-rgb), 0.42);
+  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.18), rgba(var(--jp-accent-rgb), 0.1));
+  outline: none;
+}
+
+.parent-model-group:hover {
+  transform: translateY(-1px);
+}
+
+.parent-model-group.file-item-detailed:hover,
+.parent-model-group.file-item-preview:hover,
+.parent-model-group.file-item-detailed:focus-visible,
+.parent-model-group.file-item-preview:focus-visible {
+  background: rgba(var(--jp-overlay-rgb), 0.08);
+  border-color: rgba(var(--jp-accent-rgb), 0.5);
+}
+
+.parent-model-group-thumbnail {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--model-background-color, var(--jp-surface-1));
+  border: 1px solid rgba(var(--jp-accent-rgb), 0.22);
+  position: relative;
+}
+
+.parent-model-group-detailed .parent-model-group-thumbnail {
+  width: 276px;
+  height: 276px;
+  border-radius: 6px;
+}
+
+.parent-model-group-preview .parent-model-group-thumbnail {
+  width: 140px;
+  height: 140px;
+  border-radius: 6px;
+}
+
+.parent-model-group-thumbnail img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.parent-model-group-corner-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 34px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.62 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-accent-rgb), 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 12;
+}
+
+.parent-model-group-corner-badge span {
+  position: absolute;
+  display: block;
+  width: 15px;
+  height: 11px;
+  border: 1.5px solid rgba(var(--jp-overlay-rgb), 0.9);
+  border-radius: 4px;
+  background: rgba(var(--jp-accent-rgb), 0.16);
+  transition: all 0.2s ease;
+}
+
+/* Collapsed: cards tightly stacked */
+.parent-model-group-corner-badge.is-collapsed span:nth-child(1) {
+  left: 8px;
+  top: 11px;
+  opacity: 0.85;
+  z-index: 1;
+}
+
+.parent-model-group-corner-badge.is-collapsed span:nth-child(2) {
+  left: 11px;
+  top: 8px;
+  opacity: 0.92;
+  z-index: 2;
+}
+
+.parent-model-group-corner-badge.is-collapsed span:nth-child(3) {
+  left: 14px;
+  top: 5px;
+  opacity: 1;
+  z-index: 3;
+}
+
+/* Expanded: cards spread/fanned out */
+.parent-model-group-corner-badge.is-expanded span:nth-child(1) {
+  left: 4px;
+  top: 12px;
+  opacity: 0.9;
+  z-index: 1;
+}
+
+.parent-model-group-corner-badge.is-expanded span:nth-child(2) {
+  left: 10px;
+  top: 8px;
+  opacity: 0.95;
+  z-index: 2;
+}
+
+.parent-model-group-corner-badge.is-expanded span:nth-child(3) {
+  left: 16px;
+  top: 4px;
+  opacity: 1;
+  z-index: 3;
+}
+
+.parent-model-group-details {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.parent-model-group-detailed .parent-model-group-details,
+.parent-model-group-preview .parent-model-group-details {
+  width: 100%;
+  text-align: center;
+  align-items: center;
+}
+
+.parent-model-group-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.parent-model-group-detailed .parent-model-group-title-row,
+.parent-model-group-preview .parent-model-group-title-row {
+  justify-content: center;
+  width: 100%;
+}
+
+.parent-model-group-chevron {
+  flex: 0 0 auto;
+  width: 18px;
+  color: var(--jp-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.parent-model-group-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.parent-model-filter-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--jp-accent-rgb), 0.5);
+  text-underline-offset: 2px;
+}
+
+.parent-model-filter-link:hover {
+  color: var(--jp-accent-hover);
+  text-decoration-color: rgba(var(--jp-accent-rgb), 0.8);
+}
+
+.parent-model-group-detailed .parent-model-group-title {
+  max-width: 240px;
+  font-size: 13px;
+}
+
+.parent-model-group-preview .parent-model-group-title {
+  max-width: 120px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.parent-model-group-meta {
+  color: rgba(var(--jp-overlay-rgb), 0.72);
+  font-size: 12px;
+  line-height: 1.35;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parent-model-group-tags {
+  color: var(--jp-text-2);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parent-model-group-detailed .parent-model-group-tags {
+  white-space: normal;
+}
+
+.parent-model-group-detailed .parent-model-group-meta,
+.parent-model-group-preview .parent-model-group-meta {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-align: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.parent-model-group-preview .parent-model-group-meta {
+  font-size: 11px;
+}
+
+.parent-model-group-list {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 56px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.parent-model-group-list .parent-model-group-thumbnail {
+  flex-shrink: 0;
+  width: 60px;
+  height: 48px;
+}
+
+.parent-model-group-list .file-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  width: auto;
+}
+
+.parent-model-group-list .file-name {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.parent-model-group-list .parent-model-group-title-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.parent-model-group-list .parent-model-group-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.parent-model-group-list .parent-model-group-corner-badge {
+  top: 4px;
+  left: 4px;
+  transform: scale(0.72);
+  transform-origin: top left;
+}
+
+.parent-model-group-list .parent-model-group-title {
+  font-size: 14px;
+}
+
+.file-item.parent-model-group-child {
+  position: relative;
+  border: 2px solid rgba(var(--jp-accent-rgb), 0.62);
+  box-shadow:
+    0 0 0 2px rgba(var(--jp-accent-rgb), 0.22),
+    0 10px 28px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(165deg, rgba(var(--jp-accent-rgb), 0.12), rgba(var(--jp-accent-rgb), 0.04));
+}
+
+/* Keep grouped highlight visible in detailed/preview cards even when other card styles render. */
+.file-item.file-item-detailed.parent-model-group-child::before,
+.file-item.file-item-preview.parent-model-group-child::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid rgba(var(--jp-accent-rgb), 0.72);
+  box-shadow: 0 0 0 1px rgba(var(--jp-accent-rgb), 0.3);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Row-level badge used top/right 8px and collided with .archive-status and list tags; show on thumbnail */
+.file-item.parent-model-group-child::after {
+  content: none;
+}
+
+/* Preview + detailed: bottom-left (clear of top-right archive + bottom ... menu strip) */
+.file-item.parent-model-group-child .thumbnail-container::after {
+  content: 'GROUPED';
+  position: absolute;
+  top: auto;
+  right: auto;
+  bottom: 40px;
+  left: 8px;
+  z-index: 12;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(var(--jp-accent-rgb), 0.82);
+  color: var(--jp-on-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  line-height: 1.2;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item-list.parent-model-group-child {
+  border-left: 4px solid var(--jp-accent);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--jp-accent-rgb), 0.12) 0,
+    rgba(var(--jp-accent-rgb), 0.06) 56px,
+    rgba(var(--jp-overlay-rgb), 0.02) 57px,
+    rgba(var(--jp-overlay-rgb), 0.02) 100%
+  );
+  position: relative;
+}
+
+.file-item-list.parent-model-group-child::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  width: 4px;
+  background: rgba(var(--jp-accent-rgb), 0.8);
+}
+
+.file-item-list.parent-model-group-child-start::before {
+  top: 0;
+  bottom: 50%;
+  border-top-left-radius: 8px;
+}
+
+.file-item-list.parent-model-group-child-middle::before {
+  top: 0;
+  bottom: 0;
+}
+
+.file-item-list.parent-model-group-child-end::before {
+  top: 50%;
+  bottom: 0;
+  border-bottom-left-radius: 8px;
+}
+
+.file-item-list.parent-model-group-child-single::before {
+  top: 0;
+  bottom: 0;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+/* List: archive is in its own column; keep label compact top-right on the thumb */
+.file-item-list.parent-model-group-child .thumbnail-container::after {
+  top: 2px;
+  left: auto;
+  bottom: auto;
+  right: 2px;
+  padding: 2px 5px;
+  font-size: 9px;
+  max-width: calc(100% - 4px);
+}
+
+/* Preview view (formerly Small thumbnail) - Optimized */
+.file-item-preview {
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--jp-surface-1);
+  border: 1px solid var(--jp-border);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.file-item-preview:hover {
+  transform: none;
+  box-shadow: var(--jp-shadow-pop);
+  background: var(--jp-surface-2);
+  border-color: color-mix(in srgb, var(--jp-accent) 55%, transparent);
+}
+
+.file-item-preview .thumbnail-container {
+  width: 140px !important;
+  height: 140px !important;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.file-item-preview .file-info {
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.file-item-preview .file-name {
+  font-size: 11px;
+  line-height: 1.3;
+  max-height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+/* Detailed view - large thumbnail with full metadata - Optimized */
+.file-item-detailed {
+  width: 300px;
+  height: 490px !important;
+  min-height: 490px !important;
+  max-height: 490px !important;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 0;
+  box-sizing: border-box;
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  background: var(--jp-surface-1);
+  border: 1px solid var(--jp-border);
+  margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.file-item-detailed:hover {
+  transform: none;
+  box-shadow: var(--jp-shadow-pop);
+  background: var(--jp-surface-2);
+  border-color: color-mix(in srgb, var(--jp-accent) 55%, transparent);
+}
+
+/* Keep grouped-card highlight persistent after base card and hover rules are applied. */
+.file-item-preview.parent-model-group-child,
+.file-item-detailed.parent-model-group-child {
+  background: color-mix(in srgb, var(--jp-accent) 12%, var(--jp-surface-1)) !important;
+  border-color: color-mix(in srgb, var(--jp-accent) 72%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--jp-accent) 22%, transparent) !important;
+}
+
+.file-item-preview.parent-model-group-child:hover,
+.file-item-detailed.parent-model-group-child:hover {
+  background: color-mix(in srgb, var(--jp-accent) 16%, var(--jp-surface-1)) !important;
+  border-color: color-mix(in srgb, var(--jp-accent) 85%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--jp-accent) 28%, transparent) !important;
+}
+
+.file-item-detailed .thumbnail-container {
+  width: 276px !important;
+  height: 276px !important;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.file-item-detailed .file-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--jp-text);
+  margin-top: 8px;
+  margin-bottom: 6px;
+  padding: 2px 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 24px;
+  line-height: 1.3;
+  background: transparent;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+.file-item-detailed .file-info {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
+  overflow: visible;
+  padding: 0 !important; /* Override all padding from other rules */
+  margin: 0;
+}
+
+.model-engagement-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 0;
+  width: calc(100% + 32px);
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 14px 16px;
+  box-sizing: border-box;
+  border-top: none;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--jp-shade-rgb), calc(0 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.18 * var(--jp-shade-strength))) 35%,
+    rgba(var(--jp-shade-rgb), calc(0.32 * var(--jp-shade-strength))) 100%
+  );
+  border-radius: 0 0 16px 16px;
+  overflow: visible;
+}
+
+.model-engagement-bar.is-group {
+  background: linear-gradient(
+    180deg,
+    rgba(var(--jp-shade-rgb), calc(0 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.14 * var(--jp-shade-strength))) 35%,
+    rgba(var(--jp-shade-rgb), calc(0.26 * var(--jp-shade-strength))) 100%
+  );
+}
+
+/* Reset global button styles (width: 90%, pill gradient, etc.) */
+.model-engagement-bar button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  font-weight: normal;
+  line-height: 1;
+  text-align: center;
+  position: static;
+  overflow: visible;
+}
+
+.model-engagement-bar button::before {
+  display: none;
+}
+
+/* Beat `.model-engagement-bar button { line-height: 1 }` from the reset above */
+.model-engagement-bar .model-star {
+  line-height: 1.25;
+  padding: 2px 1px;
+}
+
+.model-favorite-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  font-size: 16px;
+  line-height: 1;
+  color: rgba(var(--jp-overlay-rgb), 0.5);
+  border-radius: 50%;
+  background: rgba(var(--jp-overlay-rgb), 0.06);
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+.model-favorite-btn:hover {
+  color: var(--jp-danger);
+  background: rgba(255, 107, 138, 0.14);
+  transform: scale(1.08);
+}
+
+.model-favorite-btn.is-favorited {
+  color: var(--jp-danger);
+  background: rgba(var(--jp-danger-rgb), 0.16);
+}
+
+.parent-model-group.file-item-detailed {
+  display: flex;
+  flex-direction: column;
+}
+
+.parent-model-group.file-item-detailed .model-engagement-bar {
+  margin-left: -12px;
+  margin-right: -12px;
+  margin-bottom: 0;
+  width: calc(100% + 24px);
+  border-radius: 0 0 16px 16px;
+  padding-bottom: 14px;
+}
+
+.file-item-detailed:not(.parent-model-group) .model-engagement-bar {
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 0;
+  width: calc(100% + 32px);
+  padding-bottom: 16px;
+}
+
+/* Keep engagement bar visible; metadata can use natural height now that cards are taller */
+.file-item-detailed .file-info {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: visible;
+}
+
+.file-item-detailed .metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 2px 0;
+  transition: all 0.2s ease;
+  min-height: 18px; /* Slightly increased for better readability */
+  line-height: 1.3;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+/* Fix for dir-size-row: ensure directory can truncate and size is always visible */
+
+/* Same fix for grid view */
+
+/* Clickable tag names in model grid (list + detailed) — filter by tag */
+.tag-filter-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--jp-overlay-rgb), 0.35);
+}
+.tag-filter-link:hover {
+  color: var(--jp-accent-hover);
+  text-decoration-color: rgba(var(--jp-accent-rgb), 0.8);
+}
+
+.file-item {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--jp-surface-1);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.file-item.selected {
+  border: 2px solid var(--jp-accent);
+  box-shadow: none;
+  position: relative;
+  background: color-mix(in srgb, var(--jp-accent) 12%, var(--jp-surface-1));
+}
+
+.file-item.selected::before {
+  display: none; /* Selection check bubble removed; selection still shown via border/outline */
+}
+
+.file-item.selected .model-preview {
+  border-color: var(--jp-accent);
+}
+
+/* List button styling - matches icon-button style, smaller size */
+
+.selected-count {
+  color: var(--jp-text-3);
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+/* Fullscreen toggle button for DeDup and Tag Manager modals */
+
+/* Modal fullscreen state — inset:0 so native <dialog> actually fills the viewport */
+
+.zip-entry-badge {
+  display: inline-block;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: bold;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin: 2px;
+  border-radius: 14px;
+  background: rgba(var(--jp-overlay-rgb), 0.08);
+  color: var(--jp-text);
+  font-size: 12px;
+}
+.item-chip-remove {
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* Metadata Editor Dialog */
+
+/* Thumbnail navigation overlay for multiple thumbnails in detailed view */
+.thumbnail-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.thumbnail-nav-left,
+.thumbnail-nav-right {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: transparent;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+.thumbnail-wrapper:hover .thumbnail-nav-left,
+.thumbnail-wrapper:hover .thumbnail-nav-right,
+.parent-model-group-thumbnail:hover .thumbnail-nav-left,
+.parent-model-group-thumbnail:hover .thumbnail-nav-right {
+  opacity: 1;
+}
+
+.thumbnail-nav-left {
+  left: 0;
+  width: 50px;
+  max-width: 50px;
+  cursor: pointer;
+}
+
+.thumbnail-nav-right {
+  right: 0;
+  width: 50px;
+  max-width: 50px;
+  cursor: pointer;
+}
+
+.thumbnail-nav-left:hover {
+  background: rgba(var(--jp-shade-rgb), calc(0.3 * var(--jp-shade-strength)));
+}
+
+.thumbnail-nav-right:hover {
+  background: rgba(var(--jp-shade-rgb), calc(0.3 * var(--jp-shade-strength)));
+}
+
+.thumbnail-nav-left::before {
+  content: '◀';
+  color: rgba(var(--jp-overlay-rgb), 0.5);
+  font-size: 32px;
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  transition: color 0.2s ease;
+}
+
+.thumbnail-nav-right::after {
+  content: '▶';
+  color: rgba(var(--jp-overlay-rgb), 0.5);
+  font-size: 32px;
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  transition: color 0.2s ease;
+}
+
+.thumbnail-nav-left:hover::before {
+  color: rgba(var(--jp-overlay-rgb), 0.9);
+}
+
+.thumbnail-nav-right:hover::after {
+  color: rgba(var(--jp-overlay-rgb), 0.9);
+}
+
+.thumbnail-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--model-background-color);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: context-menu;
+  box-sizing: border-box;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.thumbnail-menu-button {
+  position: absolute;
+  bottom: 6px;
+  left: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  line-height: 1;
+  background: rgba(var(--jp-shade-rgb), calc(0.65 * var(--jp-shade-strength)));
+  border: 1px solid var(--jp-border-strong);
+  color: var(--jp-text);
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.thumbnail-menu-button:hover {
+  transform: none;
+}
+
+.thumbnail-menu-button::before {
+  display: none;
+}
+
+.thumbnail-container:hover .thumbnail-menu-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.thumbnail-container:hover {
+  outline: 2px solid rgba(var(--jp-accent-rgb), 0.5);
+  box-shadow: 0 6px 20px rgba(var(--jp-accent-rgb), 0.2);
+  transform: scale(1.02);
+}
+
+.thumbnail-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  box-sizing: border-box;
+}
+
+.file-info {
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Library grid list rows (src/web/grid/ModelCard.tsx): the folder link underlines on hover */
+.file-item-list .directory-info-column:hover .directory-info {
+  text-decoration: underline;
+  color: var(--jp-accent-hover) !important;
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  overflow-y: auto;
+  /* Preserve hexagon pattern background */
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l26 15v30l-26 15-26-15V15z' fill='none' stroke='rgba(var(--jp-accent-rgb), 0.04)' stroke-width='0.5'/%3E%3Cpath d='M0 26l30-15 30 15M0 26l30 15 30-15' fill='none' stroke='rgba(var(--jp-accent-rgb), 0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 60px 52px;
+  background-position: 0 0;
+}
+
+.file-item {
+  position: relative;
+  background: var(--jp-surface-2);
+  border-radius: 12px;
+  padding: 12px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.file-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.file-item.selected {
+  outline: 3px solid var(--jp-accent);
+  background: var(--jp-surface-2);
+}
+
+.thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  background: var(--model-background-color);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.thumbnail-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.file-info {
+  padding: 8px 0;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--jp-text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loading .thumbnail-container {
+  background: linear-gradient(90deg, var(--jp-surface-1) 25%, var(--jp-surface-2) 50%, var(--jp-surface-1) 75%);
+  background-size: 200px 100%;
+  animation: loading 1.5s infinite;
+}
+
+.print-status {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--jp-text);
+  z-index: 2;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.print-status:hover {
+  background: rgba(var(--jp-shade-rgb), calc(0.75 * var(--jp-shade-strength)));
+  transform: scale(1.05);
+}
+
+.print-status.printed {
+  background: rgba(var(--jp-success-rgb), 0.6);
+}
+
+.print-status.printed:hover {
+  background: rgba(var(--jp-success-rgb), 0.85);
+}
+
+.print-status-want,
+.file-grid .print-status-want,
+.file-item-list .print-status-want {
+  background: rgba(155, 89, 182, 0.7);
+}
+.print-status-want:hover,
+.file-grid .print-status-want:hover,
+.file-item-list .print-status-want:hover {
+  background: rgba(155, 89, 182, 0.9);
+}
+.print-status-queued,
+.file-grid .print-status-queued,
+.file-item-list .print-status-queued {
+  background: rgba(245, 184, 46, 0.8);
+  color: #1a1a1a;
+}
+.print-status-queued:hover,
+.file-grid .print-status-queued:hover,
+.file-item-list .print-status-queued:hover {
+  background: rgba(245, 184, 46, 0.95);
+}
+.print-status-printing,
+.file-grid .print-status-printing,
+.file-item-list .print-status-printing {
+  background: rgba(8, 185, 241, 0.75);
+}
+.print-status-printing:hover,
+.file-grid .print-status-printing:hover,
+.file-item-list .print-status-printing:hover {
+  background: rgba(8, 185, 241, 0.95);
+}
+.print-status-failed,
+.file-grid .print-status-failed,
+.file-item-list .print-status-failed {
+  background: rgba(244, 100, 104, 0.75);
+}
+.print-status-failed:hover,
+.file-grid .print-status-failed:hover,
+.file-item-list .print-status-failed:hover {
+  background: rgba(244, 100, 104, 0.95);
+}
+.print-status-mixed,
+.file-grid .print-status-mixed,
+.file-item-list .print-status-mixed {
+  background: rgba(230, 126, 34, 0.75);
+}
+.print-status-mixed:hover {
+  background: rgba(230, 126, 34, 0.95);
+}
+.print-status-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 140px;
+  background: var(--jp-surface-1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 4px;
+}
+.print-status-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--jp-text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.print-status-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zip-entry-badge {
+  display: inline-block;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: bold;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.easy-button {
+  background: linear-gradient(135deg, var(--jp-success) 0%, var(--jp-success) 100%);
+  color: var(--jp-text);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.easy-button:hover {
+  background: linear-gradient(135deg, var(--jp-success) 0%, var(--jp-success) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--jp-success-rgb), 0.4);
+}
+
+.file-item {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Add specific styles for update dialog buttons */
+
+.directory-link {
+  color: var(--jp-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.directory-link:hover {
+  text-decoration: underline;
+}
+
+/* Designer info styling to match parent directory */
+.designer-info {
+  font-size: 12px;
+  color: var(--jp-accent);
+  margin: 4px 0;
+  cursor: pointer;
+}
+
+.designer-info:hover {
+  text-decoration: underline;
+}
+
+/* Ensure consistent styling for virtual grid */
+.file-grid {
+  padding: 10px 20px; /* Small top padding to prevent menu overlap, keep horizontal */
+  /* Preserve hexagon pattern background - explicitly set to ensure it works on all platforms */
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l26 15v30l-26 15-26-15V15z' fill='none' stroke='rgba(var(--jp-accent-rgb), 0.04)' stroke-width='0.5'/%3E%3Cpath d='M0 26l30-15 30 15M0 26l30 15 30-15' fill='none' stroke='rgba(var(--jp-accent-rgb), 0.04)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 60px 52px;
+  background-position: 0 0;
+}
+
+.file-grid .file-item {
+  position: relative;
+  background: var(--jp-surface-1);
+  border: 1px solid var(--jp-border);
+  border-radius: 12px;
+  padding: 16px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.file-grid .file-item:hover {
+  transform: none;
+  box-shadow: var(--jp-shadow-pop);
+  background: var(--jp-surface-2);
+  border-color: color-mix(in srgb, var(--jp-accent) 55%, transparent);
+}
+
+.file-grid .file-item.selected {
+  outline: 2px solid var(--jp-accent);
+  background: color-mix(in srgb, var(--jp-accent) 12%, var(--jp-surface-1));
+  box-shadow: none;
+}
+
+.file-grid .thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  background: var(--model-background-color, var(--jp-surface-1));
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: context-menu;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.file-grid .thumbnail-container:hover {
+  box-shadow: 0 6px 20px rgba(var(--jp-accent-rgb), 0.2);
+}
+
+.file-grid .thumbnail-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  box-sizing: border-box;
+}
+
+.file-grid .file-info {
+  padding: 8px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.file-grid .file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--jp-text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-grid .metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+  transition: all 0.2s ease;
+  overflow: visible;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.file-grid .print-status {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--jp-text);
+  z-index: 2;
+}
+
+.file-grid .print-status.printed {
+  background: rgba(var(--jp-success-rgb), 0.6);
+}
+
+.file-grid .archive-status {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(var(--jp-warning-rgb), 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--jp-text);
+  z-index: 2;
+}
+
+/* New badge inside .thumbnail-container: mid-right so it never sits under the card-level Printed pill (TL).
+   Avoids Archive (card TR, one line), GROUPED (::after BL in detailed/preview; TR in list), 1/N badge (BR). */
+.file-grid .thumbnail-container > .new-status {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  left: auto;
+  bottom: auto;
+  transform: translateY(-50%);
+  background: rgba(var(--jp-accent-rgb), 0.88);
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--jp-text);
+  z-index: 13;
+  pointer-events: none;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: min(42%, calc(100% - 52px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+/* List: tiny thumb — tuck bottom-left (Printed/archive live in row columns; GROUPED is TR on thumb). */
+.file-item-list .thumbnail-container > .new-status {
+  top: auto;
+  bottom: 2px;
+  left: 2px;
+  right: auto;
+  transform: none;
+  padding: 2px 5px;
+  font-size: 9px;
+  max-width: calc(100% - 6px);
+}
+
+.file-item-detailed .thumbnail-container > .new-status,
+.file-item-preview .thumbnail-container > .new-status {
+  right: 8px;
+  max-width: min(46%, calc(100% - 56px));
+}
+
+/* ===========================
+   Preview Modal Styles
+   =========================== */
+
+/* Global `button { display:flex }` overrides native/class hide — force Studio off for image-only types */
+
+/* Rotate speed is hidden until Auto rotate is on. */
+
+.preview-view-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.thumbnail-item-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.7 * var(--jp-shade-strength)));
+  color: var(--jp-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 2;
+}
+
+.panel-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: col-resize;
+  z-index: 30;
+  touch-action: none;
+  flex: none;
+}
+
+.panel-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.panel-resize-handle:hover::after,
+.panel-resize-handle.is-active::after,
+body.is-panel-resizing .panel-resize-handle.is-active::after {
+  background: rgba(var(--jp-accent-rgb), 0.7);
+}
+
+body.is-panel-resizing,
+body.is-panel-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+} /* Dense "wall" layout for Preview view — keep separate from styles.css (see plan). */
+
+/* S/M/L tile control: only when Preview is active (JS adds .preview-view-active + hidden). */
+.grid-view-selector:not(.preview-view-active) .preview-size-switcher {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.preview-size-switcher[hidden] {
+  display: none !important;
+}
+
+.file-grid.preview-wall {
+  --preview-tile: 180px;
+  padding: 8px 0 16px;
+  margin-left: calc(var(--sidebar-width, 350px) + 20px + var(--folder-rail-width, 0px));
+  width: calc(100% - (var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  max-width: calc(100vw - (var(--sidebar-width, 350px) + 40px + var(--folder-rail-width, 0px)));
+  background-image: none;
+  background-color: transparent;
+  gap: 0;
+  row-gap: 0;
+}
+
+/* Toolbar: S / M / L tile size (placed after List in index.html; spacing via .grid-view-selector gap) */
+.preview-size-switcher {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 2px;
+  margin-left: 0;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(var(--jp-shade-rgb), calc(0.35 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
+  vertical-align: middle;
+}
+
+.preview-size-switcher button {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(var(--jp-overlay-rgb), 0.75);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.preview-size-switcher button:hover {
+  color: var(--jp-text);
+  background: rgba(var(--jp-overlay-rgb), 0.08);
+}
+
+.preview-size-switcher button.active {
+  color: var(--jp-on-accent);
+  background: var(--jp-accent);
+}
+
+/* Neutralize legacy .file-item-preview card chrome */
+.file-item.file-item-preview.preview-tile {
+  width: var(--preview-tile, 180px) !important;
+  height: var(--preview-tile, 180px) !important;
+  min-height: var(--preview-tile, 180px) !important;
+  max-height: var(--preview-tile, 180px) !important;
+  padding: 0 !important;
+  margin: 0;
+  border-radius: 4px !important;
+  background: var(--jp-surface-1) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    z-index 0s;
+}
+
+.file-item.file-item-preview.preview-tile:hover {
+  transform: none;
+  z-index: 3;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--jp-accent) 55%, transparent);
+  border-color: transparent !important;
+}
+
+.file-item.file-item-preview.preview-tile.selected {
+  outline: 2px solid var(--jp-accent);
+  outline-offset: 0;
+  z-index: 2;
+}
+
+/* Keep grouped-child highlighting visible in Preview wall despite neutralized tile chrome. */
+.file-grid.preview-wall .file-item.file-item-preview.preview-tile.parent-model-group-child {
+  border: 1px solid color-mix(in srgb, var(--jp-accent) 72%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--jp-accent) 22%, transparent) !important;
+  background: color-mix(in srgb, var(--jp-accent) 14%, var(--jp-surface-1)) !important;
+}
+
+.file-grid.preview-wall .file-item.file-item-preview.preview-tile.parent-model-group-child:hover {
+  border-color: color-mix(in srgb, var(--jp-accent) 90%, transparent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--jp-accent) 30%, transparent) !important;
+}
+
+/* Thumbnail fills tile — beat .file-grid .thumbnail-container { object-fit: contain } + flex centering */
+.file-grid.preview-wall .preview-tile .thumbnail-wrapper,
+.file-grid.preview-wall .preview-tile .thumbnail-container {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  display: block !important;
+  justify-content: initial !important;
+  align-items: initial !important;
+  aspect-ratio: auto !important;
+}
+
+.file-grid.preview-wall .preview-tile .thumbnail-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.preview-tile .thumbnail-container:hover {
+  outline: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.file-grid.preview-wall .preview-tile .thumbnail-container img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center;
+  display: block;
+}
+
+/* Menu button: top-right under print status — keeps bottom-right free for selection check */
+.preview-tile .thumbnail-menu-button {
+  left: auto;
+  right: 4px;
+  top: 26px;
+  bottom: auto;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 10px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.preview-tile:hover .thumbnail-menu-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Carousel nav stays usable */
+.preview-tile .thumbnail-nav-left,
+.preview-tile .thumbnail-nav-right {
+  z-index: 12;
+}
+
+.preview-tile .thumbnail-count-badge {
+  bottom: 4px !important;
+  right: 4px !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+/*
+ * Corner badges — must beat .file-grid .print-status { top/left }.
+ * Layout: New top-left, Printed top-right; Archive is in the name row (.preview-tile-archive).
+ */
+.file-grid.preview-wall .file-item.preview-tile > .print-status {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  z-index: 14;
+  margin: 0 !important;
+  max-width: min(48%, calc(100% - 56px));
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.file-grid.preview-wall .preview-tile-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.file-grid.preview-wall .preview-tile-name-row .preview-tile-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Archive: a small label in front of the name (beats .file-grid .archive-status { position: absolute }). */
+.file-grid.preview-wall .preview-tile-archive {
+  position: static;
+  flex: none;
+  margin: 1px 0 0;
+  padding: 1px 5px;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Beat .file-grid .thumbnail-container > .new-status (mid-right) and .file-item-preview rules */
+.file-grid.preview-wall .file-item.preview-tile .thumbnail-container > .new-status {
+  position: absolute !important;
+  top: 4px !important;
+  left: 4px !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  z-index: 15;
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: 4px;
+  max-width: min(46%, calc(100% - 8px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selection check (bottom-right to avoid overlap with "New") */
+.preview-tile-check {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--jp-accent);
+  border: 2px solid rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.preview-tile.selected .preview-tile-check {
+  opacity: 1;
+}
+
+.preview-tile-check::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid var(--jp-border);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+/* When carousel badge is bottom-right, offset check slightly */
+.preview-tile.selected:has(.thumbnail-count-badge) .preview-tile-check {
+  bottom: 28px;
+}
+
+/* Filename caption is always visible; Preview stays on hover */
+.preview-tile-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 0;
+  padding: 18px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  background: linear-gradient(
+    to top,
+    rgba(var(--jp-shade-rgb), calc(0.86 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.4 * var(--jp-shade-strength))) 65%,
+    transparent 100%
+  );
+  z-index: 13;
+  opacity: 0;
+  transition:
+    opacity 0.18s ease,
+    min-height 0.18s ease,
+    padding 0.18s ease;
+  pointer-events: none;
+}
+
+.preview-tile .preview-tile-overlay {
+  opacity: 1;
+}
+
+.preview-tile:hover .preview-tile-overlay,
+.preview-tile:focus-within .preview-tile-overlay {
+  min-height: 42%;
+  padding: 10px 28px 8px;
+  background: linear-gradient(
+    to top,
+    rgba(var(--jp-shade-rgb), calc(0.88 * var(--jp-shade-strength))) 0%,
+    rgba(var(--jp-shade-rgb), calc(0.45 * var(--jp-shade-strength))) 55%,
+    transparent 100%
+  );
+}
+
+.preview-tile .preview-tile-actions {
+  display: none;
+}
+
+.preview-tile:hover .preview-tile-actions,
+.preview-tile:focus-within .preview-tile-actions {
+  display: flex;
+}
+
+.preview-tile-name {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--jp-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.preview-tile-name.zip-file {
+  color: var(--jp-success);
+}
+
+.preview-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-tile-open-btn {
+  align-self: center;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  pointer-events: auto;
+  color: var(--jp-on-accent);
+  background: var(--jp-accent);
+}
+
+.preview-tile-open-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* Parent model group — wall layout: full-width image on top, compact text strip below (no side-by-side squeeze) */
+.file-grid.preview-wall .parent-model-group.file-item-preview {
+  position: relative;
+  width: var(--preview-tile, 180px) !important;
+  height: var(--preview-tile, 180px) !important;
+  min-height: var(--preview-tile, 180px) !important;
+  max-height: var(--preview-tile, 180px) !important;
+  padding: 0 !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+  border-radius: 4px !important;
+  transform: none !important;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(var(--jp-surface-1-rgb), 0.95) 0%, rgba(var(--jp-surface-1-rgb), 0.98) 100%) !important;
+  border: 1px solid rgba(var(--jp-accent-rgb), 0.2) !important;
+}
+
+.file-grid.preview-wall .parent-model-group-preview {
+  border-radius: 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Thumbnail uses most of the tile; group icon TL, count BR — no corner conflict */
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-thumbnail {
+  position: relative;
+  width: 100% !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(var(--preview-tile, 180px) * 0.58) !important;
+  max-height: calc(var(--preview-tile, 180px) * 0.62) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: var(--model-background-color, var(--jp-surface-1)) !important;
+  display: block !important;
+  overflow: hidden;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-thumbnail img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center;
+  display: block;
+}
+
+/* Smaller stack icon so it does not crowd the image */
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-corner-badge {
+  top: 5px !important;
+  left: 5px !important;
+  width: 26px !important;
+  height: 22px !important;
+  border-radius: 6px !important;
+  z-index: 12;
+  transform: scale(0.92);
+  transform-origin: top left;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-corner-badge span {
+  transform: scale(0.85);
+  transform-origin: center;
+}
+
+/* Multi-thumb 1/N badge: compact, stays in image corner */
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-thumbnail .thumbnail-count-badge {
+  bottom: 5px !important;
+  right: 5px !important;
+  left: auto !important;
+  top: auto !important;
+  padding: 2px 6px !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  z-index: 13;
+  line-height: 1.2 !important;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-details {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100% !important;
+  padding: 6px 7px 7px;
+  text-align: left;
+  align-items: stretch !important;
+  justify-content: center;
+  gap: 3px !important;
+  background: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  border-top: 1px solid rgba(var(--jp-overlay-rgb), 0.08);
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-title-row {
+  justify-content: flex-start !important;
+  width: 100% !important;
+  gap: 4px !important;
+  min-height: 0;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-chevron {
+  width: 12px !important;
+  font-size: 11px !important;
+  flex-shrink: 0;
+  opacity: 0.9;
+  margin-top: 1px;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-title {
+  max-width: 100% !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: left;
+  word-break: break-word;
+}
+
+.file-grid.preview-wall .parent-model-group-preview .parent-model-group-meta {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  color: rgba(var(--jp-overlay-rgb), 0.7) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}

@@ -1,7 +1,7 @@
 /*
  * The details panel on the desktop (src/web/details/ModelDetailsPanel.tsx; spec §20-§28). The
  * editors inside are the older details components, moved in; rules start at #model-details so
- * they beat the general form rules in legacy/base.css.
+ * they beat the general form rules in dialogs.css and side-panels.css.
  */
 
 body.jp-shell-on #model-details {

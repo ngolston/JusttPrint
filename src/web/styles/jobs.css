@@ -1,0 +1,430 @@
+/*
+ * Scan, hash and thumbnail progress, the loading overlay and spinners.
+ * Moved from the older stylesheets (styles/legacy, removed in 7.13.2), colors on the tokens.
+ */
+
+.spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgba(var(--jp-shade-rgb), calc(0.5 * var(--jp-shade-strength)));
+  z-index: 1000;
+}
+
+#spinner {
+  background-color: #000000; /* Set the spinner background color to black */
+  color: var(--jp-text); /* Set spinner text color to white */
+}
+
+.progress-container {
+  margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: rgba(var(--jp-shade-rgb), calc(0.8 * var(--jp-shade-strength)));
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.2);
+  overflow: visible;
+  position: relative;
+}
+
+.progress-container progress {
+  width: 100%;
+  height: 24px;
+  border-radius: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.progress-container .progress-text {
+  margin-top: 4px;
+  margin-bottom: 0;
+  padding: 0;
+  min-height: 18px;
+  line-height: 1.4;
+}
+
+.progress-container progress::-webkit-progress-bar {
+  background-color: rgba(var(--jp-surface-1-rgb), 0.9);
+  border-radius: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.stop-button {
+  position: relative;
+  width: 85%;
+  margin: 10px auto;
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
+  color: var(--jp-text);
+  border: none;
+  border-radius: 24px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(var(--jp-danger-rgb), 0.3);
+}
+
+.stop-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--jp-danger-rgb), 0.4);
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--jp-success);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+#progress-status {
+  font-size: 14px;
+  color: var(--jp-text-3);
+  margin-top: 10px;
+}
+
+.progress-container + .progress-container {
+  margin-top: 10px;
+}
+
+#render-progress-container .progress-bar {
+  background-color: var(--jp-success); /* Different color for render progress */
+}
+
+.progress-section {
+  width: 85%;
+  padding: 10px 20px;
+  margin-bottom: 15px;
+}
+
+.progress-section .progress-container {
+  margin-bottom: 10px;
+}
+
+.dedup-status {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--jp-text-3);
+}
+
+.dedup-status progress {
+  width: 80%;
+  margin: 12px 0 6px;
+}
+
+.hash-generation-warning {
+  background-color: var(--jp-warning-soft);
+  color: var(--jp-warning);
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--jp-warning-rgb), 0.4);
+}
+
+.progress-section hidden {
+  display: none;
+}
+
+.progress-container {
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  height: 20px;
+  background-color: var(--jp-surface-hover);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-text {
+  text-align: center;
+  color: var(--jp-text);
+  font-weight: 500;
+  font-size: 13px;
+  margin-top: 4px;
+  padding: 0;
+  line-height: 1.4;
+  min-height: 18px;
+}
+
+/* New styles for the icon buttons container and buttons */
+
+/* Spinner overlay styles */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(var(--jp-shade-rgb), calc(0.7 * var(--jp-shade-strength)));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+#loading-overlay .spinner p {
+  margin-top: 20px;
+  font-size: 20px;
+  color: var(--jp-text);
+}
+
+/* Add styles for disabled controls during loading/filtering */
+.disabled-during-loading {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+/* Enhance the spinner visibility */
+#spinner:not(.hidden) {
+  z-index: 1000;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(var(--jp-shade-rgb), calc(0.7 * var(--jp-shade-strength)));
+  border-radius: 50%;
+  padding: 25px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Add styles for the progress dialog */
+.progress-dialog {
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  border: 1px solid var(--jp-border-strong);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.progress-dialog h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--jp-text);
+  text-align: center;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.progress-container {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: var(--jp-surface-1);
+  border-radius: 12px;
+  border: 1px solid var(--jp-border-strong);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.progress-container .progress-text {
+  margin-top: 4px;
+  margin-bottom: 0;
+  padding: 0;
+  min-height: 18px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.progress-container progress {
+  width: 100%;
+  height: 24px;
+  border-radius: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  margin-bottom: 12px;
+}
+
+.progress-container progress::-webkit-progress-bar {
+  background-color: var(--jp-surface-1);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.progress-container progress::-webkit-progress-value {
+  background-color: var(--jp-accent);
+  border-radius: 4px;
+  background-image: linear-gradient(
+    45deg,
+    rgba(var(--jp-overlay-rgb), 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(var(--jp-overlay-rgb), 0.15) 50%,
+    rgba(var(--jp-overlay-rgb), 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+/* Make the hash-generation-warning stand out */
+.hash-generation-warning {
+  margin-bottom: 15px;
+} /* Modal progress overlay used by thumbnail regeneration / missing-thumbnail generation */
+
+.tp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--jp-surface-1-rgb), 0.72);
+  backdrop-filter: blur(4px);
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.tp-overlay[hidden] {
+  display: none;
+}
+
+.tp-panel {
+  width: min(460px, calc(100vw - 48px));
+  padding: 24px 26px 20px;
+  border-radius: 16px;
+  background: var(--jp-surface-2);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: var(--jp-text);
+  text-align: center;
+}
+
+.tp-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tp-phase {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--jp-text-2);
+  min-height: 18px;
+}
+
+.tp-track {
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(var(--jp-shade-rgb), calc(0.45 * var(--jp-shade-strength)));
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.08);
+  overflow: hidden;
+}
+
+.tp-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--jp-success) 0%, var(--jp-success) 100%);
+  transition: width 0.25s ease;
+}
+
+/* Indeterminate phases (purging, loading model data) sweep instead of filling */
+.tp-track.tp-indeterminate .tp-fill {
+  width: 35%;
+  transition: none;
+  animation: tp-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes tp-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.tp-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--jp-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* The global `button` rule is display:flex/width:90% with no auto margins, which
+   pins the button to the left edge of the panel. Override for action buttons. */
+.tp-cancel,
+.tp-background {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 130px;
+  margin: 0;
+  padding: 9px 22px;
+  border: none;
+  border-radius: 999px;
+  color: var(--jp-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.tp-cancel {
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
+}
+
+.tp-cancel:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--jp-danger) 0%, var(--jp-danger) 100%);
+  box-shadow: 0 6px 18px rgba(var(--jp-danger-rgb), 0.35);
+}
+
+.tp-background {
+  background: linear-gradient(135deg, var(--jp-surface-2) 0%, var(--jp-surface-2) 100%);
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.14);
+}
+
+.tp-background:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--jp-surface-hover);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Author `button { display:flex }` and `.tp-background { display:inline-flex }`
+   beat the UA `[hidden]` rule, so the Background control stayed clickable but
+   had no handler on desktop. Force hidden to actually hide. */
+.tp-background[hidden],
+.tp-cancel[hidden] {
+  display: none !important;
+}
+
+.tp-cancel:disabled,
+.tp-background:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

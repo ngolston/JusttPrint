@@ -1,7 +1,7 @@
 /* JusttPrint 5 components (src/web/components/). Tokens only; no raw colors. */
 
 /*
- * legacy/base.css styles every <button> for the older dialogs (90% wide, margin, accent fill).
+ * base-elements.css styles every <button> for the older screens (90% wide, margin, accent fill).
  * New components undo that by class.
  */
 .jp-btn,

@@ -1,0 +1,342 @@
+/*
+ * Base elements, generic buttons and helpers the older screens use.
+ * Moved from the older stylesheets (styles/legacy, removed in 7.13.2), colors on the tokens.
+ */
+
+html {
+  overflow-x: hidden;
+  --sidebar-width: 350px;
+  --folder-rail-width: 0px;
+  --folder-tree-width: 280px;
+  --icon-bx-folder: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M20%204h-8.59L10%202.59C9.63%202.22%209.11%202%208.59%202H4c-1.1%200-2%20.9-2%202v14c0%201.1.9%202%202%202h16c1.1%200%202-.9%202-2V6c0-1.1-.9-2-2-2%22%2F%3E%3C%2Fsvg%3E');
+  --icon-bx-file: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M14.71%202.29A1%201%200%200%200%2014%202H6c-1.1%200-2%20.9-2%202v16c0%201.1.9%202%202%202h12c1.1%200%202-.9%202-2V8c0-.27-.11-.52-.29-.71zM13%209V3.5L18.5%209z%22%2F%3E%3C%2Fsvg%3E');
+  --icon-bx-zip: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M7%206h2v2H7zm0%204v6h4V8H9v2zm3%203v2H8v-2z%22%2F%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22m19.94%207.68l-.03-.09a.8.8%200%200%200-.2-.29l-5-5c-.09-.09-.19-.15-.29-.2l-.09-.03a.8.8%200%200%200-.26-.05c-.02%200-.04-.01-.06-.01H6c-1.1%200-2%20.9-2%202v16c0%201.1.9%202%202%202h12c1.1%200%202-.9%202-2v-12s-.01-.04-.01-.06c0-.09-.02-.17-.05-.26ZM6%2020V4h3v2h2V4h2v4c0%20.55.45%201%201%201h4v11z%22%2F%3E%3C%2Fsvg%3E');
+}
+
+body {
+  font-family: var(--jp-font);
+  background: var(--jp-bg);
+  color: var(--jp-text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  letter-spacing: 0.01em;
+  overflow-x: hidden;
+}
+
+/* Checkboxes, radios and ranges in the accent. */
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'],
+progress {
+  accent-color: var(--jp-accent);
+}
+
+/* Selects and their option lists stay dark (some platforms draw options with a light fill). */
+
+.container {
+  display: flex;
+  flex: 1;
+  padding: 20px;
+}
+
+body.folder-rail-open {
+  --folder-rail-width: var(--folder-tree-width, 280px);
+}
+
+/* Docker/Server mode: same layout fix + menu bar offset */
+body.server-mode {
+  overflow-x: hidden;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  padding-top: 30px;
+}
+html.server-mode {
+  overflow-x: hidden;
+}
+/* A browser session cannot launch a local slicer, so hide that control. */
+
+#logo {
+  width: 65%;
+  height: auto;
+  margin-bottom: -35px;
+}
+
+.form-group .search-notes-toggle input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Text fields with icon buttons are not selects. The form-group chevron
+   otherwise paints over the clear button at the right edge. */
+.form-group .input-with-icon input:not([type='checkbox']):not([type='radio']) {
+  background-image: none;
+}
+
+button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90%;
+  padding: 12px 24px;
+  margin-bottom: 10px;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.15s ease;
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.4;
+}
+
+button:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--jp-accent-hover);
+}
+
+dialog button:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+
+.secondary-button {
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  border: 1px solid var(--jp-border);
+  font-weight: 500;
+}
+
+.secondary-button:hover {
+  background: var(--jp-surface-hover);
+  color: var(--jp-text);
+  border-color: var(--jp-border-strong);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+main {
+  position: relative;
+}
+
+body.list-view-col-reorder-active,
+body.list-view-col-reorder-active * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(var(--jp-overlay-rgb), 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.5) 0%, rgba(var(--jp-accent-rgb), 0.5) 100%);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(var(--jp-accent-rgb), 0.7) 0%, rgba(var(--jp-accent-rgb), 0.7) 100%);
+  background-clip: padding-box;
+}
+
+/* Closed dialogs must never eat clicks if CSS keeps them in the layout. */
+dialog:not([open]) {
+  pointer-events: none !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0; /* Start fully transparent */
+  }
+  to {
+    opacity: 1; /* End fully opaque */
+  }
+}
+
+.error-message {
+  color: var(--jp-danger);
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+}
+
+.link-icon {
+  font-size: 20px;
+}
+
+.card-icon {
+  font-size: 24px;
+}
+
+:root {
+  --model-background-color: #070147; /* Default color */
+}
+
+.error-message {
+  color: var(--jp-danger);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+@keyframes loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+.danger-button {
+  background-color: var(--jp-danger);
+  color: var(--jp-on-accent);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.danger-button:hover {
+  background-color: var(--jp-danger);
+}
+
+.warning-text {
+  color: var(--jp-danger);
+  font-size: 0.9em;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: rgba(var(--jp-danger-rgb), 0.1);
+  border-radius: 4px;
+}
+
+@keyframes winner-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--jp-accent-rgb), 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(var(--jp-accent-rgb), 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--jp-accent-rgb), 0);
+  }
+}
+
+.clear-filter-button {
+  margin-left: 10px;
+  margin-top: 5px;
+  padding: 2px 8px;
+  background: var(--jp-accent);
+  border: none;
+  border-radius: 3px;
+  color: var(--jp-on-accent);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.clear-filter-button:hover {
+  background: var(--jp-accent);
+}
+
+@keyframes guideFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.result-message {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--jp-text);
+}
+
+@keyframes progress-bar-stripes {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 20px 0;
+  }
+}
