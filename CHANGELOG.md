@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [7.13.1] - 2026-10-09
+
+**Upgrading:** no changes needed. Reload open browser tabs after the update.
 
 **Changes:**
 - **Every dialog in the JusttPrint 5 style:** one look for the frame, title, description, labelled fields, help text, checkboxes and the button row (right-aligned, buttons at their natural size instead of full width, the main action highlighted). The Tag Manager (tags as chips with counts) and the Metadata Editor (tabs, one row per name with Rename and Delete) are redrawn; the 3D preview has a single frame and icon buttons. The Slicer Settings and AI Configuration layouts are tidied.
