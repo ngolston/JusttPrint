@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, gcodeSummary, linkParts, makerWorldUrl, siteModelUrl } from './makerworld';
+import { formatDuration, formatGrams, gcodeSummary, linkParts, makerWorldUrl, shownProfiles, siteModelUrl, type MakerWorldProfile } from './makerworld';
 
 describe('MakerWorld in the details panel', () => {
+  it('offers only the downloaded print profiles once there are some', () => {
+    const profiles = ['1', '2', '3'].map((id) => ({ id }) as MakerWorldProfile);
+    const ids = (rows: { profile: MakerWorldProfile; index: number }[]) => rows.map((row) => `${row.index + 1}:${row.profile.id}`);
+    expect(ids(shownProfiles(profiles, []))).toEqual(['1:1', '2:2', '3:3']);
+    expect(ids(shownProfiles(profiles, [{ profileId: '3', filePath: '/l/c.3mf', fileName: 'c.3mf' }]))).toEqual(['3:3']);
+  });
+
   it('finds the MakerWorld link of a model', () => {
     expect(makerWorldUrl({ filePath: 'url::https://makerworld.com/en/models/3006565' })).toBe('https://makerworld.com/en/models/3006565');
     expect(makerWorldUrl({ filePath: '/library/legs.stl', source: 'makerworld.com/models/1-x' })).toBe('https://makerworld.com/models/1-x');

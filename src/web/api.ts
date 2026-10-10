@@ -307,6 +307,46 @@ export const tags = {
   restore: (request: TagRestore) => callAction<{ id: number; name: string; linked: number }>('restore-tag', request)
 };
 
+export interface Category {
+  id: number;
+  name: string;
+  /** Words that point to it in folder names, tags and model names (Categorize Library). */
+  keywords: string[];
+  model_count: number;
+}
+
+/** Categorize Library (src/server/category-scan.js). */
+export interface CategoryScan {
+  id: number;
+  running: boolean;
+  stopping: boolean;
+  phase: 'free' | 'ai' | 'done';
+  useAi: boolean;
+  total: number;
+  processed: number;
+  /** Models placed by the free step, by where the category came from (site, folder, tag, name). */
+  placed: Record<string, number>;
+  left: number;
+  aiTotal: number;
+  aiDone: number;
+  noPicture: number;
+  error: string | null;
+  suggestions: { filePath: string; fileName: string; categories: string[] }[];
+}
+
+export const categories = {
+  list: () => callAction<{ categories: Category[]; uncategorized: number }>('get-categories'),
+  create: (name: string, keywords = '') => callAction<{ id: number; name: string }>('create-category', name, keywords),
+  update: (id: number, changes: { name?: string; keywords?: string }) => callAction<{ id: number; name: string }>('update-category', id, changes),
+  remove: (id: number) => callAction<{ success: boolean }>('delete-category', id),
+  setForModel: (filePath: string, names: string[]) => callAction<string[]>('set-model-categories', filePath, names),
+  scan: () => callAction<{ job: CategoryScan | null; aiReady: boolean }>('get-category-scan'),
+  startScan: (useAi: boolean) => callAction<CategoryScan | { busy: true }>('start-category-scan', { useAi }),
+  stopScan: () => callAction<{ success: boolean }>('stop-category-scan'),
+  applySuggestions: (picks: { filePath: string; categories: string[] }[]) => callAction<{ placed: number }>('apply-category-suggestions', picks),
+  dismissScan: () => callAction<{ success: boolean }>('dismiss-category-scan')
+};
+
 /** What restore-tag puts back: the tag `name` on `modelIds`; after a merge, also splits it from `intoId`. */
 export interface TagRestore {
   name: string;

@@ -11,6 +11,7 @@ import {
   BookOpen,
   Box,
   FolderHeart,
+  Shapes,
   Link2,
   Brush,
   ClipboardList,
@@ -102,7 +103,8 @@ export const NAV: NavSection[] = [
     items: [
       { id: 'home', label: 'Home', icon: Home, page: 'home' },
       { id: 'library', label: 'Library', icon: Library, page: 'library' },
-      { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' }
+      { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' },
+      { id: 'categories', label: 'Categories', icon: Shapes, page: 'categories' }
     ]
   },
   {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { FilterX, Library, Link2, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { FilterX, Library, Link2, PanelRight, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
@@ -11,6 +11,7 @@ import { LIBRARY_TABS, extraFilterCount, tabInfo, tabOf, type LibraryTab } from 
 import { useAdopt } from '../shell/adopt';
 import { NAV } from '../shell/nav';
 import { useCan } from '../session';
+import { setSidebarOn, useSidebarOn } from '../details/sidebarPref';
 
 const scanLibrary = () =>
   NAV.flatMap((section) => section.items)
@@ -134,6 +135,7 @@ export function LibraryHeader() {
   const [rail, setRail] = useState<HTMLDivElement | null>(null);
   const [chips, setChips] = useState<HTMLDivElement | null>(null);
   const canUpload = useCan('editor');
+  const sidebar = useSidebarOn();
   useAdopt('#grid-toolbar-slot', tools);
   useAdopt('#folder-rail-toggle-slot', rail);
   useAdopt('#current-filter', chips);
@@ -163,6 +165,14 @@ export function LibraryHeader() {
             </span>
             <div className="jp-library-header__rail" ref={setRail} />
             <div className="jp-library-header__view" ref={setTools} />
+            <IconButton
+              icon={PanelRight}
+              id="jp-sidebar-toggle"
+              className="jp-library-header__sidebar"
+              pressed={sidebar}
+              label={sidebar ? 'Hide the details sidebar (a click on a model opens its page)' : 'Show the details sidebar'}
+              onClick={() => setSidebarOn(!sidebar)}
+            />
             {canUpload && (
               <Button
                 icon={Upload}

@@ -238,6 +238,13 @@
   .jp-topbar .jp-search__kbd {
     display: none;
   }
+  /* Add Links shows only its icon. */
+  .jp-topbar__links {
+    margin-left: 0;
+  }
+  .jp-topbar__links-label {
+    display: none;
+  }
   .jp-topbar__actions {
     position: static;
     flex: none;

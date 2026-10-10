@@ -14,6 +14,7 @@
 const ACTIONS = {
   // Models
   'get-model': ['string'],
+  'get-folder-models': ['string'],
   'save-model': ['object'],
   'save-model-batch': ['array'],
   'update-models-batch': ['array'],
@@ -48,6 +49,7 @@ const ACTIONS = {
   'makerworld-sign-in': ['object'],
   'makerworld-sign-out': [],
   'makerworld-download': ['object'],
+  'save-site-edits': ['string', 'object?'],
   'get-geometry-duplicates': ['object?'],
   'start-geometry-scan': ['object?'],
   'get-geometry-scan': [],
@@ -67,6 +69,7 @@ const ACTIONS = {
   'delete-file': ['string'],
   'purge-models': ['object?'],
   'move-files': ['array', 'string'],
+  'rename-model': ['string', 'string'],
   'extract-model-from-zip': ['string'],
   'delete-temp-file': ['string'],
   'get-file-stats': ['string'],
@@ -105,6 +108,18 @@ const ACTIONS = {
 
   // Tags and metadata
   'get-all-tags': [],
+
+  // Categories (ipc/categories.js)
+  'get-categories': [],
+  'create-category': ['string', 'string?'],
+  'update-category': ['number', 'object'],
+  'delete-category': ['number'],
+  'set-model-categories': ['string', 'array'],
+  'start-category-scan': ['object?'],
+  'get-category-scan': [],
+  'stop-category-scan': [],
+  'apply-category-suggestions': ['array'],
+  'dismiss-category-scan': [],
   'save-tag': ['string'],
   'rename-tag': ['id', 'string'],
   'delete-tag': ['id'],
@@ -227,6 +242,8 @@ const ACTIONS = {
 
 /** Actions that only read: every logged-in user. */
 const VIEWER_ACTIONS = new Set([
+  'get-categories',
+  'get-folder-models',
   'get-notifications',
   'mark-notifications-read',
   'get-model',
@@ -316,6 +333,7 @@ const EDITOR_ACTIONS = new Set([
   'makerworld-sign-in',
   'makerworld-sign-out',
   'makerworld-download',
+  'save-site-edits',
   'makerworld-check-folder',
   'makerworld-prepare-folder',
   'makerworld-add-files',
@@ -325,6 +343,16 @@ const EDITOR_ACTIONS = new Set([
   'trash-file',
   'delete-file',
   'move-files',
+  'rename-model',
+  'create-category',
+  'update-category',
+  'delete-category',
+  'set-model-categories',
+  'start-category-scan',
+  'get-category-scan',
+  'stop-category-scan',
+  'apply-category-suggestions',
+  'dismiss-category-scan',
   'calculate-file-hash',
   'save-thumbnail',
   'add-thumbnail',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, ChevronDown, ClipboardPen, Heart, MoreHorizontal } from 'lucide-react';
+import { Box, ChevronDown, ClipboardPen, Heart, MoreHorizontal, Pencil } from 'lucide-react';
 import { LIBRARY_CHANGED, models } from '../api';
 import { cx } from '../components/Button';
 import { Menu } from '../components/Menu';
@@ -12,6 +12,7 @@ import { useAdopt } from '../shell/adopt';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import { useCan } from '../session';
 import { MakerWorldSection } from '../makerworld/MakerWorldSection';
+import { showCategory } from '../pages/CategoriesPage';
 
 /** The model the panel shows, as get-model returns it (with its images). */
 export interface PanelModel extends GridModel {
@@ -23,6 +24,7 @@ export interface PanelModel extends GridModel {
   rating?: number | null;
   thumbnail?: string | null;
   source?: string | null;
+  categories?: string[];
 }
 
 declare global {
@@ -46,7 +48,7 @@ export function panelImages(model: PanelModel | null): string[] {
 }
 
 /** A property row of the Details list: muted label, brighter value (spec §26). */
-function Prop({ label, children, title }: { label: string; children: ReactNode; title?: string }) {
+export function Prop({ label, children, title }: { label: string; children: ReactNode; title?: string }) {
   return (
     <div className="jp-prop">
       <span className="jp-prop__label">{label}</span>
@@ -58,13 +60,13 @@ function Prop({ label, children, title }: { label: string; children: ReactNode; 
 }
 
 /** Save a card field (favorite, rating) of the shown model and redraw its card. */
-async function saveCardField(filePath: string, field: 'favorite' | 'rating', value: boolean | number): Promise<boolean> {
+export async function saveCardField(filePath: string, field: 'favorite' | 'rating', value: boolean | number): Promise<boolean> {
   const ok = await window.gridHost?.saveField(filePath, field, value);
   if (ok) await window.updateModelElement?.(filePath);
   return !!ok;
 }
 
-function Rating({ model, readOnly, onSaved }: { model: PanelModel; readOnly?: boolean; onSaved: (rating: number) => void }) {
+export function Rating({ model, readOnly, onSaved }: { model: PanelModel; readOnly?: boolean; onSaved: (rating: number) => void }) {
   const [hover, setHover] = useState<number | null>(null);
   const rating = normalizeRating(model.rating);
   const shown = hover ?? rating;
@@ -104,7 +106,7 @@ function Rating({ model, readOnly, onSaved }: { model: PanelModel; readOnly?: bo
 }
 
 /** Open in Slicer with its dropdown of the configured slicers (spec §25). */
-function SlicerButton({ filePath, slicers }: { filePath: string; slicers: Slicer[] }) {
+export function SlicerButton({ filePath, slicers }: { filePath: string; slicers: Slicer[] }) {
   const send = (slicer?: Slicer) => {
     if (!slicer) return offerSlicerSettings();
     return sendToSlicer([filePath], slicer);
@@ -333,6 +335,19 @@ export function ModelDetailsPanel() {
             <span>Log Print</span>
           </button>
         )}
+        {canEdit && (
+          <button
+            type="button"
+            id="jp-details-edit"
+            className="jp-btn jp-btn--secondary jp-btn--lg"
+            onClick={() => {
+              if (filePath) window.openEditModel?.(filePath);
+            }}
+          >
+            <Pencil size={18} aria-hidden="true" />
+            <span>Edit</span>
+          </button>
+        )}
       </div>
 
       <section className="jp-details__section">
@@ -349,6 +364,19 @@ export function ModelDetailsPanel() {
             <span className="jp-prop__label">Location</span>
             <div className="jp-prop__value" ref={setPathHost} />
           </div>
+          <Prop label="Categories">
+            {model?.categories?.length ? (
+              <span className="jp-details__categories" id="jp-details-categories">
+                {model.categories.map((name) => (
+                  <button key={name} type="button" className="jp-chip" title={`Show the models in ${name}`} onClick={() => showCategory(name)}>
+                    {name}
+                  </button>
+                ))}
+              </span>
+            ) : (
+              '—'
+            )}
+          </Prop>
           <Prop label="Added">{formatAdded(model?.dateAdded) || '—'}</Prop>
           <Prop label="Rating">{model && <Rating model={model} readOnly={!canEdit} onSaved={(rating) => setModel({ ...model, rating })} />}</Prop>
         </div>

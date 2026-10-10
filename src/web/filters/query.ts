@@ -284,7 +284,8 @@ export const SEARCH_FIELD_LABELS: Record<string, string> = {
   filePath: 'Path',
   source: 'Source',
   license: 'License',
-  tag: 'Tag name'
+  tag: 'Tag name',
+  category: 'Category'
 };
 
 const display = (value: string) => (value === '__none__' ? '(empty)' : value);

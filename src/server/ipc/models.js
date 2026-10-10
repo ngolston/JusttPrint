@@ -67,12 +67,42 @@ ipcMain.handle('get-model', async (event, filePath) => {
 
     return {
       ...model,
-      tags: tags || []
+      tags: tags || [],
+      categories: require('../../core/categories').modelCategoryNames(model.id)
     };
   } catch (error) {
     console.error('Error getting model:', error);
     throw error;
   }
+});
+
+/**
+ * The model page's Files: the library models in the same folder as this one, or in the same zip
+ * file (an online model only has itself). Each with its grid picture. At most 200.
+ */
+ipcMain.handle('get-folder-models', async (event, filePath) => {
+  const path = require('path');
+  const gridThumbnails = require('../grid-thumbnails');
+  const { loadThumbnailForModel } = require('../../core/thumbnails');
+  const text = String(filePath || '');
+  const escape = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+  let rows;
+  if (text.startsWith('url::')) {
+    rows = database.db.prepare('SELECT filePath, fileName, size FROM models WHERE filePath = ?').all(text);
+  } else if (text.includes('::')) {
+    const zip = text.split('::')[0];
+    rows = database.db.prepare("SELECT filePath, fileName, size FROM models WHERE filePath LIKE ? ESCAPE '\\' LIMIT 200").all(`${escape(zip)}::%`);
+  } else {
+    const folder = path.dirname(text);
+    rows = database.db
+      .prepare("SELECT filePath, fileName, size FROM models WHERE filePath LIKE ? ESCAPE '\\' AND filePath NOT LIKE '%::%' LIMIT 1000")
+      .all(`${escape(folder)}${path.sep}%`)
+      .filter((row) => path.dirname(row.filePath) === folder)
+      .slice(0, 200);
+  }
+  return rows
+    .sort((a, b) => String(a.fileName || '').localeCompare(String(b.fileName || ''), undefined, { numeric: true, sensitivity: 'base' }))
+    .map((row) => ({ ...row, image: gridThumbnails.gridImage(row.filePath, () => loadThumbnailForModel(row.filePath)) }));
 });
 
 /** Tell the other open browsers which models changed, so they show the new values (core/edit-merge.js). */

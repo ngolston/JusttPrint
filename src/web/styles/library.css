@@ -972,3 +972,34 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   outline: 2px solid var(--jp-accent);
   outline-offset: 2px;
 }
+
+/* Open (the model's page) next to Favorite and More: a small accent pill, on hover like them. */
+.file-grid .jp-model-card .jp-model-card__open {
+  width: auto;
+  padding: 0 var(--jp-space-2);
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+  font: 600 var(--jp-text-badge) / 1 var(--jp-font);
+}
+.file-grid .jp-model-card .jp-model-card__open:hover {
+  background: var(--jp-accent-hover);
+}
+/* Picture tiles: Open in the top-left corner (the middle stays Preview's), on hover or focus. */
+.file-grid.preview-wall .preview-tile .preview-tile-page-btn {
+  position: absolute;
+  /* Under the New badge. */
+  top: 30px;
+  left: 6px;
+  z-index: 12;
+  display: none;
+  width: auto;
+  max-width: none;
+}
+.file-grid.preview-wall .preview-tile:hover .preview-tile-page-btn,
+.file-grid.preview-wall .preview-tile:focus-within .preview-tile-page-btn {
+  display: inline-flex;
+}
+.file-grid .file-item-list .list-open-btn {
+  flex: none;
+  margin-left: var(--jp-space-2);
+}

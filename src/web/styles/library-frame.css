@@ -14,6 +14,8 @@ body.jp-shell-on {
   --jp-legacy-top: var(--jp-topbar-height);
   --jp-legacy-right: var(--jp-details-width);
   padding-top: var(--jp-legacy-top) !important;
+  /* The top bar's room counts inside the window's height: no page scrollbar, no empty strip at the bottom. */
+  box-sizing: border-box;
   background: var(--jp-bg);
 }
 
@@ -75,4 +77,12 @@ body.jp-shell-on .file-grid {
   background: var(--jp-bg);
   background-image: none;
   animation: none;
+}
+
+/* Sidebar off (the library toolbar's switch): the grid takes its room. Multi-edit and zip bundles still open it. */
+body.jp-shell-on.jp-no-details:not(.jp-details-open) {
+  --jp-legacy-right: 0px;
+}
+body.jp-shell-on.jp-no-details:not(.jp-details-open) .sidebar {
+  display: none !important;
 }

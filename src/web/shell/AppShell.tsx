@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CircleUserRound, Home, Library, ListChecks, Lock, LogIn, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
+import { ChevronDown, CircleUserRound, Home, Library, Link2, ListChecks, Lock, LogIn, Menu as MenuIcon, MousePointerClick, Printer, X } from 'lucide-react';
 import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
@@ -18,6 +18,9 @@ import { OrganizePage } from '../pages/OrganizePage';
 import { PrintersPage } from '../pages/PrintersPage';
 import { QueuePage } from '../pages/QueuePage';
 import { TagsPage } from '../pages/TagsPage';
+import { CategoriesPage } from '../pages/CategoriesPage';
+import { ModelPage } from '../pages/ModelPage';
+import { loadSidebarPref } from '../details/sidebarPref';
 import { SettingsPage } from '../pages/SettingsPage';
 import { StatsPage } from '../pages/StatsPage';
 import { CollectionsPage } from '../pages/CollectionsPage';
@@ -190,6 +193,19 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
         onChange={(event) => setText(event.target.value)}
         onKeyDown={onKeyDown}
       />
+      {!!user && !user.guest && roleAllows(user.role, 'editor') && (
+        <button
+          type="button"
+          id="jp-topbar-links-button"
+          className="jp-btn jp-btn--secondary jp-btn--md jp-topbar__links"
+          title="Add models from Printables, Thingiverse or MakerWorld links"
+          aria-label="Add Links"
+          onClick={() => window.openLinkImport?.()}
+        >
+          <Link2 size={16} aria-hidden="true" />
+          <span className="jp-topbar__links-label">Add Links</span>
+        </button>
+      )}
       <div className="jp-topbar__actions">
         {user && !user.guest && <NotificationBell />}
         <Menu
@@ -346,6 +362,8 @@ const PAGE_TITLES: Record<PageId, string> = {
   printers: 'Printers',
   stats: 'Statistics',
   collections: 'Collections',
+  categories: 'Categories',
+  model: 'Model',
   tags: 'Tags',
   duplicates: 'Duplicates',
   organize: 'Organize Library',
@@ -389,6 +407,7 @@ export function AppShell() {
 
   useEffect(() => {
     if (isThumbnailWorker) return undefined;
+    void loadSidebarPref();
     document.body.classList.add('jp-shell-on');
     return () => document.body.classList.remove('jp-shell-on');
   }, []);
@@ -478,6 +497,8 @@ export function AppShell() {
           {allowed && page === 'queue' && <QueuePage />}
           {allowed && page === 'printers' && <PrintersPage section={section} />}
           {allowed && page === 'tags' && <TagsPage />}
+          {allowed && page === 'categories' && <CategoriesPage />}
+          {allowed && page === 'model' && <ModelPage key={section} filePath={section} />}
           {allowed && page === 'duplicates' && <DuplicatesPage />}
           {allowed && page === 'organize' && <OrganizePage />}
           {allowed && page === 'settings' && <SettingsPage section={section} />}

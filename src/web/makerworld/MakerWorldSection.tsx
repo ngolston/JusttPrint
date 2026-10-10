@@ -7,7 +7,9 @@ import { useCan } from '../session';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import { useCurrentUser } from '../session';
 import { openSetting } from '../links/SiteSetup';
+import { onServerEvent } from '../page';
 import {
+  SITE_DETAILS_CHANGED,
   SITE_LABELS,
   formatDay,
   formatDuration,
@@ -15,6 +17,7 @@ import {
   gcodeSummary,
   getSiteDetails,
   linkParts,
+  shownProfiles,
   siteModelUrl,
   type MakerWorldDetails,
   type MakerWorldProfile,
@@ -116,6 +119,7 @@ function ModelPart({ details }: { details: MakerWorldDetails }) {
   return (
     <>
       <h4 className="jp-mw__heading">The model</h4>
+      {!!details.edited?.length && <p className="jp-meta jp-mw__note">Some of these details are your own changes (Edit); Refresh keeps them.</p>}
       <div className="jp-props">
         <Prop label="Title">{details.title || '—'}</Prop>
         {details.titleEnglish && details.titleEnglish !== details.title && <Prop label="English title">{details.titleEnglish}</Prop>}
@@ -284,15 +288,16 @@ function ProfilePart({
   downloads: ProfileDownload[];
   currentPath: string;
 }) {
-  const profile = details.profiles.find((p) => p.id === profileId) || details.profiles[0];
+  const shown = shownProfiles(details.profiles, downloads);
+  const profile = (shown.find((row) => row.profile.id === profileId) || shown[0])?.profile;
   if (!profile) return null;
   return (
     <>
       <h4 className="jp-mw__heading">Print profile</h4>
-      {details.profiles.length > 1 && (
+      {shown.length > 1 && (
         <select className="jp-input jp-mw__select" value={profile.id} aria-label="Print profile" onChange={(event) => onChange(event.target.value)}>
-          {details.profiles.map((p, i) => (
-            <option key={p.id} value={p.id}>{`${i + 1}. ${profileName(p)}${downloads.some((d) => d.profileId === p.id) ? ' (downloaded)' : ''}`}</option>
+          {shown.map((row) => (
+            <option key={row.profile.id} value={row.profile.id}>{`${row.index + 1}. ${profileName(row.profile)}`}</option>
           ))}
         </select>
       )}
@@ -545,6 +550,14 @@ export function MakerWorldSection({ model }: { model: { filePath?: string | null
     setResult(null);
     setProfileId('');
     void load();
+    // Edited here or in another browser (the Edit dialog): show the details again.
+    const reload = () => void load();
+    window.addEventListener(SITE_DETAILS_CHANGED, reload);
+    const off = onServerEvent('site-details-changed', reload);
+    return () => {
+      window.removeEventListener(SITE_DETAILS_CHANGED, reload);
+      off();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 

@@ -76,7 +76,7 @@ body.jp-shell-on #model-details .details-name-field {
   display: flex;
   gap: var(--jp-space-1);
 }
-#model-details .jp-details__overlay-btn {
+:is(#model-details, .jp-model-page) .jp-details__overlay-btn {
   all: unset;
   box-sizing: border-box;
   display: inline-flex;
@@ -95,23 +95,23 @@ body.jp-shell-on #model-details .details-name-field {
     background-color var(--jp-transition),
     color var(--jp-transition);
 }
-#model-details .jp-details__overlay-btn:hover {
+:is(#model-details, .jp-model-page) .jp-details__overlay-btn:hover {
   background: rgba(var(--jp-bg-rgb), 0.9);
 }
-#model-details .jp-details__overlay-btn:focus-visible {
+:is(#model-details, .jp-model-page) .jp-details__overlay-btn:focus-visible {
   box-shadow: var(--jp-focus-ring);
 }
-#model-details .jp-details__overlay-btn.is-favorited {
+:is(#model-details, .jp-model-page) .jp-details__overlay-btn.is-favorited {
   color: var(--jp-danger);
 }
-#model-details .jp-details__view-3d {
+:is(#model-details, .jp-model-page) .jp-details__view-3d {
   position: absolute;
   left: var(--jp-space-2);
   bottom: var(--jp-space-2);
 }
 
 /* ---- Thumbnail strip (spec §22) ---- */
-#model-details .jp-details__strip {
+:is(#model-details, .jp-model-page) .jp-details__strip {
   display: flex;
   gap: var(--jp-space-2);
   margin-top: calc(var(--jp-space-2) * -1);
@@ -119,7 +119,7 @@ body.jp-shell-on #model-details .details-name-field {
   overflow-x: auto;
   scrollbar-width: thin;
 }
-#model-details .jp-details__thumb {
+:is(#model-details, .jp-model-page) .jp-details__thumb {
   all: unset;
   box-sizing: border-box;
   flex: none;
@@ -132,20 +132,20 @@ body.jp-shell-on #model-details .details-name-field {
   cursor: pointer;
   transition: border-color var(--jp-transition);
 }
-#model-details .jp-details__thumb img {
+:is(#model-details, .jp-model-page) .jp-details__thumb img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-#model-details .jp-details__thumb:hover {
+:is(#model-details, .jp-model-page) .jp-details__thumb:hover {
   border-color: var(--jp-border-strong);
 }
-#model-details .jp-details__thumb.is-selected {
+:is(#model-details, .jp-model-page) .jp-details__thumb.is-selected {
   border-color: var(--jp-accent);
   box-shadow: inset 0 0 0 1px var(--jp-accent);
 }
-#model-details .jp-details__thumb:focus-visible {
+:is(#model-details, .jp-model-page) .jp-details__thumb:focus-visible {
   box-shadow: var(--jp-focus-ring);
 }
 
@@ -270,6 +270,10 @@ body.jp-shell-on #model-details .details-name-field {
 #model-details .jp-details__actions .jp-btn {
   width: 100%;
 }
+/* Edit has a row of its own under Open in Slicer and Log Print. */
+#model-details .jp-details__actions #jp-details-edit {
+  grid-column: 1 / -1;
+}
 /* The slicer arrow keeps its width (the full-width rule above would squeeze it). */
 #model-details .jp-details__actions .jp-split__more {
   width: 40px;
@@ -310,12 +314,12 @@ body.jp-shell-on #model-details .details-name-field {
 }
 
 /* ---- Details list (spec §26): muted labels, brighter values; editors look like values until used ---- */
-#model-details .jp-props {
+:is(#model-details, .jp-model-page) .jp-props {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-#model-details .jp-prop,
+:is(#model-details, .jp-model-page) .jp-prop,
 #model-details .jp-props__group .form-group {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
@@ -332,7 +336,7 @@ body.jp-shell-on #model-details .details-name-field {
   flex-direction: column;
   gap: 6px;
 }
-#model-details .jp-prop__label,
+:is(#model-details, .jp-model-page) .jp-prop__label,
 #model-details .jp-props__group .form-group > label {
   grid-column: 1;
   margin: 0;
@@ -340,7 +344,7 @@ body.jp-shell-on #model-details .details-name-field {
   font: 400 var(--jp-text-meta) var(--jp-font);
   letter-spacing: 0;
 }
-#model-details .jp-prop__value {
+:is(#model-details, .jp-model-page) .jp-prop__value {
   min-width: 0;
   color: var(--jp-text);
   overflow-wrap: anywhere;
@@ -355,8 +359,8 @@ body.jp-shell-on #model-details .details-name-field {
   font-size: var(--jp-text-small);
 }
 
-#model-details .jp-props select,
-#model-details .jp-props input[type='text'] {
+:is(#model-details, .jp-model-page) .jp-props select,
+:is(#model-details, .jp-model-page) .jp-props input[type='text'] {
   flex: 1;
   min-width: 0;
   height: 30px;
@@ -375,23 +379,23 @@ body.jp-shell-on #model-details .details-name-field {
     background-color var(--jp-transition),
     border-color var(--jp-transition);
 }
-#model-details .jp-props input[type='text'] {
+:is(#model-details, .jp-model-page) .jp-props input[type='text'] {
   padding-right: var(--jp-space-2);
   background-image: none;
 }
-#model-details .jp-props select:hover,
-#model-details .jp-props input[type='text']:hover {
+:is(#model-details, .jp-model-page) .jp-props select:hover,
+:is(#model-details, .jp-model-page) .jp-props input[type='text']:hover {
   background-color: var(--jp-surface-2);
   border-color: var(--jp-border);
 }
-#model-details .jp-props select:focus,
-#model-details .jp-props input[type='text']:focus {
+:is(#model-details, .jp-model-page) .jp-props select:focus,
+:is(#model-details, .jp-model-page) .jp-props input[type='text']:focus {
   outline: none;
   background-color: var(--jp-surface-2);
   border-color: var(--jp-accent);
   box-shadow: none;
 }
-#model-details .jp-props input::placeholder {
+:is(#model-details, .jp-model-page) .jp-props input::placeholder {
   color: var(--jp-text-3);
 }
 /* The ☰ / + / ↗ buttons appear on hover or focus of their row. */
@@ -403,27 +407,27 @@ body.jp-shell-on #model-details .details-name-field {
 #model-details .jp-props__group .form-group .icon-button:focus-visible {
   opacity: 1;
 }
-#model-details .jp-props .designer-input-container,
-#model-details .jp-props .input-with-icon,
-#model-details .jp-props .print-lifecycle-controls {
+:is(#model-details, .jp-model-page) .jp-props .designer-input-container,
+:is(#model-details, .jp-model-page) .jp-props .input-with-icon,
+:is(#model-details, .jp-model-page) .jp-props .print-lifecycle-controls {
   gap: 4px;
   width: 100%;
 }
-#model-details .jp-props .input-with-icon input {
+:is(#model-details, .jp-model-page) .jp-props .input-with-icon input {
   padding-right: var(--jp-space-2);
 }
-#model-details .jp-props .input-with-icon .icon-button {
+:is(#model-details, .jp-model-page) .jp-props .input-with-icon .icon-button {
   position: static;
 }
-#model-details .jp-props #log-print-button {
+:is(#model-details, .jp-model-page) .jp-props #log-print-button {
   opacity: 1;
 }
 
 /* Location: a breadcrumb of the last folders and the file; a folder shows that folder. */
-#model-details .jp-prop--path {
+:is(#model-details, .jp-model-page) .jp-prop--path {
   align-items: start;
 }
-#model-details .jp-prop--path .jp-prop__label {
+:is(#model-details, .jp-model-page) .jp-prop--path .jp-prop__label {
   padding-top: 6px;
 }
 #model-details #details-path-group {
@@ -491,17 +495,17 @@ body.jp-shell-on #model-details .details-name-field {
 #model-details #details-path-group .icon-button {
   opacity: 0;
 }
-#model-details .jp-prop--path:hover #details-path-group .icon-button,
+:is(#model-details, .jp-model-page) .jp-prop--path:hover #details-path-group .icon-button,
 #model-details #details-path-group .icon-button:focus-visible {
   opacity: 1;
 }
 
 /* Rating */
-#model-details .jp-rating {
+:is(#model-details, .jp-model-page) .jp-rating {
   display: inline-flex;
   gap: 1px;
 }
-#model-details .jp-rating__star {
+:is(#model-details, .jp-model-page) .jp-rating__star {
   all: unset;
   padding: 0 1px;
   color: var(--jp-text-3);
@@ -509,10 +513,10 @@ body.jp-shell-on #model-details .details-name-field {
   line-height: 1;
   cursor: pointer;
 }
-#model-details .jp-rating__star.is-filled {
+:is(#model-details, .jp-model-page) .jp-rating__star.is-filled {
   color: var(--jp-warning);
 }
-#model-details .jp-rating__star:focus-visible {
+:is(#model-details, .jp-model-page) .jp-rating__star:focus-visible {
   box-shadow: var(--jp-focus-ring);
   border-radius: 2px;
 }
@@ -821,4 +825,11 @@ body.jp-shell-on #model-details .details-name-field {
 }
 #multi-edit-panel .jp-multi .jp-multi__tool:hover:not(:disabled) {
   border-color: var(--jp-border-strong);
+}
+
+/* A model's categories in the Details list: chips that show the category's models. */
+.jp-details__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-1);
 }

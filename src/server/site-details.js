@@ -53,6 +53,21 @@ function table() {
       )
       .run();
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_site_files_key ON site_files(key)').run();
+    // A file renamed in the Edit dialog keeps its name (renameProfileFiles leaves it alone).
+    const columns = database.db.prepare('PRAGMA table_info(site_files)').all();
+    if (!columns.some((column) => column.name === 'named_by_user')) {
+      database.db.prepare('ALTER TABLE site_files ADD COLUMN named_by_user INTEGER NOT NULL DEFAULT 0').run();
+    }
+    // What people changed in a model's site details (the Edit dialog), laid over what the site says.
+    database.db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS site_edits (
+      key TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      edited_at TEXT NOT NULL
+    )`
+      )
+      .run();
     tableReady = true;
   }
   return database.db;
@@ -137,8 +152,120 @@ function downloadsFor(key) {
  */
 async function getDetails(url, options = {}) {
   const result = await fetchDetails(url, options);
-  if (result) result.downloads = downloadsFor(linkKey(parseModelLink(url)));
+  if (result) {
+    const key = linkKey(parseModelLink(url));
+    if (result.details) result.details = applyEdits(result.details, editsFor(key));
+    result.downloads = downloadsFor(key);
+  }
   return result;
+}
+
+const EDIT_LIMITS = { title: 300, designer: 200, license: 200, description: 50000 };
+const MAX_LIST = 100;
+const MAX_LIST_ITEM = 100;
+
+/** The site's values of what the Edit dialog changes. */
+function siteValues(details) {
+  return {
+    title: details.title || '',
+    designer: (details.designer && details.designer.name) || '',
+    license: details.license || '',
+    description: details.description || '',
+    categories: details.categories || [],
+    tags: (details.tags || []).map((tag) => tag.name),
+    profiles: Object.fromEntries((details.profiles || []).map((p) => [p.id, p.name || '']))
+  };
+}
+
+const cleanText = (value, limit) => String(value).replace(/\r\n?/g, '\n').trim().slice(0, limit);
+const cleanList = (value) =>
+  [...new Set((Array.isArray(value) ? value : []).map((item) => String(item).replace(/\s+/g, ' ').trim().slice(0, MAX_LIST_ITEM)).filter(Boolean))].slice(
+    0,
+    MAX_LIST
+  );
+const sameList = (a, b) => a.length === b.length && a.every((item, i) => item === b[i]);
+
+/** The edits kept for a model link: { title?, designer?, license?, description?, categories?, tags?, profiles? }. */
+function editsFor(key) {
+  const row = table().prepare('SELECT data FROM site_edits WHERE key = ?').get(key);
+  if (!row) return {};
+  try {
+    return JSON.parse(row.data) || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+/** The details with the edits laid over them; `edited` lists what was changed. Translations of changed text are dropped. */
+function applyEdits(details, edits) {
+  const fields = Object.keys(edits || {});
+  if (!fields.length) return details;
+  const next = { ...details, edited: fields };
+  if (typeof edits.title === 'string') Object.assign(next, { title: edits.title, titleEnglish: null });
+  if (typeof edits.designer === 'string') next.designer = { ...details.designer, name: edits.designer };
+  if (typeof edits.license === 'string') next.license = edits.license;
+  if (typeof edits.description === 'string') Object.assign(next, { description: edits.description, descriptionEnglish: null });
+  if (Array.isArray(edits.categories)) next.categories = edits.categories;
+  if (Array.isArray(edits.tags)) next.tags = edits.tags.map((name) => ({ name, english: null }));
+  if (edits.profiles && typeof edits.profiles === 'object') {
+    next.profiles = (details.profiles || []).map((p) =>
+      typeof edits.profiles[p.id] === 'string' ? { ...p, name: edits.profiles[p.id], nameEnglish: null } : p
+    );
+  }
+  return next;
+}
+
+/**
+ * Keep changes to a model's site details (the Edit dialog): `changes` holds the fields changed,
+ * and is added to the edits kept so far; a value the same as the site's drops that edit, so the
+ * field follows the site again. Null forgets all the edits. Answers the details as getDetails does.
+ */
+async function saveSiteEdits(url, changes, options = {}) {
+  const link = parseModelLink(url);
+  if (!link) throw new Error('Not a model link from MakerWorld, Printables or Thingiverse');
+  const key = linkKey(link);
+  if (!changes) {
+    table().prepare('DELETE FROM site_edits WHERE key = ?').run(key);
+    return getDetails(url, options);
+  }
+  if (typeof changes !== 'object' || Array.isArray(changes)) throw new Error('The changes must be an object');
+  const row = table().prepare('SELECT data FROM site_details WHERE key = ?').get(key);
+  const site = row ? siteValues(JSON.parse(row.data)) : null;
+  const edits = editsFor(key);
+  for (const [field, limit] of Object.entries(EDIT_LIMITS)) {
+    if (changes[field] === undefined) continue;
+    const value = cleanText(changes[field] ?? '', limit);
+    if (site && value === site[field]) delete edits[field];
+    else edits[field] = value;
+  }
+  for (const field of ['categories', 'tags']) {
+    if (changes[field] === undefined) continue;
+    const value = cleanList(changes[field]);
+    if (site && sameList(value, site[field])) delete edits[field];
+    else edits[field] = value;
+  }
+  if (changes.profiles && typeof changes.profiles === 'object' && !Array.isArray(changes.profiles)) {
+    const names = { ...(edits.profiles || {}) };
+    for (const [id, name] of Object.entries(changes.profiles)) {
+      if (site && !Object.prototype.hasOwnProperty.call(site.profiles, id)) continue;
+      const value = cleanText(name ?? '', EDIT_LIMITS.title);
+      if (site && value === site.profiles[id]) delete names[id];
+      else names[id] = value;
+    }
+    if (Object.keys(names).length) edits.profiles = names;
+    else delete edits.profiles;
+  }
+  if (Object.keys(edits).length) {
+    table().prepare('INSERT OR REPLACE INTO site_edits (key, data, edited_at) VALUES (?, ?, ?)').run(key, JSON.stringify(edits), new Date().toISOString());
+  } else {
+    table().prepare('DELETE FROM site_edits WHERE key = ?').run(key);
+  }
+  return getDetails(url, options);
+}
+
+/** A downloaded file was renamed by hand (model-rename.js): it moves, and keeps the name it was given. */
+function fileRenamed(from, to) {
+  table().prepare('UPDATE site_files SET file_path = ?, named_by_user = 1 WHERE file_path = ?').run(to, from);
 }
 
 const PRINTABLES_FIELDS = `id name summary description datePublished firstPublish modified likesCount downloadCount makesCount displayCount
@@ -210,7 +337,7 @@ async function siteModelDetails(link, fetchImpl) {
   return makerWorldDetails(await fetchDesign(link, fetchImpl), link.url);
 }
 
-async function fetchDetails(url, { refresh = false, event = null, fetchImpl = httpsFetch } = {}) {
+async function fetchDetails(url, { refresh = false, event = null, fetchImpl = httpsFetch, translate: withTranslation = true } = {}) {
   const link = parseModelLink(url);
   if (!link) return null;
   const key = linkKey(link);
@@ -224,8 +351,15 @@ async function fetchDetails(url, { refresh = false, event = null, fetchImpl = ht
   try {
     const details = await siteModelDetails(link, fetchImpl);
     if (!details) return { details: null, fetchedAt: null, stale: false, error: `${SITES[link.site].label} has no model with this number` };
-    const deps = { fetchImpl, aiSettings: require('./ipc/ai').getAISettings(), puterHandler: event ? require('./ipc/ai').createPuterIPCHandler(event) : null };
-    await addTranslations(details, deps);
+    // Categorize Library only needs the categories: no file names are translated (kept details without them are fetched again when shown).
+    if (withTranslation) {
+      const deps = {
+        fetchImpl,
+        aiSettings: require('./ipc/ai').getAISettings(),
+        puterHandler: event ? require('./ipc/ai').createPuterIPCHandler(event) : null
+      };
+      await addTranslations(details, deps);
+    }
     const fetchedAt = new Date().toISOString();
     table().prepare('INSERT OR REPLACE INTO site_details (key, data, fetched_at) VALUES (?, ?, ?)').run(key, JSON.stringify(details), fetchedAt);
     return { details, fetchedAt, stale: false, error: null };
@@ -245,13 +379,17 @@ function isAllowedDownloadUrl(raw) {
   }
 }
 
-/** A signed-in MakerWorld API call that answers { url, name }; refreshes the sign-in once. */
+/**
+ * A signed-in MakerWorld API call that answers { url, name }; refreshes the sign-in once. Asked of
+ * Bambu Lab's API host (as Bambu Studio does): makerworld.com puts its download links behind a
+ * Cloudflare browser check a server cannot pass.
+ */
 async function downloadLink(apiPath, fetchImpl) {
   if (Date.now() < captchaUntil) throw captchaError();
   for (let attempt = 0; attempt < 2; attempt++) {
     const headers = account.authHeaders();
     if (!headers) throw signInError();
-    const response = await fetchImpl(`https://makerworld.com${apiPath}`, {
+    const response = await fetchImpl(`https://api.bambulab.com${apiPath}`, {
       headers: { 'user-agent': USER_AGENT, accept: 'application/json', ...headers },
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
@@ -511,7 +649,7 @@ async function download(
     try {
       // Spaced out: a burst of downloads makes MakerWorld ask for its robot check.
       if (i > 0) await new Promise((resolve) => setTimeout(resolve, profileGapMs));
-      const { url: fileUrl } = await downloadLink(`/api/v1/design-service/instance/${profile.id}/f3mf?type=download`, fetchImpl);
+      const { url: fileUrl } = await downloadLink(`/v1/design-service/instance/${profile.id}/f3mf?type=download`, fetchImpl);
       await saveTo(fileUrl, tempPath, {
         fetchImpl,
         maxBytes: maxUploadBytes(),
@@ -557,7 +695,7 @@ function renameProfileFiles(key = null) {
   const rows = table()
     .prepare(
       `SELECT f.file_path AS filePath, f.key, f.profile_id AS profileId, d.data
-    FROM site_files f JOIN site_details d ON d.key = f.key ${key ? 'WHERE f.key = ?' : ''}`
+    FROM site_files f JOIN site_details d ON d.key = f.key WHERE f.named_by_user = 0 ${key ? 'AND f.key = ?' : ''}`
     )
     .all(...(key ? [key] : []));
   let moved = 0;
@@ -709,7 +847,9 @@ module.exports = {
   prepareManualFolder,
   resetCaptchaPause,
   download,
+  fileRenamed,
   getDetails,
+  saveSiteEdits,
   isAllowedDownloadUrl,
   makerWorldLink,
   signInError
