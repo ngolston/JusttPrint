@@ -221,7 +221,7 @@ async function main() {
     }
     // The separate model files sit behind a CAPTCHA: JusttPrint never asks for them.
     if (u.pathname.startsWith('/api/v1/design-service/design/3006565/model')) throw new Error('the CAPTCHA-protected model files must not be requested');
-    if (/^\/api\/v1\/design-service\/instance\/[12]\/f3mf$/.test(u.pathname)) {
+    if (u.hostname === 'api.bambulab.com' && /^\/v1\/design-service\/instance\/[12]\/f3mf$/.test(u.pathname)) {
       return signed
         ? new Response(JSON.stringify({ name: profileName, url: `https://${modelLinkHost}/files/p.3mf` }))
         : new Response(JSON.stringify({ code: 1, error: 'Please log in to download models.' }), { status: 403 });

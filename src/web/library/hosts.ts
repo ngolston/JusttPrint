@@ -3,6 +3,8 @@
  * the page globals other modules and scripts call (PrintHistory, search.ts, ManageThumbnailsDialog).
  */
 import { callAction } from '../api';
+import { sidebarOn } from '../details/sidebarPref';
+import { navigate } from '../shell/routes';
 import { runSearch } from '../filters/search';
 import type { GridModel } from '../grid/layout';
 import { selection } from '../selection';
@@ -143,8 +145,10 @@ window.multiEditHost = {
 };
 
 window.bundleHost = {
+  // On a model page, or with the sidebar off: that model's page.
   openModel: (filePath) => {
-    showModelDetails(filePath);
+    if (!sidebarOn() || window.location.hash.startsWith('#/model/')) navigate('model', filePath);
+    else showModelDetails(filePath);
   },
   tagNames: groupTagNames,
   changeTags: changeGroupTags,

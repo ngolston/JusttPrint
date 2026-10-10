@@ -9,6 +9,13 @@ const siteDetails = require('../site-details');
 /** A model link's MakerWorld details (null for other sites); `refresh` fetches them again. */
 ipcMain.handle('get-site-details', async (event, url, refresh) => siteDetails.getDetails(url, { refresh: !!refresh, event }));
 
+/** Keep changes to a model's site details (the Edit dialog); null forgets them. Answers the details as get-site-details does. */
+ipcMain.handle('save-site-edits', async (event, url, changes) => {
+  const result = await siteDetails.saveSiteEdits(url, changes, { event });
+  events.broadcast('site-details-changed', { url });
+  return result;
+});
+
 ipcMain.handle('makerworld-account-status', async () => account.status());
 
 /** One step of signing in: see makerworld-account.js signIn. */

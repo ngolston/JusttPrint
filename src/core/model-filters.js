@@ -71,12 +71,16 @@ function searchIncludeNotesEnabled(filters) {
   return getSettingValueOr('searchIncludeNotes', '1') !== '0';
 }
 
+/** A model in a category: the one with exactly this name when there is one, else any name containing the text. */
+const CATEGORY_MATCH_SQL = `EXISTS (SELECT 1 FROM model_categories mc INNER JOIN categories c ON c.id = mc.category_id WHERE mc.model_id = models.id AND (LOWER(c.name) = ? OR (NOT EXISTS (SELECT 1 FROM categories e WHERE LOWER(e.name) = ?) AND LOWER(c.name) LIKE ?)))`;
+
 function appendAllFieldsSearchSql(params, term, includeNotes) {
+  require('./categories').ensureTables();
   const notesClause = includeNotes ? "LOWER(COALESCE(notes, '')) LIKE ? OR\n          " : '';
   if (includeNotes) {
-    params.push(term, term, term, term, term, term, term, term);
+    params.push(term, term, term, term, term, term, term, term, term);
   } else {
-    params.push(term, term, term, term, term, term, term);
+    params.push(term, term, term, term, term, term, term, term);
   }
   return `(
           LOWER(COALESCE(fileName, '')) LIKE ? OR 
@@ -85,7 +89,8 @@ function appendAllFieldsSearchSql(params, term, includeNotes) {
           ${notesClause}LOWER(COALESCE(filePath, '')) LIKE ? OR
           LOWER(COALESCE(source, '')) LIKE ? OR
           LOWER(COALESCE(license, '')) LIKE ? OR
-          EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?)
+          EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?) OR
+          EXISTS (SELECT 1 FROM model_categories mc INNER JOIN categories c ON c.id = mc.category_id WHERE mc.model_id = models.id AND LOWER(c.name) LIKE ?)
         )`;
 }
 
@@ -116,6 +121,12 @@ function pushSearchClauseFragment(field, rawValue, params, filters) {
     case 'tag':
       params.push(term);
       return 'EXISTS (SELECT 1 FROM model_tags mt INNER JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id AND LOWER(t.name) LIKE ?)';
+    case 'category': {
+      require('./categories').ensureTables();
+      const exact = String(rawValue).trim().toLowerCase();
+      params.push(exact, exact, term);
+      return CATEGORY_MATCH_SQL;
+    }
     default:
       return appendAllFieldsSearchSql(params, term, searchIncludeNotesEnabled(filters));
   }

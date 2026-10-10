@@ -91,6 +91,11 @@ ipcMain.handle('show-context-menu', async (event, fileIdentifier) => {
 
   let menuItems = [];
 
+  // Open: the model's page in the browser that opened the menu (src/web/pages/ModelPage.tsx).
+  if (filePaths.length === 1) {
+    menuItems.push({ label: 'Open', clientAction: { type: 'open-model', filePath: filePaths[0] }, click: async () => {} });
+  }
+
   // Add "Preview" option at the top (single model or full bundle/group)
   const previewablePaths = filePaths.filter((fp) => isPreviewableModelFile(fp));
   if (previewablePaths.length === 1 && !previewAsBundle) {

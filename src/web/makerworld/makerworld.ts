@@ -103,6 +103,8 @@ export interface MakerWorldDetails {
   /** The site's PDF of the model page (Printables). */
   pdfUrl?: string | null;
   translation?: { mode: string; by: string | null; error: string | null };
+  /** The fields changed in JusttPrint's Edit dialog (shown instead of the site's values). */
+  edited?: string[];
 }
 
 export const SITE_LABELS: Record<string, string> = { makerworld: 'MakerWorld', printables: 'Printables', thingiverse: 'Thingiverse' };
@@ -128,6 +130,19 @@ export interface AccountStatus {
   name: string | null;
   expires: string | null;
 }
+
+/**
+ * The print profiles the details panel offers, numbered as on MakerWorld (index from 0): once some
+ * are downloaded only those (Download to Library… still lists them all), else every one.
+ */
+export function shownProfiles(profiles: MakerWorldProfile[], downloads: ProfileDownload[]): { profile: MakerWorldProfile; index: number }[] {
+  const numbered = profiles.map((profile, index) => ({ profile, index }));
+  const downloaded = numbered.filter(({ profile }) => downloads.some((d) => d.profileId === profile.id));
+  return downloaded.length ? downloaded : numbered;
+}
+
+/** Window event: a model's site details were edited in this browser (the Edit dialog). */
+export const SITE_DETAILS_CHANGED = 'jp-site-details-changed';
 
 export const getSiteDetails = (url: string, refresh = false) => callAction<SiteDetailsResult | null>('get-site-details', url, refresh);
 export const accountStatus = () => callAction<AccountStatus>('makerworld-account-status');

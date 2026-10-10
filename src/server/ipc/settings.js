@@ -27,7 +27,8 @@ const PER_USER_SETTING_KEYS = new Set([
   'hideSkippedFileSizeNotice',
   'hasRunBefore',
   'uiTheme',
-  'uiColorScheme'
+  'uiColorScheme',
+  'detailsSidebar'
 ]);
 
 /** Server-wide settings any user may save: the update check and the accepted terms. Everything else needs an admin. */

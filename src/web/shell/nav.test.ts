@@ -19,6 +19,7 @@ describe('shell navigation', () => {
       'Home',
       'Library',
       'Collections',
+      'Categories',
       'Queue',
       'Printers',
       'Statistics',
@@ -62,11 +63,12 @@ describe('roles', () => {
   const labels = (role: string) => navFor(role).flatMap((s) => s.items.map((i) => i.label));
 
   it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
-    expect(labels('viewer')).toEqual(['Home', 'Library', 'Collections', 'Queue', 'Printers', 'Statistics', 'Settings', 'Help']);
+    expect(labels('viewer')).toEqual(['Home', 'Library', 'Collections', 'Categories', 'Queue', 'Printers', 'Statistics', 'Settings', 'Help']);
     expect(labels('editor')).toEqual([
       'Home',
       'Library',
       'Collections',
+      'Categories',
       'Queue',
       'Printers',
       'Statistics',
@@ -98,6 +100,12 @@ describe('routes', () => {
     expect(parseRoute('#/design-system')).toEqual({ page: 'home', section: '' });
     expect(parseRoute('#/nope')).toEqual({ page: 'home', section: '' });
     expect(formatRoute('settings', 'a b')).toBe('#/settings/a%20b');
+    // A model's page carries its whole path.
+    expect(parseRoute(formatRoute('model', '/library/Cosplay/helmet v2.stl'))).toEqual({ page: 'model', section: '/library/Cosplay/helmet v2.stl' });
+    expect(parseRoute(formatRoute('model', 'url::https://makerworld.com/en/models/1'))).toEqual({
+      page: 'model',
+      section: 'url::https://makerworld.com/en/models/1'
+    });
     expect(parseRoute(formatRoute('settings', 'a b')).section).toBe('a b');
   });
 });

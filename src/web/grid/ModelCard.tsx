@@ -14,6 +14,7 @@ import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnai
 import { cardPreviewHeight, type GridModel, type GridView } from './layout';
 import { applyColumns } from './columns';
 import { Heart, MoreHorizontal } from 'lucide-react';
+import { navigate } from '../shell/routes';
 import { TONE_ICONS, printStatusInfo } from '../components/Badge';
 import { cx } from '../components/Button';
 import { badgeTitle, effectiveStatus, type PrintModel } from '../print/printStatus';
@@ -572,6 +573,19 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
         }}
       >
         {thumbnailBlock}
+        <button
+          type="button"
+          className="preview-tile-open-btn preview-tile-page-btn"
+          tabIndex={-1}
+          title="Open the model's page"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            navigate('model', model.filePath);
+          }}
+        >
+          Open
+        </button>
         <div className="preview-tile-check" aria-hidden="true" />
         <div className="preview-tile-overlay">
           {/* Archive sits in the name row, so it never covers the name (it used to sit on top of it). */}
@@ -715,6 +729,20 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             )}
           </div>
         </div>
+        <button
+          type="button"
+          tabIndex={-1}
+          className="jp-btn jp-btn--secondary jp-btn--sm list-open-btn"
+          aria-label={`Open ${name}`}
+          title="Open the model's page"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            navigate('model', model.filePath);
+          }}
+        >
+          Open
+        </button>
       </div>
     );
   }
@@ -791,6 +819,20 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
           {zipEntry && <span className="archive-status jp-model-card__flag">Archive</span>}
         </div>
         <div className="jp-model-card__actions">
+          <button
+            type="button"
+            tabIndex={-1}
+            className="jp-model-card__action jp-model-card__open"
+            aria-label={`Open ${displayFileName(model)}`}
+            title="Open the model's page"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigate('model', model.filePath);
+            }}
+          >
+            Open
+          </button>
           <button
             type="button"
             tabIndex={-1}

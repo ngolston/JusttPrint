@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { createPortal } from 'react-dom';
 import { callAction, downloadUrl } from '../api';
 import { copyText, exposeGlobal, showMessage } from '../page';
+import { navigate } from '../shell/routes';
 
 /** One entry of a menu the server built (src/server/ipc/context-menu.js). */
 export interface ContextMenuItem {
@@ -14,6 +15,7 @@ export interface ContextMenuItem {
 }
 
 type ClientAction =
+  | { type: 'open-model'; filePath: string }
   | { type: 'download'; filePath: string }
   | { type: 'copy-paths'; filePaths: string[] }
   | { type: 'open-in-slicer' | 'open-in-orcaslicer' | 'slicer-error'; [key: string]: unknown };
@@ -155,6 +157,7 @@ export function ContextMenu() {
   const run = async (item: ContextMenuItem, index: number, subIndex: number | null) => {
     try {
       const action = item.clientAction;
+      if (action?.type === 'open-model') return navigate('model', action.filePath);
       if (action?.type === 'download') return downloadFile(action.filePath);
       if (action?.type === 'copy-paths') return await copyPaths(action.filePaths);
       if (action && window.JusttPrintSlicerProtocol) {

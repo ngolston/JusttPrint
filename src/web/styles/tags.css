@@ -124,3 +124,86 @@
   display: flex;
   gap: 2px;
 }
+
+/* Categories (pages/CategoriesPage.tsx): the Tags page's rows, with the category's words under its name. */
+.jp-category-row__name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jp-category-row__title {
+  color: var(--jp-text);
+  font-weight: 600;
+}
+.jp-category-row__name:not(:disabled):hover .jp-category-row__title {
+  color: var(--jp-accent);
+}
+.jp-category-row__words {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-category-scan {
+  margin-bottom: var(--jp-space-4);
+}
+.jp-category-scan__ai {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--jp-space-2);
+  margin-top: var(--jp-space-3);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+}
+.jp-category-scan__ai input {
+  margin-top: 2px;
+}
+.jp-category-scan__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--jp-space-2);
+  margin-top: var(--jp-space-3);
+}
+.jp-category-scan__summary {
+  margin: 0;
+  padding-left: var(--jp-space-5);
+  color: var(--jp-text-2);
+}
+.jp-category-review {
+  margin-top: var(--jp-space-4);
+}
+.jp-category-review__list {
+  max-height: 420px;
+  margin: var(--jp-space-3) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.jp-category-review__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-2) 0;
+}
+.jp-category-review__row + .jp-category-review__row {
+  border-top: 1px solid var(--jp-border);
+}
+.jp-category-review__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-category-review__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-1);
+}
+.jp-link-button {
+  all: unset;
+  color: var(--jp-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.jp-link-button:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+}

@@ -6,6 +6,8 @@
 import { models as modelApi } from '../api';
 import { normalizePath, type GridModel, type GridView, type GroupRecord } from '../grid/layout';
 import { selection } from '../selection';
+import { sidebarOn } from '../details/sidebarPref';
+import { navigate } from '../shell/routes';
 import { expandedGroups, listHooks, refreshGrid } from './models';
 
 const panel = (id: 'model-details' | 'bundle-details' | 'multi-edit-panel') => document.getElementById(id);
@@ -315,6 +317,12 @@ export function showCardMenu(filePath: string, x: number, y: number) {
 function toggleCard(card: TapCard, filePath: string) {
   if (card?._suppressTap) return;
   if (multiEdit) return void selection.toggle(filePath);
+  // Sidebar off: the model's page instead.
+  if (!sidebarOn()) {
+    selection.set([filePath]);
+    navigate('model', filePath);
+    return;
+  }
   if (selection.size === 1 && selection.has(filePath)) {
     selection.clear();
     panel('model-details')?.classList.add('hidden');

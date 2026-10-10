@@ -1009,6 +1009,10 @@ async function browserChecks(base, wsUrl, session) {
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     await page.waitForTimeout(3000);
 
+    // The page fits the window: the grid and the details panel scroll, the page itself does not (no empty strip under it).
+    const pageFits = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight);
+    check('the page is no taller than the window', pageFits);
+    check('the top bar has Add Links next to the search box', await page.isVisible('.jp-topbar #jp-topbar-links-button'));
     // Home dashboard (React, src/web/pages/HomeDashboard.tsx): the app opens on it, above the library.
     const libraryTotal = (await invoke(base, session, 'get-library-counts')).result || {};
     check(
@@ -1289,6 +1293,144 @@ async function browserChecks(base, wsUrl, session) {
             () => false
           ))
       );
+      // The Edit dialog (src/web/details/EditModelDialog.tsx): every field at once; a new name renames the file.
+      {
+        const before = await panelModel();
+        const extension = path.extname(cardPath);
+        const stem = path.basename(cardPath, extension);
+        const renamedPath = path.join(path.dirname(cardPath), `e2e renamed${extension}`);
+        const editOnce = async (values) => {
+          await page.click('#jp-details-edit');
+          const open = await page.waitForSelector('#edit-model-dialog[open]', { timeout: 10000 }).catch(() => null);
+          if (!open) return false;
+          await page.waitForFunction(() => document.getElementById('edit-model-name')?.value, null, { timeout: 10000 }).catch(() => {});
+          const shownStem = await page.inputValue('#edit-model-name');
+          await page.fill('#edit-model-name', values.name);
+          await page.fill('#edit-model-license', values.license);
+          await page.fill('#edit-model-notes', values.notes);
+          await page.selectOption('#edit-model-rating', values.rating);
+          await page.click('#edit-model-save');
+          await page.waitForSelector('#edit-model-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+          return shownStem;
+        };
+        const shownStem = await editOnce({ name: 'e2e renamed', license: 'E2E Edit License', notes: 'e2e edit notes', rating: '4' });
+        const edited = await waitFor(
+          async () => {
+            const model = (await invoke(base, session, 'get-model', [renamedPath])).result;
+            return model && model.license === 'E2E Edit License' && model.notes === 'e2e edit notes' && Number(model.rating) === 4 ? model : null;
+          },
+          10000,
+          'edited'
+        ).catch(() => null);
+        check(
+          'the Edit dialog saves every field and renames the file',
+          shownStem === stem && !!edited && fs.existsSync(renamedPath) && !fs.existsSync(cardPath) && (await page.isVisible('#model-details')),
+          JSON.stringify({ shownStem, stem, edited: !!edited })
+        );
+        await editOnce({ name: stem, license: before.license || '', notes: before.notes || '', rating: String(Number(before.rating) || 0) });
+        const restored = await waitFor(async () => ((await invoke(base, session, 'get-model', [cardPath])).result ? true : null), 10000, 'renamed back').catch(
+          () => false
+        );
+        check('renaming back in the Edit dialog restores the file', restored === true && fs.existsSync(cardPath) && !fs.existsSync(renamedPath));
+        await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+      }
+      // Categories (src/web/pages/CategoriesPage.tsx): a category of our own, Categorize Library without the AI, and its models in the library.
+      {
+        const cubePath = path.join(LIBRARY, 'Designer A', 'cube.stl');
+        await page.evaluate(() => {
+          window.location.hash = '#/categories';
+        });
+        await page.waitForSelector('#jp-categories-list', { timeout: 10000 }).catch(() => {});
+        check("the Categories page starts with MakerWorld's categories", (await page.locator('#jp-categories-list .jp-category-row').count()) >= 10);
+        await page.fill('#jp-new-category', 'E2E Shapes');
+        await page.click('.jp-tags__create button[type=submit]');
+        const shapes = '.jp-category-row[data-category-name="E2E Shapes"]';
+        await page.waitForSelector(shapes, { timeout: 10000 }).catch(() => {});
+        await invoke(base, session, 'update-category', [
+          ((await invoke(base, session, 'get-categories')).result.categories.find((c) => c.name === 'E2E Shapes') || {}).id || 0,
+          { keywords: 'cube' }
+        ]);
+        await page.uncheck('.jp-category-scan__ai input').catch(() => {});
+        await page.click('#jp-category-scan-start');
+        const placed = await waitFor(
+          async () => (((await invoke(base, session, 'get-model', [cubePath])).result || {}).categories || []).includes('E2E Shapes') || null,
+          30000,
+          'categorized'
+        ).catch(() => false);
+        const summaryShown = await page.waitForSelector('#jp-category-scan-summary', { timeout: 30000 }).then(
+          () => true,
+          () => false
+        );
+        check("Categorize Library places a model by a category's words", placed === true && summaryShown);
+        await page.click('#jp-category-scan-close').catch(() => {});
+        await page.click(`${shapes} .jp-category-row__name`);
+        const onlyCube = await page
+          .waitForFunction(
+            (want) => {
+              const shown = [...document.querySelectorAll('.file-grid [data-filepath]')].map((el) => el.getAttribute('data-filepath'));
+              return shown.length >= 1 && shown.every((p) => p === want || p.startsWith(`${want}::`)) && shown.includes(want);
+            },
+            cubePath,
+            { timeout: 10000 }
+          )
+          .then(
+            () => true,
+            () => false
+          );
+        check('a category shows its models in the library', onlyCube);
+        await page.click('#jp-filter-strip .jp-filter-clear, button:has-text("Clear All Filters")').catch(() => {});
+        await invoke(base, session, 'delete-category', [
+          ((await invoke(base, session, 'get-categories')).result.categories.find((c) => c.name === 'E2E Shapes') || {}).id || 0
+        ]);
+        await page.evaluate(() => {
+          window.location.hash = '#/library';
+        });
+        await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+        await page.click(`${card} .file-name`).catch(() => {});
+      }
+      // A model's page (src/web/pages/ModelPage.tsx), from the card's Open, and the sidebar switch.
+      {
+        await page.hover(card);
+        await page.click(`${card} .jp-model-card__open`);
+        const titled = await page
+          .waitForFunction((want) => document.getElementById('jp-model-page-title')?.textContent === want, path.basename(cardPath, path.extname(cardPath)), {
+            timeout: 10000
+          })
+          .then(
+            () => true,
+            () => false
+          );
+        const listed = await page.waitForSelector(`#jp-model-page-file-grid [data-filepath="${cardPath.replace(/"/g, '\\"')}"]`, { timeout: 10000 }).then(
+          () => true,
+          () => false
+        );
+        check("Open on a card shows the model page with its folder's files", titled && listed && (await page.isVisible('#jp-model-page-edit')));
+        await page.click('.jp-model-page__back');
+        await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+        await page.click('#jp-sidebar-toggle');
+        const sidebarGone = await page.evaluate(() => getComputedStyle(document.querySelector('.sidebar')).display === 'none');
+        await page.click(`${card} .file-name`);
+        const clickOpens = await page.waitForSelector('#jp-model-page-title', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        );
+        check('with the sidebar off, a click on a model opens its page', sidebarGone && clickOpens);
+        await page.click('.jp-model-page__back');
+        await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+        await page.click('#jp-sidebar-toggle');
+        // The card is still selected from the page: the first click unselects it, the next shows its details.
+        const detailsShown = () =>
+          page.waitForSelector('#model-details #jp-details-edit', { state: 'visible', timeout: 5000 }).then(
+            () => true,
+            () => false
+          );
+        let shownAgain = false;
+        for (let i = 0; i < 2 && !shownAgain; i++) {
+          await page.click(`${card} .file-name`);
+          shownAgain = await detailsShown();
+        }
+        check('turning the sidebar on shows the details again', shownAgain && !(await page.evaluate(() => document.body.classList.contains('jp-no-details'))));
+      }
       await page.click(`${card} .print-status`, { modifiers: ['Shift'] });
       const wantItem = await page.waitForSelector('.print-status-menu .print-status-menu-item:text-is("Want")', { timeout: 10000 }).catch(() => null);
       if (wantItem) await wantItem.click();

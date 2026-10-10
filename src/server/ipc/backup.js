@@ -168,6 +168,15 @@ function buildLibraryExportData() {
     }
   }
 
+  const categories = require('../../core/categories');
+  const categoryList = categories.listCategories();
+  const categoriesByModelId = new Map();
+  for (const row of database.db
+    .prepare('SELECT mc.model_id, c.name FROM model_categories mc JOIN categories c ON c.id = mc.category_id ORDER BY c.position, c.name COLLATE NOCASE')
+    .all()) {
+    pushGrouped(categoriesByModelId, row.model_id, row.name);
+  }
+
   const partsByEventId = new Map();
   if (libraryTableExists('print_events') && libraryTableExists('print_event_parts')) {
     const hasPartsCatalog = libraryTableExists('parts');
@@ -323,6 +332,7 @@ function buildLibraryExportData() {
     printers,
     parts,
     slicers,
+    categories: categoryList.map((category) => ({ name: category.name, keywords: category.keywords })),
     models: models.map((model) => ({
       filePath: model.filePath,
       fileName: model.fileName,
@@ -338,6 +348,7 @@ function buildLibraryExportData() {
       rating: model.rating || 0,
       favorite: model.favorite ? 1 : 0,
       tags: tagsByModelId.get(model.id) || [],
+      categories: categoriesByModelId.get(model.id) || [],
       printEvents: eventsByModelId.get(model.id) || []
     }))
   };
@@ -375,6 +386,20 @@ ipcMain.handle('import-library', async (event, /** @type {{ json?: string } | nu
     let importedCount = 0;
     let updatedCount = 0;
 
+    // Categories (files from 7.14 on): the ones missing here are made, with their words.
+    const categories = require('../../core/categories');
+    const knownCategories = new Set(categories.listCategories().map((c) => categories.normalize(c.name)));
+    for (const category of Array.isArray(importData.categories) ? importData.categories : []) {
+      if (!category || typeof category.name !== 'string' || knownCategories.has(categories.normalize(category.name))) continue;
+      try {
+        categories.createCategory(category.name, Array.isArray(category.keywords) ? category.keywords.join(', ') : '');
+        knownCategories.add(categories.normalize(category.name));
+      } catch (error) {
+        console.warn(`Could not import the category ${category.name}: ${error.message}`);
+      }
+    }
+    const categoryIds = new Map(categories.listCategories().map((c) => [categories.normalize(c.name), c.id]));
+
     for (let i = 0; i < importData.models.length; i++) {
       const modelData = importData.models[i];
       try {
@@ -391,6 +416,11 @@ ipcMain.handle('import-library', async (event, /** @type {{ json?: string } | nu
           license: modelData.license || null,
           tags: modelData.tags || []
         });
+        if (Array.isArray(modelData.categories) && modelData.categories.length) {
+          const saved = database.db.prepare('SELECT id FROM models WHERE filePath = ?').get(modelData.filePath);
+          const ids = modelData.categories.map((name) => categoryIds.get(categories.normalize(name))).filter(Boolean);
+          if (saved && ids.length) categories.addModelCategories(saved.id, ids, 'manual');
+        }
 
         if (existingModel) {
           updatedCount++;

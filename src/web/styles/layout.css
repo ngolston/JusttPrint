@@ -185,13 +185,20 @@
   align-items: center;
   justify-content: center;
   height: var(--jp-topbar-height);
-  padding: 0 var(--jp-space-6);
+  /* Room on the right for the bell and the account menu (placed over the bar), so the search box shrinks instead of running under them. */
+  padding: 0 260px 0 var(--jp-space-6);
   background: var(--jp-bg);
   border-bottom: 1px solid var(--jp-border);
   box-sizing: border-box;
 }
 .jp-topbar__search {
-  width: min(60%, 700px);
+  flex: 0 1 700px;
+  min-width: 0;
+}
+/* Add Links, right of the search box. */
+.jp-topbar__links {
+  flex: none;
+  margin-left: var(--jp-space-2);
 }
 .jp-topbar__actions {
   position: absolute;
