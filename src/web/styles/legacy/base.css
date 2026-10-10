@@ -4252,11 +4252,6 @@ dialog:not([open]) {
   padding: 0;
 }
 
-.ai-prompt-actions {
-  margin-top: 6px;
-  justify-content: flex-start;
-}
-
 .ai-prompt-textarea {
   width: 100%;
   min-height: 280px;
@@ -5554,19 +5549,8 @@ dialog:not([open]) {
   margin: 1rem 0;
 }
 
-#slicer-dialog .slicer-list-actions .full-width-button {
-  flex: 1;
-  width: auto;
-  max-width: none;
-  margin: 0;
-}
-
 #slicer-helper-install {
   margin: 0 0 0.75rem;
-}
-
-#slicer-helper-install .full-width-button {
-  margin-top: 0.5rem;
 }
 
 #slicer-list {

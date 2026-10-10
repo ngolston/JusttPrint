@@ -248,6 +248,45 @@
   cursor: not-allowed;
 }
 
+/* Older buttons in dialogs that stretched to fill: natural width, the shared button look. */
+.modal .full-width-button {
+  width: auto;
+  max-width: none;
+  min-height: var(--jp-control-height);
+  margin: 0;
+  padding: 0 var(--jp-space-4);
+  border-radius: var(--jp-radius-md);
+}
+.modal .full-width-button:hover {
+  background: var(--jp-surface-hover);
+}
+.modal .full-width-button.is-primary:hover {
+  background: var(--jp-accent-hover);
+}
+#slicer-dialog .slicer-list-actions {
+  flex-wrap: wrap;
+}
+#slicer-dialog .slicer-list-actions .full-width-button {
+  flex: 0 0 auto;
+}
+#slicer-helper-install .full-width-button {
+  margin-top: var(--jp-space-2);
+}
+
+/* AI Configuration: the prompt editor's buttons sit under it, on the left. */
+.dialog-buttons.ai-prompt-actions {
+  justify-content: flex-start;
+  margin-top: 6px;
+}
+
+/* AI Configuration: the Puter account and its Sign In / Sign Out. */
+.ai-account-row {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  color: var(--jp-text);
+}
+
 @media (max-width: 640px) {
   .modal {
     padding: var(--jp-space-4);
