@@ -1,6 +1,6 @@
 /*
  * The filters (search, sort, pickers, pills, the folder tree and rail) and the details panel (fields, tags, pictures, notes, ZIP bundles, multi-edit, the print log): one file, since they share the same form widgets.
- * Moved from the older stylesheets (styles/legacy, removed in 7.14), colors on the tokens.
+ * Moved from the older stylesheets (styles/legacy, removed in 7.13.2), colors on the tokens.
  */
 
 .sidebar {

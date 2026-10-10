@@ -1,6 +1,6 @@
 /*
  * The library grid, wall and list: cards, groups of parent models, columns, status badges, panel resizing.
- * Moved from the older stylesheets (styles/legacy, removed in 7.14), colors on the tokens.
+ * Moved from the older stylesheets (styles/legacy, removed in 7.13.2), colors on the tokens.
  */
 
 .parent-model-group.bundle-details-active {
