@@ -6,7 +6,7 @@ All notable changes contributed via pull request are documented in this file.
 
 **Changes:**
 - **Every dialog in the JusttPrint 5 style:** one look for the frame, title, description, labelled fields, help text, checkboxes and the button row (right-aligned, buttons at their natural size instead of full width, the main action highlighted). The Tag Manager (tags as chips with counts) and the Metadata Editor (tabs, one row per name with Rename and Delete) are redrawn; the 3D preview has a single frame and icon buttons. The Slicer Settings and AI Configuration layouts are tidied.
-- **Development:** about 1,000 lines of the older CSS are gone (10.7k → 7.8k since 7.12, with the Printer and Parts Managers); dialogs use `styles/dialogs.css` and the preview `styles/preview.css`.
+- **Development:** about 1,200 more lines of the older CSS are gone (9.1k → 7.8k; 10.7k before 7.13); dialogs use `styles/dialogs.css` and the preview `styles/preview.css`.
 
 ## [7.13.0] - 2026-10-09
 
