@@ -31,10 +31,19 @@ const set = (next: Activity[]) => {
 
 let started = false;
 function follow() {
-  if (started || typeof window === 'undefined') return;
+  // The server's hidden thumbnail page has no UI to show jobs on (as in tags/aiJob.ts).
+  if (started || typeof window === 'undefined' || new URLSearchParams(window.location.search).get('pv-thumbnail-worker') === '1') return;
   started = true;
-  onServerEvent('background-activity', (next: Activity[]) => set(next));
-  callAction<Activity[]>('get-background-activity').then(set, () => {});
+  // The snapshot can answer after a newer event (a scan that starts and ends while the
+  // page connects): it must not bring back a job that has already finished.
+  let heard = false;
+  onServerEvent('background-activity', (next: Activity[]) => {
+    heard = true;
+    set(next);
+  });
+  callAction<Activity[]>('get-background-activity').then((snapshot) => {
+    if (!heard) set(snapshot);
+  }, () => {});
 }
 
 /** The running jobs (every browser sees them all). */
