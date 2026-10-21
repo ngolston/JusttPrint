@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultModelName, joinFolder, mediaKindOf, stem, targetFolder } from './plan';
+import { defaultModelName, joinFolder, mediaKindOf, modelUploadTarget, stem, targetFolder } from './plan';
 
 const info = { mediaExtensions: { image: ['.png', '.jpg'], video: ['.mp4'], document: ['.pdf'] } };
 
@@ -22,5 +22,14 @@ describe('upload plan', () => {
     expect(targetFolder('/lib/Robot/', 'clip.mp4', info)).toBe('/lib/Robot/video');
     expect(targetFolder('/lib/Robot', 'part.stl', info)).toBe('/lib/Robot');
     expect(joinFolder('C:\\lib\\Robot', 'document')).toBe('C:\\lib\\Robot\\document');
+  });
+
+  it("sorts a model page's upload: media to their subfolders, model files beside the model, the rest into other/", () => {
+    const withModels = { ...info, extensions: ['.stl', '.3mf', '.zip'] };
+    expect(modelUploadTarget('/lib/Robot', 'a.JPG', withModels)).toEqual({ folder: '/lib/Robot/image', kind: 'image' });
+    expect(modelUploadTarget('/lib/Robot', 'Guide.pdf', withModels)).toEqual({ folder: '/lib/Robot/document', kind: 'document' });
+    expect(modelUploadTarget('/lib/Robot', 'arm v2.3mf', withModels)).toEqual({ folder: '/lib/Robot', kind: 'model' });
+    expect(modelUploadTarget('/lib/Robot', 'Robot.step', withModels)).toEqual({ folder: '/lib/Robot/other', kind: 'other' });
+    expect(modelUploadTarget('/lib/Robot', 'README', withModels)).toEqual({ folder: '/lib/Robot/other', kind: 'other' });
   });
 });

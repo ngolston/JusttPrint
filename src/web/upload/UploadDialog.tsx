@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CircleAlert, FolderOpen, Plus, Upload, X } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Plus, Upload, X } from 'lucide-react';
 import { callAction, cancelUpload, uploadFile, uploads, type UploadInfo } from '../api';
 import { Button, IconButton } from '../components/Button';
-import { pickFolder } from '../components/FolderPicker';
 import { Modal } from '../components/Overlay';
 import { ProgressBar } from '../components/Panel';
-import { getFilterState } from '../filters/store';
 import { formatBytes } from '../shell/AppShell';
 import { navigate } from '../shell/routes';
-import { stlHomeDirectories } from '../scan/stlHome';
 import { useCan } from '../session';
-import { exposeGlobal } from '../page';
+import { exposeGlobal, showMessage } from '../page';
 import { checkFile, type FileCheck } from './check';
 import { forgetSession, saveSession, savedSession } from './resume';
 import { defaultModelName, lastSegment, mediaKindOf, stem, targetFolder, type UploadMode } from './plan';
@@ -21,8 +18,6 @@ declare global {
     openUpload?: (files?: File[]) => void;
   }
 }
-
-const FOLDER_KEY = 'justtprint.uploadFolder';
 
 type Status = 'waiting' | 'uploading' | 'done' | 'error' | 'skipped';
 
@@ -39,32 +34,10 @@ interface Entry {
   modelFolder?: string;
 }
 
-function rememberedFolder(): string {
-  try {
-    return localStorage.getItem(FOLDER_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-function rememberFolder(folder: string) {
-  try {
-    localStorage.setItem(FOLDER_KEY, folder);
-  } catch {
-    /* private window */
-  }
-}
-
-/** Where uploads go first: the Upload folder (Settings), else the folder the library shows, else the last one used, else STL Home. */
-async function defaultFolder(): Promise<string> {
+/** The Upload folder every upload goes to (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER), or '' when none is set. */
+async function uploadFolder(): Promise<string> {
   const inbox = await callAction<{ uploadFolder: string }>('get-upload-folder').catch(() => null);
-  if (inbox?.uploadFolder) return inbox.uploadFolder;
-  const shown = getFilterState().directory;
-  if (shown && !shown.includes('::')) return shown;
-  const last = rememberedFolder();
-  if (last) return last;
-  const homes = await stlHomeDirectories().catch(() => [] as string[]);
-  return homes[0] || '';
+  return inbox?.uploadFolder || '';
 }
 
 const uploadLabel = (count: number) => (count === 0 ? 'Upload' : `Upload ${count} ${count === 1 ? 'File' : 'Files'}`);
@@ -150,7 +123,16 @@ export function UploadDialog() {
 
   useEffect(
     () =>
-      exposeGlobal('openUpload', (files?: File[]) => {
+      exposeGlobal('openUpload', async (files?: File[]) => {
+        // Everything goes to the Upload folder: without one, it is chosen first.
+        const inbox = await uploadFolder();
+        if (!inbox) {
+          navigate('settings', 'organize');
+          await showMessage('Upload', 'Choose the Upload folder first (it is where every upload goes), then upload again.');
+          return;
+        }
+        madeFolder.current = null;
+        setFolder(inbox);
         setOpen(true);
         if (files?.length) addFiles(files);
         uploads
@@ -164,18 +146,9 @@ export function UploadDialog() {
             );
           })
           .catch(() => {});
-        void defaultFolder().then((dir) => setFolder((current) => current || dir));
       }),
     []
   );
-
-  async function chooseFolder() {
-    const picked = await pickFolder({ title: 'Upload Into', initial: folder || undefined, confirmLabel: 'Upload Here' });
-    if (picked) {
-      madeFolder.current = null;
-      setFolder(picked);
-    }
-  }
 
   function patch(key: string, changes: Partial<Entry>) {
     setEntries((list) => list.map((entry) => (entry.key === key ? { ...entry, ...changes } : entry)));
@@ -184,7 +157,6 @@ export function UploadDialog() {
   async function start() {
     const queue = entries.filter((entry) => entry.status === 'waiting' || entry.status === 'error');
     if (!folder || !queue.length) return;
-    rememberFolder(folder);
     setBusy(true);
     setSummary('');
     let uploaded = 0;
@@ -257,12 +229,15 @@ export function UploadDialog() {
     if (uploaded) {
       setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}. Adding to the library…`);
       let inLibrary = 0;
+      /** Archives (RAR, 7Z; a ZIP while ZIP scanning is off): kept as they are, for Organize to move. */
+      let kept = 0;
       let scanError = '';
       const notAdded: { name: string; reason: string }[] = [];
       for (const [modelFolder, paths] of byFolder) {
         try {
           const done = await uploads.finish(modelFolder, paths);
           inLibrary += done.inLibrary;
+          kept += done.kept || 0;
           notAdded.push(...(done.notAdded || []));
         } catch (error) {
           scanError = errorText(error);
@@ -273,10 +248,13 @@ export function UploadDialog() {
       if (scanError) setSummary(`Uploaded ${files}${where}, but the scan failed: ${scanError}`);
       else {
         const why = notAdded.map((n) => `${n.name}: ${n.reason}`).join('; ');
+        const keptText = kept
+          ? ` ${kept} ${kept === 1 ? 'archive is' : 'archives are'} kept as ${kept === 1 ? 'it is' : 'they are'} (Organize moves ${kept === 1 ? 'it' : 'them'}).`
+          : '';
         const added =
-          inLibrary >= uploaded && !notAdded.length
-            ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
-            : `${inLibrary} of them in the library. Not added: ${why || 'larger than the scan limit (Settings → General → Performance)'}.`;
+          inLibrary + kept >= uploaded && !notAdded.length
+            ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.${keptText}`
+            : `${inLibrary} of them in the library.${keptText} Not added: ${why || 'larger than the scan limit (Settings → General → Performance)'}.`;
         setSummary(`Uploaded ${files}${where}; ${added}${failed && !cancelled ? ` ${failed} failed.` : ''}`);
       }
     } else if (failed) {
@@ -346,14 +324,11 @@ export function UploadDialog() {
     >
       <div className="jp-upload__folder">
         <div className="jp-upload__folder-text">
-          <span className="jp-label">Library folder</span>
+          <span className="jp-label">Upload folder</span>
           <span className="jp-upload__path" id="jp-upload-folder" title={folder}>
-            {folder || 'Choose a folder in your library'}
+            {folder}
           </span>
         </div>
-        <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy} id="jp-upload-choose-folder">
-          Choose Folder
-        </Button>
       </div>
 
       <fieldset className="jp-upload__mode" id="jp-upload-mode" disabled={busy}>

@@ -22,6 +22,13 @@ function wholeNumber(value, min, max) {
   return number;
 }
 
+/** An absolute folder path in the container, without a trailing slash. */
+function containerFolder(value) {
+  const dir = String(value).trim().replace(/\/+$/, '') || '/';
+  if (!dir.startsWith('/')) throw new Error(`expected an absolute container path, got "${value}"`);
+  return dir;
+}
+
 function splitList(value) {
   return String(value)
     .split(/[,;\n]/)
@@ -71,6 +78,9 @@ const ENV_SETTINGS = [
   ['JUSTTPRINT_AUTO_BACKUP', 'autoBackupEnabled', parseBoolean],
   ['JUSTTPRINT_BACKUP_INTERVAL_HOURS', 'autoBackupIntervalHours', (value) => String(wholeNumber(value, 1, 8760))],
   ['JUSTTPRINT_BACKUP_KEEP', 'autoBackupKeep', (value) => String(wholeNumber(value, 1, 1000))],
+  // Organize (src/server/upload-inbox.js): the Upload folder every upload and download goes to, and where Organize puts models.
+  ['JUSTTPRINT_UPLOAD_FOLDER', 'uploadFolder', (value) => containerFolder(value)],
+  ['JUSTTPRINT_ORGANIZE_DESTINATION', 'organizeDestination', (value) => containerFolder(value)],
   [
     'JUSTTPRINT_BACKUP_DIR',
     'autoBackupDirectory',

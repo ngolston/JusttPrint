@@ -893,3 +893,13 @@ dialog.assembly-dialog {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Files dragged over a model page (they go into its folder, as with Upload). */
+.jp-model-page.is-dropping {
+  outline: 2px dashed var(--jp-accent);
+  outline-offset: 4px;
+  border-radius: var(--jp-radius-lg);
+}
+.jp-model-upload__busy {
+  flex: 1 1 100%;
+}

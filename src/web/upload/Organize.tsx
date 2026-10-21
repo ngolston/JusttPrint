@@ -142,6 +142,8 @@ export function OrganizeSettingsDialog() {
   const [upload, setUpload] = useState('');
   const [destination, setDestination] = useState('');
   const [fallback, setFallback] = useState('');
+  /** Folders set by Docker (JUSTTPRINT_UPLOAD_FOLDER / JUSTTPRINT_ORGANIZE_DESTINATION): applied on every start, so not changed here. */
+  const [fromEnv, setFromEnv] = useState({ uploadFolder: false, destination: false });
   const [options, setOptions] = useState<OrganizeOptions>({ layers: ['category', 'subcategory'], tidy: true, tags: true, autoApply: true });
   const [choices, setChoices] = useState<{ id: string; label: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -154,6 +156,7 @@ export function OrganizeSettingsDialog() {
             setUpload(info.uploadFolder);
             setDestination(info.chosenDestination);
             setFallback(info.chosenDestination ? '' : info.destination);
+            setFromEnv(info.fromEnv || { uploadFolder: false, destination: false });
             setOptions(info.options);
             setChoices(info.layerChoices);
           })
@@ -232,15 +235,24 @@ export function OrganizeSettingsDialog() {
         <div className="form-group">
           <label htmlFor="upload-folder-path">Scanned directory (the Upload folder)</label>
           <div className="jp-folder-field">
-            <input type="text" id="upload-folder-path" value={upload} placeholder="/upload" onChange={(event) => setUpload(event.target.value)} />
-            <button type="button" id="choose-upload-folder" onClick={() => void choose(upload, 'Scanned Directory', setUpload)}>
-              Choose…
-            </button>
+            <input
+              type="text"
+              id="upload-folder-path"
+              value={upload}
+              placeholder="/upload"
+              readOnly={fromEnv.uploadFolder}
+              onChange={(event) => setUpload(event.target.value)}
+            />
+            {!fromEnv.uploadFolder && (
+              <button type="button" id="choose-upload-folder" onClick={() => void choose(upload, 'Scanned Directory', setUpload)}>
+                Choose…
+              </button>
+            )}
           </div>
         </div>
         <p className="setting-description">
-          Uploads go here first (the Upload dialog starts here) and show in the library as Not organized. Made when it does not exist yet. Empty turns Organize
-          off.
+          {fromEnv.uploadFolder ? 'Set by Docker (JUSTTPRINT_UPLOAD_FOLDER). ' : ''}Every upload and every download from a model link goes here, and shows in
+          the library as Not organized. Made when it does not exist yet. Empty: Upload and Add Links ask for it first.
         </p>
         <div className="form-group">
           <label htmlFor="organize-destination-path">Destination directory</label>
@@ -250,13 +262,17 @@ export function OrganizeSettingsDialog() {
               id="organize-destination-path"
               value={destination}
               placeholder={fallback ? `${fallback} (the first STL Home folder)` : 'The first STL Home folder'}
+              readOnly={fromEnv.destination}
               onChange={(event) => setDestination(event.target.value)}
             />
-            <button type="button" id="choose-organize-destination" onClick={() => void choose(destination || fallback, 'Destination', setDestination)}>
-              Choose…
-            </button>
+            {!fromEnv.destination && (
+              <button type="button" id="choose-organize-destination" onClick={() => void choose(destination || fallback, 'Destination', setDestination)}>
+                Choose…
+              </button>
+            )}
           </div>
         </div>
+        {fromEnv.destination && <p className="setting-description">Set by Docker (JUSTTPRINT_ORGANIZE_DESTINATION).</p>}
       </div>
       <div className="settings-group">
         <h4>Folder structure</h4>

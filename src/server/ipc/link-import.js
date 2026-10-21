@@ -26,19 +26,20 @@ ipcMain.handle('list-model-links', async (event, url, options) =>
 );
 
 /** Add one model link to the library (the dialog calls this link by link, to show progress). */
-/** `options.downloadFolder`: download MakerWorld models into that library folder (site-details.js). */
+/** `options.downloadFolder` (any text): download the model's files, into the Upload folder (upload-inbox.js; since 8.4 every download goes there). */
 ipcMain.handle('import-model-link', async (event, url, options) => {
   const { download } = require('../site-details');
   const { downloadFiles } = require('../site-files');
   // Only downloads show above Library Storage (adding a link alone is quick).
   const wantsDownload = !!(options && typeof options.downloadFolder === 'string' && options.downloadFolder);
+  const downloadFolder = wantsDownload ? require('../upload-inbox').requireUploadFolder() : null;
   /** @param {(changes: object) => void} progressed */
   const run = (progressed) =>
     importLink(
       url,
       { db: database.db, saveModel, saveThumbnail, download, downloadFiles },
       {
-        downloadFolder: options && typeof options.downloadFolder === 'string' ? options.downloadFolder : null,
+        downloadFolder,
         profileIds: options && Array.isArray(options.profileIds) ? options.profileIds.filter((id) => typeof id === 'string').slice(0, 200) : null,
         fileIds: options && Array.isArray(options.fileIds) ? options.fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null,
         downloadOptions: {
@@ -65,9 +66,10 @@ ipcMain.handle('list-site-files', async (event, url) => {
   }
 });
 
-/** Download a Printables or Thingiverse model's files from the details panel: { url, folder, fileIds }. */
+/** Download a Printables or Thingiverse model's files from the details panel: { url, fileIds }, into the Upload folder. */
 ipcMain.handle('site-download-files', async (event, request) => {
-  const { url, folder, fileIds } = request || {};
+  const { url, fileIds } = request || {};
+  const folder = require('../upload-inbox').requireUploadFolder();
   return require('../activity').track('download', 'Downloading from a model site', { unit: 'bytes' }, (progressed) =>
     require('../site-files').downloadFiles(
       { url, folder, fileIds: Array.isArray(fileIds) ? fileIds.filter((id) => typeof id === 'string').slice(0, 500) : null },

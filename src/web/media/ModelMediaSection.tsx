@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, Film, Image as ImageIcon, Link2, Play, Plus, Star, Trash2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  File as FileIcon,
+  FileText,
+  Film,
+  Image as ImageIcon,
+  Link2,
+  Play,
+  Plus,
+  Star,
+  Trash2
+} from 'lucide-react';
 import { uploadFile, uploads, type MediaKind, type UploadInfo } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
 import { Modal } from '../components/Overlay';
@@ -12,7 +26,7 @@ import { EMPTY_MEDIA, isPlayable, media as mediaApi, mediaUrl, youtubeEmbed, you
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-const ADD_LABELS: Record<MediaKind, string> = { image: 'Add Pictures', video: 'Add Videos', document: 'Add Documents' };
+const ADD_LABELS: Record<MediaKind, string> = { image: 'Add Pictures', video: 'Add Videos', document: 'Add Documents', other: 'Add Files' };
 
 /** What the viewer shows: a picture (with the others to step through) or a document. */
 type Viewing = { kind: 'image'; index: number } | { kind: 'document'; file: MediaFile };
@@ -84,7 +98,12 @@ export function ModelMediaSection({
   const [busy, setBusy] = useState('');
   const [viewing, setViewing] = useState<Viewing | null>(null);
   const info = useRef<UploadInfo | null>(null);
-  const inputs = { image: useRef<HTMLInputElement>(null), video: useRef<HTMLInputElement>(null), document: useRef<HTMLInputElement>(null) };
+  const inputs = {
+    image: useRef<HTMLInputElement>(null),
+    video: useRef<HTMLInputElement>(null),
+    document: useRef<HTMLInputElement>(null),
+    other: useRef<HTMLInputElement>(null)
+  };
 
   const load = useCallback(() => {
     mediaApi.get(folder).then(
@@ -208,6 +227,8 @@ export function ModelMediaSection({
     (!show('video') || (!found.video.length && !found.youtube.length && !extraVideos.length)) &&
     (!show('document') || (!found.document.length && !extraDocuments.length));
   if (empty && !canAdd) return null;
+  // Other files show only when there are some (the page's Upload adds them).
+  if (single && show('other') && !found.other.length) return null;
   const imageCount = found.image.length;
   const shownImage = viewing?.kind === 'image' ? found.image[Math.min(viewing.index, imageCount - 1)] : null;
 
@@ -392,6 +413,27 @@ export function ModelMediaSection({
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {show('other') && found.other.length > 0 && (
+        <div className="jp-media__group" id="jp-media-other">
+          {header('other', 'Other Files', found.other.length)}
+          <ul className="jp-media__documents">
+            {found.other.map((file) => (
+              <li key={file.name} className="jp-media__document" data-name={file.name}>
+                <FileIcon size={18} aria-hidden="true" />
+                <a className="jp-media__name" href={mediaUrl(file.path, true)} download={file.name} title={`Download ${file.name}`}>
+                  {file.name}
+                </a>
+                <span className="jp-meta">{formatFileSize(file.size)}</span>
+                <a className="jp-icon-link" href={mediaUrl(file.path, true)} download={file.name} aria-label={`Download ${file.name}`} title="Download">
+                  <Download size={14} aria-hidden="true" />
+                </a>
+                {canAdd && <IconButton icon={Trash2} size="sm" label={`Remove ${file.name}`} disabled={!!busy} onClick={() => void remove('other', file)} />}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

@@ -27,6 +27,8 @@ ipcMain.handle('remove-model-youtube', async (event, dir, id) => modelFolders.re
 
 // Tidy Into Model Folders (Organize, admins): a folder of its own for each model already in the library.
 const tidy = require('../tidy-model-folders');
+/** A model page's Upload (editors): the model's own folder, made first when it has none. */
+ipcMain.handle('model-own-folder', async (event, filePath) => tidy.ownFolder(filePath));
 ipcMain.handle('tidy-model-folders-preview', async (event, under) => tidy.preview({ under: under || null }));
 ipcMain.handle('tidy-model-folders', async (event, under, only, covers) =>
   tidy.apply({ under: under || null, only: Array.isArray(only) ? only : null, covers: !!covers })

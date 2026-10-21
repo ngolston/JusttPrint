@@ -20,6 +20,8 @@ export interface UploadFolderInfo {
   waiting: number;
   /** Settings → Scanning → Organize (src/server/upload-inbox.js). */
   options: OrganizeOptions;
+  /** Folders set by Docker (JUSTTPRINT_UPLOAD_FOLDER, JUSTTPRINT_ORGANIZE_DESTINATION). */
+  fromEnv?: { uploadFolder: boolean; destination: boolean };
   /** The folder levels Organize can use. */
   layerChoices: { id: string; label: string }[];
 }

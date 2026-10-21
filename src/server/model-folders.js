@@ -10,6 +10,7 @@
  *       image/      cover and gallery pictures
  *       video/      video files
  *       document/   instructions, manuals, parts lists
+ *       other/      any other file kept with the model (a model page's Upload: .step, .xlsx, …)
  *
  * The folders are kept in `model_folders` (with the chosen cover). Scans skip the three
  * subfolders of a model folder, so a picture or a PDF never becomes a model. The cover becomes the
@@ -30,9 +31,11 @@ const KINDS = {
     extensions: ['.avif', '.bmp', '.gif', '.jpg', '.jpeg', '.jpe', '.pjpeg', '.png', '.svg', '.tiff', '.tif', '.webp']
   },
   video: { dir: 'video', label: 'Videos', extensions: ['.mp4', '.m4v', '.mpeg', '.mpg', '.mpe', '.webm'] },
-  document: { dir: 'document', label: 'Documents', extensions: ['.html', '.md', '.doc', '.docx', '.pdf', '.txt', '.text'] }
+  document: { dir: 'document', label: 'Documents', extensions: ['.html', '.md', '.doc', '.docx', '.pdf', '.txt', '.text'] },
+  // Any type (no list): kindOf never answers it; a file is "other" by being in other/.
+  other: { dir: 'other', label: 'Other Files', extensions: /** @type {string[]} */ ([]) }
 };
-const KIND_NAMES = /** @type {('image' | 'video' | 'document')[]} */ (Object.keys(KINDS));
+const KIND_NAMES = /** @type {('image' | 'video' | 'document' | 'other')[]} */ (Object.keys(KINDS));
 
 const MIME_TYPES = {
   '.avif': 'image/avif',
@@ -111,7 +114,7 @@ const folderKey = (dir) => {
 
 const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-/** The kind of media a file name is ('image', 'video', 'document'), or null. */
+/** The kind of media a file name is ('image', 'video', 'document'), or null ('other' takes any name). */
 function kindOf(name) {
   const ext = path.extname(String(name || '')).toLowerCase();
   return KIND_NAMES.find((kind) => KINDS[kind].extensions.includes(ext)) || null;
@@ -198,7 +201,7 @@ function isMediaFolder(dir) {
 
 /**
  * Where an upload of a media file goes: when `dir` is a media subfolder of a model folder (made
- * when missing), { folder, kind, extensions }; else null.
+ * when missing), { folder, kind, extensions } (extensions null: any type, other/); else null.
  */
 function mediaTarget(dir) {
   if (!dir) return null;
@@ -206,7 +209,7 @@ function mediaTarget(dir) {
   const kind = KIND_NAMES.find((name) => KINDS[name].dir === path.basename(key));
   if (!kind || !isModelFolder(path.dirname(key))) return null;
   fs.mkdirSync(key, { recursive: true });
-  return { folder: key, kind, extensions: [...KINDS[kind].extensions] };
+  return { folder: key, kind, extensions: kind === 'other' ? null : [...KINDS[kind].extensions] };
 }
 
 /** "Name", "Name (2)", … for a new folder inside `parent`; made and registered. */
@@ -241,7 +244,7 @@ function filesOf(folder, kind) {
     return [];
   }
   return entries
-    .filter((entry) => entry.isFile() && !entry.name.startsWith('.') && kindOf(entry.name) === kind)
+    .filter((entry) => entry.isFile() && !entry.name.startsWith('.') && (kind === 'other' || kindOf(entry.name) === kind))
     .map((entry) => {
       const filePath = path.join(dir, entry.name);
       /** @type {fs.Stats | null} */
@@ -264,7 +267,7 @@ function filesOf(folder, kind) {
 function getMedia(dir) {
   const folder = resolveFolder(dir);
   const row = folder ? table().prepare('SELECT cover FROM model_folders WHERE path = ?').get(folder) : null;
-  if (!folder || !row) return { folder: folder || null, isModelFolder: false, cover: null, image: [], video: [], document: [], youtube: [] };
+  if (!folder || !row) return { folder: folder || null, isModelFolder: false, cover: null, image: [], video: [], document: [], other: [], youtube: [] };
   const image = filesOf(folder, 'image');
   return {
     folder,
@@ -273,6 +276,7 @@ function getMedia(dir) {
     image,
     video: filesOf(folder, 'video'),
     document: filesOf(folder, 'document'),
+    other: filesOf(folder, 'other'),
     youtube: table().prepare("SELECT value AS id, title FROM model_folder_links WHERE folder = ? AND kind = 'youtube' ORDER BY added_at, value").all(folder)
   };
 }
@@ -294,7 +298,7 @@ function requireFolder(dir) {
 function mediaPath(folder, kind, name) {
   if (!KINDS[kind]) throw new Error(`Unknown kind: ${kind}`);
   const text = String(name || '');
-  if (!text || /[/\\\0]/.test(text) || text.startsWith('.') || kindOf(text) !== kind) throw new Error(`Not a ${kind} file name: ${text}`);
+  if (!text || /[/\\\0]/.test(text) || text.startsWith('.') || (kind !== 'other' && kindOf(text) !== kind)) throw new Error(`Not a ${kind} file name: ${text}`);
   return path.join(folder, KINDS[kind].dir, text);
 }
 

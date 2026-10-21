@@ -80,6 +80,10 @@ services:
       # Number of reverse proxies in front, so the login rate limit sees real client addresses.
       # - JUSTTPRINT_TRUST_PROXY=1
       # Library and AI settings. These win over the UI on every start (README: Environment variables).
+      # Every upload and every download from a model link goes to the Upload folder; Organize then
+      # moves each model to the destination (Settings → Scanning → Organize).
+      # - JUSTTPRINT_UPLOAD_FOLDER=/mnt/user/upload
+      # - JUSTTPRINT_ORGANIZE_DESTINATION=/mnt/user
       # - JUSTTPRINT_ENABLE_ZIP=true
       # - JUSTTPRINT_FILE_TYPES=obj,step
       # - JUSTTPRINT_SCAN_EXCLUDE=cache,renders

@@ -16,10 +16,12 @@ export interface ModelMedia {
   image: MediaFile[];
   video: MediaFile[];
   document: MediaFile[];
+  /** Any other file kept with the model (other/): only downloaded. */
+  other: MediaFile[];
   youtube: { id: string; title: string | null }[];
 }
 
-export const EMPTY_MEDIA: ModelMedia = { folder: null, isModelFolder: false, cover: null, image: [], video: [], document: [], youtube: [] };
+export const EMPTY_MEDIA: ModelMedia = { folder: null, isModelFolder: false, cover: null, image: [], video: [], document: [], other: [], youtube: [] };
 
 export const media = {
   get: (folder: string) => callAction<ModelMedia>('get-model-media', folder),

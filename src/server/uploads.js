@@ -75,16 +75,18 @@ function uploadSessions() {
   return sessionStore;
 }
 
-/** File types an upload may have: the ones the library scans (Settings → File Types), and ZIP when ZIP scanning is on. */
+/** Archives an upload may be (kept as they are; a ZIP's models are listed when ZIP scanning is on). */
+const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z'];
+
+/** File types an upload may have: the ones the library scans (Settings → File Types), and archives (ZIP, RAR, 7Z). */
 function allowedUploadExtensions() {
   const { getSupportedExtensionsForLibrary } = require('./ipc/models');
   const extensions = new Set(getSupportedExtensionsForLibrary(database.db));
-  const zip = database.db && database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives');
-  if (zip && zip.value === '1') extensions.add('.zip');
+  for (const ext of ARCHIVE_EXTENSIONS) extensions.add(ext);
   return [...extensions].sort();
 }
 
-/** The name to save under, or throws: a plain file name (no folders), not hidden, of an allowed type. */
+/** The name to save under, or throws: a plain file name (no folders), not hidden, of an allowed type (`extensions` null: any). */
 function checkUploadName(name, extensions) {
   const text = String(name || '')
     .normalize('NFC')
@@ -96,7 +98,7 @@ function checkUploadName(name, extensions) {
   if (/[\x00-\x1f\x7f]/.test(text)) throw new Error(`The file name has control characters: ${text}`);
   if (text.length > MAX_NAME_LENGTH) throw new Error('The file name is too long');
   const ext = path.extname(text).toLowerCase();
-  if (!extensions.includes(ext)) {
+  if (extensions && !extensions.includes(ext)) {
     const kind = require('./model-folders').kindOf(text);
     if (kind && extensions.includes('.stl')) throw new Error(`${text}: pictures, videos and documents go into a model's folder (Upload as one model)`);
     if (!extensions.includes('.stl')) throw new Error(`${text}: not a type this folder takes (${extensions.join(' ')})`);
@@ -213,16 +215,16 @@ function checkWritableFolder(folder, ctx) {
 
 /**
  * Where an upload goes and the file types it may have: a model folder's image, video or document
- * subfolder (model-folders.js, made when missing) takes that kind's types; any other library
- * folder the types the library scans.
- * @returns {{ folder: string, extensions: string[] }}
+ * subfolder (model-folders.js, made when missing) takes that kind's types, its other/ folder any
+ * type (extensions null); any other library folder the types the library scans.
+ * @returns {{ folder: string, extensions: string[] | null }}
  */
 function uploadTarget(folder, ctx) {
   const modelFolders = require('./model-folders');
   const text = String(folder || '');
   if (text && modelFolders.isMediaFolder(text)) {
     checkWritableFolder(path.dirname(text), ctx);
-    const media = /** @type {{ folder: string, extensions: string[] }} */ (modelFolders.mediaTarget(text));
+    const media = /** @type {{ folder: string, extensions: string[] | null }} */ (modelFolders.mediaTarget(text));
     return { folder: checkWritableFolder(media.folder, ctx), extensions: media.extensions };
   }
   return { folder: checkWritableFolder(text, ctx), extensions: allowedUploadExtensions() };

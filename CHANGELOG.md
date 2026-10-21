@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.4.0] - 2026-10-21
+
+**Changes:**
+- **Every upload and every download goes to the Upload folder.** The Upload dialog, Add Links and a model's MakerWorld, Printables and Thingiverse downloads have no folder to choose any more: their files go to the Upload folder (each upload or model in a folder of its own), ready for **Organize**. Without an Upload folder they open **Settings → Scanning → Organize** to set it first. MCP's `import_model_links` downloads there too (`download: true`; a `downloadFolder` still means download). Pictures and documents added on a model's page, and **New Version**, still go into that model's folder.
+- **ZIP, RAR and 7Z files are uploaded**, kept as they are (never unpacked): a ZIP's models are listed from inside it when ZIP scanning is on; the upload summary counts the rest as "kept". **Organize** moves an archive lying alone in the Upload folder like a model, in a folder of its own.
+- **Upload on every model.** A model's page and the details sidebar have an **Upload** button (drop files on the page too) that adds any files to the model, sorted into its folder: pictures, videos and documents into their folders, model files beside the model's files (more files of this model), anything else into a new `other` folder, listed under **Other Files** (download only; scans skip it). A model without a folder of its own gets one first, after asking (as Tidy Into Model Folders does for that one model).
+- **Docker:** `JUSTTPRINT_UPLOAD_FOLDER` (the Upload folder, made if missing) and `JUSTTPRINT_ORGANIZE_DESTINATION` set them from Docker Compose or the Unraid template, on every start; Settings → Organize then shows them as set by Docker.
+
+**Upgrading:** an `other` folder inside a model folder is now that model's other files: scans skip it, so model files kept in one stop being listed as models. Set the Upload folder if you have not (Settings → Scanning → Organize, or `JUSTTPRINT_UPLOAD_FOLDER`): until then Upload and Add Links ask for it. Reload open browser tabs.
+
 ## [8.3.0] - 2026-10-20
 
 **Changes:**

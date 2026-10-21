@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, FilePlus2, FolderOpen } from 'lucide-react';
+import { Download, FilePlus2 } from 'lucide-react';
 import { callAction, uploadFile, uploads } from '../api';
 import { Button } from '../components/Button';
-import { pickFolder } from '../components/FolderPicker';
 import { Modal } from '../components/Overlay';
 import { ProgressBar } from '../components/Panel';
-import { getFilterState } from '../filters/store';
 import { runSearch } from '../filters/search';
 import { exposeGlobal, onServerEvent } from '../page';
-import { stlHomeDirectories } from '../scan/stlHome';
 import { formatBytes } from '../shell/AppShell';
 import { navigate } from '../shell/routes';
 import { accountStatus, type MakerWorldDetails, type ProfileDownload } from './makerworld';
@@ -21,9 +18,6 @@ declare global {
     openMakerWorldDownload?: (details: MakerWorldDetails, options?: { profileId?: string; downloads?: ProfileDownload[] }) => void;
   }
 }
-
-// The same folder memory as Upload Models.
-const FOLDER_KEY = 'justtprint.uploadFolder';
 
 interface DownloadResult {
   folder?: string;
@@ -38,26 +32,10 @@ interface DownloadResult {
   error?: string;
 }
 
-function rememberedFolder(): string {
-  try {
-    return localStorage.getItem(FOLDER_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-function rememberFolder(folder: string) {
-  try {
-    localStorage.setItem(FOLDER_KEY, folder);
-  } catch {
-    /* private window */
-  }
-}
-
+/** The Upload folder every download goes to (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER), or '' when none is set. */
 async function defaultFolder(): Promise<string> {
-  const shown = getFilterState().directory;
-  if (shown && !shown.includes('::')) return shown;
-  return rememberedFolder() || (await stlHomeDirectories().catch(() => [] as string[]))[0] || '';
+  const inbox = await callAction<{ uploadFolder: string }>('get-upload-folder').catch(() => null);
+  return inbox?.uploadFolder || '';
 }
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -129,11 +107,6 @@ export function MakerWorldDownloadDialog() {
     };
   }, [open, folder]);
 
-  async function chooseFolder() {
-    const picked = await pickFolder({ title: 'Download Into', initial: folder || undefined, confirmLabel: 'Download Here' });
-    if (picked) setFolder(picked);
-  }
-
   async function start() {
     if (!details || !folder) return;
     setBusy(true);
@@ -144,7 +117,6 @@ export function MakerWorldDownloadDialog() {
         setSummary('Not downloaded: MakerWorld needs a sign-in.');
         return;
       }
-      rememberFolder(folder);
       const request = {
         url: details.url,
         folder,
@@ -186,7 +158,6 @@ export function MakerWorldDownloadDialog() {
     setBusy(true);
     setSummary('');
     try {
-      rememberFolder(folder);
       const info = await uploads.info();
       const { folder: target } = await callAction<{ folder: string }>('makerworld-prepare-folder', { url: details.url, folder });
       const added: string[] = [];
@@ -251,14 +222,11 @@ export function MakerWorldDownloadDialog() {
     >
       <div className="jp-upload__folder">
         <div className="jp-upload__folder-text">
-          <span className="jp-label">Library folder</span>
+          <span className="jp-label">Upload folder</span>
           <span className="jp-upload__path" id="jp-mw-download-folder" title={folder}>
-            {folder || 'Choose a folder in your library'}
+            {folder || 'Not set yet: Settings → Scanning → Organize'}
           </span>
         </div>
-        <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy}>
-          Choose Folder
-        </Button>
       </div>
       {folderProblem && (
         <p className="jp-mw-download__problem" role="alert" id="jp-mw-download-folder-problem">

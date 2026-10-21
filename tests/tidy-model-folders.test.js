@@ -71,6 +71,15 @@ async function main() {
   assert.ok(fs.existsSync(path.join(lib, 'Unrelated.pdf')), 'files of no model stay');
   assert.strictEqual(tidy.preview({ roots }).moveCount + tidy.preview({ roots }).registerCount, 0, 'nothing left to tidy');
 
+  // A model page's Upload: the model's own folder, made first when it has none.
+  const pileA = add('Pile/Gear.stl');
+  add('Pile/Spring.stl');
+  const own = await tidy.ownFolder(pileA, { roots });
+  assert.deepStrictEqual(own, { folder: path.join(lib, 'Pile', 'Gear'), filePath: path.join(lib, 'Pile', 'Gear', 'Gear.stl'), moved: true });
+  assert.ok(fs.existsSync(own.filePath) && fs.existsSync(path.join(lib, 'Pile', 'Spring.stl')), 'only this model moves');
+  assert.deepStrictEqual(await tidy.ownFolder(own.filePath, { roots }), { ...own, moved: false }, 'a model folder already');
+  await assert.rejects(() => tidy.ownFolder(`${path.join(lib, 'pack.zip')}::a.stl`, { roots }), /inside a ZIP/);
+
   database.db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('tidy-model-folders tests passed');

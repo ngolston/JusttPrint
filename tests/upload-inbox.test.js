@@ -55,7 +55,7 @@ try {
     setSetting('organizeDestination', '');
   });
 
-  test('every top-level folder and model file is one model; archives, pictures, hidden and media folders are not', () => {
+  test('every top-level folder, model file and archive is one model; pictures, hidden and media folders are not', () => {
     fs.mkdirSync(path.join(uploads, 'Robot'), { recursive: true });
     fs.writeFileSync(path.join(uploads, 'Robot', 'arm.stl'), 'solid a\nendsolid a\n');
     fs.writeFileSync(path.join(uploads, 'Benchy.stl'), 'solid b\nendsolid b\n');
@@ -65,8 +65,8 @@ try {
     fs.mkdirSync(path.join(uploads, 'image'));
     assert.deepStrictEqual(
       inbox.itemsIn(uploads).map((item) => item.name),
-      ['Benchy.stl', 'Robot'],
-      'a 7Z is left as it is (unpacking is gone since 8.2)'
+      ['Benchy.stl', 'Kit.7z', 'Robot'],
+      'a 7Z is a model too (moved as it is, never unpacked)'
     );
   });
 

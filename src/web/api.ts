@@ -107,11 +107,11 @@ export interface UploadInfo {
   /** Scans skip larger files (Settings → General → Performance): they are uploaded but not added. */
   scanMaxBytes: number;
   /** Pictures, videos and documents a model folder takes, by kind (src/server/model-folders.js). */
-  mediaExtensions?: Record<MediaKind, string[]>;
+  mediaExtensions?: Partial<Record<MediaKind, string[]>>;
 }
 
-/** The kinds of media a model folder keeps, each in its own subfolder (image/, video/, document/). */
-export type MediaKind = 'image' | 'video' | 'document';
+/** The kinds of media a model folder keeps, each in its own subfolder (image/, video/, document/, other/: any other file). */
+export type MediaKind = 'image' | 'video' | 'document' | 'other';
 
 export interface UploadResult {
   fileName: string;
@@ -283,6 +283,8 @@ export const uploads = {
       inLibrary: number;
       media?: number;
       notAdded?: { name: string; reason: string }[];
+      /** Archives kept as they are (not models the library lists). */
+      kept?: number;
     }>('add-uploaded-files', folder, filePaths)
 };
 
