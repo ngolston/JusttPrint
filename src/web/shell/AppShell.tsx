@@ -13,8 +13,10 @@ import {
   LogIn,
   Menu as MenuIcon,
   MousePointerClick,
+  Plus,
   Printer,
   Sparkles,
+  Upload,
   X
 } from 'lucide-react';
 import { searchByMeaning } from '../search/aiSearch';
@@ -273,17 +275,27 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
         </span>
       )}
       {!!user && !user.guest && roleAllows(user.role, 'editor') && (
-        <button
-          type="button"
-          id="jp-topbar-links-button"
-          className="jp-btn jp-btn--secondary jp-btn--md jp-topbar__links"
-          title="Add models from Printables, Thingiverse or MakerWorld links"
-          aria-label="Add Links"
-          onClick={() => window.openLinkImport?.()}
-        >
-          <Link2 size={16} aria-hidden="true" />
-          <span className="jp-topbar__links-label">Add Links</span>
-        </button>
+        <Menu
+          label="Add New Model"
+          align="start"
+          items={[
+            { id: 'upload', label: 'Upload', icon: Upload, onSelect: () => window.openUpload?.() },
+            { id: 'links', label: 'Add Links', icon: Link2, onSelect: () => window.openLinkImport?.() }
+          ]}
+          trigger={(props) => (
+            <button
+              type="button"
+              id="jp-topbar-add-button"
+              className="jp-btn jp-btn--secondary jp-btn--md jp-topbar__links"
+              title="Upload model files, or add models from Printables, Thingiverse or MakerWorld links"
+              {...props}
+            >
+              <Plus size={16} aria-hidden="true" />
+              <span className="jp-topbar__links-label">Add New Model</span>
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
+          )}
+        />
       )}
       <div className="jp-topbar__actions">
         {user && !user.guest && <NotificationBell />}

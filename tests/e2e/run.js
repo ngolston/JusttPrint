@@ -1070,7 +1070,13 @@ async function browserChecks(base, wsUrl, session) {
     // The page fits the window: the grid and the details panel scroll, the page itself does not (no empty strip under it).
     const pageFits = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight);
     check('the page is no taller than the window', pageFits);
-    check('the top bar has Add Links next to the search box', await page.isVisible('.jp-topbar #jp-topbar-links-button'));
+    check('the top bar has Add New Model next to the search box', await page.isVisible('.jp-topbar #jp-topbar-add-button'));
+    await page.click('#jp-topbar-add-button');
+    check(
+      'Add New Model offers Upload and Add Links',
+      (await page.locator('.jp-topbar [role=menu] [role=menuitem]').allTextContents()).map((t) => t.trim()).join('|') === 'Upload|Add Links'
+    );
+    await page.keyboard.press('Escape');
     // Home dashboard (React, src/web/pages/HomeDashboard.tsx): the app opens on it, above the library.
     const libraryTotal = (await invoke(base, session, 'get-library-counts')).result || {};
     check(
@@ -1690,7 +1696,8 @@ async function browserChecks(base, wsUrl, session) {
         await page.keyboard.press('Escape');
 
         // Add Links offers to list a designer's models.
-        await page.click('#jp-topbar-links-button');
+        await page.click('#jp-topbar-add-button');
+        await page.click('.jp-topbar [role=menuitem]:has-text("Add Links")');
         await page.fill('dialog[open] textarea', 'https://www.printables.com/@Someone_123');
         const listed = await page
           .waitForSelector('#jp-links-lists li:has-text("@Someone_123") button:has-text("Get Their Models")', { timeout: 10000 })
