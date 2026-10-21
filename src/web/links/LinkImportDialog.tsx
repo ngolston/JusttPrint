@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CircleAlert, FolderOpen, Link2, LoaderCircle } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Link2, LoaderCircle } from 'lucide-react';
 import { callAction } from '../api';
 import { Button } from '../components/Button';
-import { pickFolder } from '../components/FolderPicker';
 import { Modal } from '../components/Overlay';
-import { getFilterState } from '../filters/store';
 import { runSearch } from '../filters/search';
 import { accountStatus, getSiteDetails, type MakerWorldProfile } from '../makerworld/makerworld';
 import { ProfileChecklist } from '../makerworld/ProfileChecklist';
 import { FileChecklist, type SiteFile } from './FileChecklist';
 import { SiteSetupNotice } from './SiteSetup';
-import { exposeGlobal, onServerEvent } from '../page';
-import { stlHomeDirectories } from '../scan/stlHome';
+import { exposeGlobal, onServerEvent, showMessage } from '../page';
 import { formatBytes } from '../shell/AppShell';
 import { navigate } from '../shell/routes';
 import { mediaLine } from '../media/media';
@@ -67,8 +64,7 @@ interface ImportResult {
   media?: number;
 }
 
-// Same folder memory as Upload Models; whether MakerWorld files are downloaded too.
-const FOLDER_KEY = 'justtprint.uploadFolder';
+// Whether MakerWorld files are downloaded too.
 const DOWNLOAD_KEY = 'justtprint.linkDownload';
 
 function stored(key: string): string {
@@ -87,10 +83,10 @@ function store(key: string, value: string) {
   }
 }
 
-async function defaultFolder(): Promise<string> {
-  const shown = getFilterState().directory;
-  if (shown && !shown.includes('::')) return shown;
-  return stored(FOLDER_KEY) || (await stlHomeDirectories().catch(() => [] as string[]))[0] || '';
+/** The Upload folder every download goes to (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER), or '' when none is set. */
+async function uploadFolder(): Promise<string> {
+  const inbox = await callAction<{ uploadFolder: string }>('get-upload-folder').catch(() => null);
+  return inbox?.uploadFolder || '';
 }
 
 type Status = 'new' | 'exists' | 'adding' | 'added' | 'missing' | 'error';
@@ -194,7 +190,7 @@ export function LinkImportDialog() {
         setSummary('');
         if (initial) setText(initial);
         setTimeout(() => input.current?.focus(), 0);
-        void defaultFolder().then((dir) => setFolder((value) => value || dir));
+        void uploadFolder().then(setFolder);
       }),
     []
   );
@@ -227,11 +223,6 @@ export function LinkImportDialog() {
         patch(url, { message: `Downloading ${data.label.toLowerCase()}: ${formatBytes(data.received)}${data.total ? ` of ${formatBytes(data.total)}` : ''}` });
     });
   }, [open]);
-
-  async function chooseFolder() {
-    const picked = await pickFolder({ title: 'Download Into', initial: folder || undefined, confirmLabel: 'Download Here' });
-    if (picked) setFolder(picked);
-  }
 
   // Check the links shortly after typing or pasting stops. Only a change to the text checks them
   // again: finishing Add must not, or the results of each link would be replaced at once.
@@ -317,11 +308,17 @@ export function LinkImportDialog() {
     let makerWorldDownloads = downloading && queue.some((row) => row.site === 'makerworld');
     let note = '';
     if (downloading) {
-      if (!folder || folderProblem) {
-        setSummary(folderProblem || 'Choose the library folder the files are downloaded into.');
+      if (!folder) {
+        // Every download goes to the Upload folder: choose it first.
+        setOpen(false);
+        navigate('settings', 'organize');
+        await showMessage('Add Links', 'Choose the Upload folder first (it is where every download goes), then add the links again.');
         return;
       }
-      store(FOLDER_KEY, folder);
+      if (folderProblem) {
+        setSummary(folderProblem);
+        return;
+      }
       if (
         makerWorldDownloads &&
         !(await accountStatus().catch(() => ({ signedIn: false }))).signedIn &&
@@ -479,19 +476,16 @@ export function LinkImportDialog() {
                 store(DOWNLOAD_KEY, event.target.checked ? '1' : '0');
               }}
             />
-            <span>Download the files into a new folder per model: MakerWorld print profiles (3MF), Printables and Thingiverse files</span>
+            <span>Download the files into the Upload folder, a folder per model: MakerWorld print profiles (3MF), Printables and Thingiverse files</span>
           </label>
           {download && (
             <div className="jp-upload__folder">
               <div className="jp-upload__folder-text">
-                <span className="jp-label">Library folder</span>
+                <span className="jp-label">Upload folder</span>
                 <span className="jp-upload__path" id="jp-links-folder" title={folder}>
-                  {folder || 'Choose a folder in your library'}
+                  {folder || 'Not set yet: Settings → Scanning → Organize'}
                 </span>
               </div>
-              <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy}>
-                Choose Folder
-              </Button>
             </div>
           )}
           {download && folderProblem && (

@@ -205,7 +205,7 @@ function writeDataUrl(dataUrl, folder, stem) {
 async function apply({ under = null, only = null, covers = false, roots = null } = {}) {
   const { groups } = plan({ under, roots });
   const wanted = Array.isArray(only) ? new Set(only.map(String)) : null;
-  const result = { moved: 0, registered: 0, files: 0, failed: /** @type {{ name: string, error: string }[]} */ ([]) };
+  const result = { moved: 0, registered: 0, files: 0, folders: /** @type {string[]} */ ([]), failed: /** @type {{ name: string, error: string }[]} */ ([]) };
   const updatePath = database.db.prepare('UPDATE models SET filePath = ?, fileName = ? WHERE filePath = ?');
   const siteFiles = require('./site-details').siteFilesTable();
   const updateSite = siteFiles.prepare('UPDATE site_files SET file_path = ? WHERE file_path = ?');
@@ -239,6 +239,7 @@ async function apply({ under = null, only = null, covers = false, roots = null }
         if (first) writeDataUrl(first, path.join(target, 'image'), 'cover');
       }
       await modelFolders.coverIfNone(target).catch(() => {});
+      result.folders.push(target);
       if (group.action === 'move') result.moved++;
       else result.registered++;
     } catch (error) {
@@ -252,4 +253,28 @@ async function apply({ under = null, only = null, covers = false, roots = null }
   return result;
 }
 
-module.exports = { apply, plan, preview };
+/**
+ * A model page's Upload: the model's own folder, made first when it has none (the same as Tidy for
+ * this one model: kept where it is when alone in its folder, else moved into a new folder named
+ * after it, with the files that belong to it). Answers { folder, filePath: where the model is now, moved }.
+ * @param {string} filePath
+ * @param {{ roots?: string[] | null }} [options]
+ */
+async function ownFolder(filePath, { roots = null } = {}) {
+  const text = String(filePath || '');
+  if (!text || text.startsWith('url::') || text.includes('::'))
+    throw new Error('Only a model with a file of its own can have a folder (not a link, not a file inside a ZIP)');
+  const already = modelFolders.folderOfFile(text);
+  if (already) return { folder: already, filePath: text, moved: false };
+  if (!fs.existsSync(text)) throw new Error(`The model's file is missing: ${text}`);
+  const dir = path.dirname(text);
+  const group = plan({ under: dir, roots }).groups.find((g) => g.folder === dir && g.files.includes(text));
+  if (!group) throw new Error('This model cannot have a folder of its own here');
+  const result = await apply({ under: dir, only: [group.id], roots });
+  if (result.failed.length || !result.folders.length) throw new Error((result.failed[0] && result.failed[0].error) || 'Could not make a folder for the model');
+  const folder = result.folders[0];
+  const moved = group.action === 'move';
+  return { folder, filePath: moved ? path.join(folder, path.basename(text)) : text, moved };
+}
+
+module.exports = { apply, ownFolder, plan, preview };

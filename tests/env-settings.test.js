@@ -81,3 +81,9 @@ test('automatic backup settings are validated', () => {
     assert.match(settingsFromEnv({ [name]: value }, ctx).errors[0] || '', new RegExp(name), `${name}=${value}`);
   }
 });
+
+test('the Upload folder and Organize destination come from Docker as absolute paths', () => {
+  const ok = byKey(settingsFromEnv({ JUSTTPRINT_UPLOAD_FOLDER: '/mnt/user/upload/', JUSTTPRINT_ORGANIZE_DESTINATION: ' /mnt/user ' }, ctx));
+  assert.deepStrictEqual(ok, { uploadFolder: '/mnt/user/upload', organizeDestination: '/mnt/user' });
+  assert.match(settingsFromEnv({ JUSTTPRINT_UPLOAD_FOLDER: 'upload' }, ctx).errors[0] || '', /JUSTTPRINT_UPLOAD_FOLDER/);
+});

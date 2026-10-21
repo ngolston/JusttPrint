@@ -565,13 +565,14 @@ const TOOL_DEFINITIONS = [
   {
     name: 'import_model_links',
     description:
-      'Add Printables, Thingiverse and MakerWorld models to the library from their links (Library → Add Links), with name, designer, picture and source link. Links already in the library are skipped. With downloadFolder (a library folder), the model files are downloaded there too; MakerWorld needs the MakerWorld sign-in and Thingiverse files an API token (Settings → Integrations). At most 50 links per call; slow (each link asks the site).',
+      'Add Printables, Thingiverse and MakerWorld models to the library from their links (Library → Add Links), with name, designer, picture and source link. Links already in the library are skipped. With download: true, the model files are downloaded too, into the Upload folder (where Organize takes them from); MakerWorld needs the MakerWorld sign-in and Thingiverse files an API token (Settings → Integrations). At most 50 links per call; slow (each link asks the site).',
     inputSchema: {
       type: 'object',
       properties: {
         links: { type: 'array', items: { type: 'string' }, description: 'Model links' },
         text: { type: 'string', description: 'Text that contains model links' },
-        downloadFolder: { type: 'string', description: 'Library folder to download the model files into. Omit to add the models as online models only.' }
+        download: { type: 'boolean', description: 'Download the model files into the Upload folder. Omit to add the models as online models only.' },
+        downloadFolder: { type: 'string', description: 'Before 8.4: any folder here also means download (into the Upload folder).' }
       }
     }
   },
@@ -952,7 +953,7 @@ async function callTool(name, args, ctx) {
     case 'check_model_links':
       return ctx.checkModelLinks({ links: a.links, text: a.text });
     case 'import_model_links':
-      return ctx.importModelLinks({ links: a.links, text: a.text, downloadFolder: a.downloadFolder });
+      return ctx.importModelLinks({ links: a.links, text: a.text, download: a.download, downloadFolder: a.downloadFolder });
     case 'scan_directory':
       return ctx.scanDirectory({ directory: a.directory });
     case 'remove_model':

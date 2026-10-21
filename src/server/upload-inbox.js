@@ -5,8 +5,8 @@
  * scanned directory), in the library with a "Not organized" badge. Organize then puts each of them
  * where it belongs, without asking:
  *
- * 1. Every top-level item is one model: a folder with everything in it, or a model file (a ZIP too,
- *    when ZIP scanning is on) on its own, which gets a folder named after it. Archives stay as they are.
+ * 1. Every top-level item is one model: a folder with everything in it, or a model file or an
+ *    archive (ZIP, RAR, 7Z) on its own, which gets a folder named after it. Archives stay as they are.
  * 2. Tidy into model folders: its loose pictures and documents go into image/ and document/
  *    (model-folders.js tidyMedia). The folder is scanned and gets a cover.
  * 3. Generate tags: the AI tags its models, applied at once with "AI Tagged" (the AI's Category
@@ -67,7 +67,23 @@ const escapeLike = (text) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 /** The Upload folder, or '' when none is set. */
 const uploadFolder = () => setting(UPLOAD_SETTING);
 
-/** Where Organize Uploads puts models: the folder chosen, else the first STL Home folder (or ''). */
+/**
+ * The Upload folder for an upload or a download from a model link (since 8.4 everything new goes
+ * there), made when missing. Throws (code NO_UPLOAD_FOLDER) when none is set, so the page can ask
+ * for it (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER).
+ */
+function requireUploadFolder() {
+  const dir = uploadFolder();
+  if (!dir) {
+    throw Object.assign(new Error('Choose the Upload folder first: Settings → Scanning → Organize (or JUSTTPRINT_UPLOAD_FOLDER in Docker)'), {
+      code: 'NO_UPLOAD_FOLDER'
+    });
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** Where Organize puts models: the folder chosen, else the first STL Home folder (or ''). */
 function destination() {
   const chosen = setting(DESTINATION_SETTING);
   if (chosen) return chosen;
@@ -121,6 +137,11 @@ function info() {
     chosenDestination: setting(DESTINATION_SETTING),
     waiting: waitingCount(inbox),
     options: organizeOptions(),
+    // Set by Docker (JUSTTPRINT_UPLOAD_FOLDER / JUSTTPRINT_ORGANIZE_DESTINATION): applied on every start, over the settings.
+    fromEnv: {
+      uploadFolder: !!String(process.env.JUSTTPRINT_UPLOAD_FOLDER || '').trim(),
+      destination: !!String(process.env.JUSTTPRINT_ORGANIZE_DESTINATION || '').trim()
+    },
     layerChoices: Object.entries(LAYERS).map(([id, layer]) => ({ id, label: layer.label }))
   };
 }
@@ -166,7 +187,7 @@ function saveFolders(upload, dest, options = null) {
   return info();
 }
 
-/** The top-level items of the Upload folder that are models: folders, and model files (a ZIP when ZIP scanning is on). */
+/** The top-level items of the Upload folder that are models: folders, model files and archives (ZIP, RAR, 7Z: moved as they are). */
 function itemsIn(inbox) {
   const { allowedUploadExtensions } = require('./uploads');
   const modelFolders = require('./model-folders');
@@ -571,6 +592,7 @@ function stop() {
 
 module.exports = {
   LAYERS,
+  requireUploadFolder,
   cleanLayers,
   destination,
   layerFolders,

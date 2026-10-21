@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, FolderOpen } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { callAction } from '../api';
 import { Button } from '../components/Button';
-import { pickFolder } from '../components/FolderPicker';
 import { Modal } from '../components/Overlay';
 import { ProgressBar } from '../components/Panel';
-import { getFilterState } from '../filters/store';
 import { runSearch } from '../filters/search';
 import { SITE_LABELS, type MakerWorldDetails, type ProfileDownload } from '../makerworld/makerworld';
 import { exposeGlobal, onServerEvent } from '../page';
-import { stlHomeDirectories } from '../scan/stlHome';
 import { formatBytes } from '../shell/AppShell';
 import { navigate } from '../shell/routes';
 import { mediaLine } from '../media/media';
@@ -22,21 +19,10 @@ declare global {
   }
 }
 
-// The same folder memory as Upload Models.
-const FOLDER_KEY = 'justtprint.uploadFolder';
-
-function remembered(): string {
-  try {
-    return localStorage.getItem(FOLDER_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
+/** The Upload folder every download goes to (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER), or '' when none is set. */
 async function defaultFolder(): Promise<string> {
-  const shown = getFilterState().directory;
-  if (shown && !shown.includes('::')) return shown;
-  return remembered() || (await stlHomeDirectories().catch(() => [] as string[]))[0] || '';
+  const inbox = await callAction<{ uploadFolder: string }>('get-upload-folder').catch(() => null);
+  return inbox?.uploadFolder || '';
 }
 
 interface Result {
@@ -111,18 +97,12 @@ export function SiteFilesDownloadDialog() {
     };
   }, [open, folder]);
 
-  async function chooseFolder() {
-    const picked = await pickFolder({ title: 'Download Into', initial: folder || undefined, confirmLabel: 'Download Here' });
-    if (picked) setFolder(picked);
-  }
-
   async function start() {
     if (!details || !folder) return;
     setBusy(true);
     setSummary('');
     try {
       try {
-        localStorage.setItem(FOLDER_KEY, folder);
       } catch {
         /* private window */
       }
@@ -189,14 +169,11 @@ export function SiteFilesDownloadDialog() {
     >
       <div className="jp-upload__folder">
         <div className="jp-upload__folder-text">
-          <span className="jp-label">Library folder</span>
+          <span className="jp-label">Upload folder</span>
           <span className="jp-upload__path" title={folder}>
-            {folder || 'Choose a folder in your library'}
+            {folder || 'Not set yet: Settings → Scanning → Organize'}
           </span>
         </div>
-        <Button icon={FolderOpen} onClick={chooseFolder} disabled={busy}>
-          Choose Folder
-        </Button>
       </div>
       {folderProblem && (
         <p className="jp-mw-download__problem" role="alert">

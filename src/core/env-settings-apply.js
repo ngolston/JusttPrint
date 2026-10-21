@@ -19,6 +19,14 @@ function applyEnvSettings() {
   for (const { env, key, value } of settings) {
     save.run(key, value);
     console.log(`Startup env applied setting ${key} from ${env}:`, SECRET_ENV.has(env) ? '(hidden)' : value);
+    // The Upload folder is made at once, so it is watched and uploads can go there.
+    if (key === 'uploadFolder') {
+      try {
+        require('fs').mkdirSync(value, { recursive: true });
+      } catch (error) {
+        console.error(`Could not make the Upload folder ${value}: ${error.message}`);
+      }
+    }
   }
   for (const error of errors) console.error(`Ignored environment variable ${error}`);
 }

@@ -52,7 +52,9 @@ ipcMain.handle('makerworld-sign-out', async () => account.signOut());
 ipcMain.handle('makerworld-check-folder', async (event, folder) => siteDetails.checkFolder(folder));
 
 /** Files downloaded on MakerWorld in a browser: make the model's folder, then (after the upload) add them. */
-ipcMain.handle('makerworld-prepare-folder', async (event, request) => siteDetails.prepareManualFolder(request || {}));
+// Every download goes to the Upload folder (upload-inbox.js), whatever folder the page names.
+const intoUploadFolder = (request) => ({ ...(request || {}), folder: require('../upload-inbox').requireUploadFolder() });
+ipcMain.handle('makerworld-prepare-folder', async (event, request) => siteDetails.prepareManualFolder(intoUploadFolder(request)));
 ipcMain.handle('makerworld-add-files', async (event, request) => siteDetails.finishManualFolder(request || {}));
 
 /**
@@ -62,7 +64,7 @@ ipcMain.handle('makerworld-add-files', async (event, request) => siteDetails.fin
 ipcMain.handle('makerworld-download', async (event, request) => {
   try {
     return await require('../activity').track('download', 'Downloading from MakerWorld', { unit: 'bytes' }, (progressed) =>
-      siteDetails.download(request || {}, {
+      siteDetails.download(intoUploadFolder(request), {
         event,
         onProgress: (progress) => {
           progressed({ detail: progress.label || null, done: progress.received, total: progress.total || null });

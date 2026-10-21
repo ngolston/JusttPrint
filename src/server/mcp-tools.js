@@ -631,7 +631,9 @@ function getMcpToolContext() {
       const { links, unsupported } = checkLinks(database.db, linkTextFromMcpArgs(args));
       if (!links.length) throw new Error('No Printables, Thingiverse or MakerWorld model links found');
       if (links.length > MCP_IMPORT_LINKS_MAX) throw new Error(`At most ${MCP_IMPORT_LINKS_MAX} links per call (got ${links.length})`);
-      const downloadFolder = typeof args.downloadFolder === 'string' && args.downloadFolder.trim() ? args.downloadFolder.trim() : null;
+      // Downloads go to the Upload folder (upload-inbox.js), whatever folder is named.
+      const wantsDownload = args.download === true || (typeof args.downloadFolder === 'string' && !!args.downloadFolder.trim());
+      const downloadFolder = wantsDownload ? require('./upload-inbox').requireUploadFolder() : null;
       const { download } = require('./site-details');
       const { downloadFiles } = require('./site-files');
       const results = [];

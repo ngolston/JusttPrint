@@ -31,7 +31,8 @@ async function main() {
   assert.strictEqual(mf.kindOf('clip.m4v'), 'video');
   assert.strictEqual(mf.kindOf('guide.text'), 'document');
   assert.strictEqual(mf.kindOf('part.stl'), null);
-  assert.deepStrictEqual(Object.keys(mf.mediaExtensions()), ['image', 'video', 'document']);
+  assert.deepStrictEqual(Object.keys(mf.mediaExtensions()), ['image', 'video', 'document', 'other']);
+  assert.strictEqual(mf.kindOf('part.step'), null, 'other/ takes any name; no name is "other" by itself');
 
   // --- Making and registering ---
   const lib = path.join(tmp, 'lib');
@@ -49,12 +50,13 @@ async function main() {
     skipped.includes(path.join(robot, 'image')) &&
       skipped.includes(path.join(robot, 'document')) &&
       skipped.includes(path.join(robot, 'archives')) &&
-      skipped.length === 8,
+      skipped.includes(path.join(robot, 'other')) &&
+      skipped.length === 10,
     JSON.stringify(skipped)
   );
   assert.deepStrictEqual(
     mf.mediaFolders(path.join(robot, 'video')),
-    ['image', 'video', 'document', 'archives'].map((d) => path.join(robot, d)),
+    ['image', 'video', 'document', 'other', 'archives'].map((d) => path.join(robot, d)),
     'a scan of a media folder'
   );
   assert.ok(mf.isMediaFolder(path.join(robot, 'image')) && !mf.isMediaFolder(path.join(lib, 'image')));
@@ -63,6 +65,8 @@ async function main() {
   assert.strictEqual(mf.mediaTarget(path.join(lib, 'image')), null);
   const target = mf.mediaTarget(path.join(robot, 'image'));
   assert.ok(target && target.kind === 'image' && fs.existsSync(path.join(robot, 'image')) && target.extensions.includes('.webp'));
+  const otherTarget = mf.mediaTarget(path.join(robot, 'other'));
+  assert.ok(otherTarget && otherTarget.kind === 'other' && otherTarget.extensions === null, 'other/ takes any type');
 
   // --- Media ---
   const model = path.join(robot, 'Robot.3mf');

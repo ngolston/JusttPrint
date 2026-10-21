@@ -46,11 +46,19 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
   const isKnown = (p) => !!known.get(p) || (/\.zip$/i.test(p) && !!inZip.get(`${escapeLike(p)}::%`));
   // A model folder's first picture becomes its cover; a cover goes on new files too.
   if (modelFolders.isModelFolder(dir)) await modelFolders.coverIfNone(dir).catch((error) => console.warn(`[Upload] cover: ${error.message}`));
-  const media = paths.filter((p) => modelFolders.kindOf(p) && modelFolders.isMediaFolder(path.dirname(p))).length;
+  // Pictures, videos, documents and other files in a model folder's subfolders (any file there is its media).
+  const isMedia = (p) => modelFolders.isMediaFolder(path.dirname(p));
+  const media = paths.filter(isMedia).length;
+  if (modelFolders.isModelFolder(dir)) require('../events').broadcast('folder-changed', { path: modelFolders.folderKey(dir) });
   // Files that did not become models, and why (the upload's summary lists them).
   const max = scanMaxBytes();
+  // Archives are kept as they are (Organize moves them with their model): a RAR or 7Z always, a ZIP
+  // while ZIP scanning is off. They are not "not added".
+  const zipScanning = (database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives') || {}).value === '1';
+  const kept = paths.filter((p) => /\.(rar|7z)$/i.test(p) || (/\.zip$/i.test(p) && !zipScanning)).length;
   const notAdded = paths
-    .filter((p) => !isKnown(p) && !(modelFolders.kindOf(p) && modelFolders.isMediaFolder(path.dirname(p))))
+    .filter((p) => !isKnown(p) && !isMedia(p))
+    .filter((p) => !/\.(rar|7z)$/i.test(p) && !(/\.zip$/i.test(p) && !zipScanning))
     .map((p) => {
       let size = 0;
       try {
@@ -66,5 +74,5 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
           : 'not added by the scan';
       return { name: path.basename(p), reason };
     });
-  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, notAdded };
+  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, kept, notAdded };
 });

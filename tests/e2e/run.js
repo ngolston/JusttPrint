@@ -561,10 +561,11 @@ async function apiChecks(base, wsUrl) {
     /"isError":\s*true/.test(mcpNoLinks.text) && /No Printables/.test(mcpNoLinks.text),
     mcpNoLinks.text.slice(0, 200)
   );
+  // Downloads go to the Upload folder (8.4), whatever folder is named; without one MCP is told to set it.
   const mcpOutside = await mcpTool('import_model_links', { links: ['https://www.printables.com/model/3161'], downloadFolder: '/etc' });
   check(
-    'MCP import_model_links refuses a download folder outside the library',
-    /"isError":\s*true/.test(mcpOutside.text) && /outside the library/.test(mcpOutside.text),
+    'MCP import_model_links downloads only into the Upload folder, and asks for one',
+    /"isError":\s*true/.test(mcpOutside.text) && /Upload folder/.test(mcpOutside.text) && !fs.existsSync('/etc/3161'),
     mcpOutside.text.slice(0, 200)
   );
   const mcpTree = await mcpTool('get_folder_tree');
@@ -5220,7 +5221,14 @@ async function modelFolderChecks(base, { admin, editor, viewer }, cubeBytes) {
       !!(await invoke(base, viewer, 'get-model', [`${path.join(kitDir, 'Kit.zip')}::arm/upper.stl`])).result,
     JSON.stringify(addedKit)
   );
-  check('RAR and 7Z files are not uploaded', (await uploadAs(base, editor, kitDir, 'Kit.rar', 'x')).status === 400);
+  // RAR and 7Z are uploaded too (8.4), kept as they are (never unpacked; Organize moves them like a model).
+  const sentRar = await uploadAs(base, editor, kitDir, 'Kit.rar', 'x');
+  const addedRar = (await invoke(base, editor, 'add-uploaded-files', [kitDir, [sentRar.filePath]])).result || {};
+  check(
+    'RAR and 7Z files are uploaded and kept as they are',
+    sentRar.status === 200 && fs.existsSync(path.join(kitDir, 'Kit.rar')) && addedRar.kept === 1 && !(addedRar.notAdded || []).length,
+    JSON.stringify(addedRar)
+  );
 
   // The Upload folder and Organize Uploads (src/server/upload-inbox.js): uploads wait there, then
   // each moves to Destination/Category/Subcategory/Model name.
@@ -5540,8 +5548,13 @@ async function accountChecks(base, wsUrl, admin) {
       (await invoke(base, viewer, 'makerworld-sign-in', [{ account: 'x' }])).status === 403
   );
   check('MakerWorld starts signed out', (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false);
-  const mwDownload =
-    (await invoke(base, editor, 'makerworld-download', [{ url: 'https://makerworld.com/en/models/1', folder: LIBRARY, files: ['a.stl'] }])).result || {};
+  // Downloads go to the Upload folder (8.4): one is set for this check.
+  const mwUpload = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-mw-'));
+  await invoke(base, admin, 'save-upload-folder', [mwUpload, '']);
+  const mwResponse = await invoke(base, editor, 'makerworld-download', [{ url: 'https://makerworld.com/en/models/1', files: ['a.stl'] }]);
+  const mwDownload = mwResponse.result || { status: mwResponse.status, error: mwResponse.error };
+  await invoke(base, admin, 'save-upload-folder', ['', '']);
+  fs.rmSync(mwUpload, { recursive: true, force: true });
   check('a download without a MakerWorld sign-in asks for one', mwDownload.signIn === true, JSON.stringify(mwDownload));
   check(
     'viewers cannot list site files; only admins set the Thingiverse token',
@@ -5919,27 +5932,37 @@ async function accountChecks(base, wsUrl, admin) {
         (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Organize")')) &&
         (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Tags")'))
     );
-    // The dialog starts at the last folder used (kept in this browser).
-    await editorPage.evaluate((dir) => {
-      localStorage.setItem('justtprint.uploadFolder', dir);
+    // Every upload goes to the Upload folder (8.4): without one, Upload asks for it in Settings → Scanning → Organize.
+    await editorPage.evaluate(() => {
       window.location.hash = '#/library';
-    }, folder);
+    });
+    await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 });
+    await editorPage.click('#jp-upload-button');
+    const askForInbox = await editorPage
+      .waitForSelector('dialog[id^="browser-message-"][open]:has-text("Upload folder first")', { timeout: 10000 })
+      .catch(() => null);
+    check(
+      'without an Upload folder, Upload asks for one first',
+      !!askForInbox && /#\/settings\/organize$/.test(editorPage.url()) && !(await editorPage.isVisible('#jp-upload-input')),
+      editorPage.url()
+    );
+    if (askForInbox) await editorPage.click('dialog[id^="browser-message-"][open] button:text-is("OK")');
+    await invoke(base, admin, 'save-upload-folder', [folder, '']);
+    await editorPage.evaluate(() => {
+      window.location.hash = '#/library';
+    });
     await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 });
     await editorPage.click('#jp-upload-button');
     await editorPage.waitForSelector('#jp-upload-input', { state: 'attached', timeout: 5000 });
     check(
-      'the dialog starts at the last folder used',
-      await editorPage
+      'the dialog uploads into the Upload folder, with no other folder to choose',
+      (await editorPage
         .waitForFunction((dir) => document.getElementById('jp-upload-folder')?.textContent === dir, folder, { timeout: 10000 })
         .then(
           () => true,
           () => false
-        )
+        )) && !(await editorPage.$('#jp-upload-choose-folder'))
     );
-    await editorPage.click('#jp-upload-choose-folder');
-    const picker = await editorPage.waitForSelector('#folder-picker-dialog[open], dialog[open]:has-text("Upload Into")', { timeout: 5000 }).catch(() => null);
-    check('Choose Folder opens the folder picker', !!picker);
-    if (picker) await editorPage.keyboard.press('Escape');
     await editorPage.setInputFiles('#jp-upload-input', [
       { name: 'Browser Upload.stl', mimeType: 'application/octet-stream', buffer: cubeBytes },
       { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('assembly notes') },
@@ -5962,7 +5985,7 @@ async function accountChecks(base, wsUrl, admin) {
     check('the dialog uploads in pieces and adds the model', /Uploaded 2 files into “Browser Upload”; all are in the library/.test(summary || ''), summary);
     const uploadedTo = (((await invoke(base, admin, 'get-all-models')).result || []).find((m) => m.fileName === 'Browser Upload.stl') || {}).filePath || '';
     check(
-      'the browser upload went into a model folder in the chosen folder, whole, its document with it',
+      'the browser upload went into a model folder in the Upload folder, whole, its document with it',
       path.dirname(uploadedTo) === path.join(folder, 'Browser Upload') &&
         fs.existsSync(uploadedTo) &&
         fs.readFileSync(uploadedTo).equals(cubeBytes) &&
@@ -5987,6 +6010,86 @@ async function accountChecks(base, wsUrl, admin) {
         () => false
       );
     check("a model's page lists its documents and opens them in the page", docListed && docRead, JSON.stringify({ docListed, docRead }));
+    await editorPage.keyboard.press('Escape');
+
+    // Upload on a model's page (8.4): anything into its folder, each file where it belongs.
+    const modelDir = path.dirname(uploadedTo);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const pageMessage = 'dialog[id^="browser-message-"][open]';
+    await editorPage.waitForSelector('#jp-model-upload', { timeout: 10000 }).catch(() => {});
+    await editorPage.setInputFiles('#jp-model-upload-file', [
+      { name: 'Photo.png', mimeType: 'image/png', buffer: png },
+      { name: 'Second part.stl', mimeType: 'application/octet-stream', buffer: cubeBytes },
+      { name: 'Robot.step', mimeType: 'application/octet-stream', buffer: Buffer.from('ISO-10303-21;') }
+    ]);
+    const pageUploaded = await editorPage.waitForSelector(`${pageMessage}:has-text("Added to the model's folder")`, { timeout: 60000 }).then(
+      (el) => el.textContent(),
+      () => ''
+    );
+    if (pageUploaded) await editorPage.click(`${pageMessage} button:text-is("OK")`);
+    check(
+      "a model page's Upload puts each file where it belongs in the model's folder",
+      /1 picture, 1 other file, 1 model file/.test(pageUploaded || '') &&
+        fs.existsSync(path.join(modelDir, 'image', 'Photo.png')) &&
+        fs.existsSync(path.join(modelDir, 'Second part.stl')) &&
+        fs.existsSync(path.join(modelDir, 'other', 'Robot.step')),
+      pageUploaded
+    );
+    const otherListed = await editorPage.waitForSelector('#jp-media-other li[data-name="Robot.step"]', { timeout: 15000 }).then(
+      () => true,
+      () => false
+    );
+    const otherFile = await fetch(`${base}/api/media/${encodeURIComponent(path.join(modelDir, 'other', 'Robot.step'))}`, {
+      headers: { cookie: editor.cookie }
+    });
+    check(
+      "other files are listed on the model's page and only ever downloaded",
+      otherListed &&
+        otherFile.status === 200 &&
+        /attachment/.test(otherFile.headers.get('content-disposition') || '') &&
+        /octet-stream/.test(otherFile.headers.get('content-type') || ''),
+      JSON.stringify({ otherListed, status: otherFile.status, disposition: otherFile.headers.get('content-disposition') })
+    );
+    check(
+      'a model file uploaded on the page is in the library, in the same model folder',
+      ((await invoke(base, admin, 'get-all-models')).result || []).some((m) => m.filePath === path.join(modelDir, 'Second part.stl'))
+    );
+
+    // A model that shares its folder gets a folder of its own first.
+    const shared = path.join(uploadLibrary, 'Shared');
+    fs.mkdirSync(shared, { recursive: true });
+    fs.writeFileSync(path.join(shared, 'Gear.stl'), cubeBytes);
+    fs.writeFileSync(path.join(shared, 'Spring.stl'), cubeBytes);
+    await invoke(base, admin, 'scan-directory', [uploadLibrary]);
+    await editorPage.evaluate(
+      (file) => {
+        window.location.hash = `#/model/${encodeURIComponent(file)}`;
+      },
+      path.join(shared, 'Gear.stl')
+    );
+    await editorPage.waitForSelector('#jp-model-upload', { timeout: 15000 }).catch(() => {});
+    await editorPage.setInputFiles('#jp-model-upload-file', [{ name: 'Gear notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }]);
+    const askOwn = await editorPage.waitForSelector(`${pageMessage}:has-text("no folder of its own")`, { timeout: 15000 }).catch(() => null);
+    if (askOwn) await editorPage.click(`${pageMessage} button:text-is("Make Its Folder")`);
+    const ownDone = await editorPage.waitForSelector(`${pageMessage}:has-text("moved into its new folder")`, { timeout: 60000 }).catch(() => null);
+    if (ownDone) await editorPage.click(`${pageMessage} button:text-is("OK")`);
+    const gearNow = path.join(shared, 'Gear', 'Gear.stl');
+    check(
+      'Upload on a model that shares its folder moves it into a folder of its own first',
+      !!askOwn &&
+        !!ownDone &&
+        fs.existsSync(gearNow) &&
+        fs.existsSync(path.join(shared, 'Gear', 'document', 'Gear notes.pdf')) &&
+        fs.existsSync(path.join(shared, 'Spring.stl')) &&
+        (await editorPage
+          .waitForFunction((file) => decodeURIComponent(window.location.hash) === `#/model/${file}`, gearNow, { timeout: 10000 })
+          .then(
+            () => true,
+            () => false
+          )),
+      JSON.stringify({ askOwn: !!askOwn, ownDone: !!ownDone, url: editorPage.url() })
+    );
+    await invoke(base, admin, 'save-upload-folder', ['', '']);
     await editorPage.keyboard.press('Escape');
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';

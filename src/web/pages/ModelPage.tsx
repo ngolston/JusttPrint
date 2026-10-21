@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { ArrowLeft, Box, ClipboardPen, Download, ExternalLink, FileBox, Heart, MoreHorizontal, Pencil } from 'lucide-react';
 import { callAction, dedup, downloadUrl, groups as groupsApi, LIBRARY_CHANGED, models as modelApi, prints, type ModelGroupRef, type PrintEvent } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
@@ -20,6 +20,7 @@ import { KitChecklist } from '../kits/KitChecklist';
 import { UploadVersionButton } from './ModelHistory';
 import { ModelGallery } from '../media/ModelGallery';
 import { ModelMediaSection, YoutubeVideo } from '../media/ModelMediaSection';
+import { ModelUploadButton, useModelUpload } from '../media/ModelUpload';
 import { DeletePrintButton, DescriptionSection, NotesPanel, PageStatus, PageTags } from './ModelPageParts';
 import { getSiteDetails, siteModelUrl, type MakerWorldDetails } from '../makerworld/makerworld';
 import { folderOf } from '../media/media';
@@ -324,6 +325,9 @@ export function ModelView({
   const [group, setGroup] = useState<ModelGroupRef | null>(null);
   /** The gallery's pictures, loaded after the details (null while they come). */
   const [pictures, setPictures] = useState<string[] | null>(null);
+  /** Upload (and files dropped on the page): anything into the model's folder. */
+  const modelUpload = useModelUpload(filePath);
+  const [dropping, setDropping] = useState(false);
 
   const load = useCallback(async () => {
     // The details first (small); the pictures, which can be megabytes, after (the gallery fills in).
@@ -491,6 +495,14 @@ export function ModelView({
           sectionId="jp-model-documents"
           siteDocuments={site?.pdfUrl ? [{ url: site.pdfUrl, name: decodeURIComponent(site.pdfUrl.split('/').pop() || 'Model PDF') }] : []}
         />
+        <ModelMediaSection
+          key={`other:${model.filePath}`}
+          folder={folderOf(model.filePath)}
+          alone={files.length <= 1}
+          parts={['other']}
+          title="Other Files"
+          sectionId="jp-model-other"
+        />
       </>
     ) : (
       <SiteOnlyMedia videos={site?.videos || []} pdfUrl={site?.pdfUrl || null} />
@@ -523,6 +535,7 @@ export function ModelView({
             Log Print
           </Button>
         )}
+        {!online && !inZip && <ModelUploadButton upload={modelUpload.upload} busy={modelUpload.busy} id={compact ? 'jp-details-upload' : 'jp-model-upload'} />}
         {!compact && !online && !inZip && <UploadVersionButton filePath={model.filePath} folder={folderOf(model.filePath)} />}
         {compact && (
           <Button icon={ExternalLink} id="jp-details-open-page" onClick={() => navigate('model', model.filePath)}>
@@ -699,8 +712,30 @@ export function ModelView({
     );
   }
 
+  // Files dropped on the page go into the model's folder, as with Upload.
+  const canDrop = canEdit && !online && !inZip;
+  const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
   return (
-    <div className="jp-page__inner jp-model-page" data-filepath={model.filePath}>
+    <div
+      className={cx('jp-page__inner jp-model-page', dropping && 'is-dropping')}
+      data-filepath={model.filePath}
+      onDragOver={(event) => {
+        if (!canDrop || !hasFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        if (!dropping) setDropping(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+      }}
+      onDrop={(event) => {
+        if (!canDrop || !hasFiles(event)) return;
+        event.preventDefault();
+        setDropping(false);
+        const dropped = Array.from(event.dataTransfer.files || []);
+        if (dropped.length) void modelUpload.upload(dropped);
+      }}
+    >
       <nav className="jp-model-page__crumbs" aria-label="Where this model is">
         <button type="button" className="jp-model-page__back" onClick={goBack}>
           <ArrowLeft size={16} aria-hidden="true" />

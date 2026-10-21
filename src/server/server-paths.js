@@ -225,6 +225,7 @@ const NETWORK_IPC_PATH_RULES = {
   'save-folder-notes': [[0, 'modelDir']],
   'make-model-folder': [[0, 'dir']],
   'register-model-folder': [[0, 'modelDir']],
+  'model-own-folder': [[0, 'file']],
   'get-model-media': [[0, 'modelDir']],
   'set-model-cover': [[0, 'modelDir']],
   'remove-model-media': [[0, 'modelDir']],
@@ -314,7 +315,6 @@ const MCP_TOOL_PATH_RULES = {
     ['folder', 'modelDir']
   ],
   scan_directory: [['directory', 'scanDir']],
-  import_model_links: [['downloadFolder', 'dir']],
   remove_model: [
     ['filePath', 'file'],
     ['filePaths', 'files']
