@@ -541,6 +541,9 @@ function makeModelFolder(parent, details) {
       return candidate;
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
+      // A model folder still empty (made for files whose upload was refused): use it, so the
+      // next try does not leave it behind next to a "Name (2)".
+      if (require('./model-folders').isModelFolder(candidate) && fs.readdirSync(candidate).length === 0) return candidate;
     }
   }
   throw new Error('Could not make a folder for the model');
@@ -595,8 +598,30 @@ async function prepareManualFolder({ url, folder }) {
   const parent = require('./uploads').checkWritableFolder(folder, ctx);
   const { details } = (await getDetails(link.url)) || {};
   if (!details) throw new Error('MakerWorld has no model with this number');
-  // The model's folder from an earlier download, so its files stay together.
-  return { folder: earlierFolder(linkKey(link), ctx) || makeModelFolder(parent, details) };
+  // The model's folder from an earlier download, else from files added here before, so its files stay together.
+  const key = linkKey(link);
+  return { folder: earlierFolder(key, ctx) || addedByHandFolder(key, ctx) || makeModelFolder(parent, details) };
+}
+
+/**
+ * The model folder of the newest library file whose source is this model: files added by hand (Add
+ * Downloaded Files…) are not download records, so without this a second batch made "Name (2)".
+ * Null when there is none JusttPrint can write to.
+ */
+function addedByHandFolder(key, ctx) {
+  const modelFolders = require('./model-folders');
+  const rows = database.db
+    .prepare("SELECT filePath, source FROM models WHERE filePath NOT LIKE 'url::%' AND source LIKE '%makerworld.com%' ORDER BY id DESC")
+    .all();
+  for (const { filePath, source } of rows) {
+    if (linkKey(parseModelLink(source)) !== key || !modelFolders.folderOfFile(filePath)) continue;
+    try {
+      return require('./uploads').checkWritableFolder(path.dirname(filePath), ctx);
+    } catch (_) {
+      /* moved, read-only, outside the library: the next one, else a new folder */
+    }
+  }
+  return null;
 }
 
 /** @param {{ url: string, folder: string, files?: string[] | null }} request */

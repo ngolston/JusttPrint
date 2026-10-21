@@ -465,6 +465,23 @@ async function main() {
   assert.strictEqual(database.db.prepare('SELECT notes FROM models WHERE filePath = ?').get(path.join(prepared.folder, 'legs.stl')).notes, 'from the browser');
   await assert.rejects(siteDetails.prepareManualFolder({ url: URL_, folder: '/etc' }), /outside|cannot|library/i);
 
+  // Files added by hand are not download records: a second batch still finds the model's folder
+  // through the files whose source is this model, instead of making "Name (2)".
+  forget();
+  const secondBatch = await siteDetails.prepareManualFolder({ url: URL_, folder: library });
+  assert.strictEqual(secondBatch.folder, prepared.folder, 'a second batch joins the first');
+
+  // A folder made for files that never arrived (the upload was refused) is used next time, not left empty.
+  const other = fs.mkdtempSync(path.join(library, 'elsewhere-'));
+  const empty = siteDetails.makeModelFolder(other, { title: 'Back scratcher' });
+  assert.strictEqual(siteDetails.makeModelFolder(other, { title: 'Back scratcher' }), empty, 'the empty folder is used again');
+  assert.deepStrictEqual(fs.readdirSync(other), ['Back scratcher'], 'no "Name (2)" next to it');
+  fs.writeFileSync(path.join(empty, 'tube1.stl'), 'solid x\nendsolid');
+  assert.strictEqual(path.basename(siteDetails.makeModelFolder(other, { title: 'Back scratcher' })), 'Back scratcher (2)', 'a folder with files is not');
+  const plain = path.join(other, 'Plain');
+  fs.mkdirSync(plain);
+  assert.strictEqual(path.basename(siteDetails.makeModelFolder(other, { title: 'Plain' })), 'Plain (2)', 'an empty folder that is not a model folder is not');
+
   // One file: renamed after the model, with its extension; a model the watcher added moves with it.
   const single = fs.mkdtempSync(path.join(library, 'single-'));
   fs.writeFileSync(path.join(single, 'legs.STL'), 'solid x\nendsolid');
