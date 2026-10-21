@@ -195,7 +195,7 @@
   flex: 0 1 700px;
   min-width: 0;
 }
-/* Add Links, right of the search box. */
+/* Add New Model (Upload, Add Links), right of the search box. */
 .jp-topbar__links {
   flex: none;
   margin-left: var(--jp-space-2);

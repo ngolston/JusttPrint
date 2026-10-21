@@ -238,7 +238,7 @@
   .jp-topbar .jp-search__kbd {
     display: none;
   }
-  /* Room for the search box: Add Links is in the library's toolbar; the AI searches stay (a photo is most useful on a phone). */
+  /* Room for the search box: Add New Model is in the library's toolbar; the AI searches stay (a photo is most useful on a phone). */
   .jp-topbar__links {
     display: none;
   }

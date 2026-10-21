@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.5.0] - 2026-10-21
+
+**Changes:**
+- **Add New Model in the top bar:** the top bar's **Add Links** button is now **Add New Model**, a menu with **Upload** and **Add Links** (editors and admins; left out on phones, where both are in the library's toolbar).
+
 ## [8.4.0] - 2026-10-21
 
 **Changes:**
