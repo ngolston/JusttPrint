@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.9.0] - 2026-10-22
+
+**Changes:**
+- **Files uploaded on a model's page are part of that model:** a model file (STL, 3MF, …) added with **Upload** on a model's page, or dropped on it, no longer becomes a model of its own with its own card in the library. It is listed with the model's files on its page (3D view, Open, Download), search, filters, Home and the counts leave it out, and deleting the model takes it along. If the model is deleted some other way, its parts become models of their own again.
+- **Make Parts of One Model** (Multi-edit, under **Parts**): choose two or more models, pick the one they belong to, and the others become its parts, also when they are in another folder (its page lists them). A part's page says it is one and has **Make It a Model of Its Own**.
+
+**Upgrading:** nothing to do. Files uploaded on a model's page before this version stay models of their own: to make them parts, choose them and their model in Multi-edit and use **Make Parts of One Model**.
+
 ## [8.8.0] - 2026-10-22
 
 **Changes:**

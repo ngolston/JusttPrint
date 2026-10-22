@@ -277,13 +277,16 @@ export function cancelUpload(id: string): Promise<unknown> {
 export const uploads = {
   info: () => callAction<UploadInfo>('get-upload-info'),
   /** Scan the folder after a batch so the new models show up. */
-  finish: (folder: string, filePaths: string[]) =>
+  /** `partOf`: the model whose page the files were uploaded on; its model files become its parts. */
+  finish: (folder: string, filePaths: string[], partOf?: string) =>
     callAction<{
       newModels: number;
       inLibrary: number;
       media?: number;
       notAdded?: { name: string; reason: string }[];
-    }>('add-uploaded-files', folder, filePaths)
+      /** Model files that became parts of `partOf`. */
+      parts?: number;
+    }>('add-uploaded-files', folder, filePaths, ...(partOf ? [partOf] : []))
 };
 
 export interface PrintStatistics {

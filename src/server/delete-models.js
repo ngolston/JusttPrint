@@ -9,7 +9,7 @@
  *   by hand. The same drive, so a move is instant.
  * - 'disk': deleted for good.
  *
- * What is moved or deleted: a model's file; a ZIP entry's whole ZIP (an entry cannot be taken out
+ * What is moved or deleted: a model's file and its parts' files; a ZIP entry's whole ZIP (an entry cannot be taken out
  * alone); a model folder whose every model is chosen, as a whole (its pictures and documents go
  * with it). Link-only models have no file: only their record goes. The records of what was moved
  * or deleted leave the library (tags, notes, history with them).
@@ -30,12 +30,22 @@ function modelsAt(target, isFolder) {
   return db.prepare("SELECT filePath FROM models WHERE filePath = ? OR filePath LIKE ? ESCAPE '\\'").all(target, `${escapeLike(target)}::%`);
 }
 
+/** The paths of the parts of these models. */
+function partsOf(filePaths) {
+  const db = database.db;
+  if (!require('../core/model-parts').hasPartOf(db)) return [];
+  const query = db.prepare('SELECT p.filePath FROM models p JOIN models m ON p.partOf = m.id WHERE m.filePath = ?');
+  return filePaths.flatMap((filePath) => query.all(filePath).map((row) => row.filePath));
+}
+
 /**
  * What to move or delete for these models: [{ target, isFolder }] and the link-only models (no file).
- * @param {string[]} filePaths
+ * @param {string[]} chosenPaths
  */
-function plan(filePaths) {
+function plan(chosenPaths) {
   const modelFolders = require('./model-folders');
+  // A model's parts (files uploaded on its page, model-parts.js) go with it.
+  const filePaths = [...new Set([...chosenPaths, ...partsOf(chosenPaths)])];
   const chosen = new Set(filePaths);
   const files = new Set();
   const links = [];

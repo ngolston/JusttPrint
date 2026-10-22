@@ -78,7 +78,9 @@ const ACTIONS = {
 
   // Uploads (the files arrive on POST /api/upload, src/server/uploads.js)
   'get-upload-info': [],
-  'add-uploaded-files': ['string', 'array?'],
+  'add-uploaded-files': ['string', 'array?', 'string?'],
+  // Parts of a model (core/models.js setModelParts).
+  'set-model-parts': ['string?', 'array'],
   // The Upload folder and Organize Uploads (ipc/upload-inbox.js)
   'get-upload-folder': [],
   'save-upload-folder': ['string', 'string', 'object?'],
@@ -405,6 +407,7 @@ const EDITOR_ACTIONS = new Set([
   'update-models-batch',
   'clear-new-model-flags',
   'add-uploaded-files',
+  'set-model-parts',
   'organize-uploads',
   'stop-organize-uploads',
   'start-geometry-scan',

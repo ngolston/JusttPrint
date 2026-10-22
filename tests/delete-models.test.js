@@ -15,7 +15,7 @@ const home = path.join(tmp, 'Models');
 const database = require('../src/core/database');
 database.db = new Database(path.join(tmp, 'test.db'));
 database.db.exec(
-  'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, thumbnail TEXT); CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT); CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER)'
+  'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, thumbnail TEXT, partOf INTEGER); CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT); CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER)'
 );
 database.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('stlHomeDirectories', JSON.stringify([home]));
 // The print history a model's removal clears too.
@@ -57,6 +57,20 @@ const inLibrary = (filePath) => !!database.db.prepare('SELECT 1 FROM models WHER
     assert.strictEqual(result.removed, 2);
     assert.ok(fs.existsSync(path.join(home, TRASH_DIR, 'Robot', 'image', 'cover.png')), 'the whole model folder');
     assert.ok(!fs.existsSync(robotDir));
+
+    // A model's parts (files uploaded on its page) go with it: its folder goes as a whole.
+    const shipDir = path.join(home, 'Ship');
+    const hull = write('Ship', 'hull.stl');
+    const mast = write('Ship', 'mast.stl');
+    modelFolders.register(shipDir);
+    add(hull);
+    add(mast);
+    const { setModelParts } = require('../src/core/models');
+    assert.strictEqual(setModelParts(hull, [mast, hull]), 1, 'a model is not a part of itself');
+    result = await deleteModels([hull], 'library');
+    assert.strictEqual(result.removed, 2);
+    assert.ok(!fs.existsSync(shipDir) && !inLibrary(mast), 'the part went with its model');
+    assert.ok(fs.existsSync(path.join(home, TRASH_DIR, 'Ship', 'mast.stl')));
 
     // A model inside a ZIP: the whole ZIP (all its entries leave the library).
     const zip = write('Kits', 'kit.zip');

@@ -139,6 +139,7 @@ function initializeDatabase() {
     migrateIsNewColumn();
     migrateRatingFavoriteColumns();
     migrateBundleColumns();
+    migratePartOfColumn();
     migratePrintLifecycleColumns();
     migrateDescriptionColumn();
     migrateTitleColumn();
@@ -375,6 +376,28 @@ function migrateDescriptionColumn() {
     })();
   } catch (error) {
     console.error('Description column migration failed:', error);
+  }
+}
+
+/**
+ * models.partOf: the id of the model a file belongs to (a model file uploaded on that model's
+ * page). Parts are listed on their model's page, not in the library.
+ */
+function migratePartOfColumn() {
+  try {
+    const names = new Set(
+      database.db
+        .prepare('PRAGMA table_info(models)')
+        .all()
+        .map((col) => col.name)
+    );
+    if (!names.has('partOf')) {
+      database.db.prepare('ALTER TABLE models ADD COLUMN partOf INTEGER').run();
+      console.log('Added models.partOf');
+    }
+    database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_partof ON models(partOf)').run();
+  } catch (error) {
+    console.error('partOf column migration failed:', error);
   }
 }
 

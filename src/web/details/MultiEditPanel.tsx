@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArchiveX, ClipboardPen, ExternalLink, FolderInput, Layers, List, ListChecks, Plus, Tags, Trash2, X } from 'lucide-react';
+import { ArchiveX, ClipboardPen, ExternalLink, FolderInput, Layers, List, ListChecks, Plus, Puzzle, Tags, Trash2, X } from 'lucide-react';
 import { callAction, categories as categoryApi, groups as groupsApi, libraryValues, models, tags as tagApi } from '../api';
 import { askText, exposeGlobal, onServerEvent, showMessage } from '../page';
 import { selection } from '../selection';
@@ -10,6 +10,7 @@ import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
 import { GroupEditor } from '../groups/GroupEditor';
 import { GroupNameDialog } from '../groups/GroupNameDialog';
+import { MakePartsDialog } from './MakePartsDialog';
 import { groupSelection, type ChosenGroup } from '../library/groupSelection';
 import { parentModelKey } from '../grid/layout';
 
@@ -121,6 +122,8 @@ export function MultiEditPanel() {
   const host = window.multiEditHost;
   const canDeleteFiles = useCanDeleteFiles();
   const [deleting, setDeleting] = useState(false);
+  /** Make Parts of One Model: the chosen models' paths while its dialog is open. */
+  const [makingParts, setMakingParts] = useState<string[] | null>(null);
 
   const reloadOptions = () => {
     loadOptions()
@@ -280,6 +283,19 @@ export function MultiEditPanel() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  /** The other chosen models become parts of `mainPath` (listed on its page, not in the library). */
+  async function makeParts(mainPath: string) {
+    const paths = makingParts || [];
+    await callAction(
+      'set-model-parts',
+      mainPath,
+      paths.filter((p) => p !== mainPath)
+    );
+    setMakingParts(null);
+    selection.clear();
+    host?.exit();
   }
 
   async function startCreate() {
@@ -609,6 +625,19 @@ export function MultiEditPanel() {
         </Button>
       </section>
 
+      <section className="jp-details__section" id="multi-parts">
+        <h3 className="jp-details__heading">Parts</h3>
+        <Button
+          id="multi-make-parts"
+          icon={Puzzle}
+          disabled={modelCount < 2 || groupCount > 0}
+          title="The chosen models become parts of one of them: listed on its page, with no card of their own in the library"
+          onClick={() => setMakingParts(selection.values())}
+        >
+          Make Parts of One Model…
+        </Button>
+      </section>
+
       <section className="jp-details__section" id="multi-delete">
         <h3 className="jp-details__heading">Delete</h3>
         <div className="jp-multi__delete">
@@ -632,6 +661,7 @@ export function MultiEditPanel() {
           Done Editing
         </Button>
       </div>
+      <MakePartsDialog open={!!makingParts} filePaths={makingParts || []} onCancel={() => setMakingParts(null)} onSubmit={makeParts} />
       <GroupNameDialog
         open={!!naming}
         title="Create Group"

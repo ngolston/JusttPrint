@@ -43,6 +43,8 @@ type PageModel = PanelModel &
     modelFolder?: string | null;
     /** In a model folder: the file's own pictures (its 3D renders), without the cover. */
     renders?: string[] | null;
+    /** The id of the model it is a part of (a file uploaded on that model's page), else null. */
+    partOf?: number | null;
   };
 
 /** A library file next to the model (get-folder-models). */
@@ -566,6 +568,24 @@ export function ModelView({
           />
         </span>
       </div>
+      {model.partOf ? (
+        <p className="jp-meta" id="jp-model-part-note">
+          A part of another model: listed with its files on that model's page, not in the library.{' '}
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              id="jp-model-separate-part"
+              onClick={async () => {
+                await callAction('set-model-parts', null, [model.filePath]);
+                await load();
+              }}
+            >
+              Make It a Model of Its Own
+            </Button>
+          )}
+        </p>
+      ) : null}
       <div className="jp-props">
         <Prop label="File" title={displayFileName(model)}>
           {displayFileName(model)}
