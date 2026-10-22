@@ -2,6 +2,7 @@ import { ImageDown, Printer, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { exposeGlobal, onServerEvent, showMessage } from '../page';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
+import { isArchive } from '../thumbnails/formats';
 import type { ImageOnlyPreview, PreviewEngine, PreviewPart } from './engine';
 import {
   BACKDROP_LABELS,
@@ -244,6 +245,14 @@ export function PreviewDialog() {
       await showMessage(
         'No 3D Preview',
         'This is an online model: JusttPrint has a link to it, not its files. Download the files to see it in 3D (for MakerWorld models: Download to Library… in the MakerWorld section of its details).'
+      );
+      return;
+    }
+    // An archive is one model, kept as it is: JusttPrint does not open it.
+    if (isArchive(previewExtension(filePath))) {
+      await showMessage(
+        'No 3D Preview',
+        'This is an archive (ZIP, RAR or 7Z): JusttPrint keeps it as one file and does not open it. Download it to see the models inside.'
       );
       return;
     }

@@ -38,21 +38,18 @@ async function loadFileTypes(): Promise<{ value: string; label: string }[]> {
   const types = [
     { value: '', label: 'All Types' },
     { value: 'stl', label: 'STL' },
-    { value: '3mf', label: '3MF' }
+    { value: '3mf', label: '3MF' },
+    // Archives (ZIP, RAR, 7Z) are always scanned, each as one model.
+    { value: 'zip', label: 'Archive (ZIP, RAR, 7Z)' }
   ];
   try {
-    const [zip, scanRaw, catalog] = await Promise.all([
-      settings.get<string | null>('enableZipArchives'),
-      settings.get<string | null>('scanAdditionalFileTypes'),
-      fileTypeApi.catalog().catch(() => [])
-    ]);
+    const [scanRaw, catalog] = await Promise.all([settings.get<string | null>('scanAdditionalFileTypes'), fileTypeApi.catalog().catch(() => [])]);
     let enabled: string[] = [];
     try {
       enabled = JSON.parse(scanRaw || '[]');
     } catch {
       /* none */
     }
-    if (zip === '1') types.push({ value: 'zip', label: 'Zip' });
     for (const entry of catalog || []) if (entry.id && enabled.includes(entry.id)) types.push({ value: entry.id, label: entry.label || entry.id });
   } catch (error) {
     console.error('Error loading file types:', error);

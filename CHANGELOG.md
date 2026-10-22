@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.6.0] - 2026-10-22
+
+**Changes:**
+- **Every archive is one model.** A ZIP, RAR or 7Z file, uploaded or found by a scan, is added to the library as one model, the archive itself: it is never opened, so nothing is listed from inside it, and the Max File Size does not apply to it. Its card shows a ZIP, RAR or 7Z tile (or its folder's cover); double-clicking it says it has no 3D preview, Open in Slicer is left out, and it can be renamed like any model file. The file type filter has **Archive (ZIP, RAR, 7Z)**.
+- **The ZIP setting is gone:** **Enable ZIP Archive Support** (Settings → Scanning → File Types), `JUSTTPRINT_ENABLE_ZIP` and the Unraid template's **Scan ZIP Files** are removed, and so is **Include Zipped Models** on the Duplicates page. Archives are always scanned.
+
+**Upgrading:** models listed from inside ZIP files (`pack.zip::part.stl`) are removed by the next scan of their folder, and each ZIP becomes one model in their place; tags, notes and print history on those inside models are not carried over. Remove `JUSTTPRINT_ENABLE_ZIP` from your container settings if you set it (it is ignored). Reload open browser tabs.
+
 ## [8.5.0] - 2026-10-21
 
 **Changes:**

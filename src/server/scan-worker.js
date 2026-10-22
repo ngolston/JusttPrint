@@ -6,15 +6,7 @@ const parentPort = /** @type {import('worker_threads').MessagePort} */ (workerTh
 require('../core/log').install();
 const fs = require('fs');
 const path = require('path');
-const StreamZip = require('node-stream-zip');
-const {
-  normalizeExcludeNames,
-  shouldSkipDirectoryName,
-  shouldSkipFileName,
-  shouldSkipEntryPath,
-  compileExcludeDirs,
-  isExcludedDir
-} = require('../core/scan-skip');
+const { normalizeExcludeNames, shouldSkipDirectoryName, shouldSkipFileName, compileExcludeDirs, isExcludedDir } = require('../core/scan-skip');
 
 // Concurrency limit for file processing
 // Higher concurrency in Docker/Server mode to compensate for slower file system operations
@@ -31,10 +23,12 @@ const MAX_CONCURRENT_OPS = isDockerContainer() ? 100 : 50; // Higher concurrency
 
 /** Always scanned; main's getScanExtensions() merges these with settings-driven additional types. */
 const BASE_SCAN_EXTENSIONS = ['.stl', '.3mf'];
+/** Archives are always scanned, each as one model: never opened, and not held to the Max File Size. */
+const ARCHIVE_EXTENSIONS = new Set(['.zip', '.rar', '.7z']);
 
 /**
  * Normalize extension list from main (includes ADDITIONAL_FILE_TYPES_CATALOG selections: .obj, .step, .stp, …).
- * Used for both directory-queue filtering and processFile / ZIP entry matching so behavior stays consistent.
+ * Used for both directory-queue filtering and processFile so behavior stays consistent.
  */
 let scanExcludeNames = new Set();
 
@@ -47,6 +41,7 @@ function buildScanExtensionSet(scanExtensions) {
     set.add(s.startsWith('.') ? s : `.${s}`);
   };
   BASE_SCAN_EXTENSIONS.forEach(add);
+  ARCHIVE_EXTENSIONS.forEach(add);
   if (Array.isArray(scanExtensions)) {
     for (const ext of scanExtensions) add(ext);
   }
@@ -57,9 +52,9 @@ function buildScanExtensionSet(scanExtensions) {
  * @param {string[] | null} [scanExtensions]
  * @param {string[] | null} [excludeDirectories]
  */
-async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = false, scanExtensions = null, excludeDirectories = null) {
+async function scanDirectory(directoryPath, maxFileSize, scanExtensions = null, excludeDirectories = null) {
   const files = [];
-  /** Model files (and zip entries) left out because they are larger than maxFileSize. */
+  /** Model files left out because they are larger than maxFileSize. */
   let skippedDueToSize = 0;
   /** Every file-type dirent seen while walking the tree (matches legacy totalFiles meaning). */
   let traversedFileEntries = 0;
@@ -76,9 +71,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
   const shouldQueueFile = (fileName) => {
     if (shouldSkipFileName(fileName)) return false;
     const ext = path.extname(fileName).toLowerCase();
-    if (extSet.has(ext)) return true;
-    if (enableZipArchives && ext === '.zip') return true;
-    return false;
+    return extSet.has(ext);
   };
 
   // Throttle progress IPC: walking huge folders is sync; avoid flooding the main process.
@@ -161,7 +154,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
           // Actually directories first might discover more work faster.
           queue.push({ type: 'dir', path: fullPath });
         } else {
-          // Only queue model-like files (and zips when enabled). Queuing every file caused
+          // Only queue model files and archives. Queuing every file caused
           // millions of async processFile() calls on large trees even when stat() was skipped.
           reportTraversedFile();
           if (shouldQueueFile(entry.name)) {
@@ -182,7 +175,7 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
       if (extSet.has(ext)) {
         // Only call stat() for valid 3D model files
         const stats = await fs.promises.stat(filePath);
-        if (stats.size <= maxFileSize) {
+        if (stats.size <= maxFileSize || ARCHIVE_EXTENSIONS.has(ext)) {
           // Add file without hash calculation (calculate later if needed)
           files.push({
             filePath,
@@ -196,15 +189,6 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
         } else {
           skippedDueToSize++;
         }
-      } else if (enableZipArchives && ext === '.zip') {
-        // Scan inside the ZIP with the same file types. The size limit is for each model in it,
-        // not for the archive (a 115 MB kit of small parts was skipped whole).
-        const zipScan = await scanZipFile(filePath, maxFileSize, extSet);
-        if (zipScan.files.length > 0) {
-          files.push(...zipScan.files);
-          flushDiscoveredFiles();
-        }
-        skippedDueToSize += zipScan.skippedDueToSize;
       }
       // For all other files, do nothing - no stat() call!
     } catch (error) {
@@ -218,66 +202,12 @@ async function scanDirectory(directoryPath, maxFileSize, enableZipArchives = fal
   return donePromise;
 }
 
-async function scanZipFile(zipPath, maxFileSize, extSet = new Set(['.stl', '.3mf'])) {
-  const files = [];
-  let skippedDueToSize = 0;
-  /** @type {InstanceType<typeof StreamZip.async> | null} */
-  let zip = null;
-  try {
-    zip = new StreamZip.async({ file: zipPath });
-    const entries = await zip.entries();
-
-    for (const entry of Object.values(entries)) {
-      if (!entry.isDirectory) {
-        if (shouldSkipEntryPath(entry.name, scanExcludeNames)) continue;
-        const ext = path.extname(entry.name).toLowerCase();
-        if (extSet.has(ext)) {
-          if (entry.size <= maxFileSize) {
-            // Use double colon format: zipPath::entryPath
-            const filePath = `${zipPath}::${entry.name}`;
-            // For zip entries, we can't easily calculate hash without extracting
-            // Hash will be calculated later when the file is accessed
-            files.push({
-              filePath: filePath,
-              fileName: entry.name,
-              size: entry.size,
-              mtime: entry.time ? new Date(entry.time) : new Date(),
-              hash: null, // Hash calculated on-demand for zip entries
-              isZipArchive: true,
-              zipEntryPath: entry.name,
-              zip_path: entry.name
-            });
-          } else {
-            skippedDueToSize++;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    const errorMessage = error && error.message ? error.message : String(error);
-    if (/invalid entry header|not a zip|end of central directory/i.test(errorMessage)) {
-      // Invalid archives should be skipped without noisy stack traces.
-      console.warn(`Skipping invalid ZIP archive ${zipPath}: ${errorMessage}`);
-    } else {
-      console.error(`Error scanning ZIP file ${zipPath}:`, error);
-    }
-  } finally {
-    if (zip) {
-      try {
-        await zip.close();
-      } catch {}
-    }
-  }
-
-  return { files, skippedDueToSize };
-}
-
-parentPort.on('message', async ({ directoryPath, maxFileSize, enableZipArchives, scanExtensions, excludeFolderNames, excludeDirectories }) => {
+parentPort.on('message', async ({ directoryPath, maxFileSize, scanExtensions, excludeFolderNames, excludeDirectories }) => {
   scanExcludeNames = normalizeExcludeNames(excludeFolderNames);
   const extList = Array.from(buildScanExtensionSet(scanExtensions));
 
   try {
-    const result = await scanDirectory(directoryPath, maxFileSize, enableZipArchives, extList, excludeDirectories);
+    const result = await scanDirectory(directoryPath, maxFileSize, extList, excludeDirectories);
     parentPort.postMessage({ type: 'done', result });
   } catch (error) {
     parentPort.postMessage({ type: 'error', error: error.message });

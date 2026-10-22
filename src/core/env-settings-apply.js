@@ -9,7 +9,7 @@ const { ADDITIONAL_FILE_TYPES_CATALOG } = require('./model-filters');
  * Apply Docker/env defaults without clobbering user-saved settings on every restart.
  * Set JUSTTPRINT_ENV_OVERRIDES_SETTINGS=1 to always apply env (old behavior).
  */
-/** JUSTTPRINT_ENABLE_ZIP, JUSTTPRINT_FILE_TYPES, JUSTTPRINT_AI_* and friends (env-settings.js). */
+/** JUSTTPRINT_FILE_TYPES, JUSTTPRINT_AI_* and friends (env-settings.js). */
 function applyEnvSettings() {
   if (!database.db) return;
   const { settings, errors } = settingsFromEnv(process.env, {

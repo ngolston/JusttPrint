@@ -283,8 +283,6 @@ export const uploads = {
       inLibrary: number;
       media?: number;
       notAdded?: { name: string; reason: string }[];
-      /** Archives kept as they are (not models the library lists). */
-      kept?: number;
     }>('add-uploaded-files', folder, filePaths)
 };
 

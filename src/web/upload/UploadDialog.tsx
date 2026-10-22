@@ -229,15 +229,12 @@ export function UploadDialog() {
     if (uploaded) {
       setSummary(`Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}. Adding to the library…`);
       let inLibrary = 0;
-      /** Archives (RAR, 7Z; a ZIP while ZIP scanning is off): kept as they are, for Organize to move. */
-      let kept = 0;
       let scanError = '';
       const notAdded: { name: string; reason: string }[] = [];
       for (const [modelFolder, paths] of byFolder) {
         try {
           const done = await uploads.finish(modelFolder, paths);
           inLibrary += done.inLibrary;
-          kept += done.kept || 0;
           notAdded.push(...(done.notAdded || []));
         } catch (error) {
           scanError = errorText(error);
@@ -248,13 +245,10 @@ export function UploadDialog() {
       if (scanError) setSummary(`Uploaded ${files}${where}, but the scan failed: ${scanError}`);
       else {
         const why = notAdded.map((n) => `${n.name}: ${n.reason}`).join('; ');
-        const keptText = kept
-          ? ` ${kept} ${kept === 1 ? 'archive is' : 'archives are'} kept as ${kept === 1 ? 'it is' : 'they are'} (Organize moves ${kept === 1 ? 'it' : 'them'}).`
-          : '';
         const added =
-          inLibrary + kept >= uploaded && !notAdded.length
-            ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.${keptText}`
-            : `${inLibrary} of them in the library.${keptText} Not added: ${why || 'larger than the scan limit (Settings → General → Performance)'}.`;
+          inLibrary >= uploaded && !notAdded.length
+            ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
+            : `${inLibrary} of them in the library. Not added: ${why || 'larger than the scan limit (Settings → General → Performance)'}.`;
         setSummary(`Uploaded ${files}${where}; ${added}${failed && !cancelled ? ` ${failed} failed.` : ''}`);
       }
     } else if (failed) {

@@ -18,13 +18,11 @@ const ctx = { fileTypeIds: ['obj', 'step', 'ply'] };
 const byKey = (result) => Object.fromEntries(result.settings.map((s) => [s.key, s.value]));
 
 test('unset and blank variables change nothing', () => {
-  assert.deepStrictEqual(settingsFromEnv({ JUSTTPRINT_ENABLE_ZIP: '  ' }, ctx), { settings: [], errors: [] });
+  assert.deepStrictEqual(settingsFromEnv({ JUSTTPRINT_FILE_TYPES: '  ' }, ctx), { settings: [], errors: [] });
 });
 
-test('zip support accepts common true/false spellings', () => {
-  assert.strictEqual(byKey(settingsFromEnv({ JUSTTPRINT_ENABLE_ZIP: 'true' }, ctx)).enableZipArchives, '1');
-  assert.strictEqual(byKey(settingsFromEnv({ JUSTTPRINT_ENABLE_ZIP: 'off' }, ctx)).enableZipArchives, '0');
-  assert.match(settingsFromEnv({ JUSTTPRINT_ENABLE_ZIP: 'maybe' }, ctx).errors[0], /JUSTTPRINT_ENABLE_ZIP/);
+test('JUSTTPRINT_ENABLE_ZIP is gone (archives are always scanned, each as one model)', () => {
+  assert.deepStrictEqual(settingsFromEnv({ JUSTTPRINT_ENABLE_ZIP: 'true' }, ctx), { settings: [], errors: [] });
 });
 
 test('file types become a JSON list and unknown ones are reported', () => {

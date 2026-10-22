@@ -2,8 +2,8 @@
 
 /**
  * Renaming a model (the Edit dialog in the details panel): its file is renamed in its folder and
- * the library follows it. Online models (no file) only change their name. Files inside a zip file,
- * and zip files themselves (their models are the files inside), keep their names.
+ * the library follows it. Online models (no file) only change their name. Files inside a zip file
+ * (listed before 8.6) keep their names; an archive (ZIP, RAR, 7Z) is renamed like any model file.
  */
 
 const fs = require('fs');
@@ -39,7 +39,6 @@ function renameModel(filePath, name) {
   }
   if (filePath.includes('::')) throw new Error('Files inside a zip file keep their names');
   const extension = path.extname(filePath);
-  if (extension.toLowerCase() === '.zip') throw new Error('Zip files keep their names');
   if (extension && stem.toLowerCase().endsWith(extension.toLowerCase())) stem = cleanName(stem.slice(0, -extension.length));
 
   const fileName = `${stem}${extension}`;

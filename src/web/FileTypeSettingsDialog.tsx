@@ -19,7 +19,6 @@ const METADATA_FIELDS = [
 type MetadataKey = (typeof METADATA_FIELDS)[number][0];
 
 interface FileTypeSettings {
-  zip: boolean;
   scanTypes: string[];
   excludeFolders: string;
   autoTagFromFolder: boolean;
@@ -27,7 +26,6 @@ interface FileTypeSettings {
 }
 
 const DEFAULTS: FileTypeSettings = {
-  zip: false,
   scanTypes: [],
   excludeFolders: '',
   autoTagFromFolder: false,
@@ -45,8 +43,7 @@ function parseIds(raw: string | null): string[] {
 
 async function loadSettings(): Promise<{ values: FileTypeSettings; saved: string[] }> {
   const get = (key: string) => settings.get<string | null>(key);
-  const [zip, scanTypes, excludeFolders, autoTag, ...metadata] = await Promise.all([
-    get('enableZipArchives'),
+  const [scanTypes, excludeFolders, autoTag, ...metadata] = await Promise.all([
     get('scanAdditionalFileTypes'),
     get('scanExcludeFolders'),
     get('autoTagFromFolderOnScan'),
@@ -56,7 +53,6 @@ async function loadSettings(): Promise<{ values: FileTypeSettings; saved: string
   return {
     saved,
     values: {
-      zip: zip === '1',
       // Unset means on.
       scanTypes: saved,
       excludeFolders: excludeFolders || '',
@@ -68,7 +64,7 @@ async function loadSettings(): Promise<{ values: FileTypeSettings; saved: string
 }
 
 /**
- * Settings → File Type: ZIP scanning, the extra file types a scan picks up, skipped folders,
+ * Settings → File Type: the extra file types a scan picks up, skipped folders,
  * Tag from Folder on scan, and which 3MF metadata fills model details. Unticking a file type
  * that is in the library asks before removing those models. Registers window.openFileTypeSettings.
  */
@@ -130,7 +126,6 @@ export function FileTypeSettingsDialog() {
       if (!(await removeUntickedTypes())) return;
       // Keep the catalog order, and drop ids the catalog no longer has.
       const scanTypes = catalog.length ? catalog.map((entry) => entry.id).filter((id) => values.scanTypes.includes(id)) : values.scanTypes;
-      await settings.save('enableZipArchives', values.zip ? '1' : '0');
       await settings.save('scanAdditionalFileTypes', JSON.stringify(scanTypes));
       for (const [key] of METADATA_FIELDS) await settings.save(key, values.metadata[key] ? '1' : '0');
       await settings.save('scanExcludeFolders', values.excludeFolders);
@@ -150,12 +145,6 @@ export function FileTypeSettingsDialog() {
       id="file-type-settings-dialog"
       title="File Type Settings"
       dialogRef={dialogRef}
-      description={
-        <p className="warning-text">
-          Warning: Enabling ZIP archive support may significantly impact scanning performance, especially with large archives or directories containing many ZIP
-          files. ZIP files will be opened and scanned during directory scans, which can be slow and memory-intensive.
-        </p>
-      }
       footer={
         <>
           <button type="button" id="save-file-type-settings" className="is-primary" disabled={saving} onClick={save}>
@@ -169,12 +158,9 @@ export function FileTypeSettingsDialog() {
     >
       <div className="settings-group">
         <h4>Supported File Types</h4>
-        <div className="form-group checkbox-container">
-          <input type="checkbox" id="enable-zip-archives" checked={values.zip} onChange={(event) => update({ zip: event.target.checked })} />
-          <label htmlFor="enable-zip-archives">Enable ZIP Archive Support:</label>
-        </div>
-        <p className="setting-description">
-          When enabled, JusttPrint will scan inside ZIP files for 3D models (STL and 3MF files). Each model found within a ZIP file will be indexed separately.
+        <p className="setting-description" id="file-types-always">
+          STL, 3MF and archives (ZIP, RAR, 7Z) are always scanned. Each archive is one model, the file itself: it is never opened, and the Max File Size does
+          not apply to it.
         </p>
       </div>
       <div className="settings-group">
