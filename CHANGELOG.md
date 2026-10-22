@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.7.0] - 2026-10-22
+
+**Changes:**
+- **Undo for the Edit dialog:** a save in the Edit dialog can be undone as one edit, from the Undo notice or with Ctrl/Cmd+Z: the name (the file is renamed back), designer, source, title, license, notes, description and rating go back, tags lose only what that save changed, the Category and Subcategory go back to the place it had (an AI or site place stays one, so later sorts still treat it as before), and the MakerWorld, Printables or Thingiverse details go back to what they were. If someone else changed a field since, you are asked whose value stays.
+
+**Fixes:**
+- **Puter with Claude models:** an answer that came in parts (as Claude models answer through Puter) was passed on as raw JSON, so AI Tagging and Categories found no tags or category in it. Its text is now read.
+
 ## [8.6.1] - 2026-10-22
 
 **Fixes:**

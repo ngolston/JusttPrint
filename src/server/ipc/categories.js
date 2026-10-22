@@ -20,13 +20,16 @@ ipcMain.handle('update-category', async (event, id, changes) => {
   return result;
 });
 
-/** Give a model its place (the Edit dialog): names, the Subcategory deciding. Answers [Category, Subcategory]. */
-ipcMain.handle('set-model-categories', async (event, filePath, names) => {
+/**
+ * Give a model its place (the Edit dialog): names, the Subcategory deciding. `source` is who placed
+ * it ('manual' unless Undo puts back a place the site or the AI gave). Answers [Category, Subcategory].
+ */
+ipcMain.handle('set-model-categories', async (event, filePath, names, source) => {
   const model = database.db.prepare('SELECT id FROM models WHERE filePath = ?').get(filePath);
   if (!model) throw new Error('This model is not in the library');
   const history = require('../model-versions');
   const result = await history.tracking([model.id], event && event.user ? event.user.username : null, async () =>
-    categories.setModelCategories(model.id, names, 'manual')
+    categories.setModelCategories(model.id, names, typeof source === 'string' && source ? source : 'manual')
   );
   changed();
   return result;

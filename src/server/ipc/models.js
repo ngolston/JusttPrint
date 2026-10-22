@@ -90,6 +90,8 @@ ipcMain.handle('get-model', async (event, filePath, options) => {
       ...model,
       tags: tags || [],
       categories: require('../../core/categories').modelCategoryNames(model.id),
+      // Who placed it: 'manual', 'site', 'ai', … (categories.js SOURCES); null when it has no place.
+      categorySource: require('../../core/categories').modelPlace(model.id).source,
       pageTitle,
       modelFolder: folder,
       // The file's own pictures (its 3D renders), without the model folder's cover.

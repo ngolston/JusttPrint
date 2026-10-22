@@ -1406,6 +1406,59 @@ async function browserChecks(base, wsUrl, session) {
         );
         check('renaming back in the Edit dialog restores the file', restored === true && fs.existsSync(cardPath) && !fs.existsSync(renamedPath));
         await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
+        // Undo takes back a whole save of the Edit dialog: the name, the library fields and the place.
+        await page
+          .waitForFunction(
+            (name) =>
+              document.querySelector('#model-details .jp-prop:has(.jp-prop__label) .jp-prop__value')?.textContent === name &&
+              !!document.getElementById('jp-details-edit'),
+            path.basename(cardPath),
+            { timeout: 15000 }
+          )
+          .catch(() => {});
+        const undonePath = path.join(path.dirname(cardPath), `e2e undone${extension}`);
+        await page.click('#jp-details-edit');
+        await page.waitForFunction(() => document.getElementById('edit-model-name')?.value, null, { timeout: 10000 }).catch(() => {});
+        await page.waitForSelector('#edit-model-category option[value="Puzzles"]', { state: 'attached', timeout: 10000 }).catch(() => {});
+        await page.fill('#edit-model-name', 'e2e undone');
+        await page.fill('#edit-model-license', 'E2E Undo License');
+        await page.fill('#edit-model-notes', 'e2e undo notes');
+        await page.fill('#edit-model-tags', [...(before.tags || []).map((t) => t.name || t), 'e2e-undo-tag'].join(', '));
+        await page.selectOption('#edit-model-rating', '5');
+        await page.selectOption('#edit-model-category', 'Puzzles').catch(() => {});
+        await page.click('#edit-model-save');
+        const savedForUndo = await waitFor(
+          async () => {
+            const model = (await invoke(base, session, 'get-model', [undonePath])).result;
+            return model && model.license === 'E2E Undo License' && (model.categories || []).includes('Puzzles') ? true : null;
+          },
+          10000,
+          'edited for undo'
+        ).catch(() => false);
+        const toast = await page.waitForSelector('.jp-undo-toast:has-text("Edited") .jp-undo-toast__button', { timeout: 10000 }).catch(() => null);
+        if (toast) await toast.click();
+        const tagNamesOf = (m) => (m.tags || []).map((t) => t.name || t).sort();
+        const undone = await waitFor(
+          async () => {
+            const model = (await invoke(base, session, 'get-model', [cardPath])).result;
+            return model &&
+              (model.license || '') === (before.license || '') &&
+              (model.notes || '') === (before.notes || '') &&
+              Number(model.rating) === (Number(before.rating) || 0) &&
+              JSON.stringify(tagNamesOf(model)) === JSON.stringify(tagNamesOf(before)) &&
+              JSON.stringify(model.categories || []) === JSON.stringify(before.categories || [])
+              ? true
+              : null;
+          },
+          15000,
+          'undone'
+        ).catch(async () => JSON.stringify((await invoke(base, session, 'get-model', [cardPath])).result || null));
+        check(
+          'Undo takes back a save of the Edit dialog: name, fields, tags and place',
+          savedForUndo === true && !!toast && undone === true && fs.existsSync(cardPath) && !fs.existsSync(undonePath),
+          String(undone)
+        );
+        await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
       }
       // Categories (src/web/pages/CategoriesPage.tsx): the fixed list, Categorize Library without the AI (a Subcategory's words), and its models in the library.
       {
@@ -1438,6 +1491,16 @@ async function browserChecks(base, wsUrl, session) {
           () => false
         );
         check("Categorize Library gives a model its Category and Subcategory by a Subcategory's words", placed === true && summaryShown);
+        // Who placed it comes with the model, and Undo can put a place back as the AI or the site gave it.
+        const sourceBefore = ((await invoke(base, session, 'get-model', [cubePath])).result || {}).categorySource;
+        await invoke(base, session, 'set-model-categories', [cubePath, ['Puzzles'], 'ai']);
+        const sourceAfter = ((await invoke(base, session, 'get-model', [cubePath])).result || {}).categorySource;
+        check(
+          'a model says who placed it, and a place can be put back with its source',
+          !!sourceBefore && sourceBefore !== 'manual' && sourceAfter === 'ai',
+          `${sourceBefore} → ${sourceAfter}`
+        );
+        await invoke(base, session, 'set-model-categories', [cubePath, ['Puzzles'], sourceBefore]);
         await page.click('#jp-category-scan-close').catch(() => {});
         const shapes = '.jp-category-row[data-category-name="Puzzles"]';
         await page.evaluate((selector) => {
