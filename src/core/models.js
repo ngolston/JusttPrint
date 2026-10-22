@@ -85,7 +85,39 @@ function deleteModelsByIds(modelIds) {
     printEvents.deletePrintRowsForModels(database.db, batch);
     database.db.prepare(`DELETE FROM model_tags WHERE model_id IN (${placeholders})`).run(...batch);
     database.db.prepare(`DELETE FROM models WHERE id IN (${placeholders})`).run(...batch);
+    // The parts of a deleted model become models of their own.
+    if (require('./model-parts').hasPartOf(database.db)) database.db.prepare(`UPDATE models SET partOf = NULL WHERE partOf IN (${placeholders})`).run(...batch);
   }
+}
+
+/**
+ * Make the models at `partPaths` parts of the model at `mainPath` (not itself), with their own
+ * parts; `mainPath` null makes them models of their own again. Answers how many changed.
+ */
+function setModelParts(mainPath, partPaths) {
+  const db = database.db;
+  const paths = (partPaths || []).filter((p) => typeof p === 'string' && p);
+  if (mainPath === null) {
+    const separate = db.prepare('UPDATE models SET partOf = NULL WHERE filePath = ? AND partOf IS NOT NULL');
+    return db.transaction(() => paths.reduce((count, p) => count + separate.run(p).changes, 0))();
+  }
+  const main = db.prepare('SELECT id, partOf FROM models WHERE filePath = ?').get(mainPath);
+  if (!main) return 0;
+  // A part of a part belongs to the same model.
+  const mainId = main.partOf || main.id;
+  const byPath = db.prepare('SELECT id FROM models WHERE filePath = ?');
+  const update = db.prepare('UPDATE models SET partOf = ? WHERE id = ?');
+  const moveParts = db.prepare('UPDATE models SET partOf = ? WHERE partOf = ?');
+  return db.transaction(() => {
+    let count = 0;
+    for (const p of paths) {
+      const row = byPath.get(p);
+      if (!row || row.id === mainId) continue;
+      count += update.run(mainId, row.id).changes;
+      moveParts.run(mainId, row.id);
+    }
+    return count;
+  })();
 }
 
 function deleteModelsByFilePaths(filePaths) {
@@ -128,6 +160,7 @@ function modelUserFieldsChanged(existing, finals) {
 }
 
 module.exports = {
+  setModelParts,
   MODEL_DETAIL_COLUMNS,
   MODEL_LIST_COLUMNS,
   MODEL_LIST_COLUMNS_QUALIFIED,

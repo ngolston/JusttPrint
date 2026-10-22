@@ -2330,6 +2330,7 @@ async function browserChecks(base, wsUrl, session) {
       const tagOffBoth = await waitFor(async () => ((await pairModels()).every((m) => !hasTag(m)) ? true : null), 10000, 'multi untag').catch(() => false);
       check('multi-edit removes a tag from every selected model after asking', !!confirmRemoveTag && tagOffBoth === true);
       check('multi-edit has no Filament section', !(await page.$('#multi-filament-select')));
+      check('multi-edit offers Make Parts of One Model for two models', await page.isEnabled('#multi-make-parts'));
       check(
         'multi-edit can delete the chosen models from the library or from disk',
         (await page.isVisible('#multi-delete-library')) && (await page.isVisible('#multi-delete-disk'))
@@ -6156,10 +6157,29 @@ async function accountChecks(base, wsUrl, admin) {
         /octet-stream/.test(otherFile.headers.get('content-type') || ''),
       JSON.stringify({ otherListed, status: otherFile.status, disposition: otherFile.headers.get('content-disposition') })
     );
+    // A model file uploaded on a model's page is a part of that model: on its page, not in the library's lists.
+    const partPath = path.join(modelDir, 'Second part.stl');
+    const mainModel = (await invoke(base, admin, 'get-model', [uploadedTo])).result || {};
+    const partModel = (await invoke(base, admin, 'get-model', [partPath])).result || {};
+    const listed = ((await invoke(base, admin, 'get-models-filtered', [{}])).result || []).map((m) => m.filePath);
+    const onItsPage = ((await invoke(base, admin, 'get-folder-models', [uploadedTo])).result || []).map((m) => m.filePath);
     check(
-      'a model file uploaded on the page is in the library, in the same model folder',
-      ((await invoke(base, admin, 'get-all-models')).result || []).some((m) => m.filePath === path.join(modelDir, 'Second part.stl'))
+      "a model file uploaded on a model's page is its part: on its page, not a model of its own in the library",
+      !!mainModel.id && partModel.partOf === mainModel.id && listed.includes(uploadedTo) && !listed.includes(partPath) && onItsPage.includes(partPath),
+      JSON.stringify({ partOf: partModel.partOf, main: mainModel.id, listed: listed.includes(partPath), onItsPage })
     );
+    // A part's page says so, and makes it a model of its own again; Make Parts (Multi-edit's action) puts it back.
+    const isListed = async (p) => ((await invoke(base, admin, 'get-models-filtered', [{}])).result || []).some((m) => m.filePath === p);
+    await editorPage.evaluate((file) => {
+      window.location.hash = `#/model/${encodeURIComponent(file)}`;
+    }, partPath);
+    const separateButton = await editorPage.waitForSelector('#jp-model-separate-part', { timeout: 15000 }).catch(() => null);
+    if (separateButton) await separateButton.click();
+    const separated = await waitFor(async () => ((await isListed(partPath)) ? true : null), 10000, 'separated').catch(() => false);
+    check("a part's page makes it a model of its own again", !!separateButton && separated === true);
+    const madeParts = ((await invoke(base, editor, 'set-model-parts', [uploadedTo, [partPath]])).result || {}).changed;
+    check('Make Parts makes chosen models parts of one of them', madeParts === 1 && !(await isListed(partPath)));
+    check('viewers cannot make parts', (await invoke(base, viewer, 'set-model-parts', [uploadedTo, [partPath]])).status === 403);
 
     // A model that shares its folder gets a folder of its own first.
     const shared = path.join(uploadLibrary, 'Shared');

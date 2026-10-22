@@ -92,6 +92,10 @@ ipcMain.handle('get-model', async (event, filePath, options) => {
       categories: require('../../core/categories').modelCategoryNames(model.id),
       // Who placed it: 'manual', 'site', 'ai', … (categories.js SOURCES); null when it has no place.
       categorySource: require('../../core/categories').modelPlace(model.id).source,
+      // The model it is a part of (its id), when it is one (model-parts.js).
+      partOf: require('../../core/model-parts').hasPartOf(database.db)
+        ? (database.db.prepare('SELECT partOf FROM models WHERE id = ?').get(model.id) || {}).partOf || null
+        : null,
       pageTitle,
       modelFolder: folder,
       // The file's own pictures (its 3D renders), without the model folder's cover.
@@ -114,7 +118,8 @@ ipcMain.handle('get-model-pictures', async (event, filePath) => {
 
 /**
  * The model page's Files: the library models in the same folder as this one, or in the same zip
- * file (an online model only has itself). Each with its grid picture. At most 200.
+ * file (an online model only has itself), and its model's parts wherever they are. Each with its
+ * grid picture. At most 200 (plus parts kept elsewhere).
  */
 ipcMain.handle('get-folder-models', async (event, filePath) => {
   const path = require('path');
@@ -135,6 +140,17 @@ ipcMain.handle('get-folder-models', async (event, filePath) => {
       .all(`${escape(folder)}${path.sep}%`)
       .filter((row) => path.dirname(row.filePath) === folder)
       .slice(0, 200);
+  }
+  // Its model and that model's parts, also those kept in another folder (model-parts.js).
+  if (!text.startsWith('url::') && require('../../core/model-parts').hasPartOf(database.db)) {
+    const own = database.db.prepare('SELECT id, partOf FROM models WHERE filePath = ?').get(text);
+    if (own) {
+      const mainId = own.partOf || own.id;
+      const seen = new Set(rows.map((row) => row.filePath));
+      for (const row of database.db.prepare('SELECT filePath, fileName, size FROM models WHERE id = ? OR partOf = ? LIMIT 200').all(mainId, mainId)) {
+        if (!seen.has(row.filePath)) rows.push(row);
+      }
+    }
   }
   return rows
     .sort((a, b) => String(a.fileName || '').localeCompare(String(b.fileName || ''), undefined, { numeric: true, sensitivity: 'base' }))
@@ -295,12 +311,24 @@ const getAllModelsHandler = async (event, sortOption, limit = 0) => {
 
 ipcMain.handle('get-all-models', getAllModelsHandler);
 
+/**
+ * Multi-edit's Make Parts of One Model: the models at `partPaths` become parts of the one at
+ * `mainPath` (listed on its page, not in the library); `mainPath` null makes them models of their own.
+ */
+ipcMain.handle('set-model-parts', async (event, mainPath, partPaths) => {
+  const changed = require('../../core/models').setModelParts(mainPath || null, Array.isArray(partPaths) ? partPaths : []);
+  events.broadcast('refresh-grid');
+  return { changed };
+});
+
 const getModelsFilteredHandler = async (event, filters) => {
   try {
     console.debug('getModelsFiltered called with filters:', filters);
     console.debug('Designer inverted flag:', filters.designerInverted);
 
     const { conditions, params } = buildModelFilterConditions(filters);
+    // Parts are listed on their model's page, not in the library (model-parts.js).
+    if (!filters.includeParts) conditions.push(require('../../core/model-parts').notPartSql(database.db));
 
     // Build WHERE clause
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

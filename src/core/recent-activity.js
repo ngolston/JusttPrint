@@ -65,7 +65,7 @@ function recentActivity(db, limit = 8) {
     .prepare(
       `
     SELECT date(dateAdded) AS day, COUNT(*) AS count, MAX(dateAdded) AS latest
-    FROM models WHERE dateAdded IS NOT NULL AND date(dateAdded) IS NOT NULL
+    FROM models WHERE dateAdded IS NOT NULL AND date(dateAdded) IS NOT NULL AND ${require('./model-parts').notPartSql(db)}
     GROUP BY day ORDER BY day DESC LIMIT ?`
     )
     .all(max);

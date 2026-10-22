@@ -9,7 +9,8 @@ const { effectivePrintStatus, derivedPrinted } = require('./print-events');
 
 function libraryCounts(db) {
   const counts = { models: 0, printed: 0, queued: 0, printing: 0, printers: 0 };
-  for (const row of db.prepare('SELECT print_status, printed, print_count FROM models').iterate()) {
+  // Parts are counted with their model, not as models of their own.
+  for (const row of db.prepare(`SELECT print_status, printed, print_count FROM models WHERE ${require('./model-parts').notPartSql(db)}`).iterate()) {
     counts.models += 1;
     const status = effectivePrintStatus(row);
     if (status === 'queued') counts.queued += 1;

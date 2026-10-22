@@ -29,8 +29,10 @@ function scanMaxBytes() {
 /**
  * After a batch of uploads: scan the folder so the new models show up. `filePaths` (the files
  * just uploaded) are counted in `inLibrary`: folder watching may have added them already.
+ * `partOf` (Upload on a model's page): that model's path; the model files become its parts,
+ * listed on its page and not in the library.
  */
-ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
+ipcMain.handle('add-uploaded-files', async (event, folder, filePaths, partOf) => {
   const ctx = networkPathContext();
   const modelFolders = require('../model-folders');
   // Into a model folder's image, video or document folder: the model folder is scanned.
@@ -62,5 +64,12 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
         size > max ? `larger than the Max File Size (${Math.round(max / 1024 / 1024)} MB, Settings → General → Performance)` : 'not added by the scan';
       return { name: path.basename(p), reason };
     });
-  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, notAdded };
+  const parts =
+    typeof partOf === 'string' && partOf
+      ? require('../../core/models').setModelParts(
+          partOf,
+          paths.filter((p) => isKnown(p) && !isMedia(p))
+        )
+      : 0;
+  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, notAdded, parts };
 });

@@ -29,8 +29,8 @@ function countLine(counts: Partial<Record<MediaKind | 'model', number>>): string
 /**
  * A model page's Upload (and files dropped on the page): anything into the model's own folder, made
  * first when it has none (src/server/tidy-model-folders.js ownFolder). Pictures, videos and
- * documents go into their subfolders, model files beside the model's files (more files of this
- * model), anything else into other/.
+ * documents go into their subfolders, model files beside the model's files as its parts (listed on
+ * its page, not in the library), anything else into other/.
  */
 export function useModelUpload(filePath: string) {
   const [busy, setBusy] = useState('');
@@ -79,7 +79,7 @@ export function useModelUpload(filePath: string) {
         let notAdded: string[] = [];
         if (sent.length) {
           setBusy('Adding…');
-          const done = await uploads.finish(folder, sent);
+          const done = await uploads.finish(folder, sent, movedTo || filePath);
           notAdded = (done.notAdded || []).map((item) => `${item.name}: ${item.reason}`);
         }
         const lines = [
