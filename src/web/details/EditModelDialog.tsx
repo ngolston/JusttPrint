@@ -6,7 +6,7 @@ import { selection } from '../selection';
 import { askAboutConflict, bothNotes, type SaveConflict } from '../library/saving';
 import { currentModelPath, showModelDetails } from '../library/details';
 import { updateModel } from '../library/models';
-import { tagNames } from '../library/undo';
+import { recordUndo, revertTags, tagNames } from '../library/undo';
 import { SITE_LABELS, SITE_DETAILS_CHANGED, getSiteDetails, siteModelUrl, type MakerWorldDetails } from '../makerworld/makerworld';
 import { changedFields, listText, nameParts, parseList } from './editModel';
 import { formatRoute, navigate } from '../shell/routes';
@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-type ModelRecord = Record<string, unknown> & { filePath: string; fileName?: string | null; source?: string | null };
+type ModelRecord = Record<string, unknown> & { filePath: string; fileName?: string | null; source?: string | null; categorySource?: string | null };
 
 interface LibraryForm {
   name: string;
@@ -71,11 +71,109 @@ function siteForm(details: MakerWorldDetails): SiteForm {
   return form;
 }
 
+/** A library field's value as saved: tags as a list, rating as a number, the rest trimmed. */
+function fieldValue(form: LibraryForm, field: keyof LibraryForm): unknown {
+  if (field === 'tags') return parseList(form.tags);
+  if (field === 'rating') return Number(form.rating) || 0;
+  return form[field].trim();
+}
+
+/** The site edits for `fields` of a site form, as save-site-edits takes them. */
+function siteChanges(form: SiteForm, fields: (keyof SiteForm)[]): Record<string, unknown> {
+  const changes: Record<string, unknown> = {};
+  const profiles: Record<string, string> = {};
+  for (const field of fields) {
+    const key = String(field);
+    if (key.startsWith('profile:')) profiles[key.slice('profile:'.length)] = form[field];
+    else changes[key] = key === 'categories' || key === 'tags' ? parseList(form[field]) : form[field];
+  }
+  if (Object.keys(profiles).length) changes.profiles = profiles;
+  return changes;
+}
+
+/**
+ * Save library fields of a model: `values` to save, `base` what the person saw (or saved, for
+ * Undo). When someone else changed a field meanwhile, they choose whose value stays.
+ */
+async function saveFields(filePath: string, values: Record<string, unknown>, base: Record<string, unknown>) {
+  if (!Object.keys(values).length) return;
+  const current = await modelApi.get<ModelRecord>(filePath);
+  if (!current) throw new Error('This model is not in the library any more.');
+  const payload: ModelRecord = { ...current, ...values };
+  const result = await callAction<{ conflicts?: SaveConflict[] } | null>('save-model', { ...payload, _base: base });
+  if (result?.conflicts?.length) {
+    const name = text(current.fileName) || filePath;
+    for (const conflict of result.conflicts) {
+      const choice = await askAboutConflict(conflict, name);
+      if (choice === 'theirs') payload[conflict.field] = conflict.theirs;
+      else if (choice === 'both') payload[conflict.field] = bothNotes(conflict.theirs, conflict.yours);
+    }
+    await callAction('save-model', payload);
+  }
+}
+
+/** A renamed model's new path: the selection and its page follow it. */
+async function renameModel(filePath: string, name: string): Promise<string> {
+  const renamed = await callAction<{ filePath: string }>('rename-model', filePath, name);
+  if (renamed.filePath !== filePath && selection.has(filePath)) {
+    selection.delete(filePath);
+    selection.add(renamed.filePath);
+  }
+  if (window.location.hash === formatRoute('model', filePath)) navigate('model', renamed.filePath);
+  return renamed.filePath;
+}
+
+/** Show a model's edit everywhere: the lists of values, its card, its details and its site details. */
+async function showEdit(filePath: string, oldPath: string, fields: string[], siteChanged: boolean) {
+  for (const kind of ['designer', 'title', 'license'] as const) if (fields.includes(kind)) void window.detailsHost?.valuesChanged(kind);
+  if (fields.includes('tags')) void window.detailsHost?.valuesChanged('tag');
+  await updateModel(filePath);
+  if (currentModelPath() === oldPath || currentModelPath() === filePath) await showModelDetails(filePath);
+  if (siteChanged) window.dispatchEvent(new Event(SITE_DETAILS_CHANGED));
+}
+
+/** What a save of the Edit dialog changed, to put back (Undo). */
+interface EditUndo {
+  /** The model's path after the save. */
+  filePath: string;
+  /** The name to rename it back to, when the save renamed it. */
+  oldName: string | null;
+  /** Library fields: the values before and as saved. */
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  /** The place before ('' for none) and who gave it, when the save changed it. */
+  category: { name: string; source: string | null } | null;
+  /** The site's link and the edits that put back its details, when the save changed them. */
+  site: { url: string; changes: Record<string, unknown> } | null;
+}
+
+/** Put back what one save of the Edit dialog changed. Tags only take back that save's changes. */
+async function undoEdit(edit: EditUndo) {
+  let filePath = edit.filePath;
+  if (edit.oldName !== null) filePath = await renameModel(filePath, edit.oldName);
+  const values: Record<string, unknown> = {};
+  const base: Record<string, unknown> = {};
+  for (const [field, before] of Object.entries(edit.before)) {
+    if (field === 'tags') {
+      const current = await modelApi.get<ModelRecord>(filePath);
+      values.tags = revertTags(current?.tags, before, edit.after.tags);
+    } else {
+      values[field] = before;
+      if (field !== 'rating') base[field] = edit.after[field];
+    }
+  }
+  await saveFields(filePath, values, base);
+  if (edit.category) await categoryApi.setForModel(filePath, edit.category.name ? [edit.category.name] : [], edit.category.source);
+  if (edit.site) await callAction('save-site-edits', edit.site.url, edit.site.changes);
+  await showEdit(filePath, edit.filePath, Object.keys(edit.before), !!edit.site);
+}
+
 /**
  * The details panel's Edit dialog: everything the library keeps about a model (its name, which
  * renames its file, designer, source, title, license, tags, notes and rating), and for a
  * model from MakerWorld, Printables or Thingiverse what the site says about it. Site edits are kept
- * apart and laid over the site's details, so Refresh does not undo them. Registers window.openEditModel.
+ * apart and laid over the site's details, so Refresh does not undo them. A save can be undone as one
+ * edit (the Undo notice, Ctrl/Cmd+Z). Registers window.openEditModel.
  */
 export function EditModelDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -154,76 +252,39 @@ export function EditModelDialog() {
 
   const close = () => dialogRef.current?.close();
 
-  /** Save the library fields; answers false when nothing of this person's was kept. */
-  async function saveLibrary(filePath: string, fields: (keyof LibraryForm)[]) {
-    if (!form || !start || !fields.length) return true;
-    const current = await modelApi.get<ModelRecord>(filePath);
-    if (!current) throw new Error('This model is not in the library any more.');
-    const payload: ModelRecord = { ...current };
-    const base: Record<string, unknown> = {};
-    for (const field of fields) {
-      if (field === 'tags') {
-        payload.tags = parseList(form.tags);
-        base.tags = parseList(start.tags);
-      } else if (field === 'rating') payload.rating = Number(form.rating) || 0;
-      else {
-        payload[field] = form[field].trim();
-        base[field] = start[field];
-      }
-    }
-    const result = await callAction<{ conflicts?: SaveConflict[] } | null>('save-model', { ...payload, _base: base });
-    if (result?.conflicts?.length) {
-      // Someone else changed a field meanwhile: whose value stays, field by field.
-      const name = text(current.fileName) || filePath;
-      for (const conflict of result.conflicts) {
-        const choice = await askAboutConflict(conflict, name);
-        if (choice === 'theirs') payload[conflict.field] = conflict.theirs;
-        else if (choice === 'both') payload[conflict.field] = bothNotes(conflict.theirs, conflict.yours);
-      }
-      await callAction('save-model', payload);
-    }
-    return true;
-  }
-
   async function save() {
     if (!model || !form || !start) return;
     const fields = changedFields(start, form);
+    const libraryFields = fields.filter((field) => field !== 'name');
     const siteFields = site && siteStart ? changedFields(siteStart, site) : [];
+    const before = Object.fromEntries(libraryFields.map((field) => [field, fieldValue(start, field)]));
+    const after = Object.fromEntries(libraryFields.map((field) => [field, fieldValue(form, field)]));
     setSaving(true);
     try {
       let filePath = model.filePath;
-      if (fields.includes('name')) {
-        const renamed = await callAction<{ filePath: string }>('rename-model', filePath, form.name);
-        if (renamed.filePath !== filePath && selection.has(filePath)) {
-          selection.delete(filePath);
-          selection.add(renamed.filePath);
-        }
-        // The model's page follows its new name.
-        if (window.location.hash === formatRoute('model', filePath)) navigate('model', renamed.filePath);
-        filePath = renamed.filePath;
-      }
-      await saveLibrary(
-        filePath,
-        fields.filter((field) => field !== 'name')
+      if (fields.includes('name')) filePath = await renameModel(filePath, form.name);
+      // `base` is what the person saw when the dialog opened, for the conflict check (tags merge).
+      const base = Object.fromEntries(
+        libraryFields.filter((field) => field !== 'rating').map((field) => [field, field === 'tags' ? parseList(start.tags) : start[field]])
       );
-      if (chosen !== categoryStart) await categoryApi.setForModel(filePath, chosen ? [chosen] : []);
-      if (details && site && siteFields.length) {
-        const changes: Record<string, unknown> = {};
-        const profiles: Record<string, string> = {};
-        for (const field of siteFields) {
-          const key = String(field);
-          if (key.startsWith('profile:')) profiles[key.slice('profile:'.length)] = site[field as keyof SiteForm];
-          else changes[key] = key === 'categories' || key === 'tags' ? parseList(site[field as keyof SiteForm]) : site[field as keyof SiteForm];
-        }
-        if (Object.keys(profiles).length) changes.profiles = profiles;
-        await callAction('save-site-edits', details.url, changes);
-      }
+      await saveFields(filePath, after, base);
+      const placeChanged = chosen !== categoryStart;
+      if (placeChanged) await categoryApi.setForModel(filePath, chosen ? [chosen] : []);
+      const siteChanged = !!(details && site && siteStart && siteFields.length);
+      if (siteChanged) await callAction('save-site-edits', details!.url, siteChanges(site!, siteFields));
       close();
-      for (const kind of ['designer', 'title', 'license'] as const) if (fields.includes(kind)) void window.detailsHost?.valuesChanged(kind);
-      if (fields.includes('tags')) void window.detailsHost?.valuesChanged('tag');
-      await updateModel(filePath);
-      if (currentModelPath() === model.filePath || currentModelPath() === filePath) await showModelDetails(filePath);
-      if (siteFields.length) window.dispatchEvent(new Event(SITE_DETAILS_CHANGED));
+      await showEdit(filePath, model.filePath, libraryFields, siteChanged);
+      if (fields.length || placeChanged || siteChanged) {
+        const edit: EditUndo = {
+          filePath,
+          oldName: fields.includes('name') ? start.name : null,
+          before,
+          after,
+          category: placeChanged ? { name: categoryStart, source: categoryStart ? text(model.categorySource) || null : null } : null,
+          site: siteChanged ? { url: details!.url, changes: siteChanges(siteStart!, siteFields) } : null
+        };
+        recordUndo(`Edited ${text(model.fileName) || filePath.split(/[\\/]/).pop()}`, () => undoEdit(edit));
+      }
     } catch (error) {
       await showMessage('Could not save', error instanceof Error ? error.message : String(error));
     } finally {

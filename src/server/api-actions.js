@@ -169,7 +169,7 @@ const ACTIONS = {
   'get-categories': [],
   'update-category': ['number', 'object'],
   'set-models-category': ['array', 'string'],
-  'set-model-categories': ['string', 'array'],
+  'set-model-categories': ['string', 'array', 'string?'],
   'start-category-scan': ['object?'],
   'get-category-scan': [],
   'stop-category-scan': [],

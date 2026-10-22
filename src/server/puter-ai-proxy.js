@@ -2,6 +2,16 @@
 
 const express = require('express');
 
+/** The text of Puter's chat result: a string, `message.content` (Claude models answer in parts), or `text`. */
+function chatTextOf(result) {
+  if (typeof result === 'string') return result;
+  const content = result?.message?.content;
+  if (Array.isArray(content)) return content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('');
+  if (content) return content;
+  if (typeof result?.text === 'string') return result.text;
+  return result != null ? JSON.stringify(result) : '';
+}
+
 /**
  * Proxy Puter AI chat requests server-side to avoid CORS (api.puter.com only allows https://puter.com).
  * The browser still uses Puter.js for authentication/captcha; only the drivers/call is proxied.
@@ -66,19 +76,7 @@ function registerPuterAiProxyRoute(expressApp) {
         return;
       }
 
-      const result = data.result;
-      let chatText;
-      if (typeof result === 'string') {
-        chatText = result;
-      } else if (result?.message?.content) {
-        chatText = result.message.content;
-      } else if (typeof result?.text === 'string') {
-        chatText = result.text;
-      } else if (result != null) {
-        chatText = JSON.stringify(result);
-      } else {
-        chatText = '';
-      }
+      const chatText = chatTextOf(data.result);
 
       res.json({ response: chatText });
     } catch (err) {
@@ -88,4 +86,4 @@ function registerPuterAiProxyRoute(expressApp) {
   });
 }
 
-module.exports = { registerPuterAiProxyRoute };
+module.exports = { chatTextOf, registerPuterAiProxyRoute };
