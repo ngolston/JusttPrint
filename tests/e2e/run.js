@@ -4466,6 +4466,19 @@ async function browserChecks(base, wsUrl, session) {
           .then(() => true)
           .catch(() => popup.isClosed()))
     );
+    // The login is kept for the account: another device (the same login cookie, nothing in its browser) has it too.
+    check('the Puter login is kept for the account', ((await invoke(base, session, 'get-puter-login')).result || {}).token === 'e2e-puter-token');
+    const { cookies } = await page.context().storageState();
+    const otherDevice = await (
+      await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: { cookies, origins: [] } })
+    ).newPage();
+    const otherLogin = async () => {
+      await otherDevice.goto(base);
+      await otherDevice.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
+      await otherDevice.waitForTimeout(1000);
+      return otherDevice.evaluate(() => localStorage.getItem('justtprint.puterAuthToken'));
+    };
+    check('another device logged in to the same account is signed in to Puter', (await otherLogin()) === 'e2e-puter-token');
     await page.click('#test-ai-config');
     await page
       .waitForFunction(() => /Test (successful|failed)/.test(document.querySelector('#ai-config-result')?.textContent || ''), null, { timeout: 20000 })
@@ -4483,6 +4496,26 @@ async function browserChecks(base, wsUrl, session) {
       (await page.textContent('#puter-account-status')) === 'Not signed in' &&
         (await page.evaluate(() => localStorage.getItem('justtprint.puterAuthToken'))) === null
     );
+    await waitFor(async () => (((await invoke(base, session, 'get-puter-login')).result || {}).token === null ? true : null), 10000, 'signed out').catch(
+      () => {}
+    );
+    check('signing out on one device signs the other out too', (await otherLogin()) === null);
+    // A browser signed in before the login was kept for the account hands it over once.
+    await otherDevice.evaluate(() => {
+      localStorage.removeItem('justtprint.puterAuthSynced');
+      localStorage.setItem('justtprint.puterAuthToken', 'e2e-old-puter-token');
+    });
+    await otherLogin();
+    check(
+      'a Puter login from before moves to the account',
+      (await waitFor(
+        async () => (((await invoke(base, session, 'get-puter-login')).result || {}).token === 'e2e-old-puter-token' ? true : null),
+        10000,
+        'moved'
+      ).catch(() => false)) === true
+    );
+    await invoke(base, session, 'save-puter-login', [null]);
+    await otherDevice.context().close();
     await page.click('#cancel-ai-config');
     // Cleanup: the sign-in popup's context may be closed already.
     await page.unroute('**/api/puter-ai/chat').catch(() => {});

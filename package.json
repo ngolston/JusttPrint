@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "8.7.0",
+  "version": "8.8.0",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {

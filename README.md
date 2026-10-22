@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 8.7.0**
+**Version 8.8.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -220,7 +220,7 @@ The sidebar holds every page: **Home**, **Library**, **Collections**, **Categori
 AI tagging looks at a model's thumbnail and name and suggests tags. You review them before they are saved.
 
 1. Click **AI Tagging** in the sidebar (or open **Settings → AI**).
-2. Pick a service and enter its API key (OpenAI, Claude, Gemini). Puter needs no key: click **Sign In** and log in to your Puter account in the popup (allow popups for JusttPrint); usage counts against that account. For a local server such as Ollama or LM Studio, pick `custom`, enter its address (for example `http://<server-ip>:11434/v1` for Ollama) and leave the key blank.
+2. Pick a service and enter its API key (OpenAI, Claude, Gemini). Puter needs no key: click **Sign In** and log in to your Puter account in the popup (allow popups for JusttPrint); usage counts against that account. The sign-in is kept for your JusttPrint account, so your other computers and your phone are signed in too (and **Sign Out** signs them all out). For a local server such as Ollama or LM Studio, pick `custom`, enter its address (for example `http://<server-ip>:11434/v1` for Ollama) and leave the key blank.
 3. Pick a model, and save.
 4. Choose models with **Edit**, open a chosen card's **⋯** menu and choose **Generate Tags**, then tick the tags you want and apply.
 

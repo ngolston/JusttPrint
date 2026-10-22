@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.8.0] - 2026-10-22
+
+**Changes:**
+- **The Puter sign-in follows your account:** signing in to Puter under **Settings → AI Tagging** is kept for your JusttPrint account on the server, not only in that browser, so your phone and other computers are signed in too once their page loads. **Sign Out** signs out everywhere. Guests keep theirs in their browser, as before.
+
+**Upgrading:** nothing to do. A browser that was already signed in to Puter hands its sign-in to your account the next time it opens JusttPrint; then reload JusttPrint on your other devices.
+
 ## [8.7.0] - 2026-10-22
 
 **Changes:**
