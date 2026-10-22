@@ -1,15 +1,21 @@
 /**
  * The Puter.com login. Puter.js never runs on the library page (its Content Security Policy only
  * allows this server's scripts); it runs on puter-signin.html, opened in a popup, which posts the
- * login token back here. The token is kept in this browser and sent with each Puter AI request.
+ * login token back here. The token is kept for the JusttPrint account on the server (so every
+ * browser the person logs in with has it), with a copy in this browser, and sent with each Puter AI
+ * request.
  *
  * Browsers only allow popups from a click. When a tagging request needs a login and the popup is
  * blocked, PuterSignInDialog asks for that click.
  */
 
+import { callAction } from '../api';
+
 export const SIGNIN_PAGE = 'puter-signin.html';
 export const SIGNIN_MESSAGE = 'justtprint-puter-signin';
 const TOKEN_KEY = 'justtprint.puterAuthToken';
+/** Set once this browser's login has been handed to the account (a login from before 8.8 moves there once). */
+const SYNCED_KEY = 'justtprint.puterAuthSynced';
 const WINDOW_NAME = 'justtprint-puter-signin';
 const WINDOW_FEATURES = 'popup,width=480,height=640';
 
@@ -39,7 +45,8 @@ export function subscribe(listener: () => void): () => void {
   };
 }
 
-function storeToken(token: string | null) {
+/** Keep the login in this browser (and, unless it came from there, for the account). */
+function storeToken(token: string | null, { toAccount = true } = {}) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
@@ -48,8 +55,60 @@ function storeToken(token: string | null) {
   }
   memoryToken = token;
   changed();
+  if (toAccount) void saveToAccount(token);
 }
 let memoryToken: string | null = null;
+
+async function saveToAccount(token: string | null) {
+  try {
+    if (await callAction<boolean>('save-puter-login', token)) localStorage.setItem(SYNCED_KEY, '1');
+  } catch {
+    /* a guest, or offline: the login stays in this browser */
+  }
+}
+
+/**
+ * The account's login, read once when the page loads. The account's wins; without one, a login
+ * this browser had before it was kept for the account moves there, and one the account signed
+ * out of (on another device) is forgotten here too.
+ */
+async function loadFromAccount() {
+  let token: string | null;
+  try {
+    token = (await callAction<{ token: string | null }>('get-puter-login')).token;
+  } catch {
+    return;
+  }
+  const local = storedToken();
+  if (token) {
+    if (token !== local) storeToken(token, { toAccount: false });
+    try {
+      localStorage.setItem(SYNCED_KEY, '1');
+    } catch {
+      /* private mode */
+    }
+    return;
+  }
+  if (!local) return;
+  let synced = false;
+  try {
+    synced = localStorage.getItem(SYNCED_KEY) === '1';
+  } catch {
+    /* private mode */
+  }
+  if (synced) storeToken(null, { toAccount: false });
+  else await saveToAccount(local);
+}
+let accountReady = true;
+let accountLoaded: Promise<void> = Promise.resolve();
+if (typeof window !== 'undefined' && typeof fetch === 'function') {
+  accountReady = false;
+  accountLoaded = loadFromAccount()
+    .catch(() => {})
+    .finally(() => {
+      accountReady = true;
+    });
+}
 
 export const currentToken = () => storedToken() || memoryToken;
 
@@ -132,6 +191,9 @@ export function openSignInWindow(): boolean {
 
 /** A Puter login token: the saved one, or a new sign-in (shared by concurrent requests). */
 export function ensureToken(): Promise<string> {
+  // The account's login may still be on its way (the page just loaded). Once it is here, no waiting:
+  // the sign-in popup must open straight from the click.
+  if (!accountReady) return accountLoaded.then(() => ensureToken());
   const token = currentToken();
   if (token) return Promise.resolve(token);
   if (pending) return pending.promise;

@@ -145,6 +145,32 @@ const saveSettingHandler = async (event, key, value) => {
 
 ipcMain.handle('save-setting', saveSettingHandler);
 
+/**
+ * The Puter.com sign-in (src/web/ai/puterAuth.ts) is kept for the account, so every browser the
+ * person logs in with uses it (it was kept in one browser before). Each account reads and saves only
+ * its own; guests have none here (theirs stays in their browser).
+ */
+const PUTER_LOGIN_KEY = 'puterAuthToken';
+
+ipcMain.handle('get-puter-login', async (event) => {
+  const userId = accountId(event);
+  if (!userId || event.user.guest) return { token: null };
+  const row = userSettingsTable().prepare('SELECT value FROM user_settings WHERE user_id = ? AND key = ?').get(userId, PUTER_LOGIN_KEY);
+  return { token: (row && row.value) || null };
+});
+
+ipcMain.handle('save-puter-login', async (event, token) => {
+  const userId = accountId(event);
+  if (!userId || event.user.guest) return false;
+  const value = typeof token === 'string' ? token.trim().slice(0, 4096) : '';
+  if (value) {
+    userSettingsTable().prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(userId, PUTER_LOGIN_KEY, value);
+  } else {
+    userSettingsTable().prepare('DELETE FROM user_settings WHERE user_id = ? AND key = ?').run(userId, PUTER_LOGIN_KEY);
+  }
+  return true;
+});
+
 module.exports = { isPreferenceSetting, isPerUserSetting, forgetUserSettings, ADMIN_ONLY_SETTING };
 
 // Folder watching for STL Home (src/server/stl-home.js): on or off, and what is watched.

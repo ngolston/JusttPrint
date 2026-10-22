@@ -282,6 +282,9 @@ const ACTIONS = {
 
   // AI tagging, system report
   'test-ai-config': ['string?', 'string?', 'string?', 'string?'],
+  // The caller's own Puter.com sign-in (ipc/settings.js).
+  'get-puter-login': [],
+  'save-puter-login': ['string?'],
   'get-default-ai-prompt': [],
   'get-stats': [],
   'get-library-storage': [],
@@ -372,6 +375,9 @@ const VIEWER_ACTIONS = new Set([
   // Settings: non-admins read only what is not secret, and save only display preferences (ipc/settings.js).
   'get-setting',
   'save-setting',
+  // Each account keeps its own Puter.com sign-in.
+  'get-puter-login',
+  'save-puter-login',
   'get-app-version',
   'check-for-updates',
   'open-update-page',
