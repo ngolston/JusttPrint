@@ -1193,7 +1193,7 @@ async function browserChecks(base, wsUrl, session) {
         );
       check(`3D preview opens: ${path.basename(filePath)}`, opened && loaded === true, [String(loaded), ...errors.slice(errorsBefore)].join(' | '));
       if (process.env.E2E_DEBUG) console.log(`     errors while open: ${errors.length - errorsBefore}`);
-      if (filePath === tiles[0] && loaded === true) {
+      if (filePath === tiles.find((p) => !/\.(zip|rar|7z)$/i.test(p)) && loaded === true) {
         // Studio (React, src/web/preview/PreviewDialog.tsx): settings apply and are saved; Save Image downloads a PNG.
         await page.click('#preview-toggle-studio');
         const studioOpen = await page.isVisible('#preview-studio-panel');
@@ -1219,7 +1219,8 @@ async function browserChecks(base, wsUrl, session) {
 
     // Grid cards (React, src/web/grid/ModelCard.tsx) in the detailed view.
     await page.click('.view-button[data-view="detailed"]');
-    const firstCard = await page.waitForSelector('.file-grid .file-item-detailed', { timeout: 10000 }).catch(() => null);
+    // The first model file (an archive has no Open in Slicer or 3D preview; card order can vary).
+    const firstCard = await page.waitForSelector('.file-grid .file-item-detailed:not([data-filepath$=".zip"])', { timeout: 10000 }).catch(() => null);
     check('detailed view shows cards', !!firstCard && (await page.locator('.file-grid .file-item-detailed').count()) === 3);
     if (firstCard) {
       const cardPath = await firstCard.getAttribute('data-filepath');
@@ -3693,7 +3694,7 @@ async function browserChecks(base, wsUrl, session) {
         size: el.getBoundingClientRect().width
       }));
       check('on a touch screen card buttons show without hover, finger-sized', cardAction.opacity === '1' && cardAction.size >= 36, JSON.stringify(cardAction));
-      await phone.tap('.file-grid .jp-model-card[data-filepath] .file-name');
+      await phone.tap('.file-grid .jp-model-card[data-filepath]:not([data-filepath$=".zip"]) .file-name');
       const phoneDetails = await phone
         .waitForFunction(() => document.body.classList.contains('jp-details-open'), null, { timeout: 10000 })
         .then(

@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.6.1] - 2026-10-22
+
+**Fixes:**
+- **End-to-end tests:** the details panel, phone and 3D preview Studio checks now pick a model file, not an archive (the library's card order can put `pack.zip` first, and archives have no Open in Slicer or 3D preview).
+
+**Upgrading:** no changes needed.
+
 ## [8.6.0] - 2026-10-22
 
 **Changes:**
