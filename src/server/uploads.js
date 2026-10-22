@@ -75,15 +75,10 @@ function uploadSessions() {
   return sessionStore;
 }
 
-/** Archives an upload may be (kept as they are; a ZIP's models are listed when ZIP scanning is on). */
-const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z'];
-
-/** File types an upload may have: the ones the library scans (Settings → File Types), and archives (ZIP, RAR, 7Z). */
+/** File types an upload may have: the ones the library scans (Settings → File Types, and archives: ZIP, RAR, 7Z). */
 function allowedUploadExtensions() {
   const { getSupportedExtensionsForLibrary } = require('./ipc/models');
-  const extensions = new Set(getSupportedExtensionsForLibrary(database.db));
-  for (const ext of ARCHIVE_EXTENSIONS) extensions.add(ext);
-  return [...extensions].sort();
+  return [...new Set(getSupportedExtensionsForLibrary(database.db))].sort();
 }
 
 /** The name to save under, or throws: a plain file name (no folders), not hidden, of an allowed type (`extensions` null: any). */

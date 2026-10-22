@@ -145,7 +145,6 @@ function startServer(port) {
       JUSTTPRINT_USER_DATA: DATA,
       JUSTTPRINT_PORT: String(port),
       JUSTTPRINT_PASSWORD: PASSWORD,
-      JUSTTPRINT_ENABLE_ZIP: 'true',
       // Tiny upload pieces, so the upload checks send a model in several pieces.
       JUSTTPRINT_UPLOAD_CHUNK_MB: '0.0001', // the 256-byte minimum
       STL_HOME: LIBRARY,
@@ -165,7 +164,6 @@ function startContainer(port, log) {
     JUSTTPRINT_USER_DATA: DATA,
     JUSTTPRINT_PORT: String(port),
     JUSTTPRINT_PASSWORD: PASSWORD,
-    JUSTTPRINT_ENABLE_ZIP: 'true',
     JUSTTPRINT_UPLOAD_CHUNK_MB: '0.0001',
     STL_HOME: LIBRARY,
     XDG_DATA_HOME: path.join(WORK, 'share'),
@@ -533,7 +531,10 @@ async function apiChecks(base, wsUrl) {
   check('MCP without token refused', (await anon.request('/mcp', { method: 'POST', json: mcpBody, useCookie: false })).status === 401);
   const mcp = await anon.request('/mcp', { method: 'POST', json: mcpBody, useCookie: false, headers: { authorization: `Bearer ${token}` } });
   const mcpText = await mcp.text();
-  check('MCP with token finds library models', mcp.status === 200 && mcpText.includes('cube.stl') && mcpText.includes('pack.zip::inner/widget.stl'));
+  check(
+    'MCP with token finds library models',
+    mcp.status === 200 && mcpText.includes('cube.stl') && mcpText.includes('pack.zip') && !mcpText.includes('pack.zip::')
+  );
   const mcpTool = async (name, args = {}) => {
     const res = await anon.request('/mcp', {
       method: 'POST',
@@ -1160,6 +1161,17 @@ async function browserChecks(base, wsUrl, session) {
       const errorsBefore = errors.length;
       const tile = await page.$(`[data-filepath="${filePath.replace(/"/g, '\\"')}"], [data-file-path="${filePath.replace(/"/g, '\\"')}"]`);
       await tile.dblclick();
+      // An archive is one model that is never opened: no 3D preview, a message instead.
+      if (/\.(zip|rar|7z)$/i.test(filePath)) {
+        const said = await page
+          .waitForSelector('dialog[open]:has-text("No 3D Preview")', { timeout: 10000 })
+          .then(() => page.textContent('dialog[open]'))
+          .catch(() => '');
+        check(`an archive has no 3D preview, and says why: ${path.basename(filePath)}`, /archive/i.test(said) && errors.length === errorsBefore, said);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(500);
+        continue;
+      }
       const opened = await page
         .waitForFunction(() => [...document.querySelectorAll('canvas')].some((c) => c.width > 50 && c.offsetParent !== null), null, { timeout: 30000 })
         .then(
@@ -2531,22 +2543,6 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], title: null }]]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
 
-    // Wall view: a ZIP entry's Archive label sits beside its name, not on top of it.
-    await page.click('.view-button[data-view="preview"]');
-    const archiveOverlap = await page.waitForSelector('.file-grid .preview-tile .preview-tile-archive', { timeout: 10000 }).then(
-      () =>
-        page.evaluate(() => {
-          const badge = document.querySelector('.file-grid .preview-tile .preview-tile-archive').getBoundingClientRect();
-          const name = document
-            .querySelector('.file-grid .preview-tile .preview-tile-archive')
-            .closest('.preview-tile')
-            .querySelector('.preview-tile-name')
-            .getBoundingClientRect();
-          return badge.right > name.left && badge.left < name.right && badge.bottom > name.top && badge.top < name.bottom;
-        }),
-      () => null
-    );
-    check('in the Wall view the Archive label does not cover the file name', archiveOverlap === false, String(archiveOverlap));
     // Grid toolbar and list view columns (React, src/web/grid/GridToolbar.tsx, ListHeader.tsx, columns.ts).
     await page.click('.view-button[data-view="list"]');
     const listShown = await page.waitForSelector('.file-grid .list-view-header [data-list-col="name"] .sortable-header', { timeout: 10000 }).then(
@@ -5212,7 +5208,7 @@ async function modelFolderChecks(base, { admin, editor, viewer }, cubeBytes) {
   );
   check('the moved model keeps its record', !!(await invoke(base, viewer, 'get-model', [path.join(loose, 'Wheel', 'Wheel.stl')])).result);
 
-  // An uploaded ZIP is kept as it is (unpacking is gone since 8.2): ZIP scanning lists the models inside it.
+  // An uploaded ZIP is one model, the archive itself (8.6): never unpacked, nothing listed from inside it.
   const { zipSync } = require('fflate');
   const kitDir = path.join(uploadLibrary, 'E2E Kit');
   fs.mkdirSync(kitDir, { recursive: true });
@@ -5220,20 +5216,26 @@ async function modelFolderChecks(base, { admin, editor, viewer }, cubeBytes) {
   const sentKit = await uploadAs(base, editor, kitDir, 'Kit.zip', kitZip);
   const addedKit = (await invoke(base, editor, 'add-uploaded-files', [kitDir, [sentKit.filePath]])).result || {};
   check(
-    'an uploaded ZIP is kept as it is, its models listed from inside it',
+    'an uploaded ZIP is one model in the library, the archive itself',
     sentKit.status === 200 &&
       fs.existsSync(path.join(kitDir, 'Kit.zip')) &&
       !fs.existsSync(path.join(kitDir, 'Kit')) &&
       !fs.existsSync(path.join(kitDir, 'archives')) &&
-      !!(await invoke(base, viewer, 'get-model', [`${path.join(kitDir, 'Kit.zip')}::arm/upper.stl`])).result,
+      addedKit.inLibrary === 1 &&
+      !!(await invoke(base, viewer, 'get-model', [path.join(kitDir, 'Kit.zip')])).result &&
+      !(await invoke(base, viewer, 'get-model', [`${path.join(kitDir, 'Kit.zip')}::arm/upper.stl`])).result,
     JSON.stringify(addedKit)
   );
-  // RAR and 7Z are uploaded too (8.4), kept as they are (never unpacked; Organize moves them like a model).
+  // RAR and 7Z are uploaded too, each one model (never unpacked).
   const sentRar = await uploadAs(base, editor, kitDir, 'Kit.rar', 'x');
   const addedRar = (await invoke(base, editor, 'add-uploaded-files', [kitDir, [sentRar.filePath]])).result || {};
   check(
-    'RAR and 7Z files are uploaded and kept as they are',
-    sentRar.status === 200 && fs.existsSync(path.join(kitDir, 'Kit.rar')) && addedRar.kept === 1 && !(addedRar.notAdded || []).length,
+    'RAR and 7Z files are uploaded, each one model in the library',
+    sentRar.status === 200 &&
+      fs.existsSync(path.join(kitDir, 'Kit.rar')) &&
+      addedRar.inLibrary === 1 &&
+      !(addedRar.notAdded || []).length &&
+      !!(await invoke(base, viewer, 'get-model', [path.join(kitDir, 'Kit.rar')])).result,
     JSON.stringify(addedRar)
   );
 
@@ -6273,7 +6275,16 @@ async function accountChecks(base, wsUrl, admin) {
       await p.evaluate(() => {
         window.location.hash = '#/library';
       });
-      await p.waitForSelector(cardOf(uploadedPath), { timeout: 15000 }).catch(() => {});
+      await p.waitForSelector('.file-grid [data-filepath]', { timeout: 15000 }).catch(() => {});
+      // The grid draws only the cards on screen: scroll down to the model's card.
+      for (let i = 0; i < 20 && !(await p.$(cardOf(uploadedPath))); i++) {
+        await p.evaluate(() => {
+          for (let el = document.querySelector('.file-grid'); el; el = el.parentElement) {
+            if (el.scrollHeight > el.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop += el.clientHeight;
+          }
+        });
+        await p.waitForTimeout(300);
+      }
       await p.click(cardOf(uploadedPath)).catch(() => {});
       await p.waitForSelector('#model-details .jp-details__title', { timeout: 10000 }).catch(() => {});
     }

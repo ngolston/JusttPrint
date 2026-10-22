@@ -11,7 +11,6 @@ export function nameParts(filePath: string, fileName: string | null | undefined)
   const stem = dot > 0 ? name.slice(0, dot) : name;
   const extension = dot > 0 ? name.slice(dot) : '';
   if (filePath.includes('::')) return { stem, extension, locked: 'Files inside a zip file keep their names.' };
-  if (extension.toLowerCase() === '.zip') return { stem, extension, locked: 'Zip files keep their names.' };
   return { stem, extension, locked: null };
 }
 

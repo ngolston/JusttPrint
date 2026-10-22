@@ -21,7 +21,6 @@ const { shouldAutoTagNewScanFiles } = require('../../core/folder-tags');
 const { pathsAreSame } = require('../../core/organize-library');
 const { applyFolderTagsToModels } = require('./context-menu');
 const { directoryScanPrefixSqlParam, getScanExtensions, normalizePath } = require('./models');
-const { findZipEntry, withZipFileLock } = require('../../core/zip-extract');
 
 ipcMain.handle('load-directory', async () => {
   try {
@@ -114,28 +113,6 @@ function applyPathMetadataFromSegments(scanRootPath, filePaths) {
   }
 }
 
-// Helper function to check if a zip entry exists
-async function checkZipEntryExists(zipPath, entryPath) {
-  try {
-    if (!fs.existsSync(zipPath)) {
-      return false;
-    }
-    return await withZipFileLock(zipPath, async () => {
-      const StreamZip = require('node-stream-zip');
-      const zip = new StreamZip.async({ file: zipPath });
-      try {
-        const entries = await zip.entries();
-        return findZipEntry(entries, entryPath) != null;
-      } finally {
-        await zip.close();
-      }
-    });
-  } catch (error) {
-    console.error(`Error checking zip entry existence for ${zipPath}::${entryPath}:`, error);
-    return false;
-  }
-}
-
 // Update the removeNonExistentFiles function
 /**
  * @param {any} [window]
@@ -182,42 +159,34 @@ async function removeNonExistentFiles(scanDirectoryPath, window = null, excludeD
           });
           return;
         }
-        const pathInfo = parseZipPath(model.filePath);
+        // Models listed from inside a ZIP (before 8.6): the archive is now one model of its own.
+        if (parseZipPath(model.filePath).isZipEntry) {
+          filesToDelete.push({ filePath: model.filePath, id: model.id, reason: 'archive' });
+          return;
+        }
         let fileExists;
-
-        if (pathInfo.isZipEntry) {
-          // For zip entries, check if the zip file exists and the entry exists within it
+        try {
+          // First try the path as stored
           try {
-            fileExists = await checkZipEntryExists(pathInfo.zipPath, pathInfo.entryPath);
-          } catch (error) {
-            console.error(`Error checking zip entry ${model.filePath}:`, error);
-            fileExists = false;
-          }
-        } else {
-          // For regular files, check if the file exists
-          try {
-            // First try the path as stored
-            try {
-              await fs.promises.access(model.filePath, fs.constants.F_OK);
-              fileExists = true;
-            } catch (accessError) {
-              // If access fails, try normalizing the path (handles forward/backslash issues)
-              const normalizedPath = path.normalize(model.filePath);
-              if (normalizedPath !== model.filePath) {
-                try {
-                  await fs.promises.access(normalizedPath, fs.constants.F_OK);
-                  fileExists = true;
-                } catch (normalizedError) {
-                  fileExists = false;
-                }
-              } else {
+            await fs.promises.access(model.filePath, fs.constants.F_OK);
+            fileExists = true;
+          } catch (accessError) {
+            // If access fails, try normalizing the path (handles forward/backslash issues)
+            const normalizedPath = path.normalize(model.filePath);
+            if (normalizedPath !== model.filePath) {
+              try {
+                await fs.promises.access(normalizedPath, fs.constants.F_OK);
+                fileExists = true;
+              } catch (normalizedError) {
                 fileExists = false;
               }
+            } else {
+              fileExists = false;
             }
-          } catch (error) {
-            console.error(`Error checking file existence for ${model.filePath}:`, error);
-            fileExists = false;
           }
+        } catch (error) {
+          console.error(`Error checking file existence for ${model.filePath}:`, error);
+          fileExists = false;
         }
 
         if (!fileExists) {
@@ -383,9 +352,7 @@ async function scanDirectoryInner(event, directoryPath, options = {}) {
     const scanRoot = typeof options.scanRoot === 'string' && options.scanRoot ? options.scanRoot : directoryPath;
     const excludeDirectories = scanExcludeDirectories(directoryPath, scanRoot, options);
 
-    // Read enableZipArchives and scanAdditionalFileTypes from database
-    const zipSetting = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives');
-    const enableZipArchives = zipSetting && zipSetting.value === '1';
+    // Read scanAdditionalFileTypes from database (archives are always scanned, scan-worker.js)
     let scanExtensions = ['.stl', '.3mf'];
     try {
       const scanTypesSetting = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('scanAdditionalFileTypes');
@@ -626,7 +593,6 @@ async function scanDirectoryInner(event, directoryPath, options = {}) {
       worker.postMessage({
         directoryPath,
         maxFileSize,
-        enableZipArchives,
         scanExtensions,
         excludeFolderNames: Array.from(getScanExcludeNames()),
         excludeDirectories

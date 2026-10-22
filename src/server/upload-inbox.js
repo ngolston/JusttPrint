@@ -264,7 +264,7 @@ async function renameToTitle(models, title, by) {
   let renamed = 0;
   for (const model of models) {
     const filePath = String(model.filePath);
-    if (filePath.includes('::') || path.extname(filePath).toLowerCase() === '.zip') continue;
+    if (filePath.includes('::')) continue;
     const stem = path.basename(filePath, path.extname(filePath));
     if (stem === title || new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(\\d+\\)$`).test(stem)) continue;
     for (let n = 1; n < 100; n++) {

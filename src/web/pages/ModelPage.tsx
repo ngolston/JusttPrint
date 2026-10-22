@@ -24,6 +24,7 @@ import { ModelUploadButton, useModelUpload } from '../media/ModelUpload';
 import { DeletePrintButton, DescriptionSection, NotesPanel, PageStatus, PageTags } from './ModelPageParts';
 import { getSiteDetails, siteModelUrl, type MakerWorldDetails } from '../makerworld/makerworld';
 import { folderOf } from '../media/media';
+import { extensionOf, isArchive } from '../thumbnails/formats';
 
 /** What the page shows of a model (get-model). */
 type PageModel = PanelModel &
@@ -518,9 +519,11 @@ export function ModelView({
         Model Details
       </h2>
       <div className="jp-model-page__actions">
-        <div className="jp-model-page__slicer">
-          <SlicerButton filePath={model.filePath} slicers={slicers} />
-        </div>
+        {!isArchive(extensionOf(model.filePath)) && (
+          <div className="jp-model-page__slicer">
+            <SlicerButton filePath={model.filePath} slicers={slicers} />
+          </div>
+        )}
         {canEdit && (
           <Button icon={Pencil} id={compact ? 'jp-details-edit' : 'jp-model-page-edit'} onClick={() => window.openEditModel?.(model.filePath)}>
             Edit

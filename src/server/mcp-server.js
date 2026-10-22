@@ -720,7 +720,7 @@ const TOOL_DEFINITIONS = [
   {
     name: 'rename_model',
     description:
-      'Rename a model and its file (the extension stays). The only model in its own model folder renames that folder too. Files inside a ZIP and ZIP files keep their names.',
+      'Rename a model and its file (the extension stays). The only model in its own model folder renames that folder too. Files inside a ZIP (listed before 8.6) keep their names.',
     inputSchema: {
       type: 'object',
       properties: {

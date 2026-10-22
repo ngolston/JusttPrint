@@ -27,8 +27,12 @@ const ADDITIONAL_FILE_TYPES_CATALOG = [
   { id: 'x3d', label: 'X3D (.x3d)', extensions: ['.x3d'] }
 ];
 
+/** Archives: always scanned, each as one model (never opened). The type filter calls them `zip`. */
+const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z'];
+
 function getExtensionsForFileTypeFilter(fileTypeValue) {
-  if (!fileTypeValue || fileTypeValue === 'zip') return null;
+  if (!fileTypeValue) return null;
+  if (fileTypeValue.toLowerCase() === 'zip') return ARCHIVE_EXTENSIONS;
   const lower = fileTypeValue.toLowerCase();
   if (lower === 'stl') return ['.stl'];
   if (lower === '3mf') return ['.3mf'];
@@ -582,21 +586,15 @@ function buildModelFilterConditions(rawFilters) {
 
   // File type filter
   if (filters.fileType) {
-    if (filters.fileType.toLowerCase() === 'zip') {
-      // For zip filter, show all models inside ZIP archives (entries with :: separator)
-      conditions.push('filePath LIKE ?');
-      params.push('%::%');
+    // A type not in the list (a file type added under Settings) matches by its extension, as in search queries.
+    const known = getExtensionsForFileTypeFilter(filters.fileType);
+    const exts = known && known.length ? known : [`.${String(filters.fileType).toLowerCase()}`];
+    if (exts.length === 1) {
+      conditions.push('LOWER(fileName) LIKE ?');
+      params.push(`%${exts[0]}`);
     } else {
-      // A type not in the list (a file type added under Settings) matches by its extension, as in search queries.
-      const known = getExtensionsForFileTypeFilter(filters.fileType);
-      const exts = known && known.length ? known : [`.${String(filters.fileType).toLowerCase()}`];
-      if (exts.length === 1) {
-        conditions.push('LOWER(fileName) LIKE ?');
-        params.push(`%${exts[0]}`);
-      } else {
-        conditions.push('(' + exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ') + ')');
-        params.push(...exts.map((ext) => `%${ext}`));
-      }
+      conditions.push('(' + exts.map(() => 'LOWER(fileName) LIKE ?').join(' OR ') + ')');
+      params.push(...exts.map((ext) => `%${ext}`));
     }
   }
 
@@ -662,4 +660,4 @@ function sqlAndFilterConditions(conditions) {
   return ` AND ${conditions.join(' AND ')}`;
 }
 
-module.exports = { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions, sqlAndFilterConditions };
+module.exports = { ADDITIONAL_FILE_TYPES_CATALOG, ARCHIVE_EXTENSIONS, buildModelFilterConditions, sqlAndFilterConditions };

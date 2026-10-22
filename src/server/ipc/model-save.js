@@ -3,14 +3,10 @@
 /** Saving models: one (saveModel), a batch of new ones, and batch edits from the details panel. */
 
 const database = require('../../core/database');
-const fs = require('fs');
-const path = require('path');
 const { deriveBundleFromFilePath } = require('../../core/bundle-keys');
 const printEvents = require('../../core/print-events');
 const { MODEL_DETAIL_COLUMNS, getModelById, modelUserFieldsChanged, normalizeModelRating, repairModelTagsTable } = require('../../core/models');
 const { scheduleBackgroundHashGeneration } = require('./hashes');
-const { isMacOsResourceForkEntry } = require('../../core/zip-entries');
-const { withZipFileLock } = require('../../core/zip-extract');
 
 async function saveModelBatch(modelDataBatch) {
   try {
@@ -253,58 +249,6 @@ async function saveModel(modelData) {
     } = modelData;
 
     const filePath = filePathIn;
-
-    // Standalone .zip: only add if "Include zipped models" is enabled; add each STL/3MF inside (like scan)
-    if (filePath && filePath.toLowerCase().endsWith('.zip') && !filePath.includes('::')) {
-      const zipSetting = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives');
-      const enableZipArchives = zipSetting && zipSetting.value === '1';
-      if (!enableZipArchives) {
-        throw new Error('ZIP archives are disabled. Enable "Include zipped models" in Settings to add .zip files.');
-      }
-      // List STL/3MF entries and save each as zipPath::entryPath (same as scan)
-      if (!fs.existsSync(filePath)) {
-        throw new Error(`ZIP file not found: ${filePath}`);
-      }
-      const entries = await withZipFileLock(filePath, async () => {
-        const StreamZip = require('node-stream-zip');
-        const zip = new StreamZip.async({ file: filePath });
-        try {
-          return await zip.entries();
-        } finally {
-          await zip.close();
-        }
-      });
-      // Lazy: models.js loads this module.
-      const modelExts = require('./models').getSupportedExtensionsForLibrary(database.db);
-      const toAdd = Object.values(entries).filter(
-        (e) => !e.isDirectory && modelExts.includes(path.extname(e.name).toLowerCase()) && !isMacOsResourceForkEntry(e.name)
-      );
-      if (toAdd.length === 0) {
-        throw new Error('No supported model files found in the ZIP file. Enable additional file types in Settings > File Types if needed.');
-      }
-      const baseMeta = {
-        designer,
-        source,
-        notes,
-        printed,
-        title,
-        license,
-        rating,
-        favorite,
-        tags: rawTags,
-        markAsNew
-      };
-      for (const entry of toAdd) {
-        const entryPath = `${filePath}::${entry.name}`;
-        const entryFileName = path.basename(entry.name);
-        await saveModel({
-          ...baseMeta,
-          filePath: entryPath,
-          fileName: entryFileName
-        });
-      }
-      return { success: true, expanded: true, count: toAdd.length };
-    }
 
     // Ensure tags is always an array, even if a single string was passed
     const tags = rawTags ? (Array.isArray(rawTags) ? rawTags : [rawTags]) : [];

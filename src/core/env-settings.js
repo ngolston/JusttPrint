@@ -41,7 +41,6 @@ function splitList(value) {
  * @type {Array<[string, string, (value: string, ctx: { fileTypeIds: string[] }) => string]>}
  */
 const ENV_SETTINGS = [
-  ['JUSTTPRINT_ENABLE_ZIP', 'enableZipArchives', parseBoolean],
   [
     'JUSTTPRINT_FILE_TYPES',
     'scanAdditionalFileTypes',

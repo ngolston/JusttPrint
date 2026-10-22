@@ -24,6 +24,11 @@ export function hasEmbeddedPreviews(ext: string): boolean {
   return ['3mf', 'lys', 'f3d', 'chitubox', 'voxl'].includes(bare(ext));
 }
 
+/** Archives: one model each, never opened (no preview, not for a slicer). */
+export function isArchive(ext: string): boolean {
+  return ['zip', 'rar', '7z'].includes(bare(ext));
+}
+
 /** Formats whose only possible thumbnail is an embedded image (no mesh to render). */
 export function isImageOnly(ext: string): boolean {
   return ['f3d', 'chitubox', 'voxl'].includes(bare(ext));

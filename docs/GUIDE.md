@@ -68,9 +68,9 @@ The library shows your models as cards: preview, name, designer (or folder), fil
 
 Type in the top bar to search names, designers, tags and (optionally) notes. **Filter** opens every filter: folder, designer, title, license, tags, print status, new models, favorites, rating, file type and sort order. Active filters show as chips under the tabs; click a chip's × to remove one, or **Clear all**.
 
-### Folder and ZIP bundles
+### Folder bundles
 
-When a scan finds two or more model files in the same folder or ZIP file, they show as one **bundle** card.
+When a scan finds two or more model files in the same folder, they show as one **bundle** card.
 
 | Action | Result |
 |--------|--------|
@@ -134,7 +134,7 @@ Editors and admins can add models from the browser:
 
 - Drop model files anywhere on the page, or click **Upload** in the Library.
 - **Everything goes to the Upload folder** (below): model files, ZIP, RAR and 7Z files, each upload in a folder of its own. There is no other folder to choose; without an Upload folder, **Upload** opens **Settings → Scanning → Organize** to set it first (or set `JUSTTPRINT_UPLOAD_FOLDER` in Docker). Files added with **Upload** on a model's own page, and **New Version**, still go into that model's folder: **Upload** there takes any file (or drop files on the page) and puts pictures, videos and documents into their folders, model files beside the model's files and anything else into its `other` folder (**Other Files** on the page). A model without a folder of its own is given one first, after asking.
-- **Archives are kept as they are**, never unpacked: a ZIP's models are listed from inside it when ZIP scanning is on (**Settings → Scanning → File Types**); a RAR or 7Z is just kept, and Organize moves it with its model.
+- **An archive is one model**: a ZIP, RAR or 7Z file is added to the library as itself, never unpacked or opened (no 3D preview; download it to see what is inside). The Max File Size does not apply to archives.
 - Files of a type the library does not scan are skipped before anything is sent (turn more types on under **Settings → Scanning → File Types**), and so are files over the size limit (2 GB unless `JUSTTPRINT_MAX_UPLOAD_MB` says otherwise).
 - Big files are fine: they go in pieces, with how much has arrived under the progress bar. A piece that fails is sent again; if the connection stays lost, the file shows an error, and **Upload** (or adding the same file again, even after reloading the page) continues where it stopped. Unfinished uploads are deleted after a day.
 - Scans skip files over the size limit under **Settings → General → Performance** (50 MB unless changed). The dialog warns about such files: they are saved, and appear once an admin raises the limit and scans again.
@@ -152,7 +152,7 @@ An admin sets up Organize under **Settings → Scanning → Organize**:
 
 **Organize** in the sidebar (also in the Not organized view, and next to the item on Home) runs at once, without a page, and puts every model in the scanned directory where it belongs:
 
-1. Every folder there is one model, with everything in it; a model file on its own (a ZIP too, when ZIP scanning is on) gets a folder named after it. Archives are kept as they are, never unpacked.
+1. Every folder there is one model, with everything in it; a model file on its own (an archive too) gets a folder named after it. Archives are never unpacked.
 2. **Tidy into model folders**: its loose pictures and documents go into its **Pictures** and **Documents**.
 3. **Generate tags**: the AI tags its models; with **Apply the suggested tags** they are added straight away (with **AI Tagged**), and the AI's Category comes with them. With it off, the suggested tags open for your review once the models are moved.
 4. It gets a Category and Subcategory: the one its site gives it, else the AI's (when an AI service is set up under **Settings → AI Tagging**), else from the words in its names and tags, else **Uncategorized › Other**.
@@ -283,7 +283,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | General | Performance: the largest file a scan processes |
 | Appearance | Theme: accent color, and the background, model color and lighting of thumbnails |
 | Library | Metadata Manager, Library Stats, View Entire Library, Print Roulette, Clear New Flag, Purge Models |
-| Scanning | STL Home, Organize (the scanned directory, the destination, the folder structure and its steps), File Types (ZIP files, extra types, skipped folders), Scan a Folder |
+| Scanning | STL Home, Organize (the scanned directory, the destination, the folder structure and its steps), File Types (extra types, skipped folders), Scan a Folder |
 | Slicer | Your slicers, and the helper for Send to Slicer |
 | Printers | A link to that page, and the Parts Manager |
 | Integrations | MCP Server: connect an AI app to your library |

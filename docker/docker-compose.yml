@@ -84,7 +84,6 @@ services:
       # moves each model to the destination (Settings → Scanning → Organize).
       # - JUSTTPRINT_UPLOAD_FOLDER=/mnt/user/upload
       # - JUSTTPRINT_ORGANIZE_DESTINATION=/mnt/user
-      # - JUSTTPRINT_ENABLE_ZIP=true
       # - JUSTTPRINT_FILE_TYPES=obj,step
       # - JUSTTPRINT_SCAN_EXCLUDE=cache,renders
       # - JUSTTPRINT_AI_SERVICE=openai

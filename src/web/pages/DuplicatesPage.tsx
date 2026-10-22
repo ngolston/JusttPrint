@@ -333,8 +333,6 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<'current' | 'entire'>('entire');
   const [filters, setFilters] = useState<LibraryFilters | null>(null);
-  const [includeZip, setIncludeZip] = useState(false);
-  const [zipEnabled, setZipEnabled] = useState(false);
   const [preferredDir, setPreferredDir] = useState('');
   const [deleting, setDeleting] = useState(false);
   const canDelete = useCanDeleteFiles();
@@ -362,16 +360,14 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
 
   /** Loads the duplicate groups; with checkHashes, first offers to hash models that have none. */
   const load = useCallback(
-    async (options: { checkHashes: boolean; scopeFilters: LibraryFilters | null; zip: boolean }) => {
+    async (options: { checkHashes: boolean; scopeFilters: LibraryFilters | null }) => {
       const id = ++loadId.current;
       const current = () => id === loadId.current && mounted.current;
       try {
         // Same geometry: fingerprints first (asked for, like hashes), then the groups.
         if (modeRef.current !== 'files') {
           setView({ kind: 'loading', text: 'Comparing geometry...' });
-          const zipOn = (await settings.get<string | null>('enableZipArchives').catch(() => null)) === '1';
-          setZipEnabled(zipOn);
-          const found = await dedup.geometryGroups(options.scopeFilters, zipOn && options.zip, modeRef.current === 'similar');
+          const found = await dedup.geometryGroups(options.scopeFilters, false, modeRef.current === 'similar');
           if (!current()) return;
           if (found.running) {
             setView({ kind: 'geometry', progress: { processed: found.processed, total: found.total } });
@@ -421,11 +417,8 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
           }
         }
         setView({ kind: 'loading', text: 'Analyzing duplicates...' });
-        const zipSetting = await settings.get<string | null>('enableZipArchives').catch(() => null);
-        const zip = zipSetting === '1' && options.zip;
-        setZipEnabled(zipSetting === '1');
         const [groups, generating] = await Promise.all([
-          dedup.groups({ includeZip: zip, filters: options.scopeFilters || undefined }),
+          dedup.groups({ includeZip: false, filters: options.scopeFilters || undefined }),
           dedup.isGeneratingHashes().catch(() => false)
         ]);
         if (!current()) return;
@@ -448,8 +441,8 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   );
 
   const scopeFilters = scope === 'current' ? filters : null;
-  const optionsRef = useRef({ scopeFilters, zip: includeZip });
-  optionsRef.current = { scopeFilters, zip: includeZip };
+  const optionsRef = useRef({ scopeFilters });
+  optionsRef.current = { scopeFilters };
 
   // Shown: start from the library's current filters (when any), and load.
   useEffect(() => {
@@ -465,7 +458,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
         setPreferredDir(savedPreferred.current);
       })
       .catch(() => {});
-    void load({ checkHashes: true, scopeFilters: active ? current : null, zip: false });
+    void load({ checkHashes: true, scopeFilters: active ? current : null });
     return () => {
       mounted.current = false;
       loadId.current += 1;
@@ -514,18 +507,13 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     setMode(next);
     modeRef.current = next;
     setSelected(new Set());
-    load({ checkHashes: true, scopeFilters, zip: includeZip });
+    load({ checkHashes: true, scopeFilters });
   }
 
   function changeScope(next: 'current' | 'entire') {
     setScope(next);
     setSelected(new Set());
-    load({ checkHashes: true, scopeFilters: next === 'current' ? filters : null, zip: includeZip });
-  }
-
-  function changeIncludeZip(next: boolean) {
-    setIncludeZip(next);
-    load({ checkHashes: false, scopeFilters, zip: next });
+    load({ checkHashes: true, scopeFilters: next === 'current' ? filters : null });
   }
 
   /** Saves the preferred directory; a new one (or Enter) also runs Easy with it. */
@@ -580,7 +568,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
       }
       setSelected(new Set(failed));
       window.refreshAfterDedupDelete?.().catch((error) => console.error('Grid refresh after De-Dup delete:', error));
-      await load({ checkHashes: false, scopeFilters, zip: includeZip });
+      await load({ checkHashes: false, scopeFilters });
     } finally {
       setDeleting(false);
     }
@@ -725,14 +713,6 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
           </div>
           <p className="dedup-scope-summary">Easy keeps one copy from this folder, including subfolders, and selects the other duplicates.</p>
         </div>
-        {zipEnabled && (
-          <div id="include-zip-container" className="dedup-include-zip">
-            <label>
-              <input type="checkbox" id="include-zipped-models" checked={includeZip} onChange={(event) => changeIncludeZip(event.target.checked)} />
-              <span>Include Zipped Models</span>
-            </label>
-          </div>
-        )}
       </div>
       {footer(actions)}
       {view.kind === 'ready' && groups.length > 0 ? (

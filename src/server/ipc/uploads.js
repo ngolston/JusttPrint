@@ -40,10 +40,7 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
   const paths = (Array.isArray(filePaths) ? filePaths : []).filter((p) => typeof p === 'string' && isInsideOrSame(p, dir));
   const newModels = await scanUploadedFolder(dir, rootFor(dir, ctx.roots), { isStlHomeScan });
   const known = database.db.prepare('SELECT 1 FROM models WHERE filePath = ?');
-  // A ZIP is in the library as the models inside it ("archive.zip::part.stl").
-  const inZip = database.db.prepare("SELECT 1 FROM models WHERE filePath LIKE ? ESCAPE '\\' LIMIT 1");
-  const escapeLike = (text) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
-  const isKnown = (p) => !!known.get(p) || (/\.zip$/i.test(p) && !!inZip.get(`${escapeLike(p)}::%`));
+  const isKnown = (p) => !!known.get(p);
   // A model folder's first picture becomes its cover; a cover goes on new files too.
   if (modelFolders.isModelFolder(dir)) await modelFolders.coverIfNone(dir).catch((error) => console.warn(`[Upload] cover: ${error.message}`));
   // Pictures, videos, documents and other files in a model folder's subfolders (any file there is its media).
@@ -52,13 +49,8 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
   if (modelFolders.isModelFolder(dir)) require('../events').broadcast('folder-changed', { path: modelFolders.folderKey(dir) });
   // Files that did not become models, and why (the upload's summary lists them).
   const max = scanMaxBytes();
-  // Archives are kept as they are (Organize moves them with their model): a RAR or 7Z always, a ZIP
-  // while ZIP scanning is off. They are not "not added".
-  const zipScanning = (database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives') || {}).value === '1';
-  const kept = paths.filter((p) => /\.(rar|7z)$/i.test(p) || (/\.zip$/i.test(p) && !zipScanning)).length;
   const notAdded = paths
     .filter((p) => !isKnown(p) && !isMedia(p))
-    .filter((p) => !/\.(rar|7z)$/i.test(p) && !(/\.zip$/i.test(p) && !zipScanning))
     .map((p) => {
       let size = 0;
       try {
@@ -66,13 +58,9 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths) => {
       } catch (_) {
         /* gone */
       }
-      const zip = /\.zip$/i.test(p);
-      const reason = zip
-        ? 'no model files inside it (or all larger than the Max File Size, Settings → General → Performance)'
-        : size > max
-          ? `larger than the Max File Size (${Math.round(max / 1024 / 1024)} MB, Settings → General → Performance)`
-          : 'not added by the scan';
+      const reason =
+        size > max ? `larger than the Max File Size (${Math.round(max / 1024 / 1024)} MB, Settings → General → Performance)` : 'not added by the scan';
       return { name: path.basename(p), reason };
     });
-  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, kept, notAdded };
+  return { newModels, inLibrary: paths.filter(isKnown).length + media, media, notAdded };
 });

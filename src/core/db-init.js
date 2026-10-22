@@ -603,7 +603,6 @@ function initializeDefaultSettings() {
       { key: 'currentVersion', value: version }, // Use imported version from package.json
       { key: 'versionCheckPerformedOnStartup', value: 'false' }, // New setting for version check tracking
       { key: 'autoUpdateCheck', value: '1' }, // '0' turns off the automatic version check
-      { key: 'enableZipArchives', value: '0' }, // ZIP archive support disabled by default
       { key: 'scanAdditionalFileTypes', value: '[]' }, // JSON array of catalog ids for additional scan types (e.g. ["obj","step"])
       { key: 'scanExcludeFolders', value: '' }, // Extra folder names to skip while scanning, one per line
       { key: 'stlHomeDirectories', value: '[]' }, // JSON array of directories scanned as STL Home

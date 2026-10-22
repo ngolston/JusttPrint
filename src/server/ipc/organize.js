@@ -90,15 +90,6 @@ function listOrganizeSources() {
   return items;
 }
 
-function zipArchivesEnabled() {
-  try {
-    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('enableZipArchives');
-    return !!(row && row.value === '1');
-  } catch (_) {
-    return false;
-  }
-}
-
 function buildOrganizePlan(sourceDir, destDir, includeZips, layers) {
   const source = inspectOrganizeDirectory(sourceDir, false);
   if (!source.ok) {
@@ -123,7 +114,7 @@ function buildOrganizePlan(sourceDir, destDir, includeZips, layers) {
   const plan = planOrganize(rows, source.path, dest.path, {
     sourceStat: statOrganizeFile,
     destStat: statOrganizeFile,
-    includeZips: includeZips === true && zipArchivesEnabled(),
+    includeZips: includeZips === true,
     layers: Array.isArray(layers) ? layers : undefined,
     allowedRoots: listOrganizeSources().map((item) => item.path)
   });

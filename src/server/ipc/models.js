@@ -6,7 +6,7 @@ const Database = require('better-sqlite3');
 const printEvents = require('../../core/print-events');
 const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
-const { ADDITIONAL_FILE_TYPES_CATALOG, buildModelFilterConditions } = require('../../core/model-filters');
+const { ADDITIONAL_FILE_TYPES_CATALOG, ARCHIVE_EXTENSIONS, buildModelFilterConditions } = require('../../core/model-filters');
 const { MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED, deleteModelsByIds, getModelByFilePath } = require('../../core/models');
 const events = require('../events');
 const { findConflicts, mergeTagLists } = require('../../core/edit-merge');
@@ -14,7 +14,7 @@ const { getDatabasePath } = require('../../core/db-path');
 const { saveModel, saveModelBatch, updateModelsBatch } = require('./model-save');
 
 function getScanExtensions(selectedIds) {
-  const extSet = new Set(['.stl', '.3mf']);
+  const extSet = new Set(['.stl', '.3mf', ...ARCHIVE_EXTENSIONS]);
   if (selectedIds && Array.isArray(selectedIds)) {
     for (const id of selectedIds) {
       const entry = ADDITIONAL_FILE_TYPES_CATALOG.find((e) => e.id === id);

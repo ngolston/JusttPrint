@@ -29,8 +29,8 @@ export function checkFile(
     return { ok: false, reason: ext ? `${ext} files are not scanned (Settings → File Types)` : 'no file extension' };
   }
   if (file.size > info.maxBytes) return { ok: false, reason: 'larger than the upload limit' };
-  // A ZIP's models are checked one by one when it is scanned, not the archive's size.
-  if (info.scanMaxBytes && file.size > info.scanMaxBytes && ext !== '.zip') {
+  // An archive is added as one model whatever its size (it is never opened).
+  if (info.scanMaxBytes && file.size > info.scanMaxBytes && !['.zip', '.rar', '.7z'].includes(ext)) {
     const mb = Math.round(info.scanMaxBytes / 1024 / 1024);
     return {
       ok: true,
