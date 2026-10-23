@@ -20,7 +20,7 @@ async function main() {
   database.db = new Database(path.join(tmp, 'test.db'));
   database.db.exec(`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
     CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT,
-      rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, print_status TEXT DEFAULT 'unprinted', printed INTEGER, print_count INTEGER DEFAULT 0, last_printed_at TEXT, thumbnail TEXT);
+      rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, print_status TEXT DEFAULT 'unprinted', printed INTEGER, print_count INTEGER DEFAULT 0, last_printed_at TEXT, thumbnail TEXT, partOf INTEGER);
     CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER, PRIMARY KEY (model_id, tag_id));
     CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT UNIQUE);`);
   database.db.prepare("INSERT INTO settings (key, value) VALUES ('stlHomeDirectories', ?)").run(JSON.stringify([library]));
@@ -171,9 +171,15 @@ async function main() {
   assert.ok(!database.db.prepare('SELECT 1 FROM models WHERE id = ?').get(online), 'the online model became the files');
   const part = database.db.prepare('SELECT designer, license, source, notes FROM models WHERE filePath = ?').get(path.join(folder, 'Main Parts.stl'));
   assert.deepStrictEqual({ ...part }, { designer: 'Shapr3D', license: 'CC BY', source: 'https://www.printables.com/model/1839122', notes: 'my notes' });
+  // One model in the library: the other files are parts of the main one.
+  const partOfIn = (name) =>
+    database.db.prepare('SELECT m.filePath FROM models p JOIN models m ON m.id = p.partOf WHERE p.filePath = ?').get(path.join(folder, name));
+  assert.strictEqual(partOfIn('Main Parts.stl'), undefined, 'the main file is the model');
+  assert.strictEqual(partOfIn('Pins.step').filePath, path.join(folder, 'Main Parts.stl'), 'the other file is its part');
 
   const more = await siteFiles.downloadFiles({ url: PRINTABLES, folder: library, fileIds: ['1', '3'] }, { fetchImpl: web });
   assert.deepStrictEqual([more.folder, more.saved], [folder, ['MK4 0.2mm.gcode']], 'the same folder; files already there are skipped');
+  assert.strictEqual(partOfIn('MK4 0.2mm.gcode').filePath, path.join(folder, 'Main Parts.stl'), 'a later download adds parts to the same model');
   await assert.rejects(siteFiles.downloadFiles({ url: PRINTABLES, folder: library, fileIds: [] }, { fetchImpl: web }), /Choose the files/);
 
   // One file: it keeps the site's name (the folder has the model's).

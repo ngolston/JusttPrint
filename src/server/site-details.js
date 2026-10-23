@@ -580,6 +580,17 @@ async function finishFolder(target, details, link, mainName, ctx) {
   if (online && String(online.filePath).startsWith('url::') && inLibrary.length) {
     require('../core/merge-online-model').mergeOnlineModel(database.db, online.filePath, inLibrary, mainFile);
   }
+  // One model in the library: the other files are its parts (listed on its page, model-parts.js).
+  // A folder that has a main model from an earlier download keeps it.
+  if (mainFile && inLibrary.length > 1 && require('../core/model-parts').hasPartOf(database.db)) {
+    const rows = inLibrary.map((p) => database.db.prepare('SELECT id, filePath, partOf FROM models WHERE filePath = ?').get(p)).filter(Boolean);
+    const earlier = rows.find((row) => !row.partOf && rows.some((other) => other.partOf === row.id));
+    const main = earlier ? earlier.filePath : mainFile;
+    require('../core/models').setModelParts(
+      main,
+      inLibrary.filter((p) => p !== main)
+    );
+  }
   require('./events').broadcast('refresh-grid');
   return { inLibrary: inLibrary.length, mainFile };
 }
