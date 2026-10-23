@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [8.10.0] - 2026-10-23
+
+**Changes:**
+- **A downloaded model is one model in the library:** when Add Links, **Download to Library…** or a MakerWorld download saves several files for one model (STL parts, a 3MF per print profile, G-code), the main file (the print profile's 3MF, else the only 3MF, else the first file) is the model and the other files are its parts: listed on its page, with no card of their own. Downloading more of the same model later adds to its parts.
+
+**Upgrading:** nothing to do. Models downloaded before this version keep a card per file: to make them one, choose a model's files in Multi-edit and use **Make Parts of One Model**.
+
 ## [8.9.0] - 2026-10-22
 
 **Changes:**
