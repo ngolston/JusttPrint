@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.0.0] - 2026-10-23
+
+**Changes:**
+- **Groups are gone; Merge takes their place.** Create Group, Add to group, the group editor, group cards and group pages are removed. **Merge…** at the top of Multi-edit merges the chosen models into one of them (pick the main model): the library shows one card, the main model's page lists every merged model (3D view, Open, Download), and deleting it deletes them too. A merged model's page says what it is merged into, with **Un-merge**. This is the 8.9 **Make Parts of One Model**, renamed (its Parts section is gone from Multi-edit).
+- **Collections in Multi-edit:** a new **Collections** section adds every chosen model (the chosen groups' models too) to a collection: pick one from the list, or click ＋ to make a new collection, named as you type, with them in it. A line says how many were added. **Manage Collections…** opens the full dialog, where you can also take them out of collections. Smart collections are not listed (their search fills them).
+
+**Upgrading:** take a backup first (**Settings → Backup**). On the first start each group becomes one merged model: its first model by name is the main one, every other model of the group (and of the groups inside it) is merged into it, and the main model takes the group's name as its Title and the group's description when it has none. A model already merged into another stays there. Then the groups are deleted and the models' Parent Model is cleared (8.x can still open the database, without the groups). No files change. Un-merge any model you want back on its own. Reload open browser tabs.
+
 ## [8.10.0] - 2026-10-23
 
 **Changes:**

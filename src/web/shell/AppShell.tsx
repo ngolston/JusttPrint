@@ -42,7 +42,6 @@ import { CategoriesPage } from '../pages/CategoriesPage';
 import { HistoryPage } from '../pages/HistoryPage';
 import { ModelPage } from '../pages/ModelPage';
 import { FolderPage } from '../pages/FolderPage';
-import { GroupPage } from '../pages/GroupPage';
 import { loadFolderMode } from '../library/folderMode';
 import { loadSidebarPref } from '../details/sidebarPref';
 import { SettingsPage } from '../pages/SettingsPage';
@@ -469,7 +468,6 @@ const PAGE_TITLES: Record<PageId, string> = {
   categories: 'Categories',
   history: 'History',
   model: 'Model',
-  group: 'Group',
   folder: 'Folder',
   tags: 'Tags',
   duplicates: 'Duplicates',
@@ -607,7 +605,6 @@ export function AppShell() {
           {allowed && page === 'categories' && <CategoriesPage />}
           {allowed && page === 'history' && <HistoryPage />}
           {allowed && page === 'model' && <ModelPage key={section} filePath={section} />}
-          {allowed && page === 'group' && <GroupPage key={section} groupRef={section} />}
           {allowed && page === 'folder' && <FolderPage key={section} path={section} />}
           {allowed && page === 'duplicates' && <DuplicatesPage />}
           {allowed && page === 'settings' && <SettingsPage section={section} />}

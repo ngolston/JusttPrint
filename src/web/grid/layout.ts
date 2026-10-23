@@ -11,8 +11,6 @@ export type PreviewTileSize = 's' | 'm' | 'l';
 export interface GridModel {
   id?: number | string | null;
   filePath: string;
-  /** The name of the model's top group (the server keeps it; since 8.0 not a field people edit). */
-  parentModel?: string | null;
   /** The model's Title (shown instead of its file name when set). */
   title?: string | null;
   bundleKey?: string | null;
@@ -32,7 +30,7 @@ export interface ModelRecord {
 export interface GroupRecord {
   type: 'group';
   key: string;
-  groupKind: 'bundle' | 'parentModel' | 'folder';
+  groupKind: 'bundle' | 'folder';
   groupKey: string;
   groupLabel: string;
   children: GridModel[];
@@ -156,12 +154,6 @@ export const folderLabel = (model: GridModel) => {
 };
 export const folderKey = (model: GridModel) => normalizePath(folderOf(model)).toLowerCase();
 
-export const parentModelLabel = (model: GridModel) => (model.parentModel ? String(model.parentModel).trim() : '');
-export const parentModelKey = (label: string) =>
-  String(label || '')
-    .trim()
-    .toLocaleLowerCase();
-
 // ---- Display records -------------------------------------------------------------------------
 
 interface GroupingOptions {
@@ -238,13 +230,12 @@ export function groupRecords(records: DisplayRecord[], options: GroupingOptions)
 
 export interface ExpandedGroups {
   bundles: ReadonlySet<string>;
-  parentModels: ReadonlySet<string>;
   folders?: ReadonlySet<string>;
 }
 
 /**
  * The grid's records: each file once, ZIP entries bundled, then (Folders as models) the files of
- * each folder as one, then models grouped by parent model.
+ * each folder as one.
  */
 export function buildDisplayRecords(models: GridModel[], expanded: ExpandedGroups, options: { folders?: boolean } = {}): DisplayRecord[] {
   const records: DisplayRecord[] = [];
@@ -262,7 +253,7 @@ export function buildDisplayRecords(models: GridModel[], expanded: ExpandedGroup
     label: bundleLabel,
     key: bundleKey
   });
-  const foldered = options.folders
+  return options.folders
     ? groupRecords(bundled, {
         groupKind: 'folder',
         keyPrefix: 'folder',
@@ -271,13 +262,6 @@ export function buildDisplayRecords(models: GridModel[], expanded: ExpandedGroup
         key: folderKey
       })
     : bundled;
-  return groupRecords(foldered, {
-    groupKind: 'parentModel',
-    keyPrefix: 'parent',
-    expanded: expanded.parentModels,
-    label: parentModelLabel,
-    key: (model) => parentModelKey(parentModelLabel(model))
-  });
 }
 
 // ---- Rows and cells --------------------------------------------------------------------------

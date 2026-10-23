@@ -4,7 +4,7 @@
  */
 import { callAction, models as modelApi } from '../api';
 import { showMessage } from '../page';
-import { editedPaths } from './groupSelection';
+import { selection } from '../selection';
 import type { GridModel } from '../grid/layout';
 import { mergeModel, refreshGrid, updateModel } from './models';
 import { currentModelPath } from './details';
@@ -138,7 +138,7 @@ async function saveBatch(batch: ModelRecord[]) {
  * (replaced with `replace`); an empty designer becomes "Unknown".
  */
 export async function saveSelectedField(field: string, value: unknown, options: { replace?: boolean } = {}): Promise<boolean> {
-  const paths = editedPaths();
+  const paths = selection.values();
   if (!paths.length) return false;
   try {
     const loaded = (await Promise.all(paths.map((p) => modelApi.get<ModelRecord>(p).catch(() => null)))).filter((m): m is ModelRecord => !!m);
@@ -170,7 +170,7 @@ export async function saveSelectedField(field: string, value: unknown, options: 
 export async function removeFromSelected(field: 'tags', value: string) {
   const batch: ModelRecord[] = [];
   const changes: FieldChange[] = [];
-  for (const filePath of editedPaths()) {
+  for (const filePath of selection.values()) {
     const model = await modelApi.get<ModelRecord>(filePath).catch(() => null);
     if (!model) continue;
     const tags = tagList(model.tags);

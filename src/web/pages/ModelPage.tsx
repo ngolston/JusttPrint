@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { ArrowLeft, Box, ClipboardPen, Download, ExternalLink, FileBox, Heart, MoreHorizontal, Pencil } from 'lucide-react';
-import { callAction, dedup, downloadUrl, groups as groupsApi, LIBRARY_CHANGED, models as modelApi, prints, type ModelGroupRef, type PrintEvent } from '../api';
+import { callAction, dedup, downloadUrl, LIBRARY_CHANGED, models as modelApi, prints, type PrintEvent } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { formatAdded, panelImages, Prop, Rating, saveCardField, SlicerButton, type PanelModel } from '../details/ModelDetailsPanel';
@@ -43,8 +43,10 @@ type PageModel = PanelModel &
     modelFolder?: string | null;
     /** In a model folder: the file's own pictures (its 3D renders), without the cover. */
     renders?: string[] | null;
-    /** The id of the model it is a part of (a file uploaded on that model's page), else null. */
+    /** The id of the model it is merged into, else null. */
     partOf?: number | null;
+    /** The model it is merged into: its path and name. */
+    mergedInto?: { filePath: string; name: string } | null;
   };
 
 /** A library file next to the model (get-folder-models). */
@@ -324,8 +326,6 @@ export function ModelView({
   const [slicers, setSlicers] = useState<Slicer[]>([]);
   /** The model's site's details (its description, videos and PDF), when it came from one. */
   const [site, setSite] = useState<MakerWorldDetails | null>(null);
-  /** The group it is in (innermost) and the groups above it. */
-  const [group, setGroup] = useState<ModelGroupRef | null>(null);
   /** The gallery's pictures, loaded after the details (null while they come). */
   const [pictures, setPictures] = useState<string[] | null>(null);
   /** Upload (and files dropped on the page): anything into the model's folder. */
@@ -346,10 +346,7 @@ export function ModelView({
         () => setSite(null)
       );
     else setSite(null);
-    if (next.id) {
-      prints.events(next.id).then(setEvents, () => setEvents([]));
-      groupsApi.ofModel(next.id).then(setGroup, () => setGroup(null));
-    } else setGroup(null);
+    if (next.id) prints.events(next.id).then(setEvents, () => setEvents([]));
   }, [filePath]);
 
   useEffect(() => {
@@ -358,7 +355,6 @@ export function ModelView({
     setFiles([]);
     setEvents([]);
     setSite(null);
-    setGroup(null);
     void load();
     loadSlicers().then(setSlicers, () => {});
     if (!compact) {
@@ -370,12 +366,7 @@ export function ModelView({
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void load(), 400);
     };
-    const offs = [
-      onServerEvent('refresh-grid', soon),
-      onServerEvent('categories-changed', soon),
-      onServerEvent('models-changed', soon),
-      onServerEvent('groups-changed', soon)
-    ];
+    const offs = [onServerEvent('refresh-grid', soon), onServerEvent('categories-changed', soon), onServerEvent('models-changed', soon)];
     window.addEventListener(LIBRARY_CHANGED, soon);
     return () => {
       if (timer) clearTimeout(timer);
@@ -431,17 +422,29 @@ export function ModelView({
           </button>
         </p>
       )}
-      {group && (
-        <p className="jp-model-page__in-group">
-          In{' '}
-          {group.crumbs.map((crumb, index) => (
-            <span key={crumb.id}>
-              {index > 0 && ' › '}
-              <button type="button" className="jp-link-button" onClick={() => navigate('group', String(crumb.id))}>
-                {crumb.name}
+      {model.mergedInto && (
+        <p className="jp-model-page__in-group" id="jp-model-merged-into">
+          Merged into{' '}
+          <button type="button" className="jp-link-button" onClick={() => navigate('model', model.mergedInto!.filePath)}>
+            {model.mergedInto.name}
+          </button>
+          {canEdit && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="jp-link-button"
+                id="jp-model-unmerge"
+                title="Make it a model of its own again, with its own card in the library"
+                onClick={async () => {
+                  await callAction('set-model-parts', null, [model.filePath]);
+                  await load();
+                }}
+              >
+                Un-merge
               </button>
-            </span>
-          ))}
+            </>
+          )}
         </p>
       )}
     </header>
@@ -568,24 +571,6 @@ export function ModelView({
           />
         </span>
       </div>
-      {model.partOf ? (
-        <p className="jp-meta" id="jp-model-part-note">
-          A part of another model: listed with its files on that model's page, not in the library.{' '}
-          {canEdit && (
-            <Button
-              size="sm"
-              variant="ghost"
-              id="jp-model-separate-part"
-              onClick={async () => {
-                await callAction('set-model-parts', null, [model.filePath]);
-                await load();
-              }}
-            >
-              Make It a Model of Its Own
-            </Button>
-          )}
-        </p>
-      ) : null}
       <div className="jp-props">
         <Prop label="File" title={displayFileName(model)}>
           {displayFileName(model)}
@@ -614,15 +599,6 @@ export function ModelView({
             </a>
           ) : (
             source || '—'
-          )}
-        </Prop>
-        <Prop label="Group">
-          {group ? (
-            <button type="button" className="jp-link-button" onClick={() => navigate('group', String(group.id))}>
-              {group.crumbs.map((crumb) => crumb.name).join(' › ')}
-            </button>
-          ) : (
-            '—'
           )}
         </Prop>
         <Prop label="License">{model.license || '—'}</Prop>
@@ -764,16 +740,7 @@ export function ModelView({
           <ArrowLeft size={16} aria-hidden="true" />
           Library
         </button>
-        {group ? (
-          group.crumbs.map((crumb) => (
-            <span key={crumb.id} className="jp-model-page__crumb">
-              <span aria-hidden="true">/</span>
-              <button type="button" className="jp-link-button" onClick={() => navigate('group', String(crumb.id))}>
-                {crumb.name}
-              </button>
-            </span>
-          ))
-        ) : folder ? (
+        {folder ? (
           <>
             <span aria-hidden="true">/</span>
             <button

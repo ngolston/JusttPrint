@@ -8,7 +8,6 @@ import { navigate } from '../shell/routes';
 import { runSearch } from '../filters/search';
 import type { GridModel } from '../grid/layout';
 import { selection } from '../selection';
-import { editedPaths, groupSelection } from './groupSelection';
 import { syncThumbnailFromField } from '../thumbnails/cache';
 import {
   bindCardMenu,
@@ -135,12 +134,11 @@ window.detailsHost = {
 };
 
 window.multiEditHost = {
-  selectedPaths: editedPaths,
+  selectedPaths: () => selection.values(),
   exit: exitMultiEdit,
   selectAllVisible: selectAllShown,
   clearSelection: () => {
     selection.clear();
-    groupSelection.clear();
     refreshGrid();
     window.multiEdit?.open();
   },
