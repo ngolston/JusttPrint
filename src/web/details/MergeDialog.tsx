@@ -5,10 +5,10 @@ import { Modal } from '../components/Overlay';
 const nameOf = (filePath: string) => filePath.split(/[\\/]/).pop() || filePath;
 
 /**
- * Multi-edit's Make Parts of One Model: pick which chosen model the others belong to. They become
- * its parts (core/models.js setModelParts): listed on its page, not in the library.
+ * Multi-edit's Merge: pick the main model; the other chosen models are merged into it
+ * (core/models.js setModelParts): one card in the library, its page lists them.
  */
-export function MakePartsDialog({
+export function MergeDialog({
   open,
   filePaths,
   onCancel,
@@ -50,23 +50,23 @@ export function MakePartsDialog({
     <Modal
       open={open}
       onClose={onCancel}
-      title="Make Parts of One Model"
+      title="Merge Models"
       className="jp-group-name"
       footer={
         <>
           <Button onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="primary" id="jp-make-parts-submit" disabled={busy || !main} onClick={() => void submit()}>
-            {busy ? 'Saving…' : 'Make Parts'}
+          <Button variant="primary" id="jp-merge-submit" disabled={busy || !main} onClick={() => void submit()}>
+            {busy ? 'Merging…' : 'Merge'}
           </Button>
         </>
       }
     >
-      <label className="jp-group-name__label" htmlFor="jp-make-parts-main">
-        The model they belong to
+      <label className="jp-group-name__label" htmlFor="jp-merge-main">
+        The main model
       </label>
-      <select className="jp-input" id="jp-make-parts-main" value={main} onChange={(event) => setMain(event.target.value)}>
+      <select className="jp-input" id="jp-merge-main" value={main} onChange={(event) => setMain(event.target.value)}>
         {filePaths.map((filePath) => (
           <option key={filePath} value={filePath}>
             {nameOf(filePath)}
@@ -74,8 +74,8 @@ export function MakePartsDialog({
         ))}
       </select>
       <p className="jp-meta">
-        The other {others === 1 ? 'model becomes its part' : `${others} models become its parts`}: listed with its files on its page, with no card of their own
-        in the library. Deleting the model takes them along.
+        {others === 1 ? 'The other model is merged into it' : `The other ${others} models are merged into it`}: one card in the library, and its page lists them
+        (3D view, Open, Download). Deleting it deletes them too; Un-merge on a merged model's page takes one back out.
       </p>
       {error && (
         <p className="jp-meta jp-group-name__error" role="alert">

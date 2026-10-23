@@ -143,6 +143,7 @@ function initializeDatabase() {
     migratePrintLifecycleColumns();
     migrateDescriptionColumn();
     migrateTitleColumn();
+    groupsToMerges();
     clearFailurePlaceholderThumbnails();
 
     // Create index for dateAdded after migration (in case it was just added)
@@ -279,8 +280,8 @@ function migratePrintLifecycleColumns() {
  */
 /**
  * 8.0: a model's Title (from a 3MF's Title, or typed in Edit) replaces Parent Model. The
- * parentModel column stays, as the name of the model's top group (model-groups.js keeps it; it is
- * no longer shown or edited), so 7.x can still open the database. Once: every Parent Model is
+ * parentModel column stays (empty since groups went in 8.11, groups-to-merges.js), so 7.x can still
+ * open the database. Once: every Parent Model is
  * copied to the Title, and settings that named Parent Model name Title.
  */
 function migrateTitleColumn() {
@@ -398,6 +399,16 @@ function migratePartOfColumn() {
     database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_partof ON models(partOf)').run();
   } catch (error) {
     console.error('partOf column migration failed:', error);
+  }
+}
+
+/** Groups are gone since 8.11: each one becomes a merged model, once (groups-to-merges.js). */
+function groupsToMerges() {
+  try {
+    const result = require('./groups-to-merges').groupsToMerges(database.db);
+    if (result.groups) console.log(`Groups are now merged models: ${result.groups} group(s), ${result.merged} model(s) merged`);
+  } catch (error) {
+    console.error('Turning groups into merged models failed:', error);
   }
 }
 

@@ -28,7 +28,7 @@ export interface GroupCardHost {
   bindGroupMenu(card: HTMLElement, record: GroupRecord): void;
   isBundleDetailsGroup(groupKey: string): boolean;
   /** Chosen in Edit mode. */
-  isGroupChosen(groupKey: string): boolean;
+  isGroupChosen(record: GroupRecord): boolean;
   openBundlePreview(record: GroupRecord): void;
   /** Rate or favorite every model in the group. */
   saveGroupField(filePaths: string[], field: 'rating' | 'favorite', value: number | boolean): Promise<boolean>;
@@ -178,7 +178,7 @@ function FolderKit({ folder, fallback, printed }: { folder: string; fallback: st
   );
 }
 
-/** A ZIP bundle, group or folder (Folders as models) in the library grid. */
+/** A ZIP bundle or a folder (Folders as models) in the library grid. */
 export function GroupCard({ host, record, view, index, position, fixedHeight }: GroupCardProps) {
   const tile = view === 'detailed';
   const cardRef = useRef<HTMLDivElement>(null);
@@ -191,8 +191,6 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   const bundleKind = kind === 'bundle' ? String(record.children[0]?.bundleKind || 'folder') : '';
   const isBundle = kind === 'bundle';
   const isFolder = kind === 'folder';
-  // A group's models: a stack that opens the group's page, never expands.
-  const isGroup = kind === 'parentModel';
   const subcategory = mostCommon(record.children.map((child) => (typeof child.subcategory === 'string' ? child.subcategory : '')));
   const kindLabel = bundleKind === 'zip' ? 'zip archive' : isBundle ? 'folder' : '';
   const count = record.children.length;
@@ -219,9 +217,8 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
     view !== 'list' && 'file-item',
     view !== 'list' && `file-item-${view}`,
     tile && 'jp-model-card jp-group-card',
-    record.expanded && !isGroup && 'expanded',
-    isGroup && 'jp-group-card--stack',
-    host.isGroupChosen(record.groupKey) && 'selected',
+    record.expanded && 'expanded',
+    host.isGroupChosen(record) && 'selected',
     host.isBundleDetailsGroup(record.groupKey) && 'bundle-details-active'
   ]
     .filter(Boolean)
@@ -259,7 +256,7 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
   );
   const titleRow = (
     <div className="parent-model-group-title-row">
-      {!isGroup && chevron}
+      {chevron}
       <span className="parent-model-group-title" title={label}>
         {label}
       </span>
@@ -474,9 +471,9 @@ export function GroupCard({ host, record, view, index, position, fixedHeight }: 
       style={style}
       tabIndex={0}
       role="button"
-      aria-expanded={isGroup ? undefined : record.expanded}
-      aria-pressed={host.isGroupChosen(record.groupKey) || undefined}
-      title={isGroup ? `Open the group ${label}` : `${record.expanded ? 'Collapse' : 'Expand'} ${label}`}
+      aria-expanded={record.expanded}
+      aria-pressed={host.isGroupChosen(record) || undefined}
+      title={`${record.expanded ? 'Collapse' : 'Expand'} ${label}`}
       data-group-key={record.groupKey}
       data-group-kind={kind}
       data-child-count={count}

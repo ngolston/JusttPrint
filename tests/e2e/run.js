@@ -2330,53 +2330,73 @@ async function browserChecks(base, wsUrl, session) {
       const tagOffBoth = await waitFor(async () => ((await pairModels()).every((m) => !hasTag(m)) ? true : null), 10000, 'multi untag').catch(() => false);
       check('multi-edit removes a tag from every selected model after asking', !!confirmRemoveTag && tagOffBoth === true);
       check('multi-edit has no Filament section', !(await page.$('#multi-filament-select')));
-      check('multi-edit offers Make Parts of One Model for two models', await page.isEnabled('#multi-make-parts'));
+      check('multi-edit offers Merge for two models', await page.isEnabled('#multi-merge'));
+      // Collections (Multi-edit): a new collection with the chosen models, then an existing one from the picker.
+      const inCollection = async (name) => {
+        const list = (await invoke(base, session, 'get-collections')).result || [];
+        const found = list.find((c) => c.name === name);
+        if (!found) return [];
+        return (((await invoke(base, session, 'get-collection', [found.id])).result || {}).models || []).map((m) => m.filePath);
+      };
+      await page.click('#multi-collection-add');
+      const collectionPrompt = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (collectionPrompt) {
+        await collectionPrompt.fill('E2E Multi Collection');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      const madeCollection = await waitFor(
+        async () => ((await inCollection('E2E Multi Collection')).sort().join('|') === [...pair].sort().join('|') ? true : null),
+        10000,
+        'multi collection'
+      ).catch(async () => JSON.stringify(await inCollection('E2E Multi Collection')));
+      check(
+        'multi-edit makes a new collection with the chosen models',
+        madeCollection === true && /Added 2 models to E2E Multi Collection/.test((await page.textContent('#multi-collection-note').catch(() => '')) || ''),
+        String(madeCollection)
+      );
+      await invoke(base, session, 'create-collection', [{ name: 'E2E Multi Existing' }]);
+      await page.waitForSelector('#multi-collection-select option:text-is("E2E Multi Existing")', { state: 'attached', timeout: 10000 }).catch(() => {});
+      const existingCollectionId = String(
+        ((await invoke(base, session, 'get-collections')).result || []).find((c) => c.name === 'E2E Multi Existing')?.id || ''
+      );
+      await page.selectOption('#multi-collection-select', existingCollectionId).catch(() => {});
+      const addedToExistingCollection = await waitFor(
+        async () => ((await inCollection('E2E Multi Existing')).length === 2 ? true : null),
+        10000,
+        'existing collection'
+      ).catch(() => false);
+      check('multi-edit adds the chosen models to an existing collection', addedToExistingCollection === true);
       check(
         'multi-edit can delete the chosen models from the library or from disk',
         (await page.isVisible('#multi-delete-library')) && (await page.isVisible('#multi-delete-disk'))
       );
-      // Create Group (Multi-edit): name it; the models become one group card, which stays chosen.
-      await page.click('#multi-create-group');
-      const nameField = await page.waitForSelector('#jp-group-name-input', { timeout: 10000 }).catch(() => null);
-      if (nameField) {
-        await nameField.fill('E2E Made Group');
-        await page.click('#jp-group-name-submit');
+      // Merge (Multi-edit): pick the main model; the other is merged into it (one card), and Multi-edit closes.
+      await page.click('#multi-merge');
+      const mergeMain = await page.waitForSelector('#jp-merge-main', { timeout: 10000 }).catch(() => null);
+      if (mergeMain) {
+        await page.selectOption('#jp-merge-main', pair[0]);
+        await page.click('#jp-merge-submit');
       }
-      const madeCard = await page
-        .waitForSelector('.file-grid .parent-model-group[data-group-key="parent:e2e made group"].selected', { timeout: 15000 })
-        .catch(() => null);
-      const madeParents = (await pairModels()).map((m) => m.parentModel);
-      check(
-        'Create Group makes a group of the chosen models, shown as one chosen card',
-        !!nameField &&
-          !!madeCard &&
-          madeParents.every((name) => name === 'E2E Made Group') &&
-          !!(await page.$('#jp-group-editor-name:text-is("E2E Made Group")')),
-        JSON.stringify(madeParents)
-      );
-      await page.click('#jp-group-editor-ungroup').catch(() => {});
-      const ungroupAsk = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Ungroup")', { timeout: 10000 }).catch(() => null);
-      if (ungroupAsk) await ungroupAsk.click();
-      const ungrouped = await waitFor(async () => ((await pairModels()).every((m) => !m.parentModel) ? true : null), 10000, 'ungroup').catch(() => false);
-      check('Ungroup makes them single models again', !!ungroupAsk && ungrouped === true);
-      // Add to (Multi-edit): the chosen models go into a group already in the library.
-      await invoke(base, session, 'create-group', [{ name: 'E2E Existing', filePaths: [third] }]);
-      for (const p of pair) await page.click(`.file-grid .file-item-detailed[data-filepath="${p.replace(/"/g, '\\"')}"] .file-name`);
-      const existingOption = await page
-        .waitForSelector('#multi-existing-group option:text-is("E2E Existing (1)")', { state: 'attached', timeout: 10000 })
-        .catch(() => null);
-      if (existingOption) {
-        await page.selectOption('#multi-existing-group', await existingOption.getAttribute('value'));
-        await page.click('#multi-add-existing');
-      }
-      const addedToExisting = await waitFor(
-        async () => ((await pairModels()).every((m) => m.parentModel === 'E2E Existing') ? true : null),
+      const mergedPair = await waitFor(
+        async () => {
+          const [main, merged] = await pairModels();
+          return main.id && merged.partOf === main.id && !main.partOf ? true : null;
+        },
         10000,
-        'added to group'
-      ).catch(async () => JSON.stringify((await pairModels()).map((m) => m.parentModel)));
-      check('Add to puts the chosen models in a group already in the library', !!existingOption && addedToExisting === true, String(addedToExisting));
-      const existingId = (await invoke(base, session, 'find-group', ['E2E Existing'])).result;
-      if (existingId) await invoke(base, session, 'ungroup', [existingId]);
+        'merged'
+      ).catch(async () => JSON.stringify((await pairModels()).map((m) => m.partOf)));
+      const mergedCardGone = await page
+        .waitForSelector(`.file-grid [data-filepath="${pair[1].replace(/"/g, '\\"')}"]`, { state: 'detached', timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        'Merge merges the chosen models into the main one: one card in the library',
+        !!mergeMain && mergedPair === true && mergedCardGone,
+        String(mergedPair)
+      );
+      await invoke(base, session, 'set-model-parts', [null, [pair[1]]]);
       await invoke(base, session, 'update-models-batch', [pairBefore.map((m) => ({ filePath: m.filePath, designer: m.designer || null, tags: m.tags || [] }))]);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
@@ -2499,97 +2519,44 @@ async function browserChecks(base, wsUrl, session) {
         check('closing Manage Thumbnails redraws the card with the active image', !(await page.isVisible('#manage-thumbnails-dialog')) && cardShowsActive);
       }
     }
-    // Group cards (React, GroupCard.tsx): two models in a group show as one card.
+    // Merged models: one card in the library; the main model's page lists the merged one, which says where it is merged.
     const grouped = (await page.$$eval('.file-grid .file-item-detailed[data-filepath]', (els) => els.map((el) => el.getAttribute('data-filepath')))).slice(
       0,
       2
     );
-    await invoke(base, session, 'create-group', [{ name: 'E2E Group', filePaths: grouped }]);
+    await invoke(base, session, 'set-model-parts', [grouped[0], [grouped[1]]]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
-    const groupCard = '.file-grid .parent-model-group-detailed[data-group-key="parent:e2e group"]';
-    const groupShown = await page.waitForSelector(groupCard, { timeout: 15000 }).catch(() => null);
-    check('models in a group show as a group card', !!groupShown && /2 models/.test(await page.textContent(`${groupCard} .parent-model-group-meta`)));
-    if (groupShown) {
-      check(
-        'a group card is a stack that does not expand',
-        (await page.isVisible(`${groupCard}.jp-group-card--stack`)) && !(await page.$(`${groupCard} .parent-model-group-chevron`))
-      );
-      await page.click(`${groupCard} .model-star[data-star="4"]`);
-      const groupRated = await waitFor(
-        async () => {
-          const ratings = await Promise.all(grouped.map(async (filePath) => ((await invoke(base, session, 'get-model', [filePath])).result || {}).rating));
-          return ratings.every((rating) => rating === 4) ? true : null;
-        },
-        10000,
-        'group rating'
-      ).catch(() => false);
-      check('rating a group rates every model in it', groupRated === true);
-      // A click opens the group's page (React, src/web/pages/GroupPage.tsx).
-      await page.click(`${groupCard} .parent-model-group-title`);
-      const groupPage = await page.waitForSelector('#jp-group-page-title:text-is("E2E Group")', { timeout: 15000 }).catch(() => null);
-      check(
-        "clicking a group opens the group's page with its models",
-        !!groupPage &&
-          (await page
-            .waitForFunction(() => document.querySelectorAll('#jp-group-models .jp-group-part').length === 2, null, { timeout: 10000 })
-            .then(
-              () => true,
-              () => false
-            ))
-      );
-      if (groupPage) {
-        // Choose one model and make a group inside.
-        await page.click('#jp-group-choose');
-        await page.click('#jp-group-models .jp-group-part:first-child .jp-group-part__check input');
-        await page.click('#jp-group-make-subgroup');
-        await page.fill('#jp-group-name-input', 'E2E Inner');
-        await page.click('#jp-group-name-submit');
-        const inner = await page.waitForSelector('#jp-group-subgroups .jp-group-stack:has-text("E2E Inner")', { timeout: 10000 }).catch(() => null);
-        check('a group page makes a group inside it from chosen models', !!inner && (await page.locator('#jp-group-models .jp-group-part').count()) === 1);
-        if (inner) {
-          await inner.click();
-          await page.waitForSelector('#jp-group-page-title:text-is("E2E Inner")', { timeout: 10000 }).catch(() => {});
-          check(
-            'a group inside shows where it is in the breadcrumbs',
-            /E2E Group/.test((await page.textContent('.jp-model-page__crumbs').catch(() => '')) || '')
-          );
-          await page.click('#jp-group-models .jp-group-part .jp-btn--primary');
-          await page.waitForSelector('#jp-model-page-title', { timeout: 10000 }).catch(() => {});
-          // The groups line loads after the title (slower on GitHub's runners).
-          const inGroups = await page
-            .waitForFunction(() => /E2E Group\s*›\s*E2E Inner/.test(document.querySelector('.jp-model-page__in-group')?.textContent || ''), null, {
-              timeout: 10000
-            })
-            .then(
-              () => true,
-              () => false
-            );
-          check("a model's page shows the groups it is in", inGroups, (await page.textContent('.jp-model-page__in-group').catch(() => '')) || 'no groups line');
-          const innerId = (await invoke(base, session, 'find-group', ['E2E Group'])).result;
-          const parentModels = await Promise.all(
-            grouped.map(async (filePath) => ((await invoke(base, session, 'get-model', [filePath])).result || {}).parentModel)
-          );
-          check('models in a group inside keep the top group as parent model', !!innerId && parentModels.every((name) => name === 'E2E Group'));
-        }
-      }
-      await page.evaluate(() => {
-        window.location.hash = '#/library';
-      });
-      await page.waitForSelector(groupCard, { timeout: 15000 }).catch(() => {});
-      // Edit mode (the header's Edit button): choosing a group shows its editor.
-      await page.click('#jp-edit-button');
-      await page.click(`${groupCard} .parent-model-group-title`);
-      const editor = await page.waitForSelector('#jp-group-editor-name:text-is("E2E Group")', { timeout: 10000 }).catch(() => null);
-      check(
-        'in Edit mode a click chooses a group and shows its editor',
-        !!editor && (await page.isVisible(`${groupCard}.selected`)) && /1 group selected/.test(await page.textContent('#multi-edit-panel .selected-count'))
-      );
-      await page.click('#jp-edit-button');
-      check('Done leaves Edit mode', !(await page.isVisible('#multi-edit-panel')) && !(await page.isVisible('#jp-edit-hint')));
-    }
-    const madeGroup = (await invoke(base, session, 'find-group', ['E2E Group'])).result;
-    if (madeGroup) await invoke(base, session, 'ungroup', [madeGroup]);
-    await invoke(base, session, 'update-models-batch', [grouped.map((filePath) => ({ filePath, rating: 0 }))]);
+    const cardOfPath = (p) => `.file-grid [data-filepath="${p.replace(/"/g, '\\"')}"]`;
+    const oneCard = await page.waitForSelector(cardOfPath(grouped[1]), { state: 'detached', timeout: 15000 }).then(
+      () => true,
+      () => false
+    );
+    check('merged models show as one card', oneCard && (await page.isVisible(cardOfPath(grouped[0]))));
+    await page.evaluate((file) => {
+      window.location.hash = `#/model/${encodeURIComponent(file)}`;
+    }, grouped[0]);
+    const mergedListed = await page.waitForSelector(`.jp-model-file[data-filepath="${grouped[1].replace(/"/g, '\\"')}"]`, { timeout: 15000 }).then(
+      () => true,
+      () => false
+    );
+    check("the main model's page lists the models merged into it", mergedListed);
+    await page.evaluate((file) => {
+      window.location.hash = `#/model/${encodeURIComponent(file)}`;
+    }, grouped[1]);
+    const mergedNote = await page
+      .waitForSelector('#jp-model-merged-into', { timeout: 15000 })
+      .then((el) => el.textContent())
+      .catch(() => '');
+    check("a merged model's page says what it is merged into, with Un-merge", /Merged into/.test(mergedNote) && /Un-merge/.test(mergedNote), mergedNote);
+    await invoke(base, session, 'set-model-parts', [null, [grouped[1]]]);
+    await page.evaluate(() => {
+      window.location.hash = '#/library';
+    });
+    await page.waitForSelector(cardOfPath(grouped[1]), { timeout: 15000 }).catch(() => {});
+    // Edit mode (the header's Edit button), and Done leaves it.
+    await page.click('#jp-edit-button');
+    await page.click('#jp-edit-button');
+    check('Done leaves Edit mode', !(await page.isVisible('#multi-edit-panel')) && !(await page.isVisible('#jp-edit-hint')));
     // 8.0: a model's Title is its name on cards (the file's name otherwise), and a Title alone makes no group.
     await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], title: 'E2E Shown Title' }]]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
@@ -2600,11 +2567,7 @@ async function browserChecks(base, wsUrl, session) {
         () => true,
         () => false
       );
-    check(
-      "a model's Title is its name on its card, and makes no group",
-      titleShown && !(await page.$('.file-grid .parent-model-group[data-group-key="parent:e2e shown title"]')),
-      (await page.textContent(titledCard).catch(() => '')) || ''
-    );
+    check("a model's Title is its name on its card", titleShown, (await page.textContent(titledCard).catch(() => '')) || '');
     await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], title: null }]]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
 
@@ -6173,12 +6136,12 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.evaluate((file) => {
       window.location.hash = `#/model/${encodeURIComponent(file)}`;
     }, partPath);
-    const separateButton = await editorPage.waitForSelector('#jp-model-separate-part', { timeout: 15000 }).catch(() => null);
+    const separateButton = await editorPage.waitForSelector('#jp-model-unmerge', { timeout: 15000 }).catch(() => null);
     if (separateButton) await separateButton.click();
     const separated = await waitFor(async () => ((await isListed(partPath)) ? true : null), 10000, 'separated').catch(() => false);
-    check("a part's page makes it a model of its own again", !!separateButton && separated === true);
+    check("Un-merge on a merged model's page makes it a model of its own again", !!separateButton && separated === true);
     const madeParts = ((await invoke(base, editor, 'set-model-parts', [uploadedTo, [partPath]])).result || {}).changed;
-    check('Make Parts makes chosen models parts of one of them', madeParts === 1 && !(await isListed(partPath)));
+    check('Merge merges the chosen models into one of them', madeParts === 1 && !(await isListed(partPath)));
     check('viewers cannot make parts', (await invoke(base, viewer, 'set-model-parts', [uploadedTo, [partPath]])).status === 403);
 
     // A model that shares its folder gets a folder of its own first.

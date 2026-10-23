@@ -55,6 +55,15 @@ const who = (event) => (event && event.user ? event.user.username : null);
  * (they can be megabytes): the model page asks for them apart (get-model-pictures), after showing
  * the rest.
  */
+/** { partOf, mergedInto: { filePath, name } } for a model merged into another, else nulls. */
+function mergedInto(modelId) {
+  if (!require('../../core/model-parts').hasPartOf(database.db)) return { partOf: null, mergedInto: null };
+  const main = database.db.prepare('SELECT m.id, m.filePath, m.fileName, m.title FROM models p JOIN models m ON m.id = p.partOf WHERE p.id = ?').get(modelId);
+  return main
+    ? { partOf: main.id, mergedInto: { filePath: main.filePath, name: main.title || main.fileName || main.filePath } }
+    : { partOf: null, mergedInto: null };
+}
+
 ipcMain.handle('get-model', async (event, filePath, options) => {
   try {
     const withPictures = !(options && options.pictures === false);
@@ -92,10 +101,8 @@ ipcMain.handle('get-model', async (event, filePath, options) => {
       categories: require('../../core/categories').modelCategoryNames(model.id),
       // Who placed it: 'manual', 'site', 'ai', … (categories.js SOURCES); null when it has no place.
       categorySource: require('../../core/categories').modelPlace(model.id).source,
-      // The model it is a part of (its id), when it is one (model-parts.js).
-      partOf: require('../../core/model-parts').hasPartOf(database.db)
-        ? (database.db.prepare('SELECT partOf FROM models WHERE id = ?').get(model.id) || {}).partOf || null
-        : null,
+      // The model it is merged into (its id, path and name), when it is (model-parts.js).
+      ...mergedInto(model.id),
       pageTitle,
       modelFolder: folder,
       // The file's own pictures (its 3D renders), without the model folder's cover.

@@ -4,14 +4,13 @@
  * between them. The panels' contents are React (src/web/details/); this shows, hides and fills them.
  */
 import { useSyncExternalStore } from 'react';
-import { groups as groupsApi, models as modelApi } from '../api';
+import { models as modelApi } from '../api';
 import { buildDisplayRecords, folderOf, normalizePath, type GridModel, type GridView, type GroupRecord } from '../grid/layout';
 import { foldersAsModels } from './folderMode';
 import { selection } from '../selection';
 import { sidebarOn } from '../details/sidebarPref';
 import { navigate } from '../shell/routes';
 import { expandedGroups, listHooks, refreshGrid, shownModels } from './models';
-import { groupSelection, type ChosenGroup } from './groupSelection';
 
 const panel = (id: 'model-details' | 'bundle-details' | 'multi-edit-panel') => document.getElementById(id);
 
@@ -145,7 +144,7 @@ function syncModeButton() {
 function showEditPanels() {
   if (!multiEdit) return;
   const paths = selection.values();
-  if (paths.length === 1 && !groupSelection.size) {
+  if (paths.length === 1) {
     void showModelDetails(paths[0]);
     return;
   }
@@ -174,7 +173,6 @@ export function enterMultiEdit() {
 /** Leave Edit mode: nothing chosen, the (empty) details panel. */
 export function exitMultiEdit() {
   selection.clear();
-  groupSelection.clear();
   multiEdit = false;
   syncModeButton();
   panel('multi-edit-panel')?.classList.add('hidden');
@@ -193,7 +191,6 @@ export function toggleMultiEdit(fromDetails = false) {
   if (multiEdit) return exitMultiEdit();
   // The Edit button starts with nothing chosen: the next click chooses the model to edit.
   selection.clear();
-  groupSelection.clear();
   enterMultiEdit();
 }
 
@@ -213,7 +210,6 @@ export async function selectAllShown() {
 export function resetSelectionAndDetails() {
   detailsToken++;
   selection.clear();
-  groupSelection.clear();
   clearDetails();
   // Edit mode stays on, with nothing chosen.
   if (multiEdit) showEditPanels();
@@ -372,7 +368,7 @@ let anchor: CardRef | null = null;
 
 /**
  * Shift-click: choose every card from the one clicked last to this one, in the grid's order (a
- * group card as a group, a bundle's or folder's card as its models), in Edit mode.
+ * bundle's or folder's card as its models), in Edit mode.
  */
 function chooseRange(target: CardRef) {
   const records = buildDisplayRecords(shownModels(), expandedGroups, { folders: foldersAsModels() });
@@ -387,20 +383,17 @@ function chooseRange(target: CardRef) {
   const from = anchor ? indexOf(anchor) : -1;
   const [first, last] = from < 0 ? [to, to] : from < to ? [from, to] : [to, from];
   const paths: string[] = [];
-  const groups: ChosenGroup[] = [];
   for (const record of records.slice(first, last + 1)) {
     if (record.type === 'model') {
       if (record.model.filePath) paths.push(record.model.filePath);
       continue;
     }
     const children = record.children.map((child) => child.filePath).filter((p): p is string => !!p);
-    if (record.groupKind === 'parentModel') groups.push({ key: record.groupKey, name: record.groupLabel, filePaths: children });
     // An expanded bundle's models follow as cards of their own.
-    else if (!record.expanded) paths.push(...children);
+    if (!record.expanded) paths.push(...children);
   }
   window.getSelection()?.removeAllRanges();
   selection.set(paths);
-  groupSelection.set(groups);
   if (!multiEdit) {
     multiEdit = true;
     syncModeButton();
@@ -439,8 +432,7 @@ export function openCardPreview(card: HTMLElement | null, filePath: string, sele
 
 // ---- Groups ----
 
-const expandedSet = (record: GroupRecord) =>
-  record.groupKind === 'bundle' ? expandedGroups.bundles : record.groupKind === 'folder' ? expandedGroups.folders : expandedGroups.parentModels;
+const expandedSet = (record: GroupRecord) => (record.groupKind === 'folder' ? expandedGroups.folders : expandedGroups.bundles);
 
 /** Expand or collapse a group; collapsing the bundle whose panel is open closes it. */
 export function toggleGroup(record: GroupRecord) {
@@ -463,15 +455,9 @@ function expandGroup(record: GroupRecord) {
   if (record.groupKind === 'bundle') showBundleDetails(record);
 }
 
-/** A group's page (#/group/<id>), found by the name its models share. */
-export async function openGroupPage(name: string) {
-  const id = await groupsApi.find(name).catch(() => null);
-  navigate('group', id ? String(id) : name);
-}
-
 /**
- * Click on a group card. A group (models sharing a Parent Model): its page, or in Edit mode choose
- * it. A ZIP bundle: expand or collapse it (and show its panel); in Edit mode choose its models.
+ * Click on a bundle or folder card: a ZIP bundle expands or collapses (and shows its panel), a
+ * folder (Folders as models) opens its page; in Edit mode it chooses its models.
  */
 export function groupClick(record: GroupRecord, view: GridView, card: TapCard, shiftKey = false) {
   if (tapSuppressed(card)) return;
@@ -479,19 +465,13 @@ export function groupClick(record: GroupRecord, view: GridView, card: TapCard, s
   anchor = { kind: 'group', key: record.groupKey };
   if (multiEdit) {
     const paths = record.children.map((child) => child.filePath).filter((p): p is string => !!p);
-    if (record.groupKind === 'parentModel') {
-      groupSelection.toggle({ key: record.groupKey, name: record.groupLabel, filePaths: paths });
-    } else if (paths.every((p) => selection.has(p))) {
+    if (paths.every((p) => selection.has(p))) {
       for (const p of paths) selection.delete(p);
     } else {
       for (const p of paths) selection.add(p);
     }
     refreshGrid();
     return showEditPanels();
-  }
-  if (record.groupKind === 'parentModel') {
-    void openGroupPage(record.groupLabel);
-    return;
   }
   // Folders as models: the folder's page (its arrow still expands it in the grid).
   if (record.groupKind === 'folder') {
@@ -503,8 +483,9 @@ export function groupClick(record: GroupRecord, view: GridView, card: TapCard, s
   else toggleGroup(record);
 }
 
-/** Choose a group card in Edit mode (the grid draws it chosen). */
-export const isGroupChosen = (groupKey: string) => groupSelection.has(groupKey);
+/** A bundle or folder card is drawn chosen in Edit mode when all its models are chosen. */
+export const isGroupChosen = (record: GroupRecord) =>
+  multiEdit && record.children.length > 0 && record.children.every((child) => !!child.filePath && selection.has(child.filePath));
 
 /** Right-click and long-press menu for a group (Preview, and the actions for its models). */
 export function bindGroupMenu(card: TapCard, record: GroupRecord) {

@@ -1137,25 +1137,6 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   margin-top: 2px;
 }
 
-/* ---- Groups (models sharing a Parent Model): a stack of cards that opens the group's page ---- */
-.file-grid .jp-group-card.jp-group-card--stack {
-  box-shadow:
-    4px -4px 0 -1px var(--jp-surface-2),
-    4px -4px 0 0 var(--jp-border),
-    8px -8px 0 -1px var(--jp-surface-1),
-    8px -8px 0 0 var(--jp-border);
-}
-.file-grid .jp-group-card.jp-group-card--stack.selected {
-  box-shadow:
-    inset 0 0 0 1px var(--jp-accent-soft),
-    4px -4px 0 -1px var(--jp-surface-2),
-    4px -4px 0 0 var(--jp-accent),
-    8px -8px 0 -1px var(--jp-surface-1),
-    8px -8px 0 0 var(--jp-accent);
-}
-.file-grid .jp-group-card--stack .parent-model-group-title-row {
-  padding-left: 0;
-}
 /* How many of a group's models are printed: a thin bar and "5 models · 2 printed". */
 .jp-group-progress {
   display: inline-flex;

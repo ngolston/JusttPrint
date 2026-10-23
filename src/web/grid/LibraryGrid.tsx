@@ -145,7 +145,7 @@ export function LibraryGrid() {
   const folders = useFoldersAsModels();
   const { records, layout, indexByKey } = useMemo(() => {
     const models = host?.models() ?? [];
-    const built = buildDisplayRecords(models, host?.expanded() ?? { bundles: new Set(), parentModels: new Set() }, { folders });
+    const built = buildDisplayRecords(models, host?.expanded() ?? { bundles: new Set() }, { folders });
     return {
       records: built,
       indexByKey: new Map(built.map((record, index) => [record.key, index])),

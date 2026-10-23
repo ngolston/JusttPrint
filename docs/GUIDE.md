@@ -80,9 +80,9 @@ When a scan finds two or more model files in the same folder, they show as one *
 
 Single files in a folder are not grouped.
 
-### Groups
+### Merged models
 
-Models kept together under a name (a set, a kit, a multi-part print) are a **group**: one stacked card with how many of its models are printed. Click it for the group's page: the pictures of all its models, its description, the groups inside it, and its models with their print status; on the right **Open All in Slicer**, **Log Print** for every model, **Rename**, **Ungroup** and the totals. **Choose** on the page picks models to put in a new group inside it (**Create Group Inside**), move into a group inside it, or take out of it. Make groups in [Edit mode](#edit-mode). Ungrouping changes no files.
+Models that belong together (a set, a kit, a multi-part print) can be **merged** into one: the library shows one card, the main model's, and its page lists every model merged into it, each with its 3D view, **Open** and **Download**. A merged model's own page says what it is merged into, with **Un-merge** to make it a model of its own again. Merge models in [Edit mode](#edit-mode); model files uploaded on a model's page, and the extra files of a model downloaded from a link, are merged into it by themselves. Merging changes no files.
 
 ## Model details
 
@@ -92,9 +92,9 @@ A model's **Title** is the name cards and its page show instead of its file name
 
 Click a model to see it in the details panel, which shows the sections of its page in one column:
 
-- **Name, designer** and the groups it is in.
+- **Name, designer**, and the model it is merged into, if it is.
 - **Pictures**: click one for full size (or **3D** for the 3D preview); the strip underneath has the others.
-- **Model Details**: **Open in Slicer** (the arrow lists the other slicers), **Edit**, **Log Print** and **Open Page**, then file, format, size, print status, rating, designer, source, group, license, tags, Category, Subcategory, location and date added.
+- **Model Details**: **Open in Slicer** (the arrow lists the other slicers), **Edit**, **Log Print** and **Open Page**, then file, format, size, print status, rating, designer, source, license, tags, Category, Subcategory, location and date added.
 - **Description**, the site's section (for models from MakerWorld, Printables or Thingiverse), **Videos**, **Documents**, **Notes** (edited in place), the other files in its folder, kit progress and **Print History**.
 
 On a model's own page (**Open Page**) editors and admins change things in place too: the print status from its menu, tags with × to remove and **Add a tag**, and a print removed from **Print History** with its bin button.
@@ -104,10 +104,8 @@ On a model's own page (**Open Page**) editors and admins change things in place 
 Click **Edit** next to **Filter** above the grid (or press Ctrl/⌘ E). A click on a card now chooses it instead of opening it:
 
 - **One model**: its details in the sidebar, with **Edit** for the Edit dialog.
-- **Two or more, or a group**: the **Multi-edit** panel. Changes there apply to every chosen model (and every model of the chosen groups) as soon as you make them: print status, source, designer, title, license, Category, and adding or removing a tag. **Log a Print on Selected** records one print for all of them. **Delete** at the bottom deletes every chosen model, after asking: **Delete from Library** takes them out of the library and keeps their files, moved to a `.JusttPrint Trash` folder at the top of their library folder (for example `/mnt/user/.JusttPrint Trash/…`, the same path inside it), which no scan looks in, so they do not come back (move them out of it by hand to bring one back, then scan); **Delete from Disk** deletes the files for good (admins, and the editors an admin allows). A model folder whose models are all chosen goes as a whole, with its pictures and documents, and a model inside a ZIP takes its whole ZIP.
-- **Create Group** puts the chosen models in a new group: type its name or click a suggestion (what their names, folder, site or designer share). Chosen groups go inside the new one.
-- **Add to** picks any group already in the library (a group inside a group shows as Robot › Arms) and puts the chosen models, and any chosen groups, in it. With a group and models chosen, **Add to** that group does the same.
-- **One group**: its editor: rename it, write its description, take models out (×), **Open Group Page** or **Ungroup**.
+- **Two or more**: the **Multi-edit** panel. **Merge…** at the top merges them into one of them (pick the main model). Changes there apply to every chosen model as soon as you make them: print status, source, designer, title, license, Category, and adding or removing a tag. **Log a Print on Selected** records one print for all of them. **Delete** at the bottom deletes every chosen model, after asking: **Delete from Library** takes them out of the library and keeps their files, moved to a `.JusttPrint Trash` folder at the top of their library folder (for example `/mnt/user/.JusttPrint Trash/…`, the same path inside it), which no scan looks in, so they do not come back (move them out of it by hand to bring one back, then scan); **Delete from Disk** deletes the files for good (admins, and the editors an admin allows). A model folder whose models are all chosen goes as a whole, with its pictures and documents, and a model inside a ZIP takes its whole ZIP.
+- **Collections** adds every chosen model to a collection, or to a new one (＋).
 
 **Done** (or Escape) leaves Edit mode.
 

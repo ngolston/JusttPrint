@@ -660,7 +660,7 @@ dialog.assembly-dialog {
   margin-top: var(--jp-space-4);
 }
 
-/* "In Robot › Arms" under a model's title: the groups it is in. */
+/* "Merged into Robot · Un-merge" under a merged model's title. */
 .jp-model-page__in-group {
   margin: var(--jp-space-1) 0 0;
   color: var(--jp-text-2);
@@ -696,115 +696,7 @@ dialog.assembly-dialog {
   margin: var(--jp-space-2) 0 var(--jp-space-3);
 }
 
-/* ---- Group page (#/group/<id>) ---- */
-.jp-group-page__subgroup-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--jp-space-4);
-  margin: var(--jp-space-3) 0 0;
-  padding: 8px 8px 0 0;
-  list-style: none;
-}
-/* A group inside: a small stack of cards. */
-.jp-group-stack {
-  all: unset;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--jp-space-1);
-  width: 100%;
-  padding: var(--jp-space-2);
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-lg);
-  background: var(--jp-surface-1);
-  box-shadow:
-    4px -4px 0 -1px var(--jp-surface-2),
-    4px -4px 0 0 var(--jp-border),
-    8px -8px 0 -1px var(--jp-surface-1),
-    8px -8px 0 0 var(--jp-border);
-  cursor: pointer;
-}
-.jp-group-stack:hover {
-  border-color: var(--jp-accent-border);
-}
-.jp-group-stack:focus-visible {
-  outline: none;
-  border-color: var(--jp-accent);
-}
-.jp-group-stack__picture {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 110px;
-  overflow: hidden;
-  border-radius: var(--jp-radius-md);
-  background: var(--jp-preview-bg);
-}
-.jp-group-stack__picture img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-.jp-group-stack__name {
-  overflow: hidden;
-  color: var(--jp-text);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.jp-group-page__models-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--jp-space-2);
-}
-.jp-group-page__chosen {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--jp-space-2);
-  margin: var(--jp-space-2) 0 0;
-  padding: var(--jp-space-2) var(--jp-space-3);
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-md);
-  background: var(--jp-surface-2);
-}
-.jp-group-page__chosen > .jp-meta {
-  margin-right: auto;
-}
-.jp-group-page__move {
-  display: inline-flex;
-  gap: var(--jp-space-1);
-}
-.jp-group-page__move select {
-  width: auto;
-  max-width: 180px;
-}
-.jp-group-part {
-  position: relative;
-}
-.jp-group-part.is-chosen {
-  border-color: var(--jp-accent);
-}
-.jp-group-part__check {
-  position: absolute;
-  top: var(--jp-space-2);
-  left: var(--jp-space-2);
-  display: flex;
-  padding: 4px;
-  border-radius: var(--jp-radius-sm);
-  background: var(--jp-surface-1);
-}
-.jp-group-part__check input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-}
-.jp-group-part .jp-model-file__buttons {
-  justify-content: space-between;
-}
-
-/* Name a group (Create Group, Rename). */
+/* The Merge dialog's field and its error (details/MergeDialog.tsx). */
 .jp-group-name__label {
   display: block;
   margin-bottom: var(--jp-space-1);
@@ -815,83 +707,9 @@ dialog.assembly-dialog {
   width: 100%;
   box-sizing: border-box;
 }
-.jp-group-name__suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--jp-space-1);
-  margin-top: var(--jp-space-3);
-}
 .jp-group-name__error {
   margin: var(--jp-space-2) 0 0;
   color: var(--jp-danger);
-}
-
-/* Multi-edit: the Groups section and the editor of one chosen group. */
-.jp-multi__group-actions,
-.jp-multi__add-to,
-.jp-group-editor__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--jp-space-2);
-}
-.jp-multi__add-to select {
-  width: auto;
-  max-width: 160px;
-}
-.jp-group-editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--jp-space-2);
-}
-.jp-group-editor__head {
-  display: flex;
-  align-items: center;
-  gap: var(--jp-space-2);
-}
-.jp-group-editor__head .jp-details__heading {
-  margin: 0;
-}
-.jp-group-editor__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--jp-text);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.jp-group-editor__label {
-  color: var(--jp-text-2);
-  font-size: var(--jp-text-meta);
-}
-.jp-group-editor textarea {
-  width: 100%;
-  box-sizing: border-box;
-}
-.jp-group-editor__models {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 220px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-.jp-group-editor__models li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--jp-space-2);
-  min-width: 0;
-  font-size: var(--jp-text-meta);
-}
-.jp-group-editor__models li > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Files dragged over a model page (they go into its folder, as with Upload). */

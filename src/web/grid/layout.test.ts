@@ -15,7 +15,7 @@ import {
   type Layout
 } from './layout';
 
-const none = { bundles: new Set<string>(), parentModels: new Set<string>() };
+const none = { bundles: new Set<string>() };
 const model = (id: number, filePath: string, extra: Partial<GridModel> = {}): GridModel => ({ id, filePath, ...extra });
 
 describe('normalizePath', () => {
@@ -35,40 +35,23 @@ describe('dedupeModels', () => {
 });
 
 describe('buildDisplayRecords', () => {
-  it('groups models with the same parent model at the first one, case-insensitively', () => {
-    const records = buildDisplayRecords(
-      [model(1, '/a.stl', { parentModel: 'Dragon' }), model(2, '/b.stl'), model(3, '/c.stl', { parentModel: 'dragon ' })],
-      none
-    );
-    expect(records.map((record) => record.type)).toEqual(['group', 'model']);
-    const group = records[0];
-    expect(group.type === 'group' && [group.groupKind, group.groupKey, group.groupLabel, group.children.length, group.expanded]).toEqual([
-      'parentModel',
-      'parent:dragon',
-      'Dragon',
-      2,
-      false
-    ]);
-  });
-
-  it('shows the children after an expanded group', () => {
-    const records = buildDisplayRecords([model(1, '/a.stl', { parentModel: 'P' }), model(2, '/b.stl', { parentModel: 'P' })], {
-      bundles: new Set(),
-      parentModels: new Set(['parent:p'])
+  it('shows the children after an expanded bundle', () => {
+    const records = buildDisplayRecords([model(1, '/z/p.zip::a.stl'), model(2, '/z/p.zip::b.stl')], {
+      bundles: new Set(['bundle:zip:/z/p.zip'])
     });
-    expect(records.map((record) => record.key)).toEqual(['group:parent:p', 'child:parent:p:id:1', 'child:parent:p:id:2']);
-    expect(records[1].type === 'model' && records[1].parentGroupKey).toBe('parent:p');
+    expect(records.map((record) => record.key)).toEqual(['group:bundle:zip:/z/p.zip', 'child:bundle:zip:/z/p.zip:id:1', 'child:bundle:zip:/z/p.zip:id:2']);
+    expect(records[1].type === 'model' && records[1].parentGroupKey).toBe('bundle:zip:/z/p.zip');
   });
 
-  it('bundles ZIP entries by archive before grouping by parent model', () => {
+  it('bundles ZIP entries by archive', () => {
     const records = buildDisplayRecords([model(1, '/z/pack.zip::a.stl'), model(2, '/z/pack.zip::b.stl'), model(3, '/loose.stl')], none);
     const bundle = records[0];
     expect(bundle.type === 'group' && [bundle.groupKind, bundle.groupKey, bundle.groupLabel]).toEqual(['bundle', 'bundle:zip:/z/pack.zip', 'pack.zip']);
   });
 
-  it('a group of one stays a plain model, and a repeated path is shown once', () => {
-    const records = buildDisplayRecords([model(1, '/a.stl', { parentModel: 'Solo' }), model(1, '/a.stl')], none);
-    expect(records).toEqual([{ type: 'model', key: 'model:id:1', model: model(1, '/a.stl', { parentModel: 'Solo' }) }]);
+  it('a bundle of one stays a plain model, and a repeated path is shown once', () => {
+    const records = buildDisplayRecords([model(1, '/z/solo.zip::a.stl'), model(1, '/z/solo.zip::a.stl')], none);
+    expect(records).toEqual([{ type: 'model', key: 'model:id:1', model: model(1, '/z/solo.zip::a.stl') }]);
   });
 });
 
@@ -89,7 +72,7 @@ describe('layout', () => {
   });
 
   it('gives groups their own row in list view', () => {
-    const records = buildDisplayRecords([model(1, '/a', { parentModel: 'P' }), model(2, '/b', { parentModel: 'P' }), model(3, '/c')], none);
+    const records = buildDisplayRecords([model(1, '/z/p.zip::a'), model(2, '/z/p.zip::b'), model(3, '/c')], none);
     const layout = buildLayoutRows(records, 1, 'list', 52, 52, 10, 4);
     expect(layout.rows.map((row) => row.type)).toEqual(['group', 'models']);
   });
@@ -138,9 +121,9 @@ describe('layout', () => {
   it('centers the row of a selected model, or of a group holding the selection', () => {
     const group: DisplayRecord = {
       type: 'group',
-      key: 'group:parent:g',
-      groupKind: 'parentModel',
-      groupKey: 'parent:g',
+      key: 'group:bundle:g',
+      groupKind: 'bundle',
+      groupKey: 'bundle:g',
       groupLabel: 'G',
       children: [model(9, 'grouped.stl')],
       expanded: false

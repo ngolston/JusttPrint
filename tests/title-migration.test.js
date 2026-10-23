@@ -3,7 +3,8 @@
 
 // 8.0: the Title replaces Parent Model (src/core/db-init.js migrateTitleColumn). A 7.x database
 // gets a title column with every Parent Model copied into it; settings that named Parent Model
-// name Title; the parentModel column stays (the groups' name, and 7.x can still open the file).
+// name Title; the parentModel column stays, so 7.x can still open the file (emptied since groups
+// went in 8.11: groups-to-merges.js).
 
 const assert = require('assert');
 const fs = require('fs');
@@ -46,10 +47,10 @@ try {
 
   initializeDatabase();
   const after = database.db;
-  test('every Parent Model is copied to the Title; the old column stays', () => {
+  test('every Parent Model is copied to the Title; the old column stays, emptied', () => {
     const row = after.prepare('SELECT title, parentModel FROM models WHERE id = ?').get(dragon);
     assert.strictEqual(row.title, 'Articulated Dragon', 'copied, without the file extension');
-    assert.strictEqual(row.parentModel, '  Articulated Dragon.3mf ', 'the group name is left as it was');
+    assert.strictEqual(row.parentModel, null, 'groups are gone (8.11): the group name is cleared');
     assert.strictEqual(after.prepare('SELECT title FROM models WHERE id = ?').get(plain).title, null);
   });
   test('the settings that named Parent Model name Title', () => {

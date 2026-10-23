@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArchiveX, ClipboardPen, ExternalLink, FolderInput, Layers, List, ListChecks, Plus, Puzzle, Tags, Trash2, X } from 'lucide-react';
-import { callAction, categories as categoryApi, groups as groupsApi, libraryValues, models, tags as tagApi } from '../api';
+import { ArchiveX, ClipboardPen, ExternalLink, FolderPlus, List, ListChecks, Merge, Plus, Tags, Trash2, X } from 'lucide-react';
+import { callAction, categories as categoryApi, collections as collectionApi, libraryValues, models, tags as tagApi } from '../api';
 import { askText, exposeGlobal, onServerEvent, showMessage } from '../page';
 import { selection } from '../selection';
 import { useCanDeleteFiles } from '../session';
 import { STATUSES, STATUS_LABELS } from '../print/printStatus';
 import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
-import { GroupEditor } from '../groups/GroupEditor';
-import { GroupNameDialog } from '../groups/GroupNameDialog';
-import { MakePartsDialog } from './MakePartsDialog';
-import { groupSelection, type ChosenGroup } from '../library/groupSelection';
-import { parentModelKey } from '../grid/layout';
+import { MergeDialog } from './MergeDialog';
 
 type Field = 'designer' | 'title' | 'license' | 'source' | 'tags';
 
@@ -99,20 +95,12 @@ const PROMPTS: Record<'designer' | 'title' | 'license', string> = {
 
 /**
  * The multi-edit panel's body (#multi-edit-slot), laid out like the JusttPrint 5 details panel: the
- * count and selection buttons, then Printing, Details and Tags sections whose fields apply to
- * every selected model as soon as they change. Registers window.multiEdit.
+ * count and selection buttons, Merge, then Printing, Details, Tags, Collections and Delete; the
+ * fields apply to every selected model as soon as they change. Registers window.multiEdit.
  */
 export function MultiEditPanel() {
   const [slot] = useState(() => document.getElementById('multi-edit-slot'));
   const [count, setCount] = useState(0);
-  /** Models chosen on their own (not through a group). */
-  const [modelCount, setModelCount] = useState(0);
-  const [chosenGroups, setChosenGroups] = useState<ChosenGroup[]>([]);
-  const [naming, setNaming] = useState<string[] | null>(null);
-  const [target, setTarget] = useState('');
-  /** Every group in the library (Add to Group), and the one picked. */
-  const [allGroups, setAllGroups] = useState<{ id: number; name: string; path: string; modelCount: number }[]>([]);
-  const [existing, setExisting] = useState('');
   const [options, setOptions] = useState<Options>({ designers: [], titles: [], licenses: [], tags: [], categories: [] });
   const [onSelected, setOnSelected] = useState<OnSelected>({ tags: [] });
   const [source, setSource] = useState('');
@@ -122,8 +110,11 @@ export function MultiEditPanel() {
   const host = window.multiEditHost;
   const canDeleteFiles = useCanDeleteFiles();
   const [deleting, setDeleting] = useState(false);
-  /** Make Parts of One Model: the chosen models' paths while its dialog is open. */
-  const [makingParts, setMakingParts] = useState<string[] | null>(null);
+  /** The collections models can be added to (not smart ones: a search fills those), and what the last add did. */
+  const [collectionList, setCollectionList] = useState<{ id: number; name: string }[]>([]);
+  const [collectionNote, setCollectionNote] = useState('');
+  /** Merge: the chosen models' paths while its dialog is open. */
+  const [merging, setMerging] = useState<string[] | null>(null);
 
   const reloadOptions = () => {
     loadOptions()
@@ -134,8 +125,7 @@ export function MultiEditPanel() {
   const selectionChanged = () => {
     const paths = window.multiEditHost?.selectedPaths() || [];
     setCount(paths.length);
-    setModelCount(selection.size);
-    setChosenGroups(groupSelection.values());
+    setCollectionNote('');
     const load = ++selectionLoad.current;
     if (!paths.length || document.getElementById('multi-edit-panel')?.classList.contains('hidden')) {
       setOnSelected({ tags: [] });
@@ -149,11 +139,21 @@ export function MultiEditPanel() {
   };
 
   useEffect(() => selection.subscribe(() => selectionChanged()), []);
-  useEffect(() => groupSelection.subscribe(() => selectionChanged()), []);
-  const loadGroups = () => {
-    groupsApi.list().then(setAllGroups, () => setAllGroups([]));
-  };
-  useEffect(() => onServerEvent('groups-changed', loadGroups), []);
+  useEffect(() => {
+    const load = () =>
+      collectionApi.list().then(
+        (list) =>
+          setCollectionList(
+            list
+              .filter((c) => !c.smart)
+              .map((c) => ({ id: c.id, name: c.name }))
+              .sort((a, b) => a.name.localeCompare(b.name))
+          ),
+        () => {}
+      );
+    void load();
+    return onServerEvent('collections-changed', load);
+  }, []);
   useEffect(
     () =>
       exposeGlobal('multiEdit', {
@@ -162,8 +162,6 @@ export function MultiEditPanel() {
           setSource('');
           setPicked({ designer: '', title: '', license: '' });
           reloadOptions();
-          loadGroups();
-          setExisting('');
           selectionChanged();
         },
         selectionChanged,
@@ -245,7 +243,6 @@ export function MultiEditPanel() {
     selectionChanged();
   }
 
-  /** Create Group: name it (or take a suggestion), then the chosen models and groups go in it. */
   /**
    * Delete the chosen models (src/server/delete-models.js): out of the library, their files moved to
    * the ".JusttPrint Trash" folder no scan looks in ('library'), or deleted for good ('disk').
@@ -270,7 +267,6 @@ export function MultiEditPanel() {
         mode
       );
       selection.clear();
-      groupSelection.clear();
       const failed = result.failed.length ? `\n\nNot deleted: ${result.failed.map((f) => `${f.name} (${f.error})`).join('; ')}` : '';
       const where =
         mode === 'library' && result.items[0]?.to ? `\n\nThe files are in ${result.items[0].to.replace(/([/\\]\.JusttPrint Trash)[/\\].*$/, '$1')}.` : '';
@@ -285,87 +281,43 @@ export function MultiEditPanel() {
     }
   }
 
-  /** The other chosen models become parts of `mainPath` (listed on its page, not in the library). */
-  async function makeParts(mainPath: string) {
-    const paths = makingParts || [];
+  /** Add every chosen model to a collection; `id` null makes a new one first. */
+  async function addToCollection(id: number | null) {
+    const paths = host?.selectedPaths() || [];
+    if (!paths.length) return;
+    try {
+      let target = collectionList.find((c) => c.id === id) || null;
+      if (id === null) {
+        const name = (await askText('New Collection', `Name the collection for the ${paths.length} selected model${paths.length === 1 ? '' : 's'}:`))?.trim();
+        if (!name) return;
+        const made = await collectionApi.create(name);
+        target = { id: made.id, name: made.name };
+      }
+      if (!target) return;
+      const result = await collectionApi.add(target.id, paths);
+      setCollectionNote(
+        result.added ? `Added ${result.added} model${result.added === 1 ? '' : 's'} to ${target.name}.` : `The selected models are in ${target.name} already.`
+      );
+    } catch (error) {
+      await showMessage('Collections', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /** Merge: the other chosen models are merged into `mainPath` (one card; its page lists them). */
+  async function merge(mainPath: string) {
+    const paths = merging || [];
     await callAction(
       'set-model-parts',
       mainPath,
       paths.filter((p) => p !== mainPath)
     );
-    setMakingParts(null);
+    setMerging(null);
     selection.clear();
     host?.exit();
   }
 
-  async function startCreate() {
-    const paths = host?.selectedPaths() || [];
-    const suggested = await groupsApi.suggestNames(paths.slice(0, 200)).catch(() => [] as string[]);
-    setNaming([...new Set([...suggested, ...chosenGroups.map((g) => g.name)])].slice(0, 6));
-  }
-
-  async function createGroup(name: string) {
-    const groupIds = (await Promise.all(chosenGroups.map((g) => groupsApi.find(g.name).catch(() => null)))).filter((id): id is number => !!id);
-    const filePaths = selection.values();
-    const everything = host?.selectedPaths() || [];
-    await groupsApi.create({ name, filePaths, groupIds });
-    setNaming(null);
-    // The new group stays chosen, so it can be edited next.
-    selection.clear();
-    groupSelection.clear();
-    groupSelection.toggle({ key: `parent:${parentModelKey(name)}`, name, filePaths: everything });
-  }
-
-  async function addToGroup() {
-    const into = chosenGroups.find((g) => g.key === target) || chosenGroups[0];
-    if (!into) return;
-    try {
-      const id = await groupsApi.find(into.name);
-      if (!id) throw new Error(`${into.name} is not a group any more.`);
-      const others = (await Promise.all(chosenGroups.filter((g) => g !== into).map((g) => groupsApi.find(g.name).catch(() => null)))).filter(
-        (gid): gid is number => !!gid
-      );
-      const everything = host?.selectedPaths() || [];
-      await groupsApi.add(id, { filePaths: selection.values(), groupIds: others });
-      selection.clear();
-      groupSelection.clear();
-      groupSelection.toggle({ ...into, filePaths: everything });
-      setTarget('');
-    } catch (error) {
-      await showMessage('Add to Group', error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  /** Add to Group: the chosen models (and groups) go into a group already in the library. */
-  async function addToExisting() {
-    const into = allGroups.find((g) => String(g.id) === existing);
-    if (!into) return;
-    try {
-      const groupIds = (await Promise.all(chosenGroups.map((g) => groupsApi.find(g.name).catch(() => null)))).filter(
-        (id): id is number => !!id && id !== into.id
-      );
-      const everything = host?.selectedPaths() || [];
-      await groupsApi.add(into.id, { filePaths: selection.values(), groupIds });
-      setExisting('');
-      // Its top group stays chosen, so it can be edited next.
-      const top = into.path.split(' › ')[0];
-      selection.clear();
-      groupSelection.clear();
-      groupSelection.toggle({ key: `parent:${parentModelKey(top)}`, name: top, filePaths: everything });
-    } catch (error) {
-      await showMessage('Add to Group', error instanceof Error ? error.message : String(error));
-    }
-  }
-
   if (!slot) return null;
-  const groupCount = chosenGroups.length;
-  const chosenText = [
-    modelCount ? `${modelCount} model${modelCount === 1 ? '' : 's'}` : '',
-    groupCount ? `${groupCount} group${groupCount === 1 ? '' : 's'}` : ''
-  ]
-    .filter(Boolean)
-    .join(' and ');
-  const canAddTo = groupCount >= 1 && (modelCount > 0 || groupCount > 1);
+  const chosenText = count ? `${count} model${count === 1 ? '' : 's'}` : '';
 
   const listButton = (title: string, onClick: () => void) => (
     <button type="button" className="jp-icon-btn jp-icon-btn--sm jp-multi__tool" title={title} aria-label={title} onClick={onClick}>
@@ -404,11 +356,7 @@ export function MultiEditPanel() {
     <div className="jp jp-details jp-multi">
       <div className="jp-details__identity">
         <h2 className="jp-details__title selected-count">{chosenText ? `${chosenText} selected` : 'Nothing selected'}</h2>
-        <p className="jp-details__byline">
-          {count
-            ? `Changes apply to ${groupCount ? `all ${count} models, the groups' too,` : `every selected model`} right away.`
-            : 'Click models and groups in the library to choose them.'}
-        </p>
+        <p className="jp-details__byline">{count ? 'Changes apply to every selected model right away.' : 'Click models in the library to choose them.'}</p>
       </div>
 
       <div className="jp-details__actions">
@@ -420,69 +368,18 @@ export function MultiEditPanel() {
         </Button>
       </div>
 
-      {groupCount === 1 && modelCount === 0 && (
-        <GroupEditor
-          key={chosenGroups[0].key}
-          name={chosenGroups[0].name}
-          onGone={() => groupSelection.clear()}
-          onRenamed={(name) => groupSelection.replace(chosenGroups[0].key, { ...chosenGroups[0], key: `parent:${parentModelKey(name)}`, name })}
-        />
-      )}
-
-      <section className="jp-details__section" id="jp-multi-groups">
-        <h3 className="jp-details__heading">Groups</h3>
-        <div className="jp-multi__group-actions">
-          <Button id="multi-create-group" icon={Layers} disabled={!count} onClick={() => void startCreate()}>
-            Create Group
-          </Button>
-          {canAddTo && (
-            <span className="jp-multi__add-to">
-              {groupCount > 1 && (
-                <select id="multi-add-to-group" aria-label="The group to add to" value={target} onChange={(e) => setTarget(e.target.value)}>
-                  {chosenGroups.map((g) => (
-                    <option key={g.key} value={g.key}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <Button id="multi-add-to-group-button" icon={FolderInput} onClick={() => void addToGroup()}>
-                {groupCount > 1 ? 'Add the Rest to It' : `Add to ${chosenGroups[0].name}`}
-              </Button>
-            </span>
-          )}
-        </div>
-        <div className="jp-multi__rows">
-          <div className="jp-multi__row">
-            <label htmlFor="multi-existing-group">Add to</label>
-            <div className="jp-multi__control">
-              <select
-                id="multi-existing-group"
-                className="jp-multi__picker"
-                value={existing}
-                disabled={!count || !allGroups.length}
-                onChange={(e) => setExisting(e.target.value)}
-              >
-                <option value="">{allGroups.length ? 'A group in the library…' : 'No groups yet'}</option>
-                {allGroups
-                  .filter((g) => !chosenGroups.some((c) => parentModelKey(c.name) === parentModelKey(g.path)))
-                  .map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.path} ({g.modelCount})
-                    </option>
-                  ))}
-              </select>
-              <Button id="multi-add-existing" size="sm" icon={FolderInput} disabled={!existing || !count} onClick={() => void addToExisting()}>
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
-        <p className="jp-meta">
-          {groupCount
-            ? 'Create Group puts the chosen models and groups in a new group (the groups go inside it).'
-            : 'Create Group keeps the chosen models together under a name, as one card in the library.'}
-        </p>
+      <section className="jp-details__section" id="multi-merge-section">
+        <h3 className="jp-details__heading">Merge</h3>
+        <Button
+          id="multi-merge"
+          icon={Merge}
+          disabled={count < 2}
+          title="One model for the chosen models: pick the main one, the others are merged into it"
+          onClick={() => setMerging(host?.selectedPaths() || [])}
+        >
+          Merge…
+        </Button>
+        <p className="jp-meta">One card in the library for the chosen models; the main model's page lists the others. Un-merge on a merged model's page.</p>
       </section>
 
       <section className="jp-details__section">
@@ -625,16 +522,45 @@ export function MultiEditPanel() {
         </Button>
       </section>
 
-      <section className="jp-details__section" id="multi-parts">
-        <h3 className="jp-details__heading">Parts</h3>
+      <section className="jp-details__section" id="multi-collections">
+        <h3 className="jp-details__heading">Collections</h3>
+        <div className="jp-multi__rows">
+          <div className="jp-multi__row">
+            <label htmlFor="multi-collection-select">Add to</label>
+            <div className="jp-multi__control">
+              <select
+                id="multi-collection-select"
+                className="jp-multi__picker"
+                value=""
+                disabled={!count}
+                onChange={(e) => e.target.value && void addToCollection(Number(e.target.value))}
+              >
+                <option value="">{collectionList.length ? 'Add to a collection…' : 'No collections yet'}</option>
+                {collectionList.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {addButton('New collection with the selected models', () => void addToCollection(null), 'multi-collection-add')}
+            </div>
+          </div>
+        </div>
+        {collectionNote && (
+          <p className="jp-meta jp-multi__note" role="status" id="multi-collection-note">
+            {collectionNote}
+          </p>
+        )}
         <Button
-          id="multi-make-parts"
-          icon={Puzzle}
-          disabled={modelCount < 2 || groupCount > 0}
-          title="The chosen models become parts of one of them: listed on its page, with no card of their own in the library"
-          onClick={() => setMakingParts(selection.values())}
+          id="multi-collections-manage"
+          variant="ghost"
+          size="sm"
+          icon={FolderPlus}
+          className="jp-multi__manage"
+          disabled={!count}
+          onClick={() => window.openAddToCollection?.(host?.selectedPaths() || [])}
         >
-          Make Parts of One Model…
+          Manage Collections…
         </Button>
       </section>
 
@@ -661,15 +587,7 @@ export function MultiEditPanel() {
           Done Editing
         </Button>
       </div>
-      <MakePartsDialog open={!!makingParts} filePaths={makingParts || []} onCancel={() => setMakingParts(null)} onSubmit={makeParts} />
-      <GroupNameDialog
-        open={!!naming}
-        title="Create Group"
-        action="Create"
-        suggestions={naming || []}
-        onCancel={() => setNaming(null)}
-        onSubmit={createGroup}
-      />
+      <MergeDialog open={!!merging} filePaths={merging || []} onCancel={() => setMerging(null)} onSubmit={merge} />
     </div>,
     slot
   );
