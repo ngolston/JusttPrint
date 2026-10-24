@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { FilterX, FolderOpen, Library, Link2, PanelRight, Pencil, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { CheckSquare, FilterX, FolderOpen, Library, Link2, PanelRight, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
 import { useModelCounts } from '../filters/counts';
+import { FacetBar } from '../filters/FacetBar';
 import { applyFilterChange, getSearchStatus, subscribeSearchStatus } from '../filters/search';
 import { filterActions, getFilterState, subscribeFilters } from '../filters/store';
 import { LIBRARY_TABS, extraFilterCount, tabInfo, tabOf, type LibraryTab } from '../library/tabs';
@@ -14,6 +15,7 @@ import { useCan } from '../session';
 import { setSidebarOn, useSidebarOn } from '../details/sidebarPref';
 import { setFoldersAsModels, useFoldersAsModels } from '../library/folderMode';
 import { toggleMultiEdit, useEditMode } from '../library/details';
+import { selection } from '../selection';
 import { OrganizeNotice, UnorganizedButton } from '../upload/Organize';
 
 const scanLibrary = () =>
@@ -27,6 +29,14 @@ function useFilters() {
 
 function useSearchStatus() {
   return useSyncExternalStore(subscribeSearchStatus, getSearchStatus);
+}
+
+/** How many models are chosen. */
+function useChosenCount(): number {
+  return useSyncExternalStore(
+    (listener) => selection.subscribe(listener),
+    () => selection.size
+  );
 }
 
 /**
@@ -142,6 +152,7 @@ export function LibraryHeader() {
   const sidebar = useSidebarOn();
   const folders = useFoldersAsModels();
   const editing = useEditMode();
+  const chosen = useChosenCount();
   useAdopt('#grid-toolbar-slot', tools);
   useAdopt('#folder-rail-toggle-slot', rail);
   useAdopt('#current-filter', chips);
@@ -184,23 +195,16 @@ export function LibraryHeader() {
                 Add Links
               </Button>
             )}
-            <button
-              type="button"
-              ref={setFilterButton}
-              id="jp-filter-button"
-              className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}${extra > 0 ? ' has-filters' : ''}`}
-              aria-expanded={open}
-              aria-controls="jp-filter-popover"
-              onClick={() => setOpen(!open)}
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" />
-              <span>Filter</span>
-              {extra > 0 && (
-                <span className="jp-library-header__filter-count" aria-label={`${extra} filters set`}>
-                  {extra}
-                </span>
-              )}
-            </button>
+            {canUpload && editing && (
+              <span className="jp-library-header__chosen" id="jp-chosen-count" role="status">
+                {chosen.toLocaleString()} chosen
+              </span>
+            )}
+            {canUpload && editing && (
+              <Button id="jp-select-all-button" onClick={() => void window.shortcutHost?.selectAll()} title="Choose every model shown (Ctrl/⌘ A)">
+                Select all
+              </Button>
+            )}
             {canUpload && (
               <button
                 type="button"
@@ -208,12 +212,14 @@ export function LibraryHeader() {
                 className={`jp-btn jp-btn--${editing ? 'primary' : 'secondary'} jp-btn--md`}
                 aria-pressed={editing}
                 title={
-                  editing ? 'Stop editing' : 'Edit: click models to choose them. One model: its details; more: Multi-edit, to change them all or merge them'
+                  editing
+                    ? 'Stop choosing'
+                    : 'Select: click models (or the checkbox on a card) to choose them. One model: its details; more: Multi-edit, to change, merge or delete them all'
                 }
                 onClick={() => toggleMultiEdit()}
               >
-                <Pencil size={16} aria-hidden="true" />
-                <span>{editing ? 'Done' : 'Edit'}</span>
+                <CheckSquare size={16} aria-hidden="true" />
+                <span>{editing ? 'Done' : 'Select'}</span>
               </button>
             )}
           </div>
@@ -250,11 +256,32 @@ export function LibraryHeader() {
             />
           </div>
         </div>
+        <div className="jp-library-header__facets">
+          <FacetBar>
+            <button
+              type="button"
+              ref={setFilterButton}
+              id="jp-filter-button"
+              className={`jp-btn jp-btn--ghost jp-btn--sm jp-facet-bar__all${open ? ' is-open' : ''}${extra > 0 ? ' has-filters' : ''}`}
+              aria-expanded={open}
+              aria-controls="jp-filter-popover"
+              onClick={() => setOpen(!open)}
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              <span>All filters</span>
+              {extra > 0 && (
+                <span className="jp-library-header__filter-count" aria-label={`${extra} filters set`}>
+                  {extra}
+                </span>
+              )}
+            </button>
+          </FacetBar>
+        </div>
         <div className="jp-library-header__chips" ref={setChips} />
         <OrganizeNotice directory={state.directory} />
         {editing && (
           <p className="jp-library-header__editing" id="jp-edit-hint" role="status">
-            Editing: click models to choose them. One model shows its details; more open Multi-edit, where you can change them all at once or merge them.
+            Click models to choose them. One shows its details; more open Multi-edit, to change, merge or delete them all at once.
           </p>
         )}
         {/* Below the chips, so it never covers them (Clear All, AND / OR / NOT). */}

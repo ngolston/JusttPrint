@@ -236,6 +236,18 @@ ipcMain.handle('get-designers', async () => {
   }
 });
 
+/** The Library's filter bar: each designer and license with how many models have it (merged models not counted). */
+ipcMain.handle('get-filter-facets', async () => {
+  const { notPartSql } = require('../../core/model-parts');
+  const count = (column) =>
+    database.db
+      .prepare(
+        `SELECT ${column} AS name, COUNT(*) AS count FROM models WHERE ${column} IS NOT NULL AND TRIM(${column}) != '' AND ${notPartSql(database.db)} GROUP BY ${column} ORDER BY ${column} COLLATE NOCASE`
+      )
+      .all();
+  return { designers: count('designer'), licenses: count('license') };
+});
+
 ipcMain.handle('get-licenses', async () => {
   try {
     const rows = database.db.prepare("SELECT DISTINCT license FROM models WHERE license IS NOT NULL AND license != ''").all();

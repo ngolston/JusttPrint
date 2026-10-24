@@ -13,7 +13,7 @@ import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQu
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
 import { cardPreviewHeight, type GridModel, type GridView } from './layout';
 import { applyColumns } from './columns';
-import { Heart, MoreHorizontal } from 'lucide-react';
+import { Check, Heart, MoreHorizontal } from 'lucide-react';
 import { navigate } from '../shell/routes';
 import { printStatusInfo } from '../components/Badge';
 import { cx } from '../components/Button';
@@ -37,6 +37,8 @@ export interface CardHost {
 
   /** Click on a card: selection, details, multi-edit (library/details.ts cardClick). */
   cardClick(event: MouseEvent, card: HTMLElement, filePath: string, view: GridView): void;
+  /** The card's checkbox: choose or unchoose it (library/details.ts checkCard). */
+  checkCard?(filePath: string): void;
   /** Preview wall: open the 3D preview. */
   openPreview(card: HTMLElement | null, filePath: string, select: boolean): void;
   /** Right-click and long-press menu on the card. */
@@ -791,6 +793,20 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
           </Carousel>
         ) : (
           preview(current)
+        )}
+        {host.checkCard && (
+          <button
+            type="button"
+            tabIndex={-1}
+            role="checkbox"
+            aria-checked={host.isSelected(model.filePath)}
+            className="jp-model-card__check"
+            aria-label={`Choose ${displayFileName(model)}`}
+            title={host.isSelected(model.filePath) ? 'Unchoose' : 'Choose (to edit, merge or delete several at once)'}
+            onClick={stop(() => host.checkCard?.(model.filePath))}
+          >
+            <Check size={14} strokeWidth={3} aria-hidden="true" />
+          </button>
         )}
         <div className="jp-model-card__flags">
           {host.isNew(model) && (

@@ -871,6 +871,8 @@ export const dedup = {
 /** Values in use across the library, for the details panel's pickers. */
 export const libraryValues = {
   designers: () => callAction<string[]>('get-designers'),
+  /** Each designer and license with its model count (the Library's filter bar). */
+  facets: () => callAction<{ designers: { name: string; count: number }[]; licenses: { name: string; count: number }[] }>('get-filter-facets'),
   titles: () => callAction<string[]>('get-titles'),
   licenses: () => callAction<string[]>('get-licenses')
 };

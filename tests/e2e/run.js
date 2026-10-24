@@ -2200,7 +2200,7 @@ async function browserChecks(base, wsUrl, session) {
       const byDesigner = await waitShown([other]);
       check(
         'the designer filter narrows the grid and shows in the filter strip',
-        byDesigner === true && /Showing 1 models.*Designer: E2E Sidebar Designer/.test(await stripText()),
+        byDesigner === true && /Showing 1 model(?!s).*Designer: E2E Sidebar Designer/.test(await stripText()),
         `${byDesigner} ${await stripText()}`
       );
       await page.click('#current-filter-body .filter-pill:has-text("Designer:") .filter-remove');
@@ -2578,6 +2578,75 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#jp-edit-button');
     await page.click('#jp-edit-button');
     check('Done leaves Edit mode', !(await page.isVisible('#multi-edit-panel')) && !(await page.isVisible('#jp-edit-hint')));
+    // 9.2: the details column only shows with something open in it.
+    check(
+      'the details column is hidden while nothing is chosen',
+      await page.evaluate(() => getComputedStyle(document.querySelector('.sidebar')).display === 'none')
+    );
+    // 9.2: a card's checkbox chooses it (no Edit button first); two open Multi-edit; Done stops choosing.
+    const checkCards = page.locator('.file-grid .jp-model-card');
+    await checkCards.nth(0).hover();
+    await checkCards.nth(0).locator('.jp-model-card__check').click();
+    const oneChosen = await page
+      .waitForFunction(() => document.getElementById('jp-chosen-count')?.textContent?.trim() === '1 chosen', null, { timeout: 10000 })
+      .then(
+        () => true,
+        () => false
+      );
+    await checkCards.nth(1).hover();
+    await checkCards.nth(1).locator('.jp-model-card__check').click();
+    const twoChosen = await page.waitForSelector('#multi-edit-panel:not(.hidden)', { timeout: 10000 }).then(
+      () => true,
+      () => false
+    );
+    check(
+      "a card's checkbox chooses it; two open Multi-edit",
+      oneChosen &&
+        twoChosen &&
+        /2 chosen/.test((await page.textContent('#jp-chosen-count').catch(() => '')) || '') &&
+        (await checkCards.nth(1).locator('.jp-model-card__check').getAttribute('aria-checked')) === 'true'
+    );
+    await page.click('#jp-edit-button');
+    check('Done stops choosing', !(await page.isVisible('#multi-edit-panel')) && !(await page.isVisible('#jp-chosen-count')));
+    // 9.2: the filter bar: Designer lists each designer with its count; picking one filters, its × clears it.
+    await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], designer: 'E2E Facet Designer' }]]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
+    await page.click('#jp-facet-designer');
+    const designerItem = page.locator('.jp-facet-menu .jp-facet-menu__item:has-text("E2E Facet Designer")');
+    await designerItem.waitFor({ timeout: 10000 }).catch(() => {});
+    const designerCount = Number(
+      (
+        (await designerItem
+          .locator('.jp-facet-menu__count')
+          .textContent()
+          .catch(() => '')) || ''
+      ).replace(/\D/g, '')
+    );
+    await designerItem.click().catch(() => {});
+    const designerSet = await page
+      .waitForFunction(() => document.querySelector('#jp-facet-designer .jp-facet__value')?.textContent === 'E2E Facet Designer', null, { timeout: 10000 })
+      .then(
+        () => true,
+        () => false
+      );
+    await page.waitForFunction(() => document.querySelectorAll('.file-grid .file-item').length === 1, null, { timeout: 15000 }).catch(() => {});
+    check(
+      'the filter bar picks a designer, with its model count',
+      designerCount === 1 && designerSet && (await page.locator('.file-grid .file-item').count()) === 1,
+      `${designerCount} ${await page.locator('.file-grid .file-item').count()}`
+    );
+    await page.click('#jp-facet-designer + .jp-facet__clear');
+    check(
+      "a filter's × in the bar clears it",
+      await page
+        .waitForFunction(() => !document.querySelector('#jp-facet-designer .jp-facet__value'), null, { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        )
+    );
+    await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], designer: null }]]);
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
     // 8.0: a model's Title is its name on cards (the file's name otherwise), and a Title alone makes no group.
     await invoke(base, session, 'update-models-batch', [[{ filePath: grouped[0], title: 'E2E Shown Title' }]]);
     await page.evaluate(() => window.performCombinedSearch({ force: true }));
@@ -3738,7 +3807,7 @@ async function browserChecks(base, wsUrl, session) {
     await phone.tap('#jp-filter-popover button[aria-label="Close filters"]');
     if (phoneTile) {
       // Touch screens (responsive.css): hover-only buttons show, and small controls are finger-sized.
-      const cardAction = await phone.$eval('.file-grid .jp-model-card[data-filepath] .jp-model-card__action', (el) => ({
+      const cardAction = await phone.$eval('.file-grid .jp-model-card[data-filepath] .jp-model-card__action.thumbnail-menu-button', (el) => ({
         opacity: getComputedStyle(el).opacity,
         size: el.getBoundingClientRect().width
       }));
@@ -4664,6 +4733,16 @@ async function browserChecks(base, wsUrl, session) {
     const similarCard = await page.waitForSelector('.jp-dup-group:has-text("files with the same shape")', { timeout: 15000 }).catch(() => null);
     check('the Duplicates page shows them under Same shape, any resolution', !!similarCard && /check before deleting/.test(await similarCard.textContent()));
     await page.click('#dedup-mode-files').catch(() => {});
+    // Their thumbnails first: a render still running when they are deleted asks for a file that is gone.
+    await waitFor(
+      async () => {
+        for (const name of ['ball smooth.stl', 'ball coarse.stl'])
+          if (!(await invoke(base, session, 'get-model', [path.join(ballDir, name)])).result?.thumbnail) return false;
+        return true;
+      },
+      60000,
+      'ball thumbnails'
+    ).catch(() => {});
     for (const name of ['ball smooth.stl', 'ball coarse.stl']) await invoke(base, session, 'delete-file', [path.join(ballDir, name)]);
     await page.evaluate(() => (location.hash = '#/library'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});

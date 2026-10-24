@@ -285,8 +285,10 @@
 .jp-library-header .search-boolean-op-link {
   color: var(--jp-accent);
 }
-.jp-library-header #clear-all-filters-button.clear-filter-button {
+.jp-library-header #clear-all-filters-button.clear-filter-button,
+.jp-library-header #save-search-button.clear-filter-button {
   display: inline-flex;
+  align-items: center;
   width: auto;
   height: 26px;
   margin: 0;
@@ -297,10 +299,12 @@
   color: var(--jp-accent);
   font: 500 var(--jp-text-meta) var(--jp-font);
 }
-.jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled) {
+.jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled),
+.jp-library-header #save-search-button.clear-filter-button:hover:not(:disabled) {
   background: var(--jp-accent-soft);
 }
-.jp-library-header #clear-all-filters-button[hidden] {
+.jp-library-header #clear-all-filters-button[hidden],
+.jp-library-header #save-search-button[hidden] {
   display: none;
 }
 
@@ -495,6 +499,70 @@
 }
 
 /* New / Archive at the top-left. */
+/* The choose checkbox (top left): on hover, and on every card while choosing (body.jp-editing). */
+.file-grid .jp-model-card .jp-model-card__check {
+  position: absolute;
+  top: var(--jp-space-2);
+  left: var(--jp-space-2);
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  background: rgba(8, 12, 18, 0.55);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  color: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--jp-transition),
+    background-color var(--jp-transition);
+}
+.file-grid .jp-model-card:hover .jp-model-card__check,
+.file-grid .jp-model-card:focus-within .jp-model-card__check,
+.file-grid .jp-model-card.selected .jp-model-card__check,
+body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
+  opacity: 1;
+}
+.file-grid .jp-model-card .jp-model-card__check:hover {
+  background: rgba(8, 12, 18, 0.8);
+}
+.file-grid .jp-model-card .jp-model-card__check[aria-checked='true'] {
+  border-color: var(--jp-accent);
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.file-grid .jp-model-card .jp-model-card__check:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+/* The flags (New, Archive) make room for it while it shows. */
+.file-grid .jp-model-card:hover .jp-model-card__flags,
+.file-grid .jp-model-card.selected .jp-model-card__flags,
+body.jp-editing .file-grid .jp-model-card .jp-model-card__flags {
+  left: 40px;
+}
+/* Touch screens have no hover: the checkbox shows only while choosing (Select). */
+@media (hover: none) {
+  .file-grid .jp-model-card:hover:not(.selected) .jp-model-card__check {
+    opacity: 0;
+  }
+  body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
+    opacity: 1;
+  }
+  .file-grid .jp-model-card:hover:not(.selected) .jp-model-card__flags {
+    left: var(--jp-space-2);
+  }
+  body.jp-editing .file-grid .jp-model-card .jp-model-card__flags {
+    left: 40px;
+  }
+}
 .jp-model-card__flags {
   position: absolute;
   top: var(--jp-space-2);
@@ -1300,4 +1368,219 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
 .jp-organize-layers__fixed {
   color: var(--jp-text-2);
   font-size: var(--jp-text-meta);
+}
+
+/* ---- The filter bar (filters/FacetBar.tsx) ---- */
+.jp-library-header__facets {
+  margin-top: var(--jp-space-3);
+}
+.jp-facet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-facet-bar__divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--jp-space-1);
+  background: var(--jp-border);
+}
+.jp-facet {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-1);
+  transition:
+    border-color var(--jp-transition),
+    background-color var(--jp-transition);
+}
+.jp-facet:hover {
+  border-color: var(--jp-border-strong);
+}
+.jp-facet.is-set {
+  border-color: var(--jp-accent);
+  background: var(--jp-accent-soft);
+}
+.jp-facet .jp-facet__button,
+.jp-facet .jp-facet__clear {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  color: var(--jp-text-2);
+  font: 500 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.jp-facet .jp-facet__button {
+  max-width: 260px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--jp-radius-pill);
+}
+.jp-facet .jp-facet__button:hover,
+.jp-facet.is-set .jp-facet__button {
+  color: var(--jp-text);
+}
+.jp-facet .jp-facet__button:focus-visible,
+.jp-facet .jp-facet__clear:focus-visible {
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-facet__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--jp-text);
+  font-weight: 600;
+}
+.jp-facet.is-set .jp-facet__label::after {
+  content: ':';
+}
+.jp-facet .jp-facet__clear {
+  justify-content: center;
+  width: 26px;
+  margin-left: -6px;
+  border-radius: var(--jp-radius-pill);
+}
+.jp-facet .jp-facet__clear:hover {
+  color: var(--jp-text);
+  background: var(--jp-surface-hover);
+}
+#jp-facet-sort.jp-facet__button .jp-facet__label::after {
+  content: '';
+}
+.jp-facet:has(#jp-facet-sort) {
+  border-color: var(--jp-border);
+  background: transparent;
+}
+.jp-facet:has(#jp-facet-sort) .jp-facet__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.jp-facet-bar .jp-facet-bar__all {
+  height: 32px;
+  margin-left: auto;
+}
+.jp-facet-bar .jp-facet-bar__all.has-filters {
+  color: var(--jp-accent);
+}
+
+/* A facet's list. */
+.jp-facet-menu {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  max-height: min(420px, calc(100vh - 120px));
+  border: 1px solid var(--jp-border-strong);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-1);
+  box-shadow: var(--jp-shadow-pop);
+  overflow: hidden;
+}
+.jp-facet-menu .jp-facet-menu__search {
+  flex: none;
+  margin: var(--jp-space-2);
+  width: auto;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-bg);
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  box-sizing: border-box;
+}
+.jp-facet-menu__list {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: var(--jp-space-1);
+  overflow-y: auto;
+}
+.jp-facet-menu .jp-facet-menu__item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px 0 6px;
+  border-radius: var(--jp-radius-md);
+  color: var(--jp-text);
+  font: 400 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.jp-facet-menu .jp-facet-menu__item:hover,
+.jp-facet-menu .jp-facet-menu__item:focus-visible {
+  background: var(--jp-surface-hover);
+}
+.jp-facet-menu .jp-facet-menu__item.is-sub {
+  padding-left: 26px;
+  color: var(--jp-text-2);
+}
+.jp-facet-menu .jp-facet-menu__item.is-checked {
+  color: var(--jp-text);
+  font-weight: 600;
+}
+.jp-facet-menu__check {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  color: var(--jp-accent);
+}
+.jp-facet-menu__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-facet-menu__count {
+  flex: none;
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-small);
+  font-variant-numeric: tabular-nums;
+}
+.jp-facet-menu__none {
+  padding: var(--jp-space-3);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  text-align: center;
+}
+.jp-facet-menu__footer {
+  display: flex;
+  gap: var(--jp-space-1);
+  padding: var(--jp-space-2);
+  border-top: 1px solid var(--jp-border);
+}
+.jp-facet-menu .jp-facet-menu__mode {
+  all: unset;
+  flex: 1;
+  padding: 6px 0;
+  border-radius: var(--jp-radius-md);
+  color: var(--jp-text-2);
+  font: 500 var(--jp-text-small) var(--jp-font);
+  text-align: center;
+  cursor: pointer;
+}
+.jp-facet-menu .jp-facet-menu__mode.is-checked {
+  background: var(--jp-accent-soft);
+  color: var(--jp-text);
+}
+
+/* Choosing models: the count beside Select all and Done. */
+.jp-library-header__chosen {
+  align-self: center;
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  font-variant-numeric: tabular-nums;
 }
