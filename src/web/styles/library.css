@@ -1593,3 +1593,8 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   letter-spacing: normal;
   text-transform: none;
 }
+
+/* The View button exists for phones only (responsive.css). */
+.jp-library-header__view-toggle {
+  display: none;
+}

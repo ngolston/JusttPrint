@@ -3762,8 +3762,11 @@ async function browserChecks(base, wsUrl, session) {
     };
     check('the phone opens Home with the bottom bar instead of the sidebar', Object.values(phoneHome).every(Boolean), JSON.stringify(phoneHome));
     await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
-    // Earlier checks leave the wall or the list as the saved view.
+    // Earlier checks leave the wall or the list as the saved view. On a phone the view buttons are under View (9.5.1).
+    await phone.tap('#jp-view-menu-button');
+    check('on a phone the view buttons open under View', await phone.isVisible('.view-button[data-view="detailed"]'));
     await phone.tap('.view-button[data-view="detailed"]');
+    await phone.tap('#jp-view-menu-button');
     const phoneTile = await phone.waitForSelector('.file-grid .jp-model-card[data-filepath]', { timeout: 30000 }).catch(() => null);
     // Cards are redrawn while the library loads: wait for two side by side.
     const phoneColumns = await phone

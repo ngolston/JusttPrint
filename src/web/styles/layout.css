@@ -402,6 +402,10 @@
   overflow: hidden;
 }
 .jp-notify__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
   padding: var(--jp-space-3) var(--jp-space-4);
   border-bottom: 1px solid var(--jp-border);
 }
@@ -491,4 +495,8 @@ button.jp-notify__row:focus-visible {
   flex: none;
   gap: 2px;
   margin-left: var(--jp-space-1);
+}
+
+.jp-notify__clear {
+  font-size: var(--jp-text-meta);
 }

@@ -562,24 +562,32 @@
 }
 .jp-kit__parts li {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--jp-space-1) var(--jp-space-3);
+  gap: var(--jp-space-3);
 }
+/* One line each: the name cut short ("…", the whole name on hover), who and how long on the right. */
 .jp-kit__parts label {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--jp-space-2);
   min-width: 0;
   cursor: pointer;
+}
+.jp-kit__parts li > .jp-meta {
+  flex: none;
+  white-space: nowrap;
 }
 .jp-kit__parts li.is-done .jp-kit__label {
   color: var(--jp-text-2);
   text-decoration: line-through;
 }
 .jp-kit__label {
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Folder page notes */
@@ -845,4 +853,22 @@ dialog.assembly-dialog {
 }
 .jp-model-upload__busy {
   flex: 1 1 100%;
+}
+
+/* History: several changes made at once, one line each under the model (pages/HistoryPage.tsx). */
+.jp-history-page__changes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--jp-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.jp-history-page__changes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+  padding: 2px 0 2px var(--jp-space-3);
+  border-left: 2px solid var(--jp-border);
 }

@@ -63,6 +63,33 @@ export function dayOf(iso: string, now = new Date()): string {
   return date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+type Change = Extract<HistoryEntry, { kind: 'change' }>;
+
+/** One line of the list: an entry, or several changes made to one model at once (Edit saves several fields). */
+export type HistoryItem = { kind: 'one'; entry: HistoryEntry } | { kind: 'group'; entries: Change[] };
+
+/** Changes to the same model, by the same person, within a minute of each other are one edit (newest first, as listed). */
+export function groupEntries(entries: HistoryEntry[]): HistoryItem[] {
+  const items: HistoryItem[] = [];
+  for (const entry of entries) {
+    const last = items[items.length - 1];
+    const lastChange = last && (last.kind === 'group' ? last.entries[last.entries.length - 1] : last.entry.kind === 'change' ? last.entry : null);
+    if (
+      entry.kind === 'change' &&
+      lastChange &&
+      lastChange.model.filePath === entry.model.filePath &&
+      lastChange.by === entry.by &&
+      Math.abs(new Date(lastChange.at).getTime() - new Date(entry.at).getTime()) <= 60000
+    ) {
+      if (last.kind === 'group') last.entries.push(entry);
+      else items[items.length - 1] = { kind: 'group', entries: [lastChange, entry] };
+      continue;
+    }
+    items.push({ kind: 'one', entry });
+  }
+  return items;
+}
+
 /**
  * History (sidebar): every model's history in one list, newest first: the changes made to their
  * details (put a value back) and the earlier files kept by Upload New Version (download, put back,
@@ -178,7 +205,63 @@ export function HistoryPage() {
         </Panel>
       ) : (
         <ul className="jp-card jp-history-page__list" id="jp-history-list">
-          {entries.map((entry) => {
+          {groupEntries(entries).map((item) => {
+            if (item.kind === 'group') {
+              const first = item.entries[0];
+              const day = dayOf(first.at);
+              const heading = day !== lastDay;
+              lastDay = day;
+              return (
+                <li key={`group-${first.id}`} className="jp-history-page__entry is-group" data-kind="change">
+                  {heading && <h2 className="jp-history-page__day">{day}</h2>}
+                  <div className="jp-history-page__row">
+                    <span className="jp-history-page__icon" aria-hidden="true">
+                      <History size={16} />
+                    </span>
+                    <span className="jp-history__text">
+                      <span>
+                        <button type="button" className="jp-link-button" title={first.model.filePath} onClick={() => navigate('model', first.model.filePath)}>
+                          {modelName(first.model)}
+                        </button>
+                        {` · ${item.entries.length} changes`}
+                      </span>
+                      <span className="jp-meta">
+                        {when(first.at)}
+                        {first.by ? ` · by ${first.by}` : ''}
+                      </span>
+                      <ul className="jp-history-page__changes">
+                        {item.entries.map((change) => {
+                          const label = FIELD_LABELS[change.field] || change.field;
+                          return (
+                            <li key={change.id}>
+                              <span>
+                                <strong>{label}</strong>: {shownValue(change.field, change.oldValue)} → {shownValue(change.field, change.newValue)}
+                              </span>
+                              {canEdit && (
+                                <IconButton
+                                  size="sm"
+                                  icon={History}
+                                  label={`Put the ${label.toLowerCase()} back`}
+                                  onClick={() =>
+                                    void act(
+                                      'Put Back',
+                                      `Put the ${label.toLowerCase()} back to ${shownValue(change.field, change.oldValue)}?`,
+                                      'Put Back',
+                                      () => callAction('undo-model-change', change.id)
+                                    )
+                                  }
+                                />
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </span>
+                  </div>
+                </li>
+              );
+            }
+            const entry = item.entry;
             const day = dayOf(entry.at);
             const heading = day !== lastDay;
             lastDay = day;
