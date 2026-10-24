@@ -2,6 +2,18 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.1.0] - 2026-10-23
+
+**Changes:**
+- **A tidier model page.** The header holds the name, the designer, Category › Subcategory, format and size, and the actions in one row: **Open in Slicer**, **Log Print**, **Edit**, ♡ and **More** (Upload Files, Upload New Version, Download, Add to Collection, and All Actions for the rest of the model's menu). The model's **Files** are compact rows (3D, Open, Download) instead of large cards, and the second file list on the right is gone. The right column is **Details** (empty fields hidden; the folder shortened, with a button to copy its full path), kit progress, **Print History** and **Notes**. The breadcrumb no longer repeats the name. The details sidebar is unchanged.
+- **A modern Edit dialog.** Wider, in three sections (Basics, Organize, About) with the fields in two columns (one on a phone). Tags are chips: type and press Enter or a comma, with suggestions from your library's tags; × or Backspace takes one off. The rating is five stars. A changed field gets a dot, and the footer (always in view) counts the changes; Save is off until something changes, and Ctrl/⌘ Enter saves. Closing with unsaved changes asks first. A model from MakerWorld, Printables or Thingiverse has its site's details on a tab of their own, and a link in Source opens from the dialog.
+- **A tidier Library.** The header is two rows: **Library** with the model count, then **Filter** and **Edit** on the right; under it the tabs (All, Printed, Unprinted, Queue, Favorites) with the view buttons on the right, so nothing wraps onto a third line. Upload and Add Links left the Library's toolbar on computers (they are in the top bar's **Add New Model**); phones keep them there. Pictures fill the cards instead of sitting between dark bars, a card's picture count (1/16) shows on hover, and the picture wall shows "Not printed" only on hover (Printed, Queued and Printing still show). The list view's folder column shows the folder's name (the whole path on hover). The Filter panel's labels are plain ("Designer", not "Select Designer:") and its fields all as wide as the panel.
+- **A cleaner Settings page.** Each group in the list has an icon, and the group's panel says once what it holds (no group name, form name and description stacked on top of each other); a group with several forms has its tabs with a line under them. Short values (sizes, counts, minutes) have short boxes, the forms keep a readable width, Save is the highlighted button, labels have no trailing colons, and cautions are a calm amber note instead of a red bar. A form only lights up when a link elsewhere opens it (such as Open MakerWorld Settings), not on every tab click.
+
+**Fixes:**
+- Settings → Scanning → File Types still described "models inside ZIP files" (gone since 8.6), and Settings → AI said the Puter sign-in is kept in this browser (it is kept for your account since 8.8).
+- Two hints in the Library (the empty sidebar and Edit mode) still spoke of making groups, which 9.0 removed; they speak of merging now.
+
 ## [9.0.0] - 2026-10-23
 
 **Changes:**

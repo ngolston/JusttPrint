@@ -257,7 +257,7 @@ function SearchControls({ container }: { container: HTMLElement }) {
   return createPortal(
     <>
       <div className="form-group search-models-field">
-        <label htmlFor="search-filter-input">Search Models:</label>
+        <label htmlFor="search-filter-input">Search</label>
         <div className="input-with-icon">
           <input
             type="search"
@@ -319,7 +319,7 @@ function SearchControls({ container }: { container: HTMLElement }) {
         </label>
       </div>
       <div className="form-group">
-        <label htmlFor="sort-select">Sort By:</label>
+        <label htmlFor="sort-select">Sort by</label>
         <select
           id="sort-select"
           value={state.sort}
@@ -470,11 +470,11 @@ function FilterControls({ container, options }: { container: HTMLElement; option
 
   return createPortal(
     <>
-      {valueSelect('designer', 'designer-select', 'Select Designer:', 'All Designers', options.designers, 'designer', 'Search existing designers')}
-      {valueSelect('title', 'title-select', 'Select Title:', 'All Titles', options.titles, 'title', 'Search existing titles')}
-      {valueSelect('license', 'license-select', 'Select License:', 'All Licenses', options.licenses, 'license', 'Search existing licenses')}
+      {valueSelect('designer', 'designer-select', 'Designer', 'All Designers', options.designers, 'designer', 'Search existing designers')}
+      {valueSelect('title', 'title-select', 'Title', 'All Titles', options.titles, 'title', 'Search existing titles')}
+      {valueSelect('license', 'license-select', 'License', 'All Licenses', options.licenses, 'license', 'Search existing licenses')}
       <div className="form-group">
-        <label htmlFor="category-select">Select Category:</label>
+        <label htmlFor="category-select">Category</label>
         <select
           id="category-select"
           value={categoryOf(state)}
@@ -501,7 +501,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
             )}
         </select>
       </div>
-      {single('printed', 'printed-select', 'Print Status:', [
+      {single('printed', 'printed-select', 'Print status', [
         ['all', 'All Models'],
         ['unprinted', 'Unprinted'],
         ['want', 'Want'],
@@ -514,17 +514,17 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         ['never-printed', 'Never printed'],
         ['not-printed', 'Not printed']
       ])}
-      {single('isNew', 'new-select', 'New Status:', [
+      {single('isNew', 'new-select', 'New', [
         ['all', 'All Models'],
         ['new', 'New Models Only'],
         ['not-new', 'Exclude New Models']
       ])}
-      {single('favorite', 'favorite-select', 'Favorite:', [
+      {single('favorite', 'favorite-select', 'Favorite', [
         ['all', 'All Models'],
         ['favorited', 'Favorites'],
         ['not-favorited', 'Not Favorites']
       ])}
-      {single('rating', 'rating-select', 'Rating:', [
+      {single('rating', 'rating-select', 'Rating', [
         ['all', 'All Ratings'],
         ['unrated', 'Unrated'],
         ['1', '1 Star'],
@@ -533,7 +533,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         ['4', '4 Stars'],
         ['5', '5 Stars']
       ])}
-      {single('ratingMin', 'rating-min-select', 'Min Rating:', [
+      {single('ratingMin', 'rating-min-select', 'Minimum rating', [
         ['all', 'All'],
         ['1', 'At Least 1'],
         ['2', 'At Least 2'],
@@ -544,11 +544,11 @@ function FilterControls({ container, options }: { container: HTMLElement; option
       {single(
         'fileType',
         'filetype-select',
-        'File Type:',
+        'File type',
         options.fileTypes.map((t) => [t.value, t.label])
       )}
       <div className="form-group">
-        <label htmlFor="tag-filter">Filter by Tag:</label>
+        <label htmlFor="tag-filter">Tags</label>
         <div className="dropdown-with-list">
           <div className="tags-input-container">
             <select

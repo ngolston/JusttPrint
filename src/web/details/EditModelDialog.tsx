@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { callAction, categories as categoryApi, libraryValues, models as modelApi } from '../api';
-import { ModalDialog } from '../components/ModalDialog';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { ExternalLink, Star, X } from 'lucide-react';
+import { callAction, categories as categoryApi, libraryValues, models as modelApi, tags as tagApi } from '../api';
+import { Button, cx } from '../components/Button';
+import { Modal } from '../components/Overlay';
 import { exposeGlobal, showMessage } from '../page';
 import { selection } from '../selection';
 import { askAboutConflict, bothNotes, type SaveConflict } from '../library/saving';
@@ -168,18 +170,156 @@ async function undoEdit(edit: EditUndo) {
   await showEdit(filePath, edit.filePath, Object.keys(edit.before), !!edit.site);
 }
 
+/** A field: its label (marked when changed), the control, and a hint under it. */
+function Field({
+  label,
+  htmlFor,
+  changed,
+  hint,
+  wide,
+  children
+}: {
+  label: string;
+  htmlFor?: string;
+  changed?: boolean;
+  hint?: ReactNode;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cx('jp-edit__field', wide && 'jp-edit__field--wide')}>
+      <label className="jp-edit__label" htmlFor={htmlFor}>
+        {label}
+        {changed && (
+          <span className="jp-edit__changed" title="Changed">
+            <span className="jp-sr-only">(changed)</span>
+          </span>
+        )}
+      </label>
+      {children}
+      {hint && <p className="jp-edit__hint">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * Tags as chips: type and press Enter or a comma to add one, × or Backspace (in an empty field) to
+ * take one off. `draft` is what is typed and not added yet (Save adds it too).
+ */
+function TagChips({
+  id,
+  value,
+  onChange,
+  draft,
+  onDraft,
+  suggestions
+}: {
+  id: string;
+  value: string;
+  onChange: (next: string) => void;
+  draft: string;
+  onDraft: (next: string) => void;
+  suggestions: string[];
+}) {
+  const chips = parseList(value);
+  const add = (text: string) => {
+    const added = parseList(text);
+    if (added.length) onChange(listText(parseList([...chips, ...added].join(','))));
+    onDraft('');
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if ((event.key === 'Enter' || event.key === ',') && draft.trim()) {
+      event.preventDefault();
+      add(draft);
+    } else if (event.key === 'Backspace' && !draft && chips.length) {
+      onChange(listText(chips.slice(0, -1)));
+    }
+  };
+  return (
+    <div className="jp-input jp-edit__chips">
+      {chips.map((tag) => (
+        <span key={tag} className="jp-edit__chip">
+          {tag}
+          <button type="button" aria-label={`Remove the tag ${tag}`} onClick={() => onChange(listText(chips.filter((t) => t !== tag)))}>
+            <X size={12} aria-hidden="true" />
+          </button>
+        </span>
+      ))}
+      <input
+        id={id}
+        type="text"
+        list={`${id}-list`}
+        value={draft}
+        placeholder={chips.length ? 'Add a tag…' : 'Add tags: type and press Enter'}
+        onChange={(event) => {
+          const text = event.target.value;
+          if (text.includes(',')) add(text);
+          else onDraft(text);
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => draft.trim() && add(draft)}
+      />
+      <datalist id={`${id}-list`}>
+        {suggestions
+          .filter((tag) => !chips.includes(tag))
+          .slice(0, 200)
+          .map((tag) => (
+            <option key={tag} value={tag} />
+          ))}
+      </datalist>
+    </div>
+  );
+}
+
+/** Rating as five stars; the × clears it. */
+function StarPicker({ value, onChange }: { value: number; onChange: (stars: number) => void }) {
+  return (
+    <div className="jp-edit__stars" role="group" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((stars) => (
+        <button
+          key={stars}
+          type="button"
+          id={`edit-model-rating-${stars}`}
+          className={cx('jp-edit__star', stars <= value && 'is-on')}
+          aria-label={`${stars} ${stars === 1 ? 'star' : 'stars'}`}
+          aria-pressed={stars === value}
+          onClick={() => onChange(stars)}
+        >
+          <Star size={20} aria-hidden="true" />
+        </button>
+      ))}
+      <button
+        type="button"
+        id="edit-model-rating-0"
+        className="jp-edit__star-clear"
+        aria-label="No rating"
+        title="No rating"
+        disabled={!value}
+        onClick={() => onChange(0)}
+      >
+        <X size={14} aria-hidden="true" />
+      </button>
+      <span className="jp-meta">{value ? `${value} of 5` : 'No rating'}</span>
+    </div>
+  );
+}
+
 /**
  * The details panel's Edit dialog: everything the library keeps about a model (its name, which
- * renames its file, designer, source, title, license, tags, notes and rating), and for a
- * model from MakerWorld, Printables or Thingiverse what the site says about it. Site edits are kept
- * apart and laid over the site's details, so Refresh does not undo them. A save can be undone as one
- * edit (the Undo notice, Ctrl/Cmd+Z). Registers window.openEditModel.
+ * renames its file, title, designer, source, license, rating, place, tags, description and notes),
+ * and for a model from MakerWorld, Printables or Thingiverse what the site says about it (its own
+ * tab). Site edits are kept apart and laid over the site's details, so Refresh does not undo them.
+ * Changed fields are marked and counted; Save (or Ctrl/Cmd+Enter) saves them all as one edit that
+ * Undo takes back. Closing with changes asks first. Registers window.openEditModel.
  */
 export function EditModelDialog() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [tab, setTab] = useState<'library' | 'site'>('library');
   const [model, setModel] = useState<ModelRecord | null>(null);
   const [start, setStart] = useState<LibraryForm | null>(null);
   const [form, setForm] = useState<LibraryForm | null>(null);
+  /** A tag typed and not added as a chip yet. */
+  const [tagDraft, setTagDraft] = useState('');
   const [details, setDetails] = useState<MakerWorldDetails | null>(null);
   const [siteStart, setSiteStart] = useState<SiteForm | null>(null);
   const [site, setSite] = useState<SiteForm | null>(null);
@@ -189,7 +329,12 @@ export function EditModelDialog() {
   /** The model's place: its Subcategory's name (or its Category's when it has only that), '' for none. */
   const [categoryStart, setCategoryStart] = useState('');
   const [chosen, setChosen] = useState('');
-  const [options, setOptions] = useState<{ designers: string[]; titles: string[]; licenses: string[] }>({ designers: [], titles: [], licenses: [] });
+  const [options, setOptions] = useState<{ designers: string[]; titles: string[]; licenses: string[]; tags: string[] }>({
+    designers: [],
+    titles: [],
+    licenses: [],
+    tags: []
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(
@@ -201,6 +346,10 @@ export function EditModelDialog() {
   );
 
   async function open(filePath: string) {
+    // Nothing of the model edited last shows while this one loads.
+    setForm(null);
+    setStart(null);
+    setModel(null);
     const loaded = await modelApi.get<ModelRecord>(filePath).catch(() => null);
     if (!loaded) {
       await showMessage('Error', 'This model is not in the library any more.');
@@ -210,6 +359,8 @@ export function EditModelDialog() {
     setModel(loaded);
     setStart(initial);
     setForm(initial);
+    setTagDraft('');
+    setTab('library');
     setDetails(null);
     setSiteStart(null);
     setSite(null);
@@ -220,7 +371,7 @@ export function EditModelDialog() {
     const place = inCategories[inCategories.length - 1] || '';
     setCategoryStart(place);
     setChosen(place);
-    if (!dialogRef.current?.open) dialogRef.current?.showModal();
+    setIsOpen(true);
     categoryApi.list().then(
       (result) =>
         setAllCategories(
@@ -230,9 +381,14 @@ export function EditModelDialog() {
         ),
       () => {}
     );
-    Promise.all([libraryValues.designers(), libraryValues.titles(), libraryValues.licenses()]).then(
-      ([designers, titles, licenses]) =>
-        setOptions({ designers: designers.filter(Boolean), titles: titles.filter(Boolean), licenses: licenses.filter(Boolean) }),
+    Promise.all([libraryValues.designers(), libraryValues.titles(), libraryValues.licenses(), tagApi.list().catch(() => [])]).then(
+      ([designers, titles, licenses, allTags]) =>
+        setOptions({
+          designers: designers.filter(Boolean),
+          titles: titles.filter(Boolean),
+          licenses: licenses.filter(Boolean),
+          tags: allTags.map((tag) => tag.name).filter(Boolean)
+        }),
       () => {}
     );
     if (found) {
@@ -250,19 +406,41 @@ export function EditModelDialog() {
     }
   }
 
-  const close = () => dialogRef.current?.close();
+  const close = () => setIsOpen(false);
+
+  /** The form with a typed tag that is not a chip yet added (what Save saves). */
+  const withDraft = (now: LibraryForm): LibraryForm => (tagDraft.trim() ? { ...now, tags: listText(parseList([now.tags, tagDraft].join(','))) } : now);
+
+  const libraryChanges = form && start ? changedFields(start, withDraft(form)) : [];
+  const siteChangeList = site && siteStart ? changedFields(siteStart, site) : [];
+  const placeChange = chosen !== categoryStart;
+  const changeCount = libraryChanges.length + siteChangeList.length + (placeChange ? 1 : 0);
+
+  /** Close, asking first when there are changes. */
+  async function requestClose() {
+    if (saving) return;
+    if (changeCount) {
+      const answer = await showMessage('Discard your changes?', `${changeCount} ${changeCount === 1 ? 'change is' : 'changes are'} not saved.`, [
+        'Discard',
+        'Keep Editing'
+      ]);
+      if (answer !== 'Discard') return;
+    }
+    close();
+  }
 
   async function save() {
     if (!model || !form || !start) return;
-    const fields = changedFields(start, form);
+    const current = withDraft(form);
+    const fields = changedFields(start, current);
     const libraryFields = fields.filter((field) => field !== 'name');
     const siteFields = site && siteStart ? changedFields(siteStart, site) : [];
     const before = Object.fromEntries(libraryFields.map((field) => [field, fieldValue(start, field)]));
-    const after = Object.fromEntries(libraryFields.map((field) => [field, fieldValue(form, field)]));
+    const after = Object.fromEntries(libraryFields.map((field) => [field, fieldValue(current, field)]));
     setSaving(true);
     try {
       let filePath = model.filePath;
-      if (fields.includes('name')) filePath = await renameModel(filePath, form.name);
+      if (fields.includes('name')) filePath = await renameModel(filePath, current.name);
       // `base` is what the person saw when the dialog opened, for the conflict check (tags merge).
       const base = Object.fromEntries(
         libraryFields.filter((field) => field !== 'rating').map((field) => [field, field === 'tags' ? parseList(start.tags) : start[field]])
@@ -317,173 +495,290 @@ export function EditModelDialog() {
   const set = (field: keyof LibraryForm) => (event: { target: { value: string } }) => setForm((now) => (now ? { ...now, [field]: event.target.value } : now));
   const setSiteField = (field: keyof SiteForm) => (event: { target: { value: string } }) =>
     setSite((now) => (now ? { ...now, [field]: event.target.value } : now));
-  const siteLabel = details ? SITE_LABELS[details.site] : '';
+  const siteLabel = details ? SITE_LABELS[details.site] : model ? SITE_LABELS[siteModelUrl(model)?.site as keyof typeof SITE_LABELS] || '' : '';
+  const hasSite = !!(details || siteNote);
+  const changed = (field: keyof LibraryForm) => libraryChanges.includes(field);
+  const siteChanged = (field: keyof SiteForm) => siteChangeList.includes(field);
+  const sourceIsLink = !!form && /^https?:\/\//i.test(form.source.trim());
+  const fileName = model ? text(model.fileName) || model.filePath.split(/[\\/]/).pop() : '';
 
   return (
-    <ModalDialog
+    <Modal
       id="edit-model-dialog"
-      title="Edit Model"
-      dialogRef={dialogRef}
-      className="edit-model-dialog"
+      open={isOpen}
+      onClose={() => void requestClose()}
+      className="jp-edit"
+      title={
+        <span className="jp-edit__title">
+          Edit Model
+          {fileName && (
+            <span className="jp-meta" title={model?.filePath}>
+              {fileName}
+            </span>
+          )}
+        </span>
+      }
       footer={
         <>
-          <button type="button" id="edit-model-save" className="is-primary" disabled={saving || !form} onClick={save}>
-            Save
-          </button>
-          <button type="button" onClick={close}>
+          <span className="jp-edit__status" role="status">
+            {changeCount ? `${changeCount} ${changeCount === 1 ? 'change' : 'changes'}` : 'No changes yet'}
+          </span>
+          <span className="jp-meta jp-edit__shortcut">Ctrl/⌘ + Enter saves</span>
+          <Button onClick={() => void requestClose()} disabled={saving}>
             Cancel
-          </button>
+          </Button>
+          <Button variant="primary" id="edit-model-save" disabled={saving || !form || !changeCount} onClick={() => void save()}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
         </>
       }
     >
-      {form && name && (
-        <div className="settings-group">
-          <h4>In your library</h4>
-          <div className="form-group">
-            <label htmlFor="edit-model-name">Name</label>
-            <div className="edit-model-name">
-              <input id="edit-model-name" type="text" value={form.name} disabled={!!name.locked} onChange={set('name')} maxLength={200} />
-              {name.extension && <span className="edit-model-extension">{name.extension}</span>}
-            </div>
-            <p className="setting-description">
-              {name.locked || (model?.filePath.startsWith('url::') ? 'The name the library shows.' : 'Renames the file in its folder; it keeps its type.')}
-            </p>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-designer">Designer</label>
-            <input id="edit-model-designer" type="text" list="edit-model-designers" value={form.designer} onChange={set('designer')} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-source">Source</label>
-            <input id="edit-model-source" type="url" value={form.source} onChange={set('source')} placeholder="https://" />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-title">Title</label>
-            <input id="edit-model-title" type="text" list="edit-model-titles" value={form.title} onChange={set('title')} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-license">License</label>
-            <input id="edit-model-license" type="text" list="edit-model-licenses" value={form.license} onChange={set('license')} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-tags">Tags</label>
-            <input id="edit-model-tags" type="text" value={form.tags} onChange={set('tags')} />
-            <p className="setting-description">Separated by commas.</p>
-          </div>
-          {allCategories.length > 0 && (
-            <div className="form-group" id="edit-model-categories">
-              <label htmlFor="edit-model-category">Category › Subcategory</label>
-              <select id="edit-model-category" value={chosen} onChange={(event) => setChosen(event.target.value)}>
-                <option value="">None yet (Categorize Library or AI Tagging places it)</option>
-                {allCategories.map((main) => (
-                  <optgroup key={main.name} label={main.name}>
-                    {/* A Category alone, as it was (it gets a Subcategory at the next sort). */}
-                    {chosen === main.name && <option value={main.name}>{main.name} › (no Subcategory yet)</option>}
-                    {main.subcategories.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {main.name} › {sub}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <p className="setting-description">Chosen here, it stays: Categorize Library and the AI do not change it.</p>
-            </div>
-          )}
-          <div className="form-group">
-            <label htmlFor="edit-model-rating">Rating</label>
-            <select id="edit-model-rating" value={form.rating} onChange={set('rating')}>
-              <option value="0">No rating</option>
-              {[1, 2, 3, 4, 5].map((stars) => (
-                <option key={stars} value={String(stars)}>
-                  {'★'.repeat(stars)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-description">Description</label>
-            <textarea id="edit-model-description" rows={6} value={form.description} onChange={set('description')} />
-            <p className="setting-description">What the model is: its site's or its 3MF's description. Markdown works.</p>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-model-notes">Notes</label>
-            <textarea id="edit-model-notes" rows={4} value={form.notes} onChange={set('notes')} />
-          </div>
-          <datalist id="edit-model-designers">
-            {options.designers.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
-          <datalist id="edit-model-titles">
-            {options.titles.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
-          <datalist id="edit-model-licenses">
-            {options.licenses.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
-        </div>
-      )}
-      {siteNote && (
-        <div className="settings-group">
-          <p className="setting-description">{siteNote}</p>
-        </div>
-      )}
-      {details && site && (
-        <div className="settings-group" id="edit-model-site">
-          <h4>From {siteLabel}</h4>
-          <p className="setting-description">
-            Your changes are kept in JusttPrint and shown instead of what {siteLabel} says, also after Refresh. {siteLabel} itself is not changed.
-          </p>
-          <div className="form-group">
-            <label htmlFor="edit-site-title">Title</label>
-            <input id="edit-site-title" type="text" value={site.title} onChange={setSiteField('title')} maxLength={300} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-site-designer">Designer</label>
-            <input id="edit-site-designer" type="text" value={site.designer} onChange={setSiteField('designer')} maxLength={200} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-site-license">License</label>
-            <input id="edit-site-license" type="text" value={site.license} onChange={setSiteField('license')} maxLength={200} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-site-categories">Categories</label>
-            <input id="edit-site-categories" type="text" value={site.categories} onChange={setSiteField('categories')} />
-            <p className="setting-description">Separated by commas.</p>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-site-tags">Tags</label>
-            <input id="edit-site-tags" type="text" value={site.tags} onChange={setSiteField('tags')} />
-            <p className="setting-description">Separated by commas.</p>
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-site-description">Description</label>
-            <textarea id="edit-site-description" rows={6} value={site.description} onChange={setSiteField('description')} />
-          </div>
-          {details.site === 'makerworld' &&
-            details.profiles.map((profile, index) => (
-              <div className="form-group" key={profile.id}>
-                <label htmlFor={`edit-site-profile-${profile.id}`}>Print profile {index + 1}</label>
-                <input
-                  id={`edit-site-profile-${profile.id}`}
-                  type="text"
-                  value={site[`profile:${profile.id}`]}
-                  onChange={setSiteField(`profile:${profile.id}`)}
-                  maxLength={300}
-                />
-              </div>
-            ))}
-          {!!details.edited?.length && (
-            <button type="button" id="edit-site-reset" onClick={useSiteDetails}>
-              Use {siteLabel}’s Details
+      <div
+        className="jp-edit__body"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && changeCount && !saving) {
+            event.preventDefault();
+            void save();
+          }
+        }}
+      >
+        {hasSite && (
+          <div className="jp-edit__tabs" role="tablist" aria-label="What to edit">
+            <button
+              type="button"
+              role="tab"
+              id="edit-model-tab-library"
+              aria-selected={tab === 'library'}
+              className={cx(tab === 'library' && 'is-active')}
+              onClick={() => setTab('library')}
+            >
+              In your library
+              {libraryChanges.length + (placeChange ? 1 : 0) > 0 && <span className="jp-edit__changed" aria-hidden="true" />}
             </button>
-          )}
-        </div>
-      )}
-    </ModalDialog>
+            <button
+              type="button"
+              role="tab"
+              id="edit-model-tab-site"
+              aria-selected={tab === 'site'}
+              className={cx(tab === 'site' && 'is-active')}
+              onClick={() => setTab('site')}
+            >
+              From {siteLabel || 'the site'}
+              {siteChangeList.length > 0 && <span className="jp-edit__changed" aria-hidden="true" />}
+            </button>
+          </div>
+        )}
+
+        {form && name && (
+          <div className="jp-edit__panel" hidden={tab !== 'library'} role={hasSite ? 'tabpanel' : undefined}>
+            <section className="jp-edit__section" aria-labelledby="edit-model-basics">
+              <h3 className="jp-edit__heading" id="edit-model-basics">
+                Basics
+              </h3>
+              <div className="jp-edit__grid">
+                <Field
+                  label="Name"
+                  htmlFor="edit-model-name"
+                  changed={changed('name')}
+                  wide
+                  hint={
+                    name.locked || (model?.filePath.startsWith('url::') ? 'The name the library shows.' : 'Renames the file in its folder; it keeps its type.')
+                  }
+                >
+                  <div className="jp-edit__name">
+                    <input
+                      className="jp-input"
+                      id="edit-model-name"
+                      type="text"
+                      value={form.name}
+                      disabled={!!name.locked}
+                      onChange={set('name')}
+                      maxLength={200}
+                    />
+                    {name.extension && <span className="jp-edit__extension">{name.extension}</span>}
+                  </div>
+                </Field>
+                <Field label="Title" htmlFor="edit-model-title" changed={changed('title')} hint="Shown instead of the file name.">
+                  <input className="jp-input" id="edit-model-title" type="text" list="edit-model-titles" value={form.title} onChange={set('title')} />
+                </Field>
+                <Field label="Designer" htmlFor="edit-model-designer" changed={changed('designer')}>
+                  <input
+                    className="jp-input"
+                    id="edit-model-designer"
+                    type="text"
+                    list="edit-model-designers"
+                    value={form.designer}
+                    onChange={set('designer')}
+                  />
+                </Field>
+                <Field label="Source" htmlFor="edit-model-source" changed={changed('source')} wide>
+                  <div className="jp-edit__with-button">
+                    <input className="jp-input" id="edit-model-source" type="url" value={form.source} onChange={set('source')} placeholder="https://" />
+                    {sourceIsLink && (
+                      <a
+                        className="jp-btn jp-btn--secondary jp-btn--md"
+                        href={form.source.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open the source in a new tab"
+                      >
+                        <ExternalLink size={16} aria-hidden="true" />
+                      </a>
+                    )}
+                  </div>
+                </Field>
+                <Field label="License" htmlFor="edit-model-license" changed={changed('license')}>
+                  <input className="jp-input" id="edit-model-license" type="text" list="edit-model-licenses" value={form.license} onChange={set('license')} />
+                </Field>
+                <Field label="Rating" changed={changed('rating')}>
+                  <StarPicker value={Number(form.rating) || 0} onChange={(stars) => setForm((now) => (now ? { ...now, rating: String(stars) } : now))} />
+                </Field>
+              </div>
+            </section>
+
+            <section className="jp-edit__section" aria-labelledby="edit-model-organize">
+              <h3 className="jp-edit__heading" id="edit-model-organize">
+                Organize
+              </h3>
+              <div className="jp-edit__grid">
+                {allCategories.length > 0 && (
+                  <Field
+                    label="Category › Subcategory"
+                    htmlFor="edit-model-category"
+                    changed={placeChange}
+                    wide
+                    hint="Chosen here, it stays: Categorize Library and the AI do not change it."
+                  >
+                    <select className="jp-input" id="edit-model-category" value={chosen} onChange={(event) => setChosen(event.target.value)}>
+                      <option value="">None yet (Categorize Library or AI Tagging places it)</option>
+                      {allCategories.map((main) => (
+                        <optgroup key={main.name} label={main.name}>
+                          {/* A Category alone, as it was (it gets a Subcategory at the next sort). */}
+                          {chosen === main.name && <option value={main.name}>{main.name} › (no Subcategory yet)</option>}
+                          {main.subcategories.map((sub) => (
+                            <option key={sub} value={sub}>
+                              {main.name} › {sub}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                <Field label="Tags" htmlFor="edit-model-tags" changed={changed('tags')} wide hint="Press Enter or type a comma to add a tag.">
+                  <TagChips
+                    id="edit-model-tags"
+                    value={form.tags}
+                    onChange={(next) => setForm((now) => (now ? { ...now, tags: next } : now))}
+                    draft={tagDraft}
+                    onDraft={setTagDraft}
+                    suggestions={options.tags}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            <section className="jp-edit__section" aria-labelledby="edit-model-about">
+              <h3 className="jp-edit__heading" id="edit-model-about">
+                About
+              </h3>
+              <div className="jp-edit__grid">
+                <Field
+                  label="Description"
+                  htmlFor="edit-model-description"
+                  changed={changed('description')}
+                  wide
+                  hint="What the model is: its site's or its 3MF's description. Markdown works."
+                >
+                  <textarea className="jp-input" id="edit-model-description" rows={6} value={form.description} onChange={set('description')} />
+                </Field>
+                <Field
+                  label="Notes"
+                  htmlFor="edit-model-notes"
+                  changed={changed('notes')}
+                  wide
+                  hint="Your own notes: settings that worked, what to fix next time."
+                >
+                  <textarea className="jp-input" id="edit-model-notes" rows={4} value={form.notes} onChange={set('notes')} />
+                </Field>
+              </div>
+            </section>
+
+            <datalist id="edit-model-designers">
+              {options.designers.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+            <datalist id="edit-model-titles">
+              {options.titles.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+            <datalist id="edit-model-licenses">
+              {options.licenses.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+          </div>
+        )}
+
+        {hasSite && (
+          <div className="jp-edit__panel" hidden={tab !== 'site'} role="tabpanel" id="edit-model-site">
+            {siteNote && <p className="jp-meta">{siteNote}</p>}
+            {details && site && (
+              <>
+                <p className="jp-meta jp-edit__intro">
+                  Your changes are kept in JusttPrint and shown instead of what {siteLabel} says, also after Refresh. {siteLabel} itself is not changed.
+                </p>
+                <div className="jp-edit__grid">
+                  <Field label="Title" htmlFor="edit-site-title" changed={siteChanged('title')} wide>
+                    <input className="jp-input" id="edit-site-title" type="text" value={site.title} onChange={setSiteField('title')} maxLength={300} />
+                  </Field>
+                  <Field label="Designer" htmlFor="edit-site-designer" changed={siteChanged('designer')}>
+                    <input className="jp-input" id="edit-site-designer" type="text" value={site.designer} onChange={setSiteField('designer')} maxLength={200} />
+                  </Field>
+                  <Field label="License" htmlFor="edit-site-license" changed={siteChanged('license')}>
+                    <input className="jp-input" id="edit-site-license" type="text" value={site.license} onChange={setSiteField('license')} maxLength={200} />
+                  </Field>
+                  <Field label="Categories" htmlFor="edit-site-categories" changed={siteChanged('categories')} hint="Separated by commas.">
+                    <input className="jp-input" id="edit-site-categories" type="text" value={site.categories} onChange={setSiteField('categories')} />
+                  </Field>
+                  <Field label="Tags" htmlFor="edit-site-tags" changed={siteChanged('tags')} hint="Separated by commas.">
+                    <input className="jp-input" id="edit-site-tags" type="text" value={site.tags} onChange={setSiteField('tags')} />
+                  </Field>
+                  <Field label="Description" htmlFor="edit-site-description" changed={siteChanged('description')} wide>
+                    <textarea className="jp-input" id="edit-site-description" rows={6} value={site.description} onChange={setSiteField('description')} />
+                  </Field>
+                  {details.site === 'makerworld' &&
+                    details.profiles.map((profile, index) => (
+                      <Field
+                        key={profile.id}
+                        label={`Print profile ${index + 1}`}
+                        htmlFor={`edit-site-profile-${profile.id}`}
+                        changed={siteChanged(`profile:${profile.id}`)}
+                        wide
+                      >
+                        <input
+                          className="jp-input"
+                          id={`edit-site-profile-${profile.id}`}
+                          type="text"
+                          value={site[`profile:${profile.id}`]}
+                          onChange={setSiteField(`profile:${profile.id}`)}
+                          maxLength={300}
+                        />
+                      </Field>
+                    ))}
+                </div>
+                {!!details.edited?.length && (
+                  <Button id="edit-site-reset" onClick={() => void useSiteDetails()}>
+                    Use {siteLabel}’s Details
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

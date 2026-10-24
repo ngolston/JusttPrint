@@ -31,6 +31,7 @@
 @import './collections.css';
 @import './makerworld.css';
 @import './model-page.css';
+@import './edit-model.css';
 @import './media.css';
 @import './library-frame.css';
 /* Last: the narrower sizes override the layout above. */

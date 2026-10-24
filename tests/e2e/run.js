@@ -1253,9 +1253,18 @@ async function browserChecks(base, wsUrl, session) {
       await page.click('#jp-details-edit');
       const editOpen = await page.waitForSelector('#edit-model-dialog[open] #edit-model-source', { timeout: 10000 }).catch(() => null);
       if (editOpen) {
+        const saveOffAtFirst = await page.isDisabled('#edit-model-save');
         await page.fill('#edit-model-source', 'https://example.com/e2e-source');
         await page.fill('#edit-model-designer', 'E2E Panel Designer');
         await page.fill('#edit-model-tags', 'e2e-panel-tag');
+        await page.keyboard.press('Enter');
+        const chipAdded = await page.isVisible('#edit-model-dialog .jp-edit__chip:has-text("e2e-panel-tag")');
+        const counted = ((await page.textContent('#edit-model-dialog .jp-edit__status')) || '').trim();
+        check(
+          'the Edit dialog saves only after a change, adds a tag as a chip and counts the changes',
+          saveOffAtFirst && chipAdded && counted === '3 changes' && (await page.isEnabled('#edit-model-save')),
+          JSON.stringify({ saveOffAtFirst, chipAdded, counted })
+        );
         await page.click('#edit-model-save');
       }
       const hasPanelTag = async () => ((await panelModel()).tags || []).some((t) => (t.name || t) === 'e2e-panel-tag');
@@ -1371,7 +1380,7 @@ async function browserChecks(base, wsUrl, session) {
           await page.fill('#edit-model-name', values.name);
           await page.fill('#edit-model-license', values.license);
           await page.fill('#edit-model-notes', values.notes);
-          await page.selectOption('#edit-model-rating', values.rating);
+          await page.click(`#edit-model-rating-${values.rating}`);
           await page.click('#edit-model-save');
           await page.waitForSelector('#edit-model-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
           return shownStem;
@@ -1424,7 +1433,7 @@ async function browserChecks(base, wsUrl, session) {
         await page.fill('#edit-model-license', 'E2E Undo License');
         await page.fill('#edit-model-notes', 'e2e undo notes');
         await page.fill('#edit-model-tags', [...(before.tags || []).map((t) => t.name || t), 'e2e-undo-tag'].join(', '));
-        await page.selectOption('#edit-model-rating', '5');
+        await page.click('#edit-model-rating-5');
         await page.selectOption('#edit-model-category', 'Puzzles').catch(() => {});
         await page.click('#edit-model-save');
         const savedForUndo = await waitFor(
@@ -1701,7 +1710,12 @@ async function browserChecks(base, wsUrl, session) {
 
         // New Version on the model's page keeps the old file; History (sidebar) lists it with the Edit dialog's changes above.
         const original = fs.readFileSync(cardPath);
-        const canUpload = await page.isVisible('#jp-upload-version');
+        // Upload and New Version are in the page's More menu.
+        await page.click('#jp-model-more');
+        const canUpload =
+          (await page.isVisible('.jp-menu [role="menuitem"]:has-text("Upload New Version")')) &&
+          (await page.isVisible('.jp-menu [role="menuitem"]:has-text("Upload Files")'));
+        await page.keyboard.press('Escape');
         // The test library is inside the app's folder, where uploads are refused: the new file is put next to the model as an upload would.
         const uploadedCopy = path.join(folder, `e2e-new-version${path.extname(cardPath)}`);
         fs.writeFileSync(uploadedCopy, original);
@@ -6006,8 +6020,10 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';
     });
-    await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 });
-    await editorPage.click('#jp-upload-button');
+    // Upload and Add Links are in the top bar's Add New Model menu (the library's toolbar has them on phones).
+    await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 });
+    await editorPage.click('#jp-topbar-add-button');
+    await editorPage.click('.jp-topbar [role="menuitem"]:has-text("Upload")');
     const askForInbox = await editorPage
       .waitForSelector('dialog[id^="browser-message-"][open]:has-text("Upload folder first")', { timeout: 10000 })
       .catch(() => null);
@@ -6021,8 +6037,10 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';
     });
-    await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 });
-    await editorPage.click('#jp-upload-button');
+    // Upload and Add Links are in the top bar's Add New Model menu (the library's toolbar has them on phones).
+    await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 });
+    await editorPage.click('#jp-topbar-add-button');
+    await editorPage.click('.jp-topbar [role="menuitem"]:has-text("Upload")');
     await editorPage.waitForSelector('#jp-upload-input', { state: 'attached', timeout: 5000 });
     check(
       'the dialog uploads into the Upload folder, with no other folder to choose',
@@ -6086,7 +6104,7 @@ async function accountChecks(base, wsUrl, admin) {
     const modelDir = path.dirname(uploadedTo);
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
     const pageMessage = 'dialog[id^="browser-message-"][open]';
-    await editorPage.waitForSelector('#jp-model-upload', { timeout: 10000 }).catch(() => {});
+    await editorPage.waitForSelector('#jp-model-more', { timeout: 10000 }).catch(() => {});
     await editorPage.setInputFiles('#jp-model-upload-file', [
       { name: 'Photo.png', mimeType: 'image/png', buffer: png },
       { name: 'Second part.stl', mimeType: 'application/octet-stream', buffer: cubeBytes },
@@ -6156,7 +6174,7 @@ async function accountChecks(base, wsUrl, admin) {
       },
       path.join(shared, 'Gear.stl')
     );
-    await editorPage.waitForSelector('#jp-model-upload', { timeout: 15000 }).catch(() => {});
+    await editorPage.waitForSelector('#jp-model-more', { timeout: 15000 }).catch(() => {});
     await editorPage.setInputFiles('#jp-model-upload-file', [{ name: 'Gear notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }]);
     const askOwn = await editorPage.waitForSelector(`${pageMessage}:has-text("no folder of its own")`, { timeout: 15000 }).catch(() => null);
     if (askOwn) await editorPage.click(`${pageMessage} button:text-is("Make Its Folder")`);
@@ -6183,10 +6201,11 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';
     });
-    await editorPage.waitForSelector('#jp-upload-button', { timeout: 10000 }).catch(() => {});
+    await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 }).catch(() => {});
 
     // Add Links: pasted links are checked as you type.
-    await editorPage.click('#jp-links-button');
+    await editorPage.click('#jp-topbar-add-button');
+    await editorPage.click('.jp-topbar [role="menuitem"]:has-text("Add Links")');
     await editorPage.fill(
       '#jp-links-text',
       'https://www.printables.com/model/3161-3d-benchy\nhttps://makerworld.com/en/models/1000000-lens-cap\nnot a link https://example.com/x'

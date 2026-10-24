@@ -103,7 +103,7 @@ function FolderSelect({ container, buttonRef }: { container: HTMLElement; button
   const current = options.find((value) => pathsEqual(value, directory)) ?? directory;
   return createPortal(
     <div className="form-group">
-      <label htmlFor="folder-select">Folders:</label>
+      <label htmlFor="folder-select">Folder</label>
       <div className="dropdown-with-list">
         <select
           id="folder-select"

@@ -47,6 +47,125 @@
 .jp-model-page__byline .jp-link-button {
   text-decoration: none;
 }
+/* The page's header (layout A): the name and its facts on the left, the actions on the right. */
+.jp-model-page__header--page {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--jp-space-3) var(--jp-space-5);
+}
+.jp-model-page__heading {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+.jp-model-page__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2) var(--jp-space-3);
+  margin-top: var(--jp-space-2);
+}
+.jp-model-page__fact {
+  padding: 2px var(--jp-space-2);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  font-size: var(--jp-text-meta);
+}
+.jp-model-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+/* Every button in the row the same height (Open in Slicer is a large button elsewhere). */
+.jp-model-page__toolbar .jp-btn,
+.jp-model-page__toolbar .jp-icon-btn {
+  height: var(--jp-control-height-lg);
+}
+.jp-model-page__toolbar .jp-icon-btn {
+  width: var(--jp-control-height-lg);
+}
+.jp-model-page__toolbar .jp-split__more {
+  width: 44px;
+  padding: 0;
+  border-left: 1px solid rgba(4, 18, 26, 0.35);
+}
+.jp-model-page__toolbar .is-favorited {
+  color: var(--jp-danger);
+}
+.jp-model-page__toolbar .jp-model-upload__busy {
+  flex-basis: 100%;
+  text-align: right;
+}
+/* Details: a short folder name with its full path to copy. */
+.jp-model-page__folder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-1);
+  min-width: 0;
+}
+.jp-model-page__folder .jp-link-button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-model-page__hidden-fields {
+  margin: var(--jp-space-3) 0 0;
+}
+/* The model's files as rows: a small picture, the name and size, then 3D, Open and Download. */
+.jp-model-page__files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+}
+.jp-model-page__file-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jp-model-page__file-rows .jp-model-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-2) 0;
+  border: 0;
+  border-top: 1px solid var(--jp-border);
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+}
+.jp-model-page__file-rows .jp-model-row.is-current .jp-model-row__name {
+  color: var(--jp-accent);
+}
+.jp-model-row__picture {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-bg-2);
+}
+.jp-model-row__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.jp-model-row__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-model-row__buttons {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
 .jp-model-page__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);

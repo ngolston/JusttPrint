@@ -69,7 +69,7 @@ export function PerformanceSettingsDialog() {
       <div className="settings-group">
         <h4>File Processing</h4>
         <div className="form-group">
-          <label htmlFor="max-file-size">Max File Size (MB):</label>
+          <label htmlFor="max-file-size">Max File Size (MB)</label>
           <input
             type="number"
             id="max-file-size"

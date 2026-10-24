@@ -125,8 +125,9 @@ function LibraryEmpty() {
 }
 
 /**
- * "Your Library" above the grid (spec §15): state tabs, the model count, the view buttons and
- * Folders toggle (moved in from the old toolbar), the Filter popover, and the active filters.
+ * The Library's header: the title with the model count, Filter and Edit on the right; then the
+ * state tabs, with the view buttons and the Folders and sidebar toggles on the right (Upload and
+ * Add Links only on phones, where the top bar has no Add New Model); the active filters under it.
  */
 export function LibraryHeader() {
   const [slot] = useState(() => document.querySelector<HTMLElement>('.grid-view-selector'));
@@ -152,55 +153,31 @@ export function LibraryHeader() {
   return createPortal(
     <div className="jp jp-library-header">
       <div className="jp-library-header__top">
-        <h1 className="jp-library-header__title">Your Library</h1>
-        <div className="jp-library-header__bar">
-          <Tabs<LibraryTab | 'none'>
-            label="Show"
-            items={LIBRARY_TABS}
-            value={tab ?? 'none'}
-            onChange={(id) => {
-              if (id === 'none') return;
-              const info = tabInfo(id);
-              applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
-            }}
-          />
-          <div className="jp-library-header__tools">
+        <div className="jp-library-header__heading">
+          <h1 className="jp-library-header__title">
+            Library
             <span className="jp-library-header__count" id="jp-library-count" title={`${total.toLocaleString()} models in the library`}>
               {view.toLocaleString()} {view === 1 ? 'model' : 'models'}
             </span>
-            <div className="jp-library-header__rail" ref={setRail} />
-            <div className="jp-library-header__view" ref={setTools} />
-            <IconButton
-              icon={FolderOpen}
-              id="jp-folders-toggle"
-              className="jp-library-header__sidebar"
-              pressed={folders}
-              label={folders ? 'Show every file (folders as models is on)' : 'Folders as models: each folder of model files as one card'}
-              onClick={() => setFoldersAsModels(!folders)}
-            />
-            <IconButton
-              icon={PanelRight}
-              id="jp-sidebar-toggle"
-              className="jp-library-header__sidebar"
-              pressed={sidebar}
-              label={sidebar ? 'Hide the details sidebar (a click on a model opens its page)' : 'Show the details sidebar'}
-              onClick={() => setSidebarOn(!sidebar)}
-            />
+          </h1>
+          <div className="jp-library-header__actions">
+            <UnorganizedButton directory={state.directory} />
             {canUpload && (
               <Button
                 icon={Upload}
                 id="jp-upload-button"
+                className="jp-library-header__add"
                 onClick={() => window.openUpload?.()}
                 title="Upload model files into a library folder (or drop them on the page)"
               >
                 Upload
               </Button>
             )}
-            <UnorganizedButton directory={state.directory} />
             {canUpload && (
               <Button
                 icon={Link2}
                 id="jp-links-button"
+                className="jp-library-header__add"
                 onClick={() => window.openLinkImport?.()}
                 title="Add models from Printables, Thingiverse or MakerWorld links"
               >
@@ -211,7 +188,7 @@ export function LibraryHeader() {
               type="button"
               ref={setFilterButton}
               id="jp-filter-button"
-              className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}`}
+              className={`jp-btn jp-btn--secondary jp-btn--md${open ? ' is-open' : ''}${extra > 0 ? ' has-filters' : ''}`}
               aria-expanded={open}
               aria-controls="jp-filter-popover"
               onClick={() => setOpen(!open)}
@@ -231,9 +208,7 @@ export function LibraryHeader() {
                 className={`jp-btn jp-btn--${editing ? 'primary' : 'secondary'} jp-btn--md`}
                 aria-pressed={editing}
                 title={
-                  editing
-                    ? 'Stop editing'
-                    : 'Edit: click models and groups to change them. One model: its details; more: Multi-edit, where you can also make a group'
+                  editing ? 'Stop editing' : 'Edit: click models to choose them. One model: its details; more: Multi-edit, to change them all or merge them'
                 }
                 onClick={() => toggleMultiEdit()}
               >
@@ -243,11 +218,43 @@ export function LibraryHeader() {
             )}
           </div>
         </div>
+        <div className="jp-library-header__bar">
+          <Tabs<LibraryTab | 'none'>
+            label="Show"
+            items={LIBRARY_TABS}
+            value={tab ?? 'none'}
+            onChange={(id) => {
+              if (id === 'none') return;
+              const info = tabInfo(id);
+              applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
+            }}
+          />
+          <div className="jp-library-header__tools">
+            <div className="jp-library-header__rail" ref={setRail} />
+            <div className="jp-library-header__view" ref={setTools} />
+            <IconButton
+              icon={FolderOpen}
+              id="jp-folders-toggle"
+              className="jp-library-header__sidebar"
+              pressed={folders}
+              label={folders ? 'Show every file (folders as models is on)' : 'Folders as models: each folder of model files as one card'}
+              onClick={() => setFoldersAsModels(!folders)}
+            />
+            <IconButton
+              icon={PanelRight}
+              id="jp-sidebar-toggle"
+              className="jp-library-header__sidebar"
+              pressed={sidebar}
+              label={sidebar ? 'Hide the details sidebar (a click on a model opens its page)' : 'Show the details sidebar'}
+              onClick={() => setSidebarOn(!sidebar)}
+            />
+          </div>
+        </div>
         <div className="jp-library-header__chips" ref={setChips} />
         <OrganizeNotice directory={state.directory} />
         {editing && (
           <p className="jp-library-header__editing" id="jp-edit-hint" role="status">
-            Editing: click models and groups to choose them. One model shows its details; more open Multi-edit, where you can also make a group.
+            Editing: click models to choose them. One model shows its details; more open Multi-edit, where you can change them all at once or merge them.
           </p>
         )}
         {/* Below the chips, so it never covers them (Clear All, AND / OR / NOT). */}

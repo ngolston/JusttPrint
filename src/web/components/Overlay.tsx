@@ -9,6 +9,8 @@ interface OverlayProps {
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  /** The dialog element's id (tests and styles find it by it). */
+  id?: string;
 }
 
 /**
@@ -48,10 +50,10 @@ function Header({ title, onClose }: { title: ReactNode; onClose: () => void }) {
 }
 
 /** A centred dialog for focused tasks (spec §38 Modal). */
-export function Modal({ open, onClose, title, children, footer, className }: OverlayProps) {
+export function Modal({ open, onClose, title, children, footer, className, id }: OverlayProps) {
   const ref = useDialog(open, onClose);
   return (
-    <dialog ref={ref} className={cx('jp jp-modal', className)}>
+    <dialog ref={ref} id={id} className={cx('jp jp-modal', className)}>
       <Header title={title} onClose={onClose} />
       <div className="jp-overlay__body">{children}</div>
       {footer && <footer className="jp-overlay__footer">{footer}</footer>}

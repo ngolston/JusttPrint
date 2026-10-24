@@ -249,7 +249,7 @@ export function StlHomeDialog() {
         <input type="checkbox" id={`stl-home-use-${id}`} checked={form[useKey]} onChange={(event) => set(useKey, event.target.checked)} />
         <label htmlFor={`stl-home-use-${id}`}>Use folder path for {label}</label>
       </div>
-      <label htmlFor={`stl-home-${id}-index`}>Folder level:</label>
+      <label htmlFor={`stl-home-${id}-index`}>Folder level</label>
       <input type="number" id={`stl-home-${id}-index`} min="0" value={form[indexKey]} onChange={(event) => set(indexKey, event.target.value)} />
     </div>
   );
@@ -304,7 +304,7 @@ export function StlHomeDialog() {
         )}
       </div>
       <div className="form-group" id="stl-home-update-frequency-group">
-        <label htmlFor="stl-home-update-frequency">Update Frequency (minutes):</label>
+        <label htmlFor="stl-home-update-frequency">Update Frequency (minutes)</label>
         <input
           type="number"
           id="stl-home-update-frequency"
@@ -343,7 +343,7 @@ export function StlHomeDialog() {
         </div>
         <div id="stl-home-path-metadata-options" className={`stl-home-path-metadata-options${form.pathMetadata ? '' : ' grayed'}`}>
           <div className="form-group stl-home-path-direction-row">
-            <label htmlFor="stl-home-path-direction">Use folder path:</label>
+            <label htmlFor="stl-home-path-direction">Use folder path</label>
             <select id="stl-home-path-direction" value={form.direction} onChange={(event) => set('direction', event.target.value as Form['direction'])}>
               <option value="fromModel">From Model</option>
               <option value="fromRoot">From Root</option>

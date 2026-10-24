@@ -103,22 +103,37 @@ export function useModelUpload(filePath: string) {
   return { upload, busy };
 }
 
-/** The Upload button: any files (several at once) into the model's folder. */
-export function ModelUploadButton({ upload, busy, id }: { upload: (files: File[]) => Promise<void>; busy: string; id: string }) {
+/**
+ * The Upload button: any files (several at once) into the model's folder. `buttonless` (the model
+ * page, whose More menu opens it): only the file picker (`#<id>-file`) and the progress line.
+ */
+export function ModelUploadButton({
+  upload,
+  busy,
+  id,
+  buttonless = false
+}: {
+  upload: (files: File[]) => Promise<void>;
+  busy: string;
+  id: string;
+  buttonless?: boolean;
+}) {
   const canEdit = useCan('editor');
   const input = useRef<HTMLInputElement>(null);
   if (!canEdit) return null;
   return (
     <>
-      <Button
-        icon={FolderUp}
-        id={id}
-        disabled={!!busy}
-        title="Add files to this model: pictures, videos, documents, more model files or anything else (or drop them on the page)"
-        onClick={() => input.current?.click()}
-      >
-        {busy ? 'Uploading…' : 'Upload'}
-      </Button>
+      {!buttonless && (
+        <Button
+          icon={FolderUp}
+          id={id}
+          disabled={!!busy}
+          title="Add files to this model: pictures, videos, documents, more model files or anything else (or drop them on the page)"
+          onClick={() => input.current?.click()}
+        >
+          {busy ? 'Uploading…' : 'Upload'}
+        </Button>
+      )}
       <input
         ref={input}
         type="file"
