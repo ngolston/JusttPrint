@@ -90,14 +90,15 @@ export function KitChecklist({ target, showSingle = false }: { target: string; s
   );
 }
 
-/** The " - "-separated start every label shares ("Orbiter - "), or '' (one part, or nothing in common). */
+/** The start every label shares, up to a " - " or " · " ("Orbiter - "), or '' (one part, or nothing in common). */
 export function sharedPrefix(labels: string[]): string {
   if (labels.length < 2) return '';
   let prefix = labels[0];
   for (const label of labels) {
     while (prefix && !label.startsWith(prefix)) prefix = prefix.slice(0, -1);
   }
-  const cut = prefix.lastIndexOf(' - ');
+  // Up to the last separator: " - " in a model's plates, " · " in a folder's (model · plate).
+  const cut = Math.max(prefix.lastIndexOf(' - '), prefix.lastIndexOf(' · '));
   return cut > 0 ? prefix.slice(0, cut + 3) : '';
 }
 
