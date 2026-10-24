@@ -816,19 +816,42 @@ body.jp-shell-on #model-details .details-name-field {
   gap: var(--jp-space-1);
 }
 
-/* Log Print: the plates of a 3MF (print/PrintHistory.tsx) */
+/* Log Print: the plates of a 3MF as chips (print/PrintHistory.tsx) */
+.log-print-plates__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--jp-space-2);
+}
+.log-print-plates__all {
+  display: inline-flex;
+  gap: var(--jp-space-3);
+  font-size: var(--jp-text-small);
+}
 .log-print-plates {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 180px;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 150px;
+  margin-top: 6px;
   overflow-y: auto;
 }
 .log-print-plates .checkbox-container {
-  display: flex;
+  flex: none;
+  width: auto !important;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  font-size: var(--jp-text-meta);
+  cursor: pointer;
+}
+.log-print-plates .checkbox-container:has(input:checked) {
+  border-color: var(--jp-accent);
+  background: var(--jp-accent-soft);
 }
 
 /* Multi-edit's Delete (details/MultiEditPanel.tsx). */

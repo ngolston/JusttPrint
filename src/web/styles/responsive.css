@@ -430,6 +430,10 @@
   }
   .jp-dup-options {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'mode'
+      'scope'
+      'keep';
   }
   .jp-dup-group .jp-dup-copy {
     flex-basis: 220px;

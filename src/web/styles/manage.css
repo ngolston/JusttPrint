@@ -22,6 +22,9 @@
 .jp-dup-options {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  grid-template-areas:
+    'mode mode'
+    'scope keep';
   gap: var(--jp-space-3) var(--jp-space-6);
   padding: var(--jp-space-4);
   border: 1px solid var(--jp-border);
@@ -30,7 +33,71 @@
 }
 .jp-dup .dedup-scope,
 .jp-dup .dedup-preferred {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
   margin: 0;
+}
+.jp-dup #dedup-mode {
+  grid-area: mode;
+}
+.jp-dup #dedup-scope-container {
+  grid-area: scope;
+}
+.jp-dup .dedup-preferred {
+  grid-area: keep;
+}
+.jp-dup .dedup-scope-label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+.jp-dup .dedup-scope-summary,
+.jp-dup .dedup-preferred-row {
+  flex-basis: 100%;
+}
+/* The choices as pills: the radio covers its pill (invisible), so it stays clickable and checkable. */
+.jp-dup .dedup-scope-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  margin: 0;
+  padding: 0 var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-bg);
+  cursor: pointer;
+  transition:
+    border-color var(--jp-transition),
+    background-color var(--jp-transition);
+}
+.jp-dup .dedup-scope-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.jp-dup .dedup-scope-option:hover {
+  border-color: var(--jp-border-strong);
+}
+.jp-dup .dedup-scope-option:has(input:checked) {
+  border-color: var(--jp-accent);
+  background: var(--jp-accent-soft);
+  color: var(--jp-text);
+}
+.jp-dup .dedup-scope-option:has(input:focus-visible) {
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-dup .dedup-scope-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.jp-dup .dedup-scope-option.disabled input {
+  cursor: not-allowed;
 }
 .jp-dup .dedup-scope-label {
   color: var(--jp-text);

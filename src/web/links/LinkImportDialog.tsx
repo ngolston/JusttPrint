@@ -442,7 +442,7 @@ export function LinkImportDialog() {
       }
     >
       <label className="jp-label" htmlFor="jp-links-text">
-        Model links from Printables, Thingiverse or MakerWorld, one per line
+        Links from Printables, Thingiverse or MakerWorld, one per line
       </label>
       <textarea
         id="jp-links-text"

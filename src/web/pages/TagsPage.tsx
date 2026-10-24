@@ -144,7 +144,7 @@ export function TagsPage() {
             {list ? `${list.length} ${list.length === 1 ? 'tag' : 'tags'}${unused ? ` • ${unused} unused` : ''}` : 'Organize your models with tags.'}
           </p>
         </div>
-        <Button icon={Sparkles} onClick={() => window.openAiConfig?.()}>
+        <Button icon={Sparkles} onClick={() => window.openAiTagging?.()}>
           AI Tagging
         </Button>
       </header>

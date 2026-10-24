@@ -72,6 +72,7 @@
 
 .jp-hero__figure {
   position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -99,10 +100,14 @@
   opacity: 0.35;
 }
 .jp-hero__figure figcaption {
+  max-width: 100%;
+  min-width: 0;
   margin-top: var(--jp-space-1);
 }
 .jp-hero__caption {
   all: unset;
+  /* A block, so the width limit and the ellipsis apply (it ran over the stats on tablets). */
+  display: block;
   max-width: 100%;
   font-size: var(--jp-text-small);
   color: var(--jp-text-3);

@@ -1584,3 +1584,12 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   font-size: var(--jp-text-meta);
   font-variant-numeric: tabular-nums;
 }
+
+/* Field names in Upload and Add Links read as labels, not as small capitals. */
+.jp-upload .jp-label {
+  color: var(--jp-text);
+  font-size: var(--jp-text-meta);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}

@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Boxes, FolderOpen, FolderPlus, Library, Pencil } from 'lucide-react';
+import { ArrowLeft, Boxes, Copy, FolderOpen, FolderPlus, Library, Pencil } from 'lucide-react';
 import { isPreviewablePath } from '../preview/studio';
 import { callAction, LIBRARY_CHANGED } from '../api';
-import { Button, cx } from '../components/Button';
+import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { Prop } from '../details/ModelDetailsPanel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { KitChecklist } from '../kits/KitChecklist';
-import { folderFilterFor, formatFileSize } from '../library/paths';
+import { folderCrumbs, folderFilterFor, formatFileSize } from '../library/paths';
+import { stlHomeDirectories } from '../scan/stlHome';
 import { render as renderMarkdown } from '../notes/markdown';
 import { onServerEvent, showMessage } from '../page';
 import { useCan } from '../session';
@@ -16,7 +17,7 @@ import { navigate } from '../shell/routes';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import { showCategory } from './CategoriesPage';
 import { ModelMediaSection } from '../media/ModelMediaSection';
-import { FileCard, type FolderFile } from './ModelPage';
+import { FileRow, type FolderFile } from './ModelPage';
 
 /** A folder as a model (get-folder, src/core/folder-models.js). */
 interface Folder {
@@ -152,6 +153,12 @@ export function FolderPage({ path }: { path: string }) {
   const canEdit = useCan('editor');
   const [folder, setFolder] = useState<Folder | null | undefined>(undefined);
   const [slicers, setSlicers] = useState<Slicer[]>([]);
+  const [libraryRoots, setLibraryRoots] = useState<string[]>([]);
+  useEffect(() => {
+    void stlHomeDirectories()
+      .then(setLibraryRoots)
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     callAction<Folder | null>('get-folder', path).then(setFolder, () => setFolder(null));
@@ -196,25 +203,27 @@ export function FolderPage({ path }: { path: string }) {
   }
 
   const paths = folder.files.map((file) => file.filePath);
-  const parent = folder.path.split(/[\\/]/).slice(0, -1).pop() || '';
-  const list = (items: string[], onPick?: (item: string) => void) =>
-    items.length ? (
-      <span className="jp-details__categories">
-        {items.map((item) =>
-          onPick ? (
-            <button key={item} type="button" className="jp-chip" onClick={() => onPick(item)}>
-              {item}
-            </button>
-          ) : (
-            <span key={item} className="jp-chip">
-              {item}
-            </span>
-          )
-        )}
-      </span>
-    ) : (
-      '—'
-    );
+  // Library / Toys / Robots: the folders above this one, below the library folder.
+  const crumbs = folderCrumbs(folder.path, libraryRoots).slice(0, -1);
+  const showFolder = () => showInLibrary(() => filterActions.setDirectory(folderFilterFor(folder.files[0].filePath)));
+  const list = (items: string[], onPick?: (item: string) => void) => (
+    <span className="jp-details__categories">
+      {items.map((item) =>
+        onPick ? (
+          <button key={item} type="button" className="jp-chip" onClick={() => onPick(item)}>
+            {item}
+          </button>
+        ) : (
+          <span key={item} className="jp-chip">
+            {item}
+          </span>
+        )
+      )}
+    </span>
+  );
+  const facts = [`${folder.files.length} ${folder.files.length === 1 ? 'file' : 'files'}`, folder.size ? formatFileSize(folder.size) : '']
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="jp-page__inner jp-model-page jp-folder-page" data-folder={folder.path}>
@@ -223,24 +232,63 @@ export function FolderPage({ path }: { path: string }) {
           <ArrowLeft size={16} aria-hidden="true" />
           Library
         </button>
-        {parent && (
-          <>
+        {crumbs.map((crumb) => (
+          <span key={crumb.path} className="jp-model-page__crumb">
             <span aria-hidden="true">/</span>
-            <span>{parent}</span>
-          </>
-        )}
-        <span aria-hidden="true">/</span>
-        <span className="jp-model-page__crumb-here">{folder.name}</span>
+            <button
+              type="button"
+              className="jp-link-button"
+              title={`Show the folder ${crumb.path}`}
+              onClick={() => showInLibrary(() => filterActions.setDirectory(crumb.path))}
+            >
+              {crumb.label}
+            </button>
+          </span>
+        ))}
       </nav>
 
-      <header className="jp-model-page__header">
-        <h1 className="jp-page-title" id="jp-folder-title">
-          {folder.name}
-        </h1>
-        <p className="jp-model-page__byline">
-          {folder.files.length} {folder.files.length === 1 ? 'file' : 'files'}
-          {folder.designers.length ? ` · by ${folder.designers.join(', ')}` : ''}
-        </p>
+      <header className="jp-model-page__header jp-model-page__header--page">
+        <div className="jp-model-page__heading">
+          <h1 className="jp-page-title" id="jp-folder-title" title={folder.path}>
+            {folder.name}
+          </h1>
+          <div className="jp-model-page__byline jp-model-page__facts">
+            {folder.designers.slice(0, 3).map((name) => (
+              <button key={name} type="button" className="jp-link-button" onClick={() => showInLibrary(() => filterActions.setValue('designer', name))}>
+                By {name}
+              </button>
+            ))}
+            {folder.categories.length ? (
+              <button type="button" className="jp-link-button" onClick={() => showCategory(folder.categories[0])}>
+                {folder.categories[0]}
+              </button>
+            ) : null}
+            <span className="jp-model-page__fact">{facts}</span>
+          </div>
+        </div>
+        <div className="jp-model-page__toolbar" id="jp-folder-actions">
+          <Button
+            variant="primary"
+            id="jp-folder-slicer"
+            title={slicers[0] ? `Open every file in ${slicers[0].name}` : 'Set up a slicer first'}
+            onClick={() => void (slicers[0] ? sendToSlicer(paths, slicers[0]) : offerSlicerSettings())}
+          >
+            Open All in Slicer
+          </Button>
+          {paths.filter(isPreviewablePath).length > 1 && (
+            <Button icon={Boxes} id="jp-folder-assembly" onClick={() => window.openAssembly?.(folder.path)}>
+              Assembly View
+            </Button>
+          )}
+          {canEdit && (
+            <Button icon={FolderPlus} onClick={() => window.openAddToCollection?.(paths)}>
+              Add to Collection
+            </Button>
+          )}
+          <Button icon={Library} onClick={showFolder}>
+            Show in Library
+          </Button>
+        </div>
       </header>
 
       <div className="jp-model-page__grid">
@@ -253,9 +301,9 @@ export function FolderPage({ path }: { path: string }) {
             <h2 className="jp-panel-title" id="jp-folder-files">
               Files
             </h2>
-            <ul className="jp-model-page__file-grid" id="jp-folder-file-grid">
+            <ul className="jp-model-page__file-rows" id="jp-folder-file-grid">
               {folder.files.map((file) => (
-                <FileCard key={file.filePath} file={file} current={false} />
+                <FileRow key={file.filePath} file={file} current={false} />
               ))}
             </ul>
           </section>
@@ -264,55 +312,51 @@ export function FolderPage({ path }: { path: string }) {
         <aside className="jp-model-page__side">
           <section className="jp-card jp-model-page__panel" aria-labelledby="jp-folder-details">
             <h2 className="jp-panel-title" id="jp-folder-details">
-              Model Details
+              Details
             </h2>
-            <div className="jp-model-page__actions">
-              <Button
-                variant="primary"
-                id="jp-folder-slicer"
-                title={slicers[0] ? `Open every file in ${slicers[0].name}` : 'Set up a slicer first'}
-                onClick={() => void (slicers[0] ? sendToSlicer(paths, slicers[0]) : offerSlicerSettings())}
-              >
-                Open All in Slicer
-              </Button>
-              {paths.filter(isPreviewablePath).length > 1 && (
-                <Button icon={Boxes} id="jp-folder-assembly" onClick={() => window.openAssembly?.(folder.path)}>
-                  Assembly View
-                </Button>
-              )}
-              {canEdit && (
-                <Button icon={FolderPlus} onClick={() => window.openAddToCollection?.(paths)}>
-                  Add to Collection
-                </Button>
-              )}
-              <Button icon={Library} onClick={() => showInLibrary(() => filterActions.setDirectory(folderFilterFor(folder.files[0].filePath)))}>
-                Show in Library
-              </Button>
-            </div>
             <div className="jp-props">
-              <Prop label="Folder" title={folder.path}>
-                {folder.path}
-              </Prop>
-              <Prop label="Files">{folder.files.length}</Prop>
-              <Prop label="Size">{formatFileSize(folder.size)}</Prop>
-              <Prop label="Designers">{list(folder.designers, (name) => showInLibrary(() => filterActions.setValue('designer', name)))}</Prop>
-              <Prop label="Licenses">{folder.licenses.join(', ') || '—'}</Prop>
-              <Prop label="Tags">{list(folder.tags, (name) => showInLibrary(() => filterActions.setTags([name])))}</Prop>
-              <Prop label="Categories">{list(folder.categories, showCategory)}</Prop>
-              <Prop label="Source">
-                {folder.sources.length
-                  ? folder.sources.map((source) =>
-                      /^https?:\/\//i.test(source) ? (
-                        <a key={source} href={source} target="_blank" rel="noopener noreferrer">
-                          {source.replace(/^https?:\/\/(www\.)?/i, '')}
-                        </a>
-                      ) : (
-                        <span key={source}>{source}</span>
-                      )
+              {folder.designers.length > 0 && (
+                <Prop label={folder.designers.length === 1 ? 'Designer' : 'Designers'}>
+                  {list(folder.designers, (name) => showInLibrary(() => filterActions.setValue('designer', name)))}
+                </Prop>
+              )}
+              {folder.licenses.length > 0 && <Prop label="License">{folder.licenses.join(', ')}</Prop>}
+              {folder.tags.length > 0 && <Prop label="Tags">{list(folder.tags, (name) => showInLibrary(() => filterActions.setTags([name])))}</Prop>}
+              {folder.categories.length > 0 && <Prop label="Category">{list(folder.categories, showCategory)}</Prop>}
+              {folder.sources.length > 0 && (
+                <Prop label="Source">
+                  {folder.sources.map((source) =>
+                    /^https?:\/\//i.test(source) ? (
+                      <a key={source} href={source} target="_blank" rel="noopener noreferrer">
+                        {source.replace(/^https?:\/\/(www\.)?/i, '')}
+                      </a>
+                    ) : (
+                      <span key={source}>{source}</span>
                     )
-                  : '—'}
+                  )}
+                </Prop>
+              )}
+              <Prop label="Folder" title={folder.path}>
+                <span className="jp-model-page__folder">
+                  <button type="button" className="jp-link-button" title={`Show the folder ${folder.path}`} onClick={showFolder}>
+                    …/{folder.name}
+                  </button>
+                  <IconButton
+                    size="sm"
+                    icon={Copy}
+                    label="Copy the folder's full path"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(folder.path);
+                      } catch {
+                        await showMessage('Folder', folder.path);
+                      }
+                    }}
+                  />
+                </span>
               </Prop>
             </div>
+            <p className="jp-meta jp-model-page__empty-note">Empty fields are hidden.</p>
           </section>
           <KitChecklist target={folder.path} />
         </aside>

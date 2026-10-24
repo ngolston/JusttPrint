@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { CheckCircle2, Copy, FolderOpen, Trash2 } from 'lucide-react';
+import { CheckCircle2, CopyCheck, FolderOpen, Trash2, X } from 'lucide-react';
 import { dedup, settings, type DuplicateFile, type DuplicateGroup, type HashProgress } from '../api';
 import { cx } from '../components/Button';
 import { pickFolder } from '../components/FolderPicker';
@@ -127,11 +127,8 @@ function CopyCard({
         <div className="jp-dup-copy__meta">
           <span className="jp-dup-copy__size">{formatFileSize(file.size || 0)}</span>
           {preferred && (
-            <span
-              className="preferred-directory-badge jp-badge jp-badge--accent"
-              title="This copy is inside the preferred directory. Easy keeps one copy from that folder."
-            >
-              Preferred
+            <span className="preferred-directory-badge jp-badge jp-badge--accent" title="This copy is in the folder to keep copies in.">
+              Keep folder
             </span>
           )}
           {zip && (
@@ -230,7 +227,7 @@ function GroupRow({
         {group.files.length > SHOWN_COPIES && (
           <div className="jp-dup-more">
             <strong>{(group.files.length - SHOWN_COPIES).toLocaleString()} more copies</strong>
-            <span>Keep this and Easy also select these.</span>
+            <span>Keep this and Select the extra copies also choose these.</span>
           </div>
         )}
       </div>
@@ -577,13 +574,13 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   const hasFilters = !!filters;
   const groups = view.kind === 'ready' ? view.groups : [];
   const scopeSummary = !hasFilters
-    ? 'Apply a library filter (designer, tags, search, …) to de-dup only that subset.'
+    ? 'Filter the Library first (by designer, tags, a search…) to look only at those models.'
     : scope === 'current'
       ? (() => {
           const label = window.describeLibraryFilters?.(filters) || '';
-          return label ? `De-dupping models matching: ${label}` : 'De-dupping the current library view.';
+          return label ? `Only models matching: ${label}` : "Only the models the Library's filter shows.";
         })()
-      : 'De-dupping the entire library.';
+      : 'Every model in the library.';
 
   const actions = (
     <>
@@ -592,19 +589,21 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
         id="dedup-easy-button"
         className="easy-button jp-btn jp-btn--secondary jp-btn--md"
         disabled={!groups.length}
-        title="Select all but one per group. Keeps a copy in the preferred directory when one exists, otherwise an archived/ZIP copy."
+        title="Choose every copy but one in each group for deleting. The one kept is in the folder below when there is one, else an archived/ZIP copy."
         onClick={() => setSelected(easySelection(groups, preferredDir.trim()))}
       >
-        Easy
+        <CopyCheck size={16} aria-hidden="true" />
+        <span>Select the extra copies</span>
       </button>
       <button
         type="button"
         id="dedup-clear-button"
         className="jp-btn jp-btn--ghost jp-btn--md"
-        title="Clear all selections"
+        title="Unselect every copy"
+        disabled={!selected.size}
         onClick={() => setSelected(new Set())}
       >
-        Clear
+        Unselect all
       </button>
       {groups.length > 0 && canDelete && (
         <button
@@ -625,7 +624,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
     <>
       <div className="jp-dup-options">
         <div className="dedup-scope" id="dedup-mode">
-          <span className="dedup-scope-label">Find</span>
+          <span className="dedup-scope-label">Look for</span>
           <label className="dedup-scope-option" htmlFor="dedup-mode-files">
             <input type="radio" name="dedup-mode" id="dedup-mode-files" checked={mode === 'files'} onChange={() => changeMode('files')} />
             <span>Identical files</span>
@@ -647,7 +646,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
           </p>
         </div>
         <div id="dedup-scope-container" className="dedup-scope">
-          <span className="dedup-scope-label">Scope</span>
+          <span className="dedup-scope-label">In</span>
           <label className={`dedup-scope-option${hasFilters ? '' : ' disabled'}`} htmlFor="dedup-scope-current">
             <input
               type="radio"
@@ -658,11 +657,11 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
               checked={scope === 'current'}
               onChange={() => changeScope('current')}
             />
-            <span>Current view</span>
+            <span>The Library's current filter</span>
           </label>
           <label className="dedup-scope-option" htmlFor="dedup-scope-entire">
             <input type="radio" name="dedup-scope" id="dedup-scope-entire" value="entire" checked={scope === 'entire'} onChange={() => changeScope('entire')} />
-            <span>Entire library</span>
+            <span>The whole library</span>
           </label>
           <p id="dedup-scope-summary" className="dedup-scope-summary">
             {scopeSummary}
@@ -670,14 +669,14 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
         </div>
         <div id="dedup-preferred-directory" className="dedup-preferred">
           <label className="dedup-scope-label" htmlFor="dedup-preferred-directory-input">
-            Preferred directory
+            Keep the copies in this folder
           </label>
           <div className="dedup-preferred-row">
             <input
               type="text"
               id="dedup-preferred-directory-input"
               className="jp-input"
-              placeholder="Folder whose copies should be kept (a path in the JusttPrint backend's container)"
+              placeholder="A folder (its path on the JusttPrint backend)"
               autoComplete="off"
               spellCheck={false}
               value={preferredDir}
@@ -705,13 +704,17 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
               type="button"
               id="dedup-preferred-clear"
               className="jp-btn jp-btn--ghost jp-btn--md"
-              title="Clear the preferred directory"
+              title="No folder"
+              aria-label="No folder"
+              disabled={!preferredDir.trim()}
               onClick={() => commitPreferred('', false)}
             >
-              Clear path
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
-          <p className="dedup-scope-summary">Easy keeps one copy from this folder, including subfolders, and selects the other duplicates.</p>
+          <p className="dedup-scope-summary">
+            Optional. Select the extra copies then keeps the copy in this folder (or its subfolders) and chooses the others.
+          </p>
         </div>
       </div>
       {footer(actions)}
@@ -778,18 +781,14 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   );
 }
 
-const INTRO =
-  'Identical files are found by their file hash; Same geometry finds the same model saved as different files. Limit the scan to your current library filters so a large collection does not have to be processed all at once. Nothing is deleted until you confirm.';
+const INTRO = 'Find copies of the same model and delete the ones you do not need. Nothing is deleted until you confirm.';
 
 /** Duplicates as a page of the JusttPrint 5 shell (#/duplicates). */
 export function DuplicatesPage() {
   return (
     <div className="jp-page__inner jp-dup" id="dedup-page">
       <header className="jp-page__header">
-        <h1 className="jp-page-title">
-          <Copy size={24} aria-hidden="true" className="jp-dup__title-icon" />
-          Duplicates
-        </h1>
+        <h1 className="jp-page-title">Duplicates</h1>
         <p className="jp-meta dedup-intro">{INTRO}</p>
       </header>
       <Duplicates footer={(actions) => <div className="jp-dup-actions dedup-actions">{actions}</div>} />

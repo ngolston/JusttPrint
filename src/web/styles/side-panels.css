@@ -1277,6 +1277,29 @@ body.server-mode .sidebar {
 }
 #log-print-dialog {
   min-width: 420px;
+  width: min(600px, calc(100vw - 32px));
+}
+/* Two fields side by side (When and Outcome, Quantity and Printer); one above the other on phones. */
+#log-print-dialog .log-print-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--jp-space-4);
+}
+#log-print-dialog .log-print-row .form-group {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  #log-print-dialog {
+    min-width: 0;
+  }
+  #log-print-dialog .log-print-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+#log-print-dialog .log-print-parts-details summary {
+  margin-bottom: var(--jp-space-2);
+  font-weight: 500;
+  cursor: pointer;
 }
 #log-print-dialog textarea {
   min-height: 72px;

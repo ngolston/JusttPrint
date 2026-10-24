@@ -55,9 +55,9 @@ async function loadFacets(): Promise<FacetData> {
   const categories: Choice[] = [];
   for (const main of mains) {
     const subs = categoryList.categories.filter((c) => c.parent_id === main.id && c.model_count > 0);
-    const total = main.model_count + subs.reduce((sum, sub) => sum + sub.model_count, 0);
-    if (!total) continue;
-    categories.push({ value: main.name, label: main.name, count: total });
+    // A model counts in its Category too (core/categories.js), so the Category's count is its total.
+    if (!main.model_count) continue;
+    categories.push({ value: main.name, label: main.name, count: main.model_count });
     for (const sub of subs) categories.push({ value: sub.name, label: sub.name, count: sub.model_count, indent: true });
   }
   return {
