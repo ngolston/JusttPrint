@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
-import { ArrowLeft, Box, ClipboardPen, Download, ExternalLink, FileBox, Heart, MoreHorizontal, Pencil } from 'lucide-react';
+import { ArrowLeft, Box, ClipboardPen, Copy, Download, ExternalLink, FileBox, FolderPlus, FolderUp, Heart, MoreHorizontal, Pencil, Upload } from 'lucide-react';
 import { callAction, dedup, downloadUrl, LIBRARY_CHANGED, models as modelApi, prints, type PrintEvent } from '../api';
 import { Button, IconButton, cx } from '../components/Button';
+import { Menu, type MenuItem } from '../components/Menu';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { formatAdded, panelImages, Prop, Rating, saveCardField, SlicerButton, type PanelModel } from '../details/ModelDetailsPanel';
 import { applyFilterChange } from '../filters/search';
@@ -9,7 +10,7 @@ import { filterActions } from '../filters/store';
 import { cardTitle, displayFileName, formatOf } from '../grid/ModelCard';
 import { directoryLabel, folderFilterFor, formatFileSize } from '../library/paths';
 import { MakerWorldSection } from '../makerworld/MakerWorldSection';
-import { onServerEvent } from '../page';
+import { onServerEvent, showMessage } from '../page';
 import { effectiveStatus, formatPrintDate, OUTCOME_LABELS, STATUS_LABELS, type PrintModel, type PrintStatus } from '../print/printStatus';
 import { isPreviewablePath } from '../preview/studio';
 import { useCan } from '../session';
@@ -187,20 +188,56 @@ export function FileCard({ file, current }: { file: FolderFile; current: boolean
           <Button size="sm" variant="primary" disabled={current} onClick={() => navigate('model', file.filePath)}>
             Open
           </Button>
-          {!online && (
-            <IconButton
-              size="sm"
-              icon={Download}
-              label={`Download ${name}`}
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = downloadUrl(file.filePath);
-                link.download = '';
-                link.click();
-              }}
-            />
-          )}
+          {!online && <IconButton size="sm" icon={Download} label={`Download ${name}`} onClick={() => downloadFile(file.filePath)} />}
         </div>
+      </div>
+    </li>
+  );
+}
+
+/** Download a file of the library in the browser. */
+function downloadFile(filePath: string) {
+  const link = document.createElement('a');
+  link.href = downloadUrl(filePath);
+  link.download = '';
+  link.click();
+}
+
+/** One file of the model as a row: its small picture, name and size, and 3D, Open and Download. */
+function FileRow({ file, current }: { file: FolderFile; current: boolean }) {
+  const online = file.filePath.startsWith('url::');
+  const name = file.fileName || file.filePath.split(/[\\/]/).pop() || '';
+  const canPreview = !online && isPreviewablePath(file.filePath);
+  const about = [file.size ? formatFileSize(file.size) : '', current ? 'this model' : ''].filter(Boolean).join(' · ');
+  return (
+    <li className={cx('jp-model-file jp-model-row', current && 'is-current')} data-filepath={file.filePath}>
+      <img
+        className="jp-model-row__picture"
+        src={file.image || 'assets/3d.png'}
+        alt=""
+        draggable={false}
+        onError={(event) => {
+          if (!event.currentTarget.src.endsWith('assets/3d.png')) event.currentTarget.src = 'assets/3d.png';
+        }}
+      />
+      <div className="jp-model-row__text">
+        <span className="jp-model-row__name" title={name}>
+          {name}
+        </span>
+        {about && <span className="jp-meta">{about}</span>}
+      </div>
+      <div className="jp-model-row__buttons">
+        {canPreview && (
+          <Button size="sm" icon={Box} onClick={() => window.openPreview?.(file.filePath)}>
+            3D
+          </Button>
+        )}
+        {!current && (
+          <Button size="sm" onClick={() => navigate('model', file.filePath)}>
+            Open
+          </Button>
+        )}
+        {!online && <IconButton size="sm" icon={Download} label={`Download ${name}`} onClick={() => downloadFile(file.filePath)} />}
       </div>
     </li>
   );
@@ -410,6 +447,33 @@ export function ModelView({
   const title = model.pageTitle || cardTitle(model);
   const Heading = compact ? 'h2' : 'h1';
 
+  // A merged model: what it is merged into, with Un-merge.
+  const mergedLine = model.mergedInto && (
+    <p className="jp-model-page__in-group" id="jp-model-merged-into">
+      Merged into{' '}
+      <button type="button" className="jp-link-button" onClick={() => navigate('model', model.mergedInto!.filePath)}>
+        {model.mergedInto.name}
+      </button>
+      {canEdit && (
+        <>
+          {' · '}
+          <button
+            type="button"
+            className="jp-link-button"
+            id="jp-model-unmerge"
+            title="Make it a model of its own again, with its own card in the library"
+            onClick={async () => {
+              await callAction('set-model-parts', null, [model.filePath]);
+              await load();
+            }}
+          >
+            Un-merge
+          </button>
+        </>
+      )}
+    </p>
+  );
+
   const header = (
     <header className="jp-model-page__header">
       <Heading className={compact ? 'jp-details__title' : 'jp-page-title'} id={compact ? undefined : 'jp-model-page-title'} title={title}>
@@ -422,31 +486,7 @@ export function ModelView({
           </button>
         </p>
       )}
-      {model.mergedInto && (
-        <p className="jp-model-page__in-group" id="jp-model-merged-into">
-          Merged into{' '}
-          <button type="button" className="jp-link-button" onClick={() => navigate('model', model.mergedInto!.filePath)}>
-            {model.mergedInto.name}
-          </button>
-          {canEdit && (
-            <>
-              {' · '}
-              <button
-                type="button"
-                className="jp-link-button"
-                id="jp-model-unmerge"
-                title="Make it a model of its own again, with its own card in the library"
-                onClick={async () => {
-                  await callAction('set-model-parts', null, [model.filePath]);
-                  await load();
-                }}
-              >
-                Un-merge
-              </button>
-            </>
-          )}
-        </p>
-      )}
+      {mergedLine}
     </header>
   );
 
@@ -693,6 +733,180 @@ export function ModelView({
     </section>
   );
 
+  // ---- The page (not the sidebar): a header with the actions, and a shorter Details card ----
+
+  const showFolder = () => showInLibrary(() => filterActions.setDirectory(folderFilterFor(model.filePath)));
+  const formatAndSize = [formatOf(model), model.size ? formatFileSize(Number(model.size)) : ''].filter(Boolean).join(' · ');
+  const canUpload = canEdit && !online && !inZip;
+  const moreItems: MenuItem[] = [
+    ...(canUpload
+      ? [
+          {
+            id: 'upload',
+            label: 'Upload Files…',
+            icon: FolderUp,
+            onSelect: () => document.getElementById('jp-model-upload-file')?.click()
+          },
+          {
+            id: 'version',
+            label: 'Upload New Version…',
+            icon: Upload,
+            onSelect: () => document.getElementById('jp-upload-version-file')?.click()
+          }
+        ]
+      : []),
+    ...(!online ? [{ id: 'download', label: 'Download', icon: Download, onSelect: () => downloadFile(model.filePath) }] : []),
+    { id: 'collection', label: 'Add to Collection…', icon: FolderPlus, onSelect: () => window.openAddToCollection?.([model.filePath]) },
+    {
+      id: 'all',
+      label: 'All Actions…',
+      icon: MoreHorizontal,
+      onSelect: () => {
+        const rect = document.getElementById('jp-model-more')?.getBoundingClientRect();
+        void window.contextMenu?.show(model.filePath, rect ? rect.left : 0, rect ? rect.bottom : 0);
+      }
+    }
+  ];
+
+  const pageHeader = (
+    <header className="jp-model-page__header jp-model-page__header--page">
+      <div className="jp-model-page__heading">
+        <h1 className="jp-page-title" id="jp-model-page-title" title={title}>
+          {title}
+        </h1>
+        <div className="jp-model-page__byline jp-model-page__facts">
+          {designer && (
+            <button type="button" className="jp-link-button" onClick={() => showInLibrary(() => filterActions.setValue('designer', designer))}>
+              By {designer}
+            </button>
+          )}
+          {model.categories?.length ? <CategoryPlace names={model.categories.slice(0, 2)} id="jp-model-page-categories" /> : null}
+          {formatAndSize && <span className="jp-model-page__fact">{formatAndSize}</span>}
+        </div>
+        {mergedLine}
+      </div>
+      <div className="jp-model-page__toolbar" id="jp-model-page-actions">
+        {!isArchive(extensionOf(model.filePath)) && <SlicerButton filePath={model.filePath} slicers={slicers} />}
+        {canEdit && (
+          <Button icon={ClipboardPen} id="jp-model-page-log-print" onClick={() => void window.PrintHistory?.openLogDialog({ filePaths: [model.filePath] })}>
+            Log Print
+          </Button>
+        )}
+        {canEdit && (
+          <Button icon={Pencil} id="jp-model-page-edit" onClick={() => window.openEditModel?.(model.filePath)}>
+            Edit
+          </Button>
+        )}
+        {canEdit && (
+          <IconButton
+            icon={Heart}
+            label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+            className={cx(favorite && 'is-favorited')}
+            onClick={async () => {
+              if (await saveCardField(model.filePath, 'favorite', !favorite)) setModel({ ...model, favorite: !favorite });
+            }}
+          />
+        )}
+        <Menu
+          label="More"
+          items={moreItems}
+          trigger={(props) => (
+            <button
+              type="button"
+              id="jp-model-more"
+              className="jp-btn jp-btn--secondary jp-btn--md"
+              title="Upload, New Version, Download, Add to Collection and every action"
+              {...props}
+            >
+              <MoreHorizontal size={16} aria-hidden="true" />
+              More
+            </button>
+          )}
+        />
+        {canUpload && <ModelUploadButton upload={modelUpload.upload} busy={modelUpload.busy} id="jp-model-upload" buttonless />}
+        {canUpload && <UploadVersionButton filePath={model.filePath} folder={folderOf(model.filePath)} buttonless />}
+      </div>
+    </header>
+  );
+
+  const pageDetails = (
+    <section className="jp-card jp-model-page__panel" aria-labelledby="jp-model-page-details">
+      <h2 className="jp-panel-title" id="jp-model-page-details">
+        Details
+      </h2>
+      <div className="jp-props">
+        <Prop label="Print status">
+          {canEdit && !online ? (
+            <PageStatus filePath={model.filePath} status={status} onSaved={() => void load()} />
+          ) : (
+            STATUS_LABELS[status as PrintStatus] || status
+          )}
+        </Prop>
+        <Prop label="Rating">
+          <Rating model={model} readOnly={!canEdit} onSaved={(rating) => setModel({ ...model, rating })} />
+        </Prop>
+        {designer && <Prop label="Designer">{designer}</Prop>}
+        {source && (
+          <Prop label="Source" title={source}>
+            {sourceIsLink ? (
+              <a href={source} target="_blank" rel="noopener noreferrer">
+                {source.replace(/^https?:\/\/(www\.)?/i, '')}
+              </a>
+            ) : (
+              source
+            )}
+          </Prop>
+        )}
+        {model.license && <Prop label="License">{model.license}</Prop>}
+        {(canEdit || tags.length > 0) && (
+          <Prop label="Tags">
+            {canEdit ? (
+              <PageTags
+                filePath={model.filePath}
+                tags={tags}
+                onSaved={() => void load()}
+                onShow={(name) => showInLibrary(() => filterActions.setTags([name]))}
+              />
+            ) : (
+              <span className="jp-details__categories">
+                {tags.map((name) => (
+                  <button key={name} type="button" className="jp-chip" onClick={() => showInLibrary(() => filterActions.setTags([name]))}>
+                    {name}
+                  </button>
+                ))}
+              </span>
+            )}
+          </Prop>
+        )}
+        <Prop label="Added">{formatAdded(model.dateAdded) || '—'}</Prop>
+        <Prop label={online ? 'Where' : 'Folder'} title={online ? undefined : folderPath}>
+          {online ? (
+            'Online model'
+          ) : (
+            <span className="jp-model-page__folder">
+              <button type="button" className="jp-link-button" title={`Show the folder ${folderPath}`} onClick={showFolder}>
+                …/{folder}
+              </button>
+              <IconButton
+                size="sm"
+                icon={Copy}
+                label="Copy the folder's full path"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(folderPath);
+                  } catch {
+                    await showMessage('Folder', folderPath);
+                  }
+                }}
+              />
+            </span>
+          )}
+        </Prop>
+      </div>
+      <p className="jp-meta jp-model-page__hidden-fields">Empty fields are hidden; Edit shows them all.</p>
+    </section>
+  );
+
   if (compact) {
     // The details sidebar: the page's sections in one column.
     return (
@@ -753,11 +967,9 @@ export function ModelView({
             </button>
           </>
         ) : null}
-        <span aria-hidden="true">/</span>
-        <span className="jp-model-page__crumb-here">{title}</span>
       </nav>
 
-      {header}
+      {pageHeader}
 
       <div className="jp-model-page__grid">
         <div className="jp-model-page__main">
@@ -766,9 +978,9 @@ export function ModelView({
           {siteSection}
           {media}
 
-          <section className="jp-model-page__files" aria-labelledby="jp-model-page-files">
+          <section className="jp-card jp-model-page__files" aria-labelledby="jp-model-page-files">
             <h2 className="jp-panel-title" id="jp-model-page-files">
-              Files{folder ? <span className="jp-meta"> in {folder}</span> : null}
+              Files <span className="jp-meta">{Math.max(files.length, 1)}</span>
             </h2>
             {!online && !inZip && files.length > 1 && (
               <p className="jp-meta">
@@ -781,9 +993,9 @@ export function ModelView({
                 </button>
               </p>
             )}
-            <ul className="jp-model-page__file-grid" id="jp-model-page-file-grid">
+            <ul className="jp-model-page__file-rows" id="jp-model-page-file-grid">
               {(files.length ? files : [{ filePath: model.filePath, fileName: model.fileName || null, size: model.size || null, image: null }]).map((file) => (
-                <FileCard key={file.filePath} file={file} current={file.filePath === model.filePath} />
+                <FileRow key={file.filePath} file={file} current={file.filePath === model.filePath} />
               ))}
             </ul>
           </section>
@@ -792,11 +1004,10 @@ export function ModelView({
         </div>
 
         <aside className="jp-model-page__side">
-          {details}
-          {notes}
-          {fileList}
+          {pageDetails}
           {!online && <KitChecklist target={model.filePath} />}
           {history}
+          {notes}
         </aside>
       </div>
     </div>

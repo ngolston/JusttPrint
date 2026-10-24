@@ -190,7 +190,7 @@ export function FileTypeSettingsDialog() {
           Add more folder names to skip, one per line.
         </p>
         <div className="form-group">
-          <label htmlFor="scan-exclude-folders">Extra folder names:</label>
+          <label htmlFor="scan-exclude-folders">Extra folder names</label>
           <textarea
             id="scan-exclude-folders"
             rows={4}

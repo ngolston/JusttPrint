@@ -12,9 +12,9 @@ const item = (id: string, embed = false) => ({
   ...(embed ? { embed: { dialog: `${id}-dialog`, open: 'x' } } : {})
 });
 const groups: SettingsGroup[] = [
-  { id: 'general', label: 'General', items: [item('performance', true)] },
-  { id: 'integrations', label: 'Integrations', items: [item('thingiverse', true), item('makerworld', true), item('mcp', true)] },
-  { id: 'advanced', label: 'Advanced', items: [item('report')] }
+  { id: 'general', label: 'General', icon: Settings, items: [item('performance', true)] },
+  { id: 'integrations', label: 'Integrations', icon: Settings, items: [item('thingiverse', true), item('makerworld', true), item('mcp', true)] },
+  { id: 'advanced', label: 'Advanced', icon: Settings, items: [item('report')] }
 ];
 
 describe('the Settings tabs', () => {

@@ -66,7 +66,7 @@ export async function newPictureFrom(filePath: string) {
  * Upload New Version (a model's page): the file is replaced in place (same name and folder) and
  * the old one is kept in the history (the History page).
  */
-export function UploadVersionButton({ filePath, folder }: { filePath: string; folder: string }) {
+export function UploadVersionButton({ filePath, folder, buttonless = false }: { filePath: string; folder: string; buttonless?: boolean }) {
   const canEdit = useCan('editor');
   const [progress, setProgress] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -98,9 +98,17 @@ export function UploadVersionButton({ filePath, folder }: { filePath: string; fo
   if (!canEdit) return null;
   return (
     <>
-      <Button icon={Upload} id="jp-upload-version" disabled={progress !== null} onClick={() => input.current?.click()}>
-        {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : 'New Version'}
-      </Button>
+      {buttonless ? (
+        progress !== null && (
+          <span className="jp-meta jp-model-upload__busy" role="status">
+            Uploading the new version: {Math.round(progress * 100)}%
+          </span>
+        )
+      ) : (
+        <Button icon={Upload} id="jp-upload-version" disabled={progress !== null} onClick={() => input.current?.click()}>
+          {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : 'New Version'}
+        </Button>
+      )}
       <input
         ref={input}
         type="file"

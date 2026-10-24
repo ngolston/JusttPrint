@@ -167,6 +167,8 @@ export interface SettingsItem {
 export interface SettingsGroup {
   id: string;
   label: string;
+  /** Shown beside the group in the Settings page's list. */
+  icon: LucideIcon;
   items: SettingsItem[];
 }
 
@@ -174,6 +176,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'general',
     label: 'General',
+    icon: Gauge,
     items: [
       {
         id: 'performance',
@@ -189,6 +192,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'appearance',
     label: 'Appearance',
+    icon: Brush,
     items: [
       {
         id: 'theme',
@@ -213,6 +217,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'library',
     label: 'Library',
+    icon: Library,
     items: [
       {
         id: 'metadata',
@@ -273,6 +278,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'sharing',
     label: 'Sharing',
+    icon: Link2,
     items: [
       {
         id: 'links',
@@ -288,6 +294,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'scanning',
     label: 'Scanning',
+    icon: ScanSearch,
     items: [
       {
         id: 'stl-home',
@@ -309,7 +316,7 @@ export const SETTINGS: SettingsGroup[] = [
       {
         id: 'file-types',
         label: 'File Types',
-        description: 'Extra file types to scan, and models inside ZIP files.',
+        description: 'Extra file types to scan, folders to skip, and what 3MF metadata fills in.',
         icon: Box,
         run: menu('File Type'),
         replaces: ['File Type'],
@@ -328,6 +335,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'slicer',
     label: 'Slicer',
+    icon: Box,
     items: [
       {
         id: 'slicers',
@@ -343,6 +351,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'printers',
     label: 'Printers',
+    icon: Printer,
     items: [
       {
         id: 'printers',
@@ -366,6 +375,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'integrations',
     label: 'Integrations',
+    icon: Globe,
     items: [
       {
         id: 'thingiverse',
@@ -397,6 +407,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'ai',
     label: 'AI',
+    icon: Sparkles,
     items: [
       {
         id: 'ai',
@@ -411,6 +422,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'server',
     label: 'JusttPrint Backend',
+    icon: Cpu,
     items: [
       {
         id: 'https',
@@ -434,6 +446,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'authentication',
     label: 'Authentication',
+    icon: ShieldCheck,
     items: [
       {
         id: 'users',
@@ -466,6 +479,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'backup',
     label: 'Backup',
+    icon: Archive,
     items: [
       {
         id: 'backup',
@@ -481,6 +495,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'advanced',
     label: 'Advanced',
+    icon: Wrench,
     items: [
       {
         id: 'regenerate',
@@ -513,6 +528,7 @@ export const SETTINGS: SettingsGroup[] = [
   {
     id: 'about',
     label: 'About',
+    icon: Info,
     items: [
       {
         id: 'about',

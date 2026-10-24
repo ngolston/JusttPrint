@@ -13,8 +13,34 @@
   color: var(--jp-text);
   text-align: left;
 }
+.jp-library-header__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+  margin-bottom: var(--jp-space-4);
+}
+.jp-library-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+/* Upload and Add Links: phones only (elsewhere the top bar's Add New Model has them). */
+.jp-library-header__add {
+  display: none;
+}
+@media (max-width: 700px) {
+  .jp-library-header__add {
+    display: inline-flex;
+  }
+}
 .jp-library-header__title {
-  margin: 0 0 var(--jp-space-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--jp-space-3);
+  margin: 0;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.2;
@@ -37,8 +63,12 @@
   margin-left: auto;
 }
 .jp-library-header__count {
-  margin-right: var(--jp-space-2);
+  padding: 2px var(--jp-space-2);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2);
   font-size: var(--jp-text-meta);
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--jp-text-2);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -60,6 +90,9 @@
   font-size: var(--jp-text-badge);
   font-weight: 700;
   box-sizing: border-box;
+}
+#jp-filter-button.has-filters {
+  border-color: var(--jp-accent-border);
 }
 #jp-filter-button.is-open {
   background: var(--jp-accent-soft);
@@ -315,6 +348,14 @@
   overflow-y: auto;
   padding: var(--jp-space-3) 0 var(--jp-space-4);
 }
+/* Every filter's control as wide as the panel (beside a ☰ list button, the rest of the row). */
+#jp-filter-popover .form-group select,
+#jp-filter-popover .form-group .input-with-icon {
+  flex: 1 1 auto;
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
 /* The old filter section, unfolded (its "More filters" fold is for the sidebar). */
 .jp-filter-popover .filter-section {
   width: 100%;
@@ -432,6 +473,25 @@
   right: 8px !important;
   font-size: var(--jp-text-badge) !important;
   font-weight: 600 !important;
+}
+
+/*
+ * Pictures fill the card: photos are no longer letterboxed, and 3D renders have room around the
+ * model. (An older rule for every thumbnail asks for contain; this beats it.)
+ */
+.file-grid .jp-model-card .jp-model-card__image img {
+  object-fit: cover !important;
+}
+/* Quieter cards: the picture count (1/16) shows on hover. */
+.file-grid .jp-model-card .thumbnail-count-badge {
+  transition: opacity var(--jp-transition);
+}
+.file-grid .jp-model-card:not(:hover):not(:focus-within) .thumbnail-count-badge {
+  opacity: 0;
+}
+/* The picture wall: "Not printed" on every tile was noise; it shows on hover (other statuses stay). */
+.file-grid.preview-wall .preview-tile:not(:hover) > .print-status.print-status-unprinted {
+  opacity: 0;
 }
 
 /* New / Archive at the top-left. */

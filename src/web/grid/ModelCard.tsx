@@ -666,7 +666,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
                 minWidth: 0
               }}
             >
-              {directory}
+              {directory.split(/[\\/]/).filter(Boolean).pop() || directory}
             </span>
           </div>
           <div className="designer-info-column" data-list-col="designer" style={{ ...column, overflow: 'hidden' }}>

@@ -221,7 +221,7 @@ export function AiConfigDialog() {
         }
       >
         <div className="form-group">
-          <label htmlFor="ai-service-select">AI Service:</label>
+          <label htmlFor="ai-service-select">AI Service</label>
           <select id="ai-service-select" value={form.service} onChange={(event) => changeService(event.target.value as Service)}>
             <option value="openai">OpenAI</option>
             <option value="claude">Claude</option>
@@ -232,7 +232,7 @@ export function AiConfigDialog() {
         </div>
         {form.service === 'puter' && (
           <div className="form-group">
-            <label>Puter account:</label>
+            <label>Puter account</label>
             <div className="ai-account-row">
               <span id="puter-account-status">{puterSignedIn ? 'Signed in' : 'Not signed in'}</span>
               {puterSignedIn ? (
@@ -252,8 +252,8 @@ export function AiConfigDialog() {
               )}
             </div>
             <small>
-              Puter.com needs no API key: sign in with your Puter account in a popup window. Usage counts against your Puter account, and the login is kept in
-              this browser.
+              Puter.com needs no API key: sign in with your Puter account in a popup window. Usage counts against your Puter account, and the sign-in is kept
+              for your JusttPrint account, so your other devices are signed in too.
             </small>
           </div>
         )}
@@ -274,22 +274,22 @@ export function AiConfigDialog() {
           </div>
         )}
         <div className="form-group">
-          <label htmlFor="ai-endpoint">API Endpoint:</label>
+          <label htmlFor="ai-endpoint">API Endpoint</label>
           {textInput('endpoint', 'ai-endpoint')}
         </div>
         <div className="form-group">
-          <label htmlFor="ai-model">AI Model:</label>
+          <label htmlFor="ai-model">AI Model</label>
           {textInput('model', 'ai-model')}
         </div>
         <hr className="ai-config-divider" />
         <h4 className="ai-config-subtitle">Tag Generation Settings</h4>
         <div className="form-group">
-          <label htmlFor="ai-tag-max-tags">Maximum Tags:</label>
+          <label htmlFor="ai-tag-max-tags">Maximum Tags</label>
           {textInput('maxTags', 'ai-tag-max-tags', 'number', { min: 1, max: 50 })}
           <small>Maximum number of tags to generate per model (1-50)</small>
         </div>
         <div className="form-group">
-          <label htmlFor="ai-tag-detail-level">Level of Detail:</label>
+          <label htmlFor="ai-tag-detail-level">Level of Detail</label>
           <select id="ai-tag-detail-level" value={form.detailLevel} onChange={(event) => set('detailLevel', event.target.value)}>
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -298,7 +298,7 @@ export function AiConfigDialog() {
           <small>Detail level for tag generation (Low: "Toy", Medium: "Dragon", High: "Articulated Dragon")</small>
         </div>
         <div className="form-group">
-          <label htmlFor="ai-tag-folder-levels">Folder levels:</label>
+          <label htmlFor="ai-tag-folder-levels">Folder levels</label>
           {textInput('folderLevels', 'ai-tag-folder-levels', 'number', { min: 0, max: 6 })}
           <small>
             How many parent folders to send with the thumbnail, and to use for Tag from Folder and for tagging newly scanned files. 0 omits folders from the AI
@@ -306,7 +306,7 @@ export function AiConfigDialog() {
           </small>
         </div>
         <div className="form-group">
-          <label htmlFor="ai-tag-merge-strategy">Tag Merge Strategy:</label>
+          <label htmlFor="ai-tag-merge-strategy">Tag Merge Strategy</label>
           <select id="ai-tag-merge-strategy" value={form.mergeStrategy} onChange={(event) => set('mergeStrategy', event.target.value)}>
             <option value="merge">Merge (add to existing tags)</option>
             <option value="append">Append (add only new tags)</option>
@@ -337,12 +337,12 @@ export function AiConfigDialog() {
           <small>Allow re-tagging models that already have "AI Tagged" tag</small>
         </div>
         <div className="form-group">
-          <label htmlFor="ai-tag-concurrency">Concurrent Requests:</label>
+          <label htmlFor="ai-tag-concurrency">Concurrent Requests</label>
           {textInput('concurrency', 'ai-tag-concurrency', 'number', { min: 1, max: 10 })}
           <small>Number of tag generation requests to process simultaneously (1-10)</small>
         </div>
         <div className="form-group">
-          <label>AI Prompt:</label>
+          <label>AI Prompt</label>
           <div className="dialog-buttons ai-prompt-actions">
             <button type="button" id="edit-ai-prompt" onClick={editPrompt}>
               Edit Prompt
@@ -380,7 +380,7 @@ export function AiConfigDialog() {
         }
       >
         <div className="form-group">
-          <label htmlFor="ai-prompt-textarea">Prompt:</label>
+          <label htmlFor="ai-prompt-textarea">Prompt</label>
           <textarea id="ai-prompt-textarea" className="ai-prompt-textarea" rows={16} value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         </div>
       </ModalDialog>

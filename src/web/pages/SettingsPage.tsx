@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cx } from '../components/Button';
 import { HELP, itemsFor, settingsFor, type SettingsGroup, type SettingsItem } from '../shell/nav';
@@ -26,23 +26,11 @@ export function SettingsRow({ item }: { item: SettingsItem }) {
   );
 }
 
-/** A settings form inside the page: its name and what it does, then the form itself. */
+/** A settings form inside the page (its name and what it does are the group's heading, or its tab's). */
 function EmbeddedSetting({ item }: { item: SettingsItem }) {
-  const Icon = item.icon;
   if (!item.embed) return null;
   return (
-    <section className="jp-settings-form" id={`setting-${item.id}`} aria-labelledby={`setting-${item.id}-title`}>
-      <header className="jp-settings-form__header">
-        <span className="jp-settings-row__icon">
-          <Icon size={18} aria-hidden="true" />
-        </span>
-        <span className="jp-settings-row__text">
-          <h3 className="jp-settings-form__title" id={`setting-${item.id}-title`}>
-            {item.label}
-          </h3>
-          <span className="jp-settings-row__description">{item.description}</span>
-        </span>
-      </header>
+    <section className="jp-settings-form" id={`setting-${item.id}`} aria-label={item.label}>
       <EmbeddedDialog dialogId={item.embed.dialog} opener={item.embed.open} />
     </section>
   );
@@ -87,14 +75,18 @@ export function SettingsPage({ section }: { section: string }) {
     }
   }, [view.group]);
 
-  // A new tab or form starts at the top; a form named in the address is shown for a moment.
+  // A new tab or form starts at the top. A form named in the address is shown for a moment when
+  // the page opens on it (a link such as Open MakerWorld Settings), not on every tab click.
+  const arriving = useRef(true);
   useEffect(() => {
+    const highlight = arriving.current;
+    arriving.current = false;
     const timer = setTimeout(() => {
       const focused = document.activeElement as HTMLElement | null;
       if (focused && focused.closest('.jp-settings-panel')) focused.blur();
       document.querySelector('.jp-page')?.scrollTo({ top: 0 });
-      const named = section && document.getElementById(`setting-${section}`);
-      if (named) {
+      const named = highlight && section && document.getElementById(`setting-${section}`);
+      if (named && view.form === section && forms.length > 1) {
         named.classList.add('is-highlighted');
         setTimeout(() => named.classList.remove('is-highlighted'), 2500);
       }
@@ -126,7 +118,8 @@ export function SettingsPage({ section }: { section: string }) {
                   className={cx('jp-settings-index__link', g.id === view.group && 'is-active')}
                   onClick={() => navigate('settings', g.id, { replace: true })}
                 >
-                  {g.label}
+                  <g.icon size={16} aria-hidden="true" />
+                  <span>{g.label}</span>
                 </button>
               </li>
             ))}
@@ -140,7 +133,10 @@ export function SettingsPage({ section }: { section: string }) {
             aria-labelledby={`settings-tab-${group.id}`}
             className="jp-card jp-settings-group jp-settings-panel"
           >
-            <h2 className="jp-settings-group__title">{group.label}</h2>
+            <header className="jp-settings-group__head">
+              <h2 className="jp-settings-group__title">{group.label}</h2>
+              {forms.length === 1 && form && <p className="jp-settings-group__description">{form.description}</p>}
+            </header>
             {forms.length > 1 && (
               <div className="jp-settings-subtabs">
                 <Tabs<string>
@@ -149,6 +145,7 @@ export function SettingsPage({ section }: { section: string }) {
                   value={form?.id || ''}
                   onChange={(id) => navigate('settings', id, { replace: true })}
                 />
+                {form && <p className="jp-settings-group__description">{form.description}</p>}
               </div>
             )}
             {form && <EmbeddedSetting key={form.id} item={form} />}

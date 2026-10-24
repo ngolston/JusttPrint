@@ -410,7 +410,7 @@ function DetailsPlaceholder() {
   return createPortal(
     <div className="jp jp-details-empty">
       <EmptyState icon={MousePointerClick} title="No model selected">
-        Click a model to see its details here. To change several at once, or make a group, click Edit above the grid.
+        Click a model to see its details here. To change several at once, or merge them, click Edit above the grid.
       </EmptyState>
     </div>,
     slot
