@@ -92,6 +92,8 @@ export interface NavItem {
 export interface NavSection {
   /** Section label ('PRINTING'); none for the first group. */
   label?: string;
+  /** Pinned at the bottom of the sidebar, with Library Storage (Settings, Help). */
+  footer?: boolean;
   items: NavItem[];
 }
 
@@ -110,8 +112,7 @@ export const NAV: NavSection[] = [
       { id: 'home', label: 'Home', icon: Home, page: 'home' },
       { id: 'library', label: 'Library', icon: Library, page: 'library' },
       { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' },
-      { id: 'categories', label: 'Categories', icon: Shapes, page: 'categories' },
-      { id: 'history', label: 'History', icon: History, page: 'history' }
+      { id: 'categories', label: 'Categories', icon: Shapes, page: 'categories' }
     ]
   },
   {
@@ -127,6 +128,13 @@ export const NAV: NavSection[] = [
     items: [
       { id: 'tags', label: 'Tags', icon: Tags, page: 'tags', replaces: ['Tag Manager'], role: 'editor' },
       { id: 'duplicates', label: 'Duplicates', icon: Copy, page: 'duplicates', replaces: ['De-Dup'], role: 'editor' },
+      { id: 'history', label: 'History', icon: History, page: 'history' }
+    ]
+  },
+  {
+    // Actions, not pages: each runs at once (or opens its dialog).
+    label: 'Tools',
+    items: [
       // Runs Organize at once (upload/inbox.ts), with its settings (Settings → Scanning → Organize).
       { id: 'organize', label: 'Organize', icon: FolderTree, run: () => void runOrganize(), replaces: ['Organize Library'], role: 'editor' },
       {
@@ -143,6 +151,7 @@ export const NAV: NavSection[] = [
   },
   {
     label: 'System',
+    footer: true,
     items: [
       { id: 'settings', label: 'Settings', icon: Settings, page: 'settings' },
       { id: 'help', label: 'Help', icon: HelpCircle, page: 'help' }
@@ -173,22 +182,6 @@ export interface SettingsGroup {
 }
 
 export const SETTINGS: SettingsGroup[] = [
-  {
-    id: 'general',
-    label: 'General',
-    icon: Gauge,
-    items: [
-      {
-        id: 'performance',
-        label: 'Performance',
-        description: 'File size limit, memory and worker settings.',
-        icon: Gauge,
-        run: menu('Performance'),
-        replaces: ['Performance'],
-        embed: { dialog: 'performance-settings-dialog', open: 'openPerformanceSettings' }
-      }
-    ]
-  },
   {
     id: 'appearance',
     label: 'Appearance',
@@ -321,6 +314,15 @@ export const SETTINGS: SettingsGroup[] = [
         run: menu('File Type'),
         replaces: ['File Type'],
         embed: { dialog: 'file-type-settings-dialog', open: 'openFileTypeSettings' }
+      },
+      {
+        id: 'performance',
+        label: 'File Size',
+        description: 'The largest file a scan adds to the library.',
+        icon: Gauge,
+        run: menu('Performance'),
+        replaces: ['Performance'],
+        embed: { dialog: 'performance-settings-dialog', open: 'openPerformanceSettings' }
       },
       {
         id: 'scan-folder',

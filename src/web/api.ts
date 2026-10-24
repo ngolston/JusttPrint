@@ -104,7 +104,7 @@ export interface UploadInfo {
   maxBytes: number;
   /** Size of the pieces to send (src/server/uploads.js). */
   chunkBytes: number;
-  /** Scans skip larger files (Settings → General → Performance): they are uploaded but not added. */
+  /** Scans skip larger files (Settings → Scanning → File Size): they are uploaded but not added. */
   scanMaxBytes: number;
   /** Pictures, videos and documents a model folder takes, by kind (src/server/model-folders.js). */
   mediaExtensions?: Partial<Record<MediaKind, string[]>>;

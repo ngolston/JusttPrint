@@ -82,7 +82,8 @@
   .jp-sidebar .jp-jobs {
     display: none;
   }
-  .jp-sidebar .jp-nav ul {
+  .jp-sidebar .jp-nav ul,
+  .jp-sidebar .jp-nav__footer {
     padding: 0 var(--jp-space-3);
   }
   .jp-sidebar .jp-nav__section + .jp-nav__section {

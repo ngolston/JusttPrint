@@ -80,17 +80,17 @@
   padding: 0 10px;
 }
 .jp-nav__section + .jp-nav__section {
-  margin-top: var(--jp-space-3);
+  margin-top: var(--jp-space-2);
 }
 .jp-nav__heading {
-  padding: var(--jp-space-3) 22px var(--jp-space-2);
+  padding: var(--jp-space-2) 22px var(--jp-space-1);
 }
 .jp-nav__row {
   display: flex;
   align-items: center;
   gap: var(--jp-space-3);
   width: 100%;
-  height: 42px;
+  height: 38px;
   margin: 0 0 2px;
   padding: 0 var(--jp-space-3) 0 14px;
   border: 0;
@@ -152,26 +152,42 @@
   box-sizing: border-box;
 }
 
-/* Storage indicator (spec §8) */
+/* Bottom of the sidebar: Settings, Help and Library Storage, always in sight. */
+.jp-sidebar__footer {
+  flex: none;
+  padding: var(--jp-space-2) 0 var(--jp-space-3);
+  border-top: 1px solid var(--jp-border);
+}
+.jp-nav__footer {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px;
+}
+
+/* Storage indicator (spec §8): one line and a thin bar. */
 .jp-storage {
-  margin: var(--jp-space-2) 10px var(--jp-space-3);
-  padding: var(--jp-space-3) var(--jp-space-3) 10px;
-  border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-lg);
-  background: var(--jp-surface-1);
+  margin: var(--jp-space-2) 10px 0;
+  padding: 0 14px;
 }
 .jp-storage__title {
-  margin-bottom: var(--jp-space-2);
-  font-size: var(--jp-text-meta);
+  color: var(--jp-text);
   font-weight: 500;
 }
 .jp-storage__figures {
   display: flex;
   justify-content: space-between;
   gap: var(--jp-space-2);
-  margin-top: var(--jp-space-2);
+  margin-bottom: 6px;
   font-size: var(--jp-text-small);
   color: var(--jp-text-2);
+  white-space: nowrap;
+}
+.jp-storage__figures--under {
+  margin: 6px 0 0;
+}
+.jp-storage .jp-progress,
+.jp-storage [role='progressbar'] {
+  height: 4px;
 }
 
 /* Top bar (spec §9) */

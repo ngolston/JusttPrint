@@ -142,6 +142,7 @@ export function OrganizeSettingsDialog() {
   const [upload, setUpload] = useState('');
   const [destination, setDestination] = useState('');
   const [fallback, setFallback] = useState('');
+  const [uploadFallback, setUploadFallback] = useState('');
   /** Folders set by Docker (JUSTTPRINT_UPLOAD_FOLDER / JUSTTPRINT_ORGANIZE_DESTINATION): applied on every start, so not changed here. */
   const [fromEnv, setFromEnv] = useState({ uploadFolder: false, destination: false });
   const [options, setOptions] = useState<OrganizeOptions>({ layers: ['category', 'subcategory'], tidy: true, tags: true, autoApply: true });
@@ -153,7 +154,9 @@ export function OrganizeSettingsDialog() {
       exposeGlobal('openOrganizeSettings', () => {
         void callAction<UploadFolderInfo>('get-upload-folder')
           .then((info) => {
-            setUpload(info.uploadFolder);
+            const chosenUpload = info.chosenUploadFolder ?? info.uploadFolder;
+            setUpload(chosenUpload);
+            setUploadFallback(chosenUpload ? '' : info.uploadFolder);
             setDestination(info.chosenDestination);
             setFallback(info.chosenDestination ? '' : info.destination);
             setFromEnv(info.fromEnv || { uploadFolder: false, destination: false });
@@ -239,7 +242,7 @@ export function OrganizeSettingsDialog() {
               type="text"
               id="upload-folder-path"
               value={upload}
-              placeholder="/upload"
+              placeholder={uploadFallback ? `Default: ${uploadFallback}` : '/upload'}
               readOnly={fromEnv.uploadFolder}
               onChange={(event) => setUpload(event.target.value)}
             />
@@ -252,7 +255,7 @@ export function OrganizeSettingsDialog() {
         </div>
         <p className="setting-description">
           {fromEnv.uploadFolder ? 'Set by Docker (JUSTTPRINT_UPLOAD_FOLDER). ' : ''}Every upload and every download from a model link goes here, and shows in
-          the library as Not organized. Made when it does not exist yet. Empty: Upload and Add Links ask for it first.
+          the library as Not organized. Made when it does not exist yet. Empty: an Uploads folder inside the first STL Home folder.
         </p>
         <div className="form-group">
           <label htmlFor="organize-destination-path">Destination directory</label>
