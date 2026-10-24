@@ -1,3 +1,4 @@
+import { Advanced } from './Advanced';
 import { useEffect, useRef, useState } from 'react';
 import { autoBackup, downloadUrl, type AutoBackupSettings, type AutoBackupStatus } from '../api';
 import { pickFolder } from '../components/FolderPicker';
@@ -149,10 +150,7 @@ export function AutoBackup({ opened }: { opened: number }) {
   return (
     <section ref={sectionRef} id="auto-backup" className="auto-backup">
       <h4>Automatic Backups</h4>
-      <p className="setting-description">
-        The JusttPrint backend copies the database on a schedule and keeps the newest copies. For protection against a failed disk, choose a folder on a
-        different disk or volume than the data folder.
-      </p>
+      <p className="setting-description">Copies of the database (your models' details, tags and settings) made on a schedule; the newest ones are kept.</p>
 
       <label className="auto-backup-toggle" htmlFor="auto-backup-enabled" title={lockTitle('autoBackupEnabled')}>
         <input
@@ -205,46 +203,49 @@ export function AutoBackup({ opened }: { opened: number }) {
         </div>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="auto-backup-directory">Folder</label>
-        <div className="auto-backup-folder">
-          <input
-            type="text"
-            id="auto-backup-directory"
-            spellCheck={false}
-            autoComplete="off"
-            value={directory}
-            placeholder="Default: the data volume"
-            disabled={!status || locked.has('autoBackupDirectory')}
-            title={lockTitle('autoBackupDirectory')}
-            onChange={(event) => setDirectory(event.target.value)}
-            onBlur={() => commitDirectory()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                commitDirectory();
-              }
-            }}
-          />
-          <button
-            type="button"
-            id="auto-backup-browse"
-            disabled={!status || locked.has('autoBackupDirectory')}
-            onClick={async () => {
-              const dir = await pickFolder({ title: 'Backup Folder', initial: directory.trim() || undefined, confirmLabel: 'Use This Folder' });
-              if (dir) {
-                setDirectory(dir);
-                commitDirectory(dir);
-              }
-            }}
-          >
-            Browse…
-          </button>
+      <Advanced id="auto-backup-folder-section" title="Backup folder" hint={directory.trim() ? directory.trim() : 'The data volume'}>
+        <div className="form-group">
+          <label htmlFor="auto-backup-directory">Folder</label>
+          <div className="auto-backup-folder">
+            <input
+              type="text"
+              id="auto-backup-directory"
+              spellCheck={false}
+              autoComplete="off"
+              value={directory}
+              placeholder="Default: the data volume"
+              disabled={!status || locked.has('autoBackupDirectory')}
+              title={lockTitle('autoBackupDirectory')}
+              onChange={(event) => setDirectory(event.target.value)}
+              onBlur={() => commitDirectory()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  commitDirectory();
+                }
+              }}
+            />
+            <button
+              type="button"
+              id="auto-backup-browse"
+              disabled={!status || locked.has('autoBackupDirectory')}
+              onClick={async () => {
+                const dir = await pickFolder({ title: 'Backup Folder', initial: directory.trim() || undefined, confirmLabel: 'Use This Folder' });
+                if (dir) {
+                  setDirectory(dir);
+                  commitDirectory(dir);
+                }
+              }}
+            >
+              Browse…
+            </button>
+          </div>
+          <p className="setting-description">
+            Leave it empty to use <code>{status?.defaultDirectory || 'backups/ in the data folder'}</code> on the data volume. For protection against a failed
+            disk, choose a folder on another disk.
+          </p>
         </div>
-        <p className="setting-description">
-          Leave it empty to use <code>{status?.defaultDirectory || 'backups/ in the data folder'}</code> on the data volume.
-        </p>
-      </div>
+      </Advanced>
 
       {locked.size > 0 && (
         <p id="auto-backup-env-note" className="setting-description">

@@ -293,7 +293,7 @@ export const SETTINGS: SettingsGroup[] = [
       {
         id: 'stl-home',
         label: 'STL Home',
-        description: 'Library folders scanned at startup and on a schedule.',
+        description: 'The folders that hold your models.',
         icon: HardDrive,
         run: menu('STL Home'),
         replaces: ['STL Home'],

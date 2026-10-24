@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.5.0] - 2026-10-24
+
+**Changes:**
+- **Simpler settings forms: the usual choices first, the rest under Advanced.**
+  - **Settings → AI:** the service, its sign-in or key, and the model (with a shorter introduction). A local server's address shows with them; the endpoint of a cloud service, how many tags, detail, folder levels, merging, categories, re-tagging, concurrent requests and the prompt are under **Advanced**.
+  - **Settings → Backup:** automatic backups (on or off, how often, how many to keep, Back Up Now and the backups made). The backup folder is under **Backup folder**; earlier versions of files, downloading or restoring the database and exporting or importing the library are under **Advanced**.
+  - **Settings → Scanning → STL Home:** your library folders and watching them; the full-scan schedule, excluded folders and Designer and Title from folder names are under **Advanced**. The warning banner is gone.
+- Labels lost their last trailing colons (API Key).
+
 ## [9.4.0] - 2026-10-24
 
 **Changes:**

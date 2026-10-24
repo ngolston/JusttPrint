@@ -1,3 +1,4 @@
+import { Advanced } from './settings/Advanced';
 import { useEffect, useRef, useState } from 'react';
 import { ai, settings } from './api';
 import { ModalDialog } from './components/ModalDialog';
@@ -193,6 +194,13 @@ export function AiConfigDialog() {
     <input type={type} id={id} value={String(form[key])} {...extra} onChange={(event) => set(key, event.target.value as never)} />
   );
 
+  const endpoint = (
+    <div className="form-group">
+      <label htmlFor="ai-endpoint">API Endpoint</label>
+      {textInput('endpoint', 'ai-endpoint')}
+    </div>
+  );
+
   return (
     <>
       <ModalDialog
@@ -201,9 +209,8 @@ export function AiConfigDialog() {
         dialogRef={dialogRef}
         description={
           <p className="setting-description">
-            This feature uses your own AI service that supports the OpenAI API. You can configure it to work with services such as OpenAI, Claude, Deepseek,
-            Gemini, Puter.com, or a local server (Ollama, LM Studio, and similar). The selected model must support image analysis (e.g., gpt-4o). Puter.com and
-            local OpenAI-compatible servers do not require an API key. You can use the Test button to check that your AI is properly configured.
+            AI Tagging uses an AI service you choose to suggest tags from each model's picture. Pick one, sign in or enter its key, then Test to check it works.
+            Puter.com and local servers (Ollama, LM Studio) need no key.
           </p>
         }
         footer={
@@ -259,7 +266,7 @@ export function AiConfigDialog() {
         )}
         {form.service !== 'puter' && (
           <div className="form-group">
-            <label htmlFor="ai-api-key">{keyRequired ? 'API Key:' : 'API Key (optional):'}</label>
+            <label htmlFor="ai-api-key">{keyRequired ? 'API Key' : 'API Key (optional)'}</label>
             <input
               type="password"
               id="ai-api-key"
@@ -273,86 +280,86 @@ export function AiConfigDialog() {
             </small>
           </div>
         )}
-        <div className="form-group">
-          <label htmlFor="ai-endpoint">API Endpoint</label>
-          {textInput('endpoint', 'ai-endpoint')}
-        </div>
+        {/* A local server needs its address; the cloud services fill theirs in. */}
+        {form.service === 'custom' && endpoint}
         <div className="form-group">
           <label htmlFor="ai-model">AI Model</label>
           {textInput('model', 'ai-model')}
+          <small>It must understand pictures (such as gpt-4o or llava).</small>
         </div>
-        <hr className="ai-config-divider" />
-        <h4 className="ai-config-subtitle">Tag Generation Settings</h4>
-        <div className="form-group">
-          <label htmlFor="ai-tag-max-tags">Maximum Tags</label>
-          {textInput('maxTags', 'ai-tag-max-tags', 'number', { min: 1, max: 50 })}
-          <small>Maximum number of tags to generate per model (1-50)</small>
-        </div>
-        <div className="form-group">
-          <label htmlFor="ai-tag-detail-level">Level of Detail</label>
-          <select id="ai-tag-detail-level" value={form.detailLevel} onChange={(event) => set('detailLevel', event.target.value)}>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-          <small>Detail level for tag generation (Low: "Toy", Medium: "Dragon", High: "Articulated Dragon")</small>
-        </div>
-        <div className="form-group">
-          <label htmlFor="ai-tag-folder-levels">Folder levels</label>
-          {textInput('folderLevels', 'ai-tag-folder-levels', 'number', { min: 0, max: 6 })}
-          <small>
-            How many parent folders to send with the thumbnail, and to use for Tag from Folder and for tagging newly scanned files. 0 omits folders from the AI
-            prompt and adds no folder tags on scan. For Kitchen/Bagel Slicer/model.3mf, 2 levels include Kitchen and Bagel Slicer.
-          </small>
-        </div>
-        <div className="form-group">
-          <label htmlFor="ai-tag-merge-strategy">Tag Merge Strategy</label>
-          <select id="ai-tag-merge-strategy" value={form.mergeStrategy} onChange={(event) => set('mergeStrategy', event.target.value)}>
-            <option value="merge">Merge (add to existing tags)</option>
-            <option value="append">Append (add only new tags)</option>
-            <option value="replace">Replace (remove existing, add new)</option>
-          </select>
-          <small>How AI-generated tags should be combined with existing tags</small>
-        </div>
-        <div className="form-group">
-          <div className="checkbox-container ai-config-checkbox">
-            <input type="checkbox" id="ai-tag-use-categories" checked={form.useCategories} onChange={(event) => set('useCategories', event.target.checked)} />
-            <label htmlFor="ai-tag-use-categories">Use Category-Based Tagging</label>
+        <Advanced id="ai-config-advanced" hint="Endpoint, how many tags, detail, folders, merging, the prompt">
+          {form.service !== 'custom' && endpoint}
+          <div className="form-group">
+            <label htmlFor="ai-tag-max-tags">Maximum Tags</label>
+            {textInput('maxTags', 'ai-tag-max-tags', 'number', { min: 1, max: 50 })}
+            <small>Maximum number of tags to generate per model (1-50)</small>
           </div>
-          <small>
-            Organize tags into categories (object type, style, complexity, material). Separately, every AI Tagging run also gives each model without one its
-            Category and Subcategory (the Categories page), in the same request.
-          </small>
-        </div>
-        <div className="form-group">
-          <div className="checkbox-container ai-config-checkbox">
-            <input
-              type="checkbox"
-              id="ai-tag-allow-retagging"
-              checked={form.allowRetagging}
-              onChange={(event) => set('allowRetagging', event.target.checked)}
-            />
-            <label htmlFor="ai-tag-allow-retagging">Allow Re-tagging</label>
+          <div className="form-group">
+            <label htmlFor="ai-tag-detail-level">Level of Detail</label>
+            <select id="ai-tag-detail-level" value={form.detailLevel} onChange={(event) => set('detailLevel', event.target.value)}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+            <small>Detail level for tag generation (Low: "Toy", Medium: "Dragon", High: "Articulated Dragon")</small>
           </div>
-          <small>Allow re-tagging models that already have "AI Tagged" tag</small>
-        </div>
-        <div className="form-group">
-          <label htmlFor="ai-tag-concurrency">Concurrent Requests</label>
-          {textInput('concurrency', 'ai-tag-concurrency', 'number', { min: 1, max: 10 })}
-          <small>Number of tag generation requests to process simultaneously (1-10)</small>
-        </div>
-        <div className="form-group">
-          <label>AI Prompt</label>
-          <div className="dialog-buttons ai-prompt-actions">
-            <button type="button" id="edit-ai-prompt" onClick={editPrompt}>
-              Edit Prompt
-            </button>
-            <button type="button" id="reset-ai-prompt" onClick={resetPrompt}>
-              Reset Prompt
-            </button>
+          <div className="form-group">
+            <label htmlFor="ai-tag-folder-levels">Folder levels</label>
+            {textInput('folderLevels', 'ai-tag-folder-levels', 'number', { min: 0, max: 6 })}
+            <small>
+              How many parent folders to send with the thumbnail, and to use for Tag from Folder and for tagging newly scanned files. 0 omits folders from the
+              AI prompt and adds no folder tags on scan. For Kitchen/Bagel Slicer/model.3mf, 2 levels include Kitchen and Bagel Slicer.
+            </small>
           </div>
-          <small>Customize the system prompt used for tag generation. Reset restores the built-in default.</small>
-        </div>
+          <div className="form-group">
+            <label htmlFor="ai-tag-merge-strategy">Tag Merge Strategy</label>
+            <select id="ai-tag-merge-strategy" value={form.mergeStrategy} onChange={(event) => set('mergeStrategy', event.target.value)}>
+              <option value="merge">Merge (add to existing tags)</option>
+              <option value="append">Append (add only new tags)</option>
+              <option value="replace">Replace (remove existing, add new)</option>
+            </select>
+            <small>How AI-generated tags should be combined with existing tags</small>
+          </div>
+          <div className="form-group">
+            <div className="checkbox-container ai-config-checkbox">
+              <input type="checkbox" id="ai-tag-use-categories" checked={form.useCategories} onChange={(event) => set('useCategories', event.target.checked)} />
+              <label htmlFor="ai-tag-use-categories">Use Category-Based Tagging</label>
+            </div>
+            <small>
+              Organize tags into categories (object type, style, complexity, material). Separately, every AI Tagging run also gives each model without one its
+              Category and Subcategory (the Categories page), in the same request.
+            </small>
+          </div>
+          <div className="form-group">
+            <div className="checkbox-container ai-config-checkbox">
+              <input
+                type="checkbox"
+                id="ai-tag-allow-retagging"
+                checked={form.allowRetagging}
+                onChange={(event) => set('allowRetagging', event.target.checked)}
+              />
+              <label htmlFor="ai-tag-allow-retagging">Allow Re-tagging</label>
+            </div>
+            <small>Allow re-tagging models that already have "AI Tagged" tag</small>
+          </div>
+          <div className="form-group">
+            <label htmlFor="ai-tag-concurrency">Concurrent Requests</label>
+            {textInput('concurrency', 'ai-tag-concurrency', 'number', { min: 1, max: 10 })}
+            <small>Number of tag generation requests to process simultaneously (1-10)</small>
+          </div>
+          <div className="form-group">
+            <label>AI Prompt</label>
+            <div className="dialog-buttons ai-prompt-actions">
+              <button type="button" id="edit-ai-prompt" onClick={editPrompt}>
+                Edit Prompt
+              </button>
+              <button type="button" id="reset-ai-prompt" onClick={resetPrompt}>
+                Reset Prompt
+              </button>
+            </div>
+            <small>Customize the system prompt used for tag generation. Reset restores the built-in default.</small>
+          </div>
+        </Advanced>
         <div id="ai-config-result" className="result-message" role="status">
           {result}
         </div>
