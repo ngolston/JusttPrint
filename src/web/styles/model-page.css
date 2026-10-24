@@ -115,17 +115,24 @@
   text-align: right;
 }
 /* Details: a short folder name with its full path to copy. */
+/* The folder's name in Details: cut short with "…" to fit the column (the full path is its tooltip and the copy button). */
 .jp-model-page__folder {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--jp-space-1);
   min-width: 0;
+  max-width: 100%;
 }
 .jp-model-page__folder .jp-link-button {
+  display: block;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.jp-model-page__folder .jp-icon-btn {
+  flex: none;
 }
 .jp-model-page__hidden-fields {
   margin: var(--jp-space-3) 0 0;

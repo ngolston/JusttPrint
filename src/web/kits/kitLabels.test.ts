@@ -8,6 +8,10 @@ describe('kit part labels', () => {
     expect(prefix).toBe('Orbiter - ');
     expect(labels.map((label) => shortLabel(label, prefix))).toEqual(['Plate 2', 'Back', 'Wing - Left']);
   });
+  it('also cuts at a folder kit\'s " · " between model and plate', () => {
+    const labels = ['Freedom Gundam · ok', 'Freedom Gundam · Plate 2'];
+    expect(labels.map((label) => shortLabel(label, sharedPrefix(labels)))).toEqual(['ok', 'Plate 2']);
+  });
   it('keeps labels with nothing in common, or a single part, whole', () => {
     expect(sharedPrefix(['Right Shoe', 'Left Shoe'])).toBe('');
     expect(sharedPrefix(['Orbiter - Plate 2'])).toBe('');

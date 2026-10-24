@@ -2,6 +2,12 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.5.3] - 2026-10-24
+
+**Fixes:**
+- A long folder name in a model's (or folder's) **Details** ran past the edge of the column and made the whole page scroll sideways; it is cut short with "…" now (the whole path is its tooltip, and the copy button copies it).
+- A folder page's **Kit progress** still repeated the model's name before each part ("Freedom Gundam · Plate 2"); it is left out there too, as on model pages.
+
 ## [9.5.2] - 2026-10-24
 
 **Changes:**
