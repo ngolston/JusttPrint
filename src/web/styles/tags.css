@@ -147,6 +147,49 @@
 .jp-category-scan {
   margin-bottom: var(--jp-space-4);
 }
+/* Categorize Library while idle: one line and its button; the choices under Options. */
+.jp-category-scan--idle {
+  padding: var(--jp-space-4) var(--jp-space-5);
+}
+.jp-category-scan__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3) var(--jp-space-4);
+}
+.jp-category-scan__text {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-category-scan__options {
+  margin-top: var(--jp-space-2);
+}
+.jp-category-scan__options summary {
+  width: max-content;
+  color: var(--jp-accent);
+  font-size: var(--jp-text-meta);
+  cursor: pointer;
+}
+/* Above the list: what it shows, and the switch for empty ones. */
+.jp-categories__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+  margin-bottom: var(--jp-space-2);
+}
+.jp-categories__empty-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  cursor: pointer;
+}
 .jp-category-scan__ai {
   display: flex;
   align-items: flex-start;
@@ -242,4 +285,62 @@
   display: inline-flex;
   align-items: center;
   gap: var(--jp-space-1);
+}
+
+/* AI Tagging (tags/AiTagRunDialog.tsx): which models to tag. */
+.jp-ai-run {
+  width: min(520px, calc(100vw - 32px));
+}
+.jp-ai-run__intro {
+  margin: 0 0 var(--jp-space-4);
+}
+.jp-ai-run__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+}
+.jp-ai-run__option {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-3) var(--jp-space-4);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  cursor: pointer;
+}
+.jp-ai-run__option:has(input:checked) {
+  border-color: var(--jp-accent);
+  background: var(--jp-accent-soft);
+}
+.jp-ai-run__option.is-empty {
+  opacity: 0.55;
+  cursor: default;
+}
+.jp-ai-run__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.jp-ai-run__label {
+  color: var(--jp-text);
+  font-weight: 500;
+}
+.jp-ai-run__count {
+  flex: none;
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.jp-ai-run .jp-ai-run__settings {
+  margin-right: auto;
+}
+.jp-ai-run .jp-ai-run__note {
+  margin: var(--jp-space-3) 0 0;
+  padding: var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: var(--jp-radius-md);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--jp-text);
+  font-size: var(--jp-text-meta);
 }

@@ -146,7 +146,8 @@ export const NAV: NavSection[] = [
         },
         role: 'editor'
       },
-      { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiConfig'), replaces: ['AI Config'], role: 'admin' }
+      // Tags models now (tags/AiTagRunDialog.tsx); without an AI service, its settings open.
+      { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiTagging'), replaces: ['AI Config'], role: 'admin' }
     ]
   },
   {

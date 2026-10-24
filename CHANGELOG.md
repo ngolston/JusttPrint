@@ -2,6 +2,20 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.4.0] - 2026-10-24
+
+**Changes:**
+- **AI Tagging starts tagging.** The sidebar's **AI Tagging** (and the Tags page's button) opens a short dialog: tag the models without tags, the models the Library shows, or the chosen models, with how many each is, then **Tag**. The run and its review work as **Generate Tags** in a model's menu. **AI settings** is a button in it; without an AI service set up, the settings open as before.
+- **Categories:** Categorize Library is one line with its button ("13 models without a Subcategory yet"); its choices (use the AI, sort every model again) are under **Options**. Categories and Subcategories without models are hidden; **Show empty ones** lists them all.
+- **Duplicates:** the choices are pills (Look for: Identical files, Same geometry, Same shape; In: the whole library or the Library's current filter), the folder to keep copies in sits beside them, and **Easy** and **Clear** are now **Select the extra copies** and **Unselect all**. A shorter introduction, no icon in the title.
+- **Folder pages** look like model pages: the header with the folder's name, designer, category, files and size, and **Open All in Slicer**, **Assembly View**, **Add to Collection** and **Show in Library** beside it; the files as rows; **Details** with empty fields hidden and the folder shortened, with a button to copy its full path. The breadcrumb shows the folders above it.
+- **Log Print** puts When and Outcome, and Quantity and Printer, side by side, shows a kit's plates as chips with **All** and **None**, and folds **Spare parts used** away until opened.
+- Upload and Add Links label their fields in plain words instead of small capitals.
+
+**Fixes:**
+- Home's "Last printed" line ran over the counters on tablets; it is cut short with "…" now.
+- The Library's filter bar (9.3) counted a Category's models twice.
+
 ## [9.3.0] - 2026-10-24
 
 **Changes:**

@@ -201,44 +201,37 @@ function ScanPanel({ uncategorized }: { uncategorized: number }) {
     );
   }
 
+  const aiNote =
+    puterMissing && serviceReady ? (
+      <>
+        {' '}
+        <button type="button" className="jp-link-button" onClick={() => window.openAiConfig?.()}>
+          Sign in to Puter
+        </button>{' '}
+        first: the AI step runs through your Puter account in this browser.
+      </>
+    ) : !serviceReady ? (
+      <>
+        {' '}
+        <button type="button" className="jp-link-button" onClick={() => window.openAiConfig?.()}>
+          Set up the AI service
+        </button>{' '}
+        first.
+      </>
+    ) : null;
   return (
-    <Panel className="jp-category-scan" title="Categorize Library">
-      <p className="jp-meta">
-        Gives each of the {models(uncategorized)} without a Subcategory its Category and Subcategory. First the category MakerWorld, Printables or Thingiverse
-        gives it (free; MakerWorld uses this very list).
-      </p>
-      <label className="jp-category-scan__ai">
-        <input type="checkbox" checked={useAi && aiReady} disabled={!aiReady} onChange={(event) => setUseAi(event.target.checked)} />
-        <span>
-          Then the AI service looks at each remaining model's picture and picks its Category and Subcategory, saved straight away (uses the AI Tagging service
-          and its costs). Models placed earlier by a word in their folder, tags or name are looked at again. Without the AI, those words place what they can.
-          {puterMissing && serviceReady && (
-            <>
-              {' '}
-              <button type="button" className="jp-link-button" onClick={() => window.openAiConfig?.()}>
-                Sign in to Puter
-              </button>{' '}
-              first (in Settings → AI Tagging): the AI step runs through your Puter account in this browser.
-            </>
-          )}
-          {!serviceReady && (
-            <>
-              {' '}
-              <button type="button" className="jp-link-button" onClick={() => window.openAiConfig?.()}>
-                Set up the AI service
-              </button>{' '}
-              first.
-            </>
-          )}
-        </span>
-      </label>
-      <label className="jp-category-scan__ai">
-        <input type="checkbox" id="jp-category-scan-again" checked={again} onChange={(event) => setAgain(event.target.checked)} />
-        <span>Sort every model again (except the ones you placed yourself in the Edit dialog).</span>
-      </label>
-      <div className="jp-category-scan__buttons">
+    <section className="jp-card jp-category-scan jp-category-scan--idle" aria-label="Categorize Library">
+      <div className="jp-category-scan__row">
+        <div className="jp-category-scan__text">
+          <strong>{uncategorized ? `${models(uncategorized)} without a Subcategory yet` : 'Every model has its place'}</strong>
+          <span className="jp-meta">
+            {uncategorized
+              ? 'Categorize Library places them: the category MakerWorld, Printables or Thingiverse gives (free), then the AI, then words in their names.'
+              : 'Categorize Library can sort every model again.'}
+          </span>
+        </div>
         <Button
-          variant="primary"
+          variant={uncategorized ? 'primary' : 'secondary'}
           icon={WandSparkles}
           id="jp-category-scan-start"
           disabled={starting || (!uncategorized && !again && !(useAi && aiReady))}
@@ -247,7 +240,22 @@ function ScanPanel({ uncategorized }: { uncategorized: number }) {
           Categorize Library
         </Button>
       </div>
-    </Panel>
+      <details className="jp-category-scan__options" id="jp-category-scan-options">
+        <summary>Options</summary>
+        <label className="jp-category-scan__ai">
+          <input type="checkbox" checked={useAi && aiReady} disabled={!aiReady} onChange={(event) => setUseAi(event.target.checked)} />
+          <span>
+            Use the AI for the rest: it looks at each model's picture (uses your AI service and its costs). Without it, words in folder names, tags and names
+            place what they can.
+            {aiNote}
+          </span>
+        </label>
+        <label className="jp-category-scan__ai">
+          <input type="checkbox" id="jp-category-scan-again" checked={again} onChange={(event) => setAgain(event.target.checked)} />
+          <span>Sort every model again (not the ones you placed yourself in Edit).</span>
+        </label>
+      </details>
+    </section>
   );
 }
 
@@ -259,6 +267,8 @@ function ScanPanel({ uncategorized }: { uncategorized: number }) {
 export function CategoriesPage() {
   const canEdit = useCan('editor');
   const [data, setData] = useState<{ categories: Category[]; uncategorized: number } | null>(null);
+  /** Categories and Subcategories without models are hidden unless asked for. */
+  const [showEmpty, setShowEmpty] = useState(false);
 
   const load = useCallback(() => {
     categoryApi.list().then(setData, () => {});
@@ -278,7 +288,15 @@ export function CategoriesPage() {
     };
   }, [load]);
 
-  const groups = data ? groupCategories(data.categories) : null;
+  const allGroups = data ? groupCategories(data.categories) : null;
+  const groups = allGroups
+    ? showEmpty
+      ? allGroups
+      : allGroups
+          .filter((group) => group.category.model_count > 0)
+          .map((group) => ({ ...group, subcategories: group.subcategories.filter((sub) => sub.model_count > 0) }))
+    : null;
+  const hiddenCount = allGroups && groups ? allGroups.length - groups.length : 0;
   const max = Math.max(0, ...(data?.categories || []).filter((c) => c.parent_id).map((c) => c.model_count));
 
   return (
@@ -287,8 +305,8 @@ export function CategoriesPage() {
         <div>
           <h1 className="jp-page-title">Categories</h1>
           <p className="jp-meta">
-            {data && groups
-              ? `${groups.length} categories, ${data.categories.length - groups.length} subcategories • ${models(data.uncategorized)} without a Subcategory`
+            {data && allGroups
+              ? `${allGroups.length} categories, ${data.categories.length - allGroups.length} subcategories • ${models(data.uncategorized)} without a Subcategory`
               : 'Every model has a Category and a Subcategory.'}
           </p>
         </div>
@@ -307,28 +325,44 @@ export function CategoriesPage() {
           <Skeleton height={44} />
           <Skeleton height={44} />
         </div>
-      ) : !groups.length ? (
+      ) : !allGroups?.length ? (
         <Panel>
           <EmptyState icon={Shapes} title="No categories" />
         </Panel>
       ) : (
-        <ul className="jp-card jp-tags__list" aria-label="Categories" id="jp-categories-list">
-          {groups.map(({ category, subcategories }) => (
-            <li key={category.id} className="jp-category-group">
-              <details>
-                <summary aria-label={`${category.name}: its subcategories`}>
-                  <ChevronRight size={16} aria-hidden="true" className="jp-category-group__chevron" />
-                  <Row category={category} max={0} canEdit={canEdit} />
-                </summary>
-                <div className="jp-category-group__subs">
-                  {subcategories.map((sub) => (
-                    <Row key={sub.id} category={sub} max={max} canEdit={canEdit} sub />
-                  ))}
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="jp-categories__bar">
+            <span className="jp-meta">{showEmpty ? 'Every Category and Subcategory' : 'Categories with models'}</span>
+            <label className="jp-categories__empty-toggle">
+              <input type="checkbox" id="jp-categories-show-empty" checked={showEmpty} onChange={(event) => setShowEmpty(event.target.checked)} />
+              <span>Show empty ones{!showEmpty && hiddenCount ? ` (${hiddenCount} more)` : ''}</span>
+            </label>
+          </div>
+          {!groups.length && (
+            <Panel>
+              <EmptyState icon={Shapes} title="No models have a place yet">
+                Categorize Library above gives each model its Category and Subcategory.
+              </EmptyState>
+            </Panel>
+          )}
+          <ul className="jp-card jp-tags__list" aria-label="Categories" id="jp-categories-list">
+            {groups.map(({ category, subcategories }) => (
+              <li key={category.id} className="jp-category-group">
+                <details>
+                  <summary aria-label={`${category.name}: its subcategories`}>
+                    <ChevronRight size={16} aria-hidden="true" className="jp-category-group__chevron" />
+                    <Row category={category} max={0} canEdit={canEdit} />
+                  </summary>
+                  <div className="jp-category-group__subs">
+                    {subcategories.map((sub) => (
+                      <Row key={sub.id} category={sub} max={max} canEdit={canEdit} sub />
+                    ))}
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

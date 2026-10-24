@@ -1483,7 +1483,14 @@ async function browserChecks(base, wsUrl, session) {
           window.location.hash = '#/categories';
         });
         await page.waitForSelector('#jp-categories-list', { timeout: 10000 }).catch(() => {});
-        check('the Categories page lists the eleven Categories', (await page.locator('#jp-categories-list .jp-category-group').count()) === 11);
+        // Empty ones are hidden (9.4) until asked for.
+        const shownBefore = await page.locator('#jp-categories-list .jp-category-group').count();
+        await page.check('#jp-categories-show-empty');
+        check(
+          'the Categories page hides empty Categories, and lists all eleven when asked',
+          shownBefore < 11 && (await page.locator('#jp-categories-list .jp-category-group').count()) === 11,
+          String(shownBefore)
+        );
         const puzzles = ((await invoke(base, session, 'get-categories')).result.categories || []).find((c) => c.name === 'Puzzles') || {};
         check('Puzzles is a Subcategory of Toys & Games', !!puzzles.parent_id);
         await invoke(base, session, 'update-category', [puzzles.id || 0, { keywords: 'cube' }]);
@@ -1491,6 +1498,7 @@ async function browserChecks(base, wsUrl, session) {
         await page.waitForSelector('#jp-category-scan-start, #jp-category-scan-close', { timeout: 60000 }).catch(() => {});
         if (await page.isVisible('#jp-category-scan-close')) await page.click('#jp-category-scan-close');
         await page.waitForSelector('#jp-category-scan-start', { timeout: 10000 }).catch(() => {});
+        await page.click('#jp-category-scan-options summary');
         await page.uncheck('.jp-category-scan__ai input').catch(() => {});
         await page.check('#jp-category-scan-again').catch(() => {});
         await page.click('#jp-category-scan-start');

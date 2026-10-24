@@ -260,25 +260,36 @@ function LogPrintDialog() {
     <dialog id="log-print-dialog" className="modal" ref={dialogRef}>
       <form id="log-print-form" onSubmit={submit}>
         <h3 id="log-print-title">{filePaths.length > 1 ? `Log a print on ${filePaths.length} models` : 'Log a print'}</h3>
-        <p className="setting-description">Creates a history row. Status-only changes use the dropdown or Shift-click on the card badge.</p>
-        <div className="form-group">
-          <label htmlFor="log-print-when">When</label>
-          <input type="datetime-local" id="log-print-when" required value={when} onChange={(e) => setWhen(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label htmlFor="log-print-outcome">Outcome</label>
-          <select id="log-print-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-            {Object.entries(OUTCOME_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+        <p className="setting-description">Adds a print to the model's history (and ticks its kit's plates when printed).</p>
+        <div className="log-print-row">
+          <div className="form-group">
+            <label htmlFor="log-print-when">When</label>
+            <input type="datetime-local" id="log-print-when" required value={when} onChange={(e) => setWhen(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="log-print-outcome">Outcome</label>
+            <select id="log-print-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+              {Object.entries(OUTCOME_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {plates.length > 0 && (
           <div className="form-group" id="log-print-plates">
-            <label>Plates printed</label>
-            <p className="setting-description">A Printed print ticks these plates in the model’s kit.</p>
+            <div className="log-print-plates__head">
+              <label>Plates printed</label>
+              <span className="log-print-plates__all">
+                <button type="button" className="jp-link-button" onClick={() => setChosenPlates(new Set(plates.map((p) => p.plate)))}>
+                  All
+                </button>
+                <button type="button" className="jp-link-button" onClick={() => setChosenPlates(new Set())}>
+                  None
+                </button>
+              </span>
+            </div>
             <div className="log-print-plates">
               {plates.map((p) => (
                 <label key={p.plate} className="checkbox-container">
@@ -301,25 +312,29 @@ function LogPrintDialog() {
             </div>
           </div>
         )}
-        <div className="form-group">
-          <label htmlFor="log-print-quantity">Quantity</label>
-          <input type="number" id="log-print-quantity" min="1" max="9999" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+        <div className="log-print-row">
+          <div className="form-group">
+            <label htmlFor="log-print-quantity">Quantity</label>
+            <input type="number" id="log-print-quantity" min="1" max="9999" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="log-print-printer-select">Printer used</label>
+            <select id="log-print-printer-select" value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
+              <option value="">Select printer (optional)…</option>
+              {printerList.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {printerOptionLabel(p)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="log-print-printer-select">Printer used</label>
-          <select id="log-print-printer-select" value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
-            <option value="">Select printer (optional)…</option>
-            {printerList.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                {printerOptionLabel(p)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="log-print-part-select">Parts used</label>
+        <details className="form-group log-print-parts-details" open={chosenParts.length > 0 || undefined}>
+          <summary>
+            Spare parts used <span className="setting-description">(optional)</span>
+          </summary>
           <div className="log-print-parts-add">
-            <select id="log-print-part-select" value={partId} onChange={(e) => setPartId(e.target.value)}>
+            <select id="log-print-part-select" aria-label="Part used" value={partId} onChange={(e) => setPartId(e.target.value)}>
               <option value="">Add part…</option>
               {partList.map((p) => (
                 <option key={p.id} value={String(p.id)}>
@@ -394,7 +409,7 @@ function LogPrintDialog() {
           <p id="log-print-parts-summary" className="setting-description">
             {partsSummary}
           </p>
-        </div>
+        </details>
         <div className="form-group">
           <label htmlFor="log-print-notes">Notes</label>
           <textarea

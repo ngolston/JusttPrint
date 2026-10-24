@@ -205,7 +205,7 @@ function downloadFile(filePath: string) {
 }
 
 /** One file of the model as a row: its small picture, name and size, and 3D, Open and Download. */
-function FileRow({ file, current }: { file: FolderFile; current: boolean }) {
+export function FileRow({ file, current }: { file: FolderFile; current: boolean }) {
   const online = file.filePath.startsWith('url::');
   const name = file.fileName || file.filePath.split(/[\\/]/).pop() || '';
   const canPreview = !online && isPreviewablePath(file.filePath);
