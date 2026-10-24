@@ -1,3 +1,4 @@
+import { Advanced } from './settings/Advanced';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { backup, downloadUrl, leftoverDownloads, type FileResult, type LeftoverDownloads } from './api';
 import { ModalDialog } from './components/ModalDialog';
@@ -183,7 +184,6 @@ export function BackupRestoreDialog() {
       }
     >
       <AutoBackup opened={opened} />
-      <VersionsSpace opened={opened} />
       {!!leftovers?.files.length && (
         <div id="leftover-downloads" className="leftover-downloads">
           <p className="setting-description">
@@ -195,44 +195,47 @@ export function BackupRestoreDialog() {
           </button>
         </div>
       )}
-      <div className="backup-restore-columns">
-        <div>
-          <h4>Database</h4>
-          <div className="form-group">
-            <label>Database Backup</label>
-            <p className="setting-description">Download a backup of your database: model information, tags and settings.</p>
-            <button type="button" id="backup-button" className="full-width-button" disabled={!!busy} onClick={createBackup}>
-              {label('backup', 'Create Backup', 'Creating backup...')}
-            </button>
+      <Advanced id="backup-advanced" hint="Earlier versions of files, download or restore the database, export or import the library">
+        <VersionsSpace opened={opened} />
+        <div className="backup-restore-columns">
+          <div>
+            <h4>Database</h4>
+            <div className="form-group">
+              <label>Database Backup</label>
+              <p className="setting-description">Download a backup of your database: model information, tags and settings.</p>
+              <button type="button" id="backup-button" className="full-width-button" disabled={!!busy} onClick={createBackup}>
+                {label('backup', 'Create Backup', 'Creating backup...')}
+              </button>
+            </div>
+            <div className="form-group">
+              <label>Database Restore</label>
+              <p className="setting-description">Restore your database from a backup file. This replaces all current data.</p>
+              <button type="button" id="restore-button" className="full-width-button" disabled={!!busy} onClick={chooseRestoreFile}>
+                {label('restore', 'Restore from Backup', 'Restoring...')}
+              </button>
+              <input ref={restoreInputRef} id="restore-file-input" type="file" accept=".db" hidden onChange={restore} />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Database Restore</label>
-            <p className="setting-description">Restore your database from a backup file. This replaces all current data.</p>
-            <button type="button" id="restore-button" className="full-width-button" disabled={!!busy} onClick={chooseRestoreFile}>
-              {label('restore', 'Restore from Backup', 'Restoring...')}
-            </button>
-            <input ref={restoreInputRef} id="restore-file-input" type="file" accept=".db" hidden onChange={restore} />
+          <div>
+            <h4>Library</h4>
+            <div className="form-group">
+              <label>Library Export</label>
+              <p className="setting-description">Download your library (models and tags) as a JSON file for backup or sharing.</p>
+              <button type="button" id="export-library-button" className="full-width-button" disabled={!!busy} onClick={exportLibrary}>
+                {label('export', 'Export Library', 'Exporting...')}
+              </button>
+            </div>
+            <div className="form-group">
+              <label>Library Import</label>
+              <p className="setting-description">Merge models and tags from a library JSON file into your current library.</p>
+              <button type="button" id="import-library-button" className="full-width-button" disabled={!!busy} onClick={chooseImportFile}>
+                {label('import', 'Import Library', 'Importing...')}
+              </button>
+              <input ref={importInputRef} id="import-library-file-input" type="file" accept=".json,application/json" hidden onChange={importLibrary} />
+            </div>
           </div>
         </div>
-        <div>
-          <h4>Library</h4>
-          <div className="form-group">
-            <label>Library Export</label>
-            <p className="setting-description">Download your library (models and tags) as a JSON file for backup or sharing.</p>
-            <button type="button" id="export-library-button" className="full-width-button" disabled={!!busy} onClick={exportLibrary}>
-              {label('export', 'Export Library', 'Exporting...')}
-            </button>
-          </div>
-          <div className="form-group">
-            <label>Library Import</label>
-            <p className="setting-description">Merge models and tags from a library JSON file into your current library.</p>
-            <button type="button" id="import-library-button" className="full-width-button" disabled={!!busy} onClick={chooseImportFile}>
-              {label('import', 'Import Library', 'Importing...')}
-            </button>
-            <input ref={importInputRef} id="import-library-file-input" type="file" accept=".json,application/json" hidden onChange={importLibrary} />
-          </div>
-        </div>
-      </div>
+      </Advanced>
     </ModalDialog>
   );
 }

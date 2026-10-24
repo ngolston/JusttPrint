@@ -4177,6 +4177,8 @@ async function browserChecks(base, wsUrl, session) {
     fs.writeFileSync(uiLeftover, '{}');
     await page.evaluate(() => window.openBackupRestore());
     check('Backup/Restore opens', await page.isVisible('#backup-restore-dialog'));
+    // Download, restore, export and import are under Advanced (9.5).
+    await page.evaluate(() => document.querySelectorAll('details.jp-advanced').forEach((section) => (section.open = true)));
     const leftoverNotice = await page.waitForSelector('#leftover-downloads:has-text("1 backup and export file")', { timeout: 10000 }).catch(() => null);
     if (leftoverNotice) await page.click('#delete-leftover-downloads');
     const confirmLeftovers = await page
@@ -4464,7 +4466,7 @@ async function browserChecks(base, wsUrl, session) {
       'choosing Claude fills its endpoint and model',
       (await page.inputValue('#ai-endpoint')) === 'https://api.anthropic.com/v1/' && (await page.inputValue('#ai-model')) === 'claude-haiku-4-5'
     );
-    check('Claude asks for an API key', /^API Key:$/.test((await page.textContent('label[for="ai-api-key"]')).trim()));
+    check('Claude asks for an API key', /^API Key$/.test((await page.textContent('label[for="ai-api-key"]')).trim()));
     await page.selectOption('#ai-service-select', 'custom');
     check('a custom server makes the key optional', /optional/.test(await page.textContent('label[for="ai-api-key"]')));
     await page.click('#cancel-ai-config');
@@ -4474,6 +4476,8 @@ async function browserChecks(base, wsUrl, session) {
     await page.selectOption('#ai-service-select', 'custom');
     await page.fill('#ai-endpoint', 'http://ollama.local:11434/v1');
     await page.fill('#ai-model', 'llava');
+    // The tag settings are under Advanced (9.5).
+    await page.evaluate(() => document.querySelectorAll('details.jp-advanced').forEach((section) => (section.open = true)));
     await page.fill('#ai-tag-max-tags', '7');
     await page.click('#edit-ai-prompt');
     await page.waitForSelector('#ai-prompt-edit-dialog[open]', { timeout: 10000 }).catch(() => {});
@@ -4843,6 +4847,8 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#stl-home-directories-list li:has-text("/srv/models") .stl-home-exclude-remove');
     if (homeRow) await page.click(`#stl-home-directories-list li:has-text("${LIBRARY}") .stl-home-exclude-remove`);
     check('STL Home shows the empty list', await page.isVisible('#stl-home-directories-list .stl-home-exclude-empty'));
+    // Excluded folders and folder-name details are under Advanced (9.5).
+    await page.evaluate(() => document.querySelectorAll('details.jp-advanced').forEach((section) => (section.open = true)));
     await page.fill('#stl-home-exclude-input', 'Designer C');
     await page.click('#stl-home-exclude-add');
     check(

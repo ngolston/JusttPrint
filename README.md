@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 9.4.0**
+**Version 9.5.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -186,7 +186,7 @@ All are optional. You can change most of these later under **Settings** in the a
 
 ## Using the Web App
 
-The sidebar holds every page: **Home**, **Library**, **Collections**, **Categories**; under Printing **Queue**, **Printers**, **Statistics**; under Manage **Tags**, **Duplicates**, **History**; under Tools (they run at once) **Organize**, **Scan Library**, **AI Tagging**; and, pinned at the bottom above Library Storage, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K). **Settings** is in tabs: a group at a time on the left (across the top on phones), with a tab for each setting in groups that have several, such as **Integrations → MakerWorld**. **Automatic backups** (Settings → Backup) are on from the start: daily, keeping the newest 7.
+The sidebar holds every page: **Home**, **Library**, **Collections**, **Categories**; under Printing **Queue**, **Printers**, **Statistics**; under Manage **Tags**, **Duplicates**, **History**; under Tools (they run at once) **Organize**, **Scan Library**, **AI Tagging**; and, pinned at the bottom above Library Storage, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K). **Settings** is in tabs: a group at a time on the left (across the top on phones), with a tab for each setting in groups that have several, such as **Integrations → MakerWorld**. **Automatic backups** (Settings → Backup) are on from the start: daily, keeping the newest 7. The AI, Backup and STL Home forms show the usual choices first; the rest is under **Advanced**.
 
 - **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
 - **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload and move files, and remove models from the library; **Admins** also delete files from disk, change settings, backups, JusttPrint backend access and accounts. The JusttPrint backend checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone. Tick **Can delete files from disk** on an editor to let them delete files too (**Delete from Disk** in the model menu, and Delete Selected on the Duplicates page).
@@ -221,7 +221,7 @@ AI tagging looks at a model's thumbnail and name and suggests tags. You review t
 
 1. Open **Settings → AI** (or click **AI Tagging** in the sidebar: while no service is set up, it opens these settings).
 2. Pick a service and enter its API key (OpenAI, Claude, Gemini). Puter needs no key: click **Sign In** and log in to your Puter account in the popup (allow popups for JusttPrint); usage counts against that account. The sign-in is kept for your JusttPrint account, so your other computers and your phone are signed in too (and **Sign Out** signs them all out). For a local server such as Ollama or LM Studio, pick `custom`, enter its address (for example `http://<server-ip>:11434/v1` for Ollama) and leave the key blank.
-3. Pick a model, and save.
+3. Pick a model (the endpoint, tag count, detail level and the prompt are under **Advanced**), and save.
 4. Click **AI Tagging** in the sidebar and choose which models: those without tags, those the Library shows, or the ones you chose; then **Tag**. (Or choose models, open a card's **⋯** menu and choose **Generate Tags**.) Tick the tags you want and apply.
 
 You can also set this up with the `JUSTTPRINT_AI_*` [environment variables](#environment-variables). When you use AI tagging, the thumbnail, file name and folder names are sent to the service you picked.

@@ -1,3 +1,4 @@
+import { Advanced } from './settings/Advanced';
 import { useEffect, useRef, useState } from 'react';
 import { callAction, settings } from './api';
 import { pickFolder } from './components/FolderPicker';
@@ -259,12 +260,7 @@ export function StlHomeDialog() {
       id="stl-home-dialog"
       title="STL Home"
       dialogRef={dialogRef}
-      description={
-        <>
-          <p className="warning-text">Warning: Scanning large directories may impact performance.</p>
-          <p className="setting-description">Directories in this list are scanned when you save, and again on the schedule below.</p>
-        </>
-      }
+      description={<p className="setting-description">They are scanned when you save, then watched (or scanned again on a schedule) so new models show up.</p>}
       footer={
         <>
           <button type="button" id="save-stl-home-button" className="is-primary" disabled={saving} onClick={save}>
@@ -277,8 +273,8 @@ export function StlHomeDialog() {
       }
     >
       <div className="form-group" id="stl-home-directories-group">
-        <label htmlFor="stl-home-directories-input">Directories</label>
-        <p className="setting-description">Paths inside the JusttPrint backend's container. Add more than one to cover separate libraries.</p>
+        <label htmlFor="stl-home-directories-input">Library folders</label>
+        <p className="setting-description">Paths on the JusttPrint backend (inside its container). Add more than one for separate libraries.</p>
         <DirList
           id="stl-home-directories"
           items={form.homes}
@@ -291,11 +287,11 @@ export function StlHomeDialog() {
       <div className="form-group" id="stl-home-watch-group">
         <div className="form-group checkbox-container">
           <input type="checkbox" id="stl-home-watch" checked={form.watch} onChange={(event) => set('watch', event.target.checked)} />
-          <label htmlFor="stl-home-watch">Watch these directories for changes</label>
+          <label htmlFor="stl-home-watch">Watch them for changes</label>
         </div>
         <p className="setting-description">
-          New, changed and deleted files show up within seconds, without waiting for the next scan. Network shares (SMB/NFS) and Docker Desktop on Mac or
-          Windows may not report changes; the timed scan below still covers them.
+          New, changed and deleted files show up within seconds. Network shares (SMB/NFS) and Docker Desktop on Mac or Windows may not report changes; the timed
+          scan under Advanced still covers them.
         </p>
         {form.watch && watchSummary(watchStatus) && (
           <p id="stl-home-watch-status" className="setting-description">
@@ -303,70 +299,72 @@ export function StlHomeDialog() {
           </p>
         )}
       </div>
-      <div className="form-group" id="stl-home-update-frequency-group">
-        <label htmlFor="stl-home-update-frequency">Update Frequency (minutes)</label>
-        <input
-          type="number"
-          id="stl-home-update-frequency"
-          min="1"
-          max="1440"
-          value={form.frequency}
-          onChange={(event) => set('frequency', event.target.value)}
-        />
-        <p className="setting-description">How often the STL Home directories are scanned in full, for changes that watching misses.</p>
-      </div>
-      <div className="form-group" id="stl-home-exclude-group">
-        <label htmlFor="stl-home-exclude-input">Excluded directories</label>
-        <p className="setting-description">
-          STL Home scans skip these directories and everything inside them. Use a full path, or a path relative to the STL Home directory being scanned. Folders
-          starting with a dot, such as .manyfold and .git, are always skipped. Models already in the library stay until you remove them, except files found in
-          those hidden folders, which the next scan can drop from the library.
-        </p>
-        <DirList
-          id="stl-home-exclude"
-          items={form.excluded}
-          empty="No directories excluded."
-          placeholder="Enter a path to exclude"
-          pickTitle="Exclude a Directory"
-          onChange={(excluded) => set('excluded', excluded)}
-        />
-      </div>
-      <div className="form-group" id="stl-home-path-metadata-group">
-        <div className="form-group checkbox-container stl-home-path-metadata-checkbox-row">
+      <Advanced id="stl-home-advanced" hint="Scan schedule, folders to skip, Designer and Title from folder names">
+        <div className="form-group" id="stl-home-update-frequency-group">
+          <label htmlFor="stl-home-update-frequency">Full scan every (minutes)</label>
           <input
-            type="checkbox"
-            id="stl-home-path-metadata-enabled"
-            checked={form.pathMetadata}
-            onChange={(event) => set('pathMetadata', event.target.checked)}
+            type="number"
+            id="stl-home-update-frequency"
+            min="1"
+            max="1440"
+            value={form.frequency}
+            onChange={(event) => set('frequency', event.target.value)}
           />
-          <label htmlFor="stl-home-path-metadata-enabled">Enable: use folder path to set Designer and Title</label>
+          <p className="setting-description">How often the STL Home directories are scanned in full, for changes that watching misses.</p>
         </div>
-        <div id="stl-home-path-metadata-options" className={`stl-home-path-metadata-options${form.pathMetadata ? '' : ' grayed'}`}>
-          <div className="form-group stl-home-path-direction-row">
-            <label htmlFor="stl-home-path-direction">Use folder path</label>
-            <select id="stl-home-path-direction" value={form.direction} onChange={(event) => set('direction', event.target.value as Form['direction'])}>
-              <option value="fromModel">From Model</option>
-              <option value="fromRoot">From Root</option>
-            </select>
+        <div className="form-group" id="stl-home-exclude-group">
+          <label htmlFor="stl-home-exclude-input">Excluded directories</label>
+          <p className="setting-description">
+            STL Home scans skip these directories and everything inside them. Use a full path, or a path relative to the STL Home directory being scanned.
+            Folders starting with a dot, such as .manyfold and .git, are always skipped. Models already in the library stay until you remove them, except files
+            found in those hidden folders, which the next scan can drop from the library.
+          </p>
+          <DirList
+            id="stl-home-exclude"
+            items={form.excluded}
+            empty="No directories excluded."
+            placeholder="Enter a path to exclude"
+            pickTitle="Exclude a Directory"
+            onChange={(excluded) => set('excluded', excluded)}
+          />
+        </div>
+        <div className="form-group" id="stl-home-path-metadata-group">
+          <div className="form-group checkbox-container stl-home-path-metadata-checkbox-row">
+            <input
+              type="checkbox"
+              id="stl-home-path-metadata-enabled"
+              checked={form.pathMetadata}
+              onChange={(event) => set('pathMetadata', event.target.checked)}
+            />
+            <label htmlFor="stl-home-path-metadata-enabled">Enable: use folder path to set Designer and Title</label>
           </div>
-          <p className="setting-description stl-home-path-intro">
-            When you run “Scan STL Home”, folder names are used to set Designer and Title. Values are only applied when the field is empty.
-          </p>
-          <p className="setting-description stl-home-path-direction-desc">
-            {form.direction === 'fromRoot'
-              ? 'From Root: level 0 = the STL Home directory that contains the file, 1 = first folder under it, 2 = second, etc.'
-              : 'From Model: level 0 = parent of file, 1 = grandparent, 2 = great-grandparent, etc.'}
-          </p>
-          <p className="setting-description stl-home-path-example">
-            <span className="path-example">Example: /models/DESIGNER/PARENT/MODEL.3MF</span> — From Model: level 0 = PARENT, level 1 = DESIGNER. From Root:
-            level 0 = models (STL Home), level 1 = DESIGNER, level 2 = PARENT.
-          </p>
-          <div className="path-metadata-indices">
-            {indexField('useDesigner', 'designerIndex', 'designer', 'Designer')}
-            {indexField('useParentModel', 'parentModelIndex', 'parent-model', 'Title')}
+          <div id="stl-home-path-metadata-options" className={`stl-home-path-metadata-options${form.pathMetadata ? '' : ' grayed'}`}>
+            <div className="form-group stl-home-path-direction-row">
+              <label htmlFor="stl-home-path-direction">Use folder path</label>
+              <select id="stl-home-path-direction" value={form.direction} onChange={(event) => set('direction', event.target.value as Form['direction'])}>
+                <option value="fromModel">From Model</option>
+                <option value="fromRoot">From Root</option>
+              </select>
+            </div>
+            <p className="setting-description stl-home-path-intro">
+              When you run “Scan STL Home”, folder names are used to set Designer and Title. Values are only applied when the field is empty.
+            </p>
+            <p className="setting-description stl-home-path-direction-desc">
+              {form.direction === 'fromRoot'
+                ? 'From Root: level 0 = the STL Home directory that contains the file, 1 = first folder under it, 2 = second, etc.'
+                : 'From Model: level 0 = parent of file, 1 = grandparent, 2 = great-grandparent, etc.'}
+            </p>
+            <p className="setting-description stl-home-path-example">
+              <span className="path-example">Example: /models/DESIGNER/PARENT/MODEL.3MF</span> — From Model: level 0 = PARENT, level 1 = DESIGNER. From Root:
+              level 0 = models (STL Home), level 1 = DESIGNER, level 2 = PARENT.
+            </p>
+            <div className="path-metadata-indices">
+              {indexField('useDesigner', 'designerIndex', 'designer', 'Designer')}
+              {indexField('useParentModel', 'parentModelIndex', 'parent-model', 'Title')}
+            </div>
           </div>
         </div>
-      </div>
+      </Advanced>
     </ModalDialog>
   );
 }

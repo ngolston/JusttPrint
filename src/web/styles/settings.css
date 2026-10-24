@@ -462,3 +462,48 @@
   min-width: 220px;
   margin: 0;
 }
+
+/* "Advanced" in a settings form (settings/Advanced.tsx): the rarely changed fields, folded away. */
+.jp-advanced {
+  margin: var(--jp-space-4) 0 var(--jp-space-2);
+  border-top: 1px solid var(--jp-border);
+}
+.jp-advanced__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--jp-space-1) var(--jp-space-2);
+  padding: var(--jp-space-3) 0;
+  list-style: none;
+  cursor: pointer;
+}
+.jp-advanced__summary::-webkit-details-marker {
+  display: none;
+}
+.jp-advanced__chevron {
+  align-self: center;
+  color: var(--jp-text-2);
+  transition: transform var(--jp-transition);
+}
+.jp-advanced[open] .jp-advanced__chevron {
+  transform: rotate(90deg);
+}
+.jp-advanced__title {
+  color: var(--jp-text);
+  font-weight: 600;
+}
+.jp-advanced__hint {
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+}
+.jp-advanced__summary:hover .jp-advanced__title {
+  color: var(--jp-accent);
+}
+.jp-advanced__summary:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: var(--jp-radius-sm);
+}
+.jp-advanced__body {
+  padding-bottom: var(--jp-space-2);
+}
