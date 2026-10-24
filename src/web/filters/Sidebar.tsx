@@ -34,7 +34,7 @@ interface Options {
   categories: { name: string; subcategories: string[] }[];
 }
 
-async function loadFileTypes(): Promise<{ value: string; label: string }[]> {
+export async function loadFileTypes(): Promise<{ value: string; label: string }[]> {
   const types = [
     { value: '', label: 'All Types' },
     { value: 'stl', label: 'STL' },
@@ -174,7 +174,13 @@ function FilterStrip({ container, body, actions }: { container: HTMLElement; bod
       {createPortal(
         strip.active && (
           <>
-            {count === 0 ? <div className="no-results">No models match your filters</div> : <div className="filter-count">Showing {count ?? 0} models</div>}
+            {count === 0 ? (
+              <div className="no-results">No models match your filters</div>
+            ) : (
+              <div className="filter-count">
+                Showing {(count ?? 0).toLocaleString()} {count === 1 ? 'model' : 'models'}
+              </div>
+            )}
             <div className="filter-pills-container">
               {strip.chain.length > 0 && (
                 <div className="filter-pills-search-chain">

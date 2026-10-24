@@ -12,7 +12,6 @@ import {
   Lock,
   LogIn,
   Menu as MenuIcon,
-  MousePointerClick,
   Plus,
   Printer,
   Sparkles,
@@ -388,6 +387,12 @@ function BottomNav({ page, onMenu }: { page: PageId; onMenu: () => void }) {
   );
 }
 
+/** The details' ×: closes the panel; in Multi-edit it also stops choosing. */
+function closeDetails() {
+  if (window.shortcutHost?.multiEdit()) window.shortcutHost.exitMultiEdit();
+  else hideDetailsPanels();
+}
+
 /** Below 1200 px the details panels are a drawer (phones: full screen) with a close button. */
 function DetailsDrawerBar() {
   const [bar] = useState(() => {
@@ -401,32 +406,10 @@ function DetailsDrawerBar() {
   useEffect(() => () => bar?.remove(), [bar]);
   if (!bar) return null;
   return createPortal(
-    <button
-      type="button"
-      className="jp-icon-btn jp-icon-btn--md"
-      id="jp-details-close"
-      aria-label="Close details"
-      title="Close details"
-      onClick={hideDetailsPanels}
-    >
+    <button type="button" className="jp-icon-btn jp-icon-btn--md" id="jp-details-close" aria-label="Close details" title="Close details" onClick={closeDetails}>
       <X size={18} aria-hidden="true" />
     </button>,
     bar
-  );
-}
-
-/** The details column with nothing selected (spec §49: never a blank panel). */
-function DetailsPlaceholder() {
-  const [slot] = useState(() => document.querySelector<HTMLElement>('.sidebar'));
-  const visibility = useDetailsVisibility();
-  if (!slot || detailsAreOpen(visibility)) return null;
-  return createPortal(
-    <div className="jp jp-details-empty">
-      <EmptyState icon={MousePointerClick} title="No model selected">
-        Click a model to see its details here. To change several at once, or merge them, click Edit above the grid.
-      </EmptyState>
-    </div>,
-    slot
   );
 }
 
@@ -601,11 +584,10 @@ export function AppShell() {
       <div className="jp-nav-backdrop" hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
       <TopBar onMenu={() => setMenuOpen(!menuOpen)} menuOpen={menuOpen} />
       <BottomNav page={page} onMenu={() => setMenuOpen(true)} />
-      <div className="jp-details-backdrop" hidden={!detailsOpen} onClick={hideDetailsPanels} />
+      <div className="jp-details-backdrop" hidden={!detailsOpen} onClick={closeDetails} />
       <DetailsDrawerBar />
       <LibraryHeader />
       <ModelDetailsPanel />
-      <DetailsPlaceholder />
       {isOverlayPage(page) && (
         <main className="jp-page" id="jp-content" aria-label={PAGE_TITLES[page]} tabIndex={-1}>
           {user && !allowed && <NotAllowed />}

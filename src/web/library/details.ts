@@ -424,6 +424,18 @@ export function cardClick(event: MouseEvent, card: TapCard, filePath: string, vi
   toggleCard(card, filePath);
 }
 
+/** A card's checkbox: choose or unchoose it (starting the selection, with Multi-edit for more than one). */
+export function checkCard(filePath: string) {
+  anchor = { kind: 'model', path: filePath };
+  if (!multiEdit) {
+    selection.set([filePath]);
+    enterMultiEdit();
+    return;
+  }
+  selection.toggle(filePath);
+  showEditPanels();
+}
+
 /** Double-click (or the preview button): the 3D preview, also selecting the card when asked. */
 export function openCardPreview(card: HTMLElement | null, filePath: string, select: boolean) {
   if (select && card) selection.set([filePath]);

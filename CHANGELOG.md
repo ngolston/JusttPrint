@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.3.0] - 2026-10-24
+
+**Changes:**
+- **A filter bar in the Library.** Under the tabs: **Sort**, **Designer**, **Category**, **Tags**, **Rating** and **File type**, each a button that opens a short list with how many models each choice has (and a search box when the list is long). A set filter shows its value on its button (Designer: M Armory) with × to take it off; Tags takes several, with Any of them / All of them. **All filters** opens the full panel as before (search logic, license, title, invert).
+- **Choosing models without Edit mode.** Each card has a checkbox on hover: tick it to choose the model, tick more for Multi-edit. The header's **Edit** is now **Select** (for touch screens, where there is no hover), and while choosing it shows how many are chosen, **Select all** and **Done**. The details' × also stops choosing.
+- **The details column only when something is open in it.** With nothing chosen the grid uses the whole width (no "No model selected" column); clicking a model opens its details on the right, and × closes them.
+- **A tidier Library on phones.** The title, count and the Upload, Add Links and Select buttons (as icons) share one row, the filter bar is one line that scrolls sideways, and cards show only "…" (and the heart of a favorite) over their picture.
+
+**Fixes:**
+- **Save Search** in the filter strip was a full-width bar; it is a link like **Clear All Filters**. The strip says "Showing 1 model" (not "1 models").
+
 ## [9.2.0] - 2026-10-24
 
 **Changes:**

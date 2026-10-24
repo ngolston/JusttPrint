@@ -11,8 +11,7 @@
 .jp-sidebar__close,
 .jp-bottom-nav,
 .jp-nav-backdrop,
-.jp-details-backdrop,
-.jp-details-bar {
+.jp-details-backdrop {
   display: none;
 }
 
@@ -335,6 +334,56 @@
   }
   .jp-library-header__count {
     margin-right: auto;
+  }
+  /* One row: the title and count, then the actions as icons (their names in the tooltips). */
+  .jp-library-header__heading {
+    flex-wrap: nowrap;
+    margin-bottom: var(--jp-space-3);
+  }
+  .jp-library-header__heading .jp-library-header__title {
+    margin-bottom: 0;
+    min-width: 0;
+  }
+  .jp-library-header__actions {
+    flex-wrap: nowrap;
+    gap: var(--jp-space-1);
+  }
+  .jp-library-header__actions .jp-btn {
+    padding: 0 10px;
+  }
+  .jp-library-header__actions .jp-btn > span:not(.jp-library-header__filter-count) {
+    display: none;
+  }
+  .jp-library-header__actions .jp-library-header__chosen {
+    display: none;
+  }
+  /* The filter bar is one line that scrolls sideways. */
+  .jp-library-header__facets {
+    margin: var(--jp-space-2) calc(-1 * var(--jp-space-3)) 0;
+  }
+  .jp-facet-bar {
+    flex-wrap: nowrap;
+    padding: 0 var(--jp-space-3) 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .jp-facet-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .jp-facet,
+  .jp-facet-bar .jp-facet-bar__all {
+    flex: none;
+  }
+  .jp-facet-bar .jp-facet-bar__all {
+    margin-left: 0;
+  }
+  .jp-facet .jp-facet__button {
+    max-width: 200px;
+  }
+  /* Cards: only "…" (and a set favorite) over the picture; a tap opens the model. */
+  .file-grid .jp-model-card .jp-model-card__open,
+  .file-grid .jp-model-card .model-favorite-btn:not(.is-favorited) {
+    display: none;
   }
   .jp-filter-popover {
     position: fixed;
