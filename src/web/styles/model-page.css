@@ -3,7 +3,17 @@
  * on the left; details, actions, the file list and print history on the right.
  */
 .jp-model-page {
-  max-width: 1440px;
+  /* A model's page uses a wide screen: a bigger picture and a wider details column. */
+  max-width: 2000px;
+}
+@media (min-width: 1700px) {
+  .jp-model-page__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+    gap: var(--jp-space-6);
+  }
+  .jp-model-page__stage {
+    height: min(68vh, 860px);
+  }
 }
 .jp-model-page__crumbs {
   display: flex;

@@ -269,6 +269,8 @@
 }
 .jp-page__inner {
   max-width: 1280px;
+  /* Wider screens than a page's width: it sits in the middle, not against the sidebar. */
+  margin-inline: auto;
   padding: var(--jp-space-6);
   box-sizing: border-box;
 }

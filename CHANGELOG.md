@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.5.2] - 2026-10-24
+
+**Changes:**
+- **Wide screens are used.** A model's page (and a folder's) grows with the window up to 2000 pixels: on a wide monitor the picture is bigger and the details column wider, instead of everything sitting on the left with an empty strip on the right. Every other page (Home, Queue, Settings, …) sits in the middle of a wide window rather than against the sidebar.
+
 ## [9.5.1] - 2026-10-24
 
 **Changes:**
