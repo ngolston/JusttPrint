@@ -13,6 +13,8 @@ import { navigate } from '../shell/routes';
 
 export interface UploadFolderInfo {
   uploadFolder: string;
+  /** '' when the default is used: Uploads inside the first STL Home folder. */
+  chosenUploadFolder?: string;
   /** Where Organize Uploads puts models (the folder chosen, else the first STL Home folder). */
   destination: string;
   /** The folder chosen in Settings ('' for the first STL Home folder). */
@@ -169,7 +171,8 @@ export async function organizeUploads() {
  * destination it opens Settings → Scanning → Organize instead.
  */
 export async function runOrganize() {
-  if (!state.info) await reloadUploadFolder();
+  // Fresh: the Upload folder follows STL Home when none is chosen.
+  await reloadUploadFolder();
   const info = state.info;
   if (!info?.uploadFolder || !info.destination) {
     navigate('settings', 'organize');

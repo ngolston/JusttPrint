@@ -562,13 +562,20 @@ async function apiChecks(base, wsUrl) {
     /"isError":\s*true/.test(mcpNoLinks.text) && /No Printables/.test(mcpNoLinks.text),
     mcpNoLinks.text.slice(0, 200)
   );
-  // Downloads go to the Upload folder (8.4), whatever folder is named; without one MCP is told to set it.
+  // Downloads go to the Upload folder (8.4), whatever folder is named (none chosen: Uploads in STL Home, 9.2).
   const mcpOutside = await mcpTool('import_model_links', { links: ['https://www.printables.com/model/3161'], downloadFolder: '/etc' });
   check(
-    'MCP import_model_links downloads only into the Upload folder, and asks for one',
-    /"isError":\s*true/.test(mcpOutside.text) && /Upload folder/.test(mcpOutside.text) && !fs.existsSync('/etc/3161'),
+    'MCP import_model_links downloads only into the Upload folder',
+    !/"isError":\s*true/.test(mcpOutside.text) && /(added|downloaded)\W+1\b/.test(mcpOutside.text) && !fs.existsSync('/etc/3161'),
     mcpOutside.text.slice(0, 200)
   );
+  // The library as before for the checks after this one.
+  // (Offline it is an online model; with a connection its files are downloaded into Uploads.)
+  const mcpAdded = ((await invoke(base, { cookie, origin }, 'get-all-models')).result || [])
+    .map((model) => model.filePath)
+    .filter((filePath) => filePath === 'url::https://www.printables.com/model/3161' || /[\\/]Uploads[\\/]/.test(filePath));
+  await invoke(base, { cookie, origin }, 'delete-models', [mcpAdded, 'library']);
+  fs.rmSync(path.join(LIBRARY, 'Uploads'), { recursive: true, force: true });
   const mcpTree = await mcpTool('get_folder_tree');
   check(
     'MCP folder tree',
@@ -853,12 +860,12 @@ async function apiChecks(base, wsUrl) {
     check('library works after restore', ((await invoke(base, { cookie, origin }, 'get-stats')).result || {}).totalModels > 0);
     check('previous database kept', fs.existsSync(path.join(DATA, 'data', 'justtprint.db.before-restore')));
   }
-  // Automatic backups (src/server/auto-backup.js): off by default, into the data volume unless a folder is chosen.
+  // Automatic backups (src/server/auto-backup.js): on by default (9.2), into the data volume unless a folder is chosen.
   const act = (name, ...args) => invoke(base, { cookie, origin }, name, args);
   const autoDefault = (await act('get-auto-backup')).result || {};
   check(
-    'automatic backups are off by default and go to backups/ in the data folder',
-    autoDefault.enabled === false && autoDefault.directory === path.join(DATA, 'backups') && Array.isArray(autoDefault.backups),
+    'automatic backups are on by default and go to backups/ in the data folder',
+    autoDefault.enabled === true && autoDefault.directory === path.join(DATA, 'backups') && Array.isArray(autoDefault.backups),
     JSON.stringify(autoDefault).slice(0, 300)
   );
   check('automatic backups refuse a system folder', /system folder/.test((await act('save-auto-backup', { directory: '/etc/backups' })).error || ''));
@@ -3289,7 +3296,7 @@ async function browserChecks(base, wsUrl, session) {
       }, id);
       await page.waitForTimeout(300);
     };
-    const performanceShown = await formOpen('#setting-performance #performance-settings-dialog[open]');
+    const firstShown = await formOpen('#setting-theme #settings-dialog[open]');
     const oneGroup = (await page.locator('.jp-settings-panel').count()) === 1 && !(await page.isVisible('#setting-stl-home'));
     await showSetting('scanning');
     const stlHomeShown = await formOpen('#setting-stl-home #stl-home-dialog[open]');
@@ -3298,7 +3305,7 @@ async function browserChecks(base, wsUrl, session) {
     const mcpTab = (await page.getAttribute('.jp-settings-subtabs [role=tab]:has-text("MCP Server")', 'aria-selected')) === 'true';
     check(
       'Settings shows one group at a time, its forms in tabs',
-      performanceShown &&
+      firstShown &&
         oneGroup &&
         stlHomeShown &&
         mcpShown &&
@@ -3337,12 +3344,13 @@ async function browserChecks(base, wsUrl, session) {
       JSON.stringify(googleStatus)
     );
     const sizeBefore = (await invoke(base, session, 'get-setting', ['maxFileSizeMB'])).result;
-    await page.click('#settings-tab-general');
+    await page.click('#settings-tab-scanning');
+    await page.click('.jp-settings-subtabs [role=tab]:has-text("File Size")');
     await page.waitForSelector('#setting-performance #performance-settings-dialog[open]', { timeout: 10000 }).catch(() => {});
     await page.fill('#max-file-size', '61');
     await page.click('#save-performance-settings');
     const inlineSaved = await page
-      .waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 })
+      .waitForSelector('dialog[open]:has-text("Scans now add files up to") button:text-is("OK")', { timeout: 10000 })
       .catch(() => null);
     if (inlineSaved) await inlineSaved.click();
     check(
@@ -4147,7 +4155,9 @@ async function browserChecks(base, wsUrl, session) {
     const refused = await page.waitForSelector('dialog[open]:has-text("Not a JusttPrint backup")', { timeout: 30000 }).catch(() => null);
     check('Restore refuses a file that is not a backup', !!refused);
     if (refused) await page.click('dialog[open]:has-text("Not a JusttPrint backup") button:text-is("OK")');
-    // Automatic Backups: switching them on writes the first backup; it lists and downloads.
+    // Automatic Backups (on by default): off and on again writes a backup; it lists and downloads.
+    await page.uncheck('#auto-backup-enabled');
+    await page.waitForFunction(() => !/Next:/.test(document.getElementById('auto-backup-status')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
     await page.check('#auto-backup-enabled');
     const firstAuto = await page.waitForSelector('#auto-backup-list .auto-backup-item', { timeout: 60000 }).catch(() => null);
     const autoStatus = firstAuto ? await page.textContent('#auto-backup-status') : '';
@@ -4252,7 +4262,7 @@ async function browserChecks(base, wsUrl, session) {
     await page.fill('#max-file-size', '75');
     await page.click('#save-performance-settings');
     const sizeSaved = await page
-      .waitForSelector('dialog[open]:has-text("Performance settings saved") button:text-is("OK")', { timeout: 10000 })
+      .waitForSelector('dialog[open]:has-text("Scans now add files up to") button:text-is("OK")', { timeout: 10000 })
       .catch(() => null);
     if (sizeSaved) await sizeSaved.click();
     check(
@@ -4771,7 +4781,10 @@ async function browserChecks(base, wsUrl, session) {
     for (const key of stlHomeKeys) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
     await page.evaluate(() => window.updateScanStlHomeButtonVisibility?.());
 
-    // Organize (8.1): the sidebar runs it at once; without its folders it opens Settings → Scanning → Organize and says so.
+    // Organize (8.1): the sidebar runs it at once; without an STL Home folder (just cleared above) there is
+    // no Upload folder to default to, so it opens Settings → Scanning → Organize and says so.
+    await invoke(base, session, 'save-setting', ['stlHomeDirectories', '[]']);
+    await invoke(base, session, 'save-setting', ['stlHome', '']);
     await page.click('.jp-sidebar .jp-nav__row:has-text("Organize")');
     const organizeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("scanned directory")', { timeout: 10000 }).catch(() => null);
     if (organizeAsk) await page.click('dialog[id^="browser-message-"][open] button:text-is("OK")');
@@ -4781,6 +4794,7 @@ async function browserChecks(base, wsUrl, session) {
       !!organizeAsk && !!organizeForm && /#\/settings\/organize$/.test(page.url()),
       page.url()
     );
+    for (const key of ['stlHomeDirectories', 'stlHome']) await invoke(base, session, 'save-setting', [key, savedStlHome[key] == null ? '' : savedStlHome[key]]);
     check(
       'Organize is set up as Category / Subcategory / Title, every step on',
       !!organizeForm &&
@@ -6016,7 +6030,7 @@ async function accountChecks(base, wsUrl, admin) {
         (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Organize")')) &&
         (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Tags")'))
     );
-    // Every upload goes to the Upload folder (8.4): without one, Upload asks for it in Settings → Scanning → Organize.
+    // Every upload goes to the Upload folder (8.4); none chosen (9.2): Uploads inside the first STL Home folder.
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';
     });
@@ -6024,15 +6038,18 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 });
     await editorPage.click('#jp-topbar-add-button');
     await editorPage.click('.jp-topbar [role="menuitem"]:has-text("Upload")');
-    const askForInbox = await editorPage
-      .waitForSelector('dialog[id^="browser-message-"][open]:has-text("Upload folder first")', { timeout: 10000 })
-      .catch(() => null);
     check(
-      'without an Upload folder, Upload asks for one first',
-      !!askForInbox && /#\/settings\/organize$/.test(editorPage.url()) && !(await editorPage.isVisible('#jp-upload-input')),
-      editorPage.url()
+      'without a chosen Upload folder, Upload uses Uploads in the library folder',
+      await editorPage
+        .waitForFunction((dir) => document.getElementById('jp-upload-folder')?.textContent === dir, path.join(LIBRARY, 'Uploads'), { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        ),
+      await editorPage.textContent('#jp-upload-folder').catch(() => '')
     );
-    if (askForInbox) await editorPage.click('dialog[id^="browser-message-"][open] button:text-is("OK")');
+    await editorPage.keyboard.press('Escape');
+    await editorPage.waitForSelector('#jp-upload-input', { state: 'detached', timeout: 5000 }).catch(() => {});
     await invoke(base, admin, 'save-upload-folder', [folder, '']);
     await editorPage.evaluate(() => {
       window.location.hash = '#/library';

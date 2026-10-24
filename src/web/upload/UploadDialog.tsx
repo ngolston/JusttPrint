@@ -248,7 +248,7 @@ export function UploadDialog() {
         const added =
           inLibrary >= uploaded && !notAdded.length
             ? `${uploaded === 1 ? 'it is' : 'all are'} in the library.`
-            : `${inLibrary} of them in the library. Not added: ${why || 'larger than the scan limit (Settings → General → Performance)'}.`;
+            : `${inLibrary} of them in the library. Not added: ${why || 'larger than the scan limit (Settings → Scanning → File Size)'}.`;
         setSummary(`Uploaded ${files}${where}; ${added}${failed && !cancelled ? ` ${failed} failed.` : ''}`);
       }
     } else if (failed) {

@@ -55,6 +55,30 @@ try {
     setSetting('organizeDestination', '');
   });
 
+  test('without a chosen Upload folder, Uploads inside the first STL Home folder is used', () => {
+    setSetting('uploadFolder', '');
+    try {
+      assert.strictEqual(inbox.uploadFolder(), path.join(home, 'Uploads'));
+      assert.strictEqual(inbox.info().chosenUploadFolder, '');
+      assert.strictEqual(inbox.requireUploadFolder(), path.join(home, 'Uploads'));
+      assert.ok(fs.statSync(path.join(home, 'Uploads')).isDirectory(), 'made when needed');
+      addModel(path.join(home, 'Uploads', 'New', 'thing.stl'));
+      assert.ok(inbox.isWaiting(path.join(home, 'Uploads', 'New', 'thing.stl')));
+      assert.ok(!inbox.isWaiting(path.join(home, 'Boat.stl')));
+      setSetting('stlHomeDirectories', '[]');
+      assert.strictEqual(inbox.uploadFolder(), '', 'no STL Home: none');
+      assert.throws(
+        () => inbox.requireUploadFolder(),
+        (error) => error.code === 'NO_UPLOAD_FOLDER'
+      );
+    } finally {
+      database.db.prepare('DELETE FROM models WHERE filePath = ?').run(path.join(home, 'Uploads', 'New', 'thing.stl'));
+      fs.rmSync(path.join(home, 'Uploads'), { recursive: true, force: true });
+      setSetting('stlHomeDirectories', JSON.stringify([home]));
+      setSetting('uploadFolder', uploads);
+    }
+  });
+
   test('every top-level folder, model file and archive is one model; pictures, hidden and media folders are not', () => {
     fs.mkdirSync(path.join(uploads, 'Robot'), { recursive: true });
     fs.writeFileSync(path.join(uploads, 'Robot', 'arm.stl'), 'solid a\nendsolid a\n');

@@ -48,6 +48,8 @@
   color: var(--jp-text-2);
   font-size: var(--jp-text-badge);
 }
+/* No parts chosen yet: no empty box. */
+#log-print-parts:empty,
 #log-print-parts-summary:empty {
   display: none;
 }

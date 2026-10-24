@@ -64,13 +64,27 @@ const setting = (key) => {
 };
 const escapeLike = (text) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-/** The Upload folder, or '' when none is set. */
-const uploadFolder = () => setting(UPLOAD_SETTING);
+/** The folder made inside the first STL Home folder when no Upload folder is chosen. */
+const DEFAULT_UPLOAD_NAME = 'Uploads';
+
+/** The first STL Home folder (no trailing slash), or ''. */
+const firstHome = () => {
+  const homes = require('../core/library-paths').readStlHomeDirectories();
+  return homes.length ? String(homes[0]).replace(/[\\/]+$/, '') : '';
+};
+
+/** The Upload folder: the one chosen, else Uploads inside the first STL Home folder, else ''. */
+const uploadFolder = () => {
+  const chosen = setting(UPLOAD_SETTING);
+  if (chosen) return chosen;
+  const home = firstHome();
+  return home ? path.join(home, DEFAULT_UPLOAD_NAME) : '';
+};
 
 /**
  * The Upload folder for an upload or a download from a model link (since 8.4 everything new goes
- * there), made when missing. Throws (code NO_UPLOAD_FOLDER) when none is set, so the page can ask
- * for it (Settings → Scanning → Organize, or JUSTTPRINT_UPLOAD_FOLDER).
+ * there), made when missing. Throws (code NO_UPLOAD_FOLDER) only when none is chosen and there is
+ * no STL Home folder to make Uploads in, so the page can ask for it.
  */
 function requireUploadFolder() {
   const dir = uploadFolder();
@@ -85,10 +99,7 @@ function requireUploadFolder() {
 
 /** Where Organize puts models: the folder chosen, else the first STL Home folder (or ''). */
 function destination() {
-  const chosen = setting(DESTINATION_SETTING);
-  if (chosen) return chosen;
-  const homes = require('../core/library-paths').readStlHomeDirectories();
-  return homes.length ? String(homes[0]).replace(/[\\/]+$/, '') : '';
+  return setting(DESTINATION_SETTING) || firstHome();
 }
 
 /** Whether a model's file is waiting in the Upload folder. */
@@ -133,6 +144,8 @@ function info() {
   const inbox = uploadFolder();
   return {
     uploadFolder: inbox,
+    // '' when the default (Uploads inside the first STL Home folder) is used.
+    chosenUploadFolder: setting(UPLOAD_SETTING),
     destination: destination(),
     chosenDestination: setting(DESTINATION_SETTING),
     waiting: waitingCount(inbox),
@@ -446,6 +459,8 @@ function start({ by = null, event = null, puterSignedIn = false } = {}) {
   const inbox = uploadFolder();
   const dest = destination();
   if (!inbox) throw new Error('Choose the scanned directory (the Upload folder) first (Settings → Scanning → Organize)');
+  // The default Uploads folder is made when first needed; a chosen one that is gone (an unmounted share) is an error.
+  if (!setting(UPLOAD_SETTING)) fs.mkdirSync(inbox, { recursive: true });
   if (!fs.existsSync(inbox)) throw new Error(`The Upload folder is not there: ${inbox}`);
   if (!dest) throw new Error('Choose where Organize puts models (Settings → Scanning → Organize), or set up STL Home');
   if (require('./server-paths').isInsideOrSame(dest, inbox)) throw new Error('The destination is inside the Upload folder: choose another one');

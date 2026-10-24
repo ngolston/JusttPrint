@@ -8,7 +8,8 @@ import { formatAdded, panelImages, Prop, Rating, saveCardField, SlicerButton, ty
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
 import { cardTitle, displayFileName, formatOf } from '../grid/ModelCard';
-import { directoryLabel, folderFilterFor, formatFileSize } from '../library/paths';
+import { directoryLabel, folderCrumbs, folderFilterFor, formatFileSize } from '../library/paths';
+import { stlHomeDirectories } from '../scan/stlHome';
 import { MakerWorldSection } from '../makerworld/MakerWorldSection';
 import { onServerEvent, showMessage } from '../page';
 import { effectiveStatus, formatPrintDate, OUTCOME_LABELS, STATUS_LABELS, type PrintModel, type PrintStatus } from '../print/printStatus';
@@ -365,6 +366,12 @@ export function ModelView({
   const [site, setSite] = useState<MakerWorldDetails | null>(null);
   /** The gallery's pictures, loaded after the details (null while they come). */
   const [pictures, setPictures] = useState<string[] | null>(null);
+  const [libraryRoots, setLibraryRoots] = useState<string[]>([]);
+  useEffect(() => {
+    void stlHomeDirectories()
+      .then(setLibraryRoots)
+      .catch(() => {});
+  }, []);
   /** Upload (and files dropped on the page): anything into the model's folder. */
   const modelUpload = useModelUpload(filePath);
   const [dropping, setDropping] = useState(false);
@@ -440,6 +447,8 @@ export function ModelView({
   const folderPath = online ? '' : directoryLabel(model.filePath);
   // The folder's own name (the whole path is its tooltip).
   const folder = folderPath.split(/[\\/]/).filter(Boolean).pop() || folderPath;
+  // Library / Toys / Robots: the folders below the library root (inside a ZIP: the folder's name).
+  const crumbs = online || inZip ? [] : folderCrumbs(folderFilterFor(model.filePath), libraryRoots);
   const fromSite = !!siteModelUrl(model);
   const favorite = !!model.favorite;
   const source = typeof model.source === 'string' ? model.source.trim() : '';
@@ -954,7 +963,7 @@ export function ModelView({
           <ArrowLeft size={16} aria-hidden="true" />
           Library
         </button>
-        {folder ? (
+        {inZip && folder ? (
           <>
             <span aria-hidden="true">/</span>
             <button
@@ -967,6 +976,20 @@ export function ModelView({
             </button>
           </>
         ) : null}
+        {!inZip &&
+          crumbs.map((crumb) => (
+            <span key={crumb.path} className="jp-model-page__crumb">
+              <span aria-hidden="true">/</span>
+              <button
+                type="button"
+                className="jp-link-button"
+                title={`Show the folder ${crumb.path}`}
+                onClick={() => showInLibrary(() => filterActions.setDirectory(crumb.path))}
+              >
+                {crumb.label}
+              </button>
+            </span>
+          ))}
       </nav>
 
       {pageHeader}

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Automatic database backups (Settings → Backup). Off until switched on. Every N hours the
+ * Automatic database backups (Settings → Backup). On unless switched off (since 9.2). Every N hours the
  * server copies the live database with SQLite's online backup into a folder (default: backups/
  * on the data volume), checks the copy, then keeps only the newest K automatic backups. Only
  * files named like justtprint-auto-<UTC time>.db are ever deleted.
@@ -130,7 +130,7 @@ function readConfig() {
   const directorySetting = String(getSettingValueOr('autoBackupDirectory', '')).trim();
   const envKeys = new Set(ENV_SETTINGS.filter(([name]) => String(process.env[name] || '').trim()).map(([, key]) => key));
   return {
-    enabled: getSettingValueOr('autoBackupEnabled', '0') === '1',
+    enabled: getSettingValueOr('autoBackupEnabled', '1') === '1',
     intervalHours: hours > 0 ? hours : DEFAULTS.intervalHours,
     keep: keep > 0 ? keep : DEFAULTS.keep,
     directory: directorySetting || defaultDirectory(),

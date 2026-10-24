@@ -2,6 +2,21 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.2.0] - 2026-10-24
+
+**Changes:**
+- **Upload works without setting anything up.** With no Upload folder chosen, uploads and downloads from links go to an `Uploads` folder inside your first library (STL Home) folder, made when first needed, and **Organize** sorts them from there. Before, Upload and Organize stopped with "Choose the Upload folder first". Choosing a folder in **Settings → Scanning → Organize** (or `JUSTTPRINT_UPLOAD_FOLDER`) works as before; the field shows the default when empty.
+- **Automatic backups are on by default:** daily, keeping the newest 7, in `backups/` on the data volume. Switch them off in **Settings → Backup** (or `JUSTTPRINT_AUTO_BACKUP=false`).
+- **A tidier sidebar.** Pages come first (Home, Library, Collections, Categories; Printing; Manage, now with History), then **Tools** (Organize, Scan Library, AI Tagging), which run something instead of opening a page. **Settings** and **Help** are pinned at the bottom, always in view, above a slimmer Library Storage line; the rows are a little shorter, so everything fits on a laptop screen.
+- **Settings → General is gone:** its one setting, the largest file a scan adds, is now **Settings → Scanning → File Size**, without the warning banner.
+- The model page's breadcrumb shows the folders the model is in below the library folder (Library / Toys / Robots), each one a link that shows that folder.
+
+**Fixes:**
+- Settings → Appearance still had colons after its labels; the thumbnail colors are now under a **Thumbnails** heading.
+- Log Print showed an empty box under Parts used before any part was added.
+
+**Upgrading:** automatic backups start on their own unless you switched them off before; they need a little space on the data volume (each one is the size of the database). If your library folder already has a folder named `Uploads` and no Upload folder is chosen, its models now show as Not organized: choose another Upload folder in **Settings → Scanning → Organize** if that is not what you want.
+
 ## [9.1.0] - 2026-10-23
 
 **Changes:**

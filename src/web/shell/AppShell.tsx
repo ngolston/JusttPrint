@@ -73,19 +73,20 @@ function StorageIndicator() {
       className="jp-storage"
       title={volume ? `Library files: ${formatBytes(storage.libraryBytes)} (${storage.modelCount} models)\nVolume: ${volume.path}` : undefined}
     >
-      <div className="jp-storage__title">Library Storage</div>
       {volume ? (
         <>
-          <ProgressBar value={volume.usedBytes} max={volume.totalBytes} label="Library volume used" />
           <div className="jp-storage__figures">
-            <span>
-              {formatBytes(volume.usedBytes)} of {formatBytes(volume.totalBytes)}
-            </span>
+            <span className="jp-storage__title">Library Storage</span>
             <span>{percent}%</span>
+          </div>
+          <ProgressBar value={volume.usedBytes} max={volume.totalBytes} label="Library volume used" />
+          <div className="jp-storage__figures jp-storage__figures--under">
+            {formatBytes(volume.usedBytes)} of {formatBytes(volume.totalBytes)}
           </div>
         </>
       ) : (
         <div className="jp-storage__figures">
+          <span className="jp-storage__title">Library Storage</span>
           <span>
             {formatBytes(storage.libraryBytes)} in {storage.modelCount} models
           </span>
@@ -134,6 +135,10 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
   // Scan and thumbnail job progress (src/web/scan/Progress.tsx), above Library Storage.
   const [jobs, setJobs] = useState<HTMLDivElement | null>(null);
   useAdopt('#sidebar-progress-slot', jobs);
+  const sections = navFor(user?.role);
+  const row = (item: NavItem) => (
+    <NavRow key={item.id} item={item} active={!!item.page && item.page === page} badge={item.id === 'queue' ? queue : undefined} />
+  );
   return (
     <nav className="jp-sidebar" id="jp-sidebar" aria-label="Main">
       <button type="button" className="jp-sidebar__close jp-icon-btn jp-icon-btn--md" aria-label="Close menu" title="Close menu" onClick={onClose}>
@@ -149,19 +154,27 @@ function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
         </span>
       </button>
       <div className="jp-nav">
-        {navFor(user?.role).map((section, index) => (
-          <div key={section.label ?? index} className="jp-nav__section">
-            {section.label && <div className="jp-label jp-nav__heading">{section.label}</div>}
-            <ul>
-              {section.items.map((item) => (
-                <NavRow key={item.id} item={item} active={!!item.page && item.page === page} badge={item.id === 'queue' ? queue : undefined} />
-              ))}
-            </ul>
-          </div>
-        ))}
+        {sections
+          .filter((section) => !section.footer)
+          .map((section, index) => (
+            <div key={section.label ?? index} className="jp-nav__section">
+              {section.label && <div className="jp-label jp-nav__heading">{section.label}</div>}
+              <ul>{section.items.map(row)}</ul>
+            </div>
+          ))}
       </div>
       <div className="jp-jobs" ref={setJobs} />
-      <StorageIndicator />
+      {/* Settings and Help stay in sight at the bottom, with Library Storage under them. */}
+      <div className="jp-sidebar__footer">
+        {sections
+          .filter((section) => section.footer)
+          .map((section) => (
+            <ul key={section.label} className="jp-nav__footer" aria-label={section.label}>
+              {section.items.map(row)}
+            </ul>
+          ))}
+        <StorageIndicator />
+      </div>
     </nav>
   );
 }

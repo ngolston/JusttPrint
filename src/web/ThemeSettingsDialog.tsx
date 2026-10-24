@@ -164,17 +164,17 @@ export function ThemeSettingsDialog() {
         </>
       }
     >
-      {select('colorScheme', 'ui-color-scheme', 'Color Scheme:', SCHEMES, 'Light or dark, for your account only')}
-      {select('uiTheme', 'ui-theme', 'Accent Color:', THEMES, 'The color of buttons, links and selections, for your account only')}
-      {!isAdmin && <p className="setting-description">The thumbnail colors below are the same for everyone; an admin changes them.</p>}
-      {select('background', 'model-background-color', 'Model Background Color:', BACKGROUNDS, 'Background color for 3D model thumbnails')}
-      <p className="setting-description theme-render-note">Note: These settings are for STLs and 3MFs without embedded data.</p>
-      {select('modelColor', 'render-color', 'Model Color:', MODEL_COLORS, 'Color of the 3D model in thumbnails')}
+      {select('colorScheme', 'ui-color-scheme', 'Color scheme', SCHEMES, 'Light or dark, for your account only')}
+      {select('uiTheme', 'ui-theme', 'Accent color', THEMES, 'The color of buttons, links and selections, for your account only')}
+      <h4 className="theme-thumbnails-heading">Thumbnails</h4>
+      <p className="setting-description">For STL and 3MF files without a picture of their own.{!isAdmin && ' The same for everyone; an admin changes them.'}</p>
+      {select('background', 'model-background-color', 'Thumbnail background', BACKGROUNDS, 'Background color for 3D model thumbnails')}
+      {select('modelColor', 'render-color', 'Model color', MODEL_COLORS, 'Color of the 3D model in thumbnails')}
       <div className="form-group checkbox-container theme-lighting">
         <input type="checkbox" id="render-lighting" checked={theme.lighting} disabled={!isAdmin} onChange={(event) => set('lighting', event.target.checked)} />
         <div>
           <label htmlFor="render-lighting" className="theme-lighting-label">
-            Enable Advanced Lighting
+            Advanced lighting
           </label>
           <div className="setting-description theme-lighting-help">
             Adds ambient and directional lighting for better depth. Disabling may improve performance on lower-end devices.

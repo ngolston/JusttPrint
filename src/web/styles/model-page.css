@@ -25,6 +25,12 @@
 .jp-model-page__back:focus-visible {
   box-shadow: var(--jp-focus-ring);
 }
+.jp-model-page__crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  min-width: 0;
+}
 .jp-model-page__crumb-here {
   min-width: 0;
   overflow: hidden;

@@ -11,7 +11,7 @@ declare global {
 
 const DEFAULT_MAX_FILE_SIZE_MB = '50';
 
-/** Settings → Performance: the largest file a scan processes. Registers window.openPerformanceSettings. */
+/** Settings → Scanning → File Size: the largest file a scan adds. Registers window.openPerformanceSettings. */
 export function PerformanceSettingsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [maxFileSize, setMaxFileSize] = useState(DEFAULT_MAX_FILE_SIZE_MB);
@@ -41,7 +41,7 @@ export function PerformanceSettingsDialog() {
     try {
       await settings.save('maxFileSizeMB', String(mb));
       dialogRef.current?.close();
-      await showMessage('Success', 'Performance settings saved successfully');
+      await showMessage('Saved', `Scans now add files up to ${mb} MB.`);
     } catch (error) {
       await showMessage('Error', error instanceof Error ? error.message : 'Failed to save');
     } finally {
@@ -52,9 +52,8 @@ export function PerformanceSettingsDialog() {
   return (
     <ModalDialog
       id="performance-settings-dialog"
-      title="Performance Settings"
+      title="File Size"
       dialogRef={dialogRef}
-      description={<p className="warning-text">Warning: These settings can impact application performance and stability. Change with caution.</p>}
       footer={
         <>
           <button type="button" id="save-performance-settings" className="is-primary" disabled={saving} onClick={save}>
@@ -67,9 +66,8 @@ export function PerformanceSettingsDialog() {
       }
     >
       <div className="settings-group">
-        <h4>File Processing</h4>
         <div className="form-group">
-          <label htmlFor="max-file-size">Max File Size (MB)</label>
+          <label htmlFor="max-file-size">Largest file to scan (MB)</label>
           <input
             type="number"
             id="max-file-size"
@@ -81,7 +79,10 @@ export function PerformanceSettingsDialog() {
               if (event.key === 'Enter') save();
             }}
           />
-          <p className="setting-description">Maximum file size to process. Files larger than this will be skipped during scanning.</p>
+          <p className="setting-description">
+            Scans skip larger files: they stay in their folder but are not added to the library. Very large files take longer to scan and to render thumbnails
+            for.
+          </p>
         </div>
       </div>
     </ModalDialog>

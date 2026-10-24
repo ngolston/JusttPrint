@@ -34,7 +34,7 @@ export function checkFile(
     const mb = Math.round(info.scanMaxBytes / 1024 / 1024);
     return {
       ok: true,
-      warning: `Larger than the scan limit (${mb} MB): it is saved, but added to the library only after an admin raises the limit (Settings → General → Performance) and scans again.`
+      warning: `Larger than the scan limit (${mb} MB): it is saved, but added to the library only after an admin raises the limit (Settings → Scanning → File Size) and scans again.`
     };
   }
   return { ok: true };

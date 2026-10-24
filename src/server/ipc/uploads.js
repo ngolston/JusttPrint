@@ -19,7 +19,7 @@ ipcMain.handle('get-upload-info', async () => ({
   mediaExtensions: require('../model-folders').mediaExtensions()
 }));
 
-/** Scans skip files larger than this (Settings → General → Performance; 50 MB unless changed). */
+/** Scans skip files larger than this (Settings → Scanning → File Size; 50 MB unless changed). */
 function scanMaxBytes() {
   const row = database.db && database.db.prepare('SELECT value FROM settings WHERE key = ?').get('maxFileSizeMB');
   const mb = row ? parseInt(row.value, 10) : NaN;
@@ -61,7 +61,7 @@ ipcMain.handle('add-uploaded-files', async (event, folder, filePaths, partOf) =>
         /* gone */
       }
       const reason =
-        size > max ? `larger than the Max File Size (${Math.round(max / 1024 / 1024)} MB, Settings → General → Performance)` : 'not added by the scan';
+        size > max ? `larger than the Max File Size (${Math.round(max / 1024 / 1024)} MB, Settings → Scanning → File Size)` : 'not added by the scan';
       return { name: path.basename(p), reason };
     });
   const parts =

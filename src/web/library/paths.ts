@@ -40,3 +40,29 @@ export function folderFilterFor(filePath: string): string {
   const cut = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'));
   return cut > 0 ? filePath.slice(0, cut) : '';
 }
+
+/**
+ * The breadcrumb for a model's folder: the folders below the library root it is in, each with its
+ * whole path (to filter by). A folder outside every root gives just its own name; the root itself, none.
+ */
+export function folderCrumbs(folder: string, roots: string[]): { label: string; path: string }[] {
+  if (!folder) return [];
+  const sep = folder.includes('\\') && !folder.includes('/') ? '\\' : '/';
+  const trim = (dir: string) => dir.replace(/[\\/]+$/, '');
+  const norm = (dir: string) => trim(dir).replace(/\\/g, '/').toLowerCase();
+  const target = norm(folder);
+  const root = roots
+    .filter((candidate) => candidate && (target === norm(candidate) || target.startsWith(`${norm(candidate)}/`)))
+    .sort((a, b) => norm(b).length - norm(a).length)[0];
+  if (!root) {
+    const name = trim(folder).split(/[\\/]/).filter(Boolean).pop() || folder;
+    return [{ label: name, path: trim(folder) }];
+  }
+  const crumbs: { label: string; path: string }[] = [];
+  let path = trim(folder).slice(0, trim(root).length);
+  for (const part of trim(folder).slice(path.length).split(/[\\/]/).filter(Boolean)) {
+    path = `${path}${sep}${part}`;
+    crumbs.push({ label: part, path });
+  }
+  return crumbs;
+}
