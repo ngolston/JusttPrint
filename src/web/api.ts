@@ -759,7 +759,9 @@ export const notifications = {
   /** The newest the caller may see, and how many are unread. */
   list: () => callAction<{ items: AppNotification[]; unread: number }>('get-notifications', { limit: 50 }),
   /** Everything up to `id` is read (for this account, in every browser). */
-  markRead: (id: number) => callAction<{ success: boolean }>('mark-notifications-read', id)
+  markRead: (id: number) => callAction<{ success: boolean }>('mark-notifications-read', id),
+  /** Clear the list up to `id` (for this account, in every browser). */
+  clear: (id: number) => callAction<{ success: boolean }>('clear-notifications', id)
 };
 
 export const metadata = {

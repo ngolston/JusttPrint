@@ -368,8 +368,8 @@ export function StatsPage() {
                 empty="No prints are logged with a printer."
                 rows={stats.printers.map((p) => ({
                   key: p.id ?? 'none',
-                  label: p.id == null ? 'No printer' : p.name || 'Unnamed printer',
-                  title: p.name || 'No printer',
+                  label: p.id == null ? 'Printer not chosen' : p.name || 'Unnamed printer',
+                  title: p.id == null ? 'Prints logged without choosing a printer' : p.name || 'Unnamed printer',
                   value: p.printed,
                   detail: `${percent(p.successRate)} success`
                 }))}

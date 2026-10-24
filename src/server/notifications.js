@@ -38,6 +38,11 @@ function table() {
       )`
     ).run();
     db.prepare('CREATE TABLE IF NOT EXISTS notification_reads (user_id INTEGER PRIMARY KEY, last_read_id INTEGER NOT NULL DEFAULT 0)').run();
+    // Clear (9.5.1): what the account cleared away is no longer listed for it.
+    const columns = db.prepare('PRAGMA table_info(notification_reads)').all();
+    if (!columns.some((column) => column.name === 'cleared_id')) {
+      db.prepare('ALTER TABLE notification_reads ADD COLUMN cleared_id INTEGER NOT NULL DEFAULT 0').run();
+    }
     tableDb = db;
   }
   return db;
@@ -103,11 +108,15 @@ function listFor(user, { limit = 50 } = {}) {
   const roles = visibleRoles(user);
   if (!roles.length) return { items: [], unread: 0 };
   const marks = roles.map(() => '?').join(',');
-  const lastRead = (db.prepare('SELECT last_read_id AS lastRead FROM notification_reads WHERE user_id = ?').get(id) || { lastRead: 0 }).lastRead;
+  const marksRow = db.prepare('SELECT last_read_id AS lastRead, cleared_id AS cleared FROM notification_reads WHERE user_id = ?').get(id) || {
+    lastRead: 0,
+    cleared: 0
+  };
+  const { lastRead, cleared } = marksRow;
   const rows = db
-    .prepare(`SELECT id, created_at, level, title, body, link FROM notifications WHERE min_role IN (${marks}) ORDER BY id DESC LIMIT ?`)
-    .all(...roles, Math.max(1, Math.min(200, Number(limit) || 50)));
-  const unread = db.prepare(`SELECT COUNT(*) AS n FROM notifications WHERE min_role IN (${marks}) AND id > ?`).get(...roles, lastRead).n;
+    .prepare(`SELECT id, created_at, level, title, body, link FROM notifications WHERE min_role IN (${marks}) AND id > ? ORDER BY id DESC LIMIT ?`)
+    .all(...roles, cleared, Math.max(1, Math.min(200, Number(limit) || 50)));
+  const unread = db.prepare(`SELECT COUNT(*) AS n FROM notifications WHERE min_role IN (${marks}) AND id > ?`).get(...roles, Math.max(lastRead, cleared)).n;
   return {
     items: rows.map((row) => ({
       id: row.id,
@@ -133,6 +142,21 @@ function markRead(user, upToId) {
        ON CONFLICT(user_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`
     )
     .run(id, upTo);
+  events.broadcast(CHANGED);
+  return { success: true };
+}
+
+/** Clear everything up to `upToId` from the caller's list (and mark it read); their other browsers update too. */
+function clearFor(user, upToId) {
+  const id = accountId(user);
+  const upTo = Number(upToId);
+  if (id === null || !Number.isInteger(upTo) || upTo <= 0) return { success: false };
+  table()
+    .prepare(
+      `INSERT INTO notification_reads (user_id, last_read_id, cleared_id) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id), cleared_id = MAX(cleared_id, excluded.cleared_id)`
+    )
+    .run(id, upTo, upTo);
   events.broadcast(CHANGED);
   return { success: true };
 }
@@ -194,4 +218,4 @@ function stop() {
   reminderTimer = null;
 }
 
-module.exports = { notify, listFor, markRead, prune, checkDueReminders, startReminderChecks, stop, plural, CHANGED };
+module.exports = { notify, listFor, markRead, clearFor, prune, checkDueReminders, startReminderChecks, stop, plural, CHANGED };

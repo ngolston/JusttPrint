@@ -357,6 +357,41 @@
   .jp-library-header__actions .jp-library-header__chosen {
     display: none;
   }
+  /* Tabs and a View button share one row; the view buttons open under View. */
+  .jp-library-header__bar {
+    position: relative;
+    flex-wrap: nowrap;
+    gap: var(--jp-space-2);
+  }
+  .jp-library-header__bar .jp-tabs {
+    flex: 1;
+    min-width: 0;
+  }
+  .jp-library-header .jp-library-header__view-toggle {
+    display: inline-flex;
+    flex: none;
+  }
+  .jp-library-header .jp-library-header__view-toggle.is-open {
+    border-color: var(--jp-accent);
+    color: var(--jp-text);
+  }
+  .jp-library-header__tools {
+    display: none;
+  }
+  .jp-library-header__tools.is-open {
+    position: absolute;
+    top: calc(100% + var(--jp-space-1));
+    right: 0;
+    z-index: 60;
+    display: flex;
+    width: auto;
+    margin: 0;
+    padding: var(--jp-space-2);
+    border: 1px solid var(--jp-border-strong);
+    border-radius: var(--jp-radius-lg);
+    background: var(--jp-surface-1);
+    box-shadow: var(--jp-shadow-pop);
+  }
   /* The filter bar is one line that scrolls sideways. */
   .jp-library-header__facets {
     margin: var(--jp-space-2) calc(-1 * var(--jp-space-3)) 0;

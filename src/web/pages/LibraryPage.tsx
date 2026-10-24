@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckSquare, FilterX, FolderOpen, Library, Link2, PanelRight, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { CheckSquare, FilterX, FolderOpen, LayoutGrid, Library, Link2, PanelRight, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
@@ -144,6 +144,7 @@ export function LibraryHeader() {
   const state = useFilters();
   const { view, total } = useModelCounts();
   const [open, setOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [filterButton, setFilterButton] = useState<HTMLButtonElement | null>(null);
   const [tools, setTools] = useState<HTMLDivElement | null>(null);
   const [rail, setRail] = useState<HTMLDivElement | null>(null);
@@ -235,7 +236,19 @@ export function LibraryHeader() {
               applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
             }}
           />
-          <div className="jp-library-header__tools">
+          {/* Phones: the view buttons fold behind one View button. */}
+          <button
+            type="button"
+            id="jp-view-menu-button"
+            className={`jp-btn jp-btn--secondary jp-btn--md jp-library-header__view-toggle${viewOpen ? ' is-open' : ''}`}
+            aria-expanded={viewOpen}
+            aria-controls="jp-library-tools"
+            onClick={() => setViewOpen(!viewOpen)}
+          >
+            <LayoutGrid size={16} aria-hidden="true" />
+            <span>View</span>
+          </button>
+          <div className={`jp-library-header__tools${viewOpen ? ' is-open' : ''}`} id="jp-library-tools">
             <div className="jp-library-header__rail" ref={setRail} />
             <div className="jp-library-header__view" ref={setTools} />
             <IconButton

@@ -50,6 +50,8 @@ export function KitChecklist({ target, showSingle = false }: { target: string; s
   const left = kit.parts.filter((p) => !p.done);
   const secondsLeft = left.reduce((sum, p) => sum + (p.seconds || 0), 0);
   const gramsLeft = left.reduce((sum, p) => sum + (p.grams || 0), 0);
+  // "Orbiter - Plate 2", "Orbiter - Back": the model's name they all start with is said once, by the page.
+  const prefix = sharedPrefix(kit.parts.map((part) => part.label));
   return (
     <section className="jp-card jp-kit" aria-labelledby="jp-kit-title" id="jp-kit">
       <div className="jp-kit__head">
@@ -71,7 +73,9 @@ export function KitChecklist({ target, showSingle = false }: { target: string; s
           <li key={`${part.modelId}:${part.plate}`} className={part.done ? 'is-done' : undefined}>
             <label>
               <input type="checkbox" checked={part.done} disabled={!canEdit} onChange={() => void toggle(part)} />
-              <span className="jp-kit__label">{part.label}</span>
+              <span className="jp-kit__label" title={part.label}>
+                {shortLabel(part.label, prefix)}
+              </span>
             </label>
             <span className="jp-meta">
               {[part.seconds && formatDuration(part.seconds), part.grams && formatGrams(part.grams), part.done && part.doneBy ? `by ${part.doneBy}` : '']
@@ -84,4 +88,20 @@ export function KitChecklist({ target, showSingle = false }: { target: string; s
       <p className="jp-meta">Tick parts as you print them. Logging a print as Printed ticks every part of that file.</p>
     </section>
   );
+}
+
+/** The " - "-separated start every label shares ("Orbiter - "), or '' (one part, or nothing in common). */
+export function sharedPrefix(labels: string[]): string {
+  if (labels.length < 2) return '';
+  let prefix = labels[0];
+  for (const label of labels) {
+    while (prefix && !label.startsWith(prefix)) prefix = prefix.slice(0, -1);
+  }
+  const cut = prefix.lastIndexOf(' - ');
+  return cut > 0 ? prefix.slice(0, cut + 3) : '';
+}
+
+/** A part's label without the shared start (the whole label if nothing would be left). */
+export function shortLabel(label: string, prefix: string): string {
+  return prefix && label.startsWith(prefix) && label.length > prefix.length ? label.slice(prefix.length) : label;
 }

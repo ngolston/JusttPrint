@@ -52,6 +52,21 @@ test('each account keeps how far it has read', () => {
   assert.deepStrictEqual(notifications.markRead(guest, newest), { success: false });
 });
 
+test("Clear empties an account's list up to then; newer ones still show", () => {
+  const upTo = notifications.listFor(editor).items[0].id;
+  assert.deepStrictEqual(notifications.clearFor(editor, upTo), { success: true });
+  assert.deepStrictEqual(notifications.listFor(editor), { items: [], unread: 0 });
+  assert.ok(notifications.listFor(viewer).items.length > 0, 'others keep theirs');
+  notifications.notify({ title: 'After the clear', minRole: 'editor' });
+  const after = notifications.listFor(editor);
+  assert.deepStrictEqual(
+    after.items.map((item) => item.title),
+    ['After the clear']
+  );
+  assert.strictEqual(after.unread, 1);
+  assert.deepStrictEqual(notifications.clearFor(guest, upTo), { success: false });
+});
+
 test('a key makes a notification once-only', () => {
   const first = notifications.notify({ title: 'Due', key: 'reminder:9:2026-10-09' });
   const again = notifications.notify({ title: 'Due', key: 'reminder:9:2026-10-09' });

@@ -2,6 +2,18 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.5.1] - 2026-10-24
+
+**Changes:**
+- **History** shows the changes made to a model at once (Edit saving its rating and tags together, for example) as one entry with a line for each, each with its own Put back.
+- **Notifications** have **Clear**: it empties your list (for your account, in every browser); newer notifications still come in.
+- **Kit progress** lists each part on one line: the name cut short with "…" (the whole name on hover), who printed it on the right; the model's name the parts all start with ("Orbiter - ") is left out.
+- On phones, the Library's view buttons (grid, wall, list, folders, details) open under one **View** button beside the tabs, instead of taking a row of their own.
+
+**Fixes:**
+- Collection cards were not all the same size when a picture was tall or a description long.
+- Statistics called prints logged without a printer "No printer", like a printer's name; it says "Printer not chosen".
+
 ## [9.5.0] - 2026-10-24
 
 **Changes:**

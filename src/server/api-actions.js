@@ -176,6 +176,7 @@ const ACTIONS = {
   // Notifications (notifications.js): the caller's list, and how far they have read.
   'get-notifications': ['object?'],
   'mark-notifications-read': ['number'],
+  'clear-notifications': ['number'],
   'rename-metadata': ['string', 'string', 'string'],
   'delete-metadata': ['string', 'string'],
   'restore-metadata': ['object'],
@@ -310,6 +311,7 @@ const VIEWER_ACTIONS = new Set([
   'get-folder-models',
   'get-notifications',
   'mark-notifications-read',
+  'clear-notifications',
   'get-model-pictures',
   'get-model',
   'get-designers',

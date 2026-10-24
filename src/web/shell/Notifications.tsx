@@ -116,9 +116,24 @@ export function NotificationBell() {
         >
           <div className="jp-notify__head">
             <h2>Notifications</h2>
+            {items.length > 0 && (
+              <button
+                type="button"
+                id="jp-notifications-clear"
+                className="jp-link-button jp-notify__clear"
+                onClick={() => {
+                  const newest = items[0]?.id;
+                  setItems([]);
+                  setUnread(0);
+                  if (newest) notificationApi.clear(newest).catch((error) => console.warn('Could not clear notifications:', error));
+                }}
+              >
+                Clear
+              </button>
+            )}
           </div>
           {items.length === 0 ? (
-            <p className="jp-notify__empty">Nothing yet. Finished scans and jobs, maintenance coming due and problems show up here.</p>
+            <p className="jp-notify__empty">Nothing new. Finished scans and jobs, maintenance coming due and problems show up here.</p>
           ) : (
             <ul className="jp-notify__list">
               {items.map((item) => {
