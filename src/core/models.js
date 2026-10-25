@@ -12,14 +12,10 @@ const MODEL_BASE_COLUMNS =
 /** One model's details: also its description. */
 const MODEL_DETAIL_COLUMNS = `${MODEL_BASE_COLUMNS}, description`;
 
-/** List queries omit thumbnail blobs; these flags are computed without returning the column. */
-const MODEL_LIST_THUMB_FLAGS =
-  "CASE WHEN thumbnail IS NOT NULL AND thumbnail != '' AND thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
-  "CASE WHEN thumbnail IS NOT NULL AND INSTR(thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
+/** List queries omit thumbnail blobs; the flags are columns kept by triggers (thumbnail-column.js). */
+const MODEL_LIST_THUMB_FLAGS = 'has_thumb AS hasThumbnail, multi_thumb AS hasMultipleThumbnails';
 
-const MODEL_LIST_THUMB_FLAGS_QUALIFIED =
-  "CASE WHEN models.thumbnail IS NOT NULL AND models.thumbnail != '' AND models.thumbnail != '3d.png' THEN 1 ELSE 0 END AS hasThumbnail, " +
-  "CASE WHEN models.thumbnail IS NOT NULL AND INSTR(models.thumbnail, '::') > 0 THEN 1 ELSE 0 END AS hasMultipleThumbnails";
+const MODEL_LIST_THUMB_FLAGS_QUALIFIED = 'models.has_thumb AS hasThumbnail, models.multi_thumb AS hasMultipleThumbnails';
 
 const MODEL_LIST_COLUMNS = `${MODEL_BASE_COLUMNS}, ${MODEL_LIST_THUMB_FLAGS}`;
 
