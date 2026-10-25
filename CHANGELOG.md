@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.7.0] - 2026-10-25
+
+**Changes:**
+- **Much faster lists, searches and sorts on a large library.** A model's pictures are stored with its other details, and SQLite read through them to reach the title, size, license, date added or rating. On a 2,000-model test library (2.4 GB): a Library page went from 103 ms to under 1 ms, a search across every title from 121 ms to 0.3 ms, a sort by name from 119 ms to 0.3 ms; a bigger library, or one read from a slower disk, gains more.
+  - The pictures are now the last column of the models table, so nothing has to be read past them.
+  - Whether a model has a picture, and several, is kept in two small columns (updated by the database itself), so the Library, Home's "models without a thumbnail" and Generate Missing Thumbnails no longer read the pictures to find out.
+  - An index that held a second copy of every picture is gone: it doubled the space the pictures took and slowed every picture saved.
+
+**Upgrading:** on the first start the JusttPrint backend reorganizes the models table once (about 3 seconds for 2.4 GB on an SSD; a few minutes for a very large library on a slow disk), and logs when it starts and ends. It needs free disk space about the size of the database; without it, it logs so and keeps the old layout (slower, nothing lost), and tries again on the next start. The space the old index used stays inside the database file and is reused by new pictures (the file does not grow until it is used up). Older versions can still open the database.
+
 ## [9.6.1] - 2026-10-24
 
 **Fixes:**

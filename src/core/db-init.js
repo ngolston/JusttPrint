@@ -124,7 +124,6 @@ function initializeDatabase() {
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_parentmodel ON models(parentModel)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_printed ON models(printed)').run();
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_hash ON models(hash)').run();
-      database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_thumbnail ON models(thumbnail)').run();
 
       // Composite indexes for common query patterns
       database.db.prepare('CREATE INDEX IF NOT EXISTS idx_models_designer_filename ON models(designer, fileName)').run();
@@ -165,6 +164,13 @@ function initializeDatabase() {
 
     // Initialize default settings
     initializeDefaultSettings();
+
+    // Pictures last in the models table, with their flags (thumbnail-column.js): fast lists on a large library.
+    try {
+      require('./thumbnail-column').ensureThumbnailLast(database.db, { dbPath });
+    } catch (error) {
+      console.error('[Database] Could not reorganize the models table (lists stay slower):', error.message);
+    }
 
     // Integrity / orphan cleanup: deferred in app.whenReady so startup is not blocked (see setTimeout there)
 

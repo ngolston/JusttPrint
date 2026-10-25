@@ -4,6 +4,7 @@
 // Home's Needs attention (src/core/library-attention.js).
 
 const assert = require('assert');
+const { ensureThumbnailLast } = require('../src/core/thumbnail-column');
 const Database = require('better-sqlite3');
 const { backupProblem, libraryAttention } = require('../src/core/library-attention');
 
@@ -30,6 +31,7 @@ test('counts models without tags, license or thumbnail, and sets of identical fi
       (5, '/d/gear.stl', 'MIT', 'data:z', '');
     INSERT INTO model_tags VALUES (1, 1), (1, 2), (4, 1);
   `);
+  ensureThumbnailLast(db, { log: () => {} });
   assert.deepStrictEqual(libraryAttention(db), { untagged: 3, unlicensed: 2, noThumbnail: 2, duplicateSets: 1 });
 });
 

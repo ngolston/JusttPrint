@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 9.6.1**
+**Version 9.7.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -12,7 +12,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 
 - **A home for your printing**: Home shows your figures, recent prints and printers, the kits you are partway through, what needs attention (models without tags, a license, a category or a thumbnail, duplicates, maintenance, late backups), your favorites, collections and categories; the Library has tabs for Printed, Unprinted, Queue and Favorites
 - **Print queue and printers** pages: what is printing and up next, and your printers with their web pages and maintenance reminders
-- **Quick to load**: the backend compresses what it sends, browsers keep the app's code between visits, and the Library loads a card's other pictures only when you look at them
+- **Quick to load**: the backend compresses what it sends, browsers keep the app's code between visits, and the Library loads a card's other pictures only when you look at them; lists, searches and sorts stay fast on large libraries (the pictures are kept apart from the details the Library reads)
 - **What runs in the background**: above Library Storage, a progress bar for each job while it runs (library scans, AI Tagging, Categorize Library, thumbnails, duplicate checks, site downloads, uploads, backups, Organize and Tidy), with how far it is and how long it should still take; nothing when nothing runs
 - **Notifications**: a bell for what finished or went wrong in the background (new models from scans, thumbnail and AI tagging jobs, maintenance coming due, failed backups), each person seeing what their role may; **Clear** empties your list
 - **Light or dark**: each person picks a dark or light look, or follows their computer's setting, and an accent color

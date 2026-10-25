@@ -5,6 +5,7 @@
 // The grid's list query runs on the models table alone (no filament join since 7.0).
 
 const assert = require('assert');
+const { ensureThumbnailLast } = require('../src/core/thumbnail-column');
 const Database = require('better-sqlite3');
 const { MODEL_DETAIL_COLUMNS, MODEL_LIST_COLUMNS, MODEL_LIST_COLUMNS_QUALIFIED } = require('../src/core/models');
 
@@ -27,6 +28,8 @@ function createDb() {
     CREATE TABLE models (id INTEGER PRIMARY KEY AUTOINCREMENT, ${columns.map((c) => `${c} TEXT`).join(', ')}, thumbnail TEXT);
     INSERT INTO models (filePath, fileName, thumbnail) VALUES ('/m/a.stl', 'a.stl', 'data:image/png;base64,AA'), ('/m/b.stl', 'b.stl', NULL), ('/m/c.stl', 'c.stl', 'x::y');
   `);
+  // As the app does at start: pictures last, with their flags (9.7).
+  ensureThumbnailLast(db, { log: () => {} });
   return db;
 }
 

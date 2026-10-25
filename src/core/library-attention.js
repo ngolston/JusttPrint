@@ -18,7 +18,7 @@ function libraryAttention(db, { coverSql = '' } = {}) {
   return {
     untagged: count('SELECT COUNT(*) AS n FROM models WHERE NOT EXISTS (SELECT 1 FROM model_tags mt WHERE mt.model_id = models.id)'),
     unlicensed: count("SELECT COUNT(*) AS n FROM models WHERE license IS NULL OR TRIM(license) = ''"),
-    noThumbnail: count(`SELECT COUNT(*) AS n FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png' ${coverSql}`),
+    noThumbnail: count(`SELECT COUNT(*) AS n FROM models WHERE has_thumb = 0 ${coverSql}`),
     // As the Duplicates page finds them: the same hash at two paths or more, ZIP entries left out.
     duplicateSets: count(
       `SELECT COUNT(*) AS n FROM (SELECT hash FROM models

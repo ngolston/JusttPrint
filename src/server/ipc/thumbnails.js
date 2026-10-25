@@ -353,7 +353,7 @@ ipcMain.handle('get-models-without-thumbnails', async () => {
     const modelsWithoutThumbnails = database.db
       .prepare(
         `
-      SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png' ${require('../model-folders').onlyCoverSql()}
+      SELECT filePath FROM models WHERE has_thumb = 0 ${require('../model-folders').onlyCoverSql()}
     `
       )
       .all();
@@ -369,7 +369,7 @@ ipcMain.handle('get-models-with-default-thumbnails', async () => {
     const modelsWithDefaultThumbnails = database.db
       .prepare(
         `
-      SELECT filePath FROM models WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
+      SELECT filePath FROM models WHERE has_thumb = 0
     `
       )
       .all();

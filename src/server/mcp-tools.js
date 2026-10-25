@@ -356,7 +356,7 @@ function getMcpToolContext() {
           `
         SELECT id, filePath, fileName, size, designer
         FROM models
-        WHERE thumbnail IS NULL OR thumbnail = '' OR thumbnail = '3d.png'
+        WHERE has_thumb = 0
         ORDER BY fileName COLLATE NOCASE ASC
         LIMIT ?
       `
