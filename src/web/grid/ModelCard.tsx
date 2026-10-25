@@ -247,25 +247,28 @@ function Carousel({
         onClick={(event) => step(1, event)}
         style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', cursor: 'pointer', zIndex: 10 }}
       />
-      <div
-        className="thumbnail-count-badge"
-        title={waiting ? 'More pictures: click left or right to see them' : `Image ${position + 1} of ${images.length} - Click left/right to navigate`}
-        style={{
-          position: 'absolute',
-          bottom: 8,
-          right: 8,
-          background: 'rgba(0, 0, 0, 0.7)',
-          color: '#fff',
-          padding: '4px 8px',
-          borderRadius: 12,
-          fontSize: 12,
-          fontWeight: 'bold',
-          zIndex: 11,
-          pointerEvents: 'none'
-        }}
-      >
-        {waiting ? (loading ? '…' : '1/…') : `${position + 1}/${images.length}`}
-      </div>
+      {/* The count shows once the pictures are loaded (the arrows say there are more). */}
+      {(!waiting || loading) && (
+        <div
+          className="thumbnail-count-badge"
+          title={waiting ? 'More pictures: click left or right to see them' : `Image ${position + 1} of ${images.length} - Click left/right to navigate`}
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            background: 'rgba(0, 0, 0, 0.7)',
+            color: '#fff',
+            padding: '4px 8px',
+            borderRadius: 12,
+            fontSize: 12,
+            fontWeight: 'bold',
+            zIndex: 11,
+            pointerEvents: 'none'
+          }}
+        >
+          {waiting ? '…' : `${position + 1}/${images.length}`}
+        </div>
+      )}
       {children(images[position])}
     </div>
   );
@@ -834,19 +837,6 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
             <Check size={14} strokeWidth={3} aria-hidden="true" />
           </button>
         )}
-        <div className="jp-model-card__flags">
-          {host.isNew(model) && (
-            <span className="new-status jp-model-card__flag" title="New model — clears once you edit it">
-              New
-            </span>
-          )}
-          {host.isUnorganized?.(model) && (
-            <span className="unorganized-status jp-model-card__flag" title="Waiting in the Upload folder: Organize moves it to its category">
-              Not organized
-            </span>
-          )}
-          {zipEntry && <span className="archive-status jp-model-card__flag">Archive</span>}
-        </div>
         <div className="jp-model-card__actions">
           <button
             type="button"
@@ -921,7 +911,20 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
         ) : (
           <span className="jp-model-card__byline" />
         )}
+        {/* New, Not organized and Archive sit with the file type, not over the picture (9.6.1: the
+            picture's corners hold the checkbox, Open, ♡ and ⋯). */}
         <div className="jp-model-card__badges">
+          {host.isNew(model) && (
+            <span className="jp-badge new-status jp-model-card__flag" title="New model — clears once you edit it">
+              New
+            </span>
+          )}
+          {host.isUnorganized?.(model) && (
+            <span className="jp-badge unorganized-status jp-model-card__flag" title="Waiting in the Upload folder: Organize moves it to its category">
+              Not organized
+            </span>
+          )}
+          {zipEntry && <span className="jp-badge archive-status jp-model-card__flag">Archive</span>}
           {format && (
             <span className="jp-badge" title="File type">
               {format}

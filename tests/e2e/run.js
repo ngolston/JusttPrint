@@ -1028,15 +1028,25 @@ async function browserChecks(base, wsUrl, session) {
     const errors = [];
     const badResponses = [];
     page.on('pageerror', (error) => errors.push(error.message));
+    // The two ball models of the duplicates checks are deleted on purpose: a grid redraw just after
+    // can still ask for one (and get 404), which is not a failure.
+    const deletedOnPurpose = (text) => /(\/|%2F)Balls(\/|%2F)/.test(text || '');
+    // When they were deleted: the render's own messages (without the path) are expected for a while.
+    let ballsDeletedAt = 0;
+    const justAfterDeletion = (text) =>
+      ballsDeletedAt > 0 && Date.now() - ballsDeletedAt < 30000 && /read-model-file|Failed to read model \(404\)/.test(text || '');
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
       // No helper is installed here, so Chrome cannot open the Send to Slicer link. Expected.
       if (/Failed to launch 'justtprint:\/\/.*does not have a registered handler/.test(message.text())) return;
       const where = message.location();
+      if (deletedOnPurpose(where.url) || deletedOnPurpose(message.text()) || justAfterDeletion(`${message.text()} ${where.url || ''}`)) return;
       errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber})`);
     });
     page.on('response', (response) => {
-      if (response.status() >= 400) badResponses.push(`${response.status()} ${response.url()}`);
+      if (response.status() < 400) return;
+      if (deletedOnPurpose(response.url()) || deletedOnPurpose(response.request().postData())) return;
+      badResponses.push(`${response.status()} ${response.url()}`);
     });
     // The library's Filter popover (src/web/pages/LibraryPage.tsx) holds the old sidebar's filters.
     const openFilters = async () => {
@@ -2478,13 +2488,9 @@ async function browserChecks(base, wsUrl, session) {
       await invoke(base, session, 'add-multiple-thumbnails', [cardPath, images]);
       const total = ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).length;
       await page.evaluate(() => window.performCombinedSearch({ force: true }));
-      const badge = await page.waitForSelector(`${card} .thumbnail-count-badge`, { timeout: 15000 }).catch(() => null);
-      // 9.6: the other images load when the carousel is first used ("1/…" until then).
-      check(
-        'a card with several images shows the carousel, without loading the others yet',
-        !!badge && (await badge.textContent()).trim() === '1/…',
-        badge && (await badge.textContent())
-      );
+      // 9.6: the other images load when the carousel is first used; its arrows show, the count after loading.
+      const badge = await page.waitForSelector(`${card} .thumbnail-nav-right`, { timeout: 15000 }).catch(() => null);
+      check('a card with several images shows the carousel, without loading the others yet', !!badge && !(await page.$(`${card} .thumbnail-count-badge`)));
       if (badge) {
         await page.click(`${card} .thumbnail-nav-right`);
         const stepped = await page
@@ -4690,6 +4696,11 @@ async function browserChecks(base, wsUrl, session) {
       tris.forEach((tri, i) => tri.forEach((pt, j) => pt.forEach((x, k) => buf.writeFloatLE(x, 84 + i * 50 + 12 + j * 12 + k * 4))));
       return buf;
     };
+    // No card thumbnails are drawn while the balls exist (they are deleted again below, and a
+    // render still running then asks for a file that is gone).
+    await page.evaluate(() => {
+      window._serverBulkThumbnailJobActive = true;
+    });
     fs.writeFileSync(path.join(ballDir, 'ball smooth.stl'), ballStl(96));
     fs.writeFileSync(path.join(ballDir, 'ball coarse.stl'), ballStl(32));
     // Folder watching adds them (scanning a new folder inside the app folder is refused from the web).
@@ -4702,6 +4713,21 @@ async function browserChecks(base, wsUrl, session) {
       60000,
       'balls added by folder watching'
     ).catch(() => {});
+    // A picture of their own at once, so no card or group card draws them from the file (they are
+    // deleted again below, and a render still running then asks for a file that is gone).
+    const ballPicture = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#c0392b';
+      ctx.beginPath();
+      ctx.arc(32, 32, 28, 0, Math.PI * 2);
+      ctx.fill();
+      return canvas.toDataURL('image/png');
+    });
+    for (const name of ['ball smooth.stl', 'ball coarse.stl']) {
+      await invoke(base, session, 'add-multiple-thumbnails', [path.join(ballDir, name), [ballPicture]]);
+    }
 
     // Notifications (src/server/notifications.js, shell/Notifications.tsx): a finished same-geometry search shows in the bell.
     await invoke(base, session, 'start-geometry-scan', [null]);
@@ -4759,18 +4785,18 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#dedup-mode-similar').catch(() => {});
     const similarCard = await page.waitForSelector('.jp-dup-group:has-text("files with the same shape")', { timeout: 15000 }).catch(() => null);
     check('the Duplicates page shows them under Same shape, any resolution', !!similarCard && /check before deleting/.test(await similarCard.textContent()));
+    // Their previews are drawn from the files (no thumbnails yet): let them finish before the files go.
+    await page.waitForFunction(() => !document.querySelector('#dedup-page .dedup-preview-loading'), null, { timeout: 60000 }).catch(() => {});
     await page.click('#dedup-mode-files').catch(() => {});
-    // Their thumbnails first: a render still running when they are deleted asks for a file that is gone.
-    await waitFor(
-      async () => {
-        for (const name of ['ball smooth.stl', 'ball coarse.stl'])
-          if (!(await invoke(base, session, 'get-model', [path.join(ballDir, name)])).result?.thumbnail) return false;
-        return true;
-      },
-      60000,
-      'ball thumbnails'
-    ).catch(() => {});
     for (const name of ['ball smooth.stl', 'ball coarse.stl']) await invoke(base, session, 'delete-file', [path.join(ballDir, name)]);
+    ballsDeletedAt = Date.now();
+    // The grid under this page still lists them: search again and let them go before it shows (a card
+    // drawn for a deleted file asks for that file).
+    await page.evaluate(() => window.performCombinedSearch({ force: true }));
+    await page.waitForFunction(() => !document.querySelector('.file-grid [data-filepath*="/Balls/"]'), null, { timeout: 15000 }).catch(() => {});
+    await page.evaluate(() => {
+      window._serverBulkThumbnailJobActive = false;
+    });
     await page.evaluate(() => (location.hash = '#/library'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
     // The deleted balls leave the grid once the refresh arrives.
