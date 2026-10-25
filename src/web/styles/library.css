@@ -542,12 +542,6 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   outline: none;
   box-shadow: var(--jp-focus-ring);
 }
-/* The flags (New, Archive) make room for it while it shows. */
-.file-grid .jp-model-card:hover .jp-model-card__flags,
-.file-grid .jp-model-card.selected .jp-model-card__flags,
-body.jp-editing .file-grid .jp-model-card .jp-model-card__flags {
-  left: 40px;
-}
 /* Touch screens have no hover: the checkbox shows only while choosing (Select). */
 @media (hover: none) {
   .file-grid .jp-model-card:hover:not(.selected) .jp-model-card__check {
@@ -556,39 +550,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__flags {
   body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
     opacity: 1;
   }
-  .file-grid .jp-model-card:hover:not(.selected) .jp-model-card__flags {
-    left: var(--jp-space-2);
-  }
-  body.jp-editing .file-grid .jp-model-card .jp-model-card__flags {
-    left: 40px;
-  }
 }
-.jp-model-card__flags {
-  position: absolute;
-  top: var(--jp-space-2);
-  left: var(--jp-space-2);
-  z-index: 12;
-  display: flex;
-  gap: var(--jp-space-1);
-  pointer-events: none;
-}
-.file-grid .jp-model-card .jp-model-card__flag {
-  position: static;
-  transform: none;
-  max-width: none;
-  padding: 2px var(--jp-space-2);
-  border-radius: var(--jp-radius-pill);
-  background: rgba(var(--jp-bg-rgb), 0.78);
-  color: var(--jp-accent);
-  font: 600 var(--jp-text-badge) / 1.4 var(--jp-font);
-}
-.file-grid .jp-model-card .archive-status.jp-model-card__flag {
-  color: var(--jp-warning);
-}
-.file-grid .jp-model-card .unorganized-status.jp-model-card__flag {
-  color: var(--jp-text);
-}
-
 /* Organize Uploads, under the library's header while it shows the Upload folder (upload/Organize.tsx). */
 .jp-upload-organize {
   display: flex;
@@ -1597,4 +1559,17 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
 /* The View button exists for phones only (responsive.css). */
 .jp-library-header__view-toggle {
   display: none;
+}
+
+/* New, Not organized and Archive in the badge row (with the file type). */
+.file-grid .jp-model-card .jp-model-card__badges .jp-badge.new-status {
+  border-color: var(--jp-accent);
+  color: var(--jp-accent);
+}
+.file-grid .jp-model-card .jp-model-card__badges .jp-badge.archive-status {
+  border-color: var(--jp-warning);
+  color: var(--jp-warning);
+}
+.file-grid .jp-model-card .jp-model-card__badges .jp-badge.unorganized-status {
+  color: var(--jp-text);
 }

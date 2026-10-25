@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.6.1] - 2026-10-24
+
+**Fixes:**
+- A card showing several models of one folder drew its picture even while the server's bulk thumbnail job had paused the page's renders; it waits for the job now.
+
+**Changes:**
+- **Less crowded cards.** **New**, **Not organized** and **Archive** moved off the picture into the badge row under the title, beside the file type, so they no longer slide under Open, ♡ and ⋯ on hover. A card with several pictures shows its count (2/17) once its arrows were used; before that the arrows alone say there are more ("1/…" is gone).
+
 ## [9.6.0] - 2026-10-24
 
 **Changes:**

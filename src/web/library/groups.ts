@@ -8,6 +8,7 @@ import { normalizePath, type GridModel, type GroupRecord } from '../grid/layout'
 import { bundleSummary, type PrintModel } from '../print/printStatus';
 import { fetchPrimaryThumbnail, saveThumbnailIfReal } from '../thumbnails/cache';
 import { isFailurePlaceholder, isMostlyEmpty } from '../thumbnails/formats';
+import { thumbnailQueue } from '../thumbnails/cards';
 import { makeThumbnail } from '../thumbnails/pipeline';
 import { directoryLabel, formatFileSize, parentDirectory } from './paths';
 import { refreshGrid } from './models';
@@ -139,8 +140,9 @@ export function loadGroupImages(record: GroupRecord, onImages: (images: string[]
         await show(images);
       }
     }
-    // No stored image anywhere: render the first model.
-    if (!images.length && children.length && !stale()) {
+    // No stored image anywhere: render the first model. Not while card renders are paused (the
+    // server's bulk thumbnail job runs): the placeholder stays until the grid is drawn again.
+    if (!images.length && children.length && !stale() && !thumbnailQueue.paused) {
       const { image, stored } = await makeThumbnail(children[0].filePath);
       if (stale() || !image) return;
       const [valid] = await usable([image]);
