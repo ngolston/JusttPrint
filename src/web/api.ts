@@ -24,7 +24,52 @@ function clientHeaders(): Record<string, string> {
   return headers;
 }
 
+/**
+ * Lists and settings many parts of a page ask for at once (the filters, the details, the shell):
+ * the same request, sent again within a moment, gets the same answer instead of another trip to
+ * the backend (9.6). Any change made from this page, and any message from the backend, forgets them.
+ */
+const SHARED_READS = new Set([
+  'get-categories',
+  'get-designers',
+  'get-titles',
+  'get-licenses',
+  'get-all-tags',
+  'get-setting',
+  'get-additional-file-types-catalog',
+  'get-filter-facets',
+  'get-library-counts',
+  'get-collections'
+]);
+const SHARED_MS = 1500;
+const shared = new Map<string, { at: number; answer: Promise<unknown> }>();
+
+/** Forget the shared answers (something changed). */
+export function forgetSharedReads() {
+  shared.clear();
+}
+
 export async function callAction<T>(name: string, ...args: unknown[]): Promise<T> {
+  if (!SHARED_READS.has(name)) {
+    if (changesData(name)) shared.clear();
+    return sendAction<T>(name, args);
+  }
+  const key = `${name} ${JSON.stringify(args)}`;
+  const now = Date.now();
+  const known = shared.get(key);
+  // Each caller gets its own copy: one sorting or changing its list must not change another's.
+  const copy = (answer: Promise<unknown>) => answer.then((value) => (value && typeof value === 'object' ? structuredClone(value) : value)) as Promise<T>;
+  if (known && now - known.at < SHARED_MS) return copy(known.answer);
+  const answer = sendAction<T>(name, args);
+  shared.set(key, { at: now, answer });
+  // A failed read is not kept.
+  answer.catch(() => {
+    if (shared.get(key)?.answer === answer) shared.delete(key);
+  });
+  return copy(answer);
+}
+
+async function sendAction<T>(name: string, args: unknown[]): Promise<T> {
   const response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
     method: 'POST',
     credentials: 'same-origin',
@@ -45,7 +90,10 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   if (!response.ok || data.error !== undefined) {
     throw new ApiError(data.error || `HTTP ${response.status}`, response.status);
   }
-  if (typeof window !== 'undefined' && changesData(name)) window.dispatchEvent(new Event(LIBRARY_CHANGED));
+  if (typeof window !== 'undefined' && changesData(name)) {
+    shared.clear();
+    window.dispatchEvent(new Event(LIBRARY_CHANGED));
+  }
   return data.result as T;
 }
 

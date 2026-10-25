@@ -258,6 +258,22 @@ ipcMain.handle('get-licenses', async () => {
   }
 });
 
+/**
+ * Each model's tag names come with the list (9.6), so the cards need no request each for them.
+ * Unit separator (char 31) between names: it is never in a tag.
+ */
+const TAG_LIST_COLUMN = '(SELECT GROUP_CONCAT(t.name, char(31)) FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = models.id) AS tagList';
+
+/** tagList → tags (names), with tagsLoaded so a model without tags is not asked about again. */
+function withTagLists(models) {
+  for (const model of models) {
+    model.tags = model.tagList ? String(model.tagList).split('\x1f') : [];
+    model.tagsLoaded = true;
+    delete model.tagList;
+  }
+  return models;
+}
+
 const getAllModelsHandler = async (event, sortOption, limit = 0) => {
   try {
     // Determine the ORDER BY clause based on sortOption.
@@ -312,7 +328,7 @@ const getAllModelsHandler = async (event, sortOption, limit = 0) => {
     // With each model's Category and Subcategory (the cards show them).
     const categories = require('../../core/categories');
     categories.ensureTables();
-    const selectCols = `${MODEL_LIST_COLUMNS}, ${categories.PLACE_COLUMNS}`;
+    const selectCols = `${MODEL_LIST_COLUMNS}, ${categories.PLACE_COLUMNS}, ${TAG_LIST_COLUMN}`;
 
     let models;
     if (limit === 0) {
@@ -321,7 +337,7 @@ const getAllModelsHandler = async (event, sortOption, limit = 0) => {
     } else {
       models = database.db.prepare(`SELECT ${selectCols} FROM models ${orderClause} LIMIT ?`).all(limit);
     }
-    return models;
+    return withTagLists(models);
   } catch (error) {
     console.error('Error in getAllModels IPC:', error);
     return [];
@@ -428,7 +444,7 @@ const getModelsFilteredHandler = async (event, filters) => {
 
     const categories = require('../../core/categories');
     categories.ensureTables();
-    const selectCols = `${MODEL_LIST_COLUMNS_QUALIFIED}, ${categories.PLACE_COLUMNS}`;
+    const selectCols = `${MODEL_LIST_COLUMNS_QUALIFIED}, ${categories.PLACE_COLUMNS}, ${TAG_LIST_COLUMN}`;
 
     // Execute query (optional limit/offset for progressive load when clearing filters in Server/Docker)
     // SQLite requires LIMIT when using OFFSET; use a large limit when only offset is set
@@ -447,7 +463,7 @@ const getModelsFilteredHandler = async (event, filters) => {
     const models = database.db.prepare(query).all(...params);
 
     console.debug(`Returning ${models.length} filtered models`);
-    return models;
+    return withTagLists(models);
   } catch (error) {
     console.error('Error in getModelsFiltered IPC:', error);
     throw error;

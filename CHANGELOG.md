@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.6.0] - 2026-10-24
+
+**Changes:**
+- **The Library loads much faster.** Opening it on a small test library went from 27 MB and 195 requests to under 1 MB and 80 requests; a large library saves far more.
+  - A card's other pictures load when you first click its arrows (it shows "1/…" until then), instead of every card downloading all its full-size photos as soon as it appeared.
+  - Each model's tags come with the model list, instead of one request per card.
+  - The filters, details and shell share the lists they all ask for at once (categories, designers, titles, licenses, tags, settings) instead of asking six to twenty times; a change you make, or one the backend reports, makes them ask again.
+- **Smaller downloads:** the JusttPrint backend compresses what it sends (the app's code and styles with Brotli or gzip, answers over 1 KB with gzip), about 70% smaller; this helps most on your own network and on phones (Cloudflare already compressed for visitors through it).
+- **The app's code is kept between visits:** its files carry the build in their names, so browsers and Cloudflare keep them for a year and do not ask again on every load; a new release has new names.
+
 ## [9.5.3] - 2026-10-24
 
 **Fixes:**
