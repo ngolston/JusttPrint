@@ -22,6 +22,7 @@
  */
 
 const crypto = require('crypto');
+const { sendJsonText } = require('./compress');
 const express = require('express');
 const events = require('./events');
 const { ipcMain } = require('./runtime');
@@ -153,7 +154,7 @@ async function runAction(req, res, keepaliveMs) {
   } else if (binary) {
     res.type('application/octet-stream').send(binary);
   } else {
-    res.type('application/json').send(jsonStringifyForWs(outcome));
+    sendJsonText(req, res, jsonStringifyForWs(outcome));
   }
 }
 

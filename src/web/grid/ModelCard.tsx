@@ -82,7 +82,8 @@ export const normalizeRating = (value: unknown) => {
 };
 
 function tagNamesOf(model: GridModel): string[] | null {
-  if (!Array.isArray(model.tags) || !model.tags.length) return null;
+  // The list query sends every model's tags (tagsLoaded, even none); other models may lack them.
+  if (!Array.isArray(model.tags) || (!model.tags.length && !model.tagsLoaded)) return null;
   return (model.tags as unknown[])
     .map((tag) => (typeof tag === 'string' ? tag : String((tag as { name?: string })?.name ?? '')).trim())
     .filter(Boolean)
@@ -136,8 +137,7 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
           if (thumbnail && !isFailurePlaceholder(thumbnail)) {
             model.thumbnail = thumbnail;
             model.hasThumbnail = true;
-            if (carouselView && multiple) loadAllThumbnails(model);
-            else redraw();
+            redraw();
           } else if (carouselView && !imageOnlyMiss) {
             // Flagged as having one, but it is empty: render it again.
             model.hasThumbnail = false;
@@ -145,11 +145,9 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
           }
         })
         .catch(() => {});
-    } else if (current && multiple && all.length < 2 && carouselView) {
-      if (alreadyAsked('all')) return;
-      requested.current = { model, kind: 'all' };
-      loadAllThumbnails(model);
     }
+    // A model's other pictures load when its carousel is used (Carousel below), not with the grid:
+    // they are full-size photos, and most are never looked at.
   });
 
   // No image at all: queue a render in this browser (deduplicated, reprioritized on scroll).
@@ -158,7 +156,12 @@ function useThumbnail(host: CardHost, model: GridModel, view: GridView, priority
     queueCardThumbnail(model, container, priority);
   });
 
-  return { current, images: carouselView && all.length > 1 ? all : null };
+  return {
+    current,
+    images: carouselView && all.length > 1 ? all : null,
+    /** More pictures than the one shown, not loaded yet (the carousel fetches them on its first step). */
+    more: carouselView && multiple && all.length < 2 && !!current && !failed
+  };
 }
 
 /** Default-image saves waiting on the 2-second delay, sent at once when the card goes or the page closes. */
@@ -172,26 +175,43 @@ if (typeof window !== 'undefined') {
 function Carousel({
   host,
   model,
-  images,
+  images: given,
+  more = false,
   style,
   children
 }: {
   host: CardHost;
   model: GridModel;
   images: string[];
+  /** Only the first picture is here; the others are fetched on the first step. */
+  more?: boolean;
   style: CSSProperties;
   children: (src: string) => React.ReactNode;
 }) {
   const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const images = loaded && loaded.length > given.length ? loaded : given;
+  const waiting = more && !loaded;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const position = index < images.length ? index : 0;
 
   // Leaving the card (scrolling away, switching views) saves a pending choice right away.
   useEffect(() => () => pendingDefaultSaves.get(model.filePath)?.(), [model.filePath]);
 
-  function step(by: number, event: ReactMouseEvent) {
+  async function step(by: number, event: ReactMouseEvent) {
     event.stopPropagation();
-    const next = (position + by + images.length) % images.length;
+    let list = images;
+    if (waiting) {
+      // First step: fetch the model's other pictures now (only this card's).
+      if (loading) return;
+      setLoading(true);
+      const all = await loadAllThumbnails(model).finally(() => setLoading(false));
+      if (!all || all.length < 2) return;
+      setLoaded(all);
+      list = all;
+    }
+    const next = (position + by + list.length) % list.length;
     setIndex(next);
     // The image left showing becomes the default (for preview and list) after 2 seconds.
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -212,7 +232,7 @@ function Carousel({
       className="thumbnail-wrapper"
       style={{ position: 'relative', ...style }}
       data-file-path={model.filePath}
-      data-thumbnails-count={images.length}
+      data-thumbnails-count={waiting ? undefined : images.length}
       data-current-index={position}
     >
       <div
@@ -229,7 +249,7 @@ function Carousel({
       />
       <div
         className="thumbnail-count-badge"
-        title={`Image ${position + 1} of ${images.length} - Click left/right to navigate`}
+        title={waiting ? 'More pictures: click left or right to see them' : `Image ${position + 1} of ${images.length} - Click left/right to navigate`}
         style={{
           position: 'absolute',
           bottom: 8,
@@ -244,7 +264,7 @@ function Carousel({
           pointerEvents: 'none'
         }}
       >
-        {position + 1}/{images.length}
+        {waiting ? (loading ? '…' : '1/…') : `${position + 1}/${images.length}`}
       </div>
       {children(images[position])}
     </div>
@@ -413,7 +433,11 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
   // container); React never puts children in it, so the two cannot collide.
   const [renderSlot, setRenderSlot] = useState<HTMLDivElement | null>(null);
   const fileInfoRef = useRef<HTMLDivElement>(null);
-  const { current, images } = useThumbnail(host, model, view, priority, renderSlot);
+  const thumb = useThumbnail(host, model, view, priority, renderSlot);
+  const { current } = thumb;
+  // Several pictures: the carousel, starting with the one shown when the others are not loaded yet.
+  const images = thumb.images ?? (thumb.more && current ? [current] : null);
+  const more = !thumb.images && thumb.more;
   const tags = useTagNames(host, model);
   const name = displayFileName(model);
   const zipEntry = isZipEntry(model);
@@ -494,7 +518,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     </div>
   );
   const thumbnailBlock = images ? (
-    <Carousel host={host} model={model} images={images} style={view === 'preview' ? { width: '100%', height: '100%' } : thumbSize}>
+    <Carousel host={host} model={model} images={images} more={more} style={view === 'preview' ? { width: '100%', height: '100%' } : thumbSize}>
       {(src) => thumbnail(src)}
     </Carousel>
   ) : (
@@ -731,7 +755,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
     );
   }
 
-  return <ModelTile host={host} model={model} common={common} images={images} current={current} setRenderSlot={setRenderSlot} />;
+  return <ModelTile host={host} model={model} common={common} images={images} more={more} current={current} setRenderSlot={setRenderSlot} />;
 }
 
 interface TileProps {
@@ -739,6 +763,8 @@ interface TileProps {
   model: GridModel;
   common: Record<string, unknown>;
   images: string[] | null;
+  /** Its other pictures are not loaded yet (see Carousel). */
+  more: boolean;
   current: string | null;
   setRenderSlot: (element: HTMLDivElement | null) => void;
 }
@@ -748,7 +774,7 @@ interface TileProps {
  * at its top-right (and the rating, shown on hover or once set); the footer has the title, the
  * designer (else the folder), the format badge and the print status.
  */
-function ModelTile({ host, model, common, images, current, setRenderSlot }: TileProps) {
+function ModelTile({ host, model, common, images, more, current, setRenderSlot }: TileProps) {
   const engagement = useEngagement(host, model);
   const { rating, favorite, save } = engagement;
   const designer = text(model.designer);
@@ -788,7 +814,7 @@ function ModelTile({ host, model, common, images, current, setRenderSlot }: Tile
     >
       <div className="jp-model-card__preview">
         {images ? (
-          <Carousel host={host} model={model} images={images} style={{ width: '100%', height: '100%' }}>
+          <Carousel host={host} model={model} images={images} more={more} style={{ width: '100%', height: '100%' }}>
             {(src) => preview(src)}
           </Carousel>
         ) : (

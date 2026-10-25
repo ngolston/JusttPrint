@@ -141,18 +141,21 @@ export function afterGridPaint() {
   thumbnailQueue.pump();
 }
 
-/** Load every image of a model that has several (the card's carousel). */
-export async function loadAllThumbnails(model: CardModel) {
+/**
+ * Load every image of a model that has several, when its carousel is first used (the card asks;
+ * the grid no longer loads them all up front). Answers them, or null.
+ */
+export async function loadAllThumbnails(model: CardModel): Promise<string[] | null> {
   try {
     const all = imagesIn(((await callAction<string[] | null>('get-all-thumbnails', model.filePath)) || []).join('::'));
-    if (all.length < 2) return;
+    if (all.length < 2) return null;
     model.thumbnail = all.join('::');
     model.hasMultipleThumbnails = true;
     model.hasThumbnail = true;
     syncThumbnailFromField(model.filePath, model.thumbnail);
-    window.libraryGrid?.refresh();
+    return all;
   } catch {
-    /* the primary image stays */
+    return null; /* the primary image stays */
   }
 }
 

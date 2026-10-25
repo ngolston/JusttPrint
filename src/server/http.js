@@ -9,6 +9,7 @@ const { registerApiRoutes, registerClient, unregisterClient } = require('./api')
 const { puterPendingRequests } = require('./ipc/ai');
 const fs = require('fs');
 const path = require('path');
+const { sendStatic } = require('./compress');
 const { registerMcpRoutes } = require('./mcp-server');
 const serverTls = require('./server-tls');
 const { registerHelperBundleRoute } = require('../../helper/install-bundle');
@@ -209,7 +210,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
     if (filePath.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
     if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
     if (req.path === '/sw.js') res.setHeader('Service-Worker-Allowed', '/');
-    if (/\.(js|css|html|webmanifest)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
+    // Compressed text files and their cache time (compress.js); anything else as it is.
+    if (sendStatic(req, res, filePath)) return;
     res.sendFile(filePath, (err) => {
       if (err && !res.headersSent) next(err);
     });

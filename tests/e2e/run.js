@@ -2479,14 +2479,26 @@ async function browserChecks(base, wsUrl, session) {
       const total = ((await invoke(base, session, 'get-all-thumbnails', [cardPath])).result || []).length;
       await page.evaluate(() => window.performCombinedSearch({ force: true }));
       const badge = await page.waitForSelector(`${card} .thumbnail-count-badge`, { timeout: 15000 }).catch(() => null);
+      // 9.6: the other images load when the carousel is first used ("1/…" until then).
       check(
-        'a card with several images shows the carousel',
-        !!badge && (await badge.textContent()).trim() === `1/${total}`,
+        'a card with several images shows the carousel, without loading the others yet',
+        !!badge && (await badge.textContent()).trim() === '1/…',
         badge && (await badge.textContent())
       );
       if (badge) {
         await page.click(`${card} .thumbnail-nav-right`);
-        check('the carousel steps to the next image', (await page.textContent(`${card} .thumbnail-count-badge`)).trim() === `2/${total}`);
+        const stepped = await page
+          .waitForFunction((sel) => document.querySelector(sel)?.textContent?.trim() || '', `${card} .thumbnail-count-badge`, { timeout: 10000 })
+          .then(() =>
+            page.waitForFunction(([sel, want]) => document.querySelector(sel)?.textContent?.trim() === want, [`${card} .thumbnail-count-badge`, `2/${total}`], {
+              timeout: 10000
+            })
+          )
+          .then(
+            () => true,
+            () => false
+          );
+        check('the carousel loads the images and steps to the next one', stepped, await page.textContent(`${card} .thumbnail-count-badge`).catch(() => ''));
         const second = await page.getAttribute(`${card} .thumbnail-container img`, 'src');
         const saved = await waitFor(
           async () => {

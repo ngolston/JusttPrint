@@ -5,6 +5,7 @@
  * results). main.tsx loads it first; it installs window.electron, the name the page has always
  * used for it (the e2e tests wait for window._electronBridgeReady).
  */
+import { forgetSharedReads } from '../api';
 import { showBrowserInput, showBrowserMessage, type InputOptions } from './dialogs';
 
 type Listener = (...args: any[]) => unknown;
@@ -122,7 +123,11 @@ function connect() {
     else if (data.type === 'event' && data.channel === 'server-dialog-request') {
       const [dialogId, kind, options] = data.args || [];
       answerDialog(dialogId, String(kind), (options as Record<string, any>) || {});
-    } else if (data.type === 'event' && data.channel) dispatch(data.channel, data.args);
+    } else if (data.type === 'event' && data.channel) {
+      // Something changed on the backend: lists asked for a moment ago may be out of date.
+      forgetSharedReads();
+      dispatch(data.channel, data.args);
+    }
   };
   socket.onerror = () => {
     if (ws === socket) connecting = false;
