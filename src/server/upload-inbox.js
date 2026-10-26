@@ -379,6 +379,10 @@ async function tagModels(models, event) {
   let tagged = 0;
   /** @type {string | null} */
   let stopped = null;
+  /** Models the AI gave no tags, and the first reason (the run's warning says so). */
+  let failed = 0;
+  /** @type {string | null} */
+  let firstError = null;
   const worker = async () => {
     while (next < models.length && !stopped && !job.stopping) {
       const model = models[next++];
@@ -403,6 +407,8 @@ async function tagModels(models, event) {
           stopped = error.message;
         } else {
           console.warn(`[Organize] Could not tag ${model.filePath}: ${error.message}`);
+          failed++;
+          firstError = firstError || error.message;
         }
       }
       job.tagged = tagged;
@@ -411,7 +417,7 @@ async function tagModels(models, event) {
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, models.length) }, worker));
-  return { tagged, stopped };
+  return { tagged, stopped, failed, firstError };
 }
 
 /** Get one item ready: its own model folder, tidied (Settings), scanned. Answers the folder. */
@@ -513,8 +519,10 @@ function start({ by = null, event = null, puterSignedIn = false } = {}) {
         current.done = 0;
         current.total = prepared.length;
         announce();
-        const { stopped } = await tagModels(prepared, event);
+        const { stopped, failed, firstError } = await tagModels(prepared, event);
         if (stopped) current.warning = `AI tagging stopped: ${stopped}. Organize went on without it; tag the rest with Generate Tags.`;
+        else if (failed)
+          current.warning = `The AI could not tag ${require('./notifications').plural(failed, 'model')} (${firstError}); tag them with Generate Tags.`;
       }
       // 3: their places (the site's, the AI's for the models the tags did not place, then words in their names and tags).
       const ids = ready.flatMap((r) => modelsUnder(r.folder).map((m) => m.id));
