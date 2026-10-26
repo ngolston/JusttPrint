@@ -81,6 +81,52 @@ function collectSlicerSkipIds(unzipped) {
   return skip;
 }
 
+/**
+ * Cut every <mesh>…</mesh> out of a model's XML, leaving <mesh data-jp-mesh="N"/> in its place;
+ * the cut text goes into `store`. The DOM then holds only the structure (objects, components,
+ * build items): a DOM node for every vertex and triangle took gigabytes on large multi-part kits
+ * and ran the preview out of memory. The meshes are read by scanning their text (scanMesh).
+ */
+function detachMeshes(xml, store) {
+  return xml.replace(/<((?:[\w-]+:)?mesh)\b[^>]*>[\s\S]*?<\/\1\s*>/g, (whole) => {
+    store.push(whole);
+    return `<mesh data-jp-mesh="${store.length - 1}"/>`;
+  });
+}
+
+/** How many <triangle> elements a mesh's text has. */
+function countTriangles(text) {
+  let count = 0;
+  const re = /<(?:[\w-]+:)?triangle\b/g;
+  while (re.exec(text)) count++;
+  return count;
+}
+
+/** The attributes scanMesh reads, compiled once. */
+const ATTRIBUTE_PATTERNS = Object.fromEntries(['x', 'y', 'z', 'v1', 'v2', 'v3'].map((name) => [name, new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`)]));
+
+/** A mesh's vertices and triangles from its text, as typed arrays (no DOM). */
+function scanMesh(text) {
+  const positions = new GrowableFloat32Array();
+  const indices = new GrowableUint32Array();
+  const attr = (attrs, name) => {
+    const match = ATTRIBUTE_PATTERNS[name].exec(attrs);
+    return match ? match[1] : '';
+  };
+  const vertexRe = /<(?:[\w-]+:)?vertex\b([^>]*)>/g;
+  let match;
+  while ((match = vertexRe.exec(text))) {
+    const attrs = match[1];
+    positions.push3(parseFloat(attr(attrs, 'x')) || 0, parseFloat(attr(attrs, 'y')) || 0, parseFloat(attr(attrs, 'z')) || 0);
+  }
+  const triangleRe = /<(?:[\w-]+:)?triangle\b([^>]*)>/g;
+  while ((match = triangleRe.exec(text))) {
+    const attrs = match[1];
+    indices.push3(parseInt(attr(attrs, 'v1'), 10) || 0, parseInt(attr(attrs, 'v2'), 10) || 0, parseInt(attr(attrs, 'v3'), 10) || 0);
+  }
+  return { positions: positions.toArray(), indices: indices.toArray() };
+}
+
 function objectTypeOf(node) {
   if (!node || !node.attributes) return 'model';
   for (let i = 0; i < node.attributes.length; i++) {
@@ -189,6 +235,10 @@ class Simple3MFLoader {
   constructor(options = {}) {
     this.targetTriangles = options.targetTriangles || PREVIEW_3MF_TARGET_TRIANGLES;
     this.onStatus = typeof options.onStatus === 'function' ? options.onStatus : null;
+    /** The meshes' text cut out of the XML (detachMeshes), by their data-jp-mesh number. @type {string[] | null} */
+    this.meshTexts = null;
+    /** Meshes already scanned, by number. @type {Map<string, { positions: Float32Array, indices: Uint32Array }>} */
+    this.scannedMeshes = new Map();
   }
 
   postStatus(message) {
@@ -246,10 +296,14 @@ class Simple3MFLoader {
   parseWithDom(modelXmlParts, modelEntries, unzipped) {
     const parser = new (require('@xmldom/xmldom').DOMParser)();
     const textDecoder = new TextDecoder();
+    // The meshes' text, cut out before the DOM is built (detachMeshes).
+    const meshTexts = [];
     const modelDocs = modelEntries.map((path, i) => {
-      const xmlDoc = parser.parseFromString(modelXmlParts[i], 'text/xml');
+      const xmlDoc = parser.parseFromString(detachMeshes(modelXmlParts[i], meshTexts), 'text/xml');
       return { path, xmlDoc };
     });
+    this.meshTexts = meshTexts;
+    this.scannedMeshes = new Map();
 
     const skipIds = collectSlicerSkipIds(unzipped);
 
@@ -436,6 +490,11 @@ class Simple3MFLoader {
     let totalSourceTriangles = 0;
     for (let m = 0; m < meshInstances.length; m++) {
       const meshNode = meshInstances[m].meshNode;
+      const ref = meshNode.getAttribute && meshNode.getAttribute('data-jp-mesh');
+      if (ref !== null && ref !== undefined && ref !== '') {
+        totalSourceTriangles += countTriangles(meshTexts[Number(ref)] || '');
+        continue;
+      }
       let trianglesNode = meshNode.getElementsByTagName('triangles')[0];
       if (!trianglesNode) trianglesNode = meshNode.getElementsByTagNameNS('*', 'triangles')[0];
       if (trianglesNode) {
@@ -485,7 +544,13 @@ class Simple3MFLoader {
     for (const part of partBuffers.values()) {
       if (part.positions.length === 0 || part.indices.length === 0) continue;
       partIndex += 1;
-      const simplified = simplifyForPreview(part.positions.toArray(), part.indices.toArray(), this.targetTriangles);
+      // The budget is for the whole model: each part gets its share (40 parts just under the budget
+      // each used to come out 40 times over it).
+      const partTriangles = part.indices.length / 3;
+      const budget = needsSimplify
+        ? Math.max(2000, Math.floor((this.targetTriangles * partTriangles) / Math.max(1, totalSourceTriangles)))
+        : this.targetTriangles;
+      const simplified = simplifyForPreview(part.positions.toArray(), part.indices.toArray(), budget);
       let name = part.name || `Part ${partIndex}`;
       const seen = (usedNames.get(name) || 0) + 1;
       usedNames.set(name, seen);
@@ -523,6 +588,25 @@ class Simple3MFLoader {
     const { meshNode, matrix } = instance || {};
     if (!meshNode) return null;
     const applyTransform = !isIdentityMatrix(matrix);
+    // A mesh cut out of the XML (detachMeshes): scanned once, placed for each instance.
+    const ref = meshNode.getAttribute && meshNode.getAttribute('data-jp-mesh');
+    if (ref !== null && ref !== undefined && ref !== '' && this.meshTexts) {
+      let scanned = this.scannedMeshes.get(ref);
+      if (!scanned) {
+        scanned = scanMesh(this.meshTexts[Number(ref)] || '');
+        this.scannedMeshes.set(ref, scanned);
+      }
+      if (!scanned.positions.length || !scanned.indices.length) return null;
+      if (!applyTransform) return scanned;
+      const positions = new Float32Array(scanned.positions.length);
+      for (let i = 0; i < positions.length; i += 3) {
+        const p = mat4ApplyPoint(matrix, scanned.positions[i], scanned.positions[i + 1], scanned.positions[i + 2]);
+        positions[i] = p.x;
+        positions[i + 1] = p.y;
+        positions[i + 2] = p.z;
+      }
+      return { positions, indices: scanned.indices };
+    }
     let verticesNode = meshNode.getElementsByTagName('vertices')[0];
     if (!verticesNode) verticesNode = meshNode.getElementsByTagNameNS('*', 'vertices')[0];
     if (!verticesNode) return null;
