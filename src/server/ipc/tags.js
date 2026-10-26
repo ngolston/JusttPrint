@@ -283,11 +283,8 @@ async function generateTagsHandler(event, filePath) {
         return tags;
       } catch (error) {
         console.error(`Error generating tags with default image:`, error);
-        // Re-throw rate limit errors so user is notified
-        if (error.message && error.message.includes('Rate limit')) {
-          throw error;
-        }
-        return []; // Return empty tags array instead of throwing
+        // Thrown, so Organize and the MCP say why there are no tags
+        throw error;
       }
     }
 
@@ -319,11 +316,8 @@ async function generateTagsHandler(event, filePath) {
       return tags;
     } catch (error) {
       console.error('Error generating tags:', error);
-      // Re-throw rate limit errors so user is notified
-      if (error.message && error.message.includes('Rate limit')) {
-        throw error;
-      }
-      return []; // Return empty tags array instead of throwing
+      // Thrown, so Organize and the MCP say why there are no tags
+      throw error;
     }
   } catch (error) {
     console.error('Error generating tags:', error);

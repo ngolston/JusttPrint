@@ -2,14 +2,32 @@
 
 const express = require('express');
 
-/** The text of Puter's chat result: a string, `message.content` (Claude models answer in parts), or `text`. */
+/**
+ * The text of Puter's chat result: a string, `message.content` (Claude models answer in parts), or
+ * `text`. '' when it has none: the whole result is never the answer (its "length" and "max_tokens"
+ * became tags in 9.7.2).
+ */
 function chatTextOf(result) {
   if (typeof result === 'string') return result;
   const content = result?.message?.content;
   if (Array.isArray(content)) return content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('');
-  if (content) return content;
+  if (typeof content === 'string' && content) return content;
   if (typeof result?.text === 'string') return result.text;
-  return result != null ? JSON.stringify(result) : '';
+  return '';
+}
+
+/** Whether Puter's result stopped at the reply limit (OpenAI "length", Claude "max_tokens") before any answer. */
+function cutOff(result) {
+  if (!result || typeof result !== 'object') return false;
+  const reasons = [result.finish_reason, result.stop_reason, result.message?.finish_reason, result.message?.stop_reason, result.choices?.[0]?.finish_reason];
+  return reasons.some((reason) => reason === 'length' || reason === 'max_tokens') || /"(length|max_tokens)"/.test(JSON.stringify(result));
+}
+
+/** What the page is told when Puter's answer has no text (aitagging.js EMPTY_ANSWER matches it). */
+function emptyAnswerError(result) {
+  return cutOff(result)
+    ? 'The AI ran out of room before it answered (it used its reply limit thinking). Try again, or choose a model that answers at once, such as gpt-4o-mini, in Settings → AI Tagging.'
+    : 'The AI sent back an empty answer. Try again, or choose another model in Settings → AI Tagging.';
 }
 
 /**
@@ -77,6 +95,11 @@ function registerPuterAiProxyRoute(expressApp) {
       }
 
       const chatText = chatTextOf(data.result);
+      if (!chatText.trim()) {
+        console.warn(`[Puter AI Proxy] No answer from ${args.model}: ${JSON.stringify(data.result).slice(0, 300)}`);
+        res.status(502).json({ error: emptyAnswerError(data.result), code: 'empty_answer' });
+        return;
+      }
 
       res.json({ response: chatText });
     } catch (err) {
@@ -86,4 +109,4 @@ function registerPuterAiProxyRoute(expressApp) {
   });
 }
 
-module.exports = { chatTextOf, registerPuterAiProxyRoute };
+module.exports = { chatTextOf, cutOff, emptyAnswerError, registerPuterAiProxyRoute };

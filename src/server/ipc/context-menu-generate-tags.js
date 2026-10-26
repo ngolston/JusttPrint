@@ -219,11 +219,10 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
           } catch (error) {
             console.error(`Error generating tags with default image for ${filePath}:`, error);
             // A rate limit, or Puter that cannot answer, stops the run
-            if (stopsTheRun(error)) {
-              rateLimitStopped = true;
-              report(filePath, [], error.message);
-              return;
-            }
+            if (stopsTheRun(error)) rateLimitStopped = true;
+            // The review shows why this model has no tags.
+            report(filePath, [], error.message);
+            return;
           }
         } else {
           // Use default thumb only — multi-thumb strings are joined with `::`
@@ -246,11 +245,10 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
             } catch (error) {
               console.error(`Error generating tags for ${filePath}:`, error);
               // A rate limit, or Puter that cannot answer, stops the run
-              if (stopsTheRun(error)) {
-                rateLimitStopped = true;
-                report(filePath, [], error.message);
-                return;
-              }
+              if (stopsTheRun(error)) rateLimitStopped = true;
+              // The review shows why this model has no tags.
+              report(filePath, [], error.message);
+              return;
             }
           }
         }
@@ -261,12 +259,8 @@ async function generateTagsFromMenu(event, clickEvent, sender, filePaths) {
       } catch (error) {
         console.error(`Unexpected error processing ${filePath}:`, error);
         // A rate limit, or Puter that cannot answer, stops the run
-        if (stopsTheRun(error)) {
-          rateLimitStopped = true;
-          report(filePath, [], error.message);
-        } else {
-          report(filePath, []);
-        }
+        if (stopsTheRun(error)) rateLimitStopped = true;
+        report(filePath, [], error.message);
       }
     };
 

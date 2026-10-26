@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Fixes:**
+- **Generate Tags and Organize no longer fail silently when the AI gives no answer.** Reasoning models such as Puter's default gpt-5-nano can use their whole reply limit thinking and send back no text, most often for models still without a Category (their request also lists every Category to choose from). JusttPrint then returned no tags and no Category without saying why, and Organize left those models in Uncategorized › Other.
+  - An empty or cut-off answer is now an error: the Generate Tags review shows it on that model ("The AI ran out of room before it answered…", with the advice to choose a model that answers at once, such as gpt-4o-mini), and Organize's finished notice says how many models the AI could not tag and why. The MCP's `generate_tags` returns the error too.
+  - Such an answer is tried once more instead of five times (each try could take a minute, so one model took over two minutes).
+  - The whole Puter reply is no longer read as the answer when it has no text: its words became tags (one model was tagged "length" and "max_tokens").
+  - Other AI errors (a refused request, a bad answer) also show in the review instead of "No tags generated for this model".
+
+**Upgrading:** a model that got junk tags this way (such as `length`, `max_tokens`) also got "AI Tagged", so Generate Tags skips it: remove those tags and "AI Tagged" (or turn on Allow Re-tagging in Settings → AI Tagging) and generate again.
+
 ## [9.7.2] - 2026-10-25
 
 **Fixes:**

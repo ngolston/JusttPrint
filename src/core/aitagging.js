@@ -489,20 +489,15 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
         // Call puter via IPC (prompt already includes filename context)
         let responseContent = await puterIPC(prompt, imageUrl, model || 'gpt-5-nano');
 
-        // Ensure responseContent is a string
+        // Ensure responseContent is a string (never the whole object: its keys would become tags)
         if (typeof responseContent !== 'string') {
-          if (responseContent && typeof responseContent === 'object') {
-            // Try to extract text from object
-            responseContent = responseContent.text || responseContent.content || responseContent.message || JSON.stringify(responseContent);
-          } else {
-            responseContent = String(responseContent || '');
-          }
+          const text = responseContent && typeof responseContent === 'object' ? responseContent.text || responseContent.content : responseContent;
+          responseContent = typeof text === 'string' ? text : '';
         }
 
-        // Validate response
+        // No answer is an error the review shows, not "no tags"
         if (!responseContent || responseContent.trim() === '') {
-          console.warn('Empty response from Puter AI, returning empty tags');
-          return [];
+          throw new Error('The AI sent back an empty answer. Try again, or choose another model in Settings → AI Tagging.');
         }
 
         console.debug(`Puter AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
@@ -518,6 +513,8 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
       } catch (error) {
         console.error('Error generating tags with Puter:', error);
         if (PUTER_STOP.test(error.message || '')) throw new Error(`Tag generation failed with Puter: ${error.message}`, { cause: error });
+        // An empty answer is tried once more, not five times (each try can take a minute).
+        if (EMPTY_ANSWER.test(error.message || '') && attempt >= 1) throw new Error(`Tag generation failed with Puter: ${error.message}`, { cause: error });
         if (attempt < maxRetries - 1) {
           attempt++;
           await delay(delayMs * (attempt + 1)); // Exponential backoff
@@ -573,10 +570,13 @@ async function generateTagsForImage(base64Image, model, options = {}, delayMs = 
 
       const responseContent = completion.choices[0].message.content;
 
-      // Validate response
+      // No answer is an error the review shows, not "no tags"
       if (!responseContent || responseContent.trim() === '') {
-        console.warn('Empty response from AI, returning empty tags');
-        return [];
+        throw new Error(
+          completion.choices[0].finish_reason === 'length'
+            ? 'The AI ran out of room before it answered (it used its reply limit thinking). Try again, or choose a model that answers at once in Settings → AI Tagging.'
+            : 'The AI sent back an empty answer. Try again, or choose another model in Settings → AI Tagging.'
+        );
       }
 
       console.debug(`AI Response (first 500 chars): ${responseContent.substring(0, 500)}`);
@@ -817,8 +817,11 @@ async function testAIConfig(apiKey, baseURL, model, service = 'openai', puterIPC
  * not retried, and a run of several models stops at the first (category-scan.js, generate tags).
  */
 const PUTER_STOP = /not signed in to Puter|Puter sign-in was cancelled|No JusttPrint page is open|Puter did not answer in time/i;
+/** The AI answered without any text (puter-ai-proxy.js emptyAnswerError, and the checks above). */
+const EMPTY_ANSWER = /empty answer|ran out of room before it answered/i;
 
 module.exports = {
+  EMPTY_ANSWER,
   PUTER_STOP,
   initializeOpenAI,
   generateTagsForImage,
