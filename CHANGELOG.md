@@ -2,6 +2,12 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.7.1] - 2026-10-25
+
+**Fixes:**
+- **Large multi-part 3MF files open in the 3D preview** instead of "Preview ran out of memory while processing this model". Kits with many parts (placed by their build items) were read into a full XML tree, a JavaScript object for every vertex and triangle, which took more than the preview's 2 GB. Their meshes are now read straight into compact number arrays, and only the small structure (objects, components, placement) is parsed as XML: a 40-part, 6-million-triangle test kit (52 MB) that ran out of memory opens in about 6 seconds.
+- The preview's triangle budget (1 million unless `JUSTTPRINT_PREVIEW_3MF_TARGET_TRIANGLES` says otherwise) is for the whole model, shared by its parts: a kit of many parts each just under it was sent whole (that test kit: all 6 million triangles to the browser, now 462,000).
+
 ## [9.7.0] - 2026-10-25
 
 **Changes:**
