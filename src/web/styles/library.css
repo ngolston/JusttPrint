@@ -1573,3 +1573,10 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.unorganized-status {
   color: var(--jp-text);
 }
+/* Not organized as an icon badge: the row keeps room for the file type and Subcategory. */
+.file-grid .jp-model-card .jp-model-card__badges .jp-badge.jp-model-card__flag--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
