@@ -2,7 +2,7 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [9.7.3] - 2026-10-26
 
 **Fixes:**
 - **Generate Tags and Organize no longer fail silently when the AI gives no answer.** Reasoning models such as Puter's default gpt-5-nano can use their whole reply limit thinking and send back no text, most often for models still without a Category (their request also lists every Category to choose from). JusttPrint then returned no tags and no Category without saying why, and Organize left those models in Uncategorized › Other.
