@@ -13,7 +13,7 @@ import { loadAllThumbnails, queueCardThumbnail, setDefaultThumbnail, thumbnailQu
 import { extensionOf, isFailurePlaceholder, typedPlaceholder } from '../thumbnails/formats';
 import { cardPreviewHeight, type GridModel, type GridView } from './layout';
 import { applyColumns } from './columns';
-import { Check, Heart, MoreHorizontal } from 'lucide-react';
+import { Check, FolderInput, Heart, MoreHorizontal } from 'lucide-react';
 import { navigate } from '../shell/routes';
 import { printStatusInfo } from '../components/Badge';
 import { cx } from '../components/Button';
@@ -914,22 +914,28 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
         {/* New, Not organized and Archive sit with the file type, not over the picture (9.6.1: the
             picture's corners hold the checkbox, Open, ♡ and ⋯). */}
         <div className="jp-model-card__badges">
+          {/* The file type first (always shown whole), then the flags, then the Subcategory, which
+              shortens with "…" when the row is full. Not organized is an icon (its name in the tooltip). */}
+          {format && (
+            <span className="jp-badge" title="File type">
+              {format}
+            </span>
+          )}
           {host.isNew(model) && (
             <span className="jp-badge new-status jp-model-card__flag" title="New model — clears once you edit it">
               New
             </span>
           )}
           {host.isUnorganized?.(model) && (
-            <span className="jp-badge unorganized-status jp-model-card__flag" title="Waiting in the Upload folder: Organize moves it to its category">
-              Not organized
+            <span
+              className="jp-badge unorganized-status jp-model-card__flag jp-model-card__flag--icon"
+              title="Not organized: waiting in the Upload folder; Organize moves it to its category"
+              aria-label="Not organized"
+            >
+              <FolderInput size={12} aria-hidden="true" />
             </span>
           )}
           {zipEntry && <span className="jp-badge archive-status jp-model-card__flag">Archive</span>}
-          {format && (
-            <span className="jp-badge" title="File type">
-              {format}
-            </span>
-          )}
           {typeof model.subcategory === 'string' && model.subcategory && (
             <button
               type="button"

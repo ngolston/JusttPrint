@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [9.7.2] - 2026-10-25
+
+**Fixes:**
+- On a card that is both New and Not organized, the file type (3MF) was cut off at the right. The file type now comes first in the badge row, Not organized is a small icon (its meaning in the tooltip), and the Subcategory comes last and ends in "…" when the row is full.
+
 ## [9.7.1] - 2026-10-25
 
 **Fixes:**
