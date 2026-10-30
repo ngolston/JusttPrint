@@ -3739,6 +3739,7 @@ async function browserChecks(base, wsUrl, session) {
       );
     await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
     await page.waitForSelector('.jp-filament h1', { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector('#jp-add-from-catalog', { timeout: 15000 }).catch(() => {});
     check(
       'the Filament page opens with no spools and the ways to add one',
       (await page.isVisible('#jp-add-from-catalog')) && !(await page.isVisible('.jp-spool-card'))
@@ -3852,6 +3853,10 @@ async function browserChecks(base, wsUrl, session) {
           '<plate><metadata key="index" value="2"/><filament id="2" type="PLA" color="#2F6FDF" used_g="10" /></plate></config>'
       );
       fs.writeFileSync(kitFile, Buffer.from(zipSync(entries)));
+      await page.evaluate(() => {
+        const seen = (window.__e2eEvents = { 'refresh-grid': 0, 'filament-check-changed': 0 });
+        for (const channel of Object.keys(seen)) window.electron?.on?.(channel, () => (seen[channel] += 1));
+      });
       const scanned = await invoke(base, session, 'scan-directory', [plateDir]);
       const read = (await invoke(base, session, 'read-plate-filaments')).result;
       const needs = (await invoke(base, session, 'get-model-filament', [kitFile])).result || {};
@@ -3896,7 +3901,16 @@ async function browserChecks(base, wsUrl, session) {
         await page.waitForSelector(`${card} .jp-model-card__fit:has-text("Ready to print")`, { timeout: 15000 }).then(
           () => true,
           () => false
-        )
+        ),
+        JSON.stringify(
+          await page.evaluate(() => ({
+            cards: [...document.querySelectorAll('.file-grid .file-item')].slice(0, 8).map((el) => el.textContent.trim().slice(0, 80)),
+            hash: location.hash,
+            events: window.__e2eEvents,
+            gridFit: (document.querySelector('.file-grid')?.currentModels || []).find((m) => /plate-kit/.test(m.fileName || ''))?.fit ?? null
+          }))
+        ) +
+          JSON.stringify(((await invoke(base, session, 'get-models-filtered', [{}])).result || []).find((m) => /plate-kit/.test(m.fileName || ''))?.fit ?? null)
       );
       check(
         'the library shows the Printable right now banner',

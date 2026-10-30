@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 9.7.3**
+**Version 10.0.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -11,11 +11,13 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 ## Features
 
 - **A home for your printing**: Home shows your figures, recent prints and printers, the kits you are partway through, what needs attention (models without tags, a license, a category or a thumbnail, duplicates, maintenance, late backups), your favorites, collections and categories; the Library has tabs for Printed, Unprinted, Queue and Favorites
-- **Print queue and printers** pages: what is printing and up next, and your printers with their web pages and maintenance reminders
+- **Filament and spools**: add spools from a catalogue of about 27,000 filaments, by hand, from Spoolman or from FilamentHub; weigh them to know what is left, dry them, keep them in places, see what is loaded in each printer's AMS, get low-stock alerts (Discord, email, webhooks), a shopping list and QR labels
+- **Ready to print**: JusttPrint reads what each 3MF's plates need and checks it against your spools, so cards say **Ready to print** or **Need black**, **Fits my filament** shows what you can print now, and Log Print takes the grams off the spools it used
+- **Print queue and printers** pages: a queue in the order you set, by plate and printer, where each item says whether your spools cover it (counting the prints before it); your printers with their AMS, web pages and maintenance reminders
 - **Quick to load**: the backend compresses what it sends, browsers keep the app's code between visits, and the Library loads a card's other pictures only when you look at them; lists, searches and sorts stay fast on large libraries (the pictures are kept apart from the details the Library reads)
 - **What runs in the background**: above Library Storage, a progress bar for each job while it runs (library scans, AI Tagging, Categorize Library, thumbnails, duplicate checks, site downloads, uploads, backups, Organize and Tidy), with how far it is and how long it should still take; nothing when nothing runs
 - **Notifications**: a bell for what finished or went wrong in the background (new models from scans, thumbnail and AI tagging jobs, maintenance coming due, failed backups), each person seeing what their role may; **Clear** empties your list
-- **Light or dark**: each person picks a light or dark look, or follows their computer's setting
+- **Light or dark**: the Bento look (slate and coral) in light or dark for each person, or following their computer's setting
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets, finger-sized controls on touch screens, and **Install App** for the home screen (Android and desktop need HTTPS)
 - **Automatic scanning** of STL, 3MF and other model files, and of ZIP, RAR and 7Z files (each archive is one model, never opened), with thumbnails rendered by the JusttPrint backend; large pictures show as small copies in the grid, and the originals are kept; files moved to another folder or share outside JusttPrint keep their tags, notes and print history
 - **Upload from the browser**: drop model files on the page (or use **Upload** in the Library) to save them into a library folder; large files (many GB) go in pieces that resume after a lost connection
@@ -37,7 +39,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Typed search**: `tag:robot creator:"M Armory" -tag:broken (category:Toys OR category:Art) is:unprinted rating:4+` in the search box
 - **Notes in English**: notes in another language get an English translation, and new models' notes are saved in English with the original kept; translated by Google Cloud Translation (with a warning before its 500,000 free characters a month run out), the free MyMemory service or your AI service, in the order you choose
 - **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with a 3D view, optional downloads and an expiry date
-- **Statistics**: prints per month, success rate, top designers, most printed models and printers
+- **Statistics**: prints per month, success rate, top designers, most printed models and printers, and filament used and its cost per month, model, printer and material
 - **3D preview** of single models or every part in a folder
 - **Tags, designers, licenses, notes and source links** for every model
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
@@ -46,7 +48,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Undo** for metadata and tag edits, for renaming, merging and deleting tags, and for the Metadata Editor's renames, merges and clears: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
-- **MCP server** so AI agents can search and update your library, and add models from links
+- **MCP server** so AI agents can search and update your library, add models from links, and work with your spools, the filament check and the queue
 - **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
@@ -187,7 +189,7 @@ All are optional. You can change most of these later under **Settings** in the a
 
 ## Using the Web App
 
-The sidebar holds every page: **Home**, **Library**, **Collections**, **Categories**; under Printing **Queue**, **Printers**, **Statistics**; under Manage **Tags**, **Duplicates**, **History**; under Tools (they run at once) **Organize**, **Scan Library**, **AI Tagging**; and, pinned at the bottom above Library Storage, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K). **Settings** is in tabs: a group at a time on the left (across the top on phones), with a tab for each setting in groups that have several, such as **Integrations → MakerWorld**. **Automatic backups** (Settings → Backup) are on from the start: daily, keeping the newest 7. The AI, Backup and STL Home forms show the usual choices first; the rest is under **Advanced**.
+The sidebar holds every page: **Home**, **Library**, **Collections**, **Categories**; under Printing **Queue**, **Filament**, **Printers**, **Statistics**; under Manage **Tags**, **Duplicates**, **History**; under Tools (they run at once) **Organize**, **Scan Library**, **AI Tagging**; and, pinned at the bottom above Library Storage, **Settings** and **Help**. On a phone, open it with **Menu** in the bottom bar. Search from the top bar (Ctrl/⌘ K). **Settings** is in tabs: a group at a time on the left (across the top on phones), with a tab for each setting in groups that have several, such as **Integrations → MakerWorld**. **Automatic backups** (Settings → Backup) are on from the start: daily, keeping the newest 7. The AI, Backup and STL Home forms show the usual choices first; the rest is under **Advanced**.
 
 - **Log in** with your user name and password; the first account is `admin` (or `JUSTTPRINT_USERNAME`) with the `JUSTTPRINT_PASSWORD` password. Browsers stay logged in for 30 days. Change your password from the account menu (top right) → **Change Password**; this logs you out in every browser.
 - **User accounts**: under **Settings → Authentication → Users**, an admin adds people and gives each a role. **Viewers** browse, preview and download; **Editors** also edit models, tags and the print log, upload and move files, and remove models from the library; **Admins** also delete files from disk, change settings, backups, JusttPrint backend access and accounts. The JusttPrint backend checks every action, and each person sees only the pages, menu items and buttons their role can use (a viewer's details panel is read-only). Each person keeps their own view, sort, column layout, panel sizes and color scheme; everything else under Settings is the same for everyone. Tick **Can delete files from disk** on an editor to let them delete files too (**Delete from Disk** in the model menu, and Delete Selected on the Duplicates page).
@@ -210,7 +212,9 @@ The sidebar holds every page: **Home**, **Library**, **Collections**, **Categori
 - **Add Links** also takes a designer's page or a collection: **Get Their Models** puts their model links in the list (MakerWorld designers once one of their models is in the library, MakerWorld collections, Printables designers, Thingiverse designers and collections with an API token).
 - **Collections** (sidebar): choose **Add to Collection…** in a model's menu (it works on a selection too) or make one with **New Collection**; a model can be in several. Everyone can browse collections; editors and admins change them.
 - **Share links**: **Share…** in a model's menu, or **Share** on a collection, makes a read-only link with a QR code (to scan, or to print and stick on a box of parts). The page shows names, pictures, designer, license, tags and source link, never notes or file locations; downloads only when you allow them; STL and 3MF models can be turned around in 3D (on view-only links only when you tick **Show STL and 3MF models in 3D**, since the model's shape then reaches the visitor's browser); links can expire after 1 to 90 days. Anyone who can reach your JusttPrint backend's address can open a link, so links work outside your home network only if JusttPrint is reachable from there (for example behind a reverse proxy with HTTPS). See and turn off every link under **Settings → Sharing**.
-- **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the designers, models and printers printed most, and how many models were added, for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
+- **Statistics** (sidebar): prints per month by outcome, the success rate (printed out of printed and failed), the designers, models and printers printed most, how many models were added, and the filament used and its cost (per month, model, printer and material), for the last 6 or 12 months, 2 years or all time. The figures come from the print log, so log your prints to see them.
+- **Filament** (sidebar): your spools with how much is left (weigh them on a scale), where each is and what is loaded in each printer, what is drying, and the Reorder tile with a shopping list; **Add spool** from the catalogue, by hand, or import from Spoolman or FilamentHub. A 3MF's plates are checked against your spools: **Ready to print** on cards, **Fits my filament** in the filters, and **Print this model** on a model's page. **Log Print** takes the grams off the spools used. Low-stock rules, Discord, email and webhooks are under **Settings → Printers → Alerts & webhooks**; the currency for spool prices under **Filament settings**.
+- **Queue** (sidebar): up next in the order you set, each item a model or one plate, optionally on one printer, with whether your spools cover it (the prints before it set their grams aside); **Start** moves it to Printing now, logging the print finishes it.
 - **STL Home**: under **Settings → Scanning → STL Home**, add the folders to scan with **Browse…** (it lists the volumes mounted into the container) or by typing a container path such as `/mnt/models`, and set how often (default 60 minutes). JusttPrint also watches these folders, so new, changed and deleted files show up within seconds; the timed scan catches anything watching misses (network shares and Docker Desktop on Mac or Windows may not report changes). **Scan Library** in the sidebar scans right away. Remove every folder to stop automatic scans.
 - **Scan a folder once**: **Settings → Scanning → Scan a Folder**, then choose the folder (or type its container path).
 - **HTTPS**: open **Settings → JusttPrint Backend → HTTPS / SSL** for a self-signed certificate, Let's Encrypt (also publish port `80:80`) or your own certificate files. Use HTTPS if JusttPrint can be reached from outside your network.
@@ -229,7 +233,7 @@ You can also set this up with the `JUSTTPRINT_AI_*` [environment variables](#env
 
 ## MCP Server
 
-AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search the library, edit tags and metadata, log prints, add models from Printables, Thingiverse and MakerWorld links, manage a model folder's pictures, videos and documents (list, add from a link or a file, set the cover, remove), list and set categories and run Categorize Library, rename models, change what a model shows of its site details, and more. For example, ask "tag everything in the Kitchen folder as kitchen".
+AI apps can connect to JusttPrint over MCP (Model Context Protocol) to search the library, edit tags and metadata, log prints (with the spools they used), list and weigh spools, check a model against your spools, find what you can print now, see and add to the print queue, get filament statistics, add models from Printables, Thingiverse and MakerWorld links, manage a model folder's pictures, videos and documents (list, add from a link or a file, set the cover, remove), list and set categories and run Categorize Library, rename models, change what a model shows of its site details, and more. For example, ask "tag everything in the Kitchen folder as kitchen".
 
 1. Open **Settings → Integrations → MCP Server**.
 2. Pick your app under **Set up in**: Claude Code, Claude Desktop, Cursor, VS Code, or another MCP client.
@@ -304,6 +308,10 @@ docker build -f docker/Dockerfile -t justtprint:latest .
 ```
 
 or build and start it with `docker compose -f docker/docker-compose.yml up -d --build` (it keeps `data` and `models` in the project folder). `npm start` runs the server without Docker (Node 22). The server is in `src/server` and `src/core`, the web UI in `src/web` (its static page in `src/web/public`), the scripts both use in `src/shared`, and the Docker files in `docker/`.
+
+## Upgrading to 10.0
+
+10.0 merges FilamentHub into JusttPrint: filament and spools are back (Filament in the sidebar), with the filament check, AMS slots, the print queue, low-stock alerts and webhooks, and the whole app has a new look (Bento: slate and coral, light by default). The first start keeps a copy of the library as `justtprint-before-10.0-<date>-<time>.db` in the backups folder (**Settings → Backup**), which automatic backups never delete; to go back to 9.x, restore that file. Queued models go into the new print queue, oldest added first. Anyone who never chose a color scheme sees the light one; Dark is under **Settings → Theme**. The accent colors are gone. Coming from FilamentHub: **Settings → Integrations → Import from FilamentHub** takes its `filamenthub.db` or a backup ZIP (projects are not imported yet). See [CHANGELOG.md](CHANGELOG.md) for the full list.
 
 ## Upgrading to 8.0
 

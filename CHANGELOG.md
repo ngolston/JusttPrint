@@ -4,10 +4,12 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
-JusttPrint 10 (docs/merge-10.md) is built on the `merge-10` branch and released once, as 10.0.0.
+## [10.0.0] - 2026-10-30
+
+JusttPrint 10 merges FilamentHub into JusttPrint (docs/merge-10.md) and brings the Bento look.
 
 **Changes:**
-- **The Bento look (Phase 1: tokens and components).** Light slate and coral instead of graphite and cyan, Plus Jakarta Sans instead of Inter, rounder cards with a soft shadow, and heavier headings (docs/design-bento.md). Light is the default; Settings → Theme still offers Light, Dark (a Bento dark in slate) or Match the system.
+- **The Bento look.** Light slate and coral instead of graphite and cyan, Plus Jakarta Sans instead of Inter, rounder cards with a soft shadow, and heavier headings (docs/design-bento.md). Light is the default; Settings → Theme still offers Light, Dark (a Bento dark in slate) or Match the system.
 - **Filament is back, as a page of spools** (Filament in the sidebar). Add spools from a catalogue of about 27,000 filaments (3dfilamentprofiles.com), by hand, or from a Spoolman export; weigh them on a scale to know what is left, dry them, keep them in places (shelves, dry boxes), archive the used-up ones. On hand shows your grams by color and material, Dryer what is drying. Everyone on the library shares the spools; viewers see them, editors change them.
 - **Ready to print.** JusttPrint reads what each 3MF's plates need (colors, materials and grams from a sliced file; colors from an unsliced Bambu Studio or OrcaSlicer project; a MakerWorld print profile when the file says nothing) and checks it against your spools: cards say **Ready to print** or **Need black**, and **Fits my filament** in the filters shows only what you can print now. It reads new and changed files in the background, with a progress bar.
 - **Log Print takes filament off your spools.** For one model, Log Print fills in a spool and the grams for each color the ticked plates need (spools loaded in the printer you pick come first); change or add spools as you like. Deleting the logged print puts the grams back. The print history lists the spools used.
@@ -19,13 +21,13 @@ JusttPrint 10 (docs/merge-10.md) is built on the `merge-10` branch and released 
 - **What is loaded in each printer.** Printers can have AMS units: four slots each (A1–A4, B1–B4…), with the spool loaded in each and the unit's humidity, and a spool on the printer's own holder. Load a slot from the printer's page; a spool loaded somewhere else moves. The Filament page shows what is loaded where, and Ready to print prefers spools in the printer you pick when you log a print.
 - **Printers keep their connection details:** connection (Bambu Lab, Moonraker, OctoPrint), serial number, address and access code or API key. The code or key stays on the server; no browser ever gets it back. JusttPrint does not talk to printers yet.
 - **Import from Bambu Lab** (admins, on Printers) adds the printers on the Bambu Lab account JusttPrint is signed in with for MakerWorld, each with an AMS, and keeps their names up to date.
-- **The database gets JusttPrint 10's tables** for spools, filament brands and profiles, storage locations, weighings, drying, AMS units and slots, low-stock alerts, webhooks, print photos, the spools each print used, what each plate needs, and a print queue with an order; printers and logged prints gain their new details. Nothing uses them yet. Models that are Queued go into the new queue, oldest added first.
-- New components for the pages to come, shown at `#/design-system`: bento grid and tiles, spool rings, filament color dots, placeholder art for models without a picture, the "Ready to print" badge, the per-color filament check, the browse card, category and sort tabs, a switch, print profile buttons and a picture gallery.
+- **The database gets JusttPrint 10's tables** for spools, filament brands and profiles, storage locations, weighings, drying, AMS units and slots, low-stock alerts, webhooks, print photos, the spools each print used, what each plate needs, and a print queue with an order; printers and logged prints gain their new details. Models that are Queued go into the new queue, oldest added first.
+- The design system's components are shown at `#/design-system`: bento grid and tiles, spool rings, filament color dots, placeholder art for models without a picture, the "Ready to print" badge, the per-color filament check, the browse card, category and sort tabs, a switch, print profile buttons and a picture gallery.
 
 **Removed:**
 - The accent colors (Modern Cyan, Purple, Green, Orange, Pink, Dark Minimal) under Settings → Theme. Everyone gets coral.
 
-**Upgrading:** the first start keeps a copy of the library as `justtprint-before-10.0-<date>-<time>.db` in the backups folder (Settings → Backup), which automatic backups never delete; to go back, restore that file under Settings → Backup (as an uploaded backup file). Anyone who never chose a color scheme now sees the light one; Dark is one setting away under Settings → Theme. A saved accent color is ignored.
+**Upgrading:** the first start keeps a copy of the library as `justtprint-before-10.0-<date>-<time>.db` in the backups folder (Settings → Backup), which automatic backups never delete; to go back, restore that file under Settings → Backup (as an uploaded backup file). Anyone who never chose a color scheme now sees the light one; Dark is one setting away under Settings → Theme. A saved accent color is ignored. Queued models go into the new print queue, oldest added first. Coming from FilamentHub: run JusttPrint 10, then Settings → Integrations → Import from FilamentHub with FilamentHub's `filamenthub.db` (from its data volume) or a backup ZIP; FilamentHub projects are not imported yet. MCP clients get new filament tools (`list_spools`, `check_model_filament`, `what_can_i_print` and others); nothing to change in their setup.
 
 ## [9.7.3] - 2026-10-26
 

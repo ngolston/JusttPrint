@@ -64,6 +64,12 @@ function mergedInto(modelId) {
     : { partOf: null, mergedInto: null };
 }
 
+/** `{ fit }` for a model whose plates' filament is known (none without spools), else nothing. */
+function fitOf(modelId) {
+  const fit = require('../../core/filament-check').fitForLibrary(database.db).get(modelId);
+  return fit ? { fit } : {};
+}
+
 ipcMain.handle('get-model', async (event, filePath, options) => {
   try {
     const withPictures = !(options && options.pictures === false);
@@ -106,7 +112,10 @@ ipcMain.handle('get-model', async (event, filePath, options) => {
       pageTitle,
       modelFolder: folder,
       // The file's own pictures (its 3D renders), without the model folder's cover.
-      renders: withPictures && folder ? modelFolders.ownPictures(model.filePath, model.thumbnail) : null
+      renders: withPictures && folder ? modelFolders.ownPictures(model.filePath, model.thumbnail) : null,
+      // The filament check, as the library's list gives it: a card updated from this copy keeps
+      // its Ready to print badge and colors.
+      ...fitOf(model.id)
     };
   } catch (error) {
     console.error('Error getting model:', error);

@@ -189,4 +189,9 @@ if (typeof window !== 'undefined') {
     invalidateThumbnail();
     refreshLibraryViews().catch((error) => console.error('Error refreshing after a server update:', error));
   });
+  // Plates' filament read, or spools changed in another browser: the cards' Ready to print badges.
+  onServerEvent('filament-check-changed', () => {
+    if (progress) return;
+    refreshLibraryViews().catch((error) => console.error('Error refreshing after a filament change:', error));
+  });
 }

@@ -28,11 +28,13 @@ export function useLibraryData<T>(load: () => Promise<T>): T | null {
     };
     fetchNow();
     const off = onServerEvent('refresh-grid', refresh);
+    const offFilament = onServerEvent('filament-check-changed', refresh);
     window.addEventListener(LIBRARY_CHANGED, refresh);
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);
       off();
+      offFilament();
       window.removeEventListener(LIBRARY_CHANGED, refresh);
     };
   }, [load]);

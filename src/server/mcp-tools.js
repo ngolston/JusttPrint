@@ -874,6 +874,7 @@ function getMcpToolContext() {
         notes: args.notes
       });
       require('./low-stock-alerts').soon();
+      events.broadcastRaw('filament-check-changed');
       return { id: result.id, name: result.display_name, grams: result.remaining };
     },
     checkModelFilament: async (args) => {
