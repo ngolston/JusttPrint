@@ -1,4 +1,4 @@
-import { FitBadge } from '../components/Filament';
+import { ColorDot, FitBadge } from '../components/Filament';
 import {
   useEffect,
   useLayoutEffect,
@@ -911,6 +911,13 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
           </button>
         ) : (
           <span className="jp-model-card__byline" />
+        )}
+        {model.fit?.colors && model.fit.colors.length > 0 && (
+          <span className="jp-model-card__dots">
+            {model.fit.colors.map((c, index) => (
+              <ColorDot key={`${c.color}-${index}`} color={c.color || '#9aa4b4'} short={!c.ok} size={12} name={`${c.name}${c.ok ? '' : ', not enough'}`} />
+            ))}
+          </span>
         )}
         {/* New, Not organized and Archive sit with the file type, not over the picture (9.6.1: the
             picture's corners hold the checkbox, Open, ♡ and ⋯). */}

@@ -202,8 +202,16 @@ test('the library: models checked for all plates, kept until spools change, none
 
   spool(db, 'PLA', '#ffffff', 500);
   let fits = check.fitForLibrary(db);
-  assert.deepStrictEqual(fits.get(ready), { ready: true, missing: [] });
-  assert.deepStrictEqual(fits.get(needsBlue), { ready: false, missing: ['blue'] });
+  assert.deepStrictEqual({ ready: fits.get(ready).ready, missing: fits.get(ready).missing }, { ready: true, missing: [] });
+  assert.deepStrictEqual({ ready: fits.get(needsBlue).ready, missing: fits.get(needsBlue).missing }, { ready: false, missing: ['blue'] });
+  assert.deepStrictEqual(
+    fits.get(needsBlue).colors.map((c) => [c.name, c.ok]),
+    [
+      ['white', true],
+      ['blue', false]
+    ],
+    "the card's dots: the colors it needs, the short one marked"
+  );
   assert.strictEqual(check.fitForLibrary(db), fits, 'kept while nothing changed');
 
   spool(db, 'PLA', '#0a4fb0', 800);

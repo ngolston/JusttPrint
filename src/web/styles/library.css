@@ -1588,3 +1588,172 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   font-size: var(--jp-text-badge);
   line-height: 18px;
 }
+
+/* ---- Browse layout (Phase 7 of docs/merge-10.md; library/BrowseHeader.tsx) ---- */
+.jp-library-browse__categories {
+  margin: var(--jp-space-3) 0 var(--jp-space-1);
+}
+.jp-library-browse__categories .jp-categories {
+  gap: var(--jp-space-3);
+}
+.jp-library-browse__banners {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--jp-space-4);
+  margin: var(--jp-space-3) 0;
+}
+.jp-banner {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-5);
+  min-height: 132px;
+  padding: 20px 24px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 26px;
+  font-family: var(--jp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.jp-banner--ink {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-banner--ink:hover {
+  background: var(--jp-ink-tile);
+  box-shadow: 0 0 0 3px var(--jp-accent-tint);
+}
+.jp-banner--ink[aria-pressed='true'] {
+  box-shadow: 0 0 0 3px var(--jp-accent);
+}
+.jp-banner--accent {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.jp-banner--accent:hover {
+  background: var(--jp-accent-hover);
+}
+.jp-banner:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-banner__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-banner__pill {
+  align-self: flex-start;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.jp-banner__pill--ink {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-banner__title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.jp-banner__figure {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+}
+.jp-banner__meta {
+  font-size: var(--jp-text-ui);
+  font-weight: 600;
+}
+.jp-banner--ink .jp-banner__meta {
+  color: var(--jp-on-ink-2);
+  font-weight: 500;
+}
+.jp-banner__art {
+  flex: none;
+}
+
+/* The state tabs as text tabs with a coral underline (SortTabs look). */
+.jp-library-header .jp-tabs {
+  gap: 4px 24px;
+}
+.jp-library-header .jp-tab,
+.jp-library-header .jp-tab:hover,
+.jp-library-header .jp-tab.is-selected,
+.jp-library-header .jp-tab.is-selected:hover {
+  height: 40px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--jp-text-3);
+  font-weight: 700;
+  font-size: 15px;
+}
+.jp-library-header .jp-tab:hover {
+  color: var(--jp-text);
+}
+.jp-library-header .jp-tab.is-selected,
+.jp-library-header .jp-tab.is-selected:hover {
+  color: var(--jp-text);
+  border-bottom-color: var(--jp-accent);
+}
+.jp-library-header__fits {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+/* Cards in the browse-card look: rounder, a soft shadow, a bold title, colors by the designer. */
+.file-grid .file-item.jp-model-card {
+  border: 0;
+  border-radius: 22px;
+  box-shadow: var(--jp-shadow-card);
+  overflow: hidden;
+}
+.file-grid .file-item.jp-model-card:hover {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-border-strong),
+    var(--jp-shadow-card);
+}
+.file-grid .file-item.jp-model-card.selected {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-accent),
+    var(--jp-shadow-card);
+}
+.file-grid .jp-model-card .file-name.jp-model-card__title {
+  font-weight: 800;
+}
+.jp-model-card__body {
+  position: relative;
+}
+.file-grid .jp-model-card .jp-model-card__byline {
+  padding-right: 64px;
+}
+.jp-model-card__dots {
+  position: absolute;
+  right: var(--jp-space-3);
+  top: 34px;
+  display: flex;
+  gap: 4px;
+}
+
+@media (max-width: 1023px) {
+  .jp-library-browse__banners {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .jp-banner__art {
+    display: none;
+  }
+}

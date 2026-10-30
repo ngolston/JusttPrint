@@ -243,7 +243,7 @@ function checkModel(db, modelId, options = {}) {
 
 // --- The library's cache ---
 
-/** @type {{ signature: string, fits: Map<number, { ready: boolean, missing: string[] }> } | null} */
+/** @type {{ signature: string, fits: Map<number, { ready: boolean, missing: string[], colors?: { color: string | null, name: string, ok: boolean }[] }> } | null} */
 let cache = null;
 
 /** Changes when spools, holds or plate filaments change (the cache is then rebuilt). */
@@ -275,7 +275,12 @@ function fitForLibrary(db) {
   const fits = new Map();
   for (const [modelId, rows] of byModel) {
     const result = checkNeeds(needsFrom(rows, null), spools);
-    fits.set(modelId, { ready: result.ready, missing: result.missing });
+    fits.set(modelId, {
+      ready: result.ready,
+      missing: result.missing,
+      // The colors it needs, for the card's dots (a short one is ringed).
+      colors: result.needs.slice(0, 6).map((need) => ({ color: need.color, name: need.colorName, ok: need.ok }))
+    });
   }
   cache = { signature: now, fits };
   return fits;

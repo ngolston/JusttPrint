@@ -21,3 +21,6 @@ ipcMain.handle('update-queue-item', (event, id, changes) => queue.updateQueueIte
 ipcMain.handle('move-queue-item', (event, id, toIndex) => queue.moveQueueItem(database.db, Number(id), Number(toIndex)));
 ipcMain.handle('remove-from-queue', (event, id) => queue.removeFromQueue(database.db, Number(id)));
 ipcMain.handle('start-queue-item', (event, id) => queue.startQueueItem(database.db, Number(id)));
+
+// Home's This month tile (src/core/month-summary.js).
+ipcMain.handle('get-month-summary', () => require('../../core/month-summary').monthSummary(database.db));

@@ -1105,12 +1105,12 @@ async function browserChecks(base, wsUrl, session) {
     check(
       'the dashboard figures are the library counts',
       await page
-        .waitForFunction((n) => document.querySelector('.jp-hero .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 })
+        .waitForFunction((n) => document.querySelector('.jp-home-library .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 })
         .then(
           () => true,
           () => false
         ),
-      `${await page.textContent('.jp-hero .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`
+      `${await page.textContent('.jp-home-library .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`
     );
     check(
       'Recent Activity lists the models added',
@@ -1120,8 +1120,8 @@ async function browserChecks(base, wsUrl, session) {
       )
     );
     check(
-      'Your Printers offers to add a printer',
-      (await page.isVisible('.jp-home__panel :text("No printers yet")')) || (await page.isVisible('.jp-printer-list'))
+      'the Printers tile offers to add a printer',
+      (await page.isVisible('.jp-home-printers :text("No printers yet")')) || (await page.isVisible('.jp-home-printers .jp-printer-list'))
     );
     check(
       'the dashboard draws a library model',
@@ -1157,7 +1157,7 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
     check(
       'Library shows the library without the dashboard',
-      (await page.waitForSelector('.jp-hero', { state: 'detached', timeout: 5000 }).then(
+      (await page.waitForSelector('.jp-home-library', { state: 'detached', timeout: 5000 }).then(
         () => true,
         () => false
       )) && /#\/library$/.test(page.url())
@@ -3553,7 +3553,16 @@ async function browserChecks(base, wsUrl, session) {
         .then(
           () => true,
           () => false
-        )) && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'unprinted'
+        )) &&
+        // Out of the queue, a model goes back to Printed if it was ever printed, else Unprinted (print-queue.js).
+        (await (async () => {
+          const after = (await invoke(base, session, 'get-model', [queuedModel])).result || {};
+          return after.print_status === (Number(after.print_count) > 0 ? 'printed' : 'unprinted');
+        })()),
+      JSON.stringify({
+        status: (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status,
+        queue: ((await invoke(base, session, 'get-print-queue')).result || []).map((item) => item.model.fileName)
+      })
     );
     // Phase 6: the queue has an order; items move; Home shows Up next; a logged print finishes an item.
     {
@@ -3867,7 +3876,9 @@ async function browserChecks(base, wsUrl, session) {
       const afterDelete = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.id === charcoal.id);
       check('deleting the logged print gives the grams back', afterDelete.remaining === charcoal.remaining, String(afterDelete.remaining));
 
-      await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+      await page.evaluate(() => {
+        window.location.hash = '#/library';
+      });
       const card = '.file-grid .file-item:has-text("plate-kit")';
       check(
         'the card says Ready to print',
@@ -3876,6 +3887,51 @@ async function browserChecks(base, wsUrl, session) {
           () => false
         )
       );
+      check(
+        'the library shows the Printable right now banner',
+        await page.waitForSelector('#jp-banner-ready', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        ),
+        JSON.stringify(
+          await page.evaluate(() => {
+            const state = window.libraryFilters?.state() || {};
+            return { printed: state.printed, directory: state.directory, dateAdded: state.dateAdded };
+          })
+        )
+      );
+      // Phase 7: the model page's Print this model, for one plate, then Add to queue.
+      await page.evaluate((file) => {
+        window.location.hash = `#/model/${encodeURIComponent(file)}`;
+      }, kitFile);
+      const panel = await page.waitForSelector('#jp-print-panel', { timeout: 15000 }).then(
+        () => true,
+        () => false
+      );
+      const profiles = await page.$$eval('#jp-print-panel .jp-profile', (buttons) => buttons.map((b) => b.textContent));
+      await page.click('#jp-print-panel .jp-profile:has-text("Plate 1")').catch(() => {});
+      const rows = await page
+        .waitForFunction(() => document.querySelectorAll('#jp-print-panel .jp-filament-check__row').length === 1, null, { timeout: 10000 })
+        .then(
+          () => 1,
+          () => page.$$eval('#jp-print-panel .jp-filament-check__row', (list) => list.length)
+        );
+      check(
+        'Print this model offers all plates or one, with the check for the plate chosen',
+        panel && profiles.length === 3 && rows === 1,
+        JSON.stringify({ profiles, rows })
+      );
+      await page.click('#jp-print-panel-queue');
+      await page.waitForSelector('dialog.jp-message-dialog[open], dialog[id^="browser-message-"][open]', { timeout: 10000 }).catch(() => {});
+      for (const button of await page.$$('dialog[id^="browser-message-"][open] button, dialog.jp-message-dialog[open] button'))
+        await button.click().catch(() => {});
+      const queued = ((await invoke(base, session, 'get-print-queue')).result || []).filter((item) => item.model.filePath === kitFile);
+      check('Add to queue queues the plate chosen', queued.length === 1 && queued[0].plate === 1, JSON.stringify(queued.map((item) => item.plate)));
+      for (const item of queued) await invoke(base, session, 'remove-from-queue', [item.id]);
+      await page.evaluate(() => {
+        window.location.hash = '#/library';
+      });
+      await page.waitForSelector(card, { timeout: 15000 }).catch(() => {});
       await page.click(`${card} .file-name`);
       await page.waitForSelector('#jp-details-log-print', { timeout: 10000 }).catch(() => {});
       await page.click('#jp-details-log-print');
@@ -3901,7 +3957,9 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForSelector('dialog[id^="browser-message-"][open]', { timeout: 5000 }).catch(() => {});
       for (const button of await page.$$('dialog[id^="browser-message-"][open] button')) await button.click().catch(() => {});
     } catch (error) {
-      check('the Phase 4 filament checks ran to the end', false, error.message);
+      await page.screenshot({ path: path.join(WORK, 'phase4-failure.png') }).catch(() => {});
+      const open = await page.evaluate(() => [...document.querySelectorAll('dialog[open], [inert]')].map((d) => d.id || d.className)).catch(() => []);
+      check('the Phase 4 filament checks ran to the end', false, `${error.message.split('\n').slice(0, 3).join(' ')} (open or inert: ${JSON.stringify(open)})`);
     }
 
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.

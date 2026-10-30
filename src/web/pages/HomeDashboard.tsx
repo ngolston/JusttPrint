@@ -1,24 +1,22 @@
-import { printQueue, type QueueItem } from '../api';
-import { UpNextPanel } from '../queue/QueueParts';
+import { filament, home, printQueue, type PrinterLoads, type QueueItem, type Spool } from '../api';
+import { BentoGrid, Tile } from '../components/Bento';
+import { MonthTile, NeedsYouTile, NewTile, PrintersTile, PrintingTile, SpoolsTile, UpNextTile, needsYou } from '../home/HomeBento';
 import { useEffect, useState } from 'react';
 import {
   Box,
   CheckCircle2,
   CircleSlash,
   Clock,
-  ExternalLink,
   Library,
   Loader2,
   PlusCircle,
   Printer as PrinterIcon,
   ScanSearch,
-  Wrench,
   XCircle,
   type LucideIcon
 } from 'lucide-react';
 import { callAction, library, printers as printerApi, type ActivityItem, type LibraryCounts, type Printer } from '../api';
 import { Button } from '../components/Button';
-import { StatusBadge } from '../components/Badge';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
@@ -33,6 +31,13 @@ import { EditOnly } from '../components/EditOnly';
 import { useScanProgress } from '../scan/scan';
 
 const loadActivity = () => library.activity(8);
+const loadQueue = () => printQueue.list().catch(() => [] as QueueItem[]);
+const loadSpools = () => filament.spools(false).catch(() => [] as Spool[]);
+const loadFilamentSummary = () => filament.summary().catch(() => null);
+const loadMonth = () => home.month().catch(() => null);
+const loadLoads = () => printerApi.loads().catch(() => [] as PrinterLoads[]);
+const loadPrinting = () => callAction<GridModel[]>('get-models-filtered', { printed: 'printing', sortOption: 'name-asc', limit: 8 });
+const loadNewest = () => callAction<GridModel[]>('get-models-filtered', { sortOption: 'dateadded-desc', limit: 4 });
 const loadPrinters = () => printerApi.list();
 
 const scanLibrary = () =>
@@ -186,34 +191,6 @@ function summary(counts: LibraryCounts | null, activity: ActivityItem[] | null):
   return 'Your 3D printing library at a glance.';
 }
 
-function Hero({ counts, activity }: { counts: LibraryCounts | null; activity: ActivityItem[] | null }) {
-  const [hour] = useState(() => new Date().getHours());
-  const figure = (value: number | undefined) => (value == null ? <Skeleton width={44} height={20} /> : value.toLocaleString());
-  return (
-    <section className="jp-hero" aria-labelledby="jp-hero-title">
-      <div className="jp-hero__text">
-        <h1 className="jp-hero__title" id="jp-hero-title">
-          {greeting(hour)}
-        </h1>
-        <p className="jp-hero__subtitle">{summary(counts, activity)}</p>
-        <div className="jp-hero__stats">
-          <StatCard icon={Box} tone="accent" value={figure(counts?.models)} label="Models" onClick={() => showTab('all')} />
-          <StatCard icon={CheckCircle2} tone="success" value={figure(counts?.printed)} label="Printed" onClick={() => showTab('printed')} />
-          <StatCard
-            icon={Clock}
-            tone="warning"
-            value={figure(counts ? counts.queued + counts.printing : undefined)}
-            label="In Queue"
-            onClick={() => showTab('queue')}
-          />
-          <StatCard icon={PrinterIcon} tone="violet" value={figure(counts?.printers)} label="Printers" onClick={() => navigate('printers')} />
-        </div>
-      </div>
-      <HeroPicture />
-    </section>
-  );
-}
-
 // ---- Recent Activity (spec §13) -------------------------------------------------------------
 
 const OUTCOME: Record<string, { icon: LucideIcon; tone: string; verb: string }> = {
@@ -301,106 +278,73 @@ function RecentActivity({ activity }: { activity: ActivityItem[] | null }) {
   );
 }
 
-// ---- Your Printers (spec §14, without live state) ------------------------------------------
-
-function PrinterRow({ printer }: { printer: Printer }) {
-  const due = Number(printer.due_reminders_count) || 0;
-  const prints = Number(printer.total_prints) || 0;
-  const kind = [printer.manufacturer, printer.model].filter(Boolean).join(' ') || printer.printer_type || '';
-  return (
-    <li className="jp-printer">
-      <span className="jp-printer__icon">
-        <PrinterIcon size={20} aria-hidden="true" />
-      </span>
-      <button type="button" className="jp-printer__text" onClick={() => navigate('printers', String(printer.id))} title={`Show ${printer.nickname}`}>
-        <span className="jp-printer__name">{printer.nickname}</span>
-        {kind && <span className="jp-printer__meta">{kind}</span>}
-      </button>
-      {due > 0 ? (
-        <StatusBadge tone="warning" icon={Wrench}>
-          Maintenance due
-        </StatusBadge>
-      ) : (
-        <span className="jp-printer__prints">
-          {prints.toLocaleString()} {prints === 1 ? 'print' : 'prints'}
-        </span>
-      )}
-      {printer.web_url && /^https?:\/\//i.test(printer.web_url) && (
-        <a
-          className="jp-printer__link"
-          href={printer.web_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Open ${printer.nickname}'s web page`}
-          title={`Open ${printer.web_url}`}
-        >
-          <ExternalLink size={16} aria-hidden="true" />
-        </a>
-      )}
-    </li>
-  );
-}
-
-function YourPrinters({ list }: { list: Printer[] | null }) {
-  const manage = () => navigate('printers');
-  return (
-    <Panel title="Your Printers" labelledBy="jp-printers-title" className="jp-home__panel" action={{ label: 'Manage', onClick: manage }}>
-      {!list ? (
-        <div className="jp-home__skeleton">
-          <Skeleton height={36} />
-          <Skeleton height={36} />
-          <Skeleton height={36} />
-        </div>
-      ) : !list.length ? (
-        <EmptyState
-          icon={PrinterIcon}
-          title="No printers yet"
-          action={
-            <EditOnly>
-              <Button icon={PrinterIcon} onClick={() => window.openPrinterManagement?.({ action: 'add' })}>
-                Add a Printer
-              </Button>
-            </EditOnly>
-          }
-        >
-          Add your printers to keep their web pages and maintenance in one place.
-        </EmptyState>
-      ) : (
-        <ul className="jp-printer-list">
-          {list.slice(0, 4).map((printer) => (
-            <PrinterRow key={printer.id} printer={printer} />
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
 /**
  * The Home dashboard above "Your Library" (spec §10-§14): greeting, four figures and a cyan
  * render of a library model; Recent Activity; Your Printers; Continue your kits and Needs
  * attention (home/HomeSections.tsx). Real data only (docs/redesign-5.md).
  */
-const loadQueue = () => printQueue.list().catch(() => [] as QueueItem[]);
-
 export function HomeDashboard() {
   const counts = useLibraryData<LibraryCounts>(library.counts);
   const activity = useLibraryData<ActivityItem[]>(loadActivity);
   const list = useLibraryData<Printer[]>(loadPrinters);
   const queue = useLibraryData(loadQueue);
+  const spools = useLibraryData(loadSpools);
+  const filamentSummary = useLibraryData(loadFilamentSummary);
+  const month = useLibraryData(loadMonth);
+  const loads = useLibraryData(loadLoads);
+  const printing = useLibraryData(loadPrinting);
+  const newest = useLibraryData(loadNewest);
+  const [hour] = useState(() => new Date().getHours());
+  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  const thisWeek = (activity || []).reduce((sum, item) => sum + (item.kind === 'added' && Date.parse(item.at) >= weekAgo ? item.count : 0), 0);
   return (
     <div className="jp-home">
-      <Hero counts={counts} activity={activity} />
-      <div className="jp-home__panels">
-        <RecentActivity activity={activity} />
-        <YourPrinters list={list} />
-      </div>
+      <header className="jp-home-head">
+        <h1 className="jp-display jp-hero__title" id="jp-hero-title">
+          {greeting(hour)}
+        </h1>
+        <p className="jp-home-head__summary">{summary(counts, activity)}</p>
+      </header>
+      <BentoGrid label="At a glance" className="jp-home-bento">
+        <LibraryTile counts={counts} />
+        <NeedsYouTile items={needsYou(queue, list, spools)} />
+        <SpoolsTile summary={filamentSummary} spools={spools} />
+        <UpNextTile items={queue} />
+        <PrintingTile models={printing} />
+        <NewTile models={newest} thisWeek={thisWeek} />
+        <MonthTile month={month} />
+        <PrintersTile printers={list} loads={loads} />
+      </BentoGrid>
       <div className="jp-home__panels jp-home__panels--extra">
-        <UpNextPanel items={queue} />
+        <RecentActivity activity={activity} />
         <ContinueKits />
         <NeedsAttention printers={list} models={counts?.models} />
       </div>
     </div>
+  );
+}
+
+/** The library's figures and its picture (the most recently printed model), on the ink tile. */
+function LibraryTile({ counts }: { counts: LibraryCounts | null }) {
+  const figure = (value: number | undefined) => (value == null ? <Skeleton width={44} height={20} /> : value.toLocaleString());
+  return (
+    <Tile variant="ink" title="Your library" cols={2} rows={2} className="jp-home-library">
+      <div className="jp-home-library__body">
+        <div className="jp-home-library__stats">
+          <StatCard icon={Box} tone="accent" value={figure(counts?.models)} label="Models" onClick={() => showTab('all')} />
+          <StatCard icon={CheckCircle2} tone="success" value={figure(counts?.printed)} label="Printed" onClick={() => showTab('printed')} />
+          <StatCard
+            icon={Clock}
+            tone="warning"
+            value={figure(counts ? counts.queued + counts.printing : undefined)}
+            label="In Queue"
+            onClick={() => showTab('queue')}
+          />
+          <StatCard icon={PrinterIcon} tone="violet" value={figure(counts?.printers)} label="Printers" onClick={() => navigate('printers')} />
+        </div>
+        <HeroPicture />
+      </div>
+    </Tile>
   );
 }
 

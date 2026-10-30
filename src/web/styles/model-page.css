@@ -889,3 +889,59 @@ dialog.assembly-dialog {
   padding: 2px 0 2px var(--jp-space-3);
   border-left: 2px solid var(--jp-border);
 }
+
+/* Print this model (Phase 7 of docs/merge-10.md; model/PrintPanel.tsx). */
+.jp-print-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-4);
+  padding: var(--jp-space-5);
+}
+.jp-print-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+}
+.jp-print-panel__part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+}
+.jp-print-panel__printers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.jp-print-panel__printer {
+  width: auto;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font: 700 var(--jp-text-meta) var(--jp-font);
+  cursor: pointer;
+}
+.jp-print-panel__printer:hover {
+  background: var(--jp-surface-hover);
+}
+.jp-print-panel__printer.is-on,
+.jp-print-panel__printer.is-on:hover {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-print-panel__printer:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-print-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
+}
+.jp-print-panel .jp-profile {
+  flex-basis: 110px;
+  padding: 10px 12px;
+}

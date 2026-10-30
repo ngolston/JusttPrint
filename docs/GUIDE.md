@@ -43,7 +43,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 
 ![Home](images/home.png)
 
-Home greets you with your library's figures (models, printed, in queue, printers; click one to open it), a render of the model you printed last, **Recent Activity** (logged prints and newly added models), **Your Printers** with maintenance reminders that are due, and the models added most recently.
+Home greets you with tiles, each shown when it has something to say: **Your library** (models, printed, in queue, printers; click one to open it, with a render of the model you printed last), **Needs you** (queued prints short of filament, maintenance due, nearly empty spools; click one to go there), **Spools** (grams on hand and the fullest spools), **Up next** (the next queued print and whether your spools cover it), **Printing now** (with Log Print), **New in your library**, **This month** (prints, how many worked, filament used, prints per week) and **Printers** (what each has loaded, or maintenance due). Then **Recent Activity** (logged prints and newly added models) and the models added most recently.
 
 Below them, when there is something to show:
 
@@ -53,7 +53,11 @@ Below them, when there is something to show:
 
 ## Library
 
-The library shows your models as cards: preview, name, designer (or folder), file type and print status. Hover a card for **Favorite**, **More** (the model menu) and the star rating.
+The library shows your models as cards: preview, name, designer (or folder), file type, print status and, once you have spools, **Ready to print** or what it needs, with the colors it needs as dots (a ringed one is short). Hover a card for **Favorite**, **More** (the model menu) and the star rating.
+
+- **Categories**: the categories that have models, as tabs; choose one for its models and its subcategories under it, **All** for every model.
+- **Banners** (the whole library): **Printable right now** shows only the models your spools cover (click again for all), **New this week** the models added in the last 7 days.
+- **Fits my filament** (next to the tabs, once something fits) shows only what you can print with the spools on hand.
 
 - **Tabs**: **All Models**, **Printed**, **Unprinted**, **Queue** (queued or printing) and **Favorites**. The count next to them is the number of models shown.
 - **Views**: **Grid** (cards), **Wall** (large previews only; the tile size is next to the view buttons) and **List** (one row per model with columns you can show, hide and resize).
@@ -89,6 +93,8 @@ Models that belong together (a set, a kit, a multi-part print) can be **merged**
 ![The details panel](images/details.png)
 
 A model's **Title** is the name cards and its page show instead of its file name (hover over a card's name for the file's). A 3MF's own title fills it when the model is added (**Settings → Scanning → File Types → 3MF Metadata**), and you change it in the details, **Edit** or Multi-edit. Search, the **Title** filter and sort, Organize Library's folder levels and the Metadata Manager use it too.
+
+A model's own page (**Open** on its card) also has **Print this model** at the top of the side column, once its filament is known and you have spools: choose all plates or one (with their grams), see which spool gives each color and what is left or short, see which printers already have the colors loaded (or how many spools to swap), and **Add to queue** with that plate and printer, or **Log a print**.
 
 Click a model to see it in the details panel, which shows the sections of its page in one column:
 

@@ -3,11 +3,9 @@ import { ArrowDown, ArrowUp, Copy, Play, X } from 'lucide-react';
 import { printQueue, type FilamentCheckResult, type Printer, type QueueItem } from '../api';
 import { Button, IconButton } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
-import { FilamentCheck, FitBadge, type FilamentNeed } from '../components/Filament';
-import { Panel } from '../components/Panel';
+import { FitBadge, type FilamentNeed } from '../components/Filament';
 import { cardTitle } from '../grid/ModelCard';
 import { showMessage } from '../page';
-import { navigate } from '../shell/routes';
 
 /*
  * The print queue's rows (docs/merge-10.md, Phase 6): order, plate, printer and the filament
@@ -113,27 +111,5 @@ export function QueueRowControls({ item, index, count, printers }: { item: Queue
         <IconButton size="sm" icon={X} label={`Remove ${name} from the queue`} disabled={busy} onClick={() => void run(() => printQueue.remove(item.id))} />
       </EditOnly>
     </>
-  );
-}
-
-/** Home's Up next (Phase 6): the first queued print and whether the spools on hand cover it. */
-export function UpNextPanel({ items }: { items: QueueItem[] | null }) {
-  const first = items?.[0];
-  if (!first) return null;
-  const rows = checkRows(first.check);
-  const more = (items?.length || 1) - 1;
-  return (
-    <Panel title="Up next" labelledBy="jp-home-upnext" className="jp-home__panel jp-home__upnext" action={{ label: 'Queue', onClick: () => navigate('queue') }}>
-      <div className="jp-home__upnext-head">
-        <span className="jp-model-title">{itemName(first)}</span>
-        <span className="jp-meta">{[plateLabel(first), first.printerName, more ? `then ${more} more` : ''].filter(Boolean).join(' · ')}</span>
-        {first.check && <FitBadge missing={first.check.missing} />}
-      </div>
-      {rows.length > 0 ? (
-        <FilamentCheck needs={rows} label={`Filament for ${itemName(first)}`} />
-      ) : (
-        <p className="jp-meta">{first.check === null ? 'Its filament is not known yet, or there are no spools to check.' : ''}</p>
-      )}
-    </Panel>
   );
 }

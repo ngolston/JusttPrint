@@ -87,7 +87,7 @@ function showLibrary(apply: () => void) {
 const plural = (n: number, one: string) => `${n.toLocaleString()} ${n === 1 ? one : `${one}s`}`;
 
 /** A model's grid picture, the placeholder until it comes. */
-function useThumbnail(filePath: string | null): string | null {
+export function useThumbnail(filePath: string | null): string | null {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     setSrc(null);

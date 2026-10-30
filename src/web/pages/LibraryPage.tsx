@@ -17,6 +17,10 @@ import { setFoldersAsModels, useFoldersAsModels } from '../library/folderMode';
 import { toggleMultiEdit, useEditMode } from '../library/details';
 import { selection } from '../selection';
 import { OrganizeNotice, UnorganizedButton } from '../upload/Organize';
+import { Banners, CategoryRow } from '../library/BrowseHeader';
+import { Toggle } from '../components/Browse';
+import { library } from '../api';
+import { useLibraryData } from '../shell/libraryData';
 
 const scanLibrary = () =>
   NAV.flatMap((section) => section.items)
@@ -160,6 +164,9 @@ export function LibraryHeader() {
 
   const tab = tabOf(state);
   const extra = extraFilterCount(state);
+  const counts = useLibraryData(library.counts);
+  // Fits my filament is offered once there is filament to check (Phase 7).
+  const showFits = state.fitsMyFilament || (counts?.readyToPrint ?? 0) > 0;
 
   if (!slot) return null;
   return createPortal(
@@ -225,6 +232,8 @@ export function LibraryHeader() {
             )}
           </div>
         </div>
+        <CategoryRow state={state} />
+        {tab === 'all' && !state.directory && !state.dateAdded && <Banners state={state} />}
         <div className="jp-library-header__bar">
           <Tabs<LibraryTab | 'none'>
             label="Show"
@@ -236,6 +245,11 @@ export function LibraryHeader() {
               applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
             }}
           />
+          {showFits && (
+            <span className="jp-library-header__fits">
+              <Toggle checked={state.fitsMyFilament} onChange={(on) => applyFilterChange(() => filterActions.setFitsMyFilament(on))} label="Fits my filament" />
+            </span>
+          )}
           {/* Phones: the view buttons fold behind one View button. */}
           <button
             type="button"

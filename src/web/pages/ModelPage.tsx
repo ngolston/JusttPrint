@@ -1,3 +1,4 @@
+import { PrintPanel } from '../model/PrintPanel';
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { ArrowLeft, Box, ClipboardPen, Copy, Download, ExternalLink, FileBox, FolderPlus, FolderUp, Heart, MoreHorizontal, Pencil, Upload } from 'lucide-react';
 import { callAction, dedup, downloadUrl, LIBRARY_CHANGED, models as modelApi, prints, type PrintEvent } from '../api';
@@ -1027,6 +1028,7 @@ export function ModelView({
         </div>
 
         <aside className="jp-model-page__side">
+          {!online && !compact && <PrintPanel filePath={model.filePath} />}
           {pageDetails}
           {!online && <KitChecklist target={model.filePath} />}
           {history}

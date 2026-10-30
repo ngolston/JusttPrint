@@ -175,3 +175,27 @@ test('an online model merged into a downloaded one hands over its queue items', 
   db.prepare('DELETE FROM models WHERE id = ?').run(online);
   assert.deepStrictEqual(order(db), ['local.3mf']);
 });
+
+test("Home's This month counts copies, the success rate and the filament used", () => {
+  const { monthSummary } = require('../src/core/month-summary');
+  const db = fresh();
+  const m = model(db, 'm.3mf');
+  const white = spools.saveSpool(db, { material: 'PLA', color_hex: '#ffffff', initial_weight: 1000 });
+  const at = (iso, outcome, quantity = 1) =>
+    Number(
+      db.prepare('INSERT INTO print_events (model_id, printed_at, outcome, quantity, created_at) VALUES (?, ?, ?, ?, ?)').run(m, iso, outcome, quantity, iso)
+        .lastInsertRowid
+    );
+  const e1 = at('2026-10-20T10:00:00.000Z', 'printed', 2);
+  at('2026-10-25T10:00:00.000Z', 'failed');
+  at('2026-09-30T10:00:00.000Z', 'printed');
+  db.prepare('INSERT INTO print_event_spools (event_id, spool_id, grams) VALUES (?, ?, 112.5)').run(e1, white.id);
+  const summary = monthSummary(db, new Date('2026-10-30T12:00:00Z'));
+  assert.deepStrictEqual([summary.prints, summary.printed, summary.failed, summary.successRate, summary.grams], [3, 2, 1, 67, 112.5]);
+  assert.strictEqual(summary.weeks.length, 4);
+  assert.strictEqual(
+    summary.weeks.reduce((sum, w) => sum + w.prints, 0),
+    3,
+    'the last four weeks: the two October logs (2 + 1)'
+  );
+});

@@ -755,6 +755,21 @@ export const printQueue = {
   start: (id: number) => callAction<unknown>('start-queue-item', id)
 };
 
+/** Home's This month (src/core/month-summary.js). */
+export interface MonthSummary {
+  since: string;
+  prints: number;
+  printed: number;
+  failed: number;
+  successRate: number | null;
+  grams: number;
+  weeks: { start: string; prints: number }[];
+}
+
+export const home = {
+  month: () => callAction<MonthSummary>('get-month-summary')
+};
+
 /** Spools, filament, places and drying (Filament page). */
 export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
@@ -824,6 +839,10 @@ export interface LibraryCounts {
   queued: number;
   printing: number;
   printers: number;
+  /** Models the spools on hand cover (the filament check); 0 without spools. */
+  readyToPrint?: number;
+  /** Models added in the last 7 days. */
+  addedThisWeek?: number;
 }
 
 export const library = {
