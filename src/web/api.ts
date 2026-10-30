@@ -475,6 +475,37 @@ export interface Printer {
   last_printed_at?: string | null;
   due_reminders_count?: number;
   created_at?: string;
+  /** manual | octoprint | moonraker | bambu (docs/merge-10.md, Phase 5). */
+  connection_type?: string | null;
+  serial_number?: string | null;
+  api_url?: string | null;
+  /** An API key or access code is kept on the server (it is never sent to the browser). */
+  has_api_secret?: boolean;
+  status?: string | null;
+  last_seen_at?: string | null;
+}
+
+/** A spool as an AMS slot or a printer's holder shows it (src/core/printer-ams.js). */
+export interface LoadedSpool {
+  id: number;
+  name: string;
+  brand_name: string | null;
+  material: string | null;
+  color_hex: string | null;
+  initial_weight: number;
+  remaining: number;
+}
+
+export interface PrinterLoads {
+  printerId: number;
+  direct: LoadedSpool | null;
+  units: {
+    id: number;
+    unit_index: number;
+    name: string;
+    humidity: number | null;
+    slots: { id: number; slot_index: number; label: string; spool: LoadedSpool | null }[];
+  }[];
 }
 
 export interface PrinterInput {
@@ -487,6 +518,11 @@ export interface PrinterInput {
   isKlipper: boolean;
   webUrl: string | null;
   notes: string | null;
+  connectionType?: string;
+  serialNumber?: string | null;
+  apiUrl?: string | null;
+  /** Given only to change it: a value sets it, '' clears it. */
+  apiSecret?: string | null;
 }
 
 export interface PrinterReminder {
@@ -521,7 +557,16 @@ export const printers = {
   logs: (printerId: number) => callAction<MaintenanceLog[]>('get-printer-maintenance-logs', printerId),
   saveLog: (entry: { printerId: number; maintenanceType: string; title: string; performedAt: string; description: string | null }) =>
     callAction<MaintenanceLog>('save-printer-maintenance-log', entry),
-  removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id)
+  removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id),
+  /** What is loaded in every printer, or one (src/core/printer-ams.js). */
+  loads: (printerId: number | null = null) => callAction<PrinterLoads[]>('get-printer-loads', printerId),
+  addAms: (printerId: number, options: { name?: string; slots?: number } = {}) => callAction<number>('add-ams-unit', printerId, options),
+  updateAms: (unitId: number, changes: { name?: string; humidity?: number | null }) => callAction<unknown>('update-ams-unit', unitId, changes),
+  removeAms: (unitId: number) => callAction<boolean>('delete-ams-unit', unitId),
+  /** Load a spool into a slot or onto a printer's own holder; null empties it. */
+  load: (where: { slotId?: number; printerId?: number }, spoolId: number | null) => callAction<unknown>('set-loaded-spool', where, spoolId),
+  /** Bambu Lab cloud: the signed-in account's printers, added to Printers (admin). */
+  importBambu: () => callAction<{ created: number; updated: number; unchanged: number; total: number }>('import-bambu-printers')
 };
 
 /** A place spools are kept (src/core/storage-locations.js). */

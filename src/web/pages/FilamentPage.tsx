@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { BookOpen, CircleDot, MapPin, Plus, Upload } from 'lucide-react';
-import { filament, type FilamentSummary, type Spool } from '../api';
+import { filament, printers as printerApi, type FilamentSummary, type Printer, type PrinterLoads, type Spool } from '../api';
+import { LoadedStrip, loadedSpools } from '../printers/LoadedFilament';
+import { navigate } from '../shell/routes';
 import { BentoGrid, Tile, TileFigure } from '../components/Bento';
 import { Button, cx } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
@@ -23,9 +25,41 @@ import {
 import { SpoolDrawer, type SpoolAction } from '../filament/SpoolDrawer';
 
 const loadPage = async () => {
-  const [spools, summary] = await Promise.all([filament.spools(true), filament.summary()]);
-  return { spools, summary };
+  const [spools, summary, printers, loads] = await Promise.all([
+    filament.spools(true),
+    filament.summary(),
+    printerApi.list().catch(() => [] as Printer[]),
+    printerApi.loads().catch(() => [] as PrinterLoads[])
+  ]);
+  return { spools, summary, printers, loads };
 };
+
+/** Printers with something loaded, and their slots (docs/merge-10.md, Phase 5). */
+function LoadedTile({ printers, loads }: { printers: Printer[]; loads: PrinterLoads[] }) {
+  const loaded = loads.filter((l) => loadedSpools(l).some((slot) => slot.spool));
+  if (!loaded.length) return null;
+  return (
+    <Tile title="Loaded in printers" cols={2}>
+      {loaded.map((l) => {
+        const printer = printers.find((p) => p.id === l.printerId);
+        const humidity = l.units.find((unit) => unit.humidity !== null)?.humidity;
+        return (
+          <button key={l.printerId} type="button" className="jp-filament__loaded" onClick={() => navigate('printers', String(l.printerId))}>
+            <span className="jp-filament__loaded-head">
+              <span className="jp-model-title">{printer?.nickname || 'Printer'}</span>
+              <span className="jp-meta">
+                {l.units.length
+                  ? `${l.units.length === 1 ? 'AMS' : `${l.units.length} AMS`}${humidity !== undefined && humidity !== null ? ` · ${humidity}% humidity` : ''}`
+                  : 'Own holder'}
+              </span>
+            </span>
+            <LoadedStrip loads={l} />
+          </button>
+        );
+      })}
+    </Tile>
+  );
+}
 
 type Dialog =
   | { kind: 'spool'; spool?: Spool; preset?: SpoolPreset }
@@ -222,6 +256,7 @@ export function FilamentPage() {
               <p className="jp-filament__add-text">Pick it from the filament catalogue, type it in, or bring over your Spoolman inventory.</p>
               {addButtons}
             </Tile>
+            <LoadedTile printers={data.printers} loads={data.loads} />
             {drying.length > 0 && (
               <Dryer
                 spools={drying}

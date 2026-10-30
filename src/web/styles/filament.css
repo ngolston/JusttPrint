@@ -440,3 +440,34 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Loaded in printers (Phase 5): each printer with its slots; a click opens it on Printers. */
+.jp-filament__loaded {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.jp-filament__loaded:hover {
+  background: var(--jp-surface-hover);
+}
+.jp-filament__loaded:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-filament__loaded-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--jp-space-3);
+}

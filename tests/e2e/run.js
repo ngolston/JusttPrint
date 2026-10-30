@@ -3849,8 +3849,69 @@ async function browserChecks(base, wsUrl, session) {
       fs.rmSync(plateDir, { recursive: true, force: true });
       if (DOCKER_IMAGE) await sleep(1500);
       await invoke(base, session, 'scan-directory', [plateDir]);
+      // The scan says it removed the missing file: close that message.
+      await page.waitForSelector('dialog[id^="browser-message-"][open]', { timeout: 5000 }).catch(() => {});
+      for (const button of await page.$$('dialog[id^="browser-message-"][open] button')) await button.click().catch(() => {});
     } catch (error) {
       check('the Phase 4 filament checks ran to the end', false, error.message);
+    }
+
+    // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
+    try {
+      const amsPrinter = (
+        await invoke(base, session, 'save-printer', [
+          { nickname: 'E2E P1S', manufacturer: 'Bambu Lab', model: 'P1S', connectionType: 'bambu', serialNumber: '01P00E2E', apiSecret: 'e2e-code' }
+        ])
+      ).result;
+      const listed = ((await invoke(base, session, 'get-all-printers')).result || []).find((p) => p.id === amsPrinter.id);
+      check(
+        "a printer's access code is kept but never sent to the browser",
+        amsPrinter.has_api_secret === true && !('api_secret' in amsPrinter) && listed && !('api_secret' in listed) && listed.connection_type === 'bambu',
+        JSON.stringify(listed && { secret: 'api_secret' in listed, has: listed.has_api_secret })
+      );
+      await invoke(base, session, 'add-ams-unit', [amsPrinter.id, {}]);
+      const slotsOf = async () => ((await invoke(base, session, 'get-printer-loads', [amsPrinter.id])).result || [])[0]?.units[0]?.slots || [];
+      const slots = await slotsOf();
+      const charcoalSpool = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.color_hex === '#333333');
+      await invoke(base, session, 'set-loaded-spool', [{ slotId: slots[0].id }, charcoalSpool.id]);
+      const loadedAt = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === charcoalSpool.id)?.loaded.map((l) => l.label);
+      check(
+        'an AMS has four slots, and a loaded spool says where it is',
+        slots.length === 4 && JSON.stringify(loadedAt) === '["E2E P1S · A1"]',
+        JSON.stringify({ slots: slots.length, loadedAt })
+      );
+
+      await page.evaluate((id) => {
+        window.location.hash = `#/printers/${id}`;
+      }, amsPrinter.id);
+      await page.waitForSelector('.jp-loaded-slot:has-text("A1"):has-text("E2E Charcoal")', { timeout: 15000 }).catch(() => {});
+      check('the printer page shows the spool in its slot', await page.isVisible('.jp-loaded-slot:has-text("A1"):has-text("E2E Charcoal")'));
+      await page.click('button.jp-loaded-slot:has-text("A2")');
+      await page.waitForSelector('#jp-load-spool-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.selectOption('#jp-load-spool', String(charcoalSpool.id));
+      await page.click('#jp-load-save');
+      const moved = await page.waitForSelector('.jp-loaded-slot:has-text("A2"):has-text("E2E Charcoal")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+      check('loading a spool into another slot moves it there', moved && (await page.isVisible('.jp-loaded-slot:has-text("A1"):has-text("Empty")')));
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+      check(
+        'the Filament page shows what is loaded in printers',
+        await page.waitForSelector('.jp-tile[aria-label="Loaded in printers"]:has-text("E2E P1S")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      const bambu = await invoke(base, session, 'import-bambu-printers');
+      check('importing Bambu Lab printers asks to sign in first', /Sign in to your Bambu Lab account/.test(bambu.error || ''), bambu.error);
+      await invoke(base, session, 'delete-printer', [amsPrinter.id]);
+      const afterDelete = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === charcoalSpool.id);
+      check('deleting the printer leaves its spools loaded nowhere', afterDelete && afterDelete.loaded.length === 0);
+    } catch (error) {
+      await page.screenshot({ path: path.join(WORK, 'phase5-failure.png') }).catch(() => {});
+      const open = await page.evaluate(() => [...document.querySelectorAll('dialog[open]')].map((d) => d.id || d.className)).catch(() => []);
+      check('the Phase 5 printer checks ran to the end', false, `${error.message} (open dialogs: ${JSON.stringify(open)})`);
     }
 
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
@@ -5874,6 +5935,8 @@ async function accountChecks(base, wsUrl, admin) {
     (await invoke(base, viewer, 'get-spools', [{}])).status === 200 &&
       (await invoke(base, viewer, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 403
   );
+  check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
+  check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);
   check('editors cannot change settings', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['stlHomeDirectories', '[]'])).error || ''));

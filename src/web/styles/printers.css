@@ -237,3 +237,150 @@
   box-shadow: var(--jp-focus-ring);
   border-radius: var(--jp-radius-sm);
 }
+
+/* Bento (JusttPrint 10, Phase 5 of docs/merge-10.md): printer tiles with their loaded filament. */
+.jp-printers .jp-printer-card {
+  border: 0;
+  border-radius: var(--jp-radius-xl);
+  padding: var(--jp-space-5);
+  box-shadow: var(--jp-shadow-card);
+}
+.jp-printers .jp-printer-card:hover {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-border-strong),
+    var(--jp-shadow-card);
+}
+.jp-printers .jp-printer-card.is-selected {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-accent),
+    var(--jp-shadow-card);
+}
+.jp-printers .jp-printer-card__name {
+  font-weight: 800;
+}
+.jp-printers .jp-printers__detail {
+  border: 0;
+  border-radius: var(--jp-radius-xl);
+}
+
+.jp-loaded-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: var(--jp-space-2);
+}
+.jp-loaded-strip__slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.jp-loaded-strip__empty {
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  border: 2px dashed var(--jp-border-strong);
+  border-radius: 50%;
+}
+.jp-loaded-strip__label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--jp-text-3);
+}
+
+.jp-loaded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-4);
+}
+.jp-loaded__unit-head {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  margin-bottom: var(--jp-space-2);
+}
+.jp-loaded__unit-name {
+  font-weight: 800;
+}
+.jp-loaded__unit-head .jp-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jp-loaded__unit-actions {
+  display: inline-flex;
+  gap: var(--jp-space-3);
+  margin-left: auto;
+}
+.jp-loaded__unit-actions .jp-link,
+.jp-printer-detail__section-head .jp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jp-loaded__slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--jp-space-2);
+}
+.jp-loaded-slot {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: var(--jp-space-3) var(--jp-space-2);
+  border: 0;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: center;
+}
+button.jp-loaded-slot {
+  cursor: pointer;
+}
+button.jp-loaded-slot:hover {
+  background: var(--jp-surface-hover);
+}
+button.jp-loaded-slot:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-loaded-slot__empty {
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  border: 2px dashed var(--jp-border-strong);
+  border-radius: 50%;
+}
+.jp-loaded-slot__label {
+  font-size: var(--jp-text-small);
+  font-weight: 800;
+  color: var(--jp-text-3);
+}
+.jp-loaded-slot__name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--jp-text-meta);
+  font-weight: 700;
+}
+.jp-loaded-slot.is-empty .jp-loaded-slot__name {
+  color: var(--jp-text-3);
+  font-weight: 500;
+}
+.jp-loaded-slot__grams {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-2);
+}
+.jp-loaded-slot__grams.is-empty {
+  color: var(--jp-accent-text);
+  font-weight: 700;
+}

@@ -29,6 +29,7 @@ require('./previews');
 require('./previews-other-formats');
 require('./print-events');
 require('./printers');
+require('./printer-loads');
 require('./scan');
 require('./server-access');
 require('./settings');
