@@ -35,7 +35,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 1. Start the container, open `http://<docker-host-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
 2. Choose your models folders: while none is set, JusttPrint asks after you log in (**Choose your model folders**: tick the suggested folders, or **Add another folder…**, then **Scan**). Later, change them under **Settings → Scanning → STL Home** (or upload models, see [Uploading models](#uploading-models)): **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
-4. Optional: pick light or dark and an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
+4. Optional: pick light or dark under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
 
 **Help → Quick Start Guide** shows a short tour in the app.
 
@@ -245,7 +245,7 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Editor | Also edit models, tags, notes and the print log, upload and add links, move, trash and delete files, scan, find duplicates |
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
-Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel, light or dark (**Color Scheme**: Dark, Light, or Match the system, which follows your computer's setting) and the accent color (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
+Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel, and light or dark (**Color Scheme**: Light, Dark, or Match the system, which follows your computer's setting; **Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
 
 **Guest access** (the switch under the list of users, or `JUSTTPRINT_GUEST_ACCESS=true`) lets people who open JusttPrint without logging in browse, preview and download like a Viewer. Guests keep no settings, cannot edit, and find **Log In** under the account button; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 
@@ -279,7 +279,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | Group | What is there |
 |-------|---------------|
 | General | Performance: the largest file a scan processes |
-| Appearance | Theme: accent color, and the background, model color and lighting of thumbnails |
+| Appearance | Theme: light or dark, and the background, model color and lighting of thumbnails |
 | Library | Metadata Manager, Library Stats, View Entire Library, Print Roulette, Clear New Flag, Purge Models |
 | Scanning | STL Home, Organize (the scanned directory, the destination, the folder structure and its steps), File Types (extra types, skipped folders), Scan a Folder |
 | Slicer | Your slicers, and the helper for Send to Slicer |

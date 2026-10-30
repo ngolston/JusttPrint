@@ -273,7 +273,7 @@
     cursor: pointer;
   }
   .jp-bottom-nav__item.is-active {
-    color: var(--jp-accent);
+    color: var(--jp-accent-text);
   }
   .jp-bottom-nav__item:focus-visible {
     box-shadow: inset var(--jp-focus-ring);

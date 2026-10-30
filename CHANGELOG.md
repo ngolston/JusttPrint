@@ -2,6 +2,19 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+JusttPrint 10 (docs/merge-10.md) is built on the `merge-10` branch and released once, as 10.0.0.
+
+**Changes:**
+- **The Bento look (Phase 1: tokens and components).** Light slate and coral instead of graphite and cyan, Plus Jakarta Sans instead of Inter, rounder cards with a soft shadow, and heavier headings (docs/design-bento.md). Light is the default; Settings → Theme still offers Light, Dark (a Bento dark in slate) or Match the system.
+- New components for the pages to come, shown at `#/design-system`: bento grid and tiles, spool rings, filament color dots, placeholder art for models without a picture, the "Ready to print" badge, the per-color filament check, the browse card, category and sort tabs, a switch, print profile buttons and a picture gallery.
+
+**Removed:**
+- The accent colors (Modern Cyan, Purple, Green, Orange, Pink, Dark Minimal) under Settings → Theme. Everyone gets coral.
+
+**Upgrading:** anyone who never chose a color scheme now sees the light one; Dark is one setting away under Settings → Theme. A saved accent color is ignored.
+
 ## [9.7.3] - 2026-10-26
 
 **Fixes:**

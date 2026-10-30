@@ -41,8 +41,6 @@ declare global {
     performCombinedSearch?: (options?: { force?: boolean; preserveScroll?: boolean }) => Promise<void>;
     /** library/actions.ts: empty the grid, counts and filters after every model was purged. */
     afterModelsPurged?: () => Promise<void>;
-    /** startup/theme.ts: set the accent colors for a UI theme. */
-    applyThemeColors?: (theme: string) => void;
     /** library/actions.ts: reload the designer, title and license pickers and filters, and the grid. */
     refreshAfterMetadataChange?: () => Promise<void>;
     /** filters/search.ts: the sidebar's current filters, whether any is set, and a short description of them. */

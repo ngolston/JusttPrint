@@ -659,7 +659,7 @@
 }
 
 .about-link {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -667,7 +667,7 @@
 }
 
 .about-link:hover {
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
   text-decoration: underline;
 }
 
@@ -720,7 +720,7 @@
 }
 
 .about-license-note a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 .about-terms-list {
@@ -743,7 +743,7 @@
   content: '•';
   position: absolute;
   left: -20px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-weight: bold;
   font-size: 16px;
 }
@@ -783,7 +783,7 @@
   margin: 0 0 8px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   border-bottom: 1px solid rgba(var(--jp-accent-rgb), 0.2);
   padding-bottom: 4px;
 }
@@ -1056,19 +1056,19 @@
 }
 
 .system-report-status-warn {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 
 .system-report-warnings {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 
 .system-report-status-ok {
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 
 .system-report-status-bad {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 
 /* Stats charts (src/web/StatsDialog.tsx): an SVG pie with a legend, and CSS bars */
@@ -1173,7 +1173,7 @@
 }
 #https-settings-dialog .checkbox-container label a {
   pointer-events: auto;
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
 }
 #https-settings-fields[data-disabled='1'] {
   opacity: 0.65;
@@ -1344,7 +1344,7 @@
 }
 
 .remove-slicer-button {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-size: 1.2em;
 }
 
@@ -1383,7 +1383,7 @@
 }
 
 .preview-instructions strong {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-weight: 600;
 }
 
@@ -1428,7 +1428,7 @@
   font-size: 14px;
 }
 .tag-review-model-name {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-weight: 600;
   font-size: 15px;
   word-break: break-all;
@@ -1571,7 +1571,7 @@
   font-style: italic;
 }
 .tag-review-status.is-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   border-color: var(--jp-danger);
   font-style: normal;
 }
@@ -1591,7 +1591,7 @@
   margin-bottom: 6px;
 }
 .tag-review-strategy span {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .organize-structure {
   margin: 0.75rem 0 0.5rem;
@@ -1653,7 +1653,7 @@
 }
 
 .organize-preview-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 
 /* Edit Model: the name, with the file's extension after it (it stays). */
@@ -1726,7 +1726,7 @@
   text-align: center;
 }
 .photo-search-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 
 /* Settings → MakerWorld: the translators in order, and Google's use this month. */

@@ -116,7 +116,7 @@ export function ListPicker() {
         </div>
         <div className="searchable-list-container">
           <ul id="searchable-list-items" className="searchable-list">
-            {error && <li style={{ color: 'var(--jp-danger)', cursor: 'default' }}>Error loading items</li>}
+            {error && <li style={{ color: 'var(--jp-danger-text)', cursor: 'default' }}>Error loading items</li>}
             {!error && items && !shown.length && <li style={{ color: 'var(--jp-text-3)', cursor: 'default' }}>No items found</li>}
             {shown.map((item) => (
               <li key={item.value} onClick={() => finish(item.value)}>

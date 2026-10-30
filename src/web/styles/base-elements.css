@@ -227,7 +227,7 @@ dialog:not([open]) {
 }
 
 .error-message {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   text-align: center;
   padding: 20px;
   font-size: 16px;
@@ -246,7 +246,7 @@ dialog:not([open]) {
 }
 
 .error-message {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-size: 14px;
   text-align: center;
   padding: 20px;
@@ -276,7 +276,7 @@ dialog:not([open]) {
 }
 
 .warning-text {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-size: 0.9em;
   margin-bottom: 15px;
   padding: 10px;

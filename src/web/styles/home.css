@@ -96,7 +96,7 @@
   opacity: 0.6;
 }
 .jp-hero__fallback {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   opacity: 0.35;
 }
 .jp-hero__figure figcaption {
@@ -277,7 +277,7 @@
 }
 .jp-printer__link:hover {
   background: var(--jp-surface-hover);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-printer__link:focus-visible {
   outline: none;

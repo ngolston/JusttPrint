@@ -22,7 +22,7 @@ const CHROME =
   ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome'].find((p) => fs.existsSync(p));
 
 const mark = `data:image/svg+xml;base64,${fs.readFileSync(path.join(ASSETS, 'icon-mark.svg')).toString('base64')}`;
-const font = `data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')).toString('base64')}`;
+const font = `data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2')).toString('base64')}`;
 
 /** The dark navy the app uses (tokens.css --jp-bg), lit from the middle. */
 const BACKGROUND = 'radial-gradient(circle at 50% 50%, #0d335d 0%, #061a30 45%, #030b16 100%)';
@@ -36,9 +36,9 @@ const squareIcon = (fill, background = true) => `
 /** The mark with "JusttPrint" and "Your 3D printing library" beside it. */
 const wordmark = `
   <style>
-    @font-face { font-family: 'Inter JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'Jakarta JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }
     .card { width: 1400px; height: 440px; display: flex; align-items: center; gap: 36px; padding: 0 70px; box-sizing: border-box;
-      background: radial-gradient(ellipse at 22% 50%, #0d3a6b 0%, #061b33 38%, #030b16 80%); border-radius: 40px; font-family: 'Inter JP'; }
+      background: radial-gradient(ellipse at 22% 50%, #0d3a6b 0%, #061b33 38%, #030b16 80%); border-radius: 40px; font-family: 'Jakarta JP'; }
     .name { font-size: 150px; font-weight: 800; letter-spacing: -4px; line-height: 1; }
     .justt { background: linear-gradient(180deg, #ffffff 0%, #dbe7f0 60%, #a9bccb 100%); -webkit-background-clip: text; color: transparent; }
     .print { background: linear-gradient(180deg, #8fe0ff 0%, #2fa6ff 55%, #1670e0 100%); -webkit-background-clip: text; color: transparent; }
@@ -112,11 +112,11 @@ function ico(images) {
   for (const size of sizes) tabImages.push({ size, png: await resize(page, tab, size, true) });
   fs.writeFileSync(a('favicon.ico'), ico(tabImages));
   console.log('wrote assets/pwa-icon-192.png, pwa-icon-512.png, apple-touch-icon.png, pwa-maskable-192.png, favicon.ico');
-  // The placeholder, inline so its letters use Inter.
+  // The placeholder, inline so its letters use Plus Jakarta Sans.
   const placeholder = fs.readFileSync(path.join(ASSETS, 'placeholder.svg'), 'utf8');
   await render(
     page,
-    `<style>@font-face { font-family: 'Inter JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }</style>${placeholder}`,
+    `<style>@font-face { font-family: 'Jakarta JP'; src: url(${font}) format('woff2'); font-weight: 100 900; }</style>${placeholder}`,
     662,
     a('3d.png'),
     { transparent: true, width: 662, height: 377 }

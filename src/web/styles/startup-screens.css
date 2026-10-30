@@ -201,7 +201,7 @@
   content: '▸';
   position: absolute;
   left: 0;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-weight: bold;
   font-size: 14px;
 }
@@ -212,12 +212,12 @@
 }
 
 .guide-text p strong[style*='color: Green'] {
-  color: var(--jp-success) !important;
+  color: var(--jp-success-text) !important;
   font-weight: 600;
 }
 
 .guide-text p span[style*='color: Green'] {
-  color: var(--jp-success) !important;
+  color: var(--jp-success-text) !important;
 }
 
 /* Pro Tip styling */

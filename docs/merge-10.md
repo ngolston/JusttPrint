@@ -66,6 +66,10 @@ FilamentHub (ngolston/FilamentHub: Python, FastAPI, SQLAlchemy, Alembic, React 1
 10. **MCP and stats.** MCP tools for spools and the filament check; Statistics gain filament used and cost per model, printer and month.
 11. **Release.** README, GUIDE, CHANGELOG with upgrade notes, version 10.0.0, the checks and Docker Hub push from CLAUDE.md. FilamentHub's README points to JusttPrint and the repository is archived.
 
+## Progress
+
+- **Phase 1 done.** Bento tokens in `src/web/styles/tokens.css`, light by default with a Bento dark (Settings → Theme keeps Light, Dark and Match the system; the accent themes are removed, `uiTheme` is no longer read). Every text use of coral and the status colors moved to the new `*-text` tokens. Plus Jakarta Sans replaces Inter (`@fontsource-variable/plus-jakarta-sans`). Buttons and cards take the Bento radii, weights and shadow. New components in `Bento.tsx`, `Filament.tsx`, `Browse.tsx` and `ModelParts.tsx` (styles in `styles/bento.css`), shown at `#/design-system`, with unit tests; `formatDuration` and `formatGrams` moved to `src/web/format.ts`. Page layouts are unchanged. Not done yet: the app icon and logo (still the blue mark) and the share pages (`src/server/share-pages.js`, still the 5.0 colors).
+
 ## Settled
 
 - **Spools are shared** by everyone on the library (no per-user spools). Imported FilamentHub accounts' spools all land in the one library.

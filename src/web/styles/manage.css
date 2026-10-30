@@ -160,7 +160,7 @@
   gap: var(--jp-space-2);
 }
 .jp-dup-none svg {
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 
 .jp-dup-group {
@@ -196,7 +196,7 @@
   color: var(--jp-text-2);
 }
 .jp-dup-group__removing {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-size: var(--jp-text-small);
   font-weight: 500;
 }
@@ -322,7 +322,7 @@
   color: var(--jp-text-2);
 }
 .jp-dup-group .jp-dup-copy .jp-badge--accent {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-dup-copy__actions {
   display: flex;
@@ -340,7 +340,7 @@
   cursor: pointer;
 }
 .jp-dup-copy.is-removed .jp-dup-copy__remove {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-weight: 500;
 }
 .jp-dup-copy__remove.is-disabled {
@@ -478,7 +478,7 @@
   font-size: var(--jp-text-small);
 }
 .jp-organize .organize-preview-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-organize__actions {
   display: flex;

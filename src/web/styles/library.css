@@ -140,7 +140,7 @@
 }
 .jp-library-header .jp-segmented__btn.active {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-library-header .jp-segmented__btn:focus-visible {
   outline: none;
@@ -196,7 +196,7 @@
   font-weight: 500;
 }
 .jp-library-header .folder-rail-toggle.active .folder-rail-toggle__icon {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-library-header .folder-rail-toggle:focus-visible {
   outline: none;
@@ -283,7 +283,7 @@
   color: var(--jp-text-3);
 }
 .jp-library-header .search-boolean-op-link {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-library-header #clear-all-filters-button.clear-filter-button,
 .jp-library-header #save-search-button.clear-filter-button {
@@ -296,7 +296,7 @@
   border: 0;
   border-radius: var(--jp-radius-sm);
   background: transparent;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
 }
 .jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled),
@@ -635,7 +635,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .model-favorite-btn.is-favorited {
   opacity: 1;
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   background: rgba(var(--jp-bg-rgb), 0.6);
 }
 .file-grid .jp-model-card:hover .jp-model-card__action,
@@ -672,7 +672,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .jp-model-card__rating .model-star.is-filled,
 .file-grid .jp-model-card .jp-model-card__rating .model-star:hover {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
   transform: none;
 }
 .file-grid .jp-model-card .jp-model-card__rating .model-star:focus-visible {
@@ -797,19 +797,19 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .print-status.jp-status--success {
   background: var(--jp-success-soft);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--warning {
   background: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--danger {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--accent {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--neutral {
   background: var(--jp-neutral-soft);
@@ -865,7 +865,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   cursor: pointer;
 }
 .file-grid .jp-group-card .parent-model-group-chevron:hover {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .file-grid .jp-group-card .parent-model-group-meta {
   margin: 0;
@@ -963,7 +963,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   border: 1px solid rgba(var(--jp-danger-rgb), 0.35);
   border-radius: var(--jp-radius-sm);
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
   box-shadow: none;
 }
@@ -981,7 +981,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   border: 1px solid var(--jp-accent-border);
   border-radius: var(--jp-radius-sm);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
   cursor: pointer;
 }
@@ -1430,7 +1430,7 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   margin-left: auto;
 }
 .jp-facet-bar .jp-facet-bar__all.has-filters {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 /* A facet's list. */
@@ -1497,7 +1497,7 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   display: inline-flex;
   flex: none;
   width: 16px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-facet-menu__label {
   flex: 1;
@@ -1564,11 +1564,11 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
 /* New, Not organized and Archive in the badge row (with the file type). */
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.new-status {
   border-color: var(--jp-accent);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.archive-status {
   border-color: var(--jp-warning);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.unorganized-status {
   color: var(--jp-text);

@@ -29,7 +29,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--jp-space-1);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   cursor: pointer;
 }
 .jp-model-page__back:focus-visible {
@@ -108,7 +108,7 @@
   border-left: 1px solid rgba(4, 18, 26, 0.35);
 }
 .jp-model-page__toolbar .is-favorited {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-model-page__toolbar .jp-model-upload__busy {
   flex-basis: 100%;
@@ -161,7 +161,7 @@
   overflow: visible;
 }
 .jp-model-page__file-rows .jp-model-row.is-current .jp-model-row__name {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-model-row__picture {
   flex: 0 0 56px;
@@ -311,7 +311,7 @@
 }
 :is(#model-details, .jp-model-page) .jp-gallery__add:hover {
   border-color: var(--jp-accent-border);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-gallery__busy {
   flex: none;
@@ -474,7 +474,7 @@
   margin-left: auto;
 }
 .jp-model-page__icons .is-favorited {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-model-page__file-list,
 .jp-model-page__history {
@@ -859,7 +859,7 @@ dialog.assembly-dialog {
 }
 .jp-group-name__error {
   margin: var(--jp-space-2) 0 0;
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 
 /* Files dragged over a model page (they go into its folder, as with Upload). */

@@ -651,7 +651,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             className={`file-name${zipFile ? ' zip-file' : ''}`}
             data-list-col="name"
             title={name}
-            ref={importantColor(zipFile ? 'var(--jp-success)' : 'var(--jp-text)')}
+            ref={importantColor(zipFile ? 'var(--jp-success-text)' : 'var(--jp-text)')}
             style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
           >
             {name}
@@ -688,7 +688,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
               title={directory ? host.directoryFullPath(model.filePath) || directory : undefined}
               style={{
                 ...small,
-                color: directory ? 'var(--jp-accent)' : 'var(--jp-text-3)',
+                color: directory ? 'var(--jp-accent-text)' : 'var(--jp-text-3)',
                 cursor: directory ? 'pointer' : 'default',
                 fontWeight: directory ? 500 : 400,
                 flex: 1,

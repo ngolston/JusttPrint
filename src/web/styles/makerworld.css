@@ -13,7 +13,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-size: var(--jp-text-meta);
   text-decoration: none;
 }
@@ -62,7 +62,7 @@
 }
 .jp-mw__text a,
 .jp-mw .jp-prop__value a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-mw__tags {
   display: flex;
@@ -259,7 +259,7 @@
   font-size: var(--jp-text-meta);
 }
 .jp-mw-download__problem a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-mw-download__manual {
   display: flex;
@@ -275,7 +275,7 @@
   margin: 0;
 }
 .jp-mw-download__manual a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-mw-download__manual.is-highlighted {
   border-style: solid;
@@ -416,7 +416,7 @@
   border-radius: var(--jp-radius-md);
 }
 #thingiverse-settings-dialog .setting-description a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-site-setup {
   display: flex;
@@ -464,7 +464,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-settings-form .jp-site-setup__steps {
   margin: var(--jp-space-2) 0 var(--jp-space-3);

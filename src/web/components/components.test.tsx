@@ -7,6 +7,10 @@ import { menuSide, nextMenuIndex } from './Menu';
 import { EmptyState, Panel, ProgressBar, StatCard } from './Panel';
 import { SearchBox, shortcutLabel } from './SearchBox';
 import { Tabs, nextTabIndex } from './Tabs';
+import { BentoGrid, Tile } from './Bento';
+import { BrowseCard, CategoryTabs, SortTabs, Toggle, avatarTone, initials, printedLabel } from './Browse';
+import { ColorDot, FilamentCheck, FitBadge, IsoThumb, SpoolRing, checkNeed, fitLabel, isoShades, spoolLevel, spoolShare } from './Filament';
+import { PictureGallery, ProfilePicker } from './ModelParts';
 
 const html = (node: React.ReactElement) => renderToStaticMarkup(node);
 
@@ -136,5 +140,193 @@ describe('search', () => {
     const out = html(<SearchBox label="Search the library" shortcut="⌘ K" />);
     expect(out).toContain('aria-label="Search the library"');
     expect(out).toContain('⌘ K');
+  });
+});
+
+describe('Bento tiles', () => {
+  it('places a tile by column and row and names it after its heading', () => {
+    const out = html(
+      <BentoGrid label="Dashboard">
+        <Tile variant="ink" title="Printing now" col={1} row={1} cols={2} rows={2} />
+        <Tile variant="quiet" cols={2} />
+      </BentoGrid>
+    );
+    expect(out).toContain('class="jp-bento"');
+    expect(out).toContain('aria-label="Printing now"');
+    expect(out).toContain('jp-tile jp-tile--ink');
+    expect(out).toContain('grid-column:1 / span 2;grid-row:1 / span 2');
+    expect(out).toContain('grid-column:span 2');
+    expect(out).toContain('<h2 class="jp-tile__heading">Printing now</h2>');
+  });
+});
+
+describe('filament pieces', () => {
+  it('reads a spool as empty under 50 g, low under 300 g', () => {
+    expect(spoolLevel(18)).toBe('empty');
+    expect(spoolLevel(50)).toBe('low');
+    expect(spoolLevel(299)).toBe('low');
+    expect(spoolLevel(300)).toBe('ok');
+    expect(spoolShare(250, 1000)).toBe(0.25);
+    expect(spoolShare(1200, 1000)).toBe(1);
+    expect(spoolShare(-5, 1000)).toBe(0);
+    expect(spoolShare(10, 0)).toBe(0);
+  });
+
+  it('draws a spool ring filled to its share, named when it has a name', () => {
+    const out = html(<SpoolRing color="#2f6fdf" remaining={720} name="PLA Blue" />);
+    expect(out).toContain('jp-spool-ring--ok');
+    expect(out).toContain('--jp-ring-share:259deg');
+    expect(out).toContain('role="img"');
+    expect(out).toContain('aria-label="PLA Blue, 720 g left of 1,000 g"');
+    expect(html(<SpoolRing color="#111" remaining={18} />)).toContain('aria-hidden="true"');
+  });
+
+  it('rings a short color dot and says so', () => {
+    expect(html(<ColorDot color="#111111" short name="Black" />)).toContain('aria-label="Black, short"');
+    expect(html(<ColorDot color="#111111" short name="Black" />)).toContain('is-short');
+    expect(html(<ColorDot color="#111111" />)).toContain('aria-hidden="true"');
+  });
+
+  it('shades the placeholder art from one color', () => {
+    const s = isoShades('#2f6fdf');
+    expect(s.left).toBe('#2f6fdf');
+    expect(s.top).not.toBe(s.left);
+    expect(s.right).not.toBe(s.left);
+    expect(isoShades('nonsense').left).toBe('#8b8f96');
+    expect(html(<IsoThumb color="#2f6fdf" second="#ffffff" />).match(/<path/g)).toHaveLength(6);
+  });
+
+  it('says Ready to print, or which colors are needed, with an icon', () => {
+    expect(fitLabel([])).toBe('Ready to print');
+    expect(fitLabel(['black', 'white'])).toBe('Need black, white');
+    const out = html(<FitBadge missing={['black']} />);
+    expect(out).toContain('jp-fit--short');
+    expect(out).toContain('<svg');
+  });
+
+  it('checks each needed color against its spool', () => {
+    const spool = { name: 'Black', remaining: 18 };
+    expect(checkNeed({ label: 'Black PLA', color: '#111', grams: 30, spool })).toEqual({ ok: false, grams: 12, text: '12 g short' });
+    expect(checkNeed({ label: 'Gray PETG', color: '#888', grams: 82, spool: { name: 'Gray', remaining: 640 } })).toEqual({
+      ok: true,
+      grams: 558,
+      text: '✓ 558 g left'
+    });
+    expect(checkNeed({ label: 'Gold', color: '#d4a640', grams: 12, spool: null }).text).toBe('12 g short');
+    const out = html(<FilamentCheck needs={[{ label: 'Black PLA', color: '#111', grams: 30, spool: { ...spool, where: 'AMS A4' } }]} />);
+    expect(out).toContain('Black PLA · 30 g');
+    expect(out).toContain('Black · AMS A4 · 18 g');
+    expect(out).toContain('jp-filament-check__row is-short');
+  });
+});
+
+describe('browse pieces', () => {
+  it('makes initials and keeps a designer on one avatar color', () => {
+    expect(initials('Zack Freedman')).toBe('ZF');
+    expect(initials('Hugo')).toBe('H');
+    expect(initials('  ')).toBe('?');
+    expect(avatarTone('Hugo')).toBe(avatarTone('Hugo'));
+    expect(printedLabel(0)).toBe('Not yet');
+    expect(printedLabel(3)).toBe('Printed 3×');
+  });
+
+  it('draws a browse card as one link with the filament check and stats', () => {
+    const out = html(
+      <BrowseCard
+        href="#/model/1"
+        title="Screen Bezel"
+        designer="Bambu Lab"
+        source="MakerWorld"
+        colors={[
+          { color: '#8b8f96', name: 'gray' },
+          { color: '#111111', name: 'black', short: true }
+        ]}
+        plates="2 plates"
+        printed={3}
+        grams={189}
+        seconds={21300}
+      />
+    );
+    expect(out.match(/<a /g)).toHaveLength(1);
+    expect(out).not.toContain('<button');
+    expect(out).toContain('href="#/model/1"');
+    expect(out).toContain('Need black');
+    expect(out).toContain('Printed 3×');
+    expect(out).toContain('189 g');
+    expect(out).toContain('5 h 55 min');
+    expect(out).toContain('aria-label="Not a favorite"');
+  });
+
+  it('marks the chosen category and shows its subcategories', () => {
+    const out = html(
+      <CategoryTabs
+        categories={[
+          { id: 'all', name: 'All', color: '#888888' },
+          { id: 'art', name: 'Art', color: '#d4a640' }
+        ]}
+        value="art"
+        onChange={() => {}}
+        subcategoryHeading="Art"
+        subcategories={['Sculptures', 'Vases']}
+      />
+    );
+    expect(out).toContain('aria-label="Categories"');
+    expect(out.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(out).toContain('Sculptures');
+  });
+
+  it('draws sort tabs as pressed buttons, or as a tab list', () => {
+    const items = [
+      { id: 'new', label: 'Newest' },
+      { id: 'top', label: 'Most printed' }
+    ];
+    const buttons = html(<SortTabs label="Sort" items={items} value="top" onChange={() => {}} />);
+    expect(buttons).toContain('role="group"');
+    expect(buttons).toContain('aria-pressed="true"');
+    const tabs = html(<SortTabs label="Details" mode="tabs" items={items} value="top" onChange={() => {}} />);
+    expect(tabs).toContain('role="tablist"');
+    expect(tabs).toContain('aria-selected="true"');
+    expect(tabs).toContain('tabindex="-1"');
+  });
+
+  it('draws a switch with its state', () => {
+    const out = html(<Toggle checked label="Fits my filament" onChange={() => {}} />);
+    expect(out).toContain('role="switch"');
+    expect(out).toContain('aria-checked="true"');
+    expect(out).toContain('Fits my filament');
+  });
+});
+
+describe('model page pieces', () => {
+  it('marks the chosen print profile', () => {
+    const out = html(
+      <ProfilePicker
+        value="b"
+        onChange={() => {}}
+        profiles={[
+          { id: 'a', name: 'All plates' },
+          { id: 'b', name: 'Plate 1', meta: '3 h · 112 g' }
+        ]}
+      />
+    );
+    expect(out).toContain('jp-profile is-on');
+    expect(out).toContain('3 h · 112 g');
+  });
+
+  it('shows the chosen picture and a thumbnail strip', () => {
+    const out = html(
+      <PictureGallery
+        value="b"
+        onChange={() => {}}
+        pictures={[
+          { id: 'a', label: 'Cover', src: '/a.png' },
+          { id: 'b', label: 'Plate 1', color: '#8b8f96' }
+        ]}
+      />
+    );
+    expect(out).toContain('jp-pictures__caption">Plate 1');
+    expect(out).toContain('aria-label="Cover"');
+    expect(out.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(html(<PictureGallery value="x" onChange={() => {}} pictures={[]} />)).toBe('');
   });
 });

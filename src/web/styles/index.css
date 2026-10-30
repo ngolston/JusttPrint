@@ -3,7 +3,7 @@
  * The first files (base-elements.css to dialog-content.css) hold the older screens' styles, moved
  * out of styles/legacy and drawn with the tokens; they come first so the newer files win.
  */
-@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
 @import './base-elements.css';
 @import './jobs.css';
 @import './library-cards.css';
@@ -14,6 +14,7 @@
 @import './tokens.css';
 @import './typography.css';
 @import './components.css';
+@import './bento.css';
 @import './layout.css';
 @import './library.css';
 @import './details.css';

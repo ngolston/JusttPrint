@@ -199,7 +199,7 @@
   border-top: 1px solid var(--jp-border);
 }
 .jp-printer-detail__item .is-warning {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-printer-detail__item-text {
   display: flex;

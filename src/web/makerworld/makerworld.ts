@@ -3,6 +3,9 @@
  * (src/core/makerworld.js), the sign-in status, and formatting for the details panel.
  */
 import { callAction } from '../api';
+import { formatDuration, formatGrams } from '../format';
+
+export { formatDuration, formatGrams };
 
 export interface MakerWorldProfile {
   id: string;
@@ -174,18 +177,6 @@ export function makerWorldUrl(model: { filePath?: string | null; source?: unknow
   const found = siteModelUrl(model);
   return found && found.site === 'makerworld' ? found.url : null;
 }
-
-/** 326981 seconds → "90 h 50 min"; 2700 → "45 min". */
-export function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return '—';
-  const minutes = Math.round(seconds / 60);
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (!h) return `${m} min`;
-  return m ? `${h} h ${m} min` : `${h} h`;
-}
-
-export const formatGrams = (grams: number | null | undefined) => (grams || grams === 0 ? `${Math.round(grams).toLocaleString()} g` : '—');
 
 /** "2026-07-03T12:32:53Z" → "Jul 3, 2026". */
 export function formatDay(value: string | null | undefined): string {

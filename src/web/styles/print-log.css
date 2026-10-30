@@ -8,7 +8,7 @@
   padding: 2px 8px;
   border-radius: var(--jp-radius-sm);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
   font-size: var(--jp-text-small);
 }
 .print-history-printer-model {

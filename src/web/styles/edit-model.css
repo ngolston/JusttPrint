@@ -251,7 +251,7 @@
   cursor: pointer;
 }
 .jp-edit__star.is-on {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-edit__star.is-on svg {
   fill: currentColor;

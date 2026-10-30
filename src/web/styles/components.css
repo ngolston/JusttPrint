@@ -1,4 +1,4 @@
-/* JusttPrint 5 components (src/web/components/). Tokens only; no raw colors. */
+/* JusttPrint components (src/web/components/), in the Bento look since 10.0. Tokens only; no raw colors. */
 
 /*
  * base-elements.css styles every <button> for the older screens (90% wide, margin, accent fill).
@@ -36,10 +36,10 @@ button.jp-tag__label:hover,
   height: var(--jp-control-height);
   padding: 0 var(--jp-space-4);
   border: 1px solid transparent;
-  border-radius: var(--jp-radius-md);
+  border-radius: var(--jp-radius-lg);
   font-family: var(--jp-font);
   font-size: var(--jp-text-ui);
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -60,7 +60,7 @@ button.jp-tag__label:hover,
   height: 30px;
   padding: 0 var(--jp-space-3);
   font-size: var(--jp-text-meta);
-  border-radius: var(--jp-radius-sm);
+  border-radius: var(--jp-radius-md);
 }
 .jp-btn--lg {
   height: var(--jp-control-height-lg);
@@ -70,7 +70,6 @@ button.jp-tag__label:hover,
 .jp-btn--primary {
   background: var(--jp-accent);
   color: var(--jp-on-accent);
-  font-weight: 600;
 }
 .jp-btn--primary:hover:not(:disabled) {
   background: var(--jp-accent-hover);
@@ -94,12 +93,12 @@ button.jp-tag__label:hover,
 }
 .jp-btn--danger {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   border-color: rgba(var(--jp-danger-rgb), 0.35);
 }
 .jp-btn--danger:hover:not(:disabled) {
-  background: var(--jp-danger);
-  color: var(--jp-text);
+  background: rgba(var(--jp-danger-rgb), 0.2);
+  border-color: var(--jp-danger);
 }
 .jp-btn:disabled {
   opacity: 0.5;
@@ -147,7 +146,7 @@ button.jp-tag__label:hover,
 }
 .jp-icon-btn.is-pressed,
 .jp-icon-btn.is-pressed:hover {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-icon-btn:disabled {
   opacity: 0.5;
@@ -181,19 +180,19 @@ button.jp-tag__label:hover,
 }
 .jp-status--success {
   background: var(--jp-success-soft);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 .jp-status--warning {
   background: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-status--danger {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-status--accent {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-status--neutral {
   background: var(--jp-neutral-soft);
@@ -239,7 +238,7 @@ button.jp-tag__label:hover {
   cursor: pointer;
 }
 .jp-tag__remove:hover {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-tag--add {
   width: 26px;
@@ -257,7 +256,8 @@ button.jp-tag__label:hover {
 .jp-card {
   background: var(--jp-surface-1);
   border: 1px solid var(--jp-border);
-  border-radius: var(--jp-radius-lg);
+  border-radius: var(--jp-radius-xl);
+  box-shadow: var(--jp-shadow-card);
   padding: var(--jp-space-4) var(--jp-space-5);
   transition: border-color var(--jp-transition);
 }
@@ -323,31 +323,31 @@ button.jp-tag__label:hover {
 }
 .jp-tone--accent {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-tone--success {
   background: var(--jp-success-soft);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 .jp-tone--warning {
   background: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-tone--danger {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-tone--neutral {
   background: var(--jp-neutral-soft);
   color: var(--jp-text-2);
 }
 .jp-tone--violet {
-  background: rgba(139, 120, 255, 0.16);
-  color: #9d8cff;
-}
-:root[data-color-scheme='light'] .jp-tone--violet {
   background: rgba(109, 40, 217, 0.1);
   color: #6d28d9;
+}
+:root[data-color-scheme='dark'] .jp-tone--violet {
+  background: rgba(139, 120, 255, 0.16);
+  color: #9d8cff;
 }
 
 /* Progress */
@@ -427,7 +427,7 @@ button.jp-tag__label:hover {
 }
 .jp-empty--danger .jp-empty__icon {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-empty__title {
   margin: var(--jp-space-1) 0 0;
@@ -533,7 +533,7 @@ button.jp-tag__label:hover {
 }
 .jp-menu__item.is-danger,
 .jp-menu__item.is-danger svg {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-menu__item:disabled {
   opacity: 0.45;
@@ -644,7 +644,7 @@ button.jp-tag__label:hover {
   padding: var(--jp-space-8) var(--jp-space-10);
   background: var(--jp-bg);
 }
-.jp-gallery section {
+.jp-gallery > section {
   margin-top: var(--jp-space-8);
   display: flex;
   flex-direction: column;
@@ -668,6 +668,29 @@ button.jp-tag__label:hover {
 }
 .jp-gallery__search {
   max-width: 640px;
+}
+.jp-gallery__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--jp-space-5);
+}
+.jp-gallery__model {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--jp-space-6);
+}
+.jp-gallery__spool {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+}
+.jp-gallery__spool > span:not(.jp-spool-ring) {
+  flex: 1;
+  font-weight: 600;
+}
+.jp-gallery .jp-gallery__on-ink {
+  color: var(--jp-on-ink-2);
 }
 
 /* Skip link (spec §37): hidden until focused. */
@@ -806,7 +829,7 @@ button.jp-tag__label:hover {
 .jp-folder-picker__place.is-active {
   border-color: var(--jp-accent-border);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-folder-picker__bar {
   display: flex;
@@ -828,7 +851,7 @@ button.jp-tag__label:hover {
 }
 .jp-folder-picker__error {
   margin: 0;
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font-size: var(--jp-text-meta);
   overflow-wrap: anywhere;
 }
@@ -867,7 +890,7 @@ button.jp-tag__label:hover {
 }
 .jp-folder-picker__folder svg {
   flex: none;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-folder-picker__folder span {
   overflow: hidden;
@@ -932,7 +955,7 @@ button.jp-tag__label:hover {
 }
 .jp-badge--accent {
   border-color: var(--jp-accent-border);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 /* Undo notice after a metadata or tag edit (library/UndoToast.tsx) */
@@ -1031,10 +1054,10 @@ button.jp-tag__label:hover {
 }
 .jp-scan-toast > svg {
   flex: none;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-scan-toast .jp-scan-toast__done {
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 
 /* A button whose work is running (Scan Library): its icon spins. */

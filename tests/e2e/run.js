@@ -4612,72 +4612,42 @@ async function browserChecks(base, wsUrl, session) {
     await puterContext.unroute('https://js.puter.com/**').catch(() => {});
     puterContext.off('request', recordSignInPage);
 
-    // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
-    const savedTheme = (await invoke(base, session, 'get-setting', ['uiTheme'])).result;
-    await page.evaluate(() => window.openThemeSettings());
-    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
-    check('Theme settings opens with the saved theme', (await page.inputValue('#ui-theme')) === (savedTheme || 'modern-cyan'));
-    await page.selectOption('#ui-theme', 'modern-purple');
-    await page.click('#save-settings');
-    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const accent = await page.evaluate(() => ({
-      token: document.documentElement.style.getPropertyValue('--jp-accent').trim(),
-      button: getComputedStyle(document.querySelector('.jp-tab.is-active, .jp-btn--primary') || document.body).backgroundColor
-    }));
-    check(
-      'Theme settings saves and applies the theme to the whole interface',
-      (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple' &&
-        accent.token === '#b47cfa' &&
-        !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')),
-      JSON.stringify(accent)
-    );
-    // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
-    await page.reload();
-    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const themed = await page
-      .waitForFunction(
-        () =>
-          document.body.getAttribute('data-theme') === 'modern-purple' && document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#b47cfa',
-        null,
-        { timeout: 15000 }
-      )
-      .then(
-        () => true,
-        () => false
-      );
-    check('the saved theme is applied when the page loads', themed);
-
-    // Light color scheme (tokens.css, startup/theme.ts): the page turns light, the accent takes its light shade.
-    await page.evaluate(() => window.openThemeSettings());
-    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
-    check('Theme settings offers the color scheme, dark to start', (await page.inputValue('#ui-color-scheme')) === 'dark');
-    await page.selectOption('#ui-color-scheme', 'light');
-    await page.click('#save-settings');
-    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const lightLook = () =>
+    // Theme settings (React, startup/theme.ts, tokens.css): Bento light to start, coral accent, no accent themes.
+    const schemeLook = () =>
       page.evaluate(() => ({
         scheme: document.documentElement.getAttribute('data-color-scheme'),
         background: getComputedStyle(document.body).backgroundColor,
-        accent: document.documentElement.style.getPropertyValue('--jp-accent').trim()
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--jp-accent').trim()
       }));
-    const isLight = (look) => look.scheme === 'light' && /rgb\((2[0-9]{2}), (2[0-9]{2}), (2[0-9]{2})\)/.test(look.background) && look.accent === '#7c3aed';
-    let look = await lightLook();
+    const channels = (look) => (look.background.match(/\d+/g) || []).slice(0, 3).map(Number);
+    const isLight = (look) => look.scheme === 'light' && channels(look).every((c) => c >= 200) && look.accent === '#ea6450';
+    const isDark = (look) => look.scheme === 'dark' && channels(look).every((c) => c <= 60) && look.accent === '#ee6a56';
+    let look = await schemeLook();
+    check('the page starts in the light Bento scheme with the coral accent', isLight(look), JSON.stringify(look));
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
     check(
-      'choosing Light turns the page light, with the light shade of the accent',
-      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'light' && isLight(look),
+      'Theme settings offers the color scheme, light to start, and no accent themes',
+      (await page.inputValue('#ui-color-scheme')) === 'light' && (await page.locator('#ui-theme').count()) === 0
+    );
+    await page.selectOption('#ui-color-scheme', 'dark');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    look = await schemeLook();
+    check(
+      'choosing Dark turns the page dark, with the dark coral, and no regenerate prompt',
+      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'dark' &&
+        isDark(look) &&
+        !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')),
       JSON.stringify(look)
     );
     await page.reload();
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const lightFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
-    await page
-      .waitForFunction(() => document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#7c3aed', null, { timeout: 15000 })
-      .catch(() => {});
-    look = await lightLook();
-    check('the light scheme is there from the first paint after a reload', lightFirst === 'light' && isLight(look), JSON.stringify({ lightFirst, look }));
-    await invoke(base, session, 'save-setting', ['uiColorScheme', 'dark']);
-    await page.evaluate(() => window.applyColorScheme?.('dark'));
-    await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+    const darkFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
+    look = await schemeLook();
+    check('the dark scheme is there from the first paint after a reload', darkFirst === 'dark' && isDark(look), JSON.stringify({ darkFirst, look }));
+    await invoke(base, session, 'save-setting', ['uiColorScheme', 'light']);
+    await page.evaluate(() => window.applyColorScheme?.('light'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
 
     // Same shape, any resolution (geometry-signature.js similarShape): a ball meshed coarse and fine.

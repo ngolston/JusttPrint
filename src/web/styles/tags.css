@@ -137,7 +137,7 @@
   font-weight: 600;
 }
 .jp-category-row__name:not(:disabled):hover .jp-category-row__title {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-category-row__words {
   overflow: hidden;
@@ -170,7 +170,7 @@
 }
 .jp-category-scan__options summary {
   width: max-content;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-size: var(--jp-text-meta);
   cursor: pointer;
 }
@@ -274,7 +274,7 @@
 }
 .jp-link-button {
   all: unset;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   cursor: pointer;
   text-decoration: underline;
 }
