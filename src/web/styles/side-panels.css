@@ -549,7 +549,7 @@ body.server-mode .sidebar {
 
 .model-star.is-filled,
 .model-star:hover {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   transform: scale(1.06);
 }
 
@@ -1247,7 +1247,7 @@ body.server-mode .sidebar {
 .print-history-printer-type {
   font-size: 11px;
   font-weight: 700;
-  color: var(--jp-success);
+  color: var(--jp-success-text);
   background: rgba(var(--jp-success-rgb), 0.18);
   padding: 1px 6px;
   border-radius: 4px;
@@ -1634,7 +1634,7 @@ body.server-mode .sidebar {
 .search-boolean-op-link {
   font-size: 12px;
   font-weight: 600;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   text-decoration: underline;
   text-decoration-color: rgba(var(--jp-accent-rgb), 0.55);
   text-underline-offset: 3px;
@@ -1645,7 +1645,7 @@ body.server-mode .sidebar {
 }
 
 .search-boolean-op-link:hover:not([aria-disabled='true']) {
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
   text-decoration-color: rgba(180, 190, 254, 0.95);
 }
 
@@ -1667,7 +1667,7 @@ body.server-mode .sidebar {
 .search-boolean-hint {
   flex: 1 1 160px;
   font-size: 11px;
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
   line-height: 1.35;
   min-width: 0;
 }
@@ -1689,7 +1689,7 @@ body.server-mode .sidebar {
   border-radius: 8px;
   border: 1px solid rgba(166, 218, 149, 0.55);
   background: rgba(var(--jp-surface-1-rgb), 0.92);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
   vertical-align: middle;
 }
 
@@ -2115,7 +2115,7 @@ body.server-mode .folder-rail {
 }
 
 .notes-richtext a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 .notes-richtext code {
@@ -2181,7 +2181,7 @@ body.server-mode .folder-rail {
 }
 
 .notes-preview a {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 .notes-preview code {

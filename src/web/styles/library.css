@@ -140,7 +140,7 @@
 }
 .jp-library-header .jp-segmented__btn.active {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-library-header .jp-segmented__btn:focus-visible {
   outline: none;
@@ -196,7 +196,7 @@
   font-weight: 500;
 }
 .jp-library-header .folder-rail-toggle.active .folder-rail-toggle__icon {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-library-header .folder-rail-toggle:focus-visible {
   outline: none;
@@ -283,7 +283,7 @@
   color: var(--jp-text-3);
 }
 .jp-library-header .search-boolean-op-link {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-library-header #clear-all-filters-button.clear-filter-button,
 .jp-library-header #save-search-button.clear-filter-button {
@@ -296,7 +296,7 @@
   border: 0;
   border-radius: var(--jp-radius-sm);
   background: transparent;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
 }
 .jp-library-header #clear-all-filters-button.clear-filter-button:hover:not(:disabled),
@@ -635,7 +635,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .model-favorite-btn.is-favorited {
   opacity: 1;
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   background: rgba(var(--jp-bg-rgb), 0.6);
 }
 .file-grid .jp-model-card:hover .jp-model-card__action,
@@ -672,7 +672,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .jp-model-card__rating .model-star.is-filled,
 .file-grid .jp-model-card .jp-model-card__rating .model-star:hover {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
   transform: none;
 }
 .file-grid .jp-model-card .jp-model-card__rating .model-star:focus-visible {
@@ -797,19 +797,19 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
 }
 .file-grid .jp-model-card .print-status.jp-status--success {
   background: var(--jp-success-soft);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--warning {
   background: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--danger {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--accent {
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .file-grid .jp-model-card .print-status.jp-status--neutral {
   background: var(--jp-neutral-soft);
@@ -865,7 +865,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   cursor: pointer;
 }
 .file-grid .jp-group-card .parent-model-group-chevron:hover {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .file-grid .jp-group-card .parent-model-group-meta {
   margin: 0;
@@ -963,7 +963,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   border: 1px solid rgba(var(--jp-danger-rgb), 0.35);
   border-radius: var(--jp-radius-sm);
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
   box-shadow: none;
 }
@@ -981,7 +981,7 @@ body.jp-editing .file-grid .jp-model-card .jp-model-card__check {
   border: 1px solid var(--jp-accent-border);
   border-radius: var(--jp-radius-sm);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
   font: 500 var(--jp-text-meta) var(--jp-font);
   cursor: pointer;
 }
@@ -1430,7 +1430,7 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   margin-left: auto;
 }
 .jp-facet-bar .jp-facet-bar__all.has-filters {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 
 /* A facet's list. */
@@ -1497,7 +1497,7 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   display: inline-flex;
   flex: none;
   width: 16px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-facet-menu__label {
   flex: 1;
@@ -1564,11 +1564,11 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
 /* New, Not organized and Archive in the badge row (with the file type). */
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.new-status {
   border-color: var(--jp-accent);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.archive-status {
   border-color: var(--jp-warning);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .file-grid .jp-model-card .jp-model-card__badges .jp-badge.unorganized-status {
   color: var(--jp-text);
@@ -1579,4 +1579,181 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   align-items: center;
   justify-content: center;
   padding: 0 6px;
+}
+/* The filament check on a card (Phase 4 of docs/merge-10.md): one line with the file type. */
+.file-grid .jp-model-card .jp-model-card__badges .jp-model-card__fit {
+  flex: none;
+  height: 20px;
+  padding: 0 var(--jp-space-2);
+  font-size: var(--jp-text-badge);
+  line-height: 18px;
+}
+
+/* ---- Browse layout (Phase 7 of docs/merge-10.md; library/BrowseHeader.tsx) ---- */
+.jp-library-browse__categories {
+  margin: var(--jp-space-3) 0 var(--jp-space-1);
+}
+.jp-library-browse__categories .jp-categories {
+  gap: var(--jp-space-3);
+}
+.jp-library-browse__banners {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--jp-space-4);
+  margin: var(--jp-space-3) 0;
+}
+.jp-banner {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-5);
+  min-height: 132px;
+  padding: 20px 24px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 26px;
+  font-family: var(--jp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.jp-banner--ink {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-banner--ink:hover {
+  background: var(--jp-ink-tile);
+  box-shadow: 0 0 0 3px var(--jp-accent-tint);
+}
+.jp-banner--ink[aria-pressed='true'] {
+  box-shadow: 0 0 0 3px var(--jp-accent);
+}
+.jp-banner--accent {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.jp-banner--accent:hover {
+  background: var(--jp-accent-hover);
+}
+.jp-banner:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-banner__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-banner__pill {
+  align-self: flex-start;
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
+}
+.jp-banner__pill--ink {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-banner__title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.jp-banner__figure {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+}
+.jp-banner__meta {
+  font-size: var(--jp-text-ui);
+  font-weight: 600;
+}
+.jp-banner--ink .jp-banner__meta {
+  color: var(--jp-on-ink-2);
+  font-weight: 500;
+}
+.jp-banner__art {
+  flex: none;
+}
+
+/* The state tabs as text tabs with a coral underline (SortTabs look). */
+.jp-library-header .jp-tabs {
+  gap: 4px 24px;
+}
+.jp-library-header .jp-tab,
+.jp-library-header .jp-tab:hover,
+.jp-library-header .jp-tab.is-selected,
+.jp-library-header .jp-tab.is-selected:hover {
+  height: 40px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--jp-text-3);
+  font-weight: 700;
+  font-size: 15px;
+}
+.jp-library-header .jp-tab:hover {
+  color: var(--jp-text);
+}
+.jp-library-header .jp-tab.is-selected,
+.jp-library-header .jp-tab.is-selected:hover {
+  color: var(--jp-text);
+  border-bottom-color: var(--jp-accent);
+}
+.jp-library-header__fits {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+/* Cards in the browse-card look: rounder, a soft shadow, a bold title, colors by the designer. */
+.file-grid .file-item.jp-model-card {
+  border: 0;
+  border-radius: 22px;
+  box-shadow: var(--jp-shadow-card);
+  overflow: hidden;
+}
+.file-grid .file-item.jp-model-card:hover {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-border-strong),
+    var(--jp-shadow-card);
+}
+.file-grid .file-item.jp-model-card.selected {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-accent),
+    var(--jp-shadow-card);
+}
+.file-grid .jp-model-card .file-name.jp-model-card__title {
+  font-weight: 800;
+}
+.jp-model-card__body {
+  position: relative;
+}
+.file-grid .jp-model-card .jp-model-card__byline {
+  padding-right: 64px;
+}
+.jp-model-card__dots {
+  position: absolute;
+  right: var(--jp-space-3);
+  top: 34px;
+  display: flex;
+  gap: 4px;
+}
+
+@media (max-width: 1023px) {
+  .jp-library-browse__banners {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .jp-banner__art {
+    display: none;
+  }
 }

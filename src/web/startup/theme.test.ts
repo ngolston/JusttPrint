@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { THEME_ACCENTS, resolveScheme, rgbChannels, schemePreference } from './theme';
+import { SCHEME_BACKGROUNDS, resolveScheme, schemePreference } from './theme';
+import css from '../styles/tokens.css?raw';
 
 describe('color scheme', () => {
-  it('reads a saved preference, dark when unknown or missing', () => {
+  it('reads a saved preference, light when unknown or missing', () => {
     expect(schemePreference('light')).toBe('light');
     expect(schemePreference('system')).toBe('system');
     expect(schemePreference('dark')).toBe('dark');
-    expect(schemePreference(null)).toBe('dark');
-    expect(schemePreference('sepia')).toBe('dark');
+    expect(schemePreference(null)).toBe('light');
+    expect(schemePreference('sepia')).toBe('light');
   });
 
   it('Match system follows the computer; Light and Dark do not', () => {
@@ -17,16 +18,9 @@ describe('color scheme', () => {
     expect(resolveScheme('dark', true)).toBe('dark');
   });
 
-  it('gives a color as channels for rgba(var(--…-rgb), alpha)', () => {
-    expect(rgbChannels('#0369a1')).toBe('3, 105, 161');
-  });
-
-  it('every accent has a dark and a light shade', () => {
-    for (const [theme, colors] of Object.entries(THEME_ACCENTS)) {
-      if (!colors) continue;
-      expect(colors.dark.accent, theme).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(colors.light.accent, theme).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(colors.light.accent, theme).not.toBe(colors.dark.accent);
-    }
+  it("the browser toolbar matches each scheme's page ground", () => {
+    const dark = css.slice(css.indexOf(":root[data-color-scheme='dark']"));
+    expect(css).toContain(`--jp-bg: ${SCHEME_BACKGROUNDS.light};`);
+    expect(dark).toContain(`--jp-bg: ${SCHEME_BACKGROUNDS.dark};`);
   });
 });

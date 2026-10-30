@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bento dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1e2633}
+a{color:#c2412d;text-decoration:none;font-weight:600}a:hover{color:#9a3020}
+.muted{color:#5b6576}
+.tile{border-radius:28px;box-sizing:border-box;padding:26px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.white{background:#ffffff;box-shadow:0 1px 2px rgba(30,38,51,.06),0 8px 24px rgba(30,38,51,.05)}
+.nav{display:inline-flex;align-items:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;color:#3c4a60;font-weight:600;font-size:14px;background:#ffffff}
+.nav.on{background:#1e2633;color:#ffffff}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:14px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.th{margin:0;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(230px,auto);gap:20px}
+@media (max-width:900px){.bento{grid-template-columns:1fr}.bento>*{grid-column:auto!important;grid-row:auto!important}}
+</style>
+</helmet>
+<div style="min-height: 1200px; background: #eef1f5">
+  <div style="max-width: 1300px; margin: 0 auto; padding: 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px">
+      <div style="flex: 1 1 320px">
+        <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; margin-bottom: 18px"><span style="width: 28px; height: 28px; border-radius: 9px; background: #e8604c"></span>JusttPrint</div>
+        <h1 style="margin: 0; font-size: 40px; font-weight: 800; letter-spacing: -.02em">Good afternoon</h1>
+        <div class="muted" style="font-size: 16px; margin-top: 4px">Thursday 29 October · 1 printing, 2 things need you</div>
+      </div>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 6px">
+        <a class="nav on" href="home.dc.html">Home</a><a class="nav" href="library-bento.dc.html">Library</a><a class="nav" href="filament.dc.html">Filament</a><a class="nav" href="#">Printers</a>
+      </nav>
+    </header>
+
+    <div class="bento">
+      <section class="tile" aria-label="Printing now" style="grid-column: 1 / span 2; grid-row: 1 / span 2; background: #1e2633; color: #ffffff; position: relative; overflow: hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th" style="color: #f2a596">Printing now</h2><span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #c8d0dc"><span style="width: 8px; height: 8px; border-radius: 50%; background: #4ade80"></span>Bambu P1S</span></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: center; flex: 1">
+          <div style="width: 200px; height: 200px; border-radius: 50%; background: conic-gradient(#e8604c 0 223deg, #2b3647 223deg 360deg); display: flex; align-items: center; justify-content: center; flex: none">
+            <div style="width: 164px; height: 164px; border-radius: 50%; background: #1e2633; display: flex; flex-direction: column; align-items: center; justify-content: center"><span style="font-size: 52px; font-weight: 800; line-height: 1">62%</span><span style="font-size: 13px; color: #c8d0dc; margin-top: 6px">1 h 24 m left</span></div>
+          </div>
+          <div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px">
+            <div style="font-size: 32px; font-weight: 800; line-height: 1.1">Flangia_P1-X1</div>
+            <div style="font-size: 15px; color: #c8d0dc">Zack Freedman · done around 3:26 pm</div>
+            <div style="display: flex; gap: 8px; margin-top: 6px" aria-label="Loaded in the AMS">
+              <sc-for list="{{ams}}" as="a" hint-placeholder-count="4"><span style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; border-radius: 14px; background: #2b3647; min-width: 54px"><span style="width: 22px; height: 22px; border-radius: 50%; background: {{a.hex}}; box-shadow: 0 0 0 2px {{a.ring}}"></span><span style="font-size: 12px; font-weight: 700; color: {{a.gc}}">{{a.g}}</span></span></sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px"><button class="btn" style="background: #e8604c; color: #1e2633">Watch camera</button><button class="btn" style="background: #2b3647; color: #ffffff">Pause</button></div>
+      </section>
+
+      <section class="tile" aria-label="Needs you" style="grid-column: 3; grid-row: 1; background: #e8604c; color: #1e2633">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Needs you</h2><span style="width: 32px; height: 32px; border-radius: 50%; background: #1e2633; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800">2</span></div>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="background: #fde6e1; border-radius: 16px; padding: 12px 14px; font-size: 14px; font-weight: 600">Black PLA is 12 g short for Screen Bezel</div>
+          <div style="background: #fde6e1; border-radius: 16px; padding: 12px 14px; font-size: 14px; font-weight: 600">Prusa MK4 nozzle clean is 3 days late</div>
+        </div>
+      </section>
+
+      <section class="tile white" aria-label="Spools" style="grid-column: 4; grid-row: 1 / span 2">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Spools</h2><a href="#" style="font-size: 13px">All 24</a></div>
+        <div style="font-size: 30px; font-weight: 800">18.6 kg</div>
+        <sc-for list="{{spools}}" as="s" hint-placeholder-count="6">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <span style="width: 40px; height: 40px; border-radius: 50%; background: conic-gradient({{s.ring}} 0 {{s.deg}}, #eef1f5 {{s.deg}} 360deg); display: flex; align-items: center; justify-content: center; flex: none"><span style="width: 28px; height: 28px; border-radius: 50%; background: {{s.hex}}; border: 3px solid #ffffff; box-sizing: border-box"></span></span>
+            <span style="flex: 1; font-size: 14px; font-weight: 600">{{s.name}}</span>
+            <span style="font-size: 13px; font-weight: 800; color: {{s.gc}}">{{s.g}}</span>
+          </div>
+        </sc-for>
+      </section>
+
+      <section class="tile white" aria-label="Up next" style="grid-column: 3; grid-row: 2">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Up next</h2><a href="#" style="font-size: 13px">Queue</a></div>
+        <div style="display: flex; align-items: center; gap: 14px">
+          <svg width="64" height="64" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 8 52 20 30 32 8 20z" fill="#b5bac2"/><path d="M8 20 30 32v22L8 42z" fill="#8b8f96"/><path d="M52 20 30 32v22l22-12z" fill="#6d7179"/></svg>
+          <div><div style="font-size: 18px; font-weight: 800">Screen Bezel</div><div class="muted" style="font-size: 13px">Plate 1 · 3 h 40 m</div></div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center"><span style="width: 18px; height: 18px; border-radius: 50%; background: #8b8f96"></span><span style="width: 18px; height: 18px; border-radius: 50%; background: #111111; box-shadow: 0 0 0 3px #e8604c"></span><span class="muted" style="font-size: 13px; margin-left: 6px">112 g · $2.31</span></div>
+      </section>
+
+      <section class="tile white" aria-label="New in your library" style="grid-column: 1 / span 2; grid-row: 3">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">New in your library</h2><a href="#" style="font-size: 13px">12 this week</a></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+          <sc-for list="{{models}}" as="m" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="height: 110px; border-radius: 18px; background: {{m.bg}}; display: flex; align-items: center; justify-content: center"><svg width="56" height="56" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 8 52 20 30 32 8 20z" fill="{{m.top}}"/><path d="M8 20 30 32v22L8 42z" fill="{{m.left}}"/><path d="M52 20 30 32v22l22-12z" fill="{{m.right}}"/></svg></div>
+              <div style="font-size: 13px; font-weight: 700">{{m.name}}</div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section class="tile white" aria-label="This month" style="grid-column: 3; grid-row: 3">
+        <h2 class="th">This month</h2>
+        <div style="display: flex; gap: 20px"><div><div style="font-size: 28px; font-weight: 800">1.4 kg</div><div class="muted" style="font-size: 13px">filament used</div></div><div><div style="font-size: 28px; font-weight: 800">83%</div><div class="muted" style="font-size: 13px">prints worked</div></div></div>
+        <div style="display: flex; align-items: flex-end; gap: 6px; height: 60px; margin-top: auto" role="img" aria-label="Prints per week, rising from 4 to 9">
+          <span style="flex: 1; height: 44%; background: #e2e7ee; border-radius: 6px"></span><span style="flex: 1; height: 56%; background: #e2e7ee; border-radius: 6px"></span><span style="flex: 1; height: 67%; background: #e2e7ee; border-radius: 6px"></span><span style="flex: 1; height: 100%; background: #e8604c; border-radius: 6px"></span>
+        </div>
+      </section>
+
+      <section class="tile" aria-label="Other printers" style="grid-column: 4; grid-row: 3; background: #e2e7ee">
+        <h2 class="th">Other printers</h2>
+        <div style="display: flex; align-items: center; gap: 12px"><span style="width: 36px; height: 36px; border-radius: 12px; background: #ffffff; display: flex; align-items: center; justify-content: center"><span style="width: 14px; height: 14px; border-radius: 50%; background: #2f6fdf"></span></span><div style="flex: 1"><div style="font-weight: 700; font-size: 15px">Ender 3 S1</div><div class="muted" style="font-size: 13px">Free · blue loaded</div></div></div>
+        <div style="display: flex; align-items: center; gap: 12px"><span style="width: 36px; height: 36px; border-radius: 12px; background: #ffffff; display: flex; align-items: center; justify-content: center"><span style="width: 14px; height: 14px; border-radius: 50%; background: #e8732c"></span></span><div style="flex: 1"><div style="font-weight: 700; font-size: 15px">Prusa MK4</div><div style="font-size: 13px; color: #9a3020; font-weight: 600">Needs a nozzle clean</div></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sp = (name, hex, g) => ({ name, hex, g: g + ' g', deg: Math.round(g / 1000 * 360) + 'deg', ring: g < 50 ? '#e8604c' : '#9aa4b4', gc: g < 50 ? '#c2412d' : '#1e2633' });
+    return {
+      ams: [{ hex: '#8b8f96', g: '640', ring: '#2b3647', gc: '#ffffff' }, { hex: '#d23b3b', g: '210', ring: '#2b3647', gc: '#ffffff' }, { hex: '#f5f5f0', g: '260', ring: '#2b3647', gc: '#ffffff' }, { hex: '#111111', g: '18', ring: '#e8604c', gc: '#f2a596' }],
+      spools: [sp('PLA Blue', '#2f6fdf', 720), sp('PETG Gray', '#8b8f96', 640), sp('Silk Gold', '#d4a640', 580), sp('PETG Orange', '#e8732c', 455), sp('PLA White', '#f5f5f0', 260), sp('PLA Red', '#d23b3b', 210), sp('PLA Black', '#111111', 18)],
+      models: [
+        { name: 'Godzilla × Kitty', bg: '#dde6f5', top: '#7ea6ef', left: '#2f6fdf', right: '#2452a8' },
+        { name: 'Dragon Egg Box', bg: '#f6edd9', top: '#ecd08e', left: '#d4a640', right: '#a9812b' },
+        { name: 'SpeedBoat Race', bg: '#e0f0e4', top: '#7cc78c', left: '#2f9e44', right: '#227733' },
+        { name: 'Axolotl Keychain', bg: '#fde4ef', top: '#f9b0d4', left: '#f472b6', right: '#c9528f' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

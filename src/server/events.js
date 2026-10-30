@@ -28,6 +28,8 @@ function broadcast(channel, ...args) {
   } catch (error) {
     console.warn(`[Activity] ${channel}: ${error.message}`);
   }
+  // New or changed files: read their plates' filament soon (plate-filament-job.js).
+  if (channel === 'refresh-grid') require('./plate-filament-job').libraryChanged();
   broadcastRaw(channel, ...args);
 }
 

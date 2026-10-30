@@ -25,8 +25,14 @@ import { selection } from '../selection';
 import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
+import { LoadedSection, LoadedStrip } from '../printers/LoadedFilament';
+import { useCan } from '../session';
+import type { PrinterLoads } from '../api';
 
 const loadPrinters = () => printerApi.list();
+const loadAllLoads = () => printerApi.loads();
+
+const CONNECTION_LABELS: Record<string, string> = { bambu: 'Bambu Lab', moonraker: 'Moonraker', octoprint: 'OctoPrint' };
 
 /** A printer's web page as a link target (http:// added when the scheme is missing), or null. */
 export function webLink(url: string | null | undefined): string | null {
@@ -51,7 +57,7 @@ const makeModel = (printer: Printer) => [printer.manufacturer, printer.model].fi
 /** Things that changed printers elsewhere (the Printer Manager dialog listens to it too). */
 const printersChanged = () => document.dispatchEvent(new CustomEvent('printers-changed'));
 
-function PrinterCard({ printer, selected, onSelect }: { printer: Printer; selected: boolean; onSelect: () => void }) {
+function PrinterCard({ printer, selected, onSelect, loads }: { printer: Printer; selected: boolean; onSelect: () => void; loads?: PrinterLoads | null }) {
   const due = Number(printer.due_reminders_count) || 0;
   const prints = Number(printer.total_prints) || 0;
   return (
@@ -67,7 +73,11 @@ function PrinterCard({ printer, selected, onSelect }: { printer: Printer; select
             {printer.printer_type && <span className="jp-badge">{printer.printer_type}</span>}
             {printer.firmware_type && <span className="jp-badge">{printer.firmware_type}</span>}
             {klipperExtra(printer) && <span className="jp-badge">Klipper</span>}
+            {printer.connection_type && CONNECTION_LABELS[printer.connection_type] && (
+              <span className="jp-badge">{CONNECTION_LABELS[printer.connection_type]}</span>
+            )}
           </span>
+          <LoadedStrip loads={loads} />
         </span>
         <span className="jp-printer-card__side">
           {due > 0 && (
@@ -108,7 +118,7 @@ interface Detail {
 }
 
 /** The selected printer (spec §44): details, maintenance and its recent prints. */
-function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: () => void }) {
+function PrinterDetail({ printer, onDeleted, loads }: { printer: Printer; onDeleted: () => void; loads: PrinterLoads | null }) {
   const load = useCallback(async (): Promise<Detail> => {
     const [reminders, logs, prints] = await Promise.all([
       printerApi.reminders(printer.id).catch(() => []),
@@ -177,6 +187,8 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
         </EditOnly>
       </div>
 
+      <LoadedSection printerId={printer.id} loads={loads} />
+
       <section className="jp-printer-detail__section">
         <h3 className="jp-details__heading">Details</h3>
         <div className="jp-props">
@@ -198,6 +210,13 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
             {(Number(printer.total_prints) || 0).toLocaleString()}
             {printer.last_printed_at ? `, last ${timeAgo(printer.last_printed_at)}` : ''}
           </Prop>
+          {printer.connection_type && printer.connection_type !== 'manual' && (
+            <Prop label="Connection">
+              {CONNECTION_LABELS[printer.connection_type] || printer.connection_type}
+              {printer.serial_number ? ` · ${printer.serial_number}` : ''}
+              {printer.has_api_secret ? ' · access code saved' : ''}
+            </Prop>
+          )}
           {printer.created_at && <Prop label="Added">{day(printer.created_at)}</Prop>}
           {printer.notes && (
             <Prop label="Notes">
@@ -311,6 +330,23 @@ function PrinterDetail({ printer, onDeleted }: { printer: Printer; onDeleted: ()
 export function PrintersPage({ section }: { section: string }) {
   // Reloads after any change, also those saved in the Printer Manager dialog.
   const list = useLibraryData(loadPrinters);
+  const allLoads = useLibraryData(loadAllLoads);
+  const loadsOf = (id: number) => allLoads?.find((loads) => loads.printerId === id) || null;
+  const isAdmin = useCan('admin');
+  const importBambu = async () => {
+    try {
+      const result = await printerApi.importBambu();
+      printersChanged();
+      await showMessage(
+        'Bambu Lab printers',
+        result.total
+          ? `${result.total} ${result.total === 1 ? 'printer' : 'printers'} on your Bambu Lab account: ${result.created} added, ${result.updated} updated, ${result.unchanged} already up to date.`
+          : 'No printers on your Bambu Lab account.'
+      );
+    } catch (error) {
+      await showMessage('Bambu Lab printers', (error as Error)?.message || String(error));
+    }
+  };
 
   const selectedId = Number(section) || list?.[0]?.id || null;
   const selected = list?.find((printer) => printer.id === selectedId) || null;
@@ -329,6 +365,15 @@ export function PrintersPage({ section }: { section: string }) {
           </p>
         </div>
         <div className="jp-printers__header-actions">
+          {isAdmin && (
+            <Button
+              onClick={() => void importBambu()}
+              id="jp-import-bambu"
+              title="The printers on the Bambu Lab account JusttPrint is signed in with (Settings → Integrations → MakerWorld)"
+            >
+              Import from Bambu Lab
+            </Button>
+          )}
           <EditOnly>
             <Button icon={Package} onClick={() => window.openPartsStock?.()}>
               Parts
@@ -369,12 +414,13 @@ export function PrintersPage({ section }: { section: string }) {
                 printer={printer}
                 selected={printer.id === selected?.id}
                 onSelect={() => navigate('printers', String(printer.id))}
+                loads={loadsOf(printer.id)}
               />
             ))}
           </ul>
           {selected && (
             <div className="jp-card jp-printers__detail">
-              <PrinterDetail printer={selected} onDeleted={() => navigate('printers')} />
+              <PrinterDetail printer={selected} onDeleted={() => navigate('printers')} loads={loadsOf(selected.id)} />
             </div>
           )}
         </div>

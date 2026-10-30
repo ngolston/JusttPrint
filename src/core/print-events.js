@@ -420,9 +420,19 @@ function logPrintEvent(db, payload) {
       .run(modelId, printedAt, outcome, quantity, notes || null, createdAt, printerId);
     const eventId = insert.lastInsertRowid;
     applyPartUsage(db, eventId, partsUsage, quantity);
+    // Filament taken off the spools it came from (docs/merge-10.md, Phase 4).
+    if (Array.isArray(payload.spools) && payload.spools.length) {
+      require('./spool-usage').applySpoolUsage(db, eventId, payload.spools, { printedAt, plateIndex: payload.plateIndex });
+    }
+    const queueHas = hasQueue(db);
     const current = db.prepare('SELECT print_status FROM models WHERE id = ?').get(modelId);
     const nextStatus = statusAfterOutcome(current?.print_status, outcome);
     db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(nextStatus, modelId);
+    // One queued item of this model is done (Phase 6); it stays Queued while others remain.
+    if (queueHas && outcome !== 'cancelled') {
+      const plate = Number(payload.plateIndex);
+      require('./print-queue').printLogged(db, modelId, Number.isInteger(plate) && plate > 0 ? plate : null);
+    }
     const derived = refreshPrintDerivedFields(db, modelId);
     return { eventId, model: derived };
   })();
@@ -434,11 +444,12 @@ function logPrintEventsBatch(db, payload) {
   const modelIds = Array.isArray(payload?.modelIds) ? payload.modelIds.filter((id) => Number(id) > 0) : [];
   const results = [];
   db.transaction(() => {
+    // Spools are logged for one model at a time (Log Print on one model), not for each of many.
     for (const filePath of filePaths) {
-      results.push(logPrintEvent(db, { ...payload, filePath }));
+      results.push(logPrintEvent(db, { ...payload, spools: undefined, filePath }));
     }
     for (const modelId of modelIds) {
-      results.push(logPrintEvent(db, { ...payload, modelId }));
+      results.push(logPrintEvent(db, { ...payload, spools: undefined, modelId }));
     }
   })();
   return results;
@@ -451,6 +462,7 @@ function deletePrintEvent(db, eventId) {
     const row = db.prepare('SELECT id, model_id, outcome FROM print_events WHERE id = ?').get(id);
     if (!row) throw new Error('Print event not found');
     restorePartUsage(db, id);
+    require('./spool-usage').restoreSpoolUsage(db, id);
     db.prepare('DELETE FROM print_events WHERE id = ?').run(id);
     let model = refreshPrintDerivedFields(db, row.model_id);
     if (row.outcome === 'printed' && model && Number(model.print_count) === 0 && model.print_status === 'printed') {
@@ -467,8 +479,15 @@ function setPrintStatus(db, payload) {
   const status = normalizePrintStatus(payload.printStatus || payload.status);
   return db.transaction(() => {
     db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(status, modelId);
+    // Queued means in the queue (Phase 6): rows follow the status.
+    if (hasQueue(db)) require('./print-queue').syncWithStatus(db);
     return refreshPrintDerivedFields(db, modelId);
   })();
+}
+
+/** The 10.0 print queue exists (filament-schema.js; older test databases may not have it). */
+function hasQueue(db) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'print_queue'").get();
 }
 
 function setPrintStatusBatch(db, payload) {
@@ -556,9 +575,14 @@ function getPrintEvents(db, modelId) {
     else partsByEventId.set(row.event_id, [part]);
   }
 
+  const spoolsByEventId = require('./spool-usage').spoolsForEvents(
+    db,
+    events.map((event) => event.id)
+  );
   return events.map((event) => ({
     ...event,
-    parts: partsByEventId.get(event.id) || []
+    parts: partsByEventId.get(event.id) || [],
+    spools: spoolsByEventId.get(event.id) || []
   }));
 }
 

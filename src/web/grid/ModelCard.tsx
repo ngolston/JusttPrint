@@ -1,3 +1,4 @@
+import { ColorDot, FitBadge } from '../components/Filament';
 import {
   useEffect,
   useLayoutEffect,
@@ -651,7 +652,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
             className={`file-name${zipFile ? ' zip-file' : ''}`}
             data-list-col="name"
             title={name}
-            ref={importantColor(zipFile ? 'var(--jp-success)' : 'var(--jp-text)')}
+            ref={importantColor(zipFile ? 'var(--jp-success-text)' : 'var(--jp-text)')}
             style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
           >
             {name}
@@ -688,7 +689,7 @@ export function ModelCard({ host, model, view, layoutKey, index, parentGroupKey,
               title={directory ? host.directoryFullPath(model.filePath) || directory : undefined}
               style={{
                 ...small,
-                color: directory ? 'var(--jp-accent)' : 'var(--jp-text-3)',
+                color: directory ? 'var(--jp-accent-text)' : 'var(--jp-text-3)',
                 cursor: directory ? 'pointer' : 'default',
                 fontWeight: directory ? 500 : 400,
                 flex: 1,
@@ -911,6 +912,13 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
         ) : (
           <span className="jp-model-card__byline" />
         )}
+        {model.fit?.colors && model.fit.colors.length > 0 && (
+          <span className="jp-model-card__dots">
+            {model.fit.colors.map((c, index) => (
+              <ColorDot key={`${c.color}-${index}`} color={c.color || '#9aa4b4'} short={!c.ok} size={12} name={`${c.name}${c.ok ? '' : ', not enough'}`} />
+            ))}
+          </span>
+        )}
         {/* New, Not organized and Archive sit with the file type, not over the picture (9.6.1: the
             picture's corners hold the checkbox, Open, ♡ and ⋯). */}
         <div className="jp-model-card__badges">
@@ -920,6 +928,13 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
             <span className="jp-badge" title="File type">
               {format}
             </span>
+          )}
+          {model.fit && (
+            <FitBadge
+              missing={model.fit.missing}
+              className="jp-model-card__fit"
+              title={model.fit.ready ? 'Your spools have enough of every color it needs' : `Not enough ${model.fit.missing.join(', ')} filament on your spools`}
+            />
           )}
           {host.isNew(model) && (
             <span className="jp-badge new-status jp-model-card__flag" title="New model — clears once you edit it">

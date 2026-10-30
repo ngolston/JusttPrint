@@ -46,6 +46,7 @@ function closeDatabaseOnQuit() {
   databaseClosedOnQuit = true;
   autoBackup.stop();
   require('./notifications').stop();
+  require('./low-stock-alerts').stop();
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();
@@ -160,6 +161,10 @@ async function start() {
   startServerStlHomeScans();
   startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });
+  // Low-stock alerts (Phase 8).
+  require('./low-stock-alerts').start();
+  // What each 3MF's plates need, for the filament check (docs/merge-10.md, Phase 4).
+  require('./plate-filament-job').startup();
   require('./notifications').startReminderChecks();
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');

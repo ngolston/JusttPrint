@@ -35,7 +35,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 1. Start the container, open `http://<docker-host-ip>:5000` and log in as `admin` with the `JUSTTPRINT_PASSWORD` password (or the one printed in `docker logs`).
 2. Choose your models folders: while none is set, JusttPrint asks after you log in (**Choose your model folders**: tick the suggested folders, or **Add another folder…**, then **Scan**). Later, change them under **Settings → Scanning → STL Home** (or upload models, see [Uploading models](#uploading-models)): **Browse…** shows the folders mounted into the container (such as `/mnt/models`), or type the container path. JusttPrint scans it right away, watches it so new and deleted files show up within seconds, and scans it again on a schedule (every 60 minutes unless you change it) for anything watching misses, such as changes on a network share. **Scan Library** in the sidebar scans again at any time.
 3. Thumbnails are rendered in the background; you can use the library while they appear.
-4. Optional: pick light or dark and an accent color under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
+4. Optional: pick light or dark under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
 
 **Help → Quick Start Guide** shows a short tour in the app.
 
@@ -43,7 +43,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 
 ![Home](images/home.png)
 
-Home greets you with your library's figures (models, printed, in queue, printers; click one to open it), a render of the model you printed last, **Recent Activity** (logged prints and newly added models), **Your Printers** with maintenance reminders that are due, and the models added most recently.
+Home greets you with tiles, each shown when it has something to say: **Your library** (models, printed, in queue, printers; click one to open it, with a render of the model you printed last), **Needs you** (queued prints short of filament, maintenance due, nearly empty spools; click one to go there), **Spools** (grams on hand and the fullest spools), **Up next** (the next queued print and whether your spools cover it), **Printing now** (with Log Print), **New in your library**, **This month** (prints, how many worked, filament used, prints per week) and **Printers** (what each has loaded, or maintenance due). Then **Recent Activity** (logged prints and newly added models) and the models added most recently.
 
 Below them, when there is something to show:
 
@@ -53,7 +53,11 @@ Below them, when there is something to show:
 
 ## Library
 
-The library shows your models as cards: preview, name, designer (or folder), file type and print status. Hover a card for **Favorite**, **More** (the model menu) and the star rating.
+The library shows your models as cards: preview, name, designer (or folder), file type, print status and, once you have spools, **Ready to print** or what it needs, with the colors it needs as dots (a ringed one is short). Hover a card for **Favorite**, **More** (the model menu) and the star rating.
+
+- **Categories**: the categories that have models, as tabs; choose one for its models and its subcategories under it, **All** for every model.
+- **Banners** (the whole library): **Printable right now** shows only the models your spools cover (click again for all), **New this week** the models added in the last 7 days.
+- **Fits my filament** (next to the tabs, once something fits) shows only what you can print with the spools on hand.
 
 - **Tabs**: **All Models**, **Printed**, **Unprinted**, **Queue** (queued or printing) and **Favorites**. The count next to them is the number of models shown.
 - **Views**: **Grid** (cards), **Wall** (large previews only; the tile size is next to the view buttons) and **List** (one row per model with columns you can show, hide and resize).
@@ -90,6 +94,8 @@ Models that belong together (a set, a kit, a multi-part print) can be **merged**
 
 A model's **Title** is the name cards and its page show instead of its file name (hover over a card's name for the file's). A 3MF's own title fills it when the model is added (**Settings → Scanning → File Types → 3MF Metadata**), and you change it in the details, **Edit** or Multi-edit. Search, the **Title** filter and sort, Organize Library's folder levels and the Metadata Manager use it too.
 
+A model's own page (**Open** on its card) also has **Print this model** at the top of the side column, once its filament is known and you have spools: choose all plates or one (with their grams), see which spool gives each color and what is left or short, see which printers already have the colors loaded (or how many spools to swap), and **Add to queue** with that plate and printer, or **Log a print**.
+
 Click a model to see it in the details panel, which shows the sections of its page in one column:
 
 - **Name, designer**, and the model it is merged into, if it is.
@@ -117,14 +123,39 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 ![Print Queue](images/queue.png)
 
-- **Queue** lists **Printing now**, **Up next** (queued models; **Start** sets one to Printing, × takes it out of the queue) and **Completed** (recent successful prints; ↻ queues one again).
-- **Printers** keeps your printers: make and model, type, firmware, print count and last print. Select one for its web page (**Open Web UI**), maintenance reminders and log, and recent prints. **Add Printer**, **Edit** and **Maintenance** open the printer forms; **Parts** opens the Parts Manager (screws, bearings and other stock that logged prints use up).
+- **Queue** lists **Printing now**, **Up next** and **Completed** (recent successful prints; ↻ queues one again). Up next is in the order you print: the arrows move an item, and each item can be one plate of a 3MF and one printer. Each says **Ready to print** or what it needs (**Filament** shows which spool gives each color and what is left), counting what the prints before it will use. **Start** moves an item to Printing now, the copy button queues another, × takes it out. Setting a model's status to Queued anywhere adds it at the end; logging a print finishes one of its items. **Home** shows what is up next.
+- **Printers** keeps your printers: make and model, type, firmware, print count and last print, and what is loaded in them (rings on each printer). On a printer's page, **Filament loaded** shows its AMS units and its own holder: click a slot to load a spool from the Filament page (one loaded elsewhere moves) or **Empty it**; **Add AMS** adds a unit with four slots, and **Rename**, **Humidity** and the bin manage one. The printer form also keeps the connection (Bambu Lab, Moonraker, OctoPrint), serial number, address and access code or API key; the code stays on the server. Admins can **Import from Bambu Lab**: the printers on the Bambu Lab account signed in under Settings → Integrations → MakerWorld are added (with an AMS) or brought up to date. Select one for its web page (**Open Web UI**), maintenance reminders and log, and recent prints. **Add Printer**, **Edit** and **Maintenance** open the printer forms; **Parts** opens the Parts Manager (screws, bearings and other stock that logged prints use up).
 
 ![Printers](images/printers.png)
+
+### Filament
+
+**Filament** in the sidebar keeps the spools you own and how much is left on each, shared by everyone on the library. **On hand** adds up the grams of every spool that is not archived, with your colors and materials; **Dryer** shows what is drying and how long it has left.
+
+- **Add from catalogue** searches about 27,000 filaments (brand, material, color: *bambu pla basic black*) from [3dfilamentprofiles.com](https://3dfilamentprofiles.com); choosing one fills in the spool form, with the spool's empty weight when the catalogue knows it. **Add by hand** starts from an empty form.
+- **Import from Spoolman** reads a Spoolman export (JSON, or what Spoolman's `/api/v1/spool` returns): vendors become brands, filaments become filaments, locations become places. Importing the same file again skips the spools already here.
+- Click a spool for its details. **Weigh** it on a kitchen scale: on its spool (enter the empty spool's weight under **Edit** first) or the filament alone; JusttPrint works out what is left and keeps every weighing. **Dry** starts a drying session (temperature and time come from the filament when it has them); **Finish drying** ends it, with the humidity after if you measured it. **Move** puts it in a place (a shelf, a dry box), **Archive** keeps a used-up spool for your records and takes it out of every printer, **Delete** removes it.
+- **Places** lists your shelves and dry boxes. The chips above the spools show those running low (under 300 g), drying, of one material, or archived.
+
+Viewers see the spools; editors and admins change them.
+
+**Running low.** A spool is low, then critical, when its share left falls under a rule's line: 20 % and 10 % until you set your own under **Settings → Printers → Alerts & webhooks** (a rule can be for one material, and send to Discord or email too). JusttPrint tells each spool once, as a notification (and again if it turns critical); weigh or refill it and it starts over. The **Reorder** tile lists them; **Open shopping list** shows each with its shop, the price you paid and **Buy again**, and **Copy the list** puts it on the clipboard. **Check now** in the settings checks at once instead of within the hour.
+
+**Labels.** **Labels** prints a sticker per spool with a QR code: choose the spools and a size (40×30, 50×30 or 40×12 mm), then **Print**. Scanning the code opens the spool on the Filament page (log in on the phone first).
+
+**Coming from FilamentHub?** Admins: **Settings → Integrations → Import from FilamentHub**, then choose `filamenthub.db` from FilamentHub's data volume or one of its backup ZIPs. **See what comes in** lists, per kind, how many are in the file and how many are new, and which JusttPrint account each FilamentHub user becomes (a matching name, or a new account with a random password: set one under Users). **Import** brings them over: spools and filaments, places, weighings, drying, printers with their AMS, logged prints of files in your library, low-stock rules, webhooks, and the email and Discord settings when you have none yet. Projects, print photos and API keys are left out. Importing the same file again adds only what is new. (FilamentHub's JSON export is a Spoolman file: use **Import from Spoolman** for it.)
+
+**Webhooks** (admins, same settings): each address gets a JSON POST when a spool runs low, a print is logged or models are added (tick the events, or none for all). With a secret, the request carries `X-JusttPrint-Signature: sha256=…`, the HMAC-SHA256 of the body with the secret, so the receiver can check it came from JusttPrint. **Send test** posts a test event and shows what the address answered.
+
+**Ready to print.** JusttPrint reads what each 3MF's plates need, in the background (a progress bar shows while it reads): a file sliced in Bambu Studio or OrcaSlicer gives each plate's colors, materials and grams; an unsliced project gives the colors its objects use (all of them when it is painted), without grams; a model saved from MakerWorld whose file says nothing uses its print profile. Each color is matched to a spool of the same material and a close color. Once you have spools, cards say **Ready to print** or **Need black** (the colors you are short of), and **Fits my filament** in the filters shows only the models you can print now.
+
+**Log Print** on one model has **Filament used**: a spool and the grams per copy for each color the ticked plates need, filled in from that check (spools loaded in the printer you choose come first). Change a spool or the grams, remove a row or **Add a spool**; saving takes the grams off the spools, and deleting the logged print puts them back.
 
 ### Statistics
 
 **Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. Everyone can open Statistics.
+
+**Filament used** counts the grams your logged prints took off your spools (prints logged with their spools), per month, and the models, printers and materials that used most. The cost is each print's grams at its spool's price (price over the grams the spool held when new); spools without a price add grams but no cost. Admins choose the currency under **Settings → Printers → Filament settings**; prices, the shopping list and what your spools are worth show in it. Amounts are not converted.
 
 ## Uploading models
 
@@ -245,7 +276,7 @@ An admin adds people under **Settings → Authentication → Users** with a user
 | Editor | Also edit models, tags, notes and the print log, upload and add links, move, trash and delete files, scan, find duplicates |
 | Admin | Also every setting, backups and restore, Organize, AI setup, HTTPS, the API token and the user accounts |
 
-Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel, light or dark (**Color Scheme**: Dark, Light, or Match the system, which follows your computer's setting) and the accent color (**Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
+Change a role with its menu; **Set Password** gives someone a new password and logs them out everywhere; **Delete** removes the account. There is always at least one admin, and the `JUSTTPRINT_PASSWORD` account stays an admin. Everyone changes their own password from the account menu. Each person keeps their own display preferences: grid or list view, sort order, columns, panel widths, the folder panel, and light or dark (**Color Scheme**: Light, Dark, or Match the system, which follows your computer's setting; **Settings → Appearance → Theme**). New users start with the JusttPrint backend's current ones. Everything else under Settings, including the thumbnail colors, is the same for everyone. Viewers see the details panel without edit controls. MCP clients use the API token, which acts as an admin.
 
 **Guest access** (the switch under the list of users, or `JUSTTPRINT_GUEST_ACCESS=true`) lets people who open JusttPrint without logging in browse, preview and download like a Viewer. Guests keep no settings, cannot edit, and find **Log In** under the account button; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 
@@ -279,7 +310,7 @@ Tips: start with a few models, use **merge** to keep the tags you already have, 
 | Group | What is there |
 |-------|---------------|
 | General | Performance: the largest file a scan processes |
-| Appearance | Theme: accent color, and the background, model color and lighting of thumbnails |
+| Appearance | Theme: light or dark, and the background, model color and lighting of thumbnails |
 | Library | Metadata Manager, Library Stats, View Entire Library, Print Roulette, Clear New Flag, Purge Models |
 | Scanning | STL Home, Organize (the scanned directory, the destination, the folder structure and its steps), File Types (extra types, skipped folders), Scan a Folder |
 | Slicer | Your slicers, and the helper for Send to Slicer |
@@ -303,7 +334,7 @@ Slicers run on your computer, not in the JusttPrint backend. **Open in Slicer** 
 
 ### MCP server
 
-AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints, set thumbnails, list and set categories (`list_categories`, `set_model_category`, `categorize_library`), rename models (`rename_model`), change a model's site details (`get_site_details`, `update_site_details`), and add models from Printables, Thingiverse and MakerWorld links (`import_model_links`, with an optional library folder to download the files into). **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
+AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints, set thumbnails, list and set categories (`list_categories`, `set_model_category`, `categorize_library`), rename models (`rename_model`), change a model's site details (`get_site_details`, `update_site_details`), add models from Printables, Thingiverse and MakerWorld links (`import_model_links`, with an optional library folder to download the files into), and work with your filament: list and weigh spools (`list_spools`, `get_spool`, `weigh_spool`), check a model against your spools (`check_model_filament`), list what you can print now or on one printer without swapping spools (`what_can_i_print`), see the reorder list (`get_reorder_list`), see and add to the queue (`get_print_queue`, `add_to_queue`), get filament used and its cost (`get_filament_stats`), and log a print with the spools it used (`log_print_event` with `spools`). **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
 
 ## Keyboard
 

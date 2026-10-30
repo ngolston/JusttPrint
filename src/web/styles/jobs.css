@@ -126,7 +126,7 @@
 
 .hash-generation-warning {
   background-color: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
   padding: 10px;
   margin-bottom: 8px;
   border-radius: 4px;

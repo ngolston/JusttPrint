@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library browse</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1e2633}
+a{color:#c2412d;text-decoration:none;font-weight:600}a:hover{color:#9a3020}
+.muted{color:#5b6576}
+.nav{display:inline-flex;align-items:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;color:#3c4a60;font-weight:600;font-size:14px}
+.nav:hover{background:#eef1f5;color:#1e2633}
+.nav.on{background:#1e2633;color:#ffffff}
+.cat{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 12px;min-width:92px;min-height:44px;box-sizing:border-box;border-radius:18px;border:0;background:transparent;font:700 13px 'Plus Jakarta Sans',sans-serif;color:#3c4a60;cursor:pointer}
+.cat:hover{background:#ffffff}
+.sub{display:inline-flex;align-items:center;padding:8px 14px;min-height:38px;box-sizing:border-box;border-radius:999px;background:#ffffff;font-size:13px;font-weight:600;color:#3c4a60}
+.sort{display:inline-flex;align-items:center;padding:8px 2px;min-height:44px;box-sizing:border-box;border:0;background:transparent;font:700 15px 'Plus Jakarta Sans',sans-serif;cursor:pointer;border-bottom:3px solid transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:14px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.card{background:#ffffff;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(30,38,51,.06),0 8px 24px rgba(30,38,51,.05)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px}
+.stat{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#5b6576}
+.stat svg{width:14px;height:14px}
+</style>
+</helmet>
+<div style="min-height: 1700px; background: #eef1f5">
+  <header style="background: #ffffff; border-bottom: 1px solid #dde2ea">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 14px 28px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+      <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px"><span style="width: 32px; height: 32px; border-radius: 10px; background: #e8604c; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e2633" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10"/></svg></span>JusttPrint</div>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px">
+        <a class="nav" href="home.dc.html">Home</a><a class="nav on" href="library-browse.dc.html">Library</a><a class="nav" href="filament.dc.html">Filament</a><a class="nav" href="#">Printers</a>
+      </nav>
+      <label style="flex: 1 1 360px; display: flex; align-items: center; gap: 12px; background: #eef1f5; border-radius: 999px; padding: 0 8px 0 20px; min-height: 50px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b6576" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="position: absolute; left: -9999px">Search your library</span>
+        <input type="search" placeholder="Search 412 models, designers, tags…" style="flex: 1; border: 0; background: transparent; font: 15px 'Plus Jakarta Sans',sans-serif; color: #1e2633; outline: none">
+        <span class="pill" style="background: #ffffff; color: #3c4a60; padding: 6px 12px; font-size: 12px">Search by photo</span>
+      </label>
+      <button class="btn" style="background: #e8604c; color: #1e2633"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Upload</button>
+      <button class="btn" style="background: #eef1f5; color: #1e2633">Add from link</button>
+    </div>
+  </header>
+
+  <div style="max-width: 1360px; margin: 0 auto; padding: 18px 28px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+    <nav aria-label="Categories" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="11">
+        <button class="cat" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="background: {{c.bg}}">
+          <span style="width: 48px; height: 48px; border-radius: 16px; background: {{c.tileBg}}; display: flex; align-items: center; justify-content: center">
+            <svg width="26" height="26" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 10 50 21 30 32 10 21z" fill="{{c.top}}"/><path d="M10 21 30 32v20L10 41z" fill="{{c.left}}"/><path d="M50 21 30 32v20l20-11z" fill="{{c.right}}"/></svg>
+          </span>
+          <span style="color: {{c.fg}}; white-space: nowrap">{{c.name}}</span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+      <span class="muted" style="font-size: 13px; font-weight: 700; margin-right: 4px">{{catName}}</span>
+      <sc-for list="{{subs}}" as="s" hint-placeholder-count="5"><a class="sub" href="#">{{s}}</a></sc-for>
+    </div>
+
+    <section aria-label="Highlights" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px">
+      <a href="#" style="grid-column: span 2; border-radius: 26px; background: #1e2633; color: #ffffff; padding: 28px 30px; display: flex; align-items: center; gap: 24px; min-height: 180px; position: relative; overflow: hidden">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; z-index: 1">
+          <span class="pill" style="background: #e8604c; color: #1e2633; align-self: flex-start">Printable right now</span>
+          <span style="font-size: 30px; font-weight: 800; line-height: 1.1">31 models match the<br>spools you have loaded</span>
+          <span style="font-size: 14px; color: #c8d0dc; font-weight: 500">No swaps, no shopping. Start one in a click.</span>
+        </div>
+        <svg width="220" height="160" viewBox="0 0 220 160" aria-hidden="true" style="flex: none">
+          <g transform="translate(20 30)"><path d="M40 0 80 22 40 44 0 22z" fill="#7ea6ef"/><path d="M0 22 40 44v40L0 62z" fill="#2f6fdf"/><path d="M80 22 40 44v40l40-22z" fill="#2452a8"/></g>
+          <g transform="translate(110 10) scale(.8)"><path d="M40 0 80 22 40 44 0 22z" fill="#f2a877"/><path d="M0 22 40 44v40L0 62z" fill="#e8732c"/><path d="M80 22 40 44v40l40-22z" fill="#b85a20"/></g>
+          <g transform="translate(120 80) scale(.7)"><path d="M40 0 80 22 40 44 0 22z" fill="#7cc78c"/><path d="M0 22 40 44v40L0 62z" fill="#2f9e44"/><path d="M80 22 40 44v40l40-22z" fill="#227733"/></g>
+        </svg>
+      </a>
+      <a href="#" style="border-radius: 26px; background: #e8604c; color: #1e2633; padding: 26px; display: flex; flex-direction: column; gap: 8px; min-height: 180px">
+        <span class="pill" style="background: #1e2633; color: #ffffff; align-self: flex-start">New this week</span>
+        <span style="font-size: 44px; font-weight: 800; line-height: 1">12</span>
+        <span style="font-size: 15px; font-weight: 700">models arrived from your folders and links. 4 still need tags.</span>
+      </a>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; border-bottom: 1px solid #dde2ea">
+      <sc-for list="{{sorts}}" as="s" hint-placeholder-count="4">
+        <button class="sort" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="color: {{s.fg}}; border-bottom-color: {{s.line}}">{{s.label}}</button>
+      </sc-for>
+      <span style="flex: 1"></span>
+      <button onClick="{{toggleFit}}" aria-pressed="{{fitPressed}}" style="display: inline-flex; align-items: center; gap: 10px; border: 0; background: transparent; font: 700 14px 'Plus Jakarta Sans',sans-serif; color: #1e2633; cursor: pointer; min-height: 44px">
+        <span style="width: 42px; height: 24px; border-radius: 12px; background: {{fitTrack}}; position: relative; display: inline-block"><span style="position: absolute; top: 3px; left: {{fitKnob}}; width: 18px; height: 18px; border-radius: 50%; background: #ffffff"></span></span>
+        Fits my filament
+      </button>
+      <span class="muted" style="font-size: 13px; font-weight: 600">{{count}}</span>
+    </div>
+
+    <section aria-label="Models" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 20px">
+      <sc-for list="{{models}}" as="m" hint-placeholder-count="10">
+        <a class="card" href="model-page.dc.html" style="color: #1e2633">
+          <div style="aspect-ratio: 4 / 3; background: {{m.bg}}; position: relative; display: flex; align-items: center; justify-content: center">
+            <svg width="120" height="110" viewBox="0 0 120 110" aria-hidden="true">
+              <g transform="{{m.t1}}"><path d="M40 0 80 22 40 44 0 22z" fill="{{m.top}}"/><path d="M0 22 40 44v40L0 62z" fill="{{m.left}}"/><path d="M80 22 40 44v40l40-22z" fill="{{m.right}}"/></g>
+              <g transform="{{m.t2}}" opacity="{{m.second}}"><path d="M40 0 80 22 40 44 0 22z" fill="{{m.top2}}"/><path d="M0 22 40 44v40L0 62z" fill="{{m.left2}}"/><path d="M80 22 40 44v40l40-22z" fill="{{m.right2}}"/></g>
+            </svg>
+            <span class="pill" style="position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,.92); color: #3c4a60">{{m.src}}</span>
+            <span aria-label="{{m.favLabel}}" style="position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center; color: {{m.heart}}; font-size: 16px">♥</span>
+            <span class="pill" style="position: absolute; bottom: 12px; left: 12px; background: {{m.fitBg}}; color: {{m.fitFg}}">{{m.fit}}</span>
+            <span class="pill" style="position: absolute; bottom: 12px; right: 12px; background: rgba(30,38,51,.82); color: #ffffff">{{m.plates}}</span>
+          </div>
+          <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px">
+            <div style="font-size: 15px; font-weight: 800; line-height: 1.3; min-height: 39px">{{m.name}}</div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 24px; height: 24px; border-radius: 50%; background: {{m.av}}; color: #ffffff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">{{m.ini}}</span>
+              <span class="muted" style="font-size: 13px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.by}}</span>
+              <span style="display: flex; gap: 3px"><sc-for list="{{m.dots}}" as="d" hint-placeholder-count="2"><span style="width: 13px; height: 13px; border-radius: 50%; background: {{d.hex}}; box-shadow: 0 0 0 2px {{d.ring}}"></span></sc-for></span>
+            </div>
+            <div style="display: flex; gap: 14px; padding-top: 10px; border-top: 1px solid #eef1f5">
+              <span class="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z"/></svg>{{m.printed}}</span>
+              <span class="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>{{m.g}}</span>
+              <span class="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{m.time}}</span>
+            </div>
+          </div>
+        </a>
+      </sc-for>
+    </section>
+
+    <div style="display: flex; justify-content: center; padding-top: 8px"><button class="btn" style="background: #ffffff; color: #1e2633; padding: 12px 28px">Load more</button></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { cat: 0, sort: 0, fit: false }; }
+  renderVals() {
+    const P = { blue: ['#dde6f5', '#7ea6ef', '#2f6fdf', '#2452a8'], gold: ['#f6edd9', '#ecd08e', '#d4a640', '#a9812b'], green: ['#e0f0e4', '#7cc78c', '#2f9e44', '#227733'], pink: ['#fde4ef', '#f9b0d4', '#f472b6', '#c9528f'], gray: ['#eceff3', '#b5bac2', '#8b8f96', '#6d7179'], red: ['#fde1de', '#ea8a8a', '#d23b3b', '#a32b2b'], orange: ['#fde9dc', '#f2a877', '#e8732c', '#b85a20'], white: ['#e8edf3', '#ffffff', '#e4e4de', '#c9c9c2'], black: ['#e2e7ee', '#5a5f68', '#2b2e33', '#111111'], purple: ['#ece6fd', '#c4b5fd', '#8b5cf6', '#6d3fd6'] };
+    const HEX = { blue: '#2f6fdf', gold: '#d4a640', green: '#2f9e44', pink: '#f472b6', gray: '#8b8f96', red: '#d23b3b', orange: '#e8732c', white: '#f5f5f0', black: '#111111', purple: '#8b5cf6' };
+    const CATS = [
+      ['All', 'gray', []], ['Toys & Games', 'green', ['Figures', 'Puzzles', 'Board games', 'Fidgets', 'Vehicles']], ['Household', 'gray', ['Kitchen', 'Organizers', 'Bathroom', 'Garden', 'Decor']],
+      ['3D Printer', 'orange', ['Upgrades', 'Parts', 'Calibration', 'AMS accessories']], ['Art', 'gold', ['Sculptures', 'Wall art', 'Lithophanes', 'Vases']], ['Tools', 'blue', ['Hand tools', 'Gridfinity', 'Measuring']],
+      ['Miniatures', 'purple', ['Tabletop', 'Terrain', 'Characters']], ['Props & Cosplay', 'red', ['Helmets', 'Weapons', 'Armour']], ['Fashion', 'pink', ['Jewellery', 'Accessories', 'Keychains']],
+      ['Education', 'blue', ['Science', 'Math', 'Anatomy']], ['Hobby & DIY', 'gold', ['Electronics', 'RC', 'Crafts']]
+    ];
+    // name, designer, initials, avatar, cat, src, colours[{c,short}], printed, grams, minutes, plates, fits, fav, added(rank), tall
+    const M = [
+      ['Dragon Egg Box', 'Zack Freedman', 'ZF', '#8b5cf6', 'Art', 'Printables', [['gold'], ['black']], 0, 104, 300, '1 plate', true, true, 3, false],
+      ['Godzilla × Hello Kitty', 'Hugo', 'H', '#2f6fdf', 'Toys & Games', 'Printables', [['blue'], ['white']], 2, 44, 130, '11 parts', true, true, 9, true],
+      ['Screen Bezel', 'Bambu Lab', 'BL', '#1f6b43', '3D Printer', 'MakerWorld', [['gray'], ['black', true]], 3, 189, 355, '2 plates', false, false, 6, false],
+      ['SpeedBoat Race', 'Bambu Lab', 'BL', '#1f6b43', 'Toys & Games', 'MakerWorld', [['green']], 1, 14, 48, '1 plate', true, false, 8, false],
+      ['Axolotl Keychain', 'Designer C', 'DC', '#c2412d', 'Fashion', 'MakerWorld', [['pink'], ['black']], 0, 10, 30, '1 plate', true, true, 1, false],
+      ['gti_fob', 'Cinderwing3D', 'C3', '#3c4a60', 'Hobby & DIY', 'Thingiverse', [['red']], 4, 12, 38, '5 parts', true, false, 11, false],
+      ['Cable Clips ×20', 'Benchy Pack', 'BP', '#b85a20', 'Household', 'Upload', [['orange']], 0, 40, 200, '1 plate', true, false, 2, false],
+      ['Lithophane Lamp', 'Hugo', 'H', '#2f6fdf', 'Art', 'Printables', [['white', true]], 0, 210, 660, '2 plates', false, true, 4, true],
+      ['Desk Organizer', 'Hugo', 'H', '#2f6fdf', 'Household', 'Printables', [['white'], ['gray']], 0, 240, 420, '1 plate', true, false, 5, false],
+      ['Wave Vase', 'Designer B', 'DB', '#227733', 'Art', 'MakerWorld', [['blue']], 0, 96, 330, 'Vase mode', true, false, 7, true],
+      ['BL_P1_Bezel', 'Cinderwing3D', 'C3', '#3c4a60', '3D Printer', 'MakerWorld', [['gray']], 6, 46, 110, '1 plate', true, false, 12, false],
+      ['Mini Mothra', 'Hugo', 'H', '#2f6fdf', 'Miniatures', 'Printables', [['gold'], ['purple', true]], 0, 22, 95, '3 parts', false, true, 10, false],
+      ['Gridfinity Bins ×6', 'Zack Freedman', 'ZF', '#8b5cf6', 'Tools', 'Printables', [['gray']], 2, 180, 380, '1 plate', true, false, 13, false],
+      ['Planter Pot', 'Designer B', 'DB', '#227733', 'Household', 'Upload', [['orange']], 1, 120, 260, '1 plate', true, true, 14, true],
+      ['Mandalorian Helmet', 'Designer F', 'DF', '#a32b2b', 'Props & Cosplay', 'Thingiverse', [['gray'], ['black', true]], 0, 940, 2280, '9 plates', false, true, 15, true]
+    ];
+    const ci = this.state.cat;
+    const catName = CATS[ci][0];
+    let list = M.filter((m) => ci === 0 || m[4] === catName);
+    if (this.state.fit) list = list.filter((m) => m[11]);
+    const si = this.state.sort;
+    const sorted = list.slice();
+    if (si === 1) sorted.sort((a, b) => a[13] - b[13]);
+    if (si === 2) sorted.sort((a, b) => b[7] - a[7]);
+    if (si === 3) { const r = sorted.filter((m) => m[7] === 0); sorted.length = 0; r.forEach((x) => sorted.push(x)); }
+    const time = (mn) => mn >= 60 ? Math.floor(mn / 60) + ' h' + (mn % 60 ? ' ' + (mn % 60) + ' m' : '') : mn + ' m';
+    return {
+      cats: CATS.map(([name, col], k) => {
+        const on = k === ci; const p = P[col];
+        return { name, pressed: on ? 'true' : 'false', bg: on ? '#ffffff' : 'transparent', fg: on ? '#1e2633' : '#3c4a60', tileBg: on ? '#1e2633' : '#ffffff', top: p[1], left: p[2], right: p[3], pick: () => this.setState({ cat: k }) };
+      }),
+      catName: ci === 0 ? 'Popular in your library' : catName,
+      subs: ci === 0 ? ['Never printed', 'Multicolour', 'Under 1 hour', 'Gifts', 'From MakerWorld', 'From Printables'] : CATS[ci][2],
+      sorts: ['For you', 'Newest', 'Most printed', 'Never printed'].map((label, k) => ({ label, pressed: k === si ? 'true' : 'false', fg: k === si ? '#1e2633' : '#5b6576', line: k === si ? '#e8604c' : 'transparent', pick: () => this.setState({ sort: k }) })),
+      toggleFit: () => this.setState({ fit: !this.state.fit }),
+      fitPressed: this.state.fit ? 'true' : 'false', fitTrack: this.state.fit ? '#e8604c' : '#cfd6e0', fitKnob: this.state.fit ? '21px' : '3px',
+      count: sorted.length + (sorted.length === 1 ? ' model' : ' models'),
+      models: sorted.map((m) => {
+        const [name, by, ini, av, , src, cols, printed, g, mins, plates, fits, fav, , tall] = m;
+        const a = P[cols[0][0]]; const b = P[(cols[1] || cols[0])[0]];
+        return {
+          name, by, ini, av, src, plates,
+          bg: a[0], top: a[1], left: a[2], right: a[3], top2: b[1], left2: b[2], right2: b[3],
+          t1: tall ? 'translate(20 24)' : 'translate(20 14)', t2: tall ? 'translate(28 0) scale(.8)' : 'translate(64 54) scale(.55)', second: cols.length > 1 || tall ? '1' : '0',
+          dots: cols.map(([c, short]) => ({ hex: HEX[c], ring: short ? '#e8604c' : '#ffffff' })),
+          fit: fits ? 'Ready to print' : 'Need ' + cols.filter((x) => x[1]).map((x) => x[0]).join(', '),
+          fitBg: fits ? '#e3f3ea' : '#fde6e1', fitFg: fits ? '#1f6b43' : '#9a3020',
+          heart: fav ? '#e8604c' : '#cfd6e0', favLabel: fav ? 'Favourite' : 'Not a favourite',
+          printed: printed ? 'Printed ' + printed + '×' : 'Not yet', g: g + ' g', time: time(mins)
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

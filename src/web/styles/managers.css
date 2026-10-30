@@ -57,14 +57,14 @@
 }
 .jp-mgr__count.is-due {
   background: var(--jp-warning-soft);
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 .jp-tab.is-selected .jp-mgr__count {
   background: var(--jp-on-accent);
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-tab.is-selected .jp-mgr__count.is-due {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 
 /* Elements styled with display: flex still hide with the hidden attribute. */
@@ -156,7 +156,7 @@
   resize: vertical;
 }
 .jp-mgr__required {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-mgr__check {
   display: flex;
@@ -189,13 +189,13 @@
 }
 .jp-mgr__status {
   font-size: var(--jp-text-meta);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 .jp-mgr__status:empty {
   display: none;
 }
 .jp-mgr__status.is-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 
 /* Toolbars and lists of rows (printers, reminders, log entries, parts). */
@@ -273,7 +273,7 @@
 .jp-mgr__klipper {
   border-color: var(--jp-accent-border);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 .jp-mgr__row-actions {
   display: flex;
@@ -381,7 +381,7 @@
 }
 .jp-mgr__chip-remove:hover {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 .jp-mgr .tag-manager-undo,
 .jp-mgr .metadata-editor-undo {

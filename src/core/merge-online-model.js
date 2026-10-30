@@ -40,6 +40,8 @@ function mergeOnlineModel(db, onlinePath, filePaths, mainPath) {
 
     // History, print status and share links stay with one model: the main file.
     if (tableExists(db, 'print_events')) db.prepare('UPDATE print_events SET model_id = ? WHERE model_id = ?').run(main.id, online.id);
+    // Queued prints of the online model are now the main file's (they would go with its row).
+    if (tableExists(db, 'print_queue')) require('./print-queue').moveModelItems(db, online.id, main.id);
     if (online.print_status && online.print_status !== 'unprinted' && (!main.print_status || main.print_status === 'unprinted')) {
       db.prepare('UPDATE models SET print_status = ?, printed = ?, print_count = ?, last_printed_at = ? WHERE id = ?').run(
         online.print_status,

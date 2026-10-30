@@ -17,7 +17,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * Primary (cyan), secondary (graphite with a border), ghost (quiet until hovered) or danger
+ * Primary (coral), secondary (a quiet well with a border), ghost (quiet until hovered) or danger
  * (red, only for destructive actions). Spec §30.
  */
 export function Button({ variant = 'secondary', size = 'md', icon: Icon, iconEnd: IconEnd, className, children, type = 'button', ...rest }: ButtonProps) {

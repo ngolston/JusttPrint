@@ -9,7 +9,10 @@ import {
   Archive,
   BarChart3,
   BookOpen,
+  BellRing,
+  Coins,
   Box,
+  CircleDot,
   FolderHeart,
   FolderInput,
   Shapes,
@@ -49,6 +52,7 @@ import {
   Sparkles,
   Tags,
   Trash2,
+  Upload,
   UserCog,
   Wrench
 } from 'lucide-react';
@@ -119,6 +123,7 @@ export const NAV: NavSection[] = [
     label: 'Printing',
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
+      { id: 'filament', label: 'Filament', icon: CircleDot, page: 'filament' },
       { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
       { id: 'stats', label: 'Statistics', icon: BarChart3, page: 'stats' }
     ]
@@ -365,6 +370,32 @@ export const SETTINGS: SettingsGroup[] = [
         role: 'viewer'
       },
       {
+        id: 'filament',
+        label: 'Filament',
+        description: 'Your spools, how much is left, where they are, drying, and the Spoolman import.',
+        icon: CircleDot,
+        run: () => navigate('filament'),
+        role: 'viewer'
+      },
+      {
+        id: 'filament-settings',
+        label: 'Filament settings',
+        description: 'The currency spool prices are in, for prices, what your spools are worth and filament cost.',
+        icon: Coins,
+        run: open('openFilamentSettings'),
+        embed: { dialog: 'filament-settings-dialog', open: 'openFilamentSettings' },
+        role: 'admin'
+      },
+      {
+        id: 'alerts',
+        label: 'Alerts & webhooks',
+        description: 'When spools run low (rules), Discord and email for the alerts, and webhooks.',
+        icon: BellRing,
+        run: open('openAlertsSettings'),
+        embed: { dialog: 'alerts-settings-dialog', open: 'openAlertsSettings' },
+        role: 'admin'
+      },
+      {
         id: 'parts',
         label: 'Parts Manager',
         description: 'Spare parts stock for your printers.',
@@ -387,6 +418,15 @@ export const SETTINGS: SettingsGroup[] = [
         icon: KeyRound,
         run: open('openThingiverseSettings'),
         embed: { dialog: 'thingiverse-settings-dialog', open: 'openThingiverseSettings' }
+      },
+      {
+        id: 'filamenthub',
+        label: 'Import from FilamentHub',
+        description: 'Bring over FilamentHub’s spools, filaments, printers, prints and alerts from its database or a backup.',
+        icon: Upload,
+        run: open('openFilamentHubImport'),
+        embed: { dialog: 'filamenthub-import-dialog', open: 'openFilamentHubImport' },
+        role: 'admin'
       },
       {
         id: 'makerworld',

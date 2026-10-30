@@ -520,6 +520,18 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         ['never-printed', 'Never printed'],
         ['not-printed', 'Not printed']
       ])}
+      <div className="form-group checkbox-container">
+        <input
+          type="checkbox"
+          id="fits-my-filament"
+          checked={state.fitsMyFilament}
+          disabled={loading}
+          onChange={(e) => applyFilterChange(() => filterActions.setFitsMyFilament(e.target.checked))}
+        />
+        <label htmlFor="fits-my-filament" title="Models your spools have enough of every color for (Filament page)">
+          Fits my filament
+        </label>
+      </div>
       {single('isNew', 'new-select', 'New', [
         ['all', 'All Models'],
         ['new', 'New Models Only'],

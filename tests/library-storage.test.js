@@ -77,7 +77,7 @@ const { libraryCounts } = require('../src/core/library-counts');
     add.run('want', 0, 0);
     d.prepare('INSERT INTO printers DEFAULT VALUES').run();
     // The second queued model was printed before (print_count 2), so it also counts as printed.
-    assert.deepStrictEqual(libraryCounts(d), { models: 6, printed: 3, queued: 2, printing: 1, printers: 1 });
+    assert.deepStrictEqual(libraryCounts(d), { models: 6, printed: 3, queued: 2, printing: 1, printers: 1, readyToPrint: 0, addedThisWeek: 0 });
   });
 
   await test('has zero printers before the printers table exists', () => {

@@ -77,7 +77,21 @@ interface PrinterForm {
   klipper: boolean;
   webUrl: string;
   notes: string;
+  connection: string;
+  serial: string;
+  apiUrl: string;
+  /** Typed only to change the kept key: '' leaves it as it is. */
+  apiSecret: string;
+  hasApiSecret: boolean;
+  clearApiSecret: boolean;
 }
+
+const CONNECTIONS: [string, string][] = [
+  ['manual', 'None (I print by hand)'],
+  ['bambu', 'Bambu Lab'],
+  ['moonraker', 'Moonraker (Klipper)'],
+  ['octoprint', 'OctoPrint']
+];
 
 const EMPTY_PRINTER: PrinterForm = {
   id: null,
@@ -88,7 +102,13 @@ const EMPTY_PRINTER: PrinterForm = {
   firmware: 'Klipper',
   klipper: true,
   webUrl: '',
-  notes: ''
+  notes: '',
+  connection: 'manual',
+  serial: '',
+  apiUrl: '',
+  apiSecret: '',
+  hasApiSecret: false,
+  clearApiSecret: false
 };
 
 function errorText(error: unknown, fallback: string): string {
@@ -207,7 +227,11 @@ export function PrinterManagerDialog() {
         firmwareType: form.firmware || null,
         isKlipper: form.klipper,
         webUrl,
-        notes: form.notes.trim() || null
+        notes: form.notes.trim() || null,
+        connectionType: form.connection,
+        serialNumber: form.serial.trim() || null,
+        apiUrl: form.apiUrl.trim() || null,
+        ...(form.apiSecret.trim() ? { apiSecret: form.apiSecret.trim() } : form.clearApiSecret ? { apiSecret: '' } : {})
       });
       flashForm(form.id ? 'Printer updated successfully' : 'Printer added successfully');
       resetForm();
@@ -229,7 +253,13 @@ export function PrinterManagerDialog() {
       firmware: printer.firmware_type || 'Other',
       klipper: Boolean(printer.is_klipper),
       webUrl: printer.web_url || '',
-      notes: printer.notes || ''
+      notes: printer.notes || '',
+      connection: printer.connection_type || 'manual',
+      serial: printer.serial_number || '',
+      apiUrl: printer.api_url || '',
+      apiSecret: '',
+      hasApiSecret: Boolean(printer.has_api_secret),
+      clearApiSecret: false
     });
     setFormOpen(true);
     setTab('printers');
@@ -434,6 +464,76 @@ export function PrinterManagerDialog() {
                       </Button>
                     </div>
                   </div>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Connection</span>
+                    <select
+                      id="printer-form-connection"
+                      className="jp-input"
+                      value={form.connection}
+                      onChange={(event) => setForm({ ...form, connection: event.target.value })}
+                    >
+                      {CONNECTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="jp-meta">Kept for later: JusttPrint does not talk to printers yet.</span>
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Serial number</span>
+                    <input
+                      type="text"
+                      id="printer-form-serial"
+                      className="jp-input"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={form.serial}
+                      onChange={(event) => setForm({ ...form, serial: event.target.value })}
+                    />
+                  </label>
+                  {form.connection !== 'manual' && (
+                    <>
+                      <label className="jp-mgr__field">
+                        <span className="jp-label">{form.connection === 'bambu' ? 'Printer address (LAN)' : 'API address'}</span>
+                        <input
+                          type="text"
+                          id="printer-form-api-url"
+                          className="jp-input"
+                          autoComplete="off"
+                          spellCheck={false}
+                          placeholder={form.connection === 'bambu' ? '192.168.1.40' : 'http://192.168.1.40:7125'}
+                          value={form.apiUrl}
+                          onChange={(event) => setForm({ ...form, apiUrl: event.target.value })}
+                        />
+                      </label>
+                      <label className="jp-mgr__field">
+                        <span className="jp-label">{form.connection === 'bambu' ? 'Access code' : 'API key'}</span>
+                        <input
+                          type="password"
+                          id="printer-form-api-secret"
+                          className="jp-input"
+                          autoComplete="new-password"
+                          placeholder={form.hasApiSecret && !form.clearApiSecret ? 'Saved (type to replace)' : ''}
+                          value={form.apiSecret}
+                          onChange={(event) => setForm({ ...form, apiSecret: event.target.value, clearApiSecret: false })}
+                        />
+                        {form.hasApiSecret && (
+                          <span className="jp-meta">
+                            Kept on the server only.{' '}
+                            <button
+                              type="button"
+                              className="jp-link"
+                              id="printer-form-clear-secret"
+                              onClick={() => setForm({ ...form, apiSecret: '', clearApiSecret: true })}
+                            >
+                              {form.clearApiSecret ? 'Will be removed' : 'Remove it'}
+                            </button>
+                          </span>
+                        )}
+                      </label>
+                    </>
+                  )}
                   <label className="jp-mgr__field is-wide">
                     <span className="jp-label">Notes or location</span>
                     <input

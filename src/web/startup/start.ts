@@ -9,7 +9,7 @@ import { loadSavedFilterSettings } from '../filters/store';
 import { loadCurrentUser } from '../session';
 import { setFoldersAfterWelcome } from './FirstRun';
 import { needsFolderSetup, openFolderSetup } from './FolderSetup';
-import { applyColorScheme, applyTheme } from './theme';
+import { applyColorScheme } from './theme';
 import { checkForUpdatesOnStartup } from './updates';
 
 declare global {
@@ -31,13 +31,12 @@ async function connected() {
 
 /** The model color, lighting and background used for thumbnails and previews. */
 async function loadRenderSettings() {
-  const [background, color, lighting, theme, scheme] = await Promise.all(
-    ['modelBackgroundColor', 'renderColor', 'renderLighting', 'uiTheme', 'uiColorScheme'].map((key) => settings.get<string | null>(key).catch(() => null))
+  const [background, color, lighting, scheme] = await Promise.all(
+    ['modelBackgroundColor', 'renderColor', 'renderLighting', 'uiColorScheme'].map((key) => settings.get<string | null>(key).catch(() => null))
   );
   if (background) document.documentElement.style.setProperty('--model-background-color', background);
   window.currentRenderColor = color || '#cccccc';
   window.currentRenderLighting = lighting == null ? true : lighting === 'true';
-  applyTheme(theme || 'modern-cyan');
   applyColorScheme(scheme);
 }
 

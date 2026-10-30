@@ -550,6 +550,17 @@ async function apiChecks(base, wsUrl) {
     mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text),
     mcpStats.text.slice(0, 200)
   );
+  // Phase 10: the filament tools answer (an empty library has no spools yet).
+  for (const [name, args, pattern] of [
+    ['list_spools', {}, /\[/],
+    ['what_can_i_print', {}, /count/],
+    ['get_print_queue', {}, /\[/],
+    ['get_reorder_list', {}, /\[/],
+    ['get_filament_stats', { months: 0 }, /currency/]
+  ]) {
+    const res = await mcpTool(name, args);
+    check(`MCP ${name} answers`, res.status === 200 && pattern.test(res.text) && !/"isError":\s*true/.test(res.text), res.text.slice(0, 200));
+  }
   const mcpLinks = await mcpTool('check_model_links', { text: 'see https://www.printables.com/model/3161-3d-benchy and https://www.thingiverse.com/thing:42' });
   check(
     'MCP finds model links in text (Add Links)',
@@ -1105,12 +1116,12 @@ async function browserChecks(base, wsUrl, session) {
     check(
       'the dashboard figures are the library counts',
       await page
-        .waitForFunction((n) => document.querySelector('.jp-hero .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 })
+        .waitForFunction((n) => document.querySelector('.jp-home-library .jp-stat__value')?.textContent === String(n), libraryTotal.models, { timeout: 10000 })
         .then(
           () => true,
           () => false
         ),
-      `${await page.textContent('.jp-hero .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`
+      `${await page.textContent('.jp-home-library .jp-stat__value').catch(() => '')} vs ${libraryTotal.models}`
     );
     check(
       'Recent Activity lists the models added',
@@ -1120,8 +1131,8 @@ async function browserChecks(base, wsUrl, session) {
       )
     );
     check(
-      'Your Printers offers to add a printer',
-      (await page.isVisible('.jp-home__panel :text("No printers yet")')) || (await page.isVisible('.jp-printer-list'))
+      'the Printers tile offers to add a printer',
+      (await page.isVisible('.jp-home-printers :text("No printers yet")')) || (await page.isVisible('.jp-home-printers .jp-printer-list'))
     );
     check(
       'the dashboard draws a library model',
@@ -1157,7 +1168,7 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
     check(
       'Library shows the library without the dashboard',
-      (await page.waitForSelector('.jp-hero', { state: 'detached', timeout: 5000 }).then(
+      (await page.waitForSelector('.jp-home-library', { state: 'detached', timeout: 5000 }).then(
         () => true,
         () => false
       )) && /#\/library$/.test(page.url())
@@ -3186,20 +3197,9 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#parts-stock-close');
     check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
 
-    // Filament was removed in 7.0: no page, no sidebar entry, no dialogs.
-    check('the sidebar has no Filament page', !(await page.isVisible('.jp-sidebar .jp-nav__row:has-text("Filament")')));
-    await page.evaluate(() => {
-      window.location.hash = '#/filament';
-    });
+    // 7.0's filament dialogs and filters stay gone; 10.0's Filament page is checked below.
     check(
-      '#/filament opens Home',
-      await page.waitForSelector('.jp-hero', { timeout: 10000 }).then(
-        () => true,
-        () => false
-      )
-    );
-    check(
-      'no filament dialogs or filters',
+      "7.0's filament dialogs and filters are not back",
       await page.evaluate(
         () => !document.querySelector('dialog.jp-add-filament, #filament-manager-dialog, #filament-filter') && !('openFilamentManager' in window)
       )
@@ -3554,7 +3554,7 @@ async function browserChecks(base, wsUrl, session) {
     check('Start moves it to Printing now', started && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing');
     await page.click(`${startedRow} button[aria-label="Back to the queue"]`);
     await page.waitForSelector(queuedRow, { timeout: 10000 }).catch(() => {});
-    await page.click(`${queuedRow} button[aria-label="Remove from the queue"]`);
+    await page.click(`${queuedRow} button[aria-label^="Remove"][aria-label$="from the queue"]`);
     check(
       'Remove takes it off the queue',
       (await page
@@ -3564,8 +3564,65 @@ async function browserChecks(base, wsUrl, session) {
         .then(
           () => true,
           () => false
-        )) && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'unprinted'
+        )) &&
+        // Out of the queue, a model goes back to Printed if it was ever printed, else Unprinted (print-queue.js).
+        (await (async () => {
+          const after = (await invoke(base, session, 'get-model', [queuedModel])).result || {};
+          return after.print_status === (Number(after.print_count) > 0 ? 'printed' : 'unprinted');
+        })()),
+      JSON.stringify({
+        status: (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status,
+        queue: ((await invoke(base, session, 'get-print-queue')).result || []).map((item) => item.model.fileName)
+      })
     );
+    // Phase 6: the queue has an order; items move; Home shows Up next; a logged print finishes an item.
+    {
+      const two = ((await invoke(base, session, 'get-models-filtered', [{ limit: 2, sortOption: 'name-asc' }])).result || []).map((m) => m.filePath);
+      for (const filePath of two) await invoke(base, session, 'add-to-queue', [filePath, {}]);
+      const queueOrder = async () => ((await invoke(base, session, 'get-print-queue')).result || []).map((item) => item.model.filePath);
+      const firstOrder = await queueOrder();
+      const items = (await invoke(base, session, 'get-print-queue')).result || [];
+      await invoke(base, session, 'move-queue-item', [items[1].id, 0]);
+      check(
+        'queued models keep the order they were added in, and can be moved',
+        JSON.stringify(firstOrder) === JSON.stringify(two) && JSON.stringify(await queueOrder()) === JSON.stringify([two[1], two[0]]),
+        JSON.stringify({ firstOrder, now: await queueOrder() })
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      await page.evaluate(() => {
+        window.location.hash = '#/queue';
+      });
+      await page.waitForSelector('ol[aria-label="Up next"] li[data-queue-id]', { timeout: 10000 }).catch(() => {});
+      const firstRowName = await page.textContent('ol[aria-label="Up next"] li[data-queue-id] .jp-queue__title').catch(() => '');
+      await page.click('ol[aria-label="Up next"] li[data-queue-id] button[aria-label^="Move"][aria-label$="down"]').catch(() => {});
+      const swapped = await waitFor(async () => (await queueOrder())[0] === two[0], 10000, 'the move').then(
+        () => true,
+        () => false
+      );
+      check('Move down on the Queue page changes the order', !!firstRowName && swapped, firstRowName);
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      check(
+        'Home shows what is up next',
+        await page.waitForSelector('.jp-home__upnext .jp-model-title', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await invoke(base, session, 'log-print-event', [{ filePath: two[0], outcome: 'printed', quantity: 1 }]);
+      check(
+        'logging a print takes that model off the queue',
+        JSON.stringify(await queueOrder()) === JSON.stringify([two[1]]) &&
+          (await invoke(base, session, 'get-model', [two[0]])).result?.print_status === 'printed'
+      );
+      for (const item of (await invoke(base, session, 'get-print-queue')).result || []) await invoke(base, session, 'remove-from-queue', [item.id]);
+      await page.evaluate(() => {
+        window.location.hash = '#/queue';
+      });
+    }
     await page.click('.jp-queue__header button:has-text("Show in Library")');
     check(
       "Show in Library opens the library's Queue tab",
@@ -3670,6 +3727,484 @@ async function browserChecks(base, wsUrl, session) {
     });
     check('a page covers the grid for the keyboard too (inert)', inertState.card && !inertState.focusedCard && inertState.inert, JSON.stringify(inertState));
 
+    // Filament page (React, src/web/pages/FilamentPage.tsx; docs/merge-10.md Phase 3): catalogue, weigh, move, dry, archive, Spoolman.
+    const answerMessage = async (label) => {
+      await page.waitForSelector('dialog.jp-message-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.click(`dialog.jp-message-dialog[open] button:has-text("${label}")`).catch(() => {});
+    };
+    const spoolDetail = (text) =>
+      page.waitForSelector(`#jp-spool-detail:has-text("${text}")`, { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    await page.waitForSelector('.jp-filament h1', { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector('#jp-add-from-catalog', { timeout: 15000 }).catch(() => {});
+    check(
+      'the Filament page opens with no spools and the ways to add one',
+      (await page.isVisible('#jp-add-from-catalog')) && !(await page.isVisible('.jp-spool-card'))
+    );
+    await page.click('#jp-add-from-catalog');
+    await page.fill('#jp-catalog-search', 'bambu pla basic black');
+    await page.waitForSelector('.jp-catalog__item', { timeout: 10000 }).catch(() => {});
+    await page.click('.jp-catalog__item >> nth=0');
+    await page.waitForSelector('#jp-spool-form-form', { timeout: 10000 }).catch(() => {});
+    const prefilled = {
+      brand: await page.inputValue('#jp-spool-brand').catch(() => ''),
+      material: await page.inputValue('#jp-spool-material').catch(() => ''),
+      tare: await page.inputValue('#jp-spool-tare').catch(() => '')
+    };
+    check(
+      'a catalogue filament fills in the spool form',
+      prefilled.brand === 'Bambu Lab' && prefilled.material === 'PLA' && Number(prefilled.tare) > 0,
+      JSON.stringify(prefilled)
+    );
+    await page.fill('#jp-spool-tare', '250');
+    await page.fill('#jp-spool-remaining', '18');
+    await page.click('#jp-spool-form button[type=submit]');
+    await page.waitForSelector('.jp-spool-card', { timeout: 10000 }).catch(() => {});
+    check(
+      'the new spool shows with its grams, ringed as nearly empty',
+      (await page.isVisible('.jp-spool-card.is-empty:has-text("18 g")')) &&
+        (await page.textContent('.jp-filament__headline').catch(() => '')).includes('1 running low')
+    );
+    await page.click('.jp-spool-card');
+    await page.waitForSelector('#jp-spool-detail', { timeout: 10000 }).catch(() => {});
+    await page.click('#jp-spool-detail button:has-text("Weigh")');
+    await page.fill('#jp-weigh-weight', '900');
+    await page.click('#jp-weigh-form button[type=submit]');
+    const weighed = await spoolDetail('650 g');
+    const listed = (await invoke(base, session, 'get-spools', [{}])).result || [];
+    check(
+      'weighing on the spool sets the grams left and logs it',
+      weighed && listed[0]?.remaining === 650,
+      JSON.stringify(listed[0] && { remaining: listed[0].remaining })
+    );
+    await page.click('#jp-spool-detail button:has-text("Move")');
+    await page.fill('#jp-move-new', 'E2E Shelf');
+    await page.click('#jp-move-form button[type=submit]');
+    check('moving a spool to a new place makes the place', await spoolDetail('E2E Shelf'));
+    await page.click('#jp-spool-detail button:has-text("Dry")');
+    await page.fill('#jp-dry-temp', '50');
+    await page.fill('#jp-dry-hours', '4');
+    await page.click('#jp-dry-form button[type=submit]');
+    check(
+      'drying a spool shows it in the Dryer tile',
+      await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
+    await page.click('#jp-spool-detail button:has-text("Finish drying")');
+    await page.fill('#jp-finish-dry-humidity', '12');
+    await page.click('#jp-finish-dry-form button[type=submit]');
+    await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+    check('finishing drying takes it out of the Dryer tile', !(await page.isVisible('.jp-tile[aria-label="Dryer"]')) && (await spoolDetail('12%')));
+    await page.click('#jp-spool-detail button:has-text("Archive")');
+    await answerMessage('Archive');
+    check('archiving a spool after asking', await spoolDetail('Archived'));
+    await page.click('.jp-spool-drawer .jp-overlay__header button');
+    await page.click('#jp-import-spoolman');
+    await page.setInputFiles('#jp-spoolman-file', {
+      name: 'spoolman.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify([
+          {
+            id: 41,
+            used_weight: 300,
+            location: 'E2E Shelf',
+            filament: { id: 7, name: 'E2E Charcoal', material: 'PLA', color_hex: '333333', weight: 1000, vendor: { name: 'Polymaker' } }
+          }
+        ])
+      )
+    });
+    await page.click('#jp-spoolman button[type=submit]');
+    const imported = await page
+      .waitForSelector('#jp-spoolman-result', { timeout: 10000 })
+      .then((el) => el.textContent())
+      .catch(() => '');
+    await page.click('#jp-spoolman-dialog button:has-text("Done")').catch(() => {});
+    check(
+      'importing a Spoolman export adds its spools in their places',
+      /^1 spool imported/.test(imported.trim()) &&
+        (await page.waitForSelector('.jp-spool-card:has-text("E2E Charcoal")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )),
+      imported
+    );
+    const allSpools = await invoke(base, session, 'get-spools', [{}]);
+    check(
+      'both spools are listed, the archived one too',
+      Array.isArray(allSpools.result) && allSpools.result.length === 2,
+      JSON.stringify(allSpools.result?.length)
+    );
+
+    // Phase 4: a sliced two-plate 3MF's filament, the check, the card, the filter, and Log Print taking grams off spools.
+    try {
+      const { zipSync, unzipSync } = require('fflate');
+      // Outside the app folder (folders inside it cannot be scanned by hand), as the other scan checks do.
+      const plateDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-plates-'));
+      const kitFile = path.join(plateDir, 'plate-kit.3mf');
+      const entries = unzipSync(new Uint8Array(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf'))));
+      entries['Metadata/slice_info.config'] = new TextEncoder().encode(
+        '<config><plate><metadata key="index" value="1"/><filament id="1" type="PLA" color="#333333FF" used_g="20" /></plate>' +
+          '<plate><metadata key="index" value="2"/><filament id="2" type="PLA" color="#2F6FDF" used_g="10" /></plate></config>'
+      );
+      fs.writeFileSync(kitFile, Buffer.from(zipSync(entries)));
+      await page.evaluate(() => {
+        const seen = (window.__e2eEvents = { 'refresh-grid': 0, 'filament-check-changed': 0 });
+        for (const channel of Object.keys(seen)) window.electron?.on?.(channel, () => (seen[channel] += 1));
+      });
+      const scanned = await invoke(base, session, 'scan-directory', [plateDir]);
+      const read = (await invoke(base, session, 'read-plate-filaments')).result;
+      const needs = (await invoke(base, session, 'get-model-filament', [kitFile])).result || {};
+      check(
+        "a sliced 3MF's plates and filament are read, and the check names the missing color",
+        read >= 1 && JSON.stringify(needs.plates) === '[1,2]' && needs.check?.ready === false && JSON.stringify(needs.check?.missing) === '["blue"]',
+        JSON.stringify({ scanned: scanned.error || scanned.status, read, plates: needs.plates, missing: needs.check?.missing })
+      );
+      const fitting = async () =>
+        ((await invoke(base, session, 'get-models-filtered', [{ fitsMyFilament: true, limit: 500 }])).result || []).map((m) => m.filePath);
+      check('Fits my filament leaves out a model short of a color', !(await fitting()).includes(kitFile));
+      const blue = (await invoke(base, session, 'save-spool', [{ material: 'PLA', color_hex: '#2a6ad8', initial_weight: 1000, remaining: 900 }])).result;
+      const kitRow = ((await invoke(base, session, 'get-models-filtered', [{ limit: 500 }])).result || []).find((m) => m.filePath === kitFile);
+      check(
+        'with a blue spool the model is ready to print and in Fits my filament',
+        kitRow?.fit?.ready === true && (await fitting()).includes(kitFile),
+        JSON.stringify(kitRow?.fit)
+      );
+      const charcoal = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.color_hex === '#333333');
+      const logged = (
+        await invoke(base, session, 'log-print-event', [
+          { filePath: kitFile, outcome: 'printed', quantity: 1, spools: [{ spoolId: charcoal.id, grams: 20 }], plateIndex: 1 }
+        ])
+      ).result;
+      const afterLog = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.id === charcoal.id);
+      const history = ((await invoke(base, session, 'get-print-events', [kitRow.id])).result || [])[0];
+      check(
+        'logging a print takes its grams off the spool and lists the spool in the history',
+        afterLog.remaining === charcoal.remaining - 20 && history?.spools?.[0]?.grams === 20,
+        JSON.stringify({ before: charcoal.remaining, after: afterLog.remaining, spools: history?.spools })
+      );
+      await invoke(base, session, 'delete-print-event', [logged.eventId]);
+      const afterDelete = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.id === charcoal.id);
+      check('deleting the logged print gives the grams back', afterDelete.remaining === charcoal.remaining, String(afterDelete.remaining));
+
+      await page.evaluate(() => {
+        window.location.hash = '#/library';
+      });
+      const card = '.file-grid .file-item:has-text("plate-kit")';
+      check(
+        'the card says Ready to print',
+        await page.waitForSelector(`${card} .jp-model-card__fit:has-text("Ready to print")`, { timeout: 15000 }).then(
+          () => true,
+          () => false
+        ),
+        JSON.stringify(
+          await page.evaluate(() => ({
+            cards: [...document.querySelectorAll('.file-grid .file-item')].slice(0, 8).map((el) => el.textContent.trim().slice(0, 80)),
+            hash: location.hash,
+            events: window.__e2eEvents,
+            gridFit: (document.querySelector('.file-grid')?.currentModels || []).find((m) => /plate-kit/.test(m.fileName || ''))?.fit ?? null
+          }))
+        ) +
+          JSON.stringify(((await invoke(base, session, 'get-models-filtered', [{}])).result || []).find((m) => /plate-kit/.test(m.fileName || ''))?.fit ?? null)
+      );
+      check(
+        'the library shows the Printable right now banner',
+        await page.waitForSelector('#jp-banner-ready', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        ),
+        JSON.stringify(
+          await page.evaluate(() => {
+            const state = window.libraryFilters?.state() || {};
+            return { printed: state.printed, directory: state.directory, dateAdded: state.dateAdded };
+          })
+        )
+      );
+      // Phase 7: the model page's Print this model, for one plate, then Add to queue.
+      await page.evaluate((file) => {
+        window.location.hash = `#/model/${encodeURIComponent(file)}`;
+      }, kitFile);
+      const panel = await page.waitForSelector('#jp-print-panel', { timeout: 15000 }).then(
+        () => true,
+        () => false
+      );
+      const profiles = await page.$$eval('#jp-print-panel .jp-profile', (buttons) => buttons.map((b) => b.textContent));
+      await page.click('#jp-print-panel .jp-profile:has-text("Plate 1")').catch(() => {});
+      const rows = await page
+        .waitForFunction(() => document.querySelectorAll('#jp-print-panel .jp-filament-check__row').length === 1, null, { timeout: 10000 })
+        .then(
+          () => 1,
+          () => page.$$eval('#jp-print-panel .jp-filament-check__row', (list) => list.length)
+        );
+      check(
+        'Print this model offers all plates or one, with the check for the plate chosen',
+        panel && profiles.length === 3 && rows === 1,
+        JSON.stringify({ profiles, rows })
+      );
+      await page.click('#jp-print-panel-queue');
+      await page.waitForSelector('dialog.jp-message-dialog[open], dialog[id^="browser-message-"][open]', { timeout: 10000 }).catch(() => {});
+      for (const button of await page.$$('dialog[id^="browser-message-"][open] button, dialog.jp-message-dialog[open] button'))
+        await button.click().catch(() => {});
+      const queued = ((await invoke(base, session, 'get-print-queue')).result || []).filter((item) => item.model.filePath === kitFile);
+      check('Add to queue queues the plate chosen', queued.length === 1 && queued[0].plate === 1, JSON.stringify(queued.map((item) => item.plate)));
+      for (const item of queued) await invoke(base, session, 'remove-from-queue', [item.id]);
+      await page.evaluate(() => {
+        window.location.hash = '#/library';
+      });
+      await page.waitForSelector(card, { timeout: 15000 }).catch(() => {});
+      await page.click(`${card} .file-name`);
+      await page.waitForSelector('#jp-details-log-print', { timeout: 10000 }).catch(() => {});
+      await page.click('#jp-details-log-print');
+      await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => {});
+      const filamentRows = await page
+        .waitForFunction(() => document.querySelectorAll('#log-print-filament [data-filament-row]').length === 2, null, { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        'Log Print fills in a spool and grams for each color',
+        filamentRows && /Takes 30 g off your spools/.test((await page.textContent('#log-print-filament-summary').catch(() => '')) || ''),
+        await page.textContent('#log-print-filament-summary').catch(() => '')
+      );
+      await page.click('#log-print-dialog button:has-text("Cancel")').catch(() => {});
+      await invoke(base, session, 'delete-spool', [blue.id]);
+      // Take the folder's model out of the library again (scanning the deleted folder).
+      fs.rmSync(plateDir, { recursive: true, force: true });
+      if (DOCKER_IMAGE) await sleep(1500);
+      await invoke(base, session, 'scan-directory', [plateDir]);
+      // The scan says it removed the missing file: close that message.
+      await page.waitForSelector('dialog[id^="browser-message-"][open]', { timeout: 5000 }).catch(() => {});
+      for (const button of await page.$$('dialog[id^="browser-message-"][open] button')) await button.click().catch(() => {});
+    } catch (error) {
+      await page.screenshot({ path: path.join(WORK, 'phase4-failure.png') }).catch(() => {});
+      const open = await page.evaluate(() => [...document.querySelectorAll('dialog[open], [inert]')].map((d) => d.id || d.className)).catch(() => []);
+      check('the Phase 4 filament checks ran to the end', false, `${error.message.split('\n').slice(0, 3).join(' ')} (open or inert: ${JSON.stringify(open)})`);
+    }
+
+    // Phase 8: low-stock alerts, the reorder list, signed webhooks.
+    try {
+      const http = require('http');
+      const received = [];
+      const hookServer = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          received.push({ headers: req.headers, body });
+          res.writeHead(200);
+          res.end('ok');
+        });
+      });
+      await new Promise((resolve) => hookServer.listen(0, '0.0.0.0', resolve));
+      const hookHost = DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1';
+      const hook = (
+        await invoke(base, session, 'save-webhook', [{ name: 'E2E hook', url: `http://${hookHost}:${hookServer.address().port}/hook`, secret: 'e2e-secret' }])
+      ).result;
+      const answered = (await invoke(base, session, 'test-webhook', [hook.id])).result;
+      const testBody = received[0]?.body || '';
+      const expected = `sha256=${require('crypto').createHmac('sha256', 'e2e-secret').update(testBody).digest('hex')}`;
+      check(
+        'a webhook gets a signed test delivery, and its secret stays on the server',
+        answered === 200 && received[0]?.headers['x-justtprint-signature'] === expected && !('secret' in hook) && hook.has_secret === true,
+        JSON.stringify({ answered, got: received.length })
+      );
+      const low = (
+        await invoke(base, session, 'save-spool', [{ name: 'E2E Nearly Empty', material: 'PLA', color_hex: '#d23b3b', initial_weight: 1000, remaining: 40 }])
+      ).result;
+      const told = (await invoke(base, session, 'check-low-stock')).result;
+      const notes =
+        ((await invoke(base, session, 'get-notifications', [{}])).result || {}).items || (await invoke(base, session, 'get-notifications', [{}])).result || [];
+      const list = Array.isArray(notes) ? notes : [];
+      check(
+        'a nearly empty spool is told about once, as a notification',
+        told >= 1 && list.some((n) => /E2E Nearly Empty/.test(`${n.title} ${n.body}`)) && (await invoke(base, session, 'check-low-stock')).result === 0,
+        JSON.stringify({ told, titles: list.slice(0, 3).map((n) => n.title) })
+      );
+      await waitFor(() => received.some((r) => r.headers['x-justtprint-event'] === 'spool.low_stock'), 10000, 'the low-stock webhook').catch(() => {});
+      const lowHook = received.find((r) => r.headers['x-justtprint-event'] === 'spool.low_stock');
+      check('the low-stock webhook names the spool', !!lowHook && /E2E Nearly Empty/.test(lowHook.body));
+      const reorder = (await invoke(base, session, 'get-reorder-list')).result || [];
+      check(
+        'the reorder list has the nearly empty spool, critical',
+        reorder.some((item) => item.id === low.id && item.severity === 'critical')
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-open-shopping-list', { timeout: 15000 }).catch(() => {});
+      await page.click('#jp-open-shopping-list');
+      check(
+        'the Reorder tile opens the shopping list',
+        await page.waitForSelector('#jp-shopping-list[open] :text("E2E Nearly Empty")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#jp-shopping-list button:has-text("Done")').catch(() => {});
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, low.id);
+      check(
+        "a spool's label link opens the spool",
+        await page.waitForSelector('#jp-spool-detail:has-text("40 g")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('.jp-spool-drawer .jp-overlay__header button').catch(() => {});
+      await invoke(base, session, 'delete-spool', [low.id]);
+      await invoke(base, session, 'delete-webhook', [hook.id]);
+      hookServer.close();
+    } catch (error) {
+      check('the Phase 8 alert checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // Phase 9: Settings → Integrations → Import from FilamentHub, from its database file.
+    try {
+      const Database = require('better-sqlite3');
+      const fhFile = path.join(WORK, 'filamenthub.db');
+      fs.rmSync(fhFile, { force: true });
+      const fh = new Database(fhFile);
+      fh.exec(`
+        CREATE TABLE users (id VARCHAR(36) PRIMARY KEY, email VARCHAR(255), display_name VARCHAR(100), role VARCHAR(8), discord_webhook_url VARCHAR(500));
+        CREATE TABLE brands (id INTEGER PRIMARY KEY, name VARCHAR(100), website VARCHAR(500), created_at DATETIME);
+        CREATE TABLE filament_profiles (id INTEGER PRIMARY KEY, brand_id INTEGER, name VARCHAR(200), material VARCHAR(50), color_name VARCHAR(100), color_hex VARCHAR(7), diameter FLOAT,
+          is_community BOOLEAN, created_at DATETIME, updated_at DATETIME);
+        CREATE TABLE spools (id INTEGER PRIMARY KEY, owner_id VARCHAR(36), filament_id INTEGER, brand_id INTEGER, location_id INTEGER, name VARCHAR(200), initial_weight FLOAT,
+          spool_weight FLOAT, used_weight FLOAT, color_hex VARCHAR(7), material VARCHAR(50), status VARCHAR(8), registered DATETIME);
+        INSERT INTO users VALUES ('u1', 'admin@example.com', 'Admin', 'admin', NULL);
+        INSERT INTO brands VALUES (1, 'E2E Hub Brand', NULL, '2026-01-02 10:00:00');
+        INSERT INTO filament_profiles VALUES (1, 1, 'E2E Hub PETG', 'PETG', 'Teal', '#14b8a6', 1.75, 0, '2026-01-02 10:00:00', '2026-01-02 10:00:00');
+        INSERT INTO spools VALUES (1, 'u1', 1, 1, NULL, 'E2E Hub Spool', 1000, 230, 400, '#14b8a6', 'PETG', 'storage', '2026-01-02 10:00:00');
+      `);
+      fh.close();
+      await page.evaluate(() => window.openFilamentHubImport());
+      await page.waitForSelector('#filamenthub-import-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.setInputFiles('#fh-import-file', fhFile);
+      await page.click('#fh-import-preview');
+      const planText = await page
+        .waitForSelector('#fh-import-plan', { timeout: 15000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check(
+        'the FilamentHub preview shows what comes in and the account it matches',
+        /Spools/.test(planText) && /is admin here/.test(planText),
+        planText.slice(0, 200)
+      );
+      await page.click('#fh-import-run');
+      const resultText = await page
+        .waitForSelector('#fh-import-result', { timeout: 15000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      const hubSpool = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.display_name === 'E2E Hub Spool');
+      check(
+        'importing brings the spools over with their grams and brand',
+        /1 spools/.test(resultText) && hubSpool?.remaining === 600 && hubSpool?.brand_name === 'E2E Hub Brand',
+        JSON.stringify({ resultText: resultText.slice(0, 120), remaining: hubSpool?.remaining })
+      );
+      await page.click('#filamenthub-import-dialog button:has-text("Done")').catch(() => {});
+      await page.evaluate(() => window.openFilamentHubImport());
+      await page.setInputFiles('#fh-import-file', fhFile);
+      await page.click('#fh-import-preview');
+      check(
+        'importing the same file again has nothing new',
+        await page.waitForSelector('#fh-import-run:has-text("Nothing new to import")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#filamenthub-import-dialog button:has-text("Cancel")').catch(() => {});
+      if (hubSpool) await invoke(base, session, 'delete-spool', [hubSpool.id]);
+    } catch (error) {
+      check('the Phase 9 import checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // Phase 10: Settings → Printers → Filament settings (the currency), and filament on Statistics.
+    try {
+      await page.evaluate(() => window.openFilamentSettings());
+      await page.waitForSelector('#filament-settings-dialog[open]', { timeout: 10000 });
+      await page.selectOption('#filament-currency', 'EUR');
+      await page.click('#filament-settings-save');
+      await page.waitForSelector('#filament-settings-dialog:not([open])', { timeout: 10000 }).catch(() => {});
+      check('Filament settings saves the currency', (await invoke(base, session, 'get-setting', ['currency'])).result === 'EUR');
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      check(
+        'Statistics has a filament section',
+        await page.waitForSelector('#jp-stats-filament', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await invoke(base, session, 'save-setting', ['currency', 'USD']);
+    } catch (error) {
+      check('the Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
+    try {
+      const amsPrinter = (
+        await invoke(base, session, 'save-printer', [
+          { nickname: 'E2E P1S', manufacturer: 'Bambu Lab', model: 'P1S', connectionType: 'bambu', serialNumber: '01P00E2E', apiSecret: 'e2e-code' }
+        ])
+      ).result;
+      const listed = ((await invoke(base, session, 'get-all-printers')).result || []).find((p) => p.id === amsPrinter.id);
+      check(
+        "a printer's access code is kept but never sent to the browser",
+        amsPrinter.has_api_secret === true && !('api_secret' in amsPrinter) && listed && !('api_secret' in listed) && listed.connection_type === 'bambu',
+        JSON.stringify(listed && { secret: 'api_secret' in listed, has: listed.has_api_secret })
+      );
+      await invoke(base, session, 'add-ams-unit', [amsPrinter.id, {}]);
+      const slotsOf = async () => ((await invoke(base, session, 'get-printer-loads', [amsPrinter.id])).result || [])[0]?.units[0]?.slots || [];
+      const slots = await slotsOf();
+      const charcoalSpool = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.color_hex === '#333333');
+      await invoke(base, session, 'set-loaded-spool', [{ slotId: slots[0].id }, charcoalSpool.id]);
+      const loadedAt = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === charcoalSpool.id)?.loaded.map((l) => l.label);
+      check(
+        'an AMS has four slots, and a loaded spool says where it is',
+        slots.length === 4 && JSON.stringify(loadedAt) === '["E2E P1S · A1"]',
+        JSON.stringify({ slots: slots.length, loadedAt })
+      );
+
+      await page.evaluate((id) => {
+        window.location.hash = `#/printers/${id}`;
+      }, amsPrinter.id);
+      await page.waitForSelector('.jp-loaded-slot:has-text("A1"):has-text("E2E Charcoal")', { timeout: 15000 }).catch(() => {});
+      check('the printer page shows the spool in its slot', await page.isVisible('.jp-loaded-slot:has-text("A1"):has-text("E2E Charcoal")'));
+      await page.click('button.jp-loaded-slot:has-text("A2")');
+      await page.waitForSelector('#jp-load-spool-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.selectOption('#jp-load-spool', String(charcoalSpool.id));
+      await page.click('#jp-load-save');
+      const moved = await page.waitForSelector('.jp-loaded-slot:has-text("A2"):has-text("E2E Charcoal")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+      check('loading a spool into another slot moves it there', moved && (await page.isVisible('.jp-loaded-slot:has-text("A1"):has-text("Empty")')));
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+      check(
+        'the Filament page shows what is loaded in printers',
+        await page.waitForSelector('.jp-tile[aria-label="Loaded in printers"]:has-text("E2E P1S")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      const bambu = await invoke(base, session, 'import-bambu-printers');
+      check('importing Bambu Lab printers asks to sign in first', /Sign in to your Bambu Lab account/.test(bambu.error || ''), bambu.error);
+      await invoke(base, session, 'delete-printer', [amsPrinter.id]);
+      const afterDelete = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === charcoalSpool.id);
+      check('deleting the printer leaves its spools loaded nowhere', afterDelete && afterDelete.loaded.length === 0);
+    } catch (error) {
+      await page.screenshot({ path: path.join(WORK, 'phase5-failure.png') }).catch(() => {});
+      const open = await page.evaluate(() => [...document.querySelectorAll('dialog[open]')].map((d) => d.id || d.className)).catch(() => []);
+      check('the Phase 5 printer checks ran to the end', false, `${error.message} (open dialogs: ${JSON.stringify(open)})`);
+    }
+
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
     const auditContext = await browser.newContext({
       viewport: { width: 1400, height: 900 },
@@ -3678,7 +4213,7 @@ async function browserChecks(base, wsUrl, session) {
     });
     const audit = await auditContext.newPage();
     const axeProblems = [];
-    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
+    for (const hash of ['#/home', '#/library', '#/queue', '#/filament', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
       await audit.goto(`${base}/${hash}`);
       await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
       await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
@@ -4612,72 +5147,42 @@ async function browserChecks(base, wsUrl, session) {
     await puterContext.unroute('https://js.puter.com/**').catch(() => {});
     puterContext.off('request', recordSignInPage);
 
-    // Theme settings (React): saving a theme applies its accent color without a regenerate prompt.
-    const savedTheme = (await invoke(base, session, 'get-setting', ['uiTheme'])).result;
-    await page.evaluate(() => window.openThemeSettings());
-    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
-    check('Theme settings opens with the saved theme', (await page.inputValue('#ui-theme')) === (savedTheme || 'modern-cyan'));
-    await page.selectOption('#ui-theme', 'modern-purple');
-    await page.click('#save-settings');
-    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const accent = await page.evaluate(() => ({
-      token: document.documentElement.style.getPropertyValue('--jp-accent').trim(),
-      button: getComputedStyle(document.querySelector('.jp-tab.is-active, .jp-btn--primary') || document.body).backgroundColor
-    }));
-    check(
-      'Theme settings saves and applies the theme to the whole interface',
-      (await invoke(base, session, 'get-setting', ['uiTheme'])).result === 'modern-purple' &&
-        accent.token === '#b47cfa' &&
-        !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')),
-      JSON.stringify(accent)
-    );
-    // Startup (src/web/startup/start.ts) applies the saved theme after a reload.
-    await page.reload();
-    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const themed = await page
-      .waitForFunction(
-        () =>
-          document.body.getAttribute('data-theme') === 'modern-purple' && document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#b47cfa',
-        null,
-        { timeout: 15000 }
-      )
-      .then(
-        () => true,
-        () => false
-      );
-    check('the saved theme is applied when the page loads', themed);
-
-    // Light color scheme (tokens.css, startup/theme.ts): the page turns light, the accent takes its light shade.
-    await page.evaluate(() => window.openThemeSettings());
-    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
-    check('Theme settings offers the color scheme, dark to start', (await page.inputValue('#ui-color-scheme')) === 'dark');
-    await page.selectOption('#ui-color-scheme', 'light');
-    await page.click('#save-settings');
-    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
-    const lightLook = () =>
+    // Theme settings (React, startup/theme.ts, tokens.css): Bento light to start, coral accent, no accent themes.
+    const schemeLook = () =>
       page.evaluate(() => ({
         scheme: document.documentElement.getAttribute('data-color-scheme'),
         background: getComputedStyle(document.body).backgroundColor,
-        accent: document.documentElement.style.getPropertyValue('--jp-accent').trim()
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--jp-accent').trim()
       }));
-    const isLight = (look) => look.scheme === 'light' && /rgb\((2[0-9]{2}), (2[0-9]{2}), (2[0-9]{2})\)/.test(look.background) && look.accent === '#7c3aed';
-    let look = await lightLook();
+    const channels = (look) => (look.background.match(/\d+/g) || []).slice(0, 3).map(Number);
+    const isLight = (look) => look.scheme === 'light' && channels(look).every((c) => c >= 200) && look.accent === '#ea6450';
+    const isDark = (look) => look.scheme === 'dark' && channels(look).every((c) => c <= 60) && look.accent === '#ee6a56';
+    let look = await schemeLook();
+    check('the page starts in the light Bento scheme with the coral accent', isLight(look), JSON.stringify(look));
+    await page.evaluate(() => window.openThemeSettings());
+    await page.waitForSelector('#settings-dialog[open]', { timeout: 10000 }).catch(() => {});
     check(
-      'choosing Light turns the page light, with the light shade of the accent',
-      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'light' && isLight(look),
+      'Theme settings offers the color scheme, light to start, and no accent themes',
+      (await page.inputValue('#ui-color-scheme')) === 'light' && (await page.locator('#ui-theme').count()) === 0
+    );
+    await page.selectOption('#ui-color-scheme', 'dark');
+    await page.click('#save-settings');
+    await page.waitForSelector('#settings-dialog', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    look = await schemeLook();
+    check(
+      'choosing Dark turns the page dark, with the dark coral, and no regenerate prompt',
+      (await invoke(base, session, 'get-setting', ['uiColorScheme'])).result === 'dark' &&
+        isDark(look) &&
+        !(await page.isVisible('dialog[open]:has-text("Regenerate Thumbnails")')),
       JSON.stringify(look)
     );
     await page.reload();
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
-    const lightFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
-    await page
-      .waitForFunction(() => document.documentElement.style.getPropertyValue('--jp-accent').trim() === '#7c3aed', null, { timeout: 15000 })
-      .catch(() => {});
-    look = await lightLook();
-    check('the light scheme is there from the first paint after a reload', lightFirst === 'light' && isLight(look), JSON.stringify({ lightFirst, look }));
-    await invoke(base, session, 'save-setting', ['uiColorScheme', 'dark']);
-    await page.evaluate(() => window.applyColorScheme?.('dark'));
-    await invoke(base, session, 'save-setting', ['uiTheme', savedTheme || 'modern-cyan']);
+    const darkFirst = await page.evaluate(() => document.documentElement.getAttribute('data-color-scheme'));
+    look = await schemeLook();
+    check('the dark scheme is there from the first paint after a reload', darkFirst === 'dark' && isDark(look), JSON.stringify({ darkFirst, look }));
+    await invoke(base, session, 'save-setting', ['uiColorScheme', 'light']);
+    await page.evaluate(() => window.applyColorScheme?.('light'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
 
     // Same shape, any resolution (geometry-signature.js similarShape): a ball meshed coarse and fine.
@@ -5716,6 +6221,18 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers read the library', (await invoke(base, viewer, 'get-library-counts')).status === 200);
   const viewerEdit = await invoke(base, viewer, 'save-tag', ['nope']);
   check('viewers cannot edit', viewerEdit.status === 403 && /Viewer accounts cannot do this/.test(viewerEdit.error || ''), JSON.stringify(viewerEdit));
+  check(
+    'viewers see the spools but cannot change them',
+    (await invoke(base, viewer, 'get-spools', [{}])).status === 200 &&
+      (await invoke(base, viewer, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 403
+  );
+  check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
+  check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
+  check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  await invoke(base, editor, 'save-setting', ['currency', 'GBP']);
+  check('editors cannot change the currency', (await invoke(base, admin, 'get-setting', ['currency'])).result !== 'GBP');
+  check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);
+  check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);
   check('editors cannot change settings', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['stlHomeDirectories', '[]'])).error || ''));
   check('editors may save display preferences', (await invoke(base, editor, 'save-setting', ['gridView', 'true'])).result === true);

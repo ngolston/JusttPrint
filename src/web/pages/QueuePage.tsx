@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { CheckCircle2, ClipboardPen, Clock, Library, ListChecks, LoaderCircle, Play, RotateCcw, Undo2, X } from 'lucide-react';
-import { callAction, library, prints, type PrintActivity } from '../api';
+import { CheckCircle2, ClipboardPen, Library, ListChecks, LoaderCircle, RotateCcw, Undo2 } from 'lucide-react';
+import { callAction, library, printQueue, printers as printerApi, prints, type PrintActivity, type Printer } from '../api';
+import { checkRows, plateLabel, itemName, QueueRowControls } from '../queue/QueueParts';
+import { FilamentCheck } from '../components/Filament';
 import { StatusBadge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState, Skeleton } from '../components/Panel';
@@ -18,8 +20,9 @@ import { EditOnly } from '../components/EditOnly';
 
 const LIMIT = 200;
 const loadPrinting = () => callAction<GridModel[]>('get-models-filtered', { printed: 'printing', sortOption: 'name-asc', limit: LIMIT });
-// JusttPrint has no queue order yet: the oldest addition comes first.
-const loadQueued = () => callAction<GridModel[]>('get-models-filtered', { printed: 'queued', sortOption: 'dateadded-asc', limit: LIMIT });
+// The print queue in its order, with plates, printers and each item's filament check (Phase 6).
+const loadQueued = () => printQueue.list();
+const loadPrinters = () => printerApi.list().catch(() => [] as Printer[]);
 const loadCompleted = () => library.recentPrints(10, 'printed');
 
 /** Show a model in the library with its details. */
@@ -111,6 +114,8 @@ const loading = (
 export function QueuePage() {
   const printing = useLibraryData(loadPrinting);
   const queued = useLibraryData(loadQueued);
+  const printerList = useLibraryData(loadPrinters) || [];
+  const [openCheck, setOpenCheck] = useState<number | null>(null);
   const completed = useLibraryData(loadCompleted);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -196,41 +201,47 @@ export function QueuePage() {
               </Button>
             }
           >
-            Set a model's print status to Queued (on its card or in its details) to line it up here.
+            Set a model's print status to Queued (on its card or in its details) to line it up here. Each print then says whether your spools cover it, counting
+            what the prints before it will use.
           </EmptyState>
         ) : (
           <ol className="jp-queue__list" aria-label="Up next">
-            {queued.map((model, index) => (
-              <Row
-                key={model.filePath}
-                filePath={model.filePath}
-                name={cardTitle(model)}
-                meta={modelMeta(model)}
-                lead={
+            {queued.map((item, index) => (
+              <li key={item.id} className="jp-queue__item" data-queue-id={item.id}>
+                <div className="jp-queue__row">
                   <span className="jp-queue__index" aria-hidden="true">
                     {index + 1}
                   </span>
-                }
-                status={
-                  <StatusBadge tone="warning" icon={Clock}>
-                    In Queue
-                  </StatusBadge>
-                }
-                actions={
-                  <EditOnly>
-                    <Button size="sm" icon={Play} disabled={busy === model.filePath} onClick={() => run(model.filePath, 'printing')}>
-                      Start
-                    </Button>
-                    <IconButton
-                      size="sm"
-                      icon={X}
-                      label="Remove from the queue"
-                      disabled={busy === model.filePath}
-                      onClick={() => run(model.filePath, 'unprinted')}
-                    />
-                  </EditOnly>
-                }
-              />
+                  <Thumb filePath={item.model.filePath} />
+                  <button
+                    type="button"
+                    className="jp-queue__name"
+                    onClick={() => openModel(item.model.filePath)}
+                    title={`Show ${itemName(item)} in the library`}
+                  >
+                    <span className="jp-queue__title">{itemName(item)}</span>
+                    <span className="jp-queue__meta">{[plateLabel(item), item.model.designer].filter(Boolean).join(' • ')}</span>
+                  </button>
+                  <span className="jp-queue__actions">
+                    <QueueRowControls item={item} index={index} count={queued.length} printers={printerList} />
+                    {item.check && item.check.needs.length > 0 && (
+                      <button
+                        type="button"
+                        className="jp-link jp-queue__check-toggle"
+                        aria-expanded={openCheck === item.id}
+                        onClick={() => setOpenCheck(openCheck === item.id ? null : item.id)}
+                      >
+                        Filament
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {openCheck === item.id && item.check && (
+                  <div className="jp-queue__check">
+                    <FilamentCheck needs={checkRows(item.check)} label={`Filament for ${itemName(item)}`} />
+                  </div>
+                )}
+              </li>
             ))}
           </ol>
         )}
@@ -259,7 +270,7 @@ export function QueuePage() {
                       icon={RotateCcw}
                       label="Queue it again"
                       disabled={busy === event.filePath}
-                      onClick={() => run(event.filePath, 'queued')}
+                      onClick={() => void printQueue.add(event.filePath).catch(() => {})}
                     />
                   </EditOnly>
                 }

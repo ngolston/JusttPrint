@@ -102,7 +102,7 @@ body.jp-shell-on #model-details .details-name-field {
   box-shadow: var(--jp-focus-ring);
 }
 :is(#model-details, .jp-model-page) .jp-details__overlay-btn.is-favorited {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 :is(#model-details, .jp-model-page) .jp-details__view-3d {
   position: absolute;
@@ -483,7 +483,7 @@ body.jp-shell-on #model-details .details-name-field {
   display: none;
 }
 #model-details #path-tree-container .path-tree-folder {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   cursor: pointer;
 }
 #model-details #path-tree-container .path-tree-folder:hover {
@@ -514,7 +514,7 @@ body.jp-shell-on #model-details .details-name-field {
   cursor: pointer;
 }
 :is(#model-details, .jp-model-page) .jp-rating__star.is-filled {
-  color: var(--jp-warning);
+  color: var(--jp-warning-text);
 }
 :is(#model-details, .jp-model-page) .jp-rating__star:focus-visible {
   box-shadow: var(--jp-focus-ring);
@@ -613,13 +613,13 @@ body.jp-shell-on #model-details .details-name-field {
   padding: 0 var(--jp-space-2);
   border-radius: var(--jp-radius-pill);
   background: var(--jp-success-soft);
-  color: var(--jp-success);
+  color: var(--jp-success-text);
   font-size: var(--jp-text-badge);
   font-weight: 500;
 }
 #model-details .outcome-failed .print-history-outcome {
   background: var(--jp-danger-soft);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 #model-details .outcome-cancelled .print-history-outcome {
   background: var(--jp-neutral-soft);

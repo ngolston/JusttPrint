@@ -8,6 +8,7 @@ const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
 const { checkBackupFile } = require('../../core/backup-check');
+const { ensureFilamentSchema } = require('../../core/filament-schema');
 const autoBackup = require('../auto-backup');
 const downloadFiles = require('../download-files');
 
@@ -48,8 +49,11 @@ async function restoreFromCheckedFile(uploadPath) {
     for (const suffix of ['-wal', '-shm']) await fs.promises.rm(dbPath + suffix, { force: true });
     await fs.promises.rename(uploadPath, dbPath);
     database.db = new Database(dbPath);
+    database.db.pragma('foreign_keys = ON');
     const keepLogin = database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     for (const row of serverLogin) keepLogin.run(row.key, row.value);
+    // A backup from before 10.0 gets the 10.0 tables now, not at the next start.
+    ensureFilamentSchema(database.db);
     autoBackup.schedule();
     return { success: true };
   } catch (error) {

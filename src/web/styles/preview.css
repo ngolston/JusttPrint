@@ -253,7 +253,7 @@ body.server-mode #preview-slicer-menu {
 .preview-control-button.active {
   border-color: var(--jp-accent-border);
   background: var(--jp-accent-soft);
-  color: var(--jp-accent);
+  color: var(--jp-accent-strong-text);
 }
 
 .preview-studio-panel {
@@ -588,7 +588,7 @@ body.server-mode #preview-slicer-menu {
 .preview-error {
   max-width: 500px;
   padding: var(--jp-space-5);
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   text-align: center;
 }
 .preview-error__title {

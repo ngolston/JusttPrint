@@ -49,7 +49,7 @@
   color: var(--jp-text-3);
 }
 .jp-settings-index__link.is-active svg {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-settings-index__link:focus-visible {
   outline: none;
@@ -397,7 +397,7 @@
   overflow-wrap: anywhere;
 }
 #backup-restore-dialog .auto-backup-status.is-error {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
 }
 #backup-restore-dialog .auto-backup-list {
   display: flex;
@@ -497,7 +497,7 @@
   font-size: var(--jp-text-meta);
 }
 .jp-advanced__summary:hover .jp-advanced__title {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
 }
 .jp-advanced__summary:focus-visible {
   outline: none;

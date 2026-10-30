@@ -348,6 +348,21 @@ export interface PrintStatistics {
   designers: { name: string; printed: number; models: number }[];
   models: { id: number; fileName: string; filePath: string; printed: number }[];
   printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
+  /** Filament taken off spools by logged prints, and its cost at each spool's price. */
+  filament: FilamentUse;
+  /** The library's currency (ISO 4217). */
+  currency: string;
+}
+
+export interface FilamentUse {
+  grams: number;
+  cost: number;
+  /** Grams from spools with a price (the cost covers only these). */
+  pricedGrams: number;
+  byMonth: { month: string; grams: number; cost: number }[];
+  models: { id: number; name: string; filePath: string; grams: number; cost: number }[];
+  printers: { id: number | null; name: string; grams: number; cost: number }[];
+  materials: { material: string; grams: number }[];
 }
 
 export const statistics = {
@@ -475,6 +490,37 @@ export interface Printer {
   last_printed_at?: string | null;
   due_reminders_count?: number;
   created_at?: string;
+  /** manual | octoprint | moonraker | bambu (docs/merge-10.md, Phase 5). */
+  connection_type?: string | null;
+  serial_number?: string | null;
+  api_url?: string | null;
+  /** An API key or access code is kept on the server (it is never sent to the browser). */
+  has_api_secret?: boolean;
+  status?: string | null;
+  last_seen_at?: string | null;
+}
+
+/** A spool as an AMS slot or a printer's holder shows it (src/core/printer-ams.js). */
+export interface LoadedSpool {
+  id: number;
+  name: string;
+  brand_name: string | null;
+  material: string | null;
+  color_hex: string | null;
+  initial_weight: number;
+  remaining: number;
+}
+
+export interface PrinterLoads {
+  printerId: number;
+  direct: LoadedSpool | null;
+  units: {
+    id: number;
+    unit_index: number;
+    name: string;
+    humidity: number | null;
+    slots: { id: number; slot_index: number; label: string; spool: LoadedSpool | null }[];
+  }[];
 }
 
 export interface PrinterInput {
@@ -487,6 +533,11 @@ export interface PrinterInput {
   isKlipper: boolean;
   webUrl: string | null;
   notes: string | null;
+  connectionType?: string;
+  serialNumber?: string | null;
+  apiUrl?: string | null;
+  /** Given only to change it: a value sets it, '' clears it. */
+  apiSecret?: string | null;
 }
 
 export interface PrinterReminder {
@@ -521,7 +572,322 @@ export const printers = {
   logs: (printerId: number) => callAction<MaintenanceLog[]>('get-printer-maintenance-logs', printerId),
   saveLog: (entry: { printerId: number; maintenanceType: string; title: string; performedAt: string; description: string | null }) =>
     callAction<MaintenanceLog>('save-printer-maintenance-log', entry),
-  removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id)
+  removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id),
+  /** What is loaded in every printer, or one (src/core/printer-ams.js). */
+  loads: (printerId: number | null = null) => callAction<PrinterLoads[]>('get-printer-loads', printerId),
+  addAms: (printerId: number, options: { name?: string; slots?: number } = {}) => callAction<number>('add-ams-unit', printerId, options),
+  updateAms: (unitId: number, changes: { name?: string; humidity?: number | null }) => callAction<unknown>('update-ams-unit', unitId, changes),
+  removeAms: (unitId: number) => callAction<boolean>('delete-ams-unit', unitId),
+  /** Load a spool into a slot or onto a printer's own holder; null empties it. */
+  load: (where: { slotId?: number; printerId?: number }, spoolId: number | null) => callAction<unknown>('set-loaded-spool', where, spoolId),
+  /** Bambu Lab cloud: the signed-in account's printers, added to Printers (admin). */
+  importBambu: () => callAction<{ created: number; updated: number; unchanged: number; total: number }>('import-bambu-printers')
+};
+
+/** A place spools are kept (src/core/storage-locations.js). */
+export interface StorageLocation {
+  id: number;
+  name: string;
+  description: string | null;
+  is_dry_box: number;
+  spool_count?: number;
+}
+
+/** A kind of filament (src/core/filament-profiles.js). */
+export interface FilamentProfile {
+  id: number;
+  brand_id: number | null;
+  brand_name: string | null;
+  name: string;
+  material: string;
+  color_name: string | null;
+  color_hex: string | null;
+  diameter: number;
+  density: number | null;
+  print_temp_min: number | null;
+  print_temp_max: number | null;
+  bed_temp_min: number | null;
+  bed_temp_max: number | null;
+  drying_temp: number | null;
+  drying_hours: number | null;
+  product_url: string | null;
+  source: 'manual' | 'catalog' | 'spoolman';
+  spool_count?: number;
+}
+
+export interface FilamentBrand {
+  id: number;
+  name: string;
+  profile_count: number;
+  spool_count: number;
+}
+
+export interface DryingSession {
+  id: number;
+  spool_id: number;
+  drying_temp: number | null;
+  target_hours: number | null;
+  started_at: string;
+  finished_at: string | null;
+  humidity_before: number | null;
+  humidity_after: number | null;
+  notes: string | null;
+  /** get-drying-sessions only: the spool it is drying. */
+  spool_name?: string | null;
+  profile_name?: string | null;
+  material?: string | null;
+  color_hex?: string | null;
+}
+
+export type SpoolStatus = 'active' | 'storage' | 'archived';
+
+/** A spool as get-spools returns it (src/core/spools.js). Weights in grams. */
+export interface Spool {
+  id: number;
+  profile_id: number | null;
+  brand_id: number | null;
+  location_id: number | null;
+  name: string | null;
+  display_name: string;
+  profile_name: string | null;
+  brand_name: string | null;
+  location_name: string | null;
+  color_name: string | null;
+  material: string;
+  material_type: string | null;
+  color_hex: string | null;
+  color_hex_2: string | null;
+  color_hex_3: string | null;
+  color_hex_4: string | null;
+  initial_weight: number;
+  spool_weight: number | null;
+  used_weight: number;
+  remaining: number;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  supplier: string | null;
+  product_url: string | null;
+  lot_nr: string | null;
+  status: SpoolStatus;
+  notes: string | null;
+  registered_at: string;
+  last_used_at: string | null;
+  profile_drying_temp: number | null;
+  profile_drying_hours: number | null;
+  loaded: { printerId: number; label: string }[];
+  drying: { id: number; drying_temp: number | null; target_hours: number | null; started_at: string } | null;
+}
+
+export interface SpoolDetail extends Spool {
+  weighings: { id: number; measured_weight: number; net_weight: number; notes: string | null; logged_at: string }[];
+  dryings: DryingSession[];
+}
+
+export interface FilamentSummary {
+  spoolCount: number;
+  grams: number;
+  lowCount: number;
+  archivedCount: number;
+  materials: { material: string; grams: number }[];
+  colors: { color: string; grams: number; name: string }[];
+  /** What the filament left is worth at the spools' prices (spools without one count 0). */
+  worth: number;
+  currency: string;
+}
+
+/** A filament in the bundled catalogue (search-filament-catalog). */
+export interface CatalogFilament {
+  id: string;
+  brand: string;
+  name: string;
+  material: string;
+  color_name: string | null;
+  color_hex: string | null;
+  diameter: number | null;
+  weight: number | null;
+  spool_weight: number | null;
+  density: number | null;
+  print_temp_min: number | null;
+  print_temp_max: number | null;
+  bed_temp_min: number | null;
+  bed_temp_max: number | null;
+  product_url: string | null;
+}
+
+export interface SpoolmanImport {
+  imported: number;
+  alreadyHere: number;
+  skipped: number;
+  problems: string[];
+  brands: number;
+  profiles: number;
+  locations: number;
+}
+
+/** What the spool form sends: a Spool's columns, `remaining` for grams left, a brand by name. */
+export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & { remaining?: number | null; brand_name?: string | null };
+
+/** One needed color and the spool the check picked (src/core/filament-check.js checkNeeds). */
+export interface FilamentCheckNeed {
+  slot: number;
+  material: string | null;
+  color: string | null;
+  colorName: string;
+  /** Null when the file does not say (an unsliced project). */
+  grams: number | null;
+  spool: { id: number; name: string; where: string | null; available: number; color: string | null } | null;
+  left: number | null;
+  short: number | null;
+  ok: boolean;
+}
+
+export interface FilamentCheckResult {
+  ready: boolean;
+  missing: string[];
+  needs: FilamentCheckNeed[];
+}
+
+/** An item of the print queue (src/core/print-queue.js listQueue). */
+export interface QueueItem {
+  id: number;
+  position: number;
+  /** null: every plate. */
+  plate: number | null;
+  printerId: number | null;
+  printerName: string | null;
+  createdAt: string;
+  model: { id: number; filePath: string; fileName: string; title: string | null; designer: string | null; printStatus: string | null };
+  /** The model's plates (from 1); empty when not known. */
+  plates: number[];
+  /** Null when its filament is not known or there are no spools. */
+  check: FilamentCheckResult | null;
+}
+
+/** The print queue (docs/merge-10.md, Phase 6). */
+export const printQueue = {
+  list: () => callAction<QueueItem[]>('get-print-queue'),
+  add: (filePath: string, options: { plate?: number | null; printerId?: number | null } = {}) => callAction<number>('add-to-queue', filePath, options),
+  update: (id: number, changes: { plate?: number | null; printerId?: number | null }) => callAction<unknown>('update-queue-item', id, changes),
+  move: (id: number, toIndex: number) => callAction<unknown>('move-queue-item', id, toIndex),
+  remove: (id: number) => callAction<unknown>('remove-from-queue', id),
+  start: (id: number) => callAction<unknown>('start-queue-item', id)
+};
+
+/** Home's This month (src/core/month-summary.js). */
+export interface MonthSummary {
+  since: string;
+  prints: number;
+  printed: number;
+  failed: number;
+  successRate: number | null;
+  grams: number;
+  weeks: { start: string; prints: number }[];
+}
+
+export const home = {
+  month: () => callAction<MonthSummary>('get-month-summary')
+};
+
+export interface LowStockRule {
+  id: number;
+  name: string;
+  low_threshold_pct: number;
+  critical_threshold_pct: number;
+  material_filter: string | null;
+  notify_discord: number;
+  notify_email: number;
+  is_active: number;
+}
+
+/** A spool to buy again (src/core/low-stock.js reorderList). */
+export interface ReorderItem {
+  id: number;
+  name: string;
+  brand: string | null;
+  material: string | null;
+  color: string | null;
+  remaining: number;
+  initial: number;
+  pct: number;
+  supplier: string | null;
+  productUrl: string | null;
+  price: number | null;
+  location: string | null;
+  severity: 'low' | 'critical';
+}
+
+export interface AlertDeliveryStatus {
+  discord: { set: boolean };
+  email: { host: string; port: number | null; secure: boolean; user: string; from: string; to: string; passwordSet: boolean; ready: boolean };
+}
+
+export interface Webhook {
+  id: number;
+  name: string;
+  url: string;
+  events: string[];
+  has_secret: boolean;
+  is_active: boolean;
+  last_triggered_at: string | null;
+  last_status_code: number | null;
+}
+
+/** Low-stock alerts, the reorder list and webhooks (docs/merge-10.md, Phase 8). */
+export const alerts = {
+  reorder: () => callAction<ReorderItem[]>('get-reorder-list'),
+  checkNow: () => callAction<number>('check-low-stock'),
+  rules: () => callAction<{ rules: LowStockRule[]; defaultRule: LowStockRule }>('get-low-stock-rules'),
+  saveRule: (
+    rule: Partial<Omit<LowStockRule, 'is_active' | 'notify_discord' | 'notify_email'>> & {
+      is_active?: boolean | number;
+      notify_discord?: boolean | number;
+      notify_email?: boolean | number;
+    }
+  ) => callAction<LowStockRule>('save-low-stock-rule', rule),
+  removeRule: (id: number) => callAction<boolean>('delete-low-stock-rule', id),
+  delivery: () => callAction<AlertDeliveryStatus>('get-alert-delivery'),
+  saveDelivery: (input: {
+    discordWebhookUrl?: string;
+    smtp?: { host?: string; port?: number | string | null; secure?: boolean; user?: string; password?: string; from?: string; to?: string };
+  }) => callAction<AlertDeliveryStatus>('save-alert-delivery', input),
+  testDelivery: (kind: 'discord' | 'email') => callAction<boolean>('test-alert-delivery', kind),
+  webhooks: () => callAction<{ webhooks: Webhook[]; events: string[] }>('get-webhooks'),
+  saveWebhook: (webhook: { id?: number; name: string; url: string; events: string[]; is_active?: boolean; secret?: string }) =>
+    callAction<Webhook>('save-webhook', webhook),
+  removeWebhook: (id: number) => callAction<boolean>('delete-webhook', id),
+  testWebhook: (id: number) => callAction<number>('test-webhook', id)
+};
+
+/** Spools, filament, places and drying (Filament page). */
+export const filament = {
+  spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
+  spool: (id: number) => callAction<SpoolDetail | null>('get-spool', id),
+  summary: () => callAction<FilamentSummary>('get-filament-summary'),
+  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail>('save-spool', spool),
+  weigh: (id: number, weighing: { weight: number; withSpool: boolean; notes?: string | null }) => callAction<SpoolDetail>('weigh-spool', id, weighing),
+  move: (id: number, locationId: number | null) => callAction<SpoolDetail>('move-spool', id, locationId),
+  archive: (id: number, archived: boolean) => callAction<SpoolDetail>('archive-spool', id, archived),
+  removeSpool: (id: number) => callAction<boolean>('delete-spool', id),
+  importSpoolman: (data: unknown) => callAction<SpoolmanImport>('import-spoolman', data),
+  brands: () => callAction<FilamentBrand[]>('get-filament-brands'),
+  profiles: (options: { search?: string; material?: string } = {}) => callAction<FilamentProfile[]>('get-filament-profiles', options),
+  searchCatalog: (query: string, limit = 50) =>
+    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
+  addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
+  locations: () => callAction<StorageLocation[]>('get-storage-locations'),
+  saveLocation: (location: { id?: number; name: string; description?: string | null; is_dry_box?: boolean }) =>
+    callAction<StorageLocation>('save-storage-location', location),
+  removeLocation: (id: number) => callAction<boolean>('delete-storage-location', id),
+  drying: () => callAction<DryingSession[]>('get-drying-sessions'),
+  startDrying: (
+    spoolId: number,
+    session: { drying_temp?: number | null; target_hours?: number | null; humidity_before?: number | null; notes?: string | null }
+  ) => callAction<DryingSession>('start-drying', spoolId, session),
+  /** What a model needs and the spools that would give it (src/core/filament-check.js). */
+  forModel: (filePath: string, options: { plates?: number[] | null; printerId?: number | null } = {}) =>
+    callAction<{ tracked: boolean; plates: number[]; source: string | null; check: FilamentCheckResult | null }>('get-model-filament', filePath, options),
+  finishDrying: (sessionId: number, result: { humidity_after?: number | null; notes?: string | null } = {}) =>
+    callAction<DryingSession>('finish-drying', sessionId, result)
 };
 
 export interface LibraryStats {
@@ -561,6 +927,10 @@ export interface LibraryCounts {
   queued: number;
   printing: number;
   printers: number;
+  /** Models the spools on hand cover (the filament check); 0 without spools. */
+  readyToPrint?: number;
+  /** Models added in the last 7 days. */
+  addedThisWeek?: number;
 }
 
 export const library = {
@@ -939,6 +1309,8 @@ export interface PrintEvent {
   printer_model?: string | null;
   printer_type?: string | null;
   parts?: { id: number; name?: string | null; quantity: number }[];
+  /** Filament taken off spools (docs/merge-10.md, Phase 4). */
+  spools?: { spoolId: number | null; grams: number; name: string; color: string | null }[];
 }
 
 export interface LogPrintInput {
@@ -950,6 +1322,9 @@ export interface LogPrintInput {
   parts: { id: number; quantity: number }[];
   /** For one 3MF with several plates: the plates printed (a Printed log ticks only these in its kit). */
   plates?: number[];
+  /** Grams taken off each spool (all copies), and the plate when only one was printed. */
+  spools?: { spoolId: number; grams: number }[];
+  plateIndex?: number | null;
 }
 
 export const prints = {

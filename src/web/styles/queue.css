@@ -109,3 +109,45 @@
   align-items: center;
   gap: var(--jp-space-2);
 }
+
+/* The print queue (Phase 6 of docs/merge-10.md): an item's plate, printer, check and order. */
+.jp-queue__item + .jp-queue__item {
+  border-top: 1px solid var(--jp-border);
+}
+.jp-queue__actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.jp-queue__pickers {
+  display: inline-flex;
+  gap: var(--jp-space-2);
+}
+.jp-queue__picker.jp-input {
+  width: auto;
+  max-width: 160px;
+  height: 30px;
+  font-size: var(--jp-text-meta);
+}
+.jp-queue__order {
+  display: inline-flex;
+  gap: 2px;
+}
+.jp-queue__check-toggle {
+  font-size: var(--jp-text-meta);
+}
+.jp-queue__check {
+  padding: 0 0 var(--jp-space-3) 40px;
+  max-width: 640px;
+}
+.jp-home__upnext-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2) var(--jp-space-3);
+  margin-bottom: var(--jp-space-3);
+}
+@media (max-width: 700px) {
+  .jp-queue__check {
+    padding-left: 0;
+  }
+}

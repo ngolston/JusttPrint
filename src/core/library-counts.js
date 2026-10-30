@@ -22,6 +22,19 @@ function libraryCounts(db) {
   } catch (_) {
     /* no printers table yet */
   }
+  // The library's banners (Phase 7 of docs/merge-10.md): models the spools cover, and new this week.
+  counts.readyToPrint = 0;
+  try {
+    for (const fit of require('./filament-check').fitForLibrary(db).values()) if (fit.ready) counts.readyToPrint += 1;
+  } catch (_) {
+    /* no filament tables yet */
+  }
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  try {
+    counts.addedThisWeek = db.prepare(`SELECT COUNT(*) AS n FROM models WHERE dateAdded >= ? AND ${require('./model-parts').notPartSql(db)}`).get(weekAgo).n;
+  } catch (_) {
+    counts.addedThisWeek = 0;
+  }
   return counts;
 }
 

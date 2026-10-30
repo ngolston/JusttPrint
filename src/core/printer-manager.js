@@ -102,6 +102,18 @@ function hasTable(db, tableName) {
   }
 }
 
+const CONNECTION_TYPES = ['manual', 'octoprint', 'moonraker', 'bambu'];
+
+/**
+ * A printer as browsers see it: the API key or access code (api_secret) never leaves the server;
+ * has_api_secret says whether one is kept.
+ */
+function publicPrinter(row) {
+  if (!row) return row;
+  const { api_secret, ...rest } = row;
+  return { ...rest, is_klipper: Boolean(row.is_klipper), has_api_secret: Boolean(api_secret) };
+}
+
 function getAllPrinters(db) {
   ensurePrinterSchema(db);
   const hasPrintEvents = hasTable(db, 'print_events');
@@ -122,20 +134,46 @@ function getAllPrinters(db) {
     )
     .all();
 
-  return printers.map((p) => ({
-    ...p,
-    is_klipper: Boolean(p.is_klipper)
-  }));
+  return printers.map(publicPrinter);
 }
 
 function getPrinterById(db, id) {
   ensurePrinterSchema(db);
   const row = db.prepare('SELECT * FROM printers WHERE id = ?').get(id);
-  if (!row) return null;
-  return {
-    ...row,
-    is_klipper: Boolean(row.is_klipper)
-  };
+  return row ? publicPrinter(row) : null;
+}
+
+/** The printer's connection columns exist (10.0, filament-schema.js); older test databases may not have them. */
+function hasConnectionColumns(db) {
+  return db
+    .prepare('PRAGMA table_info(printers)')
+    .all()
+    .some((c) => c.name === 'connection_type');
+}
+
+/**
+ * Connection details from the form (docs/merge-10.md, Phase 5). The API key or access code is
+ * changed only when `apiSecret` is given: a string sets it, '' or null clears it.
+ */
+function saveConnection(db, id, printer) {
+  if (!hasConnectionColumns(db)) return;
+  const raw = String(printer?.connectionType ?? printer?.connection_type ?? '')
+    .trim()
+    .toLowerCase();
+  const connectionType = CONNECTION_TYPES.includes(raw) ? raw : 'manual';
+  const serial =
+    String(printer?.serialNumber ?? printer?.serial_number ?? '')
+      .trim()
+      .slice(0, 100) || null;
+  const apiUrl =
+    String(printer?.apiUrl ?? printer?.api_url ?? '')
+      .trim()
+      .slice(0, 500) || null;
+  db.prepare('UPDATE printers SET connection_type = ?, serial_number = ?, api_url = ? WHERE id = ?').run(connectionType, serial, apiUrl, id);
+  if (printer && Object.prototype.hasOwnProperty.call(printer, 'apiSecret')) {
+    const secret = printer.apiSecret === null ? '' : String(printer.apiSecret).trim().slice(0, 500);
+    db.prepare('UPDATE printers SET api_secret = ? WHERE id = ?').run(secret || null, id);
+  }
 }
 
 function savePrinter(db, printer) {
@@ -169,6 +207,7 @@ function savePrinter(db, printer) {
       WHERE id = ?
     `
     ).run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, id);
+    saveConnection(db, id, printer);
 
     return getPrinterById(db, id);
   }
@@ -181,6 +220,7 @@ function savePrinter(db, printer) {
   `
     )
     .run(nickname, manufacturer, model, printerType, firmwareType, isKlipper, webUrl, notes, now, now);
+  saveConnection(db, Number(result.lastInsertRowid), printer);
 
   return getPrinterById(db, result.lastInsertRowid);
 }
@@ -377,6 +417,8 @@ function completePrinterReminder(db, reminderId, notes) {
 }
 
 module.exports = {
+  CONNECTION_TYPES,
+  publicPrinter,
   ensurePrinterSchema,
   getAllPrinters,
   getPrinterById,

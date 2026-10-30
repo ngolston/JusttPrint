@@ -324,15 +324,20 @@ function getMcpToolContext() {
     },
     logPrintEvent: async (args) => {
       const model = resolveModelForMcp(args);
-      return printEvents.logPrintEvent(database.db, {
+      const result = printEvents.logPrintEvent(database.db, {
         modelId: model.id,
         filePath: model.filePath,
         outcome: args.outcome,
         quantity: args.quantity,
         printedAt: args.printedAt,
         notes: args.notes,
-        parts: args.parts
+        parts: args.parts,
+        printerId: args.printerId,
+        spools: args.spools,
+        plateIndex: args.plateIndex
       });
+      require('./low-stock-alerts').soon();
+      return result;
     },
     deletePrintEvent: async (eventId) => printEvents.deletePrintEvent(database.db, eventId),
     listTitles: async () => {
@@ -837,6 +842,102 @@ function getMcpToolContext() {
       events.broadcast('model-history-changed', {});
       events.broadcast('site-details-changed', { url });
       return { success: true, id: model.id, url, details, editable: after };
+    },
+
+    // ---- Filament (docs/merge-10.md, Phase 10) ----
+    listSpools: async (args) => {
+      const spools = require('../core/spools').listSpools(database.db, { includeArchived: !!args.includeArchived });
+      return spools.map((spool) => ({
+        id: spool.id,
+        name: spool.display_name,
+        brand: spool.brand_name,
+        material: spool.material,
+        kind: spool.material_type,
+        color: spool.color_hex,
+        grams: Math.round(spool.remaining * 10) / 10,
+        of: spool.initial_weight,
+        status: spool.status,
+        place: spool.location_name,
+        loadedIn: spool.loaded.map((place) => place.label),
+        drying: !!spool.drying
+      }));
+    },
+    getSpool: async (args) => {
+      const spool = require('../core/spools').getSpool(database.db, Number(args.id));
+      if (!spool) throw new Error(`No spool ${args.id}`);
+      return spool;
+    },
+    weighSpool: async (args) => {
+      const result = require('../core/spools').weighSpool(database.db, Number(args.id), {
+        weight: args.weight,
+        withSpool: args.withSpool !== false,
+        notes: args.notes
+      });
+      require('./low-stock-alerts').soon();
+      events.broadcastRaw('filament-check-changed');
+      return { id: result.id, name: result.display_name, grams: result.remaining };
+    },
+    checkModelFilament: async (args) => {
+      const model = resolveModelForMcp(args);
+      const { getPlateFilaments, platesOf } = require('../core/plate-filaments');
+      const rows = getPlateFilaments(database.db, model.id);
+      if (!rows.length) return { id: model.id, known: false, message: 'What this model needs is not known (not a 3MF, or not read yet).' };
+      const plates = Array.isArray(args.plates) ? args.plates.map(Number) : args.plate ? [Number(args.plate)] : null;
+      const check = require('../core/filament-check').checkModel(database.db, model.id, {
+        plate: plates,
+        printerId: args.printerId ? Number(args.printerId) : null
+      });
+      return { id: model.id, known: true, plates: platesOf(rows), check };
+    },
+    whatCanIPrint: async (args) => {
+      const limit = Math.min(500, Math.max(1, Number(args.limit) || 50));
+      const printerId = args.printerId ? Number(args.printerId) : null;
+      const check = require('../core/filament-check');
+      const fits = check.fitForLibrary(database.db);
+      const ready = [...fits].filter(([, fit]) => fit.ready).map(([id]) => id);
+      let ids = ready;
+      if (printerId) {
+        // Only what the spools loaded in that printer cover, without a swap.
+        const loaded = new Set(
+          require('../core/printer-ams')
+            .getPrinterLoads(database.db, printerId)
+            .flatMap((loads) => [loads.direct, ...loads.units.flatMap((unit) => unit.slots.map((slot) => slot.spool))])
+            .filter(Boolean)
+            .map((spool) => spool.id)
+        );
+        ids = ready.filter((id) => {
+          const result = check.checkModel(database.db, id, { printerId });
+          return result && result.ready && result.needs.every((need) => need.spool && loaded.has(need.spool.id));
+        });
+      }
+      const rows = ids
+        .slice(0, limit)
+        .map((id) => database.db.prepare('SELECT id, filePath, fileName, title, designer FROM models WHERE id = ?').get(id))
+        .filter(Boolean);
+      return { count: ids.length, models: rows };
+    },
+    getReorderList: async () => require('../core/low-stock').reorderList(database.db),
+    getPrintQueue: async () =>
+      require('../core/print-queue')
+        .listQueue(database.db)
+        .map((item) => ({
+          id: item.id,
+          position: item.position,
+          model: { id: item.model.id, filePath: item.model.filePath, name: item.model.title || item.model.fileName },
+          plate: item.plate,
+          printer: item.printerName,
+          ready: item.check ? item.check.ready : null,
+          missing: item.check ? item.check.missing : []
+        })),
+    addToQueue: async (args) => {
+      const model = resolveModelForMcp(args);
+      const id = require('../core/print-queue').addToQueue(database.db, model.id, { plate: args.plate ?? null, printerId: args.printerId ?? null });
+      events.broadcast('refresh-grid');
+      return { id, model: model.id };
+    },
+    getFilamentStats: async (args) => {
+      const stats = require('../core/print-stats').printStatistics(database.db, { months: args.months != null ? Number(args.months) : 12 });
+      return { from: stats.from, to: stats.to, currency: stats.currency, filament: stats.filament };
     }
   };
 }

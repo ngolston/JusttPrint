@@ -35,7 +35,9 @@ const SETTING_KEYS = {
   /** The Thingiverse API token for downloads: site-files.js. */
   thingiverseToken: 'thingiverseToken',
   /** The Google Cloud Translation API key: google-translate.js. */
-  googleTranslateApiKey: 'googleTranslateApiKey'
+  googleTranslateApiKey: 'googleTranslateApiKey',
+  /** Where low-stock alerts go: the Discord webhook and the email server with its password (alert-delivery.js). */
+  alertDelivery: 'alertDelivery'
 };
 
 /** Settings that must never be read or written through the generic settings API. */

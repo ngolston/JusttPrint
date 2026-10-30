@@ -204,7 +204,7 @@
 }
 
 .file-item-list .file-name.zip-file {
-  color: var(--jp-success) !important;
+  color: var(--jp-success-text) !important;
 }
 
 .file-item-list .file-size-column {
@@ -329,13 +329,13 @@
 .list-view-header .sort-indicator {
   font-size: 14px;
   font-weight: bold;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   line-height: 1;
   margin-left: 4px;
 }
 
 .list-view-header .sortable-header.sort-active .sort-indicator {
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
 }
 
 /* List view: column picker (toolbar, next to view mode buttons) + resize */
@@ -733,7 +733,7 @@
 .parent-model-group-chevron {
   flex: 0 0 auto;
   width: 18px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   font-size: 16px;
   line-height: 1;
 }
@@ -755,7 +755,7 @@
 }
 
 .parent-model-filter-link:hover {
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
   text-decoration-color: rgba(var(--jp-accent-rgb), 0.8);
 }
 
@@ -1195,13 +1195,13 @@
 }
 
 .model-favorite-btn:hover {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   background: rgba(255, 107, 138, 0.14);
   transform: scale(1.08);
 }
 
 .model-favorite-btn.is-favorited {
-  color: var(--jp-danger);
+  color: var(--jp-danger-text);
   background: rgba(var(--jp-danger-rgb), 0.16);
 }
 
@@ -1264,7 +1264,7 @@
   text-decoration-color: rgba(var(--jp-overlay-rgb), 0.35);
 }
 .tag-filter-link:hover {
-  color: var(--jp-accent-hover);
+  color: var(--jp-accent-text-hover);
   text-decoration-color: rgba(var(--jp-accent-rgb), 0.8);
 }
 
@@ -1498,7 +1498,7 @@
 /* Library grid list rows (src/web/grid/ModelCard.tsx): the folder link underlines on hover */
 .file-item-list .directory-info-column:hover .directory-info {
   text-decoration: underline;
-  color: var(--jp-accent-hover) !important;
+  color: var(--jp-accent-text-hover) !important;
 }
 
 .file-grid {
@@ -1712,7 +1712,7 @@
 /* Add specific styles for update dialog buttons */
 
 .directory-link {
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   text-decoration: none;
   cursor: pointer;
 }
@@ -1724,7 +1724,7 @@
 /* Designer info styling to match parent directory */
 .designer-info {
   font-size: 12px;
-  color: var(--jp-accent);
+  color: var(--jp-accent-text);
   margin: 4px 0;
   cursor: pointer;
 }
@@ -2330,7 +2330,7 @@ body.is-panel-resizing * {
 }
 
 .preview-tile-name.zip-file {
-  color: var(--jp-success);
+  color: var(--jp-success-text);
 }
 
 .preview-tile-actions {
