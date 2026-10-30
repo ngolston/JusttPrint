@@ -11,6 +11,9 @@ const { repairModelTagsTable } = require('./models');
 const { ensureSlicersTableExists } = require('../server/ipc/slicers');
 const { getDatabasePath } = require('./db-path');
 const { version } = require('../../package.json');
+const { ensureFilamentSchema } = require('./filament-schema');
+const { needsUpgradeBackup, writeUpgradeBackup } = require('./upgrade-backup');
+const { app } = require('../server/runtime');
 
 // Add this function to initialize the database
 function initializeDatabase() {
@@ -29,6 +32,9 @@ function initializeDatabase() {
 
     // Enable foreign keys
     database.db.pragma('foreign_keys = ON');
+
+    // Before JusttPrint 10 adds its tables to a 9.x library, keep a copy of it.
+    backupBeforeVersion10();
 
     // Create tables in sequence
     database.db.transaction(() => {
@@ -161,6 +167,7 @@ function initializeDatabase() {
     ensureSlicersTableExists();
     removeFilamentData();
     ensurePartsTablesExist();
+    ensureFilamentSchema(database.db);
 
     // Initialize default settings
     initializeDefaultSettings();
@@ -715,6 +722,29 @@ function removeFilamentData() {
     console.log(`Removed filament data: ${filaments} filament(s) and ${tables.length} table(s)${settings ? `, ${settings} setting(s)` : ''}`);
   } catch (error) {
     console.error('Error removing filament data:', error);
+  }
+}
+
+/**
+ * The first 10.0 start on a 9.x library copies the database into the backups folder (the
+ * automatic backups' folder, Settings → Backup) before anything changes. The 10.0 changes only
+ * add tables and columns, which 9.x ignores, so a failed copy is logged and startup goes on.
+ */
+function backupBeforeVersion10() {
+  const db = database.db;
+  if (!needsUpgradeBackup(db, 'spools')) return;
+  let directory = path.join(app.getPath('userData'), 'backups');
+  try {
+    const saved = db.prepare("SELECT value FROM settings WHERE key = 'autoBackupDirectory'").get();
+    if (saved && path.isAbsolute(String(saved.value || '').trim())) directory = String(saved.value).trim();
+  } catch (_) {
+    /* no settings table yet */
+  }
+  try {
+    const file = writeUpgradeBackup(db, directory, '10.0');
+    console.log(`[Database] Backed up the library before upgrading to 10.0: ${file}`);
+  } catch (error) {
+    console.error(`[Database] Could not back up the library before upgrading to 10.0 (going on; 9.x can still open it): ${error.message}`);
   }
 }
 

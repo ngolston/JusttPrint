@@ -8,12 +8,13 @@ JusttPrint 10 (docs/merge-10.md) is built on the `merge-10` branch and released 
 
 **Changes:**
 - **The Bento look (Phase 1: tokens and components).** Light slate and coral instead of graphite and cyan, Plus Jakarta Sans instead of Inter, rounder cards with a soft shadow, and heavier headings (docs/design-bento.md). Light is the default; Settings → Theme still offers Light, Dark (a Bento dark in slate) or Match the system.
+- **The database gets JusttPrint 10's tables** for spools, filament brands and profiles, storage locations, weighings, drying, AMS units and slots, low-stock alerts, webhooks, print photos, the spools each print used, what each plate needs, and a print queue with an order; printers and logged prints gain their new details. Nothing uses them yet. Models that are Queued go into the new queue, oldest added first.
 - New components for the pages to come, shown at `#/design-system`: bento grid and tiles, spool rings, filament color dots, placeholder art for models without a picture, the "Ready to print" badge, the per-color filament check, the browse card, category and sort tabs, a switch, print profile buttons and a picture gallery.
 
 **Removed:**
 - The accent colors (Modern Cyan, Purple, Green, Orange, Pink, Dark Minimal) under Settings → Theme. Everyone gets coral.
 
-**Upgrading:** anyone who never chose a color scheme now sees the light one; Dark is one setting away under Settings → Theme. A saved accent color is ignored.
+**Upgrading:** the first start keeps a copy of the library as `justtprint-before-10.0-<date>-<time>.db` in the backups folder (Settings → Backup), which automatic backups never delete; to go back, restore that file under Settings → Backup (as an uploaded backup file). Anyone who never chose a color scheme now sees the light one; Dark is one setting away under Settings → Theme. A saved accent color is ignored.
 
 ## [9.7.3] - 2026-10-26
 
