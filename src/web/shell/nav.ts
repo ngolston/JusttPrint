@@ -10,6 +10,7 @@ import {
   BarChart3,
   BookOpen,
   Box,
+  CircleDot,
   FolderHeart,
   FolderInput,
   Shapes,
@@ -119,6 +120,7 @@ export const NAV: NavSection[] = [
     label: 'Printing',
     items: [
       { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
+      { id: 'filament', label: 'Filament', icon: CircleDot, page: 'filament' },
       { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
       { id: 'stats', label: 'Statistics', icon: BarChart3, page: 'stats' }
     ]
@@ -362,6 +364,14 @@ export const SETTINGS: SettingsGroup[] = [
         description: 'Your printers, their web pages and maintenance reminders.',
         icon: Printer,
         run: () => navigate('printers'),
+        role: 'viewer'
+      },
+      {
+        id: 'filament',
+        label: 'Filament',
+        description: 'Your spools, how much is left, where they are, drying, and the Spoolman import.',
+        icon: CircleDot,
+        run: () => navigate('filament'),
         role: 'viewer'
       },
       {

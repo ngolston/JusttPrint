@@ -1,0 +1,442 @@
+/* Filament page (pages/FilamentPage.tsx, filament/*.tsx; docs/design-bento.md, J2 · Filament). */
+
+.jp-filament {
+  /* The list pages share one width. */
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-6);
+}
+.jp-filament .jp-page__header {
+  margin-bottom: 0;
+}
+.jp-filament__headline {
+  font-size: 16px;
+}
+
+/* On hand */
+.jp-filament__palette {
+  display: flex;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.jp-filament__palette > span {
+  flex: 1 1 0;
+  min-width: 3px;
+}
+.jp-filament__materials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jp-filament__materials li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--jp-text-ui);
+}
+.jp-filament__material {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-filament__bar {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--jp-ink-tile-2);
+}
+.jp-filament__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--jp-accent-tint);
+}
+.jp-filament__bar > span.is-top {
+  background: var(--jp-accent);
+}
+.jp-filament__kg {
+  text-align: right;
+  color: var(--jp-on-ink-2);
+  font-weight: 600;
+}
+
+/* Dryer and Add a spool */
+.jp-filament__drying {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-4);
+}
+.jp-filament__drying-text {
+  flex: 1;
+  min-width: 0;
+}
+.jp-filament__add-text {
+  margin: 0;
+  color: var(--jp-text-2);
+  font-size: 15px;
+}
+.jp-filament__add-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+}
+
+/* All spools */
+.jp-filament__all {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-4);
+}
+.jp-filament__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.jp-filament__toolbar .jp-section-title {
+  margin-right: 10px;
+}
+.jp-filament__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.jp-chip.is-on {
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-filament__search {
+  margin-left: auto;
+  width: 220px;
+}
+.jp-filament__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--jp-space-5);
+}
+
+/* Spool card */
+.jp-spool-card {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 20px;
+  border: 0;
+  border-radius: var(--jp-radius-xl);
+  background: var(--jp-surface-1);
+  box-shadow: var(--jp-shadow-card);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.jp-spool-card:hover {
+  background: var(--jp-surface-1);
+  box-shadow:
+    0 0 0 2px var(--jp-border-strong),
+    var(--jp-shadow-card);
+}
+.jp-spool-card.is-empty {
+  box-shadow:
+    0 0 0 2px var(--jp-accent),
+    var(--jp-shadow-card);
+}
+.jp-spool-card.is-archived {
+  opacity: 0.7;
+}
+.jp-spool-card:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-spool-card__top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.jp-spool-card__names {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jp-spool-card__name {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.jp-spool-card__brand {
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-meta);
+}
+.jp-spool-card__grams {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--jp-space-2);
+}
+.jp-spool-card__left {
+  font-size: 22px;
+  font-weight: 800;
+}
+.jp-spool-card__left.is-empty {
+  color: var(--jp-accent-text);
+}
+.jp-spool-card__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.jp-spool-card__pills .jp-pill {
+  font-size: var(--jp-text-small);
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Spool drawer */
+.jp-spool-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-5);
+}
+.jp-spool-detail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-4);
+}
+.jp-spool-detail__grams {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.jp-spool-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
+}
+.jp-spool-detail__props {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+}
+.jp-spool-detail__colors {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.jp-spool-detail__notes {
+  margin: 0;
+  padding: var(--jp-space-3) var(--jp-space-4);
+  border-radius: 16px;
+  background: var(--jp-warning-soft);
+  color: var(--jp-text);
+  white-space: pre-wrap;
+}
+.jp-spool-detail__log {
+  list-style: none;
+  margin: var(--jp-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-spool-detail__log li {
+  display: grid;
+  grid-template-columns: 110px 120px minmax(0, 1fr);
+  gap: var(--jp-space-2);
+  padding: 8px 12px;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  font-size: var(--jp-text-meta);
+}
+
+/* Forms */
+.jp-filament-form {
+  width: min(520px, calc(100vw - 32px));
+}
+.jp-filament-form--wide {
+  width: min(720px, calc(100vw - 32px));
+}
+.jp-filament-form .jp-input {
+  width: 100%;
+}
+.jp-filament-form textarea.jp-input {
+  height: auto;
+  padding: var(--jp-space-2) var(--jp-space-3);
+  line-height: 1.5;
+  resize: vertical;
+}
+.jp-filament-form__error {
+  margin: 0 auto 0 0;
+  color: var(--jp-danger-text);
+  font-size: var(--jp-text-meta);
+}
+.jp-filament-form__color {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-filament-form__color input[type='color'] {
+  flex: none;
+  width: 40px;
+  height: var(--jp-control-height);
+  padding: 2px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-1);
+}
+.jp-filament-form__check {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  font-size: var(--jp-text-ui);
+}
+.jp-filament-form__check input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--jp-accent);
+}
+
+/* Catalogue */
+.jp-catalog__search {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  margin-bottom: var(--jp-space-2);
+  color: var(--jp-text-3);
+}
+.jp-catalog__list {
+  list-style: none;
+  margin: var(--jp-space-3) 0 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-catalog__item {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--jp-space-3);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  text-align: left;
+  cursor: pointer;
+}
+.jp-catalog__item:hover {
+  background: var(--jp-surface-hover);
+}
+.jp-catalog__item:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-catalog__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jp-catalog__name {
+  font-weight: 700;
+}
+.jp-catalog__meta {
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-small);
+}
+
+/* Places */
+.jp-places {
+  list-style: none;
+  margin: 0 0 var(--jp-space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-places__row {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  padding: 6px 10px;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+}
+.jp-places__name {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  font-weight: 700;
+}
+.jp-places__rename,
+.jp-places__add {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-places__add .jp-input {
+  flex: 1;
+}
+
+@media (max-width: 700px) {
+  .jp-filament__search {
+    width: 100%;
+    margin-left: 0;
+  }
+  .jp-spool-detail__log li {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Tall forms keep their header and footer in view; the fields scroll. */
+.jp-filament-form[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+}
+.jp-filament-form .jp-overlay__body {
+  flex: 1;
+  min-height: 0;
+}
+.jp-filament-form .jp-overlay__footer {
+  flex: none;
+  align-items: center;
+}
+
+.jp-spool-detail .jp-prop {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--jp-space-3);
+}
+.jp-spool-detail .jp-prop__label {
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-meta);
+}
+.jp-spool-detail .jp-prop__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

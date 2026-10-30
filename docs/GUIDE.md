@@ -122,6 +122,17 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 ![Printers](images/printers.png)
 
+### Filament
+
+**Filament** in the sidebar keeps the spools you own and how much is left on each, shared by everyone on the library. **On hand** adds up the grams of every spool that is not archived, with your colors and materials; **Dryer** shows what is drying and how long it has left.
+
+- **Add from catalogue** searches about 27,000 filaments (brand, material, color: *bambu pla basic black*) from [3dfilamentprofiles.com](https://3dfilamentprofiles.com); choosing one fills in the spool form, with the spool's empty weight when the catalogue knows it. **Add by hand** starts from an empty form.
+- **Import from Spoolman** reads a Spoolman export (JSON, or what Spoolman's `/api/v1/spool` returns): vendors become brands, filaments become filaments, locations become places. Importing the same file again skips the spools already here.
+- Click a spool for its details. **Weigh** it on a kitchen scale: on its spool (enter the empty spool's weight under **Edit** first) or the filament alone; JusttPrint works out what is left and keeps every weighing. **Dry** starts a drying session (temperature and time come from the filament when it has them); **Finish drying** ends it, with the humidity after if you measured it. **Move** puts it in a place (a shelf, a dry box), **Archive** keeps a used-up spool for your records and takes it out of every printer, **Delete** removes it.
+- **Places** lists your shelves and dry boxes. The chips above the spools show those running low (under 300 g), drying, of one material, or archived.
+
+Viewers see the spools; editors and admins change them.
+
 ### Statistics
 
 **Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. Everyone can open Statistics.

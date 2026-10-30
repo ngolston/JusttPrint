@@ -524,6 +524,175 @@ export const printers = {
   removeLog: (id: number) => callAction<unknown>('delete-printer-maintenance-log', id)
 };
 
+/** A place spools are kept (src/core/storage-locations.js). */
+export interface StorageLocation {
+  id: number;
+  name: string;
+  description: string | null;
+  is_dry_box: number;
+  spool_count?: number;
+}
+
+/** A kind of filament (src/core/filament-profiles.js). */
+export interface FilamentProfile {
+  id: number;
+  brand_id: number | null;
+  brand_name: string | null;
+  name: string;
+  material: string;
+  color_name: string | null;
+  color_hex: string | null;
+  diameter: number;
+  density: number | null;
+  print_temp_min: number | null;
+  print_temp_max: number | null;
+  bed_temp_min: number | null;
+  bed_temp_max: number | null;
+  drying_temp: number | null;
+  drying_hours: number | null;
+  product_url: string | null;
+  source: 'manual' | 'catalog' | 'spoolman';
+  spool_count?: number;
+}
+
+export interface FilamentBrand {
+  id: number;
+  name: string;
+  profile_count: number;
+  spool_count: number;
+}
+
+export interface DryingSession {
+  id: number;
+  spool_id: number;
+  drying_temp: number | null;
+  target_hours: number | null;
+  started_at: string;
+  finished_at: string | null;
+  humidity_before: number | null;
+  humidity_after: number | null;
+  notes: string | null;
+  /** get-drying-sessions only: the spool it is drying. */
+  spool_name?: string | null;
+  profile_name?: string | null;
+  material?: string | null;
+  color_hex?: string | null;
+}
+
+export type SpoolStatus = 'active' | 'storage' | 'archived';
+
+/** A spool as get-spools returns it (src/core/spools.js). Weights in grams. */
+export interface Spool {
+  id: number;
+  profile_id: number | null;
+  brand_id: number | null;
+  location_id: number | null;
+  name: string | null;
+  display_name: string;
+  profile_name: string | null;
+  brand_name: string | null;
+  location_name: string | null;
+  color_name: string | null;
+  material: string;
+  material_type: string | null;
+  color_hex: string | null;
+  color_hex_2: string | null;
+  color_hex_3: string | null;
+  color_hex_4: string | null;
+  initial_weight: number;
+  spool_weight: number | null;
+  used_weight: number;
+  remaining: number;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  supplier: string | null;
+  product_url: string | null;
+  lot_nr: string | null;
+  status: SpoolStatus;
+  notes: string | null;
+  registered_at: string;
+  last_used_at: string | null;
+  profile_drying_temp: number | null;
+  profile_drying_hours: number | null;
+  loaded: { printerId: number; label: string }[];
+  drying: { id: number; drying_temp: number | null; target_hours: number | null; started_at: string } | null;
+}
+
+export interface SpoolDetail extends Spool {
+  weighings: { id: number; measured_weight: number; net_weight: number; notes: string | null; logged_at: string }[];
+  dryings: DryingSession[];
+}
+
+export interface FilamentSummary {
+  spoolCount: number;
+  grams: number;
+  lowCount: number;
+  archivedCount: number;
+  materials: { material: string; grams: number }[];
+  colors: { color: string; grams: number; name: string }[];
+}
+
+/** A filament in the bundled catalogue (search-filament-catalog). */
+export interface CatalogFilament {
+  id: string;
+  brand: string;
+  name: string;
+  material: string;
+  color_name: string | null;
+  color_hex: string | null;
+  diameter: number | null;
+  weight: number | null;
+  spool_weight: number | null;
+  density: number | null;
+  print_temp_min: number | null;
+  print_temp_max: number | null;
+  bed_temp_min: number | null;
+  bed_temp_max: number | null;
+  product_url: string | null;
+}
+
+export interface SpoolmanImport {
+  imported: number;
+  alreadyHere: number;
+  skipped: number;
+  problems: string[];
+  brands: number;
+  profiles: number;
+  locations: number;
+}
+
+/** What the spool form sends: a Spool's columns, `remaining` for grams left, a brand by name. */
+export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & { remaining?: number | null; brand_name?: string | null };
+
+/** Spools, filament, places and drying (Filament page). */
+export const filament = {
+  spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
+  spool: (id: number) => callAction<SpoolDetail | null>('get-spool', id),
+  summary: () => callAction<FilamentSummary>('get-filament-summary'),
+  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail>('save-spool', spool),
+  weigh: (id: number, weighing: { weight: number; withSpool: boolean; notes?: string | null }) => callAction<SpoolDetail>('weigh-spool', id, weighing),
+  move: (id: number, locationId: number | null) => callAction<SpoolDetail>('move-spool', id, locationId),
+  archive: (id: number, archived: boolean) => callAction<SpoolDetail>('archive-spool', id, archived),
+  removeSpool: (id: number) => callAction<boolean>('delete-spool', id),
+  importSpoolman: (data: unknown) => callAction<SpoolmanImport>('import-spoolman', data),
+  brands: () => callAction<FilamentBrand[]>('get-filament-brands'),
+  profiles: (options: { search?: string; material?: string } = {}) => callAction<FilamentProfile[]>('get-filament-profiles', options),
+  searchCatalog: (query: string, limit = 50) =>
+    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
+  addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
+  locations: () => callAction<StorageLocation[]>('get-storage-locations'),
+  saveLocation: (location: { id?: number; name: string; description?: string | null; is_dry_box?: boolean }) =>
+    callAction<StorageLocation>('save-storage-location', location),
+  removeLocation: (id: number) => callAction<boolean>('delete-storage-location', id),
+  drying: () => callAction<DryingSession[]>('get-drying-sessions'),
+  startDrying: (
+    spoolId: number,
+    session: { drying_temp?: number | null; target_hours?: number | null; humidity_before?: number | null; notes?: string | null }
+  ) => callAction<DryingSession>('start-drying', spoolId, session),
+  finishDrying: (sessionId: number, result: { humidity_after?: number | null; notes?: string | null } = {}) =>
+    callAction<DryingSession>('finish-drying', sessionId, result)
+};
+
 export interface LibraryStats {
   totalModels: number;
   totalBytes: number;

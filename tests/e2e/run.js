@@ -3186,20 +3186,9 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#parts-stock-close');
     check('Parts Manager closes', !(await page.isVisible('#parts-stock-dialog')));
 
-    // Filament was removed in 7.0: no page, no sidebar entry, no dialogs.
-    check('the sidebar has no Filament page', !(await page.isVisible('.jp-sidebar .jp-nav__row:has-text("Filament")')));
-    await page.evaluate(() => {
-      window.location.hash = '#/filament';
-    });
+    // 7.0's filament dialogs and filters stay gone; 10.0's Filament page is checked below.
     check(
-      '#/filament opens Home',
-      await page.waitForSelector('.jp-hero', { timeout: 10000 }).then(
-        () => true,
-        () => false
-      )
-    );
-    check(
-      'no filament dialogs or filters',
+      "7.0's filament dialogs and filters are not back",
       await page.evaluate(
         () => !document.querySelector('dialog.jp-add-filament, #filament-manager-dialog, #filament-filter') && !('openFilamentManager' in window)
       )
@@ -3670,6 +3659,119 @@ async function browserChecks(base, wsUrl, session) {
     });
     check('a page covers the grid for the keyboard too (inert)', inertState.card && !inertState.focusedCard && inertState.inert, JSON.stringify(inertState));
 
+    // Filament page (React, src/web/pages/FilamentPage.tsx; docs/merge-10.md Phase 3): catalogue, weigh, move, dry, archive, Spoolman.
+    const answerMessage = async (label) => {
+      await page.waitForSelector('dialog.jp-message-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.click(`dialog.jp-message-dialog[open] button:has-text("${label}")`).catch(() => {});
+    };
+    const spoolDetail = (text) =>
+      page.waitForSelector(`#jp-spool-detail:has-text("${text}")`, { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Filament")');
+    await page.waitForSelector('.jp-filament h1', { timeout: 15000 }).catch(() => {});
+    check(
+      'the Filament page opens with no spools and the ways to add one',
+      (await page.isVisible('#jp-add-from-catalog')) && !(await page.isVisible('.jp-spool-card'))
+    );
+    await page.click('#jp-add-from-catalog');
+    await page.fill('#jp-catalog-search', 'bambu pla basic black');
+    await page.waitForSelector('.jp-catalog__item', { timeout: 10000 }).catch(() => {});
+    await page.click('.jp-catalog__item >> nth=0');
+    await page.waitForSelector('#jp-spool-form-form', { timeout: 10000 }).catch(() => {});
+    const prefilled = {
+      brand: await page.inputValue('#jp-spool-brand').catch(() => ''),
+      material: await page.inputValue('#jp-spool-material').catch(() => ''),
+      tare: await page.inputValue('#jp-spool-tare').catch(() => '')
+    };
+    check(
+      'a catalogue filament fills in the spool form',
+      prefilled.brand === 'Bambu Lab' && prefilled.material === 'PLA' && Number(prefilled.tare) > 0,
+      JSON.stringify(prefilled)
+    );
+    await page.fill('#jp-spool-tare', '250');
+    await page.fill('#jp-spool-remaining', '18');
+    await page.click('#jp-spool-form button[type=submit]');
+    await page.waitForSelector('.jp-spool-card', { timeout: 10000 }).catch(() => {});
+    check(
+      'the new spool shows with its grams, ringed as nearly empty',
+      (await page.isVisible('.jp-spool-card.is-empty:has-text("18 g")')) &&
+        (await page.textContent('.jp-filament__headline').catch(() => '')).includes('1 running low')
+    );
+    await page.click('.jp-spool-card');
+    await page.waitForSelector('#jp-spool-detail', { timeout: 10000 }).catch(() => {});
+    await page.click('#jp-spool-detail button:has-text("Weigh")');
+    await page.fill('#jp-weigh-weight', '900');
+    await page.click('#jp-weigh-form button[type=submit]');
+    const weighed = await spoolDetail('650 g');
+    const listed = (await invoke(base, session, 'get-spools', [{}])).result || [];
+    check(
+      'weighing on the spool sets the grams left and logs it',
+      weighed && listed[0]?.remaining === 650,
+      JSON.stringify(listed[0] && { remaining: listed[0].remaining })
+    );
+    await page.click('#jp-spool-detail button:has-text("Move")');
+    await page.fill('#jp-move-new', 'E2E Shelf');
+    await page.click('#jp-move-form button[type=submit]');
+    check('moving a spool to a new place makes the place', await spoolDetail('E2E Shelf'));
+    await page.click('#jp-spool-detail button:has-text("Dry")');
+    await page.fill('#jp-dry-temp', '50');
+    await page.fill('#jp-dry-hours', '4');
+    await page.click('#jp-dry-form button[type=submit]');
+    check(
+      'drying a spool shows it in the Dryer tile',
+      await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
+    await page.click('#jp-spool-detail button:has-text("Finish drying")');
+    await page.fill('#jp-finish-dry-humidity', '12');
+    await page.click('#jp-finish-dry-form button[type=submit]');
+    await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { state: 'detached', timeout: 10000 }).catch(() => {});
+    check('finishing drying takes it out of the Dryer tile', !(await page.isVisible('.jp-tile[aria-label="Dryer"]')) && (await spoolDetail('12%')));
+    await page.click('#jp-spool-detail button:has-text("Archive")');
+    await answerMessage('Archive');
+    check('archiving a spool after asking', await spoolDetail('Archived'));
+    await page.click('.jp-spool-drawer .jp-overlay__header button');
+    await page.click('#jp-import-spoolman');
+    await page.setInputFiles('#jp-spoolman-file', {
+      name: 'spoolman.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify([
+          {
+            id: 41,
+            used_weight: 300,
+            location: 'E2E Shelf',
+            filament: { id: 7, name: 'E2E Charcoal', material: 'PLA', color_hex: '333333', weight: 1000, vendor: { name: 'Polymaker' } }
+          }
+        ])
+      )
+    });
+    await page.click('#jp-spoolman button[type=submit]');
+    const imported = await page
+      .waitForSelector('#jp-spoolman-result', { timeout: 10000 })
+      .then((el) => el.textContent())
+      .catch(() => '');
+    await page.click('#jp-spoolman-dialog button:has-text("Done")').catch(() => {});
+    check(
+      'importing a Spoolman export adds its spools in their places',
+      /^1 spool imported/.test(imported.trim()) &&
+        (await page.waitForSelector('.jp-spool-card:has-text("E2E Charcoal")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )),
+      imported
+    );
+    const allSpools = await invoke(base, session, 'get-spools', [{}]);
+    check(
+      'both spools are listed, the archived one too',
+      Array.isArray(allSpools.result) && allSpools.result.length === 2,
+      JSON.stringify(allSpools.result?.length)
+    );
+
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
     const auditContext = await browser.newContext({
       viewport: { width: 1400, height: 900 },
@@ -3678,7 +3780,7 @@ async function browserChecks(base, wsUrl, session) {
     });
     const audit = await auditContext.newPage();
     const axeProblems = [];
-    for (const hash of ['#/home', '#/library', '#/queue', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
+    for (const hash of ['#/home', '#/library', '#/queue', '#/filament', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
       await audit.goto(`${base}/${hash}`);
       await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
       await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
@@ -5686,6 +5788,12 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers read the library', (await invoke(base, viewer, 'get-library-counts')).status === 200);
   const viewerEdit = await invoke(base, viewer, 'save-tag', ['nope']);
   check('viewers cannot edit', viewerEdit.status === 403 && /Viewer accounts cannot do this/.test(viewerEdit.error || ''), JSON.stringify(viewerEdit));
+  check(
+    'viewers see the spools but cannot change them',
+    (await invoke(base, viewer, 'get-spools', [{}])).status === 200 &&
+      (await invoke(base, viewer, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 403
+  );
+  check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);
   check('editors cannot change settings', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['stlHomeDirectories', '[]'])).error || ''));
   check('editors may save display preferences', (await invoke(base, editor, 'save-setting', ['gridView', 'true'])).result === true);

@@ -12,6 +12,7 @@ export const PAGES = [
   'categories',
   'history',
   'queue',
+  'filament',
   'printers',
   'stats',
   'tags',
