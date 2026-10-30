@@ -34,6 +34,8 @@ export interface FilterState {
   rating: string;
   ratingMin: string;
   fileType: string;
+  /** Only models the spools on hand can print (the filament check, docs/merge-10.md Phase 4). */
+  fitsMyFilament: boolean;
   /** The search query: clauses, AND/OR/NOT, and filters moved into it. */
   tokens: SearchToken[];
   /** AND/OR/NOT was pressed: the next search or filter pick completes the query. */
@@ -88,6 +90,7 @@ export function emptyFilterState(): FilterState {
     rating: 'all',
     ratingMin: 'all',
     fileType: '',
+    fitsMyFilament: false,
     tokens: [],
     awaiting: false,
     inverted: { designer: false, license: false, title: false, tag: false, search: false },
@@ -213,6 +216,7 @@ export function serverFilters(state: FilterState): ServerFilters {
     searchInverted: state.inverted.search,
     directory: state.directory || undefined
   };
+  if (state.fitsMyFilament) filters.fitsMyFilament = true;
   const add = (kind: MultiKind, key: string, combineKey: string) => {
     const { values, combine } = effective(state, kind);
     if (values.length) {
@@ -265,7 +269,7 @@ export function payloadIsFiltered(f: ServerFilters | null | undefined): boolean 
   if (Array.isArray(f.tags) ? f.tags.length : f.tag) return true;
   if (f.printed) return true;
   for (const key of ['isNew', 'favorite', 'rating', 'ratingMin']) if (f[key] && f[key] !== 'all') return true;
-  if (f.fileType || f.directory || f.dateAdded) return true;
+  if (f.fileType || f.directory || f.dateAdded || f.fitsMyFilament) return true;
   if (Array.isArray(f.searchTokens) && f.searchTokens.length) return true;
   if (Array.isArray(f.searchClauses) && f.searchClauses.length) return true;
   return !!(f.search && String(f.search).trim());
@@ -298,6 +302,7 @@ export function describePayload(f: ServerFilters | null | undefined, labels: Lab
   if (f.rating && f.rating !== 'all') parts.push(f.rating === 'unrated' ? 'Unrated' : `Rating ${f.rating}`);
   if (f.ratingMin && f.ratingMin !== 'all') parts.push(`Rating ≥ ${f.ratingMin}`);
   if (f.fileType) parts.push(`Type: ${f.fileType}`);
+  if (f.fitsMyFilament) parts.push('Fits my filament');
   if (f.directory) {
     const bits = String(f.directory).split(/[/\\]/).filter(Boolean);
     parts.push(`Folder: ${bits[bits.length - 1] || f.directory}`);
@@ -377,7 +382,8 @@ export type ChipRemove =
   | { type: 'tag'; value: string }
   | { type: 'multi'; kind: 'designer' | 'license' | 'title' }
   | { type: 'single'; key: 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin' | 'fileType' }
-  | { type: 'directory' };
+  | { type: 'directory' }
+  | { type: 'fits' };
 
 export type StripItem =
   | { kind: 'op'; text: string; remove: ChipRemove }
@@ -409,6 +415,7 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
     single('ratingMin') ||
     state.tags.length ||
     state.fileType ||
+    state.fitsMyFilament ||
     queryActive ||
     state.directory ||
     state.dateAdded
@@ -486,6 +493,7 @@ export function filterStrip(state: FilterState, labels: Labels): FilterStrip {
   if (single('ratingMin')) plain('ratingMin', `Min rating: ${state.ratingMin}+`);
   if (state.fileType) plain('fileType', `Type: ${state.fileType}`);
   if (state.directory) chips.push({ kind: 'chip', className: '', text: `Directory: ${state.directory}`, inverted: false, remove: { type: 'directory' } });
+  if (state.fitsMyFilament) chips.push({ kind: 'chip', className: '', text: 'Fits my filament', inverted: false, remove: { type: 'fits' } });
   return { active, chain, chips };
 }
 
@@ -634,6 +642,7 @@ export function clearedState(state: FilterState): FilterState {
 /** What a saved search (a smart collection) keeps of the filters: no view, sort or "new models" moment. */
 export type SavedSearch = Pick<
   FilterState,
+  | 'fitsMyFilament'
   | 'designer'
   | 'license'
   | 'title'
@@ -664,6 +673,7 @@ export function savedSearch(state: FilterState): SavedSearch {
     rating: state.rating,
     ratingMin: state.ratingMin,
     fileType: state.fileType,
+    fitsMyFilament: state.fitsMyFilament,
     tokens: normalizeTokens(state.tokens),
     inverted: { ...state.inverted },
     directory: state.directory,
@@ -706,6 +716,7 @@ export function restoredState(state: FilterState, saved: unknown): FilterState {
     rating: text(s.rating, base.rating),
     ratingMin: text(s.ratingMin, base.ratingMin),
     fileType: text(s.fileType, base.fileType),
+    fitsMyFilament: s.fitsMyFilament === true,
     tokens: Array.isArray(s.tokens) ? normalizeTokens((s.tokens as SearchToken[]).map(titleToken)) : [],
     inverted: { ...base.inverted, ...inverted },
     directory: text(s.directory, ''),

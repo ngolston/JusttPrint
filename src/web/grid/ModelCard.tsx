@@ -1,3 +1,4 @@
+import { FitBadge } from '../components/Filament';
 import {
   useEffect,
   useLayoutEffect,
@@ -920,6 +921,13 @@ function ModelTile({ host, model, common, images, more, current, setRenderSlot }
             <span className="jp-badge" title="File type">
               {format}
             </span>
+          )}
+          {model.fit && (
+            <FitBadge
+              missing={model.fit.missing}
+              className="jp-model-card__fit"
+              title={model.fit.ready ? 'Your spools have enough of every color it needs' : `Not enough ${model.fit.missing.join(', ')} filament on your spools`}
+            />
           )}
           {host.isNew(model) && (
             <span className="jp-badge new-status jp-model-card__flag" title="New model — clears once you edit it">

@@ -11,6 +11,8 @@ export type PreviewTileSize = 's' | 'm' | 'l';
 export interface GridModel {
   id?: number | string | null;
   filePath: string;
+  /** The filament check (src/core/filament-check.js), for models whose plates' filament is known. */
+  fit?: { ready: boolean; missing: string[] } | null;
   /** The model's Title (shown instead of its file name when set). */
   title?: string | null;
   bundleKey?: string | null;

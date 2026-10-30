@@ -71,6 +71,11 @@ const SINGLE_TO_ATOM: Record<'printed' | 'isNew' | 'favorite' | 'rating' | 'rati
 
 export const filterActions = {
   /** A single-choice filter (print status, new, favorite, rating, min rating, file type). */
+  /** Only models the spools on hand can print. */
+  setFitsMyFilament(on: boolean) {
+    userChange({ ...state, fitsMyFilament: on });
+  },
+
   setSingle(key: 'printed' | 'isNew' | 'favorite' | 'rating' | 'ratingMin' | 'fileType', value: string) {
     const isOff = !value || value === 'all';
     if (!isOff) {
@@ -197,6 +202,8 @@ export const filterActions = {
         return userChange(clearSidebarKinds(state, new Set([SINGLE_TO_ATOM[remove.key]])));
       case 'directory':
         return set({ ...state, directory: '' });
+      case 'fits':
+        return userChange({ ...state, fitsMyFilament: false });
     }
   },
 

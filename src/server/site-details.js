@@ -304,6 +304,28 @@ function editableValues(url) {
   return out;
 }
 
+/**
+ * The filament of a MakerWorld link's default print profile, from the details already kept (never
+ * fetched here): [{ type, color, grams }], or null when none are kept.
+ * @param {string} url
+ * @returns {{ type: string | null, color: string | null, grams: number | null }[] | null}
+ */
+function cachedProfileFilaments(url) {
+  const link = parseModelLink(url);
+  if (!link || link.site !== 'makerworld') return null;
+  const row = table().prepare('SELECT data FROM site_details WHERE key = ?').get(linkKey(link));
+  if (!row) return null;
+  try {
+    const profile = (JSON.parse(row.data).profiles || [])[0];
+    const filaments = profile && Array.isArray(profile.filaments) ? profile.filaments : [];
+    return filaments.length
+      ? filaments.map((f) => ({ type: f.type || null, color: f.color || null, grams: Number(f.grams) > 0 ? Number(f.grams) : null }))
+      : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function saveSiteEdits(url, changes, options = {}) {
   const link = parseModelLink(url);
   if (!link) throw new Error('Not a model link from MakerWorld, Printables or Thingiverse');
@@ -964,6 +986,7 @@ function siteTitleOf(model) {
 }
 
 module.exports = {
+  cachedProfileFilaments,
   DOWNLOAD_HOSTS,
   editableValues,
   siteTitleOf,

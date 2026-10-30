@@ -9,6 +9,7 @@ require('./context-menu');
 require('./context-menu-generate-tags');
 require('./context-menu-pull-metadata');
 require('./drying');
+require('./filament-check');
 require('./filament-profiles');
 require('./files');
 require('./folders');

@@ -521,6 +521,13 @@ function buildModelFilterConditions(rawFilters) {
     }
   }
 
+  // Fits my filament (docs/merge-10.md, Phase 4): models the spools on hand can print.
+  if (filters.fitsMyFilament === true || filters.fitsMyFilament === 'true') {
+    const fits = require('./filament-check').fitForLibrary(require('./database').db);
+    conditions.push('models.id IN (SELECT value FROM json_each(?))');
+    params.push(JSON.stringify([...fits].filter(([, fit]) => fit.ready).map(([id]) => id)));
+  }
+
   const normalizedIsNew = typeof filters.isNew === 'string' ? filters.isNew.trim().toLowerCase() : filters.isNew;
   if (
     normalizedIsNew !== undefined &&

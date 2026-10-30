@@ -463,6 +463,14 @@ const getModelsFilteredHandler = async (event, filters) => {
     const models = database.db.prepare(query).all(...params);
 
     console.debug(`Returning ${models.length} filtered models`);
+    // The filament check's verdict for models whose plates' filament is known (none without spools).
+    const fits = require('../../core/filament-check').fitForLibrary(database.db);
+    if (fits.size) {
+      for (const model of models) {
+        const fit = fits.get(model.id);
+        if (fit) model.fit = fit;
+      }
+    }
     return withTagLists(models);
   } catch (error) {
     console.error('Error in getModelsFiltered IPC:', error);

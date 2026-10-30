@@ -13,7 +13,7 @@
  * called by events.broadcast); the others call start / update / finish.
  */
 
-/** @typedef {'scan' | 'ai-tagging' | 'categories' | 'thumbnails' | 'duplicates' | 'download' | 'upload' | 'backup' | 'move'} ActivityKind */
+/** @typedef {'scan' | 'ai-tagging' | 'categories' | 'thumbnails' | 'duplicates' | 'download' | 'upload' | 'backup' | 'move' | 'plates'} ActivityKind */
 
 const SEND_EVERY_MS = 400;
 /** No time left is told before this much of a job is done, or this long has passed. */

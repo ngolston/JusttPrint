@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer } from '../api';
+import { filament, models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer, type Spool } from '../api';
+import { ColorDot } from '../components/Filament';
 import { exposeGlobal, showMessage } from '../page';
 import { getKit } from '../kits/kits';
 import { getCurrentUser, roleAllows, useCan } from '../session';
@@ -134,6 +135,20 @@ interface ChosenPart {
 
 const clampQuantity = (value: unknown) => Math.max(1, Math.min(9999, Math.floor(Number(value) || 1)));
 
+/** A spool in Log Print's Filament used: the needed color (when known), the spool and grams per copy. */
+interface FilamentRow {
+  key: number;
+  color: string | null;
+  need: string;
+  spoolId: string;
+  perCopy: string;
+}
+let nextFilamentRow = 1;
+
+/** "PLA Blue · 640 g left" for the spool picker. */
+const spoolOptionLabel = (spool: Spool) =>
+  `${spool.display_name}${spool.brand_name ? ` (${spool.brand_name})` : ''} · ${Math.round(spool.remaining)} g left${spool.loaded.length ? ` · ${spool.loaded[0].label}` : ''}`;
+
 /** Log a print on one or more models (#log-print-dialog). */
 function LogPrintDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -153,6 +168,11 @@ function LogPrintDialog() {
   /** A 3MF's plates (one model only): which were printed. */
   const [plates, setPlates] = useState<{ plate: number; label: string }[]>([]);
   const [chosenPlates, setChosenPlates] = useState<Set<number>>(new Set());
+  /** Filament used (one model, when the library has spools; docs/merge-10.md Phase 4). */
+  const [spoolList, setSpoolList] = useState<Spool[]>([]);
+  const [filamentRows, setFilamentRows] = useState<FilamentRow[]>([]);
+  const [filamentTracked, setFilamentTracked] = useState(false);
+  const [filamentEdited, setFilamentEdited] = useState(false);
 
   const loadPrinters = () =>
     printerApi
@@ -173,6 +193,19 @@ function LogPrintDialog() {
     setStatus('');
     setPlates([]);
     setChosenPlates(new Set());
+    setFilamentRows([]);
+    setFilamentTracked(false);
+    setFilamentEdited(false);
+    setSpoolList([]);
+    if (paths.length === 1) {
+      filament.spools(false).then(
+        (list) => {
+          setSpoolList(list);
+          setFilamentTracked(list.length > 0);
+        },
+        () => {}
+      );
+    }
     const [allParts, kit] = await Promise.all([
       partApi.list().catch(() => [] as Part[]),
       paths.length === 1 && /\.3mf$/i.test(paths[0]) ? getKit(paths[0]).catch(() => null) : Promise.resolve(null),
@@ -193,6 +226,37 @@ function LogPrintDialog() {
       if (openLogDialogImpl === open) openLogDialogImpl = null;
     };
   });
+
+  // Fill Filament used from the filament check for the plates chosen (and the printer, whose loaded
+  // spools come first), until the rows are edited by hand.
+  useEffect(() => {
+    if (filePaths.length !== 1 || !filamentTracked || filamentEdited) return;
+    let alive = true;
+    const chosen = plates.length ? [...chosenPlates] : null;
+    filament.forModel(filePaths[0], { plates: chosen, printerId: Number(printerId) > 0 ? Number(printerId) : null }).then(
+      (found) => {
+        if (!alive || !found.check) return;
+        setFilamentRows(
+          found.check.needs.map((need) => ({
+            key: nextFilamentRow++,
+            color: need.color,
+            need: [need.material, need.colorName].filter(Boolean).join(' '),
+            spoolId: need.spool ? String(need.spool.id) : '',
+            perCopy: need.grams === null ? '' : String(Math.round(need.grams * 10) / 10)
+          }))
+        );
+      },
+      () => {}
+    );
+    return () => {
+      alive = false;
+    };
+  }, [filePaths, filamentTracked, filamentEdited, chosenPlates, plates.length, printerId]);
+
+  const editFilament = (rows: FilamentRow[]) => {
+    setFilamentEdited(true);
+    setFilamentRows(rows);
+  };
 
   useEffect(() => {
     const onPrintersChanged = () => {
@@ -215,6 +279,12 @@ function LogPrintDialog() {
   }
 
   const copies = Math.max(1, Number(quantity) || 1);
+  const filamentUsed = filamentRows
+    .map((row) => ({ spoolId: Number(row.spoolId), grams: (Number(String(row.perCopy).replace(',', '.')) || 0) * copies }))
+    .filter((use) => use.spoolId > 0 && use.grams > 0);
+  const filamentSummary = filamentUsed.length
+    ? `Takes ${Math.round(filamentUsed.reduce((sum, use) => sum + use.grams, 0) * 10) / 10} g off your spools${copies > 1 ? ` (${copies} copies)` : ''}.`
+    : '';
   const partsSummary = chosenParts.length
     ? `Removes ${chosenParts.map((c) => `${c.part.name || 'Part'} ×${c.quantity * copies * Math.max(1, filePaths.length)}`).join(', ')} from Parts Stock.`
     : '';
@@ -239,7 +309,8 @@ function LogPrintDialog() {
       notes: [notes.trim(), plateNote].filter(Boolean).join('\n'),
       printerId: pickedPrinter > 0 ? pickedPrinter : null,
       parts: chosenParts.map((c) => ({ id: c.part.id, quantity: c.quantity })),
-      ...(plates.length ? { plates: [...chosenPlates] } : {})
+      ...(plates.length ? { plates: [...chosenPlates] } : {}),
+      ...(filePaths.length === 1 && filamentUsed.length ? { spools: filamentUsed, plateIndex: chosenPlates.size === 1 ? [...chosenPlates][0] : null } : {})
     };
     setSaving(true);
     try {
@@ -329,6 +400,62 @@ function LogPrintDialog() {
             </select>
           </div>
         </div>
+        {filePaths.length === 1 && filamentTracked && (
+          <details className="form-group log-print-parts-details" id="log-print-filament" open>
+            <summary>
+              Filament used <span className="setting-description">(per copy; leave a spool empty to skip it)</span>
+            </summary>
+            <div className="log-print-filament">
+              {filamentRows.map((row) => (
+                <div className="log-print-filament__row" key={row.key} data-filament-row={row.key}>
+                  {row.color ? <ColorDot color={row.color} size={18} name={row.need || undefined} /> : <span className="log-print-filament__nodot" />}
+                  <select
+                    aria-label={row.need ? `Spool for ${row.need}` : 'Spool'}
+                    value={row.spoolId}
+                    onChange={(e) => editFilament(filamentRows.map((r) => (r === row ? { ...r, spoolId: e.target.value } : r)))}
+                  >
+                    <option value="">{row.need ? `No spool (${row.need})` : 'Choose a spool…'}</option>
+                    {spoolList.map((spool) => (
+                      <option key={spool.id} value={String(spool.id)}>
+                        {spoolOptionLabel(spool)}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="log-print-filament__grams"
+                    aria-label={row.need ? `Grams of ${row.need} per copy` : 'Grams per copy'}
+                    placeholder="g"
+                    value={row.perCopy}
+                    onChange={(e) => editFilament(filamentRows.map((r) => (r === row ? { ...r, perCopy: e.target.value } : r)))}
+                  />
+                  <span className="setting-description">g</span>
+                  <button
+                    type="button"
+                    className="log-print-filament__remove"
+                    aria-label="Remove this spool"
+                    title="Remove"
+                    onClick={() => editFilament(filamentRows.filter((r) => r !== row))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                id="log-print-filament-add"
+                className="log-print-filament__add"
+                onClick={() => editFilament([...filamentRows, { key: nextFilamentRow++, color: null, need: '', spoolId: '', perCopy: '' }])}
+              >
+                Add a spool
+              </button>
+            </div>
+            <p id="log-print-filament-summary" className="setting-description">
+              {filamentSummary || (filamentRows.length ? '' : 'The file does not say what it needs: add the spools you used.')}
+            </p>
+          </details>
+        )}
         <details className="form-group log-print-parts-details" open={chosenParts.length > 0 || undefined}>
           <summary>
             Spare parts used <span className="setting-description">(optional)</span>
@@ -502,6 +629,7 @@ const LOG_PRINT_ICON = (
 
 function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => void }) {
   const parts = (event.parts || []).map((part) => `${part.name || 'Part'} ×${Number(part.quantity) || 0}`).join(', ');
+  const filamentUsed = (event.spools || []).map((spool) => `${spool.name} ${Math.round(spool.grams * 10) / 10} g`).join(', ');
   const printerName = event.printer_nickname || event.printer_name;
   return (
     <li className={`print-history-item outcome-${event.outcome}`}>
@@ -525,6 +653,7 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => 
         </div>
       )}
       {parts && <div className="print-history-parts">{parts}</div>}
+      {filamentUsed && <div className="print-history-parts print-history-filament">{filamentUsed}</div>}
       {event.notes && <div className="print-history-notes">{event.notes}</div>}
       {onDelete && (
         <button

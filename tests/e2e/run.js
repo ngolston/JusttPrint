@@ -3772,6 +3772,87 @@ async function browserChecks(base, wsUrl, session) {
       JSON.stringify(allSpools.result?.length)
     );
 
+    // Phase 4: a sliced two-plate 3MF's filament, the check, the card, the filter, and Log Print taking grams off spools.
+    try {
+      const { zipSync, unzipSync } = require('fflate');
+      // Outside the app folder (folders inside it cannot be scanned by hand), as the other scan checks do.
+      const plateDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-plates-'));
+      const kitFile = path.join(plateDir, 'plate-kit.3mf');
+      const entries = unzipSync(new Uint8Array(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf'))));
+      entries['Metadata/slice_info.config'] = new TextEncoder().encode(
+        '<config><plate><metadata key="index" value="1"/><filament id="1" type="PLA" color="#333333FF" used_g="20" /></plate>' +
+          '<plate><metadata key="index" value="2"/><filament id="2" type="PLA" color="#2F6FDF" used_g="10" /></plate></config>'
+      );
+      fs.writeFileSync(kitFile, Buffer.from(zipSync(entries)));
+      const scanned = await invoke(base, session, 'scan-directory', [plateDir]);
+      const read = (await invoke(base, session, 'read-plate-filaments')).result;
+      const needs = (await invoke(base, session, 'get-model-filament', [kitFile])).result || {};
+      check(
+        "a sliced 3MF's plates and filament are read, and the check names the missing color",
+        read >= 1 && JSON.stringify(needs.plates) === '[1,2]' && needs.check?.ready === false && JSON.stringify(needs.check?.missing) === '["blue"]',
+        JSON.stringify({ scanned: scanned.error || scanned.status, read, plates: needs.plates, missing: needs.check?.missing })
+      );
+      const fitting = async () =>
+        ((await invoke(base, session, 'get-models-filtered', [{ fitsMyFilament: true, limit: 500 }])).result || []).map((m) => m.filePath);
+      check('Fits my filament leaves out a model short of a color', !(await fitting()).includes(kitFile));
+      const blue = (await invoke(base, session, 'save-spool', [{ material: 'PLA', color_hex: '#2a6ad8', initial_weight: 1000, remaining: 900 }])).result;
+      const kitRow = ((await invoke(base, session, 'get-models-filtered', [{ limit: 500 }])).result || []).find((m) => m.filePath === kitFile);
+      check(
+        'with a blue spool the model is ready to print and in Fits my filament',
+        kitRow?.fit?.ready === true && (await fitting()).includes(kitFile),
+        JSON.stringify(kitRow?.fit)
+      );
+      const charcoal = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.color_hex === '#333333');
+      const logged = (
+        await invoke(base, session, 'log-print-event', [
+          { filePath: kitFile, outcome: 'printed', quantity: 1, spools: [{ spoolId: charcoal.id, grams: 20 }], plateIndex: 1 }
+        ])
+      ).result;
+      const afterLog = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.id === charcoal.id);
+      const history = ((await invoke(base, session, 'get-print-events', [kitRow.id])).result || [])[0];
+      check(
+        'logging a print takes its grams off the spool and lists the spool in the history',
+        afterLog.remaining === charcoal.remaining - 20 && history?.spools?.[0]?.grams === 20,
+        JSON.stringify({ before: charcoal.remaining, after: afterLog.remaining, spools: history?.spools })
+      );
+      await invoke(base, session, 'delete-print-event', [logged.eventId]);
+      const afterDelete = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((s) => s.id === charcoal.id);
+      check('deleting the logged print gives the grams back', afterDelete.remaining === charcoal.remaining, String(afterDelete.remaining));
+
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+      const card = '.file-grid .file-item:has-text("plate-kit")';
+      check(
+        'the card says Ready to print',
+        await page.waitForSelector(`${card} .jp-model-card__fit:has-text("Ready to print")`, { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click(`${card} .file-name`);
+      await page.waitForSelector('#jp-details-log-print', { timeout: 10000 }).catch(() => {});
+      await page.click('#jp-details-log-print');
+      await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => {});
+      const filamentRows = await page
+        .waitForFunction(() => document.querySelectorAll('#log-print-filament [data-filament-row]').length === 2, null, { timeout: 10000 })
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        'Log Print fills in a spool and grams for each color',
+        filamentRows && /Takes 30 g off your spools/.test((await page.textContent('#log-print-filament-summary').catch(() => '')) || ''),
+        await page.textContent('#log-print-filament-summary').catch(() => '')
+      );
+      await page.click('#log-print-dialog button:has-text("Cancel")').catch(() => {});
+      await invoke(base, session, 'delete-spool', [blue.id]);
+      // Take the folder's model out of the library again (scanning the deleted folder).
+      fs.rmSync(plateDir, { recursive: true, force: true });
+      if (DOCKER_IMAGE) await sleep(1500);
+      await invoke(base, session, 'scan-directory', [plateDir]);
+    } catch (error) {
+      check('the Phase 4 filament checks ran to the end', false, error.message);
+    }
+
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
     const auditContext = await browser.newContext({
       viewport: { width: 1400, height: 900 },

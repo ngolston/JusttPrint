@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { callAction } from '../api';
 import { onServerEvent } from '../page';
 
-export type ActivityKind = 'scan' | 'ai-tagging' | 'categories' | 'thumbnails' | 'duplicates' | 'download' | 'upload' | 'backup' | 'move';
+export type ActivityKind = 'scan' | 'ai-tagging' | 'categories' | 'thumbnails' | 'duplicates' | 'download' | 'upload' | 'backup' | 'move' | 'plates';
 
 export interface Activity {
   id: string;

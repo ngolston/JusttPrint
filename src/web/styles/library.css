@@ -1580,3 +1580,11 @@ body.jp-shell-on .file-grid .file-item-list .thumbnail-container {
   justify-content: center;
   padding: 0 6px;
 }
+/* The filament check on a card (Phase 4 of docs/merge-10.md): one line with the file type. */
+.file-grid .jp-model-card .jp-model-card__badges .jp-model-card__fit {
+  flex: none;
+  height: 20px;
+  padding: 0 var(--jp-space-2);
+  font-size: var(--jp-text-badge);
+  line-height: 18px;
+}

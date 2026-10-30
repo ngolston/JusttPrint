@@ -147,11 +147,11 @@ export function fitLabel(missing: string[]): string {
 }
 
 /** The filament check's verdict on a card or a list row. */
-export function FitBadge({ missing, className }: { missing: string[]; className?: string }) {
+export function FitBadge({ missing, className, title }: { missing: string[]; className?: string; title?: string }) {
   const ready = missing.length === 0;
   const Icon = ready ? Check : CircleAlert;
   return (
-    <span className={cx('jp-fit', ready ? 'jp-fit--ready' : 'jp-fit--short', className)}>
+    <span className={cx('jp-fit', ready ? 'jp-fit--ready' : 'jp-fit--short', className)} title={title}>
       <Icon size={12} aria-hidden="true" />
       <span>{fitLabel(missing)}</span>
     </span>

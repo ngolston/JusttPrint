@@ -664,6 +664,26 @@ export interface SpoolmanImport {
 /** What the spool form sends: a Spool's columns, `remaining` for grams left, a brand by name. */
 export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & { remaining?: number | null; brand_name?: string | null };
 
+/** One needed color and the spool the check picked (src/core/filament-check.js checkNeeds). */
+export interface FilamentCheckNeed {
+  slot: number;
+  material: string | null;
+  color: string | null;
+  colorName: string;
+  /** Null when the file does not say (an unsliced project). */
+  grams: number | null;
+  spool: { id: number; name: string; where: string | null; available: number; color: string | null } | null;
+  left: number | null;
+  short: number | null;
+  ok: boolean;
+}
+
+export interface FilamentCheckResult {
+  ready: boolean;
+  missing: string[];
+  needs: FilamentCheckNeed[];
+}
+
 /** Spools, filament, places and drying (Filament page). */
 export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
@@ -689,6 +709,9 @@ export const filament = {
     spoolId: number,
     session: { drying_temp?: number | null; target_hours?: number | null; humidity_before?: number | null; notes?: string | null }
   ) => callAction<DryingSession>('start-drying', spoolId, session),
+  /** What a model needs and the spools that would give it (src/core/filament-check.js). */
+  forModel: (filePath: string, options: { plates?: number[] | null; printerId?: number | null } = {}) =>
+    callAction<{ tracked: boolean; plates: number[]; source: string | null; check: FilamentCheckResult | null }>('get-model-filament', filePath, options),
   finishDrying: (sessionId: number, result: { humidity_after?: number | null; notes?: string | null } = {}) =>
     callAction<DryingSession>('finish-drying', sessionId, result)
 };
@@ -1108,6 +1131,8 @@ export interface PrintEvent {
   printer_model?: string | null;
   printer_type?: string | null;
   parts?: { id: number; name?: string | null; quantity: number }[];
+  /** Filament taken off spools (docs/merge-10.md, Phase 4). */
+  spools?: { spoolId: number | null; grams: number; name: string; color: string | null }[];
 }
 
 export interface LogPrintInput {
@@ -1119,6 +1144,9 @@ export interface LogPrintInput {
   parts: { id: number; quantity: number }[];
   /** For one 3MF with several plates: the plates printed (a Printed log ticks only these in its kit). */
   plates?: number[];
+  /** Grams taken off each spool (all copies), and the plate when only one was printed. */
+  spools?: { spoolId: number; grams: number }[];
+  plateIndex?: number | null;
 }
 
 export const prints = {

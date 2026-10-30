@@ -420,6 +420,10 @@ function logPrintEvent(db, payload) {
       .run(modelId, printedAt, outcome, quantity, notes || null, createdAt, printerId);
     const eventId = insert.lastInsertRowid;
     applyPartUsage(db, eventId, partsUsage, quantity);
+    // Filament taken off the spools it came from (docs/merge-10.md, Phase 4).
+    if (Array.isArray(payload.spools) && payload.spools.length) {
+      require('./spool-usage').applySpoolUsage(db, eventId, payload.spools, { printedAt, plateIndex: payload.plateIndex });
+    }
     const current = db.prepare('SELECT print_status FROM models WHERE id = ?').get(modelId);
     const nextStatus = statusAfterOutcome(current?.print_status, outcome);
     db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(nextStatus, modelId);
@@ -434,11 +438,12 @@ function logPrintEventsBatch(db, payload) {
   const modelIds = Array.isArray(payload?.modelIds) ? payload.modelIds.filter((id) => Number(id) > 0) : [];
   const results = [];
   db.transaction(() => {
+    // Spools are logged for one model at a time (Log Print on one model), not for each of many.
     for (const filePath of filePaths) {
-      results.push(logPrintEvent(db, { ...payload, filePath }));
+      results.push(logPrintEvent(db, { ...payload, spools: undefined, filePath }));
     }
     for (const modelId of modelIds) {
-      results.push(logPrintEvent(db, { ...payload, modelId }));
+      results.push(logPrintEvent(db, { ...payload, spools: undefined, modelId }));
     }
   })();
   return results;
@@ -451,6 +456,7 @@ function deletePrintEvent(db, eventId) {
     const row = db.prepare('SELECT id, model_id, outcome FROM print_events WHERE id = ?').get(id);
     if (!row) throw new Error('Print event not found');
     restorePartUsage(db, id);
+    require('./spool-usage').restoreSpoolUsage(db, id);
     db.prepare('DELETE FROM print_events WHERE id = ?').run(id);
     let model = refreshPrintDerivedFields(db, row.model_id);
     if (row.outcome === 'printed' && model && Number(model.print_count) === 0 && model.print_status === 'printed') {
@@ -556,9 +562,14 @@ function getPrintEvents(db, modelId) {
     else partsByEventId.set(row.event_id, [part]);
   }
 
+  const spoolsByEventId = require('./spool-usage').spoolsForEvents(
+    db,
+    events.map((event) => event.id)
+  );
   return events.map((event) => ({
     ...event,
-    parts: partsByEventId.get(event.id) || []
+    parts: partsByEventId.get(event.id) || [],
+    spools: spoolsByEventId.get(event.id) || []
   }));
 }
 

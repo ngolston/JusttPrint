@@ -191,7 +191,8 @@ const TABLES = [
     spool_id INTEGER REFERENCES spools(id) ON DELETE SET NULL,
     grams REAL NOT NULL
   )`,
-  // What each plate needs: plate_index and slot as in the 3MF (from 1). source: 3mf | makerworld | manual
+  // What each plate needs: plate_index and slot as in the 3MF (from 1; plate 0 is every plate).
+  // source: 3mf (sliced, with grams) | 3mf-project (not sliced: colors, no grams) | makerworld | manual
   `CREATE TABLE IF NOT EXISTS model_plate_filaments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     model_id INTEGER NOT NULL REFERENCES models(id) ON DELETE CASCADE,
@@ -202,6 +203,14 @@ const TABLES = [
     grams REAL,
     source TEXT NOT NULL DEFAULT '3mf',
     UNIQUE (model_id, plate_index, slot)
+  )`,
+  // Which file model_plate_filaments was read from (size and time, as model_geometry), so a model is read again only when its file changes.
+  `CREATE TABLE IF NOT EXISTS model_plate_reads (
+    model_id INTEGER PRIMARY KEY REFERENCES models(id) ON DELETE CASCADE,
+    file_key TEXT NOT NULL,
+    source TEXT,
+    error TEXT,
+    read_at TEXT NOT NULL
   )`,
   // plate_index NULL means every plate. models.print_status stays 'queued' while a model has rows here.
   `CREATE TABLE IF NOT EXISTS print_queue (

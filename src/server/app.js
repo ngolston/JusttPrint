@@ -160,6 +160,8 @@ async function start() {
   startServerStlHomeScans();
   startWatching().catch((error) => console.error('[Watch] Could not start folder watching:', error));
   autoBackup.schedule({ startup: true });
+  // What each 3MF's plates need, for the filament check (docs/merge-10.md, Phase 4).
+  require('./plate-filament-job').startup();
   require('./notifications').startReminderChecks();
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');
