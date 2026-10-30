@@ -1,3 +1,5 @@
+import { printQueue, type QueueItem } from '../api';
+import { UpNextPanel } from '../queue/QueueParts';
 import { useEffect, useState } from 'react';
 import {
   Box,
@@ -379,10 +381,13 @@ function YourPrinters({ list }: { list: Printer[] | null }) {
  * render of a library model; Recent Activity; Your Printers; Continue your kits and Needs
  * attention (home/HomeSections.tsx). Real data only (docs/redesign-5.md).
  */
+const loadQueue = () => printQueue.list().catch(() => [] as QueueItem[]);
+
 export function HomeDashboard() {
   const counts = useLibraryData<LibraryCounts>(library.counts);
   const activity = useLibraryData<ActivityItem[]>(loadActivity);
   const list = useLibraryData<Printer[]>(loadPrinters);
+  const queue = useLibraryData(loadQueue);
   return (
     <div className="jp-home">
       <Hero counts={counts} activity={activity} />
@@ -391,6 +396,7 @@ export function HomeDashboard() {
         <YourPrinters list={list} />
       </div>
       <div className="jp-home__panels jp-home__panels--extra">
+        <UpNextPanel items={queue} />
         <ContinueKits />
         <NeedsAttention printers={list} models={counts?.models} />
       </div>

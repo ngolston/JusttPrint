@@ -3543,7 +3543,7 @@ async function browserChecks(base, wsUrl, session) {
     check('Start moves it to Printing now', started && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing');
     await page.click(`${startedRow} button[aria-label="Back to the queue"]`);
     await page.waitForSelector(queuedRow, { timeout: 10000 }).catch(() => {});
-    await page.click(`${queuedRow} button[aria-label="Remove from the queue"]`);
+    await page.click(`${queuedRow} button[aria-label^="Remove"][aria-label$="from the queue"]`);
     check(
       'Remove takes it off the queue',
       (await page
@@ -3555,6 +3555,54 @@ async function browserChecks(base, wsUrl, session) {
           () => false
         )) && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'unprinted'
     );
+    // Phase 6: the queue has an order; items move; Home shows Up next; a logged print finishes an item.
+    {
+      const two = ((await invoke(base, session, 'get-models-filtered', [{ limit: 2, sortOption: 'name-asc' }])).result || []).map((m) => m.filePath);
+      for (const filePath of two) await invoke(base, session, 'add-to-queue', [filePath, {}]);
+      const queueOrder = async () => ((await invoke(base, session, 'get-print-queue')).result || []).map((item) => item.model.filePath);
+      const firstOrder = await queueOrder();
+      const items = (await invoke(base, session, 'get-print-queue')).result || [];
+      await invoke(base, session, 'move-queue-item', [items[1].id, 0]);
+      check(
+        'queued models keep the order they were added in, and can be moved',
+        JSON.stringify(firstOrder) === JSON.stringify(two) && JSON.stringify(await queueOrder()) === JSON.stringify([two[1], two[0]]),
+        JSON.stringify({ firstOrder, now: await queueOrder() })
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      await page.evaluate(() => {
+        window.location.hash = '#/queue';
+      });
+      await page.waitForSelector('ol[aria-label="Up next"] li[data-queue-id]', { timeout: 10000 }).catch(() => {});
+      const firstRowName = await page.textContent('ol[aria-label="Up next"] li[data-queue-id] .jp-queue__title').catch(() => '');
+      await page.click('ol[aria-label="Up next"] li[data-queue-id] button[aria-label^="Move"][aria-label$="down"]').catch(() => {});
+      const swapped = await waitFor(async () => (await queueOrder())[0] === two[0], 10000, 'the move').then(
+        () => true,
+        () => false
+      );
+      check('Move down on the Queue page changes the order', !!firstRowName && swapped, firstRowName);
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      check(
+        'Home shows what is up next',
+        await page.waitForSelector('.jp-home__upnext .jp-model-title', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await invoke(base, session, 'log-print-event', [{ filePath: two[0], outcome: 'printed', quantity: 1 }]);
+      check(
+        'logging a print takes that model off the queue',
+        JSON.stringify(await queueOrder()) === JSON.stringify([two[1]]) &&
+          (await invoke(base, session, 'get-model', [two[0]])).result?.print_status === 'printed'
+      );
+      for (const item of (await invoke(base, session, 'get-print-queue')).result || []) await invoke(base, session, 'remove-from-queue', [item.id]);
+      await page.evaluate(() => {
+        window.location.hash = '#/queue';
+      });
+    }
     await page.click('.jp-queue__header button:has-text("Show in Library")');
     check(
       "Show in Library opens the library's Queue tab",

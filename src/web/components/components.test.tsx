@@ -213,6 +213,12 @@ describe('filament pieces', () => {
       text: '✓ 558 g left'
     });
     expect(checkNeed({ label: 'Gold', color: '#d4a640', grams: 12, spool: null }).text).toBe('12 g short');
+    expect(checkNeed({ label: 'Blue', color: '#2f6fdf', grams: null, spool: { name: 'Blue', remaining: 300 } })).toEqual({
+      ok: true,
+      grams: 0,
+      text: '✓ on hand'
+    });
+    expect(checkNeed({ label: 'Blue', color: '#2f6fdf', grams: null, spool: null }).ok).toBe(false);
     const out = html(<FilamentCheck needs={[{ label: 'Black PLA', color: '#111', grams: 30, spool: { ...spool, where: 'AMS A4' } }]} />);
     expect(out).toContain('Black PLA · 30 g');
     expect(out).toContain('Black · AMS A4 · 18 g');

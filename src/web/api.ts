@@ -729,6 +729,32 @@ export interface FilamentCheckResult {
   needs: FilamentCheckNeed[];
 }
 
+/** An item of the print queue (src/core/print-queue.js listQueue). */
+export interface QueueItem {
+  id: number;
+  position: number;
+  /** null: every plate. */
+  plate: number | null;
+  printerId: number | null;
+  printerName: string | null;
+  createdAt: string;
+  model: { id: number; filePath: string; fileName: string; title: string | null; designer: string | null; printStatus: string | null };
+  /** The model's plates (from 1); empty when not known. */
+  plates: number[];
+  /** Null when its filament is not known or there are no spools. */
+  check: FilamentCheckResult | null;
+}
+
+/** The print queue (docs/merge-10.md, Phase 6). */
+export const printQueue = {
+  list: () => callAction<QueueItem[]>('get-print-queue'),
+  add: (filePath: string, options: { plate?: number | null; printerId?: number | null } = {}) => callAction<number>('add-to-queue', filePath, options),
+  update: (id: number, changes: { plate?: number | null; printerId?: number | null }) => callAction<unknown>('update-queue-item', id, changes),
+  move: (id: number, toIndex: number) => callAction<unknown>('move-queue-item', id, toIndex),
+  remove: (id: number) => callAction<unknown>('remove-from-queue', id),
+  start: (id: number) => callAction<unknown>('start-queue-item', id)
+};
+
 /** Spools, filament, places and drying (Filament page). */
 export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),

@@ -28,6 +28,7 @@ require('./parts');
 require('./previews');
 require('./previews-other-formats');
 require('./print-events');
+require('./print-queue');
 require('./printers');
 require('./printer-loads');
 require('./scan');

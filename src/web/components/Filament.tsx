@@ -163,7 +163,8 @@ export interface FilamentNeed {
   /** "Gray PETG" */
   label: string;
   color: string;
-  grams: number;
+  /** Null when the file does not say (an unsliced project). */
+  grams: number | null;
   spool?: {
     name: string;
     /** "AMS A1", a storage location, … */
@@ -174,6 +175,10 @@ export interface FilamentNeed {
 
 /** What a need comes to: grams left on the spool afterwards, or grams short. */
 export function checkNeed(need: FilamentNeed): { ok: boolean; grams: number; text: string } {
+  if (need.grams === null) {
+    const onHand = (need.spool?.remaining ?? 0) > 0;
+    return { ok: onHand, grams: 0, text: onHand ? '✓ on hand' : 'none on hand' };
+  }
   const left = (need.spool?.remaining ?? 0) - need.grams;
   if (left >= 0) return { ok: true, grams: left, text: `✓ ${formatGrams(left)} left` };
   return { ok: false, grams: -left, text: `${formatGrams(-left)} short` };
@@ -190,9 +195,7 @@ export function FilamentCheck({ needs, label = 'Filament check' }: { needs: Fila
           <li key={`${need.label}-${index}`} className={cx('jp-filament-check__row', !result.ok && 'is-short')}>
             <ColorDot color={need.color} short={!result.ok} size={30} />
             <span className="jp-filament-check__what">
-              <span className="jp-filament-check__need">
-                {need.label} · {formatGrams(need.grams)}
-              </span>
+              <span className="jp-filament-check__need">{need.grams === null ? need.label : `${need.label} · ${formatGrams(need.grams)}`}</span>
               <span className="jp-filament-check__spool">{spool}</span>
             </span>
             <span className={cx('jp-filament-check__result', result.ok ? 'is-ok' : 'is-short')}>{result.text}</span>

@@ -135,15 +135,18 @@ function colorName(hex) {
  */
 /**
  * @param {any} db
- * @param {{ exceptQueueId?: number | null }} [options]
+ * @param {{ exceptQueueId?: number | null, ignoreHolds?: boolean }} [options] `ignoreHolds`: the
+ *   queue works out its own holds in order (print-queue.js recomputeHolds).
  */
 function availableSpools(db, options = {}) {
   const exceptQueueId = options.exceptQueueId ?? null;
   const holds = new Map(
-    db
-      .prepare('SELECT spool_id, SUM(grams) AS grams FROM queue_spool_holds WHERE queue_id != ? GROUP BY spool_id')
-      .all(exceptQueueId ?? 0)
-      .map((row) => [row.spool_id, Number(row.grams) || 0])
+    options.ignoreHolds
+      ? []
+      : db
+          .prepare('SELECT spool_id, SUM(grams) AS grams FROM queue_spool_holds WHERE queue_id != ? GROUP BY spool_id')
+          .all(exceptQueueId ?? 0)
+          .map((row) => [row.spool_id, Number(row.grams) || 0])
   );
   const loaded = new Map();
   for (const row of db

@@ -424,9 +424,15 @@ function logPrintEvent(db, payload) {
     if (Array.isArray(payload.spools) && payload.spools.length) {
       require('./spool-usage').applySpoolUsage(db, eventId, payload.spools, { printedAt, plateIndex: payload.plateIndex });
     }
+    const queueHas = hasQueue(db);
     const current = db.prepare('SELECT print_status FROM models WHERE id = ?').get(modelId);
     const nextStatus = statusAfterOutcome(current?.print_status, outcome);
     db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(nextStatus, modelId);
+    // One queued item of this model is done (Phase 6); it stays Queued while others remain.
+    if (queueHas && outcome !== 'cancelled') {
+      const plate = Number(payload.plateIndex);
+      require('./print-queue').printLogged(db, modelId, Number.isInteger(plate) && plate > 0 ? plate : null);
+    }
     const derived = refreshPrintDerivedFields(db, modelId);
     return { eventId, model: derived };
   })();
@@ -473,8 +479,15 @@ function setPrintStatus(db, payload) {
   const status = normalizePrintStatus(payload.printStatus || payload.status);
   return db.transaction(() => {
     db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(status, modelId);
+    // Queued means in the queue (Phase 6): rows follow the status.
+    if (hasQueue(db)) require('./print-queue').syncWithStatus(db);
     return refreshPrintDerivedFields(db, modelId);
   })();
+}
+
+/** The 10.0 print queue exists (filament-schema.js; older test databases may not have it). */
+function hasQueue(db) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'print_queue'").get();
 }
 
 function setPrintStatusBatch(db, payload) {
