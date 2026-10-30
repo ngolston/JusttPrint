@@ -3962,6 +3962,83 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 4 filament checks ran to the end', false, `${error.message.split('\n').slice(0, 3).join(' ')} (open or inert: ${JSON.stringify(open)})`);
     }
 
+    // Phase 8: low-stock alerts, the reorder list, signed webhooks.
+    try {
+      const http = require('http');
+      const received = [];
+      const hookServer = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          received.push({ headers: req.headers, body });
+          res.writeHead(200);
+          res.end('ok');
+        });
+      });
+      await new Promise((resolve) => hookServer.listen(0, '0.0.0.0', resolve));
+      const hookHost = DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1';
+      const hook = (
+        await invoke(base, session, 'save-webhook', [{ name: 'E2E hook', url: `http://${hookHost}:${hookServer.address().port}/hook`, secret: 'e2e-secret' }])
+      ).result;
+      const answered = (await invoke(base, session, 'test-webhook', [hook.id])).result;
+      const testBody = received[0]?.body || '';
+      const expected = `sha256=${require('crypto').createHmac('sha256', 'e2e-secret').update(testBody).digest('hex')}`;
+      check(
+        'a webhook gets a signed test delivery, and its secret stays on the server',
+        answered === 200 && received[0]?.headers['x-justtprint-signature'] === expected && !('secret' in hook) && hook.has_secret === true,
+        JSON.stringify({ answered, got: received.length })
+      );
+      const low = (
+        await invoke(base, session, 'save-spool', [{ name: 'E2E Nearly Empty', material: 'PLA', color_hex: '#d23b3b', initial_weight: 1000, remaining: 40 }])
+      ).result;
+      const told = (await invoke(base, session, 'check-low-stock')).result;
+      const notes =
+        ((await invoke(base, session, 'get-notifications', [{}])).result || {}).items || (await invoke(base, session, 'get-notifications', [{}])).result || [];
+      const list = Array.isArray(notes) ? notes : [];
+      check(
+        'a nearly empty spool is told about once, as a notification',
+        told >= 1 && list.some((n) => /E2E Nearly Empty/.test(`${n.title} ${n.body}`)) && (await invoke(base, session, 'check-low-stock')).result === 0,
+        JSON.stringify({ told, titles: list.slice(0, 3).map((n) => n.title) })
+      );
+      await waitFor(() => received.some((r) => r.headers['x-justtprint-event'] === 'spool.low_stock'), 10000, 'the low-stock webhook').catch(() => {});
+      const lowHook = received.find((r) => r.headers['x-justtprint-event'] === 'spool.low_stock');
+      check('the low-stock webhook names the spool', !!lowHook && /E2E Nearly Empty/.test(lowHook.body));
+      const reorder = (await invoke(base, session, 'get-reorder-list')).result || [];
+      check(
+        'the reorder list has the nearly empty spool, critical',
+        reorder.some((item) => item.id === low.id && item.severity === 'critical')
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-open-shopping-list', { timeout: 15000 }).catch(() => {});
+      await page.click('#jp-open-shopping-list');
+      check(
+        'the Reorder tile opens the shopping list',
+        await page.waitForSelector('#jp-shopping-list[open] :text("E2E Nearly Empty")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#jp-shopping-list button:has-text("Done")').catch(() => {});
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, low.id);
+      check(
+        "a spool's label link opens the spool",
+        await page.waitForSelector('#jp-spool-detail:has-text("40 g")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('.jp-spool-drawer .jp-overlay__header button').catch(() => {});
+      await invoke(base, session, 'delete-spool', [low.id]);
+      await invoke(base, session, 'delete-webhook', [hook.id]);
+      hookServer.close();
+    } catch (error) {
+      check('the Phase 8 alert checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6043,6 +6120,7 @@ async function accountChecks(base, wsUrl, admin) {
   );
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
+  check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);
   check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);
   check('editors cannot change settings', /Only an admin/.test((await invoke(base, editor, 'save-setting', ['stlHomeDirectories', '[]'])).error || ''));

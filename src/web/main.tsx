@@ -2,6 +2,7 @@
  * The page's React screens and modules. Screens draw into slots in index.html (or into
  * document.body) and register the global functions that open them (window.openTagManager, ...).
  */
+import { AlertsSettingsDialog } from './filament/AlertsSettingsDialog';
 import { AiTagRunDialog } from './tags/AiTagRunDialog';
 import './styles/index.css';
 // First: the server connection and window.electron, which the screens use.
@@ -127,6 +128,7 @@ function Screens() {
       <AiConfigDialog />
       <PurgeModelsDialog />
       <ThemeSettingsDialog />
+      <AlertsSettingsDialog />
       <SlicerSettingsDialog />
       <MetadataEditorDialog />
       <StlHomeDialog />

@@ -558,6 +558,7 @@ async function scanDirectoryInner(event, directoryPath, options = {}) {
             }
 
             resolve({ files, totalFiles, newFilesCount, skippedDueToSize });
+            if (newFilesCount > 0) void require('../webhooks').deliver('models.added', { count: newFilesCount, directory: directoryPath });
 
             scheduleBackgroundHashGeneration('scan-directory');
 

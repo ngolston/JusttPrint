@@ -50,6 +50,16 @@ function announcing(handler, { logs = false } = {}) {
   return async (event, payload) => {
     const result = await handler(event, payload);
     if (logs) await tickKits(event, payload).catch((error) => console.warn('[Kits] Could not tick the printed parts:', error.message));
+    if (logs) {
+      // Phase 8: a logged print may leave spools low, and webhooks hear about it.
+      require('../low-stock-alerts').soon();
+      void require('../webhooks').deliver('print.logged', {
+        filePaths: payload && (payload.filePaths || (payload.filePath ? [payload.filePath] : [])),
+        outcome: payload && payload.outcome,
+        quantity: payload && payload.quantity,
+        spools: payload && payload.spools ? payload.spools : []
+      });
+    }
     try {
       const paths = touchedPaths(payload, result);
       if (paths.length) events.broadcastToOthers(event, 'models-changed', { filePaths: paths, by: event && event.user ? event.user.username : null });

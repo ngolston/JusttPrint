@@ -471,3 +471,242 @@
   justify-content: space-between;
   gap: var(--jp-space-3);
 }
+
+/* Reorder and the shopping list (Phase 8). */
+.jp-filament-reorder__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jp-filament-reorder__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+.jp-filament-reorder__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-tile--accent .jp-btn.jp-filament-reorder__open {
+  margin-top: auto;
+  align-self: flex-start;
+  border: 0;
+  background: var(--jp-ink-tile);
+  color: var(--jp-on-ink);
+}
+.jp-shopping {
+  list-style: none;
+  margin: var(--jp-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-shopping li {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: 10px 12px;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+}
+.jp-shopping li.is-critical {
+  background: var(--jp-accent-soft);
+}
+.jp-shopping__what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jp-shopping__name {
+  font-weight: 700;
+}
+
+/* Labels (Phase 8): the dialog, and the sheet that alone is printed. */
+.jp-labels__sizes,
+.jp-labels__pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-3);
+  margin: var(--jp-space-3) 0;
+}
+.jp-labels__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-labels__preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--jp-space-3);
+  margin-top: var(--jp-space-4);
+  padding: var(--jp-space-4);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+}
+.jp-label-card {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  padding: 2mm;
+  overflow: hidden;
+  border: 0.2mm solid #cfd6e0;
+  border-radius: 1.5mm;
+  background: #ffffff;
+  color: #1e2633;
+  font-family: var(--jp-font);
+}
+.jp-label-card__qr {
+  flex: none;
+  height: 100%;
+  aspect-ratio: 1;
+}
+.jp-label-card__qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.jp-label-card__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6mm;
+}
+.jp-label-card__name {
+  font-size: 3mm;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.jp-label-card--strip .jp-label-card__name {
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
+}
+.jp-label-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  font-size: 2.2mm;
+  color: #3c4a60;
+}
+.jp-label-card__swatch {
+  display: inline-block;
+  width: 2.4mm;
+  height: 2.4mm;
+  border-radius: 50%;
+  border: 0.2mm solid #9aa4b4;
+}
+.jp-labels-sheet {
+  display: none;
+}
+@media print {
+  body.jp-printing-labels > *:not(.jp-labels-sheet) {
+    display: none !important;
+  }
+  body.jp-printing-labels .jp-labels-sheet {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 2mm;
+  }
+  body.jp-printing-labels .jp-label-card {
+    break-inside: avoid;
+  }
+}
+
+/* Settings → Alerts & webhooks (Phase 8). */
+.jp-alerts {
+  width: min(860px, calc(100vw - 32px));
+}
+.jp-alerts__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  margin-bottom: var(--jp-space-6);
+}
+.jp-alerts__section h4 {
+  margin: 0;
+}
+.jp-alerts__rule,
+.jp-alerts__hook {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+  padding: var(--jp-space-3);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+}
+.jp-alerts__rule .jp-input,
+.jp-alerts__hook .jp-input {
+  width: 160px;
+}
+.jp-alerts__num {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--jp-text-meta);
+}
+.jp-alerts__num .jp-input {
+  width: 56px;
+}
+.jp-alerts__hook .jp-alerts__url {
+  width: 280px;
+}
+.jp-alerts__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--jp-text-meta);
+}
+.jp-alerts__check input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--jp-accent);
+}
+.jp-alerts__events {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-3);
+}
+.jp-alerts__error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--jp-danger-text);
+  font-size: var(--jp-text-meta);
+}
+.jp-alerts__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 var(--jp-space-4);
+}
+.jp-alerts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+@media (max-width: 700px) {
+  .jp-alerts__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

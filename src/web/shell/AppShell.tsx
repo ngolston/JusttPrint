@@ -597,7 +597,7 @@ export function AppShell() {
           {allowed && page === 'stats' && <StatsPage />}
           {allowed && page === 'collections' && <CollectionsPage section={section} />}
           {allowed && page === 'queue' && <QueuePage />}
-          {allowed && page === 'filament' && <FilamentPage />}
+          {allowed && page === 'filament' && <FilamentPage section={section} />}
           {allowed && page === 'printers' && <PrintersPage section={section} />}
           {allowed && page === 'tags' && <TagsPage />}
           {allowed && page === 'categories' && <CategoriesPage />}

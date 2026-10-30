@@ -9,6 +9,7 @@ import {
   Archive,
   BarChart3,
   BookOpen,
+  BellRing,
   Box,
   CircleDot,
   FolderHeart,
@@ -373,6 +374,15 @@ export const SETTINGS: SettingsGroup[] = [
         icon: CircleDot,
         run: () => navigate('filament'),
         role: 'viewer'
+      },
+      {
+        id: 'alerts',
+        label: 'Alerts & webhooks',
+        description: 'When spools run low (rules), Discord and email for the alerts, and webhooks.',
+        icon: BellRing,
+        run: open('openAlertsSettings'),
+        embed: { dialog: 'alerts-settings-dialog', open: 'openAlertsSettings' },
+        role: 'admin'
       },
       {
         id: 'parts',

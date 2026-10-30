@@ -139,6 +139,12 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 
 Viewers see the spools; editors and admins change them.
 
+**Running low.** A spool is low, then critical, when its share left falls under a rule's line: 20 % and 10 % until you set your own under **Settings → Printers → Alerts & webhooks** (a rule can be for one material, and send to Discord or email too). JusttPrint tells each spool once, as a notification (and again if it turns critical); weigh or refill it and it starts over. The **Reorder** tile lists them; **Open shopping list** shows each with its shop, the price you paid and **Buy again**, and **Copy the list** puts it on the clipboard. **Check now** in the settings checks at once instead of within the hour.
+
+**Labels.** **Labels** prints a sticker per spool with a QR code: choose the spools and a size (40×30, 50×30 or 40×12 mm), then **Print**. Scanning the code opens the spool on the Filament page (log in on the phone first).
+
+**Webhooks** (admins, same settings): each address gets a JSON POST when a spool runs low, a print is logged or models are added (tick the events, or none for all). With a secret, the request carries `X-JusttPrint-Signature: sha256=…`, the HMAC-SHA256 of the body with the secret, so the receiver can check it came from JusttPrint. **Send test** posts a test event and shows what the address answered.
+
 **Ready to print.** JusttPrint reads what each 3MF's plates need, in the background (a progress bar shows while it reads): a file sliced in Bambu Studio or OrcaSlicer gives each plate's colors, materials and grams; an unsliced project gives the colors its objects use (all of them when it is painted), without grams; a model saved from MakerWorld whose file says nothing uses its print profile. Each color is matched to a spool of the same material and a close color. Once you have spools, cards say **Ready to print** or **Need black** (the colors you are short of), and **Fits my filament** in the filters shows only the models you can print now.
 
 **Log Print** on one model has **Filament used**: a spool and the grams per copy for each color the ticked plates need, filled in from that check (spools loaded in the printer you choose come first). Change a spool or the grams, remove a row or **Add a spool**; saving takes the grams off the spools, and deleting the logged print puts them back.

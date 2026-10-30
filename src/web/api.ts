@@ -770,6 +770,76 @@ export const home = {
   month: () => callAction<MonthSummary>('get-month-summary')
 };
 
+export interface LowStockRule {
+  id: number;
+  name: string;
+  low_threshold_pct: number;
+  critical_threshold_pct: number;
+  material_filter: string | null;
+  notify_discord: number;
+  notify_email: number;
+  is_active: number;
+}
+
+/** A spool to buy again (src/core/low-stock.js reorderList). */
+export interface ReorderItem {
+  id: number;
+  name: string;
+  brand: string | null;
+  material: string | null;
+  color: string | null;
+  remaining: number;
+  initial: number;
+  pct: number;
+  supplier: string | null;
+  productUrl: string | null;
+  price: number | null;
+  location: string | null;
+  severity: 'low' | 'critical';
+}
+
+export interface AlertDeliveryStatus {
+  discord: { set: boolean };
+  email: { host: string; port: number | null; secure: boolean; user: string; from: string; to: string; passwordSet: boolean; ready: boolean };
+}
+
+export interface Webhook {
+  id: number;
+  name: string;
+  url: string;
+  events: string[];
+  has_secret: boolean;
+  is_active: boolean;
+  last_triggered_at: string | null;
+  last_status_code: number | null;
+}
+
+/** Low-stock alerts, the reorder list and webhooks (docs/merge-10.md, Phase 8). */
+export const alerts = {
+  reorder: () => callAction<ReorderItem[]>('get-reorder-list'),
+  checkNow: () => callAction<number>('check-low-stock'),
+  rules: () => callAction<{ rules: LowStockRule[]; defaultRule: LowStockRule }>('get-low-stock-rules'),
+  saveRule: (
+    rule: Partial<Omit<LowStockRule, 'is_active' | 'notify_discord' | 'notify_email'>> & {
+      is_active?: boolean | number;
+      notify_discord?: boolean | number;
+      notify_email?: boolean | number;
+    }
+  ) => callAction<LowStockRule>('save-low-stock-rule', rule),
+  removeRule: (id: number) => callAction<boolean>('delete-low-stock-rule', id),
+  delivery: () => callAction<AlertDeliveryStatus>('get-alert-delivery'),
+  saveDelivery: (input: {
+    discordWebhookUrl?: string;
+    smtp?: { host?: string; port?: number | string | null; secure?: boolean; user?: string; password?: string; from?: string; to?: string };
+  }) => callAction<AlertDeliveryStatus>('save-alert-delivery', input),
+  testDelivery: (kind: 'discord' | 'email') => callAction<boolean>('test-alert-delivery', kind),
+  webhooks: () => callAction<{ webhooks: Webhook[]; events: string[] }>('get-webhooks'),
+  saveWebhook: (webhook: { id?: number; name: string; url: string; events: string[]; is_active?: boolean; secret?: string }) =>
+    callAction<Webhook>('save-webhook', webhook),
+  removeWebhook: (id: number) => callAction<boolean>('delete-webhook', id),
+  testWebhook: (id: number) => callAction<number>('test-webhook', id)
+};
+
 /** Spools, filament, places and drying (Filament page). */
 export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
