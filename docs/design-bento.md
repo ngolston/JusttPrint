@@ -1,6 +1,6 @@
 # JusttPrint 10 design: Bento
 
-The look for JusttPrint 10, the release that brings FilamentHub's filament tracking into JusttPrint (plan: [merge-10.md](merge-10.md)). Source of truth: the "J2" screens on the design canvas (J2 · Bento, J2 · Library (browse style), J2 · Model page, J2 · Filament). This file turns them into tokens and components for `src/web/`.
+The look for JusttPrint 10, the release that brings FilamentHub's filament tracking into JusttPrint (plan: [merge-10.md](merge-10.md)). Source of truth: the "J2" screens on the design canvas (J2 · Bento, J2 · Library (browse style), J2 · Model page, J2 · Filament), copied into [design/](design/). This file turns them into tokens and components for `src/web/`.
 
 ## Decisions
 

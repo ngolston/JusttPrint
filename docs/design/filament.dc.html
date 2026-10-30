@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Filament</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1e2633}
+a{color:#c2412d;text-decoration:none;font-weight:600}a:hover{color:#9a3020}
+.muted{color:#5b6576}
+.tile{border-radius:28px;box-sizing:border-box;padding:26px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.white{background:#ffffff;box-shadow:0 1px 2px rgba(30,38,51,.06),0 8px 24px rgba(30,38,51,.05)}
+.nav{display:inline-flex;align-items:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;color:#3c4a60;font-weight:600;font-size:14px;background:#ffffff}
+.nav.on{background:#1e2633;color:#ffffff}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:14px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.th{margin:0;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(210px,auto);gap:20px}
+@media (max-width:900px){.bento{grid-template-columns:1fr}.bento>*{grid-column:auto!important;grid-row:auto!important}}
+</style>
+</helmet>
+<div style="min-height: 1500px; background: #eef1f5">
+  <div style="max-width: 1300px; margin: 0 auto; padding: 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px">
+      <div style="flex: 1 1 320px">
+        <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; margin-bottom: 18px"><span style="width: 28px; height: 28px; border-radius: 9px; background: #e8604c"></span>JusttPrint</div>
+        <h1 style="margin: 0; font-size: 40px; font-weight: 800; letter-spacing: -.02em">Filament</h1>
+        <div class="muted" style="font-size: 16px; margin-top: 4px">24 spools · 3 running low · 1 in the dryer</div>
+      </div>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 6px">
+        <a class="nav" href="home.dc.html">Home</a><a class="nav" href="library-bento.dc.html">Library</a><a class="nav on" href="filament.dc.html">Filament</a><a class="nav" href="#">Printers</a>
+      </nav>
+    </header>
+
+    <div class="bento">
+      <section class="tile" aria-label="On hand" style="grid-column: 1 / span 2; grid-row: 1 / span 2; background: #1e2633; color: #ffffff">
+        <h2 class="th" style="color: #f2a596">On hand</h2>
+        <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px">
+          <span style="font-size: 64px; font-weight: 800; line-height: 1">18.6 kg</span>
+          <span style="font-size: 15px; color: #c8d0dc">24 spools · worth about $412 · lasts ~13 months at your pace</span>
+        </div>
+        <div style="display: flex; height: 40px; border-radius: 14px; overflow: hidden; margin-top: 6px" role="img" aria-label="Your colours, sized by how much of each you have">
+          <sc-for list="{{palette}}" as="p" hint-placeholder-count="12"><span style="flex: {{p.w}} 1 0; background: {{p.hex}}"></span></sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 6px">
+          <sc-for list="{{mats}}" as="m" hint-placeholder-count="6">
+            <div style="display: grid; grid-template-columns: 56px 1fr 60px; gap: 12px; align-items: center; font-size: 14px">
+              <span style="font-weight: 700">{{m.name}}</span>
+              <span style="height: 12px; border-radius: 6px; background: #2b3647"><span style="display: block; height: 100%; width: {{m.pct}}; border-radius: 6px; background: {{m.c}}"></span></span>
+              <span style="text-align: right; color: #c8d0dc; font-weight: 600">{{m.kg}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section class="tile" aria-label="Reorder" style="grid-column: 3; grid-row: 1; background: #e8604c; color: #1e2633">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Reorder</h2><span style="width: 32px; height: 32px; border-radius: 50%; background: #1e2633; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800">3</span></div>
+        <sc-for list="{{reorder}}" as="r" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700"><span style="width: 18px; height: 18px; border-radius: 50%; background: {{r.hex}}; box-shadow: 0 0 0 2px #fde6e1"></span><span style="flex: 1">{{r.name}}</span><span>{{r.g}}</span></div>
+        </sc-for>
+        <button class="btn" style="background: #1e2633; color: #ffffff; margin-top: auto">Open shopping list</button>
+      </section>
+
+      <section class="tile white" aria-label="Loaded in printers" style="grid-column: 4; grid-row: 1 / span 2">
+        <h2 class="th">Loaded in printers</h2>
+        <sc-for list="{{loaded}}" as="p" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid #eef1f5">
+            <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 800; font-size: 15px">{{p.name}}</span><span class="muted" style="font-size: 12px; font-weight: 600">{{p.sub}}</span></div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{p.slots}}" as="s" hint-placeholder-count="4">
+                <span style="display: flex; flex-direction: column; align-items: center; gap: 4px">
+                  <span style="width: 40px; height: 40px; border-radius: 50%; background: conic-gradient({{s.ring}} 0 {{s.deg}}, #eef1f5 {{s.deg}} 360deg); display: flex; align-items: center; justify-content: center"><span style="width: 28px; height: 28px; border-radius: 50%; background: {{s.hex}}; border: 3px solid #ffffff; box-sizing: border-box"></span></span>
+                  <span style="font-size: 11px; font-weight: 700; color: {{s.gc}}">{{s.g}}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+
+      <section class="tile white" aria-label="Dryer" style="grid-column: 3; grid-row: 2">
+        <h2 class="th">Dryer</h2>
+        <div style="display: flex; align-items: center; gap: 16px">
+          <span style="width: 84px; height: 84px; border-radius: 50%; background: conic-gradient(#e8604c 0 248deg, #eef1f5 248deg 360deg); display: flex; align-items: center; justify-content: center; flex: none"><span style="width: 64px; height: 64px; border-radius: 50%; background: #cfe3ea; border: 4px solid #ffffff; box-sizing: border-box"></span></span>
+          <div><div style="font-size: 16px; font-weight: 800">TPU 95A Clear</div><div class="muted" style="font-size: 13px">50 °C · 2 h 04 m left</div></div>
+        </div>
+      </section>
+
+      <section class="tile white" aria-label="Used this month" style="grid-column: 1 / span 2; grid-row: 3">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Used this month</h2><span style="font-size: 14px; font-weight: 700">1.4 kg · $31</span></div>
+        <div style="display: flex; align-items: flex-end; gap: 14px; height: 120px; margin-top: auto" role="img" aria-label="Grams used per week: 240, 310, 380, 470">
+          <sc-for list="{{weeks}}" as="w" hint-placeholder-count="4">
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end">
+              <span style="font-size: 12px; font-weight: 700">{{w.g}}</span>
+              <span style="width: 100%; height: {{w.h}}; border-radius: 10px; background: {{w.c}}"></span>
+              <span class="muted" style="font-size: 12px">{{w.label}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section class="tile" aria-label="Add a spool" style="grid-column: 3 / span 2; grid-row: 3; background: #e2e7ee">
+        <h2 class="th">Add a spool</h2>
+        <div style="font-size: 15px; color: #3c4a60">Scan the QR on the box, pick from the filament catalogue, or bring over your Spoolman inventory.</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto"><button class="btn" style="background: #e8604c; color: #1e2633">Scan QR</button><button class="btn" style="background: #ffffff; color: #1e2633">Add from catalogue</button><button class="btn" style="background: transparent; color: #1e2633; border: 1px solid #9aa4b4">Import from Spoolman</button></div>
+      </section>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px">
+      <h2 style="margin: 0 10px 0 0; font-size: 24px; font-weight: 800">All spools</h2>
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+        <button class="chip" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="background: {{f.bg}}; color: {{f.fg}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+
+    <section aria-label="Spools" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 20px">
+      <sc-for list="{{spools}}" as="s" hint-placeholder-count="8">
+        <article class="white" style="border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 0 0 2px {{s.edge}}, 0 8px 24px rgba(30,38,51,.05)">
+          <div style="display: flex; align-items: center; gap: 14px">
+            <span style="width: 64px; height: 64px; border-radius: 50%; background: conic-gradient({{s.ring}} 0 {{s.deg}}, #eef1f5 {{s.deg}} 360deg); display: flex; align-items: center; justify-content: center; flex: none"><span style="width: 46px; height: 46px; border-radius: 50%; background: {{s.hex}}; border: 4px solid #ffffff; box-sizing: border-box"></span></span>
+            <div style="min-width: 0"><div style="font-size: 16px; font-weight: 800">{{s.name}}</div><div class="muted" style="font-size: 13px">{{s.brand}}</div></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 22px; font-weight: 800; color: {{s.gc}}">{{s.g}}</span><span class="muted" style="font-size: 13px; font-weight: 600">{{s.days}}</span></div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #eef1f5">{{s.mat}}</span><span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #eef1f5">{{s.loc}}</span></div>
+        </article>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { f: 0 }; }
+  renderVals() {
+    const L = [
+      ['PLA Basic Blue', 'Bambu Lab', '#2f6fdf', 'PLA', 720, 'Ender 3 S1', '2 months'],
+      ['PETG HF Gray', 'Bambu Lab', '#8b8f96', 'PETG', 640, 'P1S · A1', '5 weeks'],
+      ['Silk Gold', 'Eryone', '#d4a640', 'PLA', 580, 'Shelf 2', 'rarely used'],
+      ['PETG Orange', 'Prusament', '#e8732c', 'PETG', 455, 'Prusa MK4', '6 weeks'],
+      ['PLA Green', 'Bambu Lab', '#2f9e44', 'PLA', 340, 'Dry box A', '8 weeks'],
+      ['PLA+ White', 'eSun', '#f5f5f0', 'PLA', 260, 'P1S · A3', '14 days'],
+      ['PLA Red', 'Polymaker', '#d23b3b', 'PLA', 210, 'P1S · A2', '9 days'],
+      ['PLA Pink', 'Elegoo', '#f472b6', 'PLA', 120, 'Shelf 2', '4 weeks'],
+      ['PLA Basic Black', 'Bambu Lab', '#111111', 'PLA', 18, 'P1S · A4', '1 day'],
+      ['PC-ABS Black', 'Sunlu', '#1c1c1f', 'ABS', 1000, 'Dry box A', 'sealed'],
+      ['TPU 95A Clear', 'Overture', '#cfe3ea', 'TPU', 830, 'Dryer', '2 h left drying'],
+      ['ASA White', 'Polymaker', '#ecebe4', 'ASA', 700, 'Shelf 2', 'rarely used']
+    ];
+    const low = (s) => ['PLA Basic Black', 'PLA Red', 'PLA+ White'].indexOf(s[0]) > -1;
+    const F = [['All', () => true], ['Running low', low], ['In a printer', (s) => /P1S|Ender|MK4/.test(s[5])], ['PLA', (s) => s[3] === 'PLA'], ['PETG', (s) => s[3] === 'PETG']];
+    const fi = this.state.f;
+    const sl = (hex, g) => ({ hex, g: g + ' g', deg: Math.round(g / 1000 * 360) + 'deg', ring: g < 50 ? '#e8604c' : '#9aa4b4', gc: g < 50 ? '#c2412d' : '#1e2633' });
+    return {
+      palette: L.map((s) => ({ hex: s[2], w: s[4] })),
+      mats: [
+        { name: 'PLA', kg: '7.2 kg', pct: '100%', c: '#e8604c' }, { name: 'PETG', kg: '4.1 kg', pct: '57%', c: '#f2a596' },
+        { name: 'ABS', kg: '3.0 kg', pct: '42%', c: '#f2a596' }, { name: 'Silk', kg: '2.2 kg', pct: '31%', c: '#f2a596' },
+        { name: 'PC', kg: '1.3 kg', pct: '18%', c: '#f2a596' }, { name: 'TPU', kg: '0.8 kg', pct: '11%', c: '#f2a596' }
+      ],
+      reorder: [{ name: 'PLA Basic Black', hex: '#111111', g: '18 g' }, { name: 'PLA Red', hex: '#d23b3b', g: '210 g' }, { name: 'PLA+ White', hex: '#f5f5f0', g: '260 g' }],
+      loaded: [
+        { name: 'Bambu P1S', sub: 'AMS · 21% humidity', slots: [sl('#8b8f96', 640), sl('#d23b3b', 210), sl('#f5f5f0', 260), sl('#111111', 18)] },
+        { name: 'Ender 3 S1', sub: 'Direct feed', slots: [sl('#2f6fdf', 720)] },
+        { name: 'Prusa MK4', sub: 'Direct feed', slots: [sl('#e8732c', 455)] }
+      ],
+      weeks: [
+        { label: 'Oct 6', g: '240 g', h: '51%', c: '#e2e7ee' }, { label: 'Oct 13', g: '310 g', h: '66%', c: '#e2e7ee' },
+        { label: 'Oct 20', g: '380 g', h: '81%', c: '#e2e7ee' }, { label: 'Oct 27', g: '470 g', h: '100%', c: '#e8604c' }
+      ],
+      filters: F.map(([label], k) => ({ label, pressed: k === fi ? 'true' : 'false', bg: k === fi ? '#1e2633' : '#ffffff', fg: k === fi ? '#ffffff' : '#1e2633', pick: () => this.setState({ f: k }) })),
+      spools: L.filter(F[fi][1]).map(([name, brand, hex, mat, g, loc, days]) => ({
+        name, brand, hex, mat, loc, days, g: g + ' g', deg: Math.round(g / 1000 * 360) + 'deg',
+        ring: g < 50 ? '#e8604c' : g < 300 ? '#f2a596' : '#9aa4b4', gc: g < 50 ? '#c2412d' : '#1e2633', edge: g < 50 ? '#e8604c' : 'transparent'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

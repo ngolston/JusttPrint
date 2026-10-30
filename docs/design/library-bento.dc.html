@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1e2633}
+a{color:#c2412d;text-decoration:none;font-weight:600}a:hover{color:#9a3020}
+.muted{color:#5b6576}
+.tile{border-radius:28px;box-sizing:border-box;padding:26px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.white{background:#ffffff;box-shadow:0 1px 2px rgba(30,38,51,.06),0 8px 24px rgba(30,38,51,.05)}
+.nav{display:inline-flex;align-items:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;color:#3c4a60;font-weight:600;font-size:14px;background:#ffffff}
+.nav.on{background:#1e2633;color:#ffffff}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:14px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;border:0;font:700 14px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.th{margin:0;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.cat{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:16px;background:#eef1f5;font-size:14px;font-weight:700}
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(210px,auto);gap:20px}
+@media (max-width:900px){.bento{grid-template-columns:1fr}.bento>*{grid-column:auto!important;grid-row:auto!important}}
+</style>
+</helmet>
+<div style="min-height: 1500px; background: #eef1f5">
+  <div style="max-width: 1300px; margin: 0 auto; padding: 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px">
+      <div style="flex: 1 1 320px">
+        <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; margin-bottom: 18px"><span style="width: 28px; height: 28px; border-radius: 9px; background: #e8604c"></span>JusttPrint</div>
+        <h1 style="margin: 0; font-size: 40px; font-weight: 800; letter-spacing: -.02em">Library <a href="library-browse.dc.html" style="font-size: 14px; vertical-align: middle; margin-left: 8px">Browse view →</a></h1>
+        <div class="muted" style="font-size: 16px; margin-top: 4px">412 models · 12 new this week · 31 you can print right now</div>
+      </div>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 6px">
+        <a class="nav" href="home.dc.html">Home</a><a class="nav on" href="library-bento.dc.html">Library</a><a class="nav" href="filament.dc.html">Filament</a><a class="nav" href="#">Printers</a>
+      </nav>
+    </header>
+
+    <div class="bento">
+      <section class="tile" aria-label="Printable right now" style="grid-column: 1 / span 2; grid-row: 1 / span 2; background: #1e2633; color: #ffffff; overflow: hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th" style="color: #f2a596">Printable right now</h2><span style="font-size: 13px; color: #c8d0dc">Pick of the day</span></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: center; flex: 1">
+          <div style="width: 230px; height: 230px; border-radius: 32px; background: #2b3647; display: flex; align-items: center; justify-content: center; flex: none">
+            <svg width="150" height="150" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 8 52 20 30 32 8 20z" fill="#ecd08e"/><path d="M8 20 30 32v22L8 42z" fill="#d4a640"/><path d="M52 20 30 32v22l22-12z" fill="#a9812b"/><path d="M30 4 41 10 30 16 19 10z" fill="#2b2b2b"/></svg>
+          </div>
+          <div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px">
+            <div style="font-size: 34px; font-weight: 800; line-height: 1.05">Dragon Egg Box</div>
+            <div style="font-size: 15px; color: #c8d0dc">Zack Freedman · Printables · saved 3 weeks ago, never printed</div>
+            <div style="display: flex; align-items: center; gap: 8px"><span style="width: 22px; height: 22px; border-radius: 50%; background: #d4a640"></span><span style="width: 22px; height: 22px; border-radius: 50%; background: #111111; box-shadow: 0 0 0 2px #3c4a60"></span><span style="font-size: 14px; color: #c8d0dc; margin-left: 4px">You have both colours · 104 g · 5 h</span></div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px"><button class="btn" style="background: #e8604c; color: #1e2633">Queue on P1S</button><button class="btn" style="background: #2b3647; color: #ffffff">Open</button><button class="btn" style="background: transparent; color: #c8d0dc">Show me another</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tile" aria-label="Can print today" style="grid-column: 3; grid-row: 1; background: #e8604c; color: #1e2633">
+        <h2 class="th">Ready with your spools</h2>
+        <div style="font-size: 64px; font-weight: 800; line-height: 1">31</div>
+        <div style="font-size: 15px; font-weight: 600">models you can print today without buying anything</div>
+      </section>
+
+      <section class="tile white" aria-label="Collections" style="grid-column: 4; grid-row: 1 / span 2">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Collections</h2><a href="#" style="font-size: 13px">+ New</a></div>
+        <sc-for list="{{collections}}" as="c" hint-placeholder-count="5">
+          <a href="#" style="display: flex; align-items: center; gap: 12px; color: #1e2633; font-weight: 600">
+            <span style="display: flex; flex: none">
+              <sc-for list="{{c.stack}}" as="s" hint-placeholder-count="3"><span style="width: 30px; height: 30px; border-radius: 10px; background: {{s}}; border: 2px solid #ffffff; margin-right: -10px"></span></sc-for>
+            </span>
+            <span style="flex: 1; margin-left: 14px; font-size: 15px">{{c.name}}</span>
+            <span class="muted" style="font-size: 13px">{{c.n}}</span>
+          </a>
+        </sc-for>
+      </section>
+
+      <section class="tile white" aria-label="Never printed" style="grid-column: 3; grid-row: 2">
+        <h2 class="th">Never printed</h2>
+        <div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 44px; font-weight: 800">288</span><span class="muted" style="font-size: 14px">of 412 saved</span></div>
+        <button class="btn" style="background: #1e2633; color: #ffffff; margin-top: auto">Print Roulette</button>
+      </section>
+
+      <section class="tile white" aria-label="Categories" style="grid-column: 1 / span 4; grid-row: 3; min-height: 0">
+        <div style="display: flex; justify-content: space-between; align-items: center"><h2 class="th">Categories</h2><a href="#" style="font-size: 13px">All 11</a></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <sc-for list="{{cats}}" as="c" hint-placeholder-count="8"><a class="cat" href="#" style="color: #1e2633"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{c.c}}"></span>{{c.name}} <span class="muted" style="font-weight: 600">{{c.n}}</span></a></sc-for>
+        </div>
+      </section>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px">
+      <h2 style="margin: 0 10px 0 0; font-size: 24px; font-weight: 800">All models</h2>
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+        <button class="chip" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="background: {{f.bg}}; color: {{f.fg}}">{{f.label}}</button>
+      </sc-for>
+      <span style="flex: 1"></span>
+      <label style="display: flex; align-items: center; gap: 10px; background: #ffffff; border-radius: 999px; padding: 0 16px; min-height: 44px; flex: 0 1 280px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b6576" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="position: absolute; left: -9999px">Search models</span>
+        <input type="search" placeholder="Search models" style="flex: 1; border: 0; background: transparent; font: 14px 'Plus Jakarta Sans',sans-serif; color: #1e2633; outline: none">
+      </label>
+    </div>
+
+    <section aria-label="Models" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 20px">
+      <sc-for list="{{models}}" as="m" hint-placeholder-count="8">
+        <article class="white" style="border-radius: 24px; overflow: hidden; display: flex; flex-direction: column">
+          <div style="height: 170px; background: {{m.bg}}; display: flex; align-items: center; justify-content: center; position: relative">
+            <svg width="84" height="84" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 8 52 20 30 32 8 20z" fill="{{m.top}}"/><path d="M8 20 30 32v22L8 42z" fill="{{m.left}}"/><path d="M52 20 30 32v22l22-12z" fill="{{m.right}}"/></svg>
+            <span style="position: absolute; top: 12px; left: 12px; font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 999px; background: {{m.bBg}}; color: {{m.bFg}}">{{m.badge}}</span>
+            <sc-if value="{{m.fav}}" hint-placeholder-val="{{ false }}"><span aria-label="Favourite" style="position: absolute; top: 10px; right: 12px; color: #e8604c; font-size: 20px">♥</span></sc-if>
+          </div>
+          <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+            <div><div style="font-size: 16px; font-weight: 800">{{m.name}}</div><div class="muted" style="font-size: 13px">{{m.by}}</div></div>
+            <div style="display: flex; align-items: center; gap: 5px">
+              <sc-for list="{{m.dots}}" as="d" hint-placeholder-count="2"><span style="width: 16px; height: 16px; border-radius: 50%; background: {{d.hex}}; box-shadow: 0 0 0 2px {{d.ring}}"></span></sc-for>
+              <span class="muted" style="margin-left: auto; font-size: 13px; font-weight: 600">{{m.g}}</span>
+            </div>
+          </div>
+        </article>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { f: 0 }; }
+  renderVals() {
+    const P = { blue: ['#dde6f5', '#7ea6ef', '#2f6fdf', '#2452a8'], gold: ['#f6edd9', '#ecd08e', '#d4a640', '#a9812b'], green: ['#e0f0e4', '#7cc78c', '#2f9e44', '#227733'], pink: ['#fde4ef', '#f9b0d4', '#f472b6', '#c9528f'], gray: ['#eceff3', '#b5bac2', '#8b8f96', '#6d7179'], red: ['#fde1de', '#ea8a8a', '#d23b3b', '#a32b2b'], orange: ['#fde9dc', '#f2a877', '#e8732c', '#b85a20'], white: ['#eef1f5', '#ffffff', '#e4e4de', '#c9c9c2'] };
+    const d = (hex, short) => ({ hex, ring: short ? '#e8604c' : '#ffffff' });
+    const M = [
+      ['Dragon Egg Box', 'Zack Freedman', 'gold', [d('#d4a640'), d('#111111')], '104 g', 'ready', false, true],
+      ['Godzilla × Kitty', 'Hugo', 'blue', [d('#2f6fdf'), d('#f5f5f0')], '44 g', 'printed', true, false],
+      ['Screen Bezel', 'Bambu Lab', 'gray', [d('#8b8f96'), d('#111111', true)], '189 g', 'short', false, false],
+      ['SpeedBoat Race', 'Bambu Lab', 'green', [d('#2f9e44')], '14 g', 'printed', false, false],
+      ['Axolotl Keychain', 'Designer C', 'pink', [d('#f472b6'), d('#111111')], '10 g', 'ready', true, true],
+      ['gti_fob', 'Cinderwing3D', 'red', [d('#d23b3b')], '12 g', 'printed', false, false],
+      ['Cable Clips ×20', 'Benchy Pack', 'orange', [d('#e8732c')], '40 g', 'ready', false, true],
+      ['Lithophane Lamp', 'Hugo', 'white', [d('#f5f5f0', true)], '210 g', 'short', true, true],
+      ['Desk Organizer', 'Hugo', 'white', [d('#f5f5f0'), d('#8b8f96')], '240 g', 'ready', false, true],
+      ['Wave Vase', 'Designer B', 'blue', [d('#2f6fdf')], '96 g', 'ready', false, true],
+      ['BL_P1_Bezel', 'Cinderwing3D', 'gray', [d('#8b8f96')], '46 g', 'printed', false, false],
+      ['Planter Pot', 'Designer B', 'orange', [d('#e8732c')], '120 g', 'printed', true, false]
+    ];
+    const B = { ready: ['Ready to print', '#e3f3ea', '#1f6b43'], printed: ['Printed ✓', '#ffffff', '#3c4a60'], short: ['Need more filament', '#fde6e1', '#9a3020'] };
+    const F = [['All 412', () => true], ['Ready to print', (m) => m[5] === 'ready'], ['Never printed', (m) => m[7]], ['Favourites', (m) => m[6]]];
+    const fi = this.state.f;
+    return {
+      filters: F.map(([label], k) => ({ label, pressed: k === fi ? 'true' : 'false', bg: k === fi ? '#1e2633' : '#ffffff', fg: k === fi ? '#ffffff' : '#1e2633', pick: () => this.setState({ f: k }) })),
+      models: M.filter(F[fi][1]).map(([name, by, col, dots, g, st, fav]) => ({ name, by, dots, g, fav, bg: P[col][0], top: P[col][1], left: P[col][2], right: P[col][3], badge: B[st][0], bBg: B[st][1], bFg: B[st][2] })),
+      collections: [
+        { name: 'Gifts for the holidays', n: '14', stack: ['#d4a640', '#f472b6', '#2f6fdf'] },
+        { name: 'Printer upgrades', n: '22', stack: ['#8b8f96', '#111111', '#e8732c'] },
+        { name: 'Kids’ toys', n: '18', stack: ['#2f9e44', '#f472b6', '#d23b3b'] },
+        { name: 'Desk setup', n: '9', stack: ['#f5f5f0', '#8b8f96', '#2f6fdf'] },
+        { name: 'Spare parts', n: '31', stack: ['#111111', '#8b8f96', '#d23b3b'] }
+      ],
+      cats: [
+        { name: 'Toys & Games', n: '84', c: '#2f9e44' }, { name: 'Household', n: '71', c: '#8b8f96' }, { name: '3D Printer', n: '58', c: '#e8604c' },
+        { name: 'Art', n: '46', c: '#d4a640' }, { name: 'Tools', n: '39', c: '#2f6fdf' }, { name: 'Miniatures', n: '33', c: '#8b5cf6' },
+        { name: 'Props & Cosplay', n: '27', c: '#d23b3b' }, { name: 'Fashion', n: '19', c: '#f472b6' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

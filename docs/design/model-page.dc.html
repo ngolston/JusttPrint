@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Model page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1e2633}
+a{color:#c2412d;text-decoration:none;font-weight:600}a:hover{color:#9a3020}
+.muted{color:#5b6576}
+.nav{display:inline-flex;align-items:center;padding:10px 16px;min-height:44px;box-sizing:border-box;border-radius:999px;color:#3c4a60;font-weight:600;font-size:14px}
+.nav:hover{background:#eef1f5;color:#1e2633}
+.nav.on{background:#1e2633;color:#ffffff}
+.panel{background:#ffffff;border-radius:26px;box-sizing:border-box;box-shadow:0 1px 2px rgba(30,38,51,.06),0 8px 24px rgba(30,38,51,.05)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;min-height:48px;box-sizing:border-box;border-radius:14px;border:0;font:700 15px 'Plus Jakarta Sans',sans-serif;cursor:pointer}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;background:#eef1f5;color:#3c4a60}
+.thumb{width:76px;height:64px;border-radius:14px;border:0;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none}
+.prof{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;text-align:left;font:inherit;cursor:pointer;min-height:44px;flex:1 1 150px}
+.tab{padding:10px 2px;min-height:44px;border:0;background:transparent;font:700 15px 'Plus Jakarta Sans',sans-serif;cursor:pointer;border-bottom:3px solid transparent}
+.sec{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#5b6576}
+</style>
+</helmet>
+<div style="min-height: 1700px; background: #eef1f5">
+  <header style="background: #ffffff; border-bottom: 1px solid #dde2ea">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 14px 28px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+      <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px"><span style="width: 32px; height: 32px; border-radius: 10px; background: #e8604c; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e2633" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10"/></svg></span>JusttPrint</div>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px">
+        <a class="nav" href="home.dc.html">Home</a><a class="nav on" href="library-browse.dc.html">Library</a><a class="nav" href="filament.dc.html">Filament</a><a class="nav" href="#">Printers</a>
+      </nav>
+      <label style="flex: 1 1 320px; display: flex; align-items: center; gap: 12px; background: #eef1f5; border-radius: 999px; padding: 0 20px; min-height: 48px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b6576" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="position: absolute; left: -9999px">Search your library</span>
+        <input type="search" placeholder="Search 412 models, designers, tags…" style="flex: 1; border: 0; background: transparent; font: 15px 'Plus Jakarta Sans',sans-serif; color: #1e2633; outline: none">
+      </label>
+    </div>
+  </header>
+
+  <div style="max-width: 1360px; margin: 0 auto; padding: 18px 28px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+    <div style="font-size: 14px; font-weight: 600" class="muted"><a href="library-browse.dc.html">Library</a> › 3D Printer › Upgrades</div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <section aria-label="Pictures" style="flex: 3 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="panel" style="aspect-ratio: 4 / 3; background: {{shot.bg}}; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden">
+          <svg width="300" height="270" viewBox="0 0 120 110" aria-hidden="true">
+            <g transform="translate(20 20)"><path d="M40 0 80 22 40 44 0 22z" fill="#b5bac2"/><path d="M0 22 40 44v40L0 62z" fill="#8b8f96"/><path d="M80 22 40 44v40l40-22z" fill="#6d7179"/></g>
+            <g transform="{{shot.t2}}"><path d="M40 0 80 22 40 44 0 22z" fill="#5a5f68"/><path d="M0 22 40 44v40L0 62z" fill="#2b2e33"/><path d="M80 22 40 44v40l40-22z" fill="#111111"/></g>
+          </svg>
+          <span class="pill" style="position: absolute; top: 16px; left: 16px; background: rgba(255,255,255,.92)">{{shot.label}}</span>
+          <span class="pill" style="position: absolute; bottom: 16px; right: 16px; background: rgba(30,38,51,.85); color: #ffffff">Drag to rotate · 3D</span>
+        </div>
+        <div style="display: flex; gap: 10px; overflow-x: auto">
+          <sc-for list="{{thumbs}}" as="t" hint-placeholder-count="5">
+            <button class="thumb" onClick="{{t.pick}}" aria-label="{{t.label}}" aria-pressed="{{t.pressed}}" style="background: {{t.bg}}; box-shadow: 0 0 0 3px {{t.ring}}">
+              <svg width="38" height="34" viewBox="0 0 120 110" aria-hidden="true"><g transform="translate(20 20)"><path d="M40 0 80 22 40 44 0 22z" fill="#b5bac2"/><path d="M0 22 40 44v40L0 62z" fill="#8b8f96"/><path d="M80 22 40 44v40l40-22z" fill="#6d7179"/></g></svg>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+
+      <aside aria-label="Print this model" class="panel" style="flex: 2 1 420px; padding: 26px; display: flex; flex-direction: column; gap: 18px">
+        <div>
+          <h1 style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1">Screen Bezel</h1>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px">
+            <span style="width: 34px; height: 34px; border-radius: 50%; background: #1f6b43; color: #ffffff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">BL</span>
+            <div style="flex: 1"><div style="font-weight: 700; font-size: 15px">Bambu Lab</div><div class="muted" style="font-size: 13px">Saved from MakerWorld · CC BY-NC</div></div>
+            <a href="#" style="font-size: 13px">View original ↗</a>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="pill">Printed 3×</span><span class="pill">2 of 3 worked</span><span class="pill">Added Oct 12</span><span class="pill" style="background: #fde6e1; color: #9a3020">In queue</span></div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div class="sec">Print profile</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <sc-for list="{{profiles}}" as="p" hint-placeholder-count="3">
+              <button class="prof" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}" style="background: {{p.bg}}; color: {{p.fg}}; border: 2px solid {{p.bd}}">
+                <span style="font-size: 14px; font-weight: 800">{{p.name}}</span>
+                <span style="font-size: 12px; font-weight: 600; opacity: .85">{{p.meta}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="sec">Filament</span><span class="muted" style="font-size: 13px; font-weight: 600">{{sum}}</span></div>
+          <sc-for list="{{needs}}" as="n" hint-placeholder-count="2">
+            <div style="display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: {{n.bg}}">
+              <span style="width: 30px; height: 30px; border-radius: 50%; background: {{n.hex}}; box-shadow: 0 0 0 3px {{n.ring}}"></span>
+              <div style="min-width: 0"><div style="font-size: 14px; font-weight: 700">{{n.need}}</div><div class="muted" style="font-size: 12px; font-weight: 600">{{n.spool}}</div></div>
+              <span style="font-size: 13px; font-weight: 800; color: {{n.c}}">{{n.res}}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div class="sec">Printer</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <span class="pill" style="background: #1e2633; color: #ffffff; padding: 10px 14px">Bambu P1S · colours loaded</span>
+            <span class="pill" style="padding: 10px 14px">Ender 3 · 3 swaps</span>
+            <span class="pill" style="padding: 10px 14px; color: #9a3020">MK4 · on hold</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <button class="btn" style="flex: 2 1 220px; background: #e8604c; color: #1e2633">{{cta}}</button>
+          <button class="btn" style="flex: 1 1 120px; background: #1e2633; color: #ffffff">Add to queue</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <button class="btn" style="flex: 1 1 160px; background: #eef1f5; color: #1e2633">Open in OrcaSlicer</button>
+          <button class="btn" style="background: #eef1f5; color: #1e2633">Log a print</button>
+          <button class="btn" aria-label="Favourite" style="background: #eef1f5; color: #e8604c; width: 48px; padding: 0">♥</button>
+        </div>
+      </aside>
+    </div>
+
+    <section class="panel" aria-label="Details" style="padding: 8px 28px 28px">
+      <div role="tablist" style="display: flex; flex-wrap: wrap; gap: 28px; border-bottom: 1px solid #eef1f5; margin-bottom: 20px">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+          <button class="tab" role="tab" onClick="{{t.pick}}" aria-selected="{{t.sel}}" style="color: {{t.fg}}; border-bottom-color: {{t.line}}">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{showDesc}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 32px">
+          <div style="flex: 2 1 420px; font-size: 15px; line-height: 1.7; color: #3c4a60">
+            <p style="margin: 0 0 12px">A replacement front bezel for the P1-series screen, with snap-in clips and a recessed button surround. Plate 1 is the frame in gray PETG with black trim; plate 2 holds the clips and small coloured buttons.</p>
+            <p style="margin: 0">Print plate 1 with a brim. The clips are tight on purpose — print them at 100% flow.</p>
+          </div>
+          <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px">
+            <div class="sec">Tags</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="pill">p1s</span><span class="pill">upgrade</span><span class="pill">bezel</span><span class="pill">multicolour</span></div>
+            <div class="sec" style="margin-top: 8px">Collections</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px"><span class="pill">Printer upgrades</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showFiles}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{files}}" as="f" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: #f4f6f9">
+              <span style="width: 40px; height: 40px; border-radius: 10px; background: {{f.c}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #ffffff">{{f.ext}}</span>
+              <div style="flex: 1"><div style="font-size: 14px; font-weight: 700">{{f.name}}</div><div class="muted" style="font-size: 12px">{{f.meta}}</div></div>
+              <a href="#" style="font-size: 13px">Download</a>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showHist}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{history}}" as="h" hint-placeholder-count="3">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: #f4f6f9">
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: {{h.dot}}"></span>
+              <span style="flex: 1 1 200px; font-size: 14px; font-weight: 700">{{h.what}}</span>
+              <span class="muted" style="font-size: 13px; font-weight: 600">{{h.meta}}</span>
+              <span style="font-size: 13px; font-weight: 800">{{h.cost}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showNotes}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="padding: 16px; border-radius: 16px; background: #fff3dc; font-size: 15px; line-height: 1.6">Dry the gray PETG first — 4 h at 65 °C. Second attempt failed with spaghetti at 40% before I did.</div>
+          <button class="btn" style="align-self: flex-start; background: #eef1f5; color: #1e2633">+ Add a note</button>
+        </div>
+      </sc-if>
+    </section>
+
+    <section aria-label="More like this" style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline"><h2 style="margin: 0; font-size: 20px; font-weight: 800">More like this you can print</h2><a href="library-browse.dc.html" style="font-size: 14px">See all</a></div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 20px">
+        <sc-for list="{{similar}}" as="m" hint-placeholder-count="4">
+          <a href="model-page.dc.html" class="panel" style="border-radius: 22px; overflow: hidden; color: #1e2633; display: flex; flex-direction: column">
+            <div style="aspect-ratio: 4 / 3; background: {{m.bg}}; display: flex; align-items: center; justify-content: center; position: relative">
+              <svg width="90" height="84" viewBox="0 0 120 110" aria-hidden="true"><g transform="translate(20 20)"><path d="M40 0 80 22 40 44 0 22z" fill="{{m.top}}"/><path d="M0 22 40 44v40L0 62z" fill="{{m.left}}"/><path d="M80 22 40 44v40l40-22z" fill="{{m.right}}"/></g></svg>
+              <span class="pill" style="position: absolute; bottom: 10px; left: 10px; background: #e3f3ea; color: #1f6b43">Ready to print</span>
+            </div>
+            <div style="padding: 12px 16px 14px"><div style="font-size: 15px; font-weight: 800">{{m.name}}</div><div class="muted" style="font-size: 13px; font-weight: 600">{{m.meta}}</div></div>
+          </a>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { prof: 1, img: 0, tab: 0 }; }
+  renderVals() {
+    const OK = '#1f6b43', BAD = '#9a3020';
+    const n = (need, hex, spool, res, bad) => ({ need, hex, spool, res, c: bad ? BAD : OK, bg: bad ? '#fde6e1' : '#f4f6f9', ring: bad ? '#e8604c' : '#ffffff' });
+    const PROF = [
+      { name: 'All plates', meta: '5 h 55 m · 189 g', sum: '189 g · $3.83', short: true, needs: [
+        n('Gray PETG · 146 g', '#8b8f96', 'Bambu PETG HF Gray · AMS A1 · 640 g', '✓ 494 g left'),
+        n('Black PLA · 30 g', '#111111', 'Bambu PLA Basic Black · AMS A4 · 18 g', '12 g short', true),
+        n('White PLA · 9 g', '#f5f5f0', 'eSun PLA+ White · AMS A3 · 260 g', '✓ 251 g left'),
+        n('Red PLA · 4 g', '#d23b3b', 'Polymaker PLA Red · AMS A2 · 210 g', '✓ 206 g left')] },
+      { name: 'Plate 1 · Frame', meta: '3 h 40 m · 112 g', sum: '112 g · $2.31', short: true, needs: [
+        n('Gray PETG · 82 g', '#8b8f96', 'Bambu PETG HF Gray · AMS A1 · 640 g', '✓ 558 g left'),
+        n('Black PLA · 30 g', '#111111', 'Bambu PLA Basic Black · AMS A4 · 18 g', '12 g short', true)] },
+      { name: 'Plate 2 · Clips', meta: '2 h 15 m · 77 g', sum: '77 g · $1.52', short: false, needs: [
+        n('Gray PETG · 64 g', '#8b8f96', 'Bambu PETG HF Gray · AMS A1 · 640 g', '✓ 576 g left'),
+        n('White PLA · 9 g', '#f5f5f0', 'eSun PLA+ White · AMS A3 · 260 g', '✓ 251 g left'),
+        n('Red PLA · 4 g', '#d23b3b', 'Polymaker PLA Red · AMS A2 · 210 g', '✓ 206 g left')] }
+    ];
+    const SHOTS = [
+      { label: 'Cover', bg: '#eceff3', t2: 'translate(56 58) scale(.5)' },
+      { label: 'Plate 1 · Frame', bg: '#e2e7ee', t2: 'translate(56 58) scale(.5)' },
+      { label: 'Plate 2 · Clips', bg: '#f4f6f9', t2: 'translate(10 64) scale(.4)' },
+      { label: 'Your print · Oct 24', bg: '#fdeee9', t2: 'translate(56 58) scale(.5)' },
+      { label: 'Printed by the designer', bg: '#e8edf5', t2: 'translate(56 58) scale(.5)' }
+    ];
+    const pi = this.state.prof, ii = this.state.img, ti = this.state.tab;
+    const p = PROF[pi];
+    return {
+      shot: SHOTS[ii],
+      thumbs: SHOTS.map((s, k) => ({ label: s.label, bg: s.bg, pressed: k === ii ? 'true' : 'false', ring: k === ii ? '#e8604c' : 'transparent', pick: () => this.setState({ img: k }) })),
+      profiles: PROF.map((x, k) => ({ name: x.name, meta: x.meta, pressed: k === pi ? 'true' : 'false', bg: k === pi ? '#1e2633' : '#ffffff', fg: k === pi ? '#ffffff' : '#1e2633', bd: k === pi ? '#1e2633' : '#dde2ea', pick: () => this.setState({ prof: k, img: k === 2 ? 2 : k === 1 ? 1 : 0 }) })),
+      needs: p.needs, sum: p.sum,
+      cta: p.short ? 'Swap black spool & print' : 'Print on P1S',
+      tabs: ['Description', 'Files (5)', 'Print history (3)', 'Notes (1)'].map((label, k) => ({ label, sel: k === ti ? 'true' : 'false', fg: k === ti ? '#1e2633' : '#5b6576', line: k === ti ? '#e8604c' : 'transparent', pick: () => this.setState({ tab: k }) })),
+      showDesc: ti === 0, showFiles: ti === 1, showHist: ti === 2, showNotes: ti === 3,
+      files: [
+        { ext: '3MF', c: '#e8604c', name: 'screen_bezel.3mf', meta: '4.2 MB · 2 plates · print profile included' },
+        { ext: '3MF', c: '#3c4a60', name: 'screen_bezel_v2.3mf', meta: '4.3 MB · newer version, kept the old one' },
+        { ext: 'STL', c: '#5b6576', name: 'bezel_frame.stl', meta: '2.1 MB' },
+        { ext: 'PDF', c: '#9a3020', name: 'assembly.pdf', meta: '220 KB · 3 pages' },
+        { ext: 'JPG', c: '#2f6fdf', name: 'printed.jpg', meta: '1.1 MB · your photo' }
+      ],
+      history: [
+        { dot: '#2f9e44', what: 'Plate 2 printed', meta: 'Bambu P1S · Oct 24 · 2 h 11 m · 75 g', cost: '$1.49' },
+        { dot: '#2f9e44', what: 'Plate 1 printed', meta: 'Bambu P1S · Oct 24 · 3 h 38 m · 108 g', cost: '$2.24' },
+        { dot: '#e8604c', what: 'Plate 1 failed at 40%', meta: 'Bambu P1S · Oct 19 · 46 g wasted', cost: '$0.94' }
+      ],
+      similar: [
+        { name: 'BL_P1_Bezel', meta: 'Cinderwing3D · 46 g', bg: '#eceff3', top: '#b5bac2', left: '#8b8f96', right: '#6d7179' },
+        { name: 'AMS Spool Holder', meta: 'Bambu Lab · 62 g', bg: '#e8edf3', top: '#ffffff', left: '#e4e4de', right: '#c9c9c2' },
+        { name: 'Nozzle Wiper Mount', meta: 'Designer B · 18 g', bg: '#fde1de', top: '#ea8a8a', left: '#d23b3b', right: '#a32b2b' },
+        { name: 'Cable Chain Clip', meta: 'Benchy Pack · 9 g', bg: '#eceff3', top: '#b5bac2', left: '#8b8f96', right: '#6d7179' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
