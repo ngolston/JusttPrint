@@ -8,7 +8,8 @@ import { Drawer } from '../components/Overlay';
 import { Skeleton } from '../components/Panel';
 import { showMessage } from '../page';
 import { useLibraryData } from '../shell/libraryData';
-import { dryingProgress, formatTimeLeft, formatWeight, spoolWhere } from './format';
+import { useCurrency } from './currency';
+import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, spoolWhere } from './format';
 
 export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move';
 
@@ -31,6 +32,7 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
   const load = useCallback(() => filament.spool(spoolId), [spoolId]);
   const spool = useLibraryData(load) as SpoolDetail | null;
   const archived = spool?.status === 'archived';
+  const currency = useCurrency();
 
   const archive = async () => {
     if (!spool) return;
@@ -124,7 +126,7 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
             )}
             {spool.profile_name && <Prop label="Filament">{spool.profile_name}</Prop>}
             {spool.spool_weight !== null && <Prop label="Empty spool">{formatWeight(spool.spool_weight)}</Prop>}
-            {spool.purchase_price !== null && <Prop label="Price">{spool.purchase_price.toLocaleString()}</Prop>}
+            {spool.purchase_price !== null && <Prop label="Price">{formatMoney(spool.purchase_price, currency)}</Prop>}
             {spool.supplier && <Prop label="Shop">{spool.supplier}</Prop>}
             {spool.purchase_date && <Prop label="Bought">{day(spool.purchase_date)}</Prop>}
             {spool.lot_nr && <Prop label="Lot">{spool.lot_nr}</Prop>}

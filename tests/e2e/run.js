@@ -550,6 +550,17 @@ async function apiChecks(base, wsUrl) {
     mcpStats.status === 200 && /totalModels/.test(mcpStats.text) && !/"isError":\s*true/.test(mcpStats.text),
     mcpStats.text.slice(0, 200)
   );
+  // Phase 10: the filament tools answer (an empty library has no spools yet).
+  for (const [name, args, pattern] of [
+    ['list_spools', {}, /\[/],
+    ['what_can_i_print', {}, /count/],
+    ['get_print_queue', {}, /\[/],
+    ['get_reorder_list', {}, /\[/],
+    ['get_filament_stats', { months: 0 }, /currency/]
+  ]) {
+    const res = await mcpTool(name, args);
+    check(`MCP ${name} answers`, res.status === 200 && pattern.test(res.text) && !/"isError":\s*true/.test(res.text), res.text.slice(0, 200));
+  }
   const mcpLinks = await mcpTool('check_model_links', { text: 'see https://www.printables.com/model/3161-3d-benchy and https://www.thingiverse.com/thing:42' });
   check(
     'MCP finds model links in text (Add Links)',
@@ -4099,6 +4110,29 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 9 import checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // Phase 10: Settings → Printers → Filament settings (the currency), and filament on Statistics.
+    try {
+      await page.evaluate(() => window.openFilamentSettings());
+      await page.waitForSelector('#filament-settings-dialog[open]', { timeout: 10000 });
+      await page.selectOption('#filament-currency', 'EUR');
+      await page.click('#filament-settings-save');
+      await page.waitForSelector('#filament-settings-dialog:not([open])', { timeout: 10000 }).catch(() => {});
+      check('Filament settings saves the currency', (await invoke(base, session, 'get-setting', ['currency'])).result === 'EUR');
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      check(
+        'Statistics has a filament section',
+        await page.waitForSelector('#jp-stats-filament', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await invoke(base, session, 'save-setting', ['currency', 'USD']);
+    } catch (error) {
+      check('the Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6181,6 +6215,8 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  await invoke(base, editor, 'save-setting', ['currency', 'GBP']);
+  check('editors cannot change the currency', (await invoke(base, admin, 'get-setting', ['currency'])).result !== 'GBP');
   check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);
   check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);

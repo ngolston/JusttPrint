@@ -79,3 +79,35 @@ export function numberOrNull(value: string): number | null {
   const n = Number(trimmed.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 }
+
+/** The currencies Filament settings offers (ISO 4217). */
+export const CURRENCIES = [
+  'USD',
+  'EUR',
+  'GBP',
+  'CAD',
+  'AUD',
+  'NZD',
+  'CHF',
+  'SEK',
+  'NOK',
+  'DKK',
+  'PLN',
+  'CZK',
+  'JPY',
+  'CNY',
+  'INR',
+  'BRL',
+  'MXN',
+  'ZAR'
+] as const;
+
+/** "$18.80", "18,80 €": an amount in the library's currency, in the browser's locale. */
+export function formatMoney(amount: number | null | undefined, currency = 'USD'): string {
+  const value = Number(amount) || 0;
+  try {
+    return value.toLocaleString(undefined, { style: 'currency', currency });
+  } catch {
+    return `${value.toFixed(2)} ${currency}`;
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Spool } from '../api';
-import { dryingProgress, formatTimeLeft, formatWeight, matchesFilter, matchesSearch, numberOrNull, spoolWhere } from './format';
+import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, matchesFilter, matchesSearch, numberOrNull, spoolWhere } from './format';
 
 const spool = (over: Partial<Spool> = {}): Spool =>
   ({
@@ -67,5 +67,14 @@ describe('filament figures', () => {
     expect(numberOrNull('')).toBe(null);
     expect(numberOrNull('1,75')).toBe(1.75);
     expect(numberOrNull('abc')).toBe(null);
+  });
+});
+
+describe('formatMoney', () => {
+  it('formats in the currency, and survives a code the browser does not know', () => {
+    expect(formatMoney(18.8, 'USD')).toMatch(/18\.80/);
+    expect(formatMoney(18.8, 'EUR')).toMatch(/€/);
+    expect(formatMoney(null, 'USD')).toMatch(/0\.00/);
+    expect(formatMoney(5, 'XYZ1')).toBe('5.00 XYZ1');
   });
 });

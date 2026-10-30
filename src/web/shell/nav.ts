@@ -10,6 +10,7 @@ import {
   BarChart3,
   BookOpen,
   BellRing,
+  Coins,
   Box,
   CircleDot,
   FolderHeart,
@@ -375,6 +376,15 @@ export const SETTINGS: SettingsGroup[] = [
         icon: CircleDot,
         run: () => navigate('filament'),
         role: 'viewer'
+      },
+      {
+        id: 'filament-settings',
+        label: 'Filament settings',
+        description: 'The currency spool prices are in, for prices, what your spools are worth and filament cost.',
+        icon: Coins,
+        run: open('openFilamentSettings'),
+        embed: { dialog: 'filament-settings-dialog', open: 'openFilamentSettings' },
+        role: 'admin'
       },
       {
         id: 'alerts',

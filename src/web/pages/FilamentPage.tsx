@@ -11,7 +11,17 @@ import { SpoolRing } from '../components/Filament';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
 import { useCan } from '../session';
 import { useLibraryData } from '../shell/libraryData';
-import { dryingProgress, formatTimeLeft, formatWeight, LOW_GRAMS, matchesFilter, matchesSearch, spoolWhere, type SpoolFilter } from '../filament/format';
+import {
+  dryingProgress,
+  formatMoney,
+  formatTimeLeft,
+  formatWeight,
+  LOW_GRAMS,
+  matchesFilter,
+  matchesSearch,
+  spoolWhere,
+  type SpoolFilter
+} from '../filament/format';
 import {
   CatalogDialog,
   DryDialog,
@@ -86,7 +96,11 @@ function OnHand({ summary, rows }: { summary: FilamentSummary; rows: number }) {
   return (
     <Tile variant="ink" title="On hand" cols={2} rows={rows}>
       <div className="jp-filament__onhand">
-        <TileFigure value={formatWeight(summary.grams)} label={`${summary.spoolCount} ${summary.spoolCount === 1 ? 'spool' : 'spools'}`} size="lg" />
+        <TileFigure
+          value={formatWeight(summary.grams)}
+          label={`${summary.spoolCount} ${summary.spoolCount === 1 ? 'spool' : 'spools'}${summary.worth > 0 ? `, worth about ${formatMoney(summary.worth, summary.currency)}` : ''}`}
+          size="lg"
+        />
       </div>
       {summary.colors.length > 0 && (
         <div className="jp-filament__palette" role="img" aria-label="Your colors, sized by how much of each you have">

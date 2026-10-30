@@ -85,7 +85,7 @@ test('lists expected tools', () => {
   assert.ok(names.includes('delete_tag'));
   assert.ok(names.includes('rename_tag'));
   assert.ok(names.includes('add_model_tags'));
-  assert.ok(!names.some((name) => /filament/.test(name)), 'no filament tools since 7.0');
+  assert.ok(names.includes('check_model_filament') && names.includes('list_spools'), 'filament tools are back in 10.0');
   assert.ok(names.includes('delete_print_event'));
   assert.ok(names.includes('delete_thumbnail'));
   assert.ok(names.includes('find_duplicates'));
@@ -314,6 +314,50 @@ async function runAsync() {
       'update_site_details'
     ])
       assert.ok(listed.includes(name), name);
+  });
+
+  await test('filament tools: listed, and each reaches its handler', async () => {
+    const seen = [];
+    const handler = (name) => async (args) => {
+      seen.push([name, args]);
+      return { ok: name };
+    };
+    const ctx = mockCtx({
+      listSpools: handler('listSpools'),
+      getSpool: handler('getSpool'),
+      weighSpool: handler('weighSpool'),
+      checkModelFilament: handler('checkModelFilament'),
+      whatCanIPrint: handler('whatCanIPrint'),
+      getReorderList: handler('getReorderList'),
+      getPrintQueue: handler('getPrintQueue'),
+      addToQueue: handler('addToQueue'),
+      getFilamentStats: handler('getFilamentStats')
+    });
+    const call = (name, args) => handleMcpJsonRpc({ jsonrpc: '2.0', id: 70, method: 'tools/call', params: { name, arguments: args } }, ctx);
+    const listed = listToolDefinitions().map((t) => t.name);
+    const calls = [
+      ['list_spools', {}],
+      ['get_spool', { id: 3 }],
+      ['weigh_spool', { id: 3, weight: 512 }],
+      ['check_model_filament', { id: 7, plate: 2 }],
+      ['what_can_i_print', { printerId: 1 }],
+      ['get_reorder_list', {}],
+      ['get_print_queue', {}],
+      ['add_to_queue', { id: 7 }],
+      ['get_filament_stats', { months: 6 }]
+    ];
+    for (const [name, args] of calls) {
+      assert.ok(listed.includes(name), name);
+      const res = await call(name, args);
+      assert.ok(!res.result.isError, `${name}: ${res.result.content[0].text}`);
+    }
+    assert.deepStrictEqual(
+      seen.map(([name]) => name),
+      ['listSpools', 'getSpool', 'weighSpool', 'checkModelFilament', 'whatCanIPrint', 'getReorderList', 'getPrintQueue', 'addToQueue', 'getFilamentStats']
+    );
+    assert.deepStrictEqual(seen[2][1], { id: 3, weight: 512 });
+    const logSchema = listToolDefinitions().find((t) => t.name === 'log_print_event').inputSchema.properties;
+    assert.ok(logSchema.spools && logSchema.plateIndex && logSchema.printerId);
   });
 
   await test('tools/call find_duplicates', async () => {

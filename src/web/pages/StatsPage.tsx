@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Ban, BarChart3, CheckCircle2, CircleX, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
+import { Ban, BarChart3, CheckCircle2, CircleDot, CircleX, Coins, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
 import { statistics, type PrintStatistics } from '../api';
 import { Button } from '../components/Button';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
+import { formatMoney, formatWeight } from '../filament/format';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
@@ -35,7 +36,8 @@ const OUTCOMES = [
   { key: 'cancelled', label: 'Cancelled', color: 'var(--jp-series-3)' }
 ] as const;
 
-type Month = PrintStatistics['byMonth'][number];
+/** A month of any chart here: its key ("2026-03") and its numbers. */
+type Month = { month: string };
 
 const fmt = (n: number) => n.toLocaleString();
 
@@ -234,6 +236,82 @@ function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty
   );
 }
 
+/**
+ * Filament used by logged prints and what it cost (docs/merge-10.md, Phase 10): only prints
+ * logged with the spools they used count; cost is at each spool's price.
+ */
+function FilamentSection({ stats }: { stats: PrintStatistics }) {
+  const use = stats.filament;
+  const money = (n: number) => formatMoney(n, stats.currency);
+  const priced = use.cost > 0;
+  const costOf = (row: { cost: number }) => (priced && row.cost > 0 ? money(row.cost) : undefined);
+  if (!use.grams) {
+    return (
+      <div id="jp-stats-filament">
+        <Panel title="Filament used" className="jp-stats__wide">
+          <EmptyState icon={CircleDot} title="No filament logged in this period">
+            When you log a print with the spools it used, the grams and their cost show up here.
+          </EmptyState>
+        </Panel>
+      </div>
+    );
+  }
+  return (
+    <section className="jp-stats__filament" id="jp-stats-filament" aria-label="Filament used">
+      <div className="jp-stats__tiles">
+        <StatCard icon={CircleDot} value={formatWeight(use.grams)} label="Filament used" />
+        <StatCard
+          icon={Coins}
+          tone="violet"
+          value={priced ? money(use.cost) : '—'}
+          label={priced ? (use.pricedGrams < use.grams ? `Cost (${formatWeight(use.pricedGrams)} with a price)` : 'Filament cost') : 'Cost (no spool prices)'}
+        />
+      </div>
+      <Panel title="Filament used per month (grams)" className="jp-stats__wide">
+        <MonthChart
+          months={use.byMonth}
+          series={[{ key: 'grams', label: 'Grams', color: 'var(--jp-series-1)' }]}
+          label="Grams of filament used per month"
+          height={180}
+        />
+        <p className="jp-meta jp-stats__note">
+          From prints logged with the spools they used. Cost is each print&apos;s grams at its spool&apos;s price
+          {priced ? '' : '; give your spools a price to see it'}.
+        </p>
+      </Panel>
+      <div className="jp-stats__grid">
+        <Panel title="Models by filament">
+          <RankedBars
+            unit="g"
+            empty="No model has filament logged."
+            rows={use.models.map((m) => ({ key: m.id, label: m.name, title: m.filePath, value: Math.round(m.grams), detail: costOf(m) }))}
+          />
+        </Panel>
+        <Panel title="Printers by filament">
+          <RankedBars
+            unit="g"
+            empty="No prints are logged with a printer."
+            rows={use.printers.map((p) => ({
+              key: p.id ?? 'none',
+              label: p.id == null ? 'Printer not chosen' : p.name || 'Unnamed printer',
+              title: p.id == null ? 'Prints logged without choosing a printer' : p.name || 'Unnamed printer',
+              value: Math.round(p.grams),
+              detail: costOf(p)
+            }))}
+          />
+        </Panel>
+        <Panel title="Materials">
+          <RankedBars
+            unit="g"
+            empty="No materials logged."
+            rows={use.materials.map((m) => ({ key: m.material, label: m.material, title: m.material, value: Math.round(m.grams) }))}
+          />
+        </Panel>
+      </div>
+    </section>
+  );
+}
+
 function StatsSkeleton() {
   return (
     <div className="jp-stats__tiles">
@@ -376,6 +454,8 @@ export function StatsPage() {
               />
             </Panel>
           </div>
+
+          <FilamentSection stats={stats} />
 
           <Panel title="Models added per month" className="jp-stats__wide">
             {added > 0 ? (

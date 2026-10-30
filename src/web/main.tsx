@@ -4,6 +4,7 @@
  */
 import { FilamentHubImportDialog } from './filament/FilamentHubImportDialog';
 import { AlertsSettingsDialog } from './filament/AlertsSettingsDialog';
+import { FilamentSettingsDialog } from './filament/FilamentSettingsDialog';
 import { AiTagRunDialog } from './tags/AiTagRunDialog';
 import './styles/index.css';
 // First: the server connection and window.electron, which the screens use.
@@ -130,6 +131,7 @@ function Screens() {
       <PurgeModelsDialog />
       <ThemeSettingsDialog />
       <AlertsSettingsDialog />
+      <FilamentSettingsDialog />
       <FilamentHubImportDialog />
       <SlicerSettingsDialog />
       <MetadataEditorDialog />

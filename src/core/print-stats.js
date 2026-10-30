@@ -167,7 +167,10 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
     byMonth: keys.map((key) => ({ ...byMonth.get(key), added: added.get(key) })),
     designers,
     models,
-    printers
+    printers,
+    // Filament used and its cost (Phase 10 of docs/merge-10.md; src/core/filament-stats.js).
+    filament: require('./filament-stats').filamentStatistics(db, { from, months: keys }),
+    currency: require('./filament-stats').currency(db)
   };
 }
 

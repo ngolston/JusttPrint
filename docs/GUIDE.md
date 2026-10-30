@@ -155,6 +155,8 @@ Viewers see the spools; editors and admins change them.
 
 **Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. Everyone can open Statistics.
 
+**Filament used** counts the grams your logged prints took off your spools (prints logged with their spools), per month, and the models, printers and materials that used most. The cost is each print's grams at its spool's price (price over the grams the spool held when new); spools without a price add grams but no cost. Admins choose the currency under **Settings → Printers → Filament settings**; prices, the shopping list and what your spools are worth show in it. Amounts are not converted.
+
 ## Uploading models
 
 Editors and admins can add models from the browser:
@@ -332,7 +334,7 @@ Slicers run on your computer, not in the JusttPrint backend. **Open in Slicer** 
 
 ### MCP server
 
-AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints, set thumbnails, list and set categories (`list_categories`, `set_model_category`, `categorize_library`), rename models (`rename_model`), change a model's site details (`get_site_details`, `update_site_details`), and add models from Printables, Thingiverse and MakerWorld links (`import_model_links`, with an optional library folder to download the files into). **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
+AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to JusttPrint at `http://<docker-host-ip>:5000/mcp` to search the library, edit tags and metadata, log prints, set thumbnails, list and set categories (`list_categories`, `set_model_category`, `categorize_library`), rename models (`rename_model`), change a model's site details (`get_site_details`, `update_site_details`), add models from Printables, Thingiverse and MakerWorld links (`import_model_links`, with an optional library folder to download the files into), and work with your filament: list and weigh spools (`list_spools`, `get_spool`, `weigh_spool`), check a model against your spools (`check_model_filament`), list what you can print now or on one printer without swapping spools (`what_can_i_print`), see the reorder list (`get_reorder_list`), see and add to the queue (`get_print_queue`, `add_to_queue`), get filament used and its cost (`get_filament_stats`), and log a print with the spools it used (`log_print_event` with `spools`). **Settings → Integrations → MCP Server** shows the setup for the app you pick, with the address and API token filled in. Anyone with the token can read and change your library.
 
 ## Keyboard
 

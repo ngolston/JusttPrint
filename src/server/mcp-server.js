@@ -175,6 +175,13 @@ const TOOL_DEFINITIONS = [
         quantity: { type: 'integer', description: 'Number of copies (default 1)' },
         printedAt: { type: 'string', description: 'ISO datetime; defaults to now' },
         notes: { type: 'string' },
+        printerId: { type: 'integer', description: 'The printer it was printed on' },
+        plateIndex: { type: 'integer', description: 'The plate printed (from 1), when only one' },
+        spools: {
+          type: 'array',
+          description: 'Filament taken off spools: { spoolId, grams } (grams for all copies). See list_spools.',
+          items: { type: 'object', properties: { spoolId: { type: 'integer' }, grams: { type: 'number' } }, required: ['spoolId', 'grams'] }
+        },
         parts: {
           type: 'array',
           description: 'Parts removed from stock. Each item is { id, quantity } where quantity is per copy.',
@@ -190,6 +197,73 @@ const TOOL_DEFINITIONS = [
       },
       required: ['outcome']
     }
+  },
+  {
+    name: 'list_spools',
+    description: 'The filament spools on hand: material, color, grams left, where each is (a place, or loaded in a printer), drying.',
+    inputSchema: { type: 'object', properties: { includeArchived: { type: 'boolean', description: 'Also used-up (archived) spools' } } }
+  },
+  {
+    name: 'get_spool',
+    description: 'One spool with its weighings and drying sessions.',
+    inputSchema: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] }
+  },
+  {
+    name: 'weigh_spool',
+    description: 'Record what the scale shows for a spool; sets the grams left.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' },
+        weight: { type: 'number', description: 'Grams the scale shows' },
+        withSpool: { type: 'boolean', description: 'Weighed on its spool (default true; needs the empty spool weight)' },
+        notes: { type: 'string' }
+      },
+      required: ['id', 'weight']
+    }
+  },
+  {
+    name: 'check_model_filament',
+    description:
+      'Whether the spools on hand can print a model: for each color it needs (from its 3MF), the matching spool, grams left after or short. Optionally one plate or several, and a printer whose loaded spools come first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' },
+        filePath: { type: 'string' },
+        plate: { type: 'integer' },
+        plates: { type: 'array', items: { type: 'integer' } },
+        printerId: { type: 'integer' }
+      }
+    }
+  },
+  {
+    name: 'what_can_i_print',
+    description: 'Models the spools on hand can print now. With printerId: only what that printer has loaded covers, without swapping spools.',
+    inputSchema: { type: 'object', properties: { printerId: { type: 'integer' }, limit: { type: 'integer', description: 'Default 50, at most 500' } } }
+  },
+  {
+    name: 'get_reorder_list',
+    description: 'Spools running low (by the low-stock rules), most urgent first, with where they were bought.',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_print_queue',
+    description: 'The print queue in order: each model, plate, printer, and whether the spools cover it (counting earlier items).',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'add_to_queue',
+    description: 'Add a model (all plates, or one) to the end of the print queue.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'integer' }, filePath: { type: 'string' }, plate: { type: 'integer' }, printerId: { type: 'integer' } }
+    }
+  },
+  {
+    name: 'get_filament_stats',
+    description: 'Filament used by logged prints and its cost (at each spool price), per month, model, printer and material.',
+    inputSchema: { type: 'object', properties: { months: { type: 'integer', description: 'Months to cover, ending this month (default 12); 0 for all time' } } }
   },
   {
     name: 'delete_print_event',
@@ -856,6 +930,24 @@ async function callTool(name, args, ctx) {
       return ctx.getPrintEvents({ id: a.id, filePath: a.filePath });
     case 'log_print_event':
       return ctx.logPrintEvent(a);
+    case 'list_spools':
+      return ctx.listSpools({ includeArchived: !!a.includeArchived });
+    case 'get_spool':
+      return ctx.getSpool({ id: a.id });
+    case 'weigh_spool':
+      return ctx.weighSpool(a);
+    case 'check_model_filament':
+      return ctx.checkModelFilament(a);
+    case 'what_can_i_print':
+      return ctx.whatCanIPrint(a);
+    case 'get_reorder_list':
+      return ctx.getReorderList();
+    case 'get_print_queue':
+      return ctx.getPrintQueue();
+    case 'add_to_queue':
+      return ctx.addToQueue(a);
+    case 'get_filament_stats':
+      return ctx.getFilamentStats(a);
     case 'delete_print_event':
       return ctx.deletePrintEvent(a.eventId);
     // list_parent_models: its name before 8.0.

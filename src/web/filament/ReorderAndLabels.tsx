@@ -7,7 +7,8 @@ import { Tile } from '../components/Bento';
 import { Button } from '../components/Button';
 import { ColorDot } from '../components/Filament';
 import { Modal } from '../components/Overlay';
-import { formatWeight } from './format';
+import { useCurrency } from './currency';
+import { formatMoney, formatWeight } from './format';
 
 /*
  * The Filament page's Reorder tile and shopping list, and QR labels for spools (docs/merge-10.md,
@@ -36,12 +37,13 @@ export function ReorderTile({ items, onOpen }: { items: ReorderItem[] | null; on
 }
 
 /** "Bambu Lab PLA Basic Black (18 g left, critical) · Amazon · https://…" per line, for copying. */
-export function shoppingText(items: ReorderItem[]): string {
+export function shoppingText(items: ReorderItem[], currency = 'USD'): string {
   return items
     .map((item) =>
       [
         `${[item.brand, item.name].filter(Boolean).join(' ')} (${Math.round(item.remaining)} g left${item.severity === 'critical' ? ', critical' : ''})`,
         item.supplier,
+        item.price !== null ? `last paid ${formatMoney(item.price, currency)}` : '',
         item.productUrl
       ]
         .filter(Boolean)
@@ -52,8 +54,9 @@ export function shoppingText(items: ReorderItem[]): string {
 
 export function ShoppingListDialog({ items, onClose }: { items: ReorderItem[]; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const currency = useCurrency();
   const copy = async () => {
-    await navigator.clipboard?.writeText(shoppingText(items)).catch(() => {});
+    await navigator.clipboard?.writeText(shoppingText(items, currency)).catch(() => {});
     setCopied(true);
   };
   return (
@@ -85,7 +88,7 @@ export function ShoppingListDialog({ items, onClose }: { items: ReorderItem[]; o
               <span className="jp-meta">
                 {formatWeight(item.remaining)} left ({item.pct}%){item.severity === 'critical' ? ' · critical' : ''}
                 {item.supplier ? ` · ${item.supplier}` : ''}
-                {item.price !== null ? ` · last paid ${item.price.toLocaleString()}` : ''}
+                {item.price !== null ? ` · last paid ${formatMoney(item.price, currency)}` : ''}
               </span>
             </span>
             {item.productUrl && (

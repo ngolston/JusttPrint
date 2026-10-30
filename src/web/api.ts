@@ -348,6 +348,21 @@ export interface PrintStatistics {
   designers: { name: string; printed: number; models: number }[];
   models: { id: number; fileName: string; filePath: string; printed: number }[];
   printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
+  /** Filament taken off spools by logged prints, and its cost at each spool's price. */
+  filament: FilamentUse;
+  /** The library's currency (ISO 4217). */
+  currency: string;
+}
+
+export interface FilamentUse {
+  grams: number;
+  cost: number;
+  /** Grams from spools with a price (the cost covers only these). */
+  pricedGrams: number;
+  byMonth: { month: string; grams: number; cost: number }[];
+  models: { id: number; name: string; filePath: string; grams: number; cost: number }[];
+  printers: { id: number | null; name: string; grams: number; cost: number }[];
+  materials: { material: string; grams: number }[];
 }
 
 export const statistics = {
@@ -675,6 +690,9 @@ export interface FilamentSummary {
   archivedCount: number;
   materials: { material: string; grams: number }[];
   colors: { color: string; grams: number; name: string }[];
+  /** What the filament left is worth at the spools' prices (spools without one count 0). */
+  worth: number;
+  currency: string;
 }
 
 /** A filament in the bundled catalogue (search-filament-catalog). */

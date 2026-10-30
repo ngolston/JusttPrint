@@ -250,7 +250,20 @@ function filamentSummary(db) {
     materials: [...byMaterial].map(([material, grams]) => ({ material, grams })).sort((a, b) => b.grams - a.grams),
     colors: spools
       .filter((spool) => spool.color_hex && spool.remaining > 0)
-      .map((spool) => ({ color: spool.color_hex, grams: spool.remaining, name: spool.display_name }))
+      .map((spool) => ({ color: spool.color_hex, grams: spool.remaining, name: spool.display_name })),
+    // What is left is worth, at each spool's price per gram (spools without a price count nothing).
+    worth:
+      Math.round(
+        spools.reduce(
+          (sum, spool) =>
+            sum +
+            (Number(spool.purchase_price) > 0 && Number(spool.initial_weight) > 0
+              ? (spool.remaining * Number(spool.purchase_price)) / Number(spool.initial_weight)
+              : 0),
+          0
+        ) * 100
+      ) / 100,
+    currency: require('./filament-stats').currency(db)
   };
 }
 
