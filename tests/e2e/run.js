@@ -4039,6 +4039,66 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 8 alert checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // Phase 9: Settings → Integrations → Import from FilamentHub, from its database file.
+    try {
+      const Database = require('better-sqlite3');
+      const fhFile = path.join(WORK, 'filamenthub.db');
+      fs.rmSync(fhFile, { force: true });
+      const fh = new Database(fhFile);
+      fh.exec(`
+        CREATE TABLE users (id VARCHAR(36) PRIMARY KEY, email VARCHAR(255), display_name VARCHAR(100), role VARCHAR(8), discord_webhook_url VARCHAR(500));
+        CREATE TABLE brands (id INTEGER PRIMARY KEY, name VARCHAR(100), website VARCHAR(500), created_at DATETIME);
+        CREATE TABLE filament_profiles (id INTEGER PRIMARY KEY, brand_id INTEGER, name VARCHAR(200), material VARCHAR(50), color_name VARCHAR(100), color_hex VARCHAR(7), diameter FLOAT,
+          is_community BOOLEAN, created_at DATETIME, updated_at DATETIME);
+        CREATE TABLE spools (id INTEGER PRIMARY KEY, owner_id VARCHAR(36), filament_id INTEGER, brand_id INTEGER, location_id INTEGER, name VARCHAR(200), initial_weight FLOAT,
+          spool_weight FLOAT, used_weight FLOAT, color_hex VARCHAR(7), material VARCHAR(50), status VARCHAR(8), registered DATETIME);
+        INSERT INTO users VALUES ('u1', 'admin@example.com', 'Admin', 'admin', NULL);
+        INSERT INTO brands VALUES (1, 'E2E Hub Brand', NULL, '2026-01-02 10:00:00');
+        INSERT INTO filament_profiles VALUES (1, 1, 'E2E Hub PETG', 'PETG', 'Teal', '#14b8a6', 1.75, 0, '2026-01-02 10:00:00', '2026-01-02 10:00:00');
+        INSERT INTO spools VALUES (1, 'u1', 1, 1, NULL, 'E2E Hub Spool', 1000, 230, 400, '#14b8a6', 'PETG', 'storage', '2026-01-02 10:00:00');
+      `);
+      fh.close();
+      await page.evaluate(() => window.openFilamentHubImport());
+      await page.waitForSelector('#filamenthub-import-dialog[open]', { timeout: 10000 }).catch(() => {});
+      await page.setInputFiles('#fh-import-file', fhFile);
+      await page.click('#fh-import-preview');
+      const planText = await page
+        .waitForSelector('#fh-import-plan', { timeout: 15000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check(
+        'the FilamentHub preview shows what comes in and the account it matches',
+        /Spools/.test(planText) && /is admin here/.test(planText),
+        planText.slice(0, 200)
+      );
+      await page.click('#fh-import-run');
+      const resultText = await page
+        .waitForSelector('#fh-import-result', { timeout: 15000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      const hubSpool = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.display_name === 'E2E Hub Spool');
+      check(
+        'importing brings the spools over with their grams and brand',
+        /1 spools/.test(resultText) && hubSpool?.remaining === 600 && hubSpool?.brand_name === 'E2E Hub Brand',
+        JSON.stringify({ resultText: resultText.slice(0, 120), remaining: hubSpool?.remaining })
+      );
+      await page.click('#filamenthub-import-dialog button:has-text("Done")').catch(() => {});
+      await page.evaluate(() => window.openFilamentHubImport());
+      await page.setInputFiles('#fh-import-file', fhFile);
+      await page.click('#fh-import-preview');
+      check(
+        'importing the same file again has nothing new',
+        await page.waitForSelector('#fh-import-run:has-text("Nothing new to import")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#filamenthub-import-dialog button:has-text("Cancel")').catch(() => {});
+      if (hubSpool) await invoke(base, session, 'delete-spool', [hubSpool.id]);
+    } catch (error) {
+      check('the Phase 9 import checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6120,6 +6180,7 @@ async function accountChecks(base, wsUrl, admin) {
   );
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
+  check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
   check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);
   check('editors add spools', (await invoke(base, editor, 'save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 200);
   check('editors edit the library', (await invoke(base, editor, 'save-tag', ['from-editor'])).status === 200);

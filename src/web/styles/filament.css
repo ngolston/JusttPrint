@@ -710,3 +710,30 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Settings → Integrations → Import from FilamentHub (Phase 9). */
+.jp-fh-import__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--jp-space-3) 0;
+  font-size: var(--jp-text-ui);
+}
+.jp-fh-import__table th,
+.jp-fh-import__table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--jp-border);
+  text-align: left;
+}
+.jp-fh-import__table td + td,
+.jp-fh-import__table th + th {
+  text-align: right;
+}
+.jp-fh-import__list {
+  margin: var(--jp-space-2) 0;
+  padding-left: 18px;
+}
+.jp-fh-import__error {
+  margin-right: auto;
+  color: var(--jp-danger-text);
+  font-size: var(--jp-text-meta);
+}

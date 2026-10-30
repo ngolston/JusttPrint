@@ -51,6 +51,7 @@ import {
   Sparkles,
   Tags,
   Trash2,
+  Upload,
   UserCog,
   Wrench
 } from 'lucide-react';
@@ -407,6 +408,15 @@ export const SETTINGS: SettingsGroup[] = [
         icon: KeyRound,
         run: open('openThingiverseSettings'),
         embed: { dialog: 'thingiverse-settings-dialog', open: 'openThingiverseSettings' }
+      },
+      {
+        id: 'filamenthub',
+        label: 'Import from FilamentHub',
+        description: 'Bring over FilamentHub’s spools, filaments, printers, prints and alerts from its database or a backup.',
+        icon: Upload,
+        run: open('openFilamentHubImport'),
+        embed: { dialog: 'filamenthub-import-dialog', open: 'openFilamentHubImport' },
+        role: 'admin'
       },
       {
         id: 'makerworld',

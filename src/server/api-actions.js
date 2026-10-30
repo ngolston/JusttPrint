@@ -227,6 +227,8 @@ const ACTIONS = {
   'get-print-queue': [],
   'get-month-summary': [],
   'get-reorder-list': [],
+  'preview-filamenthub-import': ['object'],
+  'run-filamenthub-import': ['object'],
   'check-low-stock': [],
   'get-low-stock-rules': [],
   'save-low-stock-rule': ['object'],
