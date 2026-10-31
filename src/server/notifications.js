@@ -43,6 +43,15 @@ function table() {
     if (!columns.some((column) => column.name === 'cleared_id')) {
       db.prepare('ALTER TABLE notification_reads ADD COLUMN cleared_id INTEGER NOT NULL DEFAULT 0').run();
     }
+    // The alert kind (personal-alerts.js, 10.2): people who turned a kind off in the bell do not see it.
+    if (
+      !db
+        .prepare('PRAGMA table_info(notifications)')
+        .all()
+        .some((column) => column.name === 'kind')
+    ) {
+      db.prepare('ALTER TABLE notifications ADD COLUMN kind TEXT').run();
+    }
     tableDb = db;
   }
   return db;
@@ -55,16 +64,16 @@ const accountId = (user) => (user && !user.guest && Number.isInteger(Number(user
 /**
  * Add a notification and tell the open browsers. `key` makes it once-only (a reminder that came
  * due is told about once). Never throws: a notification must not break what it reports on.
- * @param {{ title: string, body?: string | null, level?: string, link?: string | null, minRole?: string, key?: string | null, now?: Date }} notice
+ * @param {{ title: string, body?: string | null, level?: string, link?: string | null, minRole?: string, key?: string | null, kind?: string | null, now?: Date }} notice
  * @returns {number | null} the new notification's id, or null (not added)
  */
-function notify({ title, body = null, level = 'info', link = null, minRole = 'viewer', key = null, now = new Date() }) {
+function notify({ title, body = null, level = 'info', link = null, minRole = 'viewer', key = null, kind = null, now = new Date() }) {
   try {
     const db = table();
     const text = String(title || '').trim();
     if (!text) return null;
     const result = db
-      .prepare('INSERT OR IGNORE INTO notifications (created_at, level, title, body, link, min_role, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .prepare('INSERT OR IGNORE INTO notifications (created_at, level, title, body, link, min_role, dedupe_key, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(
         now.toISOString(),
         LEVELS.has(level) ? level : 'info',
@@ -72,7 +81,8 @@ function notify({ title, body = null, level = 'info', link = null, minRole = 'vi
         body ? String(body).slice(0, 1000) : null,
         link ? String(link).slice(0, 500) : null,
         rankOf(minRole) >= 0 ? minRole : 'admin',
-        key
+        key,
+        kind
       );
     if (!result.changes) return null;
     prune(now);
@@ -113,10 +123,21 @@ function listFor(user, { limit = 50 } = {}) {
     cleared: 0
   };
   const { lastRead, cleared } = marksRow;
+  // Alert kinds this account turned off in the bell (personal-alerts.js).
+  /** @type {string[]} */
+  let muted;
+  try {
+    muted = require('./personal-alerts').mutedKinds(id);
+  } catch (_) {
+    muted = [];
+  }
+  const kindFilter = muted.length ? ` AND (kind IS NULL OR kind NOT IN (${muted.map(() => '?').join(',')}))` : '';
   const rows = db
-    .prepare(`SELECT id, created_at, level, title, body, link FROM notifications WHERE min_role IN (${marks}) AND id > ? ORDER BY id DESC LIMIT ?`)
-    .all(...roles, cleared, Math.max(1, Math.min(200, Number(limit) || 50)));
-  const unread = db.prepare(`SELECT COUNT(*) AS n FROM notifications WHERE min_role IN (${marks}) AND id > ?`).get(...roles, Math.max(lastRead, cleared)).n;
+    .prepare(`SELECT id, created_at, level, title, body, link FROM notifications WHERE min_role IN (${marks}) AND id > ?${kindFilter} ORDER BY id DESC LIMIT ?`)
+    .all(...roles, cleared, ...muted, Math.max(1, Math.min(200, Number(limit) || 50)));
+  const unread = db
+    .prepare(`SELECT COUNT(*) AS n FROM notifications WHERE min_role IN (${marks}) AND id > ?${kindFilter}`)
+    .get(...roles, Math.max(lastRead, cleared), ...muted).n;
   return {
     items: rows.map((row) => ({
       id: row.id,

@@ -73,8 +73,18 @@ async function run() {
       title: group.alerts.length === 1 ? `${group.alerts[0].spool.name} is running low` : `${group.alerts.length} spools are running low`,
       body: group.alerts.map((alert) => line(alert, unit)).join('\n'),
       link: '#/filament',
-      minRole: 'editor'
+      minRole: 'editor',
+      kind: 'lowStock'
     });
+    // Each person's own email and Discord, as they chose (personal-alerts.js; the bell has it already).
+    await require('./personal-alerts')
+      .alert('lowStock', {
+        title: group.alerts.length === 1 ? `${group.alerts[0].spool.name} is running low` : `${group.alerts.length} spools are running low`,
+        body: group.alerts.map((alert) => line(alert, unit)).join('\n'),
+        minRole: 'editor',
+        bell: false
+      })
+      .catch((error) => console.warn(`[Low stock] Personal alerts: ${error.message}`));
     if (group.rule.notify_discord) {
       await delivery.sendDiscord(discordPayload(group, unit)).catch((error) => console.warn(`[Low stock] Discord: ${error.message}`));
     }

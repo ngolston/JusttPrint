@@ -500,6 +500,15 @@ export const SETTINGS: SettingsGroup[] = [
         embed: { dialog: 'users-dialog', open: 'openUsers' }
       },
       {
+        id: 'my-alerts',
+        label: 'My alerts',
+        description: 'Which alerts reach you in the bell, by email and on Discord; quiet hours; a weekly digest.',
+        icon: BellRing,
+        run: open('openMyAlerts'),
+        embed: { dialog: 'my-alerts-dialog', open: 'openMyAlerts' },
+        role: 'viewer'
+      },
+      {
         id: 'password',
         label: 'Change Password',
         description: 'Change the password you log in with.',

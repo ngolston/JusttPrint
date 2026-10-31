@@ -4571,6 +4571,36 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 8 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 9 (docs/plan-10.1.md): each person's alerts.
+    try {
+      const failModel = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const failTitle = `${failModel.fileName.replace(/\.[^.]+$/, '')} failed`;
+      const failed = (await invoke(base, session, 'log-print-event', [{ filePath: failModel.filePath, outcome: 'failed', quantity: 1 }])).result;
+      const bellHas = async () => ((await invoke(base, session, 'get-notifications', [{}])).result?.items || []).some((n) => n.title === failTitle);
+      const told = await waitFor(async () => ((await bellHas()) ? true : null), 10000, 'failed print in the bell').catch(() => false);
+      check('a failed print reaches the bell', told === true);
+      await page.evaluate(() => window.openMyAlerts());
+      await page.waitForSelector('#my-alerts-table', { timeout: 10000 });
+      await page.fill('#my-alerts-email', 'e2e-alerts@example.com');
+      await page.uncheck('#my-alerts-table input[aria-label="A print failed: Bell"]');
+      await page.check('#my-alerts-table input[aria-label="A spool is used up: Email"]');
+      await page.check('#my-alerts-digest');
+      await page.click('#my-alerts-save');
+      await page.waitForSelector('#my-alerts-dialog :text("Saved.")', { timeout: 10000 }).catch(() => {});
+      const mine = (await invoke(base, session, 'get-alert-prefs')).result || {};
+      check(
+        'My alerts saves the email, the channels and the digest for this account',
+        mine.email === 'e2e-alerts@example.com' && mine.kinds?.printFailed?.bell === false && mine.kinds?.usedUp?.email === true && mine.weeklyDigest === true,
+        JSON.stringify(mine).slice(0, 200)
+      );
+      check('turning an alert off for the bell takes it out of your bell', !(await bellHas()));
+      await page.click('#my-alerts-dialog button:has-text("Close")').catch(() => {});
+      await invoke(base, session, 'delete-print-event', [failed.eventId]);
+      await invoke(base, session, 'save-alert-prefs', [{ email: null, kinds: {}, quietHours: null, weeklyDigest: false, discordWebhook: '' }]);
+    } catch (error) {
+      check('the 10.2 Phase 9 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6655,6 +6685,7 @@ async function accountChecks(base, wsUrl, admin) {
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
   await invoke(base, editor, 'save-setting', ['units', '{"weight":"oz"}']);
   check('only admins change the units', !/oz/.test((await invoke(base, admin, 'get-setting', ['units'])).result || ''));
+  check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);
   check('only admins turn public labels on', (await invoke(base, admin, 'get-setting', ['publicLabels'])).result !== 'true');

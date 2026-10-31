@@ -14,6 +14,7 @@ const userId = (event) => (event && event.user && event.user.id) || null;
  */
 const changed = (result, event = null) => {
   require('../low-stock-alerts').soon();
+  require('../personal-alerts').soon();
   require('../events').broadcastToOthers(event, 'filament-check-changed');
   return result;
 };

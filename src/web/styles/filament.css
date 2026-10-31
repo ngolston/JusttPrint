@@ -986,3 +986,36 @@
   color: var(--jp-text-2);
   font-size: var(--jp-text-small);
 }
+
+/* My alerts (docs/plan-10.1.md, Phase 9) */
+.jp-my-alerts {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--jp-space-3) 0;
+  font-size: var(--jp-text-small);
+}
+.jp-my-alerts th,
+.jp-my-alerts td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--jp-border);
+  text-align: center;
+}
+.jp-my-alerts th[scope='row'],
+.jp-my-alerts thead th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+.jp-my-alerts__quiet {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  margin-top: var(--jp-space-2);
+}
+/* The page-wide form rule (.form-group input) makes inputs full width: not these two. */
+#my-alerts-dialog .jp-my-alerts__quiet input {
+  width: auto;
+  flex: none;
+}
+.jp-my-alerts__quiet .jp-meta {
+  white-space: nowrap;
+}

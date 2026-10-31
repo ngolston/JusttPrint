@@ -398,6 +398,25 @@ export interface FilamentUse {
   };
 }
 
+/** Each person's alerts (src/server/personal-alerts.js; docs/plan-10.1.md, Phase 9). */
+export type AlertChannel = 'bell' | 'email' | 'discord';
+export interface AlertPrefs {
+  email: string | null;
+  /** A Discord webhook is set (it is never sent back). */
+  discordSet: boolean;
+  kinds: Record<string, Record<AlertChannel, boolean>>;
+  quietHours: { from: string; to: string } | null;
+  weeklyDigest: boolean;
+  /** get-alert-prefs only: each kind's name. */
+  kinds_meta?: Record<string, string>;
+}
+export const myAlerts = {
+  get: () => callAction<AlertPrefs>('get-alert-prefs'),
+  /** `discordWebhook`: a new one, '' to remove it, left out to keep it. */
+  save: (prefs: Omit<AlertPrefs, 'discordSet' | 'kinds_meta'> & { discordWebhook?: string }) => callAction<AlertPrefs>('save-alert-prefs', prefs),
+  test: () => callAction<{ sent: string[] }>('send-test-alert')
+};
+
 /** What a print costs (src/server/print-cost.js; docs/plan-10.1.md, Phase 8). */
 export interface PrintCost {
   currency: string;

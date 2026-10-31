@@ -103,9 +103,12 @@ function save(input = {}) {
   return status();
 }
 
-/** Post a Discord message with embeds. */
-async function sendDiscord(payload, fetchImpl = fetch) {
-  const url = read().discordWebhookUrl;
+/**
+ * Post a Discord message with embeds, to the library's webhook or `toUrl` (a person's own,
+ * personal-alerts.js).
+ */
+async function sendDiscord(payload, fetchImpl = fetch, toUrl = null) {
+  const url = toUrl || read().discordWebhookUrl;
   if (!url) throw new Error('No Discord webhook is set');
   const response = await fetchImpl(url, {
     method: 'POST',
@@ -117,13 +120,16 @@ async function sendDiscord(payload, fetchImpl = fetch) {
 }
 
 /**
- * Send an email to the alert addresses. `transportFactory` is for tests.
+ * Send an email to the alert addresses, or to `to` (a person's own, personal-alerts.js), through
+ * the library's email server. `transportFactory` is for tests.
  * @param {{ subject: string, text: string, html?: string }} message
  * @param {Function | null} [transportFactory]
+ * @param {string | null} [to]
  */
-async function sendEmail({ subject, text, html }, transportFactory = null) {
+async function sendEmail({ subject, text, html }, transportFactory = null, to = null) {
   const smtp = read().smtp || {};
-  if (!smtp.host || !smtp.to) throw new Error('Set up the email server and who gets alerts first');
+  if (!smtp.host) throw new Error('Set up the email server first (Settings → Printers → Alerts & webhooks)');
+  if (!to && !smtp.to) throw new Error('Set up who gets alerts first');
   const nodemailer = require('nodemailer');
   const transport = (transportFactory || nodemailer.createTransport)({
     host: smtp.host,
@@ -134,7 +140,7 @@ async function sendEmail({ subject, text, html }, transportFactory = null) {
     greetingTimeout: TIMEOUT_MS,
     socketTimeout: TIMEOUT_MS
   });
-  await transport.sendMail({ from: smtp.from || smtp.user || 'justtprint@localhost', to: smtp.to, subject, text, html });
+  await transport.sendMail({ from: smtp.from || smtp.user || 'justtprint@localhost', to: to || smtp.to, subject, text, html });
 }
 
 module.exports = { status, save, sendDiscord, sendEmail, read };
