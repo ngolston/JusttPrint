@@ -1019,3 +1019,34 @@
 .jp-my-alerts__quiet .jp-meta {
   white-space: nowrap;
 }
+
+/* Import a CSV: each column's field, and the first spools (docs/plan-10.1.md, Phase 10) */
+.jp-csv-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--jp-space-2) var(--jp-space-3);
+  margin: var(--jp-space-3) 0;
+}
+.jp-csv-map__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jp-csv-map__heading {
+  font-weight: 700;
+  font-size: var(--jp-text-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-csv-sample {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--jp-text-small);
+}
+.jp-csv-sample th,
+.jp-csv-sample td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--jp-border);
+  text-align: left;
+}

@@ -4601,6 +4601,55 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 9 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 10 (docs/plan-10.1.md): spools out as CSV, and a CSV in.
+    try {
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-export-spools-open', { timeout: 15000 });
+      await page.click('#jp-export-spools-open');
+      await page.waitForSelector('#jp-export-spools-run', { timeout: 10000 });
+      const [exported] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#jp-export-spools-run')]);
+      const exportedText = fs.readFileSync(await exported.path(), 'utf8');
+      check(
+        'Export downloads the spools as a CSV',
+        /^\uFEFF?id,name,brand,material/.test(exportedText) && exported.suggestedFilename().endsWith('.csv'),
+        `${exported.suggestedFilename()} ${exportedText.slice(0, 60)}`
+      );
+      const csvFile = path.join(WORK, 'spools-in.csv');
+      fs.writeFileSync(
+        csvFile,
+        'Spool Name,Vendor,Material,Color,Weight,Remaining,Location\nE2E CSV Spool,E2E CSV Brand,PETG,#123abc,1 kg,640,E2E CSV Shelf\nE2E Broken,,,,1000,,\n'
+      );
+      await page.click('#jp-import-csv-open');
+      await page.setInputFiles('#jp-import-csv-file', csvFile);
+      const summary = await page
+        .waitForSelector('#jp-import-csv-summary', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check('Import a CSV guesses the columns and says what would come in', /2 rows/.test(summary) && /1 with a problem/.test(summary), summary);
+      await page.click('#jp-import-csv-run');
+      const resultText = await page
+        .waitForSelector('#jp-import-csv-result', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      const imported = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.name === 'E2E CSV Spool');
+      check(
+        'importing the CSV adds its spools and places, and lists the row that did not come in',
+        /Added 1 spool and 1 place/.test(resultText) &&
+          /Line 3: No material/.test(resultText) &&
+          imported?.remaining === 640 &&
+          imported?.location_name === 'E2E CSV Shelf',
+        resultText
+      );
+      await page.click('#jp-import-csv button:has-text("Done")').catch(() => {});
+      if (imported) await invoke(base, session, 'delete-spool', [imported.id]);
+      const shelf = ((await invoke(base, session, 'get-storage-locations')).result || []).find((p) => p.name === 'E2E CSV Shelf');
+      if (shelf) await invoke(base, session, 'delete-storage-location', [shelf.id]);
+    } catch (error) {
+      check('the 10.2 Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6685,6 +6734,11 @@ async function accountChecks(base, wsUrl, admin) {
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
   await invoke(base, editor, 'save-setting', ['units', '{"weight":"oz"}']);
   check('only admins change the units', !/oz/.test((await invoke(base, admin, 'get-setting', ['units'])).result || ''));
+  check(
+    'viewers can export spools but not import them',
+    (await invoke(base, viewer, 'export-spools', [{ format: 'json' }])).status === 200 &&
+      (await invoke(base, viewer, 'import-spool-csv', [{ text: 'material\nPLA' }])).status === 403
+  );
   check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);

@@ -417,6 +417,19 @@ export const myAlerts = {
   test: () => callAction<{ sent: string[] }>('send-test-alert')
 };
 
+/** What importing a CSV of spools would do (src/core/spool-transfer.js). */
+export interface SpoolCsvPreview {
+  headers: string[];
+  /** Each column's field, or null for none. */
+  mapping: (string | null)[];
+  fields: Record<string, string>;
+  rows: number;
+  already: number;
+  problems: { line: number; error: string }[];
+  problemCount: number;
+  sample: (SpoolInput & { location: string | null })[];
+}
+
 /** What a print costs (src/server/print-cost.js; docs/plan-10.1.md, Phase 8). */
 export interface PrintCost {
   currency: string;
@@ -997,6 +1010,15 @@ export const filament = {
   /** Renaming onto another brand's name merges them (`merged`). */
   saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
   removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
+  /** Spools out as CSV or JSON, and a CSV in with its columns matched (docs/plan-10.1.md, Phase 10). */
+  exportSpools: (options: { format: 'csv' | 'json'; includeArchived: boolean }) =>
+    callAction<{ filename: string; mime: string; content: string }>('export-spools', options),
+  previewCsv: (input: { text: string; mapping?: (string | null)[] | null }) => callAction<SpoolCsvPreview>('preview-spool-csv', input),
+  importCsv: (input: { text: string; mapping: (string | null)[] }) =>
+    callAction<{ added: number; already: number; placesAdded: number; problems: { line: number; error: string }[]; problemCount: number }>(
+      'import-spool-csv',
+      input
+    ),
   /** A picture (`dataUrl`, shrunk by filament/photos.ts), a link (`url`), or null for none. */
   /** The addresses the labels' QR codes open (docs/plan-10.1.md, Phase 5; paths, null for none). */
   labelLinks: (input: { spoolIds: number[]; placeIds: number[] }) =>

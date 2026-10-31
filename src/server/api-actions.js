@@ -218,6 +218,9 @@ const ACTIONS = {
   'set-filament-photo': ['id', 'object?'],
   'set-spool-photo': ['id', 'object?'],
   'get-label-links': ['object'],
+  'export-spools': ['object?'],
+  'preview-spool-csv': ['object'],
+  'import-spool-csv': ['object'],
   'get-print-cost': ['object'],
   'get-print-time': ['string', 'array?'],
   'get-alert-prefs': [],
@@ -428,6 +431,7 @@ const VIEWER_ACTIONS = new Set([
   'get-model-filament',
   'get-print-cost',
   'get-print-time',
+  'export-spools',
   // Each person's own alerts: their choices, their address (personal-alerts.js).
   'get-alert-prefs',
   'save-alert-prefs',
@@ -566,6 +570,8 @@ const EDITOR_ACTIONS = new Set([
   'delete-filament-brand',
   'set-filament-photo',
   'set-spool-photo',
+  'preview-spool-csv',
+  'import-spool-csv',
   // Makes label tokens when labels are public: editors, as the Labels dialog.
   'get-label-links',
   'add-print-photo',

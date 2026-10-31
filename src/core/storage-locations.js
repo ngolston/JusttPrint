@@ -14,7 +14,12 @@ function listLocations(db) {
     .all();
 }
 
-/** Add a place (no id) or change one. Names are unique, in any case. */
+/**
+ * Add a place (no id) or change one. Names are unique, in any case.
+ * @param {any} db
+ * @param {any} [input]
+ * @param {{ userId?: number | null }} [options]
+ */
 function saveLocation(db, input = {}, { userId = null } = {}) {
   const name = v.text(input.name, 100);
   if (!name) throw new Error('A place needs a name');

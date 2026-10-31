@@ -31,6 +31,12 @@ ipcMain.handle('delete-spool', (event, id) => {
   require('../photos').sweepSoon();
   return deleted;
 });
+// Spools out and in (docs/plan-10.1.md, Phase 10): CSV or JSON out, a CSV in with its columns matched.
+ipcMain.handle('export-spools', (event, options) => require('../../core/spool-transfer').exportSpools(database.db, options || {}));
+ipcMain.handle('preview-spool-csv', (event, input) => require('../../core/spool-transfer').previewImport(database.db, input || {}));
+ipcMain.handle('import-spool-csv', (event, input) =>
+  changed(require('../../core/spool-transfer').importCsv(database.db, input || {}, { userId: userId(event) }), event)
+);
 ipcMain.handle('get-label-links', (event, input) => require('../label-pages').labelLinks(database.db, input || {}));
 ipcMain.handle('set-spool-photo', (event, id, photo) => {
   require('../photos').setPhoto(database.db, 'spool', Number(id), photo || null);

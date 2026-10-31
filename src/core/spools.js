@@ -164,6 +164,9 @@ const MAX_COPIES = 50;
 /**
  * Add a spool (no id) or change one. Returns the saved spool. Adding with `copies` (2 to 50) adds
  * that many of the same spool at once, in one go; the first is returned, with `added`.
+ * @param {any} db
+ * @param {any} [input]
+ * @param {{ userId?: number | null }} [options]
  */
 function saveSpool(db, input = {}, { userId = null } = {}) {
   const id = v.id(input.id);

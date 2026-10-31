@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatTemperature } from '../units';
-import { BookOpen, CircleDot, Layers, LayoutGrid, MapPin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
+import { BookOpen, CircleDot, Download, Layers, LayoutGrid, MapPin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
 import {
   alerts,
   filament,
@@ -57,6 +57,7 @@ import {
 import { SpoolDrawer, type SpoolAction } from '../filament/SpoolDrawer';
 import { FilamentProfileDialog, FilamentsDialog } from '../filament/FilamentsDialog';
 import { SpoolTable } from '../filament/SpoolTable';
+import { ExportSpoolsDialog, ImportCsvDialog } from '../filament/SpoolTransferDialogs';
 import { askText, showMessage } from '../page';
 
 const loadPage = async () => {
@@ -116,7 +117,7 @@ type Dialog =
   | { kind: 'weigh' | 'dry' | 'move'; spool: Spool }
   | { kind: 'finish-drying'; sessionId: number; name: string }
   | { kind: 'profile'; profile: FilamentProfile | null }
-  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' | 'filaments' };
+  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' | 'filaments' | 'export' | 'csv' };
 
 /** "24 spools · 3 running low · 1 drying". */
 function headline(summary: FilamentSummary, drying: number) {
@@ -322,6 +323,9 @@ export function FilamentPage({ section = '' }: { section?: string }) {
         <Button variant="ghost" icon={Upload} onClick={() => setDialog({ kind: 'spoolman' })} id="jp-import-spoolman">
           Import from Spoolman
         </Button>
+        <Button variant="ghost" icon={Upload} onClick={() => setDialog({ kind: 'csv' })} id="jp-import-csv-open">
+          Import a CSV
+        </Button>
       </div>
     </EditOnly>
   );
@@ -338,6 +342,9 @@ export function FilamentPage({ section = '' }: { section?: string }) {
         <div className="jp-printers__header-actions">
           <Button icon={Layers} onClick={() => setDialog({ kind: 'filaments' })} id="jp-filament-profiles">
             Filaments
+          </Button>
+          <Button icon={Download} onClick={() => setDialog({ kind: 'export' })} id="jp-export-spools-open">
+            Export
           </Button>
           <EditOnly>
             <Button icon={MapPin} onClick={() => setDialog({ kind: 'places' })} id="jp-filament-places">
@@ -479,6 +486,8 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'catalog' && <CatalogDialog onClose={close} onPicked={(preset) => setDialog({ kind: 'spool', preset })} />}
       {dialog?.kind === 'spoolman' && <SpoolmanDialog onClose={close} />}
       {dialog?.kind === 'places' && <PlacesDialog onClose={close} />}
+      {dialog?.kind === 'export' && <ExportSpoolsDialog onClose={close} />}
+      {dialog?.kind === 'csv' && <ImportCsvDialog onClose={close} />}
       {dialog?.kind === 'filaments' && (
         <FilamentsDialog
           onClose={close}
