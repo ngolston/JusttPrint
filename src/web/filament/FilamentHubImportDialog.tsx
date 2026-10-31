@@ -21,7 +21,10 @@ interface Count {
   add: number;
 }
 interface Preview {
-  users: { label: string; match: string | null; create: string | null; role: string }[];
+  /** The account running the import (everything becomes theirs); null when signing in is off. */
+  owner: string | null;
+  /** The FilamentHub users in the file. */
+  fromUsers: string[];
   counts: Record<string, Count>;
   printsWithoutModel: number;
   leftOut: { projects: number; printPhotos: number; apiKeys: number };
@@ -29,7 +32,7 @@ interface Preview {
   discord: boolean;
 }
 interface Result {
-  added: Record<string, number | boolean | { username: string; role: string; from: string }[]>;
+  added: Record<string, number | boolean>;
   printsWithoutModel: number;
   leftOut: { projects: number; printPhotos: number; apiKeys: number };
 }
@@ -91,8 +94,7 @@ export function FilamentHubImportDialog() {
     }
   };
 
-  const toAdd = plan ? Object.values(plan.counts).reduce((sum, c) => sum + c.add, 0) + plan.users.filter((u) => u.create).length : 0;
-  const madeUsers = result ? (result.added.users as { username: string; role: string; from: string }[]) : [];
+  const toAdd = plan ? Object.values(plan.counts).reduce((sum, c) => sum + c.add, 0) : 0;
 
   return (
     <ModalDialog
@@ -164,17 +166,11 @@ export function FilamentHubImportDialog() {
                 ))}
             </tbody>
           </table>
-          {plan.users.length > 0 && (
-            <>
-              <h4>Accounts</h4>
-              <ul className="jp-fh-import__list">
-                {plan.users.map((user) => (
-                  <li key={user.label}>
-                    {user.label}: {user.match ? `is ${user.match} here` : `becomes a new ${user.role} account, ${user.create}`}
-                  </li>
-                ))}
-              </ul>
-            </>
+          {plan.owner && (
+            <p className="setting-description" id="fh-import-owner">
+              Everything comes in as yours ({plan.owner}), whoever owned it in FilamentHub
+              {plan.fromUsers.length ? ` (${plan.fromUsers.join(', ')})` : ''}. No accounts are made.
+            </p>
           )}
           <ul className="jp-fh-import__list jp-meta">
             {plan.printsWithoutModel > 0 && <li>{plan.printsWithoutModel} logged prints are of files not in the library: they are left out.</li>}
@@ -190,18 +186,12 @@ export function FilamentHubImportDialog() {
           <p>
             Imported:{' '}
             {Object.entries(result.added)
-              .filter(([key, value]) => key !== 'users' && typeof value === 'number' && value > 0)
+              .filter(([, value]) => typeof value === 'number' && value > 0)
               .map(([key, value]) => `${value} ${(LABELS[key] || key).toLowerCase()}`)
               .join(', ') || 'nothing new'}
             {result.added.email ? ', the email server' : ''}
             {result.added.discord ? ', the Discord webhook' : ''}.
           </p>
-          {madeUsers.length > 0 && (
-            <p className="setting-description">
-              New accounts: {madeUsers.map((user) => `${user.username} (${user.role}, from ${user.from})`).join(', ')}. They have random passwords: set one for
-              each under Users before they log in.
-            </p>
-          )}
         </div>
       )}
     </ModalDialog>

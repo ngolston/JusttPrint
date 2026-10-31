@@ -4081,12 +4081,13 @@ async function browserChecks(base, wsUrl, session) {
           is_community BOOLEAN, created_at DATETIME, updated_at DATETIME);
         CREATE TABLE spools (id INTEGER PRIMARY KEY, owner_id VARCHAR(36), filament_id INTEGER, brand_id INTEGER, location_id INTEGER, name VARCHAR(200), initial_weight FLOAT,
           spool_weight FLOAT, used_weight FLOAT, color_hex VARCHAR(7), material VARCHAR(50), status VARCHAR(8), registered DATETIME);
-        INSERT INTO users VALUES ('u1', 'admin@example.com', 'Admin', 'admin', NULL);
+        INSERT INTO users VALUES ('u1', 'somebody.else@example.com', 'Somebody Else', 'admin', NULL);
         INSERT INTO brands VALUES (1, 'E2E Hub Brand', NULL, '2026-01-02 10:00:00');
         INSERT INTO filament_profiles VALUES (1, 1, 'E2E Hub PETG', 'PETG', 'Teal', '#14b8a6', 1.75, 0, '2026-01-02 10:00:00', '2026-01-02 10:00:00');
         INSERT INTO spools VALUES (1, 'u1', 1, 1, NULL, 'E2E Hub Spool', 1000, 230, 400, '#14b8a6', 'PETG', 'storage', '2026-01-02 10:00:00');
       `);
       fh.close();
+      const usersBefore = await invoke(base, session, 'list-users');
       await page.evaluate(() => window.openFilamentHubImport());
       await page.waitForSelector('#filamenthub-import-dialog[open]', { timeout: 10000 }).catch(() => {});
       await page.setInputFiles('#fh-import-file', fhFile);
@@ -4096,8 +4097,8 @@ async function browserChecks(base, wsUrl, session) {
         .then((el) => el.textContent())
         .catch(() => '');
       check(
-        'the FilamentHub preview shows what comes in and the account it matches',
-        /Spools/.test(planText) && /is admin here/.test(planText),
+        "the FilamentHub preview shows what comes in, all of it as the importer's",
+        /Spools/.test(planText) && /comes in as yours \(admin\)/.test(planText) && /somebody\.else@example\.com/.test(planText),
         planText.slice(0, 200)
       );
       await page.click('#fh-import-run');
@@ -4110,6 +4111,12 @@ async function browserChecks(base, wsUrl, session) {
         'importing brings the spools over with their grams and brand',
         /1 spools/.test(resultText) && hubSpool?.remaining === 600 && hubSpool?.brand_name === 'E2E Hub Brand',
         JSON.stringify({ resultText: resultText.slice(0, 120), remaining: hubSpool?.remaining })
+      );
+      const usersAfter = await invoke(base, session, 'list-users');
+      check(
+        'the import makes no account for a FilamentHub user',
+        JSON.stringify(usersAfter.result) === JSON.stringify(usersBefore.result),
+        JSON.stringify({ before: usersBefore.result, after: usersAfter.result }).slice(0, 300)
       );
       await page.click('#filamenthub-import-dialog button:has-text("Done")').catch(() => {});
       await page.evaluate(() => window.openFilamentHubImport());

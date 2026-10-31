@@ -6,7 +6,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 const Database = require('better-sqlite3');
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
@@ -49,22 +48,14 @@ async function readUpload(payload) {
   }
 }
 
-const accounts = () => database.db.prepare('SELECT id, username FROM users').all();
+/** The account running the import: everything in the file becomes theirs. */
+const ownerOf = (event) => (event && event.user && event.user.id ? { id: event.user.id, username: event.user.username } : null);
 
-ipcMain.handle('preview-filamenthub-import', async (event, payload) => fhImport.preview(await readUpload(payload), database.db, accounts()));
+ipcMain.handle('preview-filamenthub-import', async (event, payload) => fhImport.preview(await readUpload(payload), database.db, ownerOf(event)));
 
 ipcMain.handle('run-filamenthub-import', async (event, payload) => {
   const data = await readUpload(payload);
-  const { getServerAuth } = require('../auth');
-  const result = fhImport.runImport(data, database.db, {
-    accounts: accounts(),
-    createUser: (username, role) => {
-      const user = getServerAuth().createUser({ username, password: fhImport.randomPassword() + crypto.randomBytes(2).toString('hex'), role });
-      if (!user) throw new Error(`Could not make the account ${username}`);
-      return user.id;
-    },
-    alertDelivery: require('../alert-delivery')
-  });
+  const result = fhImport.runImport(data, database.db, { owner: ownerOf(event), alertDelivery: require('../alert-delivery') });
   require('../low-stock-alerts').soon();
   require('../events').broadcast('refresh-grid');
   return result;
