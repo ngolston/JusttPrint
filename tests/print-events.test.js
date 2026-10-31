@@ -90,6 +90,19 @@ test('logging a successful print sets Printed, count, and last_printed_at', () =
   db.close();
 });
 
+test('a print keeps how long it took (10.1), when the database has the column', () => {
+  const db = createDb();
+  const id = insertModel(db, { filePath: 'timed.stl' });
+  printEvents.logPrintEvent(db, { modelId: id, outcome: 'printed', durationSeconds: 8100 });
+  assert.strictEqual(printEvents.getPrintEvents(db, id)[0].duration_seconds, null, 'no column (before 10.0): dropped, not an error');
+  db.exec('ALTER TABLE print_events ADD COLUMN duration_seconds INTEGER');
+  printEvents.logPrintEvent(db, { modelId: id, outcome: 'failed', durationSeconds: '5400.4', printedAt: '2099-01-01T00:00:00.000Z' });
+  assert.strictEqual(printEvents.getPrintEvents(db, id)[0].duration_seconds, 5400);
+  assert.throws(() => printEvents.logPrintEvent(db, { modelId: id, outcome: 'printed', durationSeconds: -5 }), /number of seconds/);
+  assert.throws(() => printEvents.logPrintEvent(db, { modelId: id, outcome: 'printed', durationSeconds: 31 * 24 * 3600 }), /30 days/);
+  db.close();
+});
+
 test('failed and cancelled outcomes write history without faking a successful count', () => {
   const db = createDb();
   const id = insertModel(db, { filePath: 'd.stl', printed: 0, print_status: 'printing', print_count: 0 });

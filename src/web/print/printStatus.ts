@@ -170,3 +170,13 @@ export function friendlyError(error: unknown): string {
   const message = String((error as Error)?.message || error || 'Failed to log print');
   return message.replace(/^Error invoking remote method '[^']+':\s*/, '').replace(/^Error:\s*/, '');
 }
+
+/** "2 h 15 min", "45 min", "3 h": how long a print took (docs/plan-10.1.md, Phase 3). */
+export function formatDuration(seconds: number | null | undefined): string {
+  const total = Math.round((Number(seconds) || 0) / 60);
+  if (total <= 0) return '';
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (!hours) return `${minutes} min`;
+  return minutes ? `${hours} h ${minutes} min` : `${hours} h`;
+}

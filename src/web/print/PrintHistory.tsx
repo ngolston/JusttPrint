@@ -18,6 +18,7 @@ import {
   detailsHint,
   effectiveStatus,
   filterLabel,
+  formatDuration,
   formatPrintDate,
   friendlyError,
   modelMatchesPrintFilter,
@@ -159,6 +160,11 @@ function LogPrintDialog() {
   const [outcome, setOutcome] = useState('printed');
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
+  /** How long it took (one model; docs/plan-10.1.md Phase 3): filled from the plates' estimates until edited. */
+  const [timeHours, setTimeHours] = useState('');
+  const [timeMinutes, setTimeMinutes] = useState('');
+  const [timeEdited, setTimeEdited] = useState(false);
+  const [plateSeconds, setPlateSeconds] = useState<Map<number, number>>(new Map());
   /** Photos of the print (one model; docs/plan-10.1.md Phase 2), sent after it is logged. */
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [printerList, setPrinterList] = useState<Printer[]>([]);
@@ -191,6 +197,10 @@ function LogPrintDialog() {
     setQuantity('1');
     setNotes('');
     setPhotoFiles([]);
+    setTimeHours('');
+    setTimeMinutes('');
+    setTimeEdited(false);
+    setPlateSeconds(new Map());
     setPrinterId('');
     setPartId('');
     setPartQuantity('1');
@@ -218,6 +228,7 @@ function LogPrintDialog() {
     ]);
     setPartList(allParts);
     const found = (kit?.parts || []).filter((part) => part.plate > 0).map((part) => ({ plate: part.plate, label: part.label }));
+    setPlateSeconds(new Map((kit?.parts || []).filter((part) => Number(part.seconds) > 0).map((part) => [part.plate, Number(part.seconds)])));
     if (found.length > 1) {
       setPlates(found);
       setChosenPlates(new Set(found.map((p) => p.plate)));
@@ -231,6 +242,16 @@ function LogPrintDialog() {
       if (openLogDialogImpl === open) openLogDialogImpl = null;
     };
   });
+
+  // Fill Print time from the slicer's estimate for the plates chosen, times the quantity.
+  useEffect(() => {
+    if (timeEdited || !plateSeconds.size) return;
+    const plateList = plates.length ? [...chosenPlates] : [...plateSeconds.keys()];
+    const seconds = plateList.reduce((sum, plate) => sum + (plateSeconds.get(plate) || 0), 0) * clampQuantity(quantity);
+    const minutes = Math.round(seconds / 60);
+    setTimeHours(minutes ? String(Math.floor(minutes / 60)) : '');
+    setTimeMinutes(minutes ? String(minutes % 60) : '');
+  }, [plateSeconds, plates, chosenPlates, quantity, timeEdited]);
 
   // Fill Filament used from the filament check for the plates chosen (and the printer, whose loaded
   // spools come first), until the rows are edited by hand.
@@ -307,6 +328,7 @@ function LogPrintDialog() {
           .map((p) => p.label)
           .join(', ')}`
       : '';
+    const durationSeconds = (Math.max(0, Number(timeHours) || 0) * 60 + Math.max(0, Number(timeMinutes) || 0)) * 60;
     const input = {
       printedAt: when ? new Date(when).toISOString() : new Date().toISOString(),
       outcome,
@@ -315,6 +337,7 @@ function LogPrintDialog() {
       printerId: pickedPrinter > 0 ? pickedPrinter : null,
       parts: chosenParts.map((c) => ({ id: c.part.id, quantity: c.quantity })),
       ...(plates.length ? { plates: [...chosenPlates] } : {}),
+      ...(filePaths.length === 1 && durationSeconds > 0 ? { durationSeconds } : {}),
       ...(filePaths.length === 1 && filamentUsed.length ? { spools: filamentUsed, plateIndex: chosenPlates.size === 1 ? [...chosenPlates][0] : null } : {})
     };
     setSaving(true);
@@ -416,6 +439,42 @@ function LogPrintDialog() {
             </select>
           </div>
         </div>
+        {filePaths.length === 1 && (
+          <div className="form-group">
+            <label htmlFor="log-print-hours">Print time</label>
+            <div className="log-print-time">
+              <input
+                type="number"
+                id="log-print-hours"
+                min="0"
+                max="720"
+                aria-label="Hours"
+                value={timeHours}
+                onChange={(e) => {
+                  setTimeEdited(true);
+                  setTimeHours(e.target.value);
+                }}
+              />
+              <span>h</span>
+              <input
+                type="number"
+                id="log-print-minutes"
+                min="0"
+                max="59"
+                aria-label="Minutes"
+                value={timeMinutes}
+                onChange={(e) => {
+                  setTimeEdited(true);
+                  setTimeMinutes(e.target.value);
+                }}
+              />
+              <span>min</span>
+            </div>
+            {plateSeconds.size > 0 && !timeEdited && (
+              <p className="print-history-hint">The slicer&apos;s estimate for the plates and quantity; change it to the real time.</p>
+            )}
+          </div>
+        )}
         {filePaths.length === 1 && filamentTracked && (
           <details className="form-group log-print-parts-details" id="log-print-filament" open>
             <summary>
@@ -666,7 +725,10 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => 
           {OUTCOME_LABELS[event.outcome] || event.outcome}
           {Number(event.quantity) > 1 ? ` ×${event.quantity}` : ''}
         </span>
-        <span className="print-history-when">{formatPrintDate(event.printed_at)}</span>
+        <span className="print-history-when">
+          {formatPrintDate(event.printed_at)}
+          {event.duration_seconds ? ` · ${formatDuration(event.duration_seconds)}` : ''}
+        </span>
       </div>
       {printerName && (
         <div className="print-history-printer">

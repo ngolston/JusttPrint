@@ -153,11 +153,12 @@ Viewers see the spools; editors and admins change them.
 
 **Log Print** on one model has **Filament used**: a spool and the grams per copy for each color the ticked plates need, filled in from that check (spools loaded in the printer you choose come first). Change a spool or the grams, remove a row or **Add a spool**; saving takes the grams off the spools, and deleting the logged print puts them back.
 
+**Print time** in Log Print (one model) is how long the print took. For a sliced 3MF it starts at the slicer's estimate for the plates you tick, times the quantity; type the real time over it. The history shows it beside the date, and Statistics adds it up.
 **Photos** in Log Print (one model) adds pictures of the print. Later, the camera button on a print in its history (the details panel or the model page) adds more, up to 12; click one to see it full size.
 
 ### Statistics
 
-**Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. Everyone can open Statistics.
+**Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. When prints are logged with how long they took, a **Print time** figure, **Print hours per month** and the hours on each printer show too (failed prints count: the printer was busy). Everyone can open Statistics.
 
 **Filament used** counts the grams your logged prints took off your spools (prints logged with their spools), per month, and the models, printers and materials that used most. The cost is each print's grams at its spool's price (price over the grams the spool held when new); spools without a price add grams but no cost. Admins choose the currency under **Settings → Printers → Filament settings**; prices, the shopping list and what your spools are worth show in it. Amounts are not converted.
 

@@ -6,6 +6,7 @@ import {
   detailsHint,
   effectiveStatus,
   filterLabel,
+  formatDuration,
   friendlyError,
   modelMatchesPrintFilter,
   partOptionLabel,
@@ -83,5 +84,15 @@ describe('formatting', () => {
   });
   it('strips IPC wrappers from errors', () => {
     expect(friendlyError(new Error("Error invoking remote method 'x': Error: Out of stock"))).toBe('Out of stock');
+  });
+});
+
+describe('formatDuration', () => {
+  it('writes hours and minutes, and nothing for no time', () => {
+    expect(formatDuration(8100)).toBe('2 h 15 min');
+    expect(formatDuration(2700)).toBe('45 min');
+    expect(formatDuration(10800)).toBe('3 h');
+    expect(formatDuration(20)).toBe('');
+    expect(formatDuration(null)).toBe('');
   });
 });

@@ -105,3 +105,13 @@
 #log-print-filament .log-print-filament__row .setting-description {
   margin: 0;
 }
+
+/* Print time: hours and minutes side by side (docs/plan-10.1.md, Phase 3). */
+.log-print-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.log-print-time input {
+  width: 6em;
+}

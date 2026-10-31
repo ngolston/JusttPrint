@@ -1356,6 +1356,8 @@ async function browserChecks(base, wsUrl, session) {
       );
       if (logDialog) {
         await page.fill('#log-print-quantity', '2');
+        await page.fill('#log-print-hours', '1');
+        await page.fill('#log-print-minutes', '30');
         await page.fill('#log-print-notes', 'e2e log entry');
         await page.click('#log-print-save');
       }
@@ -1376,6 +1378,8 @@ async function browserChecks(base, wsUrl, session) {
           (await page.inputValue('#model-print-status')) === 'printed',
         String(loggedPrint)
       );
+      const whenText = await page.textContent(`${historyItem} .print-history-when`).catch(() => '');
+      check('Log Print keeps how long the print took and the history shows it (10.1)', /1 h 30 min/.test(whenText || ''), whenText);
       await page.click(`${historyItem} .print-history-delete`);
       const confirmDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
       if (confirmDelete) await confirmDelete.click();

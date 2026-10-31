@@ -343,11 +343,12 @@ export interface PrintStatistics {
   from: string;
   to: string;
   firstPrintMonth: string | null;
-  totals: { printed: number; failed: number; cancelled: number; successRate: number | null };
-  byMonth: { month: string; printed: number; failed: number; cancelled: number; added: number }[];
+  /** `seconds`: print time logged in the period (failed prints too); `timedPrints`: prints with a time. */
+  totals: { printed: number; failed: number; cancelled: number; successRate: number | null; seconds: number; timedPrints: number };
+  byMonth: { month: string; printed: number; failed: number; cancelled: number; added: number; hours: number }[];
   designers: { name: string; printed: number; models: number }[];
   models: { id: number; fileName: string; filePath: string; printed: number }[];
-  printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
+  printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null; seconds: number }[];
   /** Filament taken off spools by logged prints, and its cost at each spool's price. */
   filament: FilamentUse;
   /** The library's currency (ISO 4217). */
@@ -1332,6 +1333,8 @@ export interface PrintEvent {
   spools?: { spoolId: number | null; grams: number; name: string; color: string | null }[];
   /** Photos of the print (docs/plan-10.1.md, Phase 2). */
   photos?: PrintPhoto[];
+  /** How long it took (docs/plan-10.1.md, Phase 3). */
+  duration_seconds?: number | null;
 }
 
 export interface PrintPhoto {
@@ -1355,6 +1358,8 @@ export interface LogPrintInput {
   /** Grams taken off each spool (all copies), and the plate when only one was printed. */
   spools?: { spoolId: number; grams: number }[];
   plateIndex?: number | null;
+  /** How long it took (one model). */
+  durationSeconds?: number | null;
 }
 
 export const prints = {

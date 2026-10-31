@@ -334,7 +334,8 @@ function getMcpToolContext() {
         parts: args.parts,
         printerId: args.printerId,
         spools: args.spools,
-        plateIndex: args.plateIndex
+        plateIndex: args.plateIndex,
+        durationSeconds: args.durationMinutes != null ? Number(args.durationMinutes) * 60 : null
       });
       require('./low-stock-alerts').soon();
       return result;

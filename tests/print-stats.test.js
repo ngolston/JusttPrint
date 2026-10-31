@@ -48,7 +48,11 @@ test('months run back from this month, oldest first', () => {
 
 test('totals, success rate and prints per month over the period', () => {
   const stats = printStatistics(createDb(), { months: 3, now: NOW });
-  assert.deepStrictEqual(stats.totals, { printed: 5, failed: 1, cancelled: 1, successRate: 5 / 6 });
+  assert.deepStrictEqual(
+    stats.totals,
+    { printed: 5, failed: 1, cancelled: 1, successRate: 5 / 6, seconds: 0, timedPrints: 0 },
+    'no print time column: no time'
+  );
   assert.deepStrictEqual(
     stats.byMonth.map((m) => [m.month, m.printed, m.failed, m.cancelled, m.added]),
     [
@@ -97,7 +101,33 @@ test('an empty library without a print log gives zeros, not errors', () => {
   const db = new Database(':memory:');
   db.exec('CREATE TABLE models (id INTEGER PRIMARY KEY, dateAdded TEXT)');
   const stats = printStatistics(db, { months: 12, now: NOW });
-  assert.deepStrictEqual(stats.totals, { printed: 0, failed: 0, cancelled: 0, successRate: null });
+  assert.deepStrictEqual(stats.totals, { printed: 0, failed: 0, cancelled: 0, successRate: null, seconds: 0, timedPrints: 0 });
   assert.strictEqual(stats.byMonth.length, 12);
   assert.deepStrictEqual([stats.designers, stats.printers, stats.models], [[], [], []]);
+});
+
+test('print time (10.1): per month and printer, failed prints too, only prints with a time', () => {
+  const db = createDb();
+  db.exec(`ALTER TABLE print_events ADD COLUMN duration_seconds INTEGER;
+    UPDATE print_events SET duration_seconds = 7200 WHERE id = 1;
+    UPDATE print_events SET duration_seconds = 1800 WHERE id = 2;
+    UPDATE print_events SET duration_seconds = 5400 WHERE id = 3;
+    UPDATE print_events SET duration_seconds = 99999 WHERE id = 5;`);
+  const stats = printStatistics(db, { months: 3, now: NOW });
+  assert.deepStrictEqual([stats.totals.seconds, stats.totals.timedPrints], [14400, 3], 'the 2024 print is outside the period');
+  assert.deepStrictEqual(
+    stats.byMonth.map((m) => [m.month, m.hours]),
+    [
+      ['2026-08', 2],
+      ['2026-09', 0.5],
+      ['2026-10', 1.5]
+    ]
+  );
+  assert.deepStrictEqual(
+    stats.printers.map((p) => [p.name, p.seconds]),
+    [
+      ['Mini', 5400],
+      ['Voron', 9000]
+    ]
+  );
 });

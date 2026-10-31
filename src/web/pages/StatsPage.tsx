@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Ban, BarChart3, CheckCircle2, CircleDot, CircleX, Coins, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
+import { Ban, BarChart3, CheckCircle2, CircleDot, CircleX, Clock, Coins, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
 import { statistics, type PrintStatistics } from '../api';
 import { Button } from '../components/Button';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
 import { formatMoney, formatWeight } from '../filament/format';
+import { formatDuration } from '../print/printStatus';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
@@ -40,6 +41,9 @@ const OUTCOMES = [
 type Month = { month: string };
 
 const fmt = (n: number) => n.toLocaleString();
+
+/** "12 h", "1,204 h", or "45 min" under an hour. */
+const hoursText = (seconds: number) => (seconds >= 3600 ? `${fmt(Math.round(seconds / 3600))} h` : formatDuration(seconds));
 
 /** Changes each time the library changes; the page loads the statistics again then. */
 const changeTick = async () => Date.now();
@@ -392,6 +396,14 @@ export function StatsPage() {
             <StatCard icon={CircleX} tone="danger" value={fmt(totals.failed)} label="Failed" />
             <StatCard icon={Ban} tone="neutral" value={fmt(totals.cancelled)} label="Cancelled" />
             <StatCard icon={FilePlus2} tone="violet" value={fmt(added)} label="Models added" />
+            {totals.seconds > 0 && (
+              <StatCard
+                icon={Clock}
+                tone="neutral"
+                value={hoursText(totals.seconds)}
+                label={`Print time (${fmt(totals.timedPrints)} ${totals.timedPrints === 1 ? 'print' : 'prints'} with a time)`}
+              />
+            )}
           </div>
 
           <Panel title="Prints per month" className="jp-stats__wide">
@@ -449,11 +461,23 @@ export function StatsPage() {
                   label: p.id == null ? 'Printer not chosen' : p.name || 'Unnamed printer',
                   title: p.id == null ? 'Prints logged without choosing a printer' : p.name || 'Unnamed printer',
                   value: p.printed,
-                  detail: `${percent(p.successRate)} success`
+                  detail: [`${percent(p.successRate)} success`, p.seconds ? hoursText(p.seconds) : ''].filter(Boolean).join(' · ')
                 }))}
               />
             </Panel>
           </div>
+
+          {totals.seconds > 0 && (
+            <Panel title="Print hours per month" className="jp-stats__wide">
+              <MonthChart
+                months={stats.byMonth}
+                series={[{ key: 'hours', label: 'Hours', color: 'var(--jp-series-1)' }]}
+                label="Hours of printing per month"
+                height={180}
+              />
+              <p className="jp-meta jp-stats__note">From prints logged with how long they took; failed prints count too (the printer was busy).</p>
+            </Panel>
+          )}
 
           <FilamentSection stats={stats} />
 
