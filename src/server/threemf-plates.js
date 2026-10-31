@@ -31,7 +31,12 @@ const decode = (text) =>
  * Plates from the config texts and the entry names (no file access).
  * @param {{ entryNames?: string[], modelSettings?: string, sliceInfo?: string }} input
  */
-function platesFrom({ entryNames = [], modelSettings = '', sliceInfo = '' }) {
+/**
+ * @param {{ entryNames?: string[], modelSettings?: string, sliceInfo?: string }} input
+ * @param {{ single?: boolean }} [options] `single`: a file with one plate gives that plate too (its
+ *   print time and grams, for the cost of a print and Log Print), instead of no plates.
+ */
+function platesFrom({ entryNames = [], modelSettings = '', sliceInfo = '' }, options = {}) {
   const plates = new Map();
   const plate = (index) => {
     if (!plates.has(index)) plates.set(index, { index, name: null, seconds: null, grams: null });
@@ -57,11 +62,15 @@ function platesFrom({ entryNames = [], modelSettings = '', sliceInfo = '' }) {
     if (Number(meta.weight) > 0) p.grams = Math.round(Number(meta.weight) * 10) / 10;
   }
   const list = [...plates.values()].sort((a, b) => a.index - b.index).slice(0, MAX_PLATES);
-  return list.length > 1 ? list : [];
+  return list.length > 1 || (options.single && list.length) ? list : [];
 }
 
-/** Read a 3MF file's plates (see above). */
-async function readPlates(filePath) {
+/**
+ * Read a 3MF file's plates (see above).
+ * @param {string} filePath
+ * @param {{ single?: boolean }} [options]
+ */
+async function readPlates(filePath, options = {}) {
   if (!/\.3mf$/i.test(String(filePath)) || String(filePath).includes('::')) return [];
   const StreamZip = require('node-stream-zip');
   return withZipFileLock(filePath, async () => {
@@ -73,11 +82,14 @@ async function readPlates(filePath) {
         if (!entry || entry.size > MAX_CONFIG_BYTES) return '';
         return (await zip.entryData(entry.name)).toString('utf8');
       };
-      return platesFrom({
-        entryNames: Object.keys(entries),
-        modelSettings: await read('Metadata/model_settings.config'),
-        sliceInfo: await read('Metadata/slice_info.config')
-      });
+      return platesFrom(
+        {
+          entryNames: Object.keys(entries),
+          modelSettings: await read('Metadata/model_settings.config'),
+          sliceInfo: await read('Metadata/slice_info.config')
+        },
+        options
+      );
     } finally {
       await zip.close();
     }

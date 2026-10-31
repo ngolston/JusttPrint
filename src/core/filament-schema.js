@@ -277,7 +277,9 @@ const COLUMNS = [
   ['filament_profiles', 'photo_file', 'TEXT'],
   // The token a public QR label opens (src/server/label-pages.js; 10.1).
   ['spools', 'label_token', 'TEXT'],
-  ['storage_locations', 'label_token', 'TEXT']
+  ['storage_locations', 'label_token', 'TEXT'],
+  // What the printer draws while printing, for the cost estimate (src/server/print-cost.js; 10.2).
+  ['printers', 'power_watts', 'REAL']
 ];
 
 /** @param {string} sql */

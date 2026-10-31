@@ -968,3 +968,21 @@
 .jp-labels__public {
   margin-top: var(--jp-space-3);
 }
+
+/* The cost estimate in Print this model (docs/plan-10.1.md, Phase 8) */
+.jp-print-cost {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-print-cost__total {
+  font-size: var(--jp-text-h3, 20px);
+  font-weight: 800;
+}
+.jp-print-cost__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-small);
+}

@@ -616,3 +616,26 @@
   stroke: var(--jp-border);
   stroke-width: 1;
 }
+
+/* What would a print cost? (docs/plan-10.1.md, Phase 8) */
+.jp-cost-calc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--jp-space-3);
+  align-items: end;
+}
+.jp-cost-calc label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-cost-calc__result {
+  display: flex;
+  flex-direction: column;
+  grid-column: span 2;
+}
+.jp-cost-calc__total {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+}

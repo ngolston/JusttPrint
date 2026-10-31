@@ -245,3 +245,10 @@ export function runsOutShort(forecast: SpoolForecast | null | undefined): string
   const days = Math.round(forecast.daysLeft);
   return days < 1 ? 'today' : days === 1 ? '1 day' : `${days} days`;
 }
+
+/** The cost of a print by hand: grams at a price per kg, plus hours at a printer's watts (Phase 8). */
+export function printCostOf(input: { grams: number; perKg: number; hours: number; watts: number; perKWh: number }) {
+  const filamentCost = (Math.max(0, input.grams) / 1000) * Math.max(0, input.perKg);
+  const electricityCost = ((Math.max(0, input.hours) * Math.max(0, input.watts)) / 1000) * Math.max(0, input.perKWh);
+  return { filamentCost, electricityCost, total: filamentCost + electricityCost };
+}

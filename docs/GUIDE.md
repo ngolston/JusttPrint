@@ -164,6 +164,8 @@ Viewers see the spools; editors and admins change them.
 
 **Filament used** counts the grams your logged prints took off your spools (prints logged with their spools), per month, and the models, printers and materials that used most. The cost is each print's grams at its spool's price (price over the grams the spool held when new); spools without a price add grams but no cost. Admins choose the currency under **Settings → Printers → Filament settings**; prices, the shopping list and what your spools are worth show in it (amounts are not converted). The same dialog sets the units for the whole library (weight in grams, kilograms, ounces or pounds; temperature in °C or °F; length in mm or inches) and how dates are written; saving reloads the page in them, and forms take values in them too. Everything is still kept in grams, °C and millimetres. Below it: the last 30 days day by day, a running total, the last 12 weeks by material (the three you use most, the rest as Other; **Show table** for the numbers), and what filament costs per kg for each material, from the spools you gave a price.
 
+**What a print costs.** On a model's page, **Print this model** shows **Cost** for the plates and printer you choose: the filament at your spools' prices (a spool without a price counts at what its material costs on average) plus electricity for the slicer's print time. For electricity, give each printer its **Power while printing (W)** (Printers → edit) and set **Electricity price per kWh** in Settings → Printers → Filament settings. **What would a print cost?** at the end of Statistics works it out by hand for anything else.
+
 ## Uploading models
 
 Editors and admins can add models from the browser:

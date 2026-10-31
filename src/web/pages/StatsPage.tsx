@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Ban, BarChart3, CheckCircle2, CircleDot, CircleX, Clock, Coins, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
-import { statistics, type PrintStatistics } from '../api';
+import { settings, statistics, type PrintStatistics } from '../api';
 import { Button } from '../components/Button';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
-import { formatMoney, formatWeight } from '../filament/format';
+import { formatMoney, formatWeight, printCostOf } from '../filament/format';
 import { formatDuration } from '../print/printStatus';
-import { formatDay } from '../units';
+import { formatDay, fromWeightInput, weightInputUnit } from '../units';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
@@ -457,6 +457,68 @@ function RecentFilament({ stats }: { stats: PrintStatistics }) {
   );
 }
 
+/** A small calculator for a print not in the library (or not sliced): the same sums as a model's page. */
+function CostCalculator({ stats }: { stats: PrintStatistics }) {
+  const rates = stats.filament.recent.costPerKg;
+  const [grams, setGrams] = useState('100');
+  const [perKg, setPerKg] = useState(rates[0] ? String(rates[0].perKg) : '20');
+  const [hours, setHours] = useState('3');
+  const [watts, setWatts] = useState('120');
+  const [perKWh, setPerKWh] = useState('');
+  useEffect(() => {
+    settings.get<string | null>('electricityPrice').then(
+      (value) => value && setPerKWh(String(value)),
+      () => {}
+    );
+  }, []);
+  const n = (text: string) => Number(String(text).replace(',', '.')) || 0;
+  const gramsValue = fromWeightInput(grams) ?? 0;
+  const result = printCostOf({ grams: gramsValue, perKg: n(perKg), hours: n(hours), watts: n(watts), perKWh: n(perKWh) });
+  const money = (value: number) => formatMoney(value, stats.currency);
+  return (
+    <Panel title="What would a print cost?" className="jp-stats__wide">
+      <div className="jp-cost-calc" id="jp-cost-calc">
+        <label>
+          <span className="jp-label">Filament ({weightInputUnit()})</span>
+          <input className="jp-input" inputMode="decimal" id="jp-calc-grams" value={grams} onChange={(e) => setGrams(e.target.value)} />
+        </label>
+        <label>
+          <span className="jp-label">Price per kg</span>
+          <input className="jp-input" inputMode="decimal" id="jp-calc-perkg" value={perKg} onChange={(e) => setPerKg(e.target.value)} list="jp-calc-rates" />
+          <datalist id="jp-calc-rates">
+            {rates.map((r) => (
+              <option key={r.material} value={r.perKg}>
+                {r.material}
+              </option>
+            ))}
+          </datalist>
+        </label>
+        <label>
+          <span className="jp-label">Hours</span>
+          <input className="jp-input" inputMode="decimal" id="jp-calc-hours" value={hours} onChange={(e) => setHours(e.target.value)} />
+        </label>
+        <label>
+          <span className="jp-label">Printer (W)</span>
+          <input className="jp-input" inputMode="decimal" id="jp-calc-watts" value={watts} onChange={(e) => setWatts(e.target.value)} />
+        </label>
+        <label>
+          <span className="jp-label">Price per kWh</span>
+          <input className="jp-input" inputMode="decimal" id="jp-calc-kwh" value={perKWh} placeholder="0.30" onChange={(e) => setPerKWh(e.target.value)} />
+        </label>
+        <output className="jp-cost-calc__result" htmlFor="jp-calc-grams jp-calc-perkg jp-calc-hours jp-calc-watts jp-calc-kwh" aria-live="polite">
+          <span className="jp-cost-calc__total" id="jp-calc-total">
+            {money(result.total)}
+          </span>
+          <span className="jp-meta">
+            {money(result.filamentCost)} filament + {money(result.electricityCost)} electricity
+          </span>
+        </output>
+      </div>
+      <p className="jp-meta jp-stats__note">A model&apos;s page works this out from its plates, your spools&apos; prices and the printer you choose.</p>
+    </Panel>
+  );
+}
+
 /**
  * Filament used by logged prints and what it cost (docs/merge-10.md, Phase 10): only prints
  * logged with the spools they used count; cost is at each spool's price.
@@ -704,6 +766,7 @@ export function StatsPage() {
           )}
 
           <FilamentSection stats={stats} />
+          <CostCalculator stats={stats} />
 
           <Panel title="Models added per month" className="jp-stats__wide">
             {added > 0 ? (

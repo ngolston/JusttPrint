@@ -245,6 +245,24 @@ const TOOL_DEFINITIONS = [
     inputSchema: { type: 'object', properties: { printerId: { type: 'integer' }, limit: { type: 'integer', description: 'Default 50, at most 500' } } }
   },
   {
+    name: 'estimate_print_cost',
+    description:
+      "What printing a model costs: the filament its plates need at the matched spools' prices (a material's average price when a spool has none), plus electricity for the slicer's print time at the printer's power and the price per kWh in Filament settings.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' },
+        filePath: { type: 'string' },
+        plate: { type: 'integer' },
+        plates: { type: 'array', items: { type: 'integer' } },
+        printerId: { type: 'integer', description: 'Its power (watts) is used for electricity' },
+        quantity: { type: 'integer', description: 'Copies (default 1)' },
+        hours: { type: 'number', description: "Print time, instead of the slicer's" },
+        watts: { type: 'number', description: "Power, instead of the printer's" }
+      }
+    }
+  },
+  {
     name: 'get_reorder_list',
     description: 'Spools running low (by the low-stock rules), most urgent first, with where they were bought.',
     inputSchema: { type: 'object', properties: {} }
@@ -942,6 +960,8 @@ async function callTool(name, args, ctx) {
       return ctx.checkModelFilament(a);
     case 'what_can_i_print':
       return ctx.whatCanIPrint(a);
+    case 'estimate_print_cost':
+      return ctx.estimatePrintCost(a);
     case 'get_reorder_list':
       return ctx.getReorderList();
     case 'get_print_queue':

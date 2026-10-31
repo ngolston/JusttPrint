@@ -4493,6 +4493,84 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 7 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 8 (docs/plan-10.1.md): what a print costs.
+    try {
+      // A sliced 3MF of its own: one plate, 25 g of blue PLA, two hours by the slicer.
+      const { zipSync: zipCost, unzipSync: unzipCost } = require('fflate');
+      const costDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-cost-'));
+      const costFile = path.join(costDir, 'cost-kit.3mf');
+      const costEntries = unzipCost(new Uint8Array(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf'))));
+      costEntries['Metadata/slice_info.config'] = new TextEncoder().encode(
+        '<config><plate><metadata key="index" value="1"/><metadata key="prediction" value="7200"/><filament id="1" type="PLA" color="#2F6FDF" used_g="25" /></plate></config>'
+      );
+      fs.writeFileSync(costFile, Buffer.from(zipCost(costEntries)));
+      const costScan = await invoke(base, session, 'scan-directory', [costDir]);
+      await invoke(base, session, 'read-plate-filaments');
+      const allModels = (await invoke(base, session, 'get-models-filtered', [{ limit: 1000 }])).result || [];
+      const kit = allModels.find((m) => m.filePath === costFile);
+      const scanDetail = {
+        status: costScan.status,
+        error: costScan.error,
+        costFile,
+        like: allModels.filter((m) => /cost-kit/.test(m.filePath)).map((m) => m.filePath),
+        count: allModels.length
+      };
+      const costPrinter = (await invoke(base, session, 'save-printer', [{ nickname: 'E2E Watt Printer', powerWatts: 100 }])).result;
+      await invoke(base, session, 'save-setting', ['electricityPrice', '0.5']);
+      const priced = (
+        await invoke(base, session, 'save-spool', [
+          { name: 'E2E Cost Blue', material: 'PLA', color_hex: '#2f6fdf', initial_weight: 1000, remaining: 1000, purchase_price: 30 }
+        ])
+      ).result;
+      const estimate = kit ? (await invoke(base, session, 'get-print-cost', [{ filePath: kit.filePath, printerId: costPrinter.id }])).result : null;
+      check(
+        'a print cost estimate adds filament at spool prices and electricity at the printer power',
+        !!estimate && estimate.seconds === 7200 && estimate.electricityCost === 0.1 && estimate.lines[0]?.cost === 0.75 && estimate.total === 0.85,
+        JSON.stringify(estimate ? { s: estimate.seconds, e: estimate.electricityCost, lines: estimate.lines, total: estimate.total } : scanDetail)
+      );
+      if (kit) {
+        await page.evaluate((file) => window.PrintHistory?.openLogDialog({ filePaths: [file] }), kit.filePath);
+        await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => {});
+        const filled = await page
+          .waitForFunction(() => document.querySelector('#log-print-hours')?.value === '2', null, { timeout: 10000 })
+          .then(
+            () => true,
+            () => false
+          );
+        check("Log Print fills in a one-plate file's print time from the slicer", filled, await page.inputValue('#log-print-hours').catch(() => ''));
+        await page.click('#log-print-dialog button:has-text("Cancel")').catch(() => {});
+        await page.evaluate((file) => {
+          window.location.hash = `#/model/${encodeURIComponent(file)}`;
+        }, kit.filePath);
+        check(
+          "a model's page shows what printing it costs",
+          await page.waitForSelector('#jp-print-cost:has-text("Filament")', { timeout: 15000 }).then(
+            () => true,
+            () => false
+          )
+        );
+      }
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      await page.waitForSelector('#jp-calc-grams', { timeout: 15000 });
+      await page.fill('#jp-calc-grams', '250');
+      await page.fill('#jp-calc-perkg', '20');
+      await page.fill('#jp-calc-hours', '4');
+      await page.fill('#jp-calc-watts', '150');
+      await page.fill('#jp-calc-kwh', '0.3');
+      const total = await page.textContent('#jp-calc-total');
+      check('the cost calculator on Statistics adds filament and electricity', /5\.18/.test(total || ''), total);
+      await invoke(base, session, 'save-setting', ['electricityPrice', '']);
+      await invoke(base, session, 'delete-spool', [priced.id]);
+      await invoke(base, session, 'delete-printer', [costPrinter.id]);
+      // Leave the library as the later checks expect it (their model counts, the folder tree).
+      if (kit) await invoke(base, session, 'delete-models', [[kit.filePath], 'library']);
+      fs.rmSync(costDir, { recursive: true, force: true });
+    } catch (error) {
+      check('the 10.2 Phase 8 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (

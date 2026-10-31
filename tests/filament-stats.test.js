@@ -193,6 +193,47 @@ test('runout forecast and recent use (10.2): the last 30 days set the rate; week
   assert.strictEqual(recent.costPerKg.find((c) => c.material === 'TPU').perKg, 50, '25 for 500 g');
 });
 
+test('cost estimate (10.2): spool prices, a material average for an unpriced spool, electricity from the printer', async () => {
+  const { estimatePrintCost } = require('../src/server/print-cost');
+  const model = Number(
+    db.prepare("INSERT INTO models (filePath, fileName, print_status, dateAdded) VALUES ('/lib/cost.3mf', 'cost.3mf', 'unprinted', '2027-01-01')").run()
+      .lastInsertRowid
+  );
+  // A priced pink, an unpriced orange PLA (the PLA average applies), and a green nothing prices.
+  // Slots are the project's filaments, the same on every plate: the green is slot 3.
+  spools.saveSpool(db, { name: 'Pink', material: 'PLA', color_hex: '#ff69b4', initial_weight: 1000, remaining: 1000, purchase_price: 20 });
+  spools.saveSpool(db, { name: 'Orange', material: 'PLA', color_hex: '#ff8c00', initial_weight: 1000, remaining: 1000 });
+  spools.saveSpool(db, { name: 'Green', material: 'PVA', color_hex: '#00a000', initial_weight: 500, remaining: 500 });
+  replacePlateFilaments(db, model, 'test', [
+    { plate: 1, slot: 1, material: 'PLA', color: '#ff69b4', grams: 50 },
+    { plate: 1, slot: 2, material: 'PLA', color: '#ff8c00', grams: 25 },
+    { plate: 2, slot: 3, material: 'PVA', color: '#00a000', grams: 10 }
+  ]);
+  const watt = Number(db.prepare("INSERT INTO printers (nickname, power_watts, created_at, updated_at) VALUES ('Watty', 150, 'x', 'x')").run().lastInsertRowid);
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('electricityPrice', '0.30')").run();
+  check.forgetFits();
+  const all = await estimatePrintCost(db, { filePath: '/lib/cost.3mf', printerId: watt, hours: 4, quantity: 2 });
+  const pinkPerKg =
+    Math.round(db.prepare("SELECT SUM(purchase_price) / SUM(initial_weight) AS p FROM spools WHERE material = 'PLA' AND purchase_price > 0").get().p * 100000) /
+    100;
+  const byLabel = Object.fromEntries(all.lines.map((line) => [line.spool, line]));
+  assert.deepStrictEqual([byLabel.Pink.grams, byLabel.Pink.cost, byLabel.Pink.basis], [100, 2, 'spool'], '50 g a copy, 2 copies, at 20 for 1 kg');
+  assert.deepStrictEqual([byLabel.Orange.basis, byLabel.Orange.perKg], ['material', pinkPerKg], 'no price: what PLA costs on average');
+  assert.deepStrictEqual([byLabel.Green.cost, byLabel.Green.basis], [null, 'none']);
+  assert.strictEqual(all.unpriced, 1);
+  assert.deepStrictEqual([all.seconds, all.watts, all.kwh, all.electricityCost], [14400, 150, 0.6, 0.18], '4 h at 150 W, 0.30 a kWh');
+  assert.strictEqual(all.total, Math.round((all.filamentCost + 0.18) * 100) / 100);
+  const plateOne = await estimatePrintCost(db, { filePath: '/lib/cost.3mf', plates: [1] });
+  assert.deepStrictEqual(plateOne.lines.map((line) => line.spool).sort(), ['Orange', 'Pink'], 'one plate');
+  assert.deepStrictEqual(
+    [plateOne.seconds, plateOne.watts, plateOne.electricityCost],
+    [null, null, null],
+    'no slicer time in a missing file, no printer: no electricity'
+  );
+  await assert.rejects(() => estimatePrintCost(db, { filePath: '/lib/nope.3mf' }), /Model not found/);
+  await assert.rejects(() => estimatePrintCost(db, { filePath: '/lib/cost.3mf', watts: -1 }), /watts/);
+});
+
 (async () => {
   try {
     for (const [name, fn] of tests) {

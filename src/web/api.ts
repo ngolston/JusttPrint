@@ -398,6 +398,44 @@ export interface FilamentUse {
   };
 }
 
+/** What a print costs (src/server/print-cost.js; docs/plan-10.1.md, Phase 8). */
+export interface PrintCost {
+  currency: string;
+  quantity: number;
+  /** The filament the model needs is known. */
+  known: boolean;
+  lines: {
+    label: string;
+    color: string | null;
+    spool: string | null;
+    grams: number | null;
+    perKg: number | null;
+    cost: number | null;
+    basis: 'spool' | 'material' | 'none';
+  }[];
+  grams: number;
+  filamentCost: number;
+  /** Colors with no price to go on. */
+  unpriced: number;
+  seconds: number | null;
+  watts: number | null;
+  pricePerKWh: number | null;
+  kwh: number | null;
+  electricityCost: number | null;
+  total: number;
+}
+
+export const printCost = {
+  estimate: (input: {
+    filePath: string;
+    plates?: number[] | null;
+    printerId?: number | null;
+    quantity?: number;
+    hours?: number | null;
+    watts?: number | null;
+  }) => callAction<PrintCost>('get-print-cost', input)
+};
+
 /** When a spool runs out at the rate prints used it over the last 30 days (filament-forecast.js). */
 export interface SpoolForecast {
   perDay: number;
@@ -537,6 +575,8 @@ export interface Printer {
   api_url?: string | null;
   /** An API key or access code is kept on the server (it is never sent to the browser). */
   has_api_secret?: boolean;
+  /** Watts while printing (cost estimate). */
+  power_watts?: number | null;
   status?: string | null;
   last_seen_at?: string | null;
 }
@@ -579,6 +619,8 @@ export interface PrinterInput {
   apiUrl?: string | null;
   /** Given only to change it: a value sets it, '' clears it. */
   apiSecret?: string | null;
+  /** Watts while printing; null clears it, left out keeps it. */
+  powerWatts?: number | null;
 }
 
 export interface PrinterReminder {

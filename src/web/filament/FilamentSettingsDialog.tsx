@@ -31,6 +31,10 @@ export function FilamentSettingsDialog() {
   // Units and date format (docs/plan-10.1.md, Phase 6); saving them reloads the page.
   const [units, setUnits] = useState<Units>(getUnits());
   const unitsChanged = JSON.stringify(units) !== JSON.stringify(getUnits());
+  // The price of electricity per kWh, for the cost of a print (Phase 8).
+  const [kwhSaved, setKwhSaved] = useState('');
+  const [kwh, setKwh] = useState('');
+  const kwhChanged = kwh.trim() !== kwhSaved;
   const setUnit =
     <K extends keyof Units>(key: K) =>
     (event: { target: { value: string } }) =>
@@ -41,6 +45,14 @@ export function FilamentSettingsDialog() {
       exposeGlobal('openFilamentSettings', () => {
         setError('');
         setUnits(getUnits());
+        settings.get<string | null>('electricityPrice').then(
+          (value) => {
+            const text = value === null || value === undefined ? '' : String(value);
+            setKwhSaved(text);
+            setKwh(text);
+          },
+          () => {}
+        );
         if (!dialogRef.current?.open) dialogRef.current?.showModal();
       }),
     []
@@ -54,6 +66,12 @@ export function FilamentSettingsDialog() {
       if (code !== saved) {
         await settings.save('currency', code);
         currencyChanged(code);
+      }
+      if (kwhChanged) {
+        const value = kwh.trim().replace(',', '.');
+        if (value && (!Number.isFinite(Number(value)) || Number(value) < 0)) throw new Error('The electricity price is a number, such as 0.30');
+        await settings.save('electricityPrice', value);
+        setKwhSaved(value);
       }
       if (unitsChanged) {
         await saveUnits(units);
@@ -88,7 +106,7 @@ export function FilamentSettingsDialog() {
               {error}
             </span>
           )}
-          <Button variant="primary" disabled={busy || (code === saved && !unitsChanged)} onClick={() => void save()} id="filament-settings-save">
+          <Button variant="primary" disabled={busy || (code === saved && !unitsChanged && !kwhChanged)} onClick={() => void save()} id="filament-settings-save">
             Save
           </Button>
           <Button onClick={() => dialogRef.current?.close()}>Cancel</Button>
@@ -108,6 +126,13 @@ export function FilamentSettingsDialog() {
         <p className="setting-description">
           What you pay for spools in. Prices, the reorder list, what your spools are worth and the filament cost on Statistics show in it (for example{' '}
           {formatMoney(19.99, code)}). Amounts already entered are not converted.
+        </p>
+      </div>
+      <div className="form-group">
+        <label htmlFor="filament-electricity-price">Electricity price per kWh ({code})</label>
+        <input id="filament-electricity-price" inputMode="decimal" placeholder="0.30" value={kwh} onChange={(event) => setKwh(event.target.value)} />
+        <p className="setting-description">
+          For the cost of a print on a model&apos;s page, with each printer&apos;s power (Printers). Empty: no electricity in the cost.
         </p>
       </div>
       <div className="form-group">

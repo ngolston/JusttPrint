@@ -9,6 +9,7 @@ import {
   matchesSearch,
   numberOrNull,
   parseViews,
+  printCostOf,
   runsOutShort,
   runsOutText,
   sortSpools,
@@ -132,5 +133,12 @@ describe('runout text (10.2)', () => {
     expect(runsOutText({ perDay: 0.3, daysLeft: 0.4, runsOut: '2026-10-31' })).toMatch(/^Runs out today .* at under 1 g a day$/);
     expect(runsOutText(null)).toBe('');
     expect(runsOutShort({ perDay: 5, daysLeft: 1.2, runsOut: '2026-11-01' })).toBe('1 day');
+  });
+});
+
+describe('printCostOf (10.2)', () => {
+  it("adds filament at its price per kg and electricity at the printer's watts", () => {
+    expect(printCostOf({ grams: 250, perKg: 20, hours: 4, watts: 150, perKWh: 0.3 })).toEqual({ filamentCost: 5, electricityCost: 0.18, total: 5.18 });
+    expect(printCostOf({ grams: -5, perKg: 20, hours: 0, watts: 150, perKWh: 0.3 }).total).toBe(0);
   });
 });

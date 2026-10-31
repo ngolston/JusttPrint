@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type Reac
 import { formatWeight } from '../filament/format';
 import { fromWeightInput, toWeightInput, weightInputUnit, weightUnitName } from '../units';
 import { createPortal } from 'react-dom';
-import { filament, models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer, type Spool } from '../api';
+import { callAction, filament, models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer, type Spool } from '../api';
 import { ColorDot } from '../components/Filament';
 import { shrinkImage } from '../filament/photos';
 import { PrintPhotos } from './PrintPhotos';
@@ -230,7 +230,15 @@ function LogPrintDialog() {
     ]);
     setPartList(allParts);
     const found = (kit?.parts || []).filter((part) => part.plate > 0).map((part) => ({ plate: part.plate, label: part.label }));
-    setPlateSeconds(new Map((kit?.parts || []).filter((part) => Number(part.seconds) > 0).map((part) => [part.plate, Number(part.seconds)])));
+    const kitSeconds = new Map((kit?.parts || []).filter((part) => Number(part.seconds) > 0).map((part) => [part.plate, Number(part.seconds)]));
+    setPlateSeconds(kitSeconds);
+    // A sliced 3MF with one plate is not a kit: ask for its print time (docs/plan-10.1.md, Phase 8).
+    if (!kitSeconds.size && paths.length === 1 && /\.3mf$/i.test(paths[0])) {
+      callAction<{ seconds: number | null }>('get-print-time', paths[0], null).then(
+        (found) => found.seconds && setPlateSeconds(new Map([[0, found.seconds]])),
+        () => {}
+      );
+    }
     if (found.length > 1) {
       setPlates(found);
       setChosenPlates(new Set(found.map((p) => p.plate)));
