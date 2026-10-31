@@ -255,3 +255,25 @@ test('Spoolman: nested and flattened exports, vendors, filaments and places, and
   assert.deepStrictEqual([dual.color_hex, dual.color_hex_2], ['#ff0000', '#0000ff']);
   assert.throws(() => importSpoolman(db, { hello: 1 }), /not a Spoolman export/);
 });
+
+test('brands (10.1): rename, rename onto another to merge, delete; profiles and spools follow', () => {
+  const db = fresh();
+  const pla = profiles.saveProfile(db, { brand_name: 'Bambu', material: 'PLA', color_name: 'Black' });
+  const petg = profiles.saveProfile(db, { brand_name: 'bambu lab', material: 'PETG' });
+  const spool = spools.saveSpool(db, { profile_id: pla.id, brand_name: 'bambu lab', material: 'PLA', initial_weight: 1000 });
+  const [bambu, bambuLab] = ['Bambu', 'bambu lab'].map((name) => profiles.listBrands(db).find((b) => b.name === name));
+  assert.throws(() => profiles.saveBrand(db, { id: bambu.id, name: ' ' }), /needs a name/);
+  const renamed = profiles.saveBrand(db, { id: bambuLab.id, name: 'Bambu Lab', website: 'https://bambulab.com' });
+  assert.deepStrictEqual([renamed.name, renamed.website, renamed.merged], ['Bambu Lab', 'https://bambulab.com', false]);
+  const merged = profiles.saveBrand(db, { id: bambu.id, name: 'BAMBU LAB' });
+  assert.deepStrictEqual([merged.id, merged.name, merged.merged], [bambuLab.id, 'Bambu Lab', true], 'the other brand is kept');
+  assert.deepStrictEqual(
+    profiles.listBrands(db).map((b) => [b.name, b.profile_count, b.spool_count]),
+    [['Bambu Lab', 2, 1]]
+  );
+  assert.strictEqual(profiles.getProfile(db, pla.id).brand_name, 'Bambu Lab');
+  assert.ok(profiles.deleteBrand(db, bambuLab.id));
+  assert.deepStrictEqual([profiles.getProfile(db, petg.id).brand_id, spools.getSpool(db, spool.id).brand_id], [null, null]);
+  assert.ok(profiles.deleteProfile(db, pla.id));
+  assert.deepStrictEqual([spools.getSpool(db, spool.id).profile_id, spools.getSpool(db, spool.id).material], [null, 'PLA'], 'a spool keeps its own material');
+});

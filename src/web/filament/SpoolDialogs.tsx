@@ -22,9 +22,9 @@ import { formatWeight, numberOrNull } from './format';
  * to reload (jp:library-changed), then closes.
  */
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function Field({ label, htmlFor, hint, wide, children }: { label: string; htmlFor?: string; hint?: ReactNode; wide?: boolean; children: ReactNode }) {
+export function Field({ label, htmlFor, hint, wide, children }: { label: string; htmlFor?: string; hint?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
     <div className={cx('jp-edit__field', wide && 'jp-edit__field--wide')}>
       <label className="jp-edit__label" htmlFor={htmlFor}>
@@ -37,7 +37,7 @@ function Field({ label, htmlFor, hint, wide, children }: { label: string; htmlFo
 }
 
 /** A form inside a modal: Enter saves, the footer has Cancel and the save button, errors show above it. */
-function FormModal({
+export function FormModal({
   id,
   title,
   onClose,
@@ -91,7 +91,7 @@ function FormModal({
 }
 
 /** Runs a save: busy while it runs, its error shown, `onDone` after it worked. */
-function useSave() {
+export function useSave() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const run = async (work: () => Promise<unknown>, onDone: () => void) => {
@@ -109,8 +109,8 @@ function useSave() {
   return { busy, error, run };
 }
 
-const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PCTG', 'HIPS', 'PVA', 'PET', 'PP'];
-const text = (value: string | number | null | undefined) => (value === null || value === undefined ? '' : String(value));
+export const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PCTG', 'HIPS', 'PVA', 'PET', 'PP'];
+export const text = (value: string | number | null | undefined) => (value === null || value === undefined ? '' : String(value));
 const dateInput = (value: string | null | undefined) => (value ? String(value).slice(0, 10) : '');
 
 /** What the spool form starts from when it adds a spool from a catalogue entry. */

@@ -7,6 +7,8 @@ const { ipcMain } = require('../runtime');
 const profiles = require('../../core/filament-profiles');
 
 ipcMain.handle('get-filament-brands', () => profiles.listBrands(database.db));
+ipcMain.handle('save-filament-brand', (event, brand) => profiles.saveBrand(database.db, brand || {}));
+ipcMain.handle('delete-filament-brand', (event, id) => profiles.deleteBrand(database.db, Number(id)));
 ipcMain.handle('get-filament-profiles', (event, options) => profiles.listProfiles(database.db, options || {}));
 ipcMain.handle('save-filament-profile', (event, profile) => profiles.saveProfile(database.db, profile));
 ipcMain.handle('delete-filament-profile', (event, id) => profiles.deleteProfile(database.db, Number(id)));

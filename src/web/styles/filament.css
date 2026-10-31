@@ -737,3 +737,20 @@
   color: var(--jp-danger-text);
   font-size: var(--jp-text-meta);
 }
+
+/* Filaments and brands (docs/plan-10.1.md, Phase 1) */
+.jp-filaments__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-2);
+  margin-bottom: var(--jp-space-3);
+}
+.jp-filaments__list {
+  max-height: 55vh;
+}
+.jp-filaments__row {
+  gap: var(--jp-space-3);
+  padding: 8px 10px;
+}

@@ -610,14 +610,21 @@ export interface FilamentProfile {
   bed_temp_max: number | null;
   drying_temp: number | null;
   drying_hours: number | null;
+  max_print_speed?: number | null;
   product_url: string | null;
+  photo_url?: string | null;
+  notes?: string | null;
   source: 'manual' | 'catalog' | 'spoolman';
   spool_count?: number;
 }
 
+/** A filament profile as the Filaments dialog saves it (brand by name or id). */
+export type FilamentProfileInput = Partial<Omit<FilamentProfile, 'id' | 'spool_count' | 'source'>> & { id?: number; material: string };
+
 export interface FilamentBrand {
   id: number;
   name: string;
+  website?: string | null;
   profile_count: number;
   spool_count: number;
 }
@@ -871,6 +878,11 @@ export const filament = {
   importSpoolman: (data: unknown) => callAction<SpoolmanImport>('import-spoolman', data),
   brands: () => callAction<FilamentBrand[]>('get-filament-brands'),
   profiles: (options: { search?: string; material?: string } = {}) => callAction<FilamentProfile[]>('get-filament-profiles', options),
+  saveProfile: (profile: FilamentProfileInput) => callAction<FilamentProfile>('save-filament-profile', profile),
+  removeProfile: (id: number) => callAction<boolean>('delete-filament-profile', id),
+  /** Renaming onto another brand's name merges them (`merged`). */
+  saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
+  removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
   searchCatalog: (query: string, limit = 50) =>
     callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
   addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),

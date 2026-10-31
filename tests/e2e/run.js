@@ -4147,6 +4147,50 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.1 Phase 1 (docs/plan-10.1.md): the Filaments dialog: filaments and brands.
+    try {
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-filament-profiles', { timeout: 15000 });
+      await page.click('#jp-filament-profiles');
+      await page.waitForSelector('#jp-filaments-dialog', { timeout: 10000 });
+      await page.click('#jp-filament-new');
+      await page.waitForSelector('#jp-profile-form-form', { timeout: 10000 });
+      await page.fill('#jp-profile-brand', 'E2E Profile Brand');
+      await page.fill('#jp-profile-material', 'PETG');
+      await page.fill('#jp-profile-color-name', 'Teal');
+      await page.fill('#jp-profile-nozzle-min', '230');
+      await page.fill('#jp-profile-nozzle-max', '250');
+      await page.click('#jp-profile-form button[type="submit"]');
+      await page.waitForSelector('#jp-filaments-dialog', { timeout: 10000 });
+      check(
+        'a new filament shows in the Filaments dialog with its temperatures',
+        await page.waitForSelector('#jp-filaments-dialog li:has-text("E2E Profile Brand"):has-text("230–250 °C")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#jp-filaments-dialog [role="tab"]:has-text("Brands")');
+      await page.click('#jp-filaments-dialog button[aria-label="Rename E2E Profile Brand"]');
+      await page.fill('#jp-filaments-dialog input[aria-label="New name for E2E Profile Brand"]', 'E2E Renamed Brand');
+      await page.click('#jp-filaments-dialog .jp-places__rename button[type="submit"]');
+      const renamed = await page.waitForSelector('#jp-filaments-dialog li:has-text("E2E Renamed Brand")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+      const profile = ((await invoke(base, session, 'get-filament-profiles', [{ search: 'Teal' }])).result || []).find(
+        (p) => p.material === 'PETG' && p.print_temp_min === 230 && p.print_temp_max === 250
+      );
+      check('renaming a brand renames it for its filaments', renamed && profile?.brand_name === 'E2E Renamed Brand', JSON.stringify(profile?.brand_name));
+      await page.click('#jp-filaments-dialog button:has-text("Done")').catch(() => {});
+      if (profile) await invoke(base, session, 'delete-filament-profile', [profile.id]);
+      const brand = ((await invoke(base, session, 'get-filament-brands')).result || []).find((b) => b.name === 'E2E Renamed Brand');
+      if (brand) check('a brand can be deleted', (await invoke(base, session, 'delete-filament-brand', [brand.id])).result === true);
+    } catch (error) {
+      check('the 10.1 Phase 1 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6229,6 +6273,7 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  check('viewers cannot change brands', (await invoke(base, viewer, 'save-filament-brand', [{ name: 'Viewer Brand' }])).status === 403);
   await invoke(base, editor, 'save-setting', ['currency', 'GBP']);
   check('editors cannot change the currency', (await invoke(base, admin, 'get-setting', ['currency'])).result !== 'GBP');
   check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);

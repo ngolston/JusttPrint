@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CircleDot, MapPin, Plus, Tag, Upload } from 'lucide-react';
-import { alerts, filament, printers as printerApi, type FilamentSummary, type Printer, type PrinterLoads, type ReorderItem, type Spool } from '../api';
+import { BookOpen, CircleDot, Layers, MapPin, Plus, Tag, Upload } from 'lucide-react';
+import {
+  alerts,
+  filament,
+  printers as printerApi,
+  type FilamentProfile,
+  type FilamentSummary,
+  type Printer,
+  type PrinterLoads,
+  type ReorderItem,
+  type Spool
+} from '../api';
 import { LabelsDialog, ReorderTile, ShoppingListDialog } from '../filament/ReorderAndLabels';
 import { LoadedStrip, loadedSpools } from '../printers/LoadedFilament';
 import { navigate } from '../shell/routes';
@@ -34,6 +44,7 @@ import {
   type SpoolPreset
 } from '../filament/SpoolDialogs';
 import { SpoolDrawer, type SpoolAction } from '../filament/SpoolDrawer';
+import { FilamentProfileDialog, FilamentsDialog } from '../filament/FilamentsDialog';
 
 const loadPage = async () => {
   const [spools, summary, printers, loads, reorder] = await Promise.all([
@@ -77,7 +88,8 @@ type Dialog =
   | { kind: 'spool'; spool?: Spool; preset?: SpoolPreset }
   | { kind: 'weigh' | 'dry' | 'move'; spool: Spool }
   | { kind: 'finish-drying'; sessionId: number; name: string }
-  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' };
+  | { kind: 'profile'; profile: FilamentProfile | null }
+  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' | 'filaments' };
 
 /** "24 spools · 3 running low · 1 drying". */
 function headline(summary: FilamentSummary, drying: number) {
@@ -249,8 +261,11 @@ export function FilamentPage({ section = '' }: { section?: string }) {
             {summary ? headline(summary, drying.length) : 'The filament you own, how much is left, and where it is.'}
           </p>
         </div>
-        <EditOnly>
-          <div className="jp-printers__header-actions">
+        <div className="jp-printers__header-actions">
+          <Button icon={Layers} onClick={() => setDialog({ kind: 'filaments' })} id="jp-filament-profiles">
+            Filaments
+          </Button>
+          <EditOnly>
             <Button icon={MapPin} onClick={() => setDialog({ kind: 'places' })} id="jp-filament-places">
               Places
             </Button>
@@ -260,8 +275,8 @@ export function FilamentPage({ section = '' }: { section?: string }) {
             <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'spool' })}>
               Add spool
             </Button>
-          </div>
-        </EditOnly>
+          </EditOnly>
+        </div>
       </header>
 
       {!data || !summary || !spools ? (
@@ -336,6 +351,14 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'catalog' && <CatalogDialog onClose={close} onPicked={(preset) => setDialog({ kind: 'spool', preset })} />}
       {dialog?.kind === 'spoolman' && <SpoolmanDialog onClose={close} />}
       {dialog?.kind === 'places' && <PlacesDialog onClose={close} />}
+      {dialog?.kind === 'filaments' && (
+        <FilamentsDialog
+          onClose={close}
+          onEdit={(profile) => setDialog({ kind: 'profile', profile })}
+          onAddSpool={(profile) => setDialog({ kind: 'spool', preset: { profile } })}
+        />
+      )}
+      {dialog?.kind === 'profile' && <FilamentProfileDialog profile={dialog.profile} onClose={() => setDialog({ kind: 'filaments' })} />}
       {dialog?.kind === 'shopping' && <ShoppingListDialog items={data?.reorder || []} onClose={close} />}
       {dialog?.kind === 'labels' && <LabelsDialog spools={data?.spools || []} onClose={close} />}
     </div>

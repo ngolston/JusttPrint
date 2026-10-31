@@ -4,6 +4,9 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Changes:**
+- **Filaments and brands** (Filament page → Filaments): every filament you have, from the catalogue, Spoolman, FilamentHub or added by hand, with search. Add a spool from one, edit its details (brand, color, temperatures, drying, product page) or delete it; its spools keep their material and color. Add, rename and delete brands; renaming a brand to the name of another merges them. Everyone can look; editors change them.
+
 ## [10.0.0] - 2026-10-30
 
 JusttPrint 10 merges FilamentHub into JusttPrint (docs/merge-10.md) and brings the Bento look.

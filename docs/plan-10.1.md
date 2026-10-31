@@ -1,0 +1,45 @@
+# JusttPrint 10.1 and 10.2: the rest of FilamentHub
+
+JusttPrint 10.0 ([merge-10.md](merge-10.md)) brought FilamentHub's spools, the filament check, AMS slots, the queue, alerts and the FilamentHub import. A comparison with FilamentHub's code (`app/api/v1/endpoints`, `frontend/src/features`) found what is still missing: parts 10.0 started but left half done, and FilamentHub features the merge plan never listed. This plan brings them over.
+
+## Decisions
+
+- **Two releases.** 10.1.0 finishes what 10.0 started (phases 1–5); 10.2.0 adds the FilamentHub features 10.0 never had (phases 6–13). Both are minor releases: new features, no breaking change. Work on the `release-10.1` branch, then `release-10.2`; every phase leaves `npm test` and `npm run test:e2e` green.
+- **Same rules as 10.0.** Spools, filaments, brands and places are shared by the whole library; editors change them, viewers see them, admins change settings. Units and currency are one setting for the library, not per person ([merge-10.md](merge-10.md), Settled).
+- **Pictures live on the data volume**, as thumbnails and model versions do, never as base64 in the database. Backups include them.
+- **Nothing talks to printers in 10.1 or 10.2**, as in 10.0: no sending jobs; OrcaSlicer stays the way to print. Bambu live status (LAN mode) stays a later feature (TODO.md).
+- **Left out on purpose:** FilamentHub's registration, forgot-password and email verification (JusttPrint admins create accounts), onboarding, its dashboard and command palette (Home and Ctrl/⌘ K), and projects until the open question in merge-10.md is decided.
+
+## Phases
+
+### 10.1.0: finish what 10.0 started
+
+1. **Filaments and brands.** A Filaments dialog on the Filament page: every filament profile (catalogue, Spoolman, FilamentHub and your own) with search, add, edit and delete, and **Add spool** from one; a Brands tab to rename (two brands with the same name merge), and delete. Server: `saveBrand` and `deleteBrand` in `src/core/filament-profiles.js`, `save-filament-brand` and `delete-filament-brand` (editors). FilamentHub: `features/filaments`, `endpoints/brands.py`.
+2. **Photos.** Spool and filament photos (upload or a link; shown in the spool drawer, on spool cards and in the Filaments dialog); print photos on logged prints (`print_event_photos`, made in 10.0 and unused), added in Log Print and on a print in the history, shown on the model page. Files under `filament-photos/` and `print-photos/` in the data folder, removed with their spool or print, in backups. FilamentHub: `POST /spools/{id}/photo`, `/filaments/{id}/photo`, `/print-jobs/{id}/photos`.
+3. **Print time.** Log Print takes how long the print took (filled in from the 3MF plate's estimate when known); the print history and Statistics show it (print hours per month, per printer). `print_events.duration_seconds` exists since 10.0. MCP `log_print_event` takes `durationMinutes`.
+4. **The spool list.** A table view beside the cards (sortable columns: name, material, color, grams left, %, place, price, last used), saved views (a search and filter kept by name, per person, as FilamentHub's `useSpoolViews`), and **How many** in Add spool to add several of the same spool at once (FilamentHub `POST /spools/bulk`).
+5. **QR labels anyone can scan.** An admin setting, off by default: a label's QR opens a read-only page for that spool (name, material, color, grams left, where it is) without signing in, through a token per spool like share links (`src/core/share-links.js`), not the spool's id. Labels for places too: their page lists the spools in them. FilamentHub: `features/public`, `endpoints/public.py`.
+
+Release 10.1.0 (CLAUDE.md steps).
+
+### 10.2.0: FilamentHub features 10.0 never had
+
+6. **Units and formats.** Weight in g, kg, oz or lb; temperature in °C or °F; length in mm or in; date format. In Filament settings beside the currency; every page that shows grams, temperatures or dates uses them; the database keeps grams, °C and mm. FilamentHub: `settings/UnitsSection.tsx`.
+7. **Runout forecast and more statistics.** Per spool: grams used per day over the last 30 days and the date it will run out at that rate (spool drawer, the reorder list, a "Runs out soon" Home tile). Statistics adds daily and cumulative use, weekly use by material, and cost per kg by material. FilamentHub: `analytics/forecast`, `daily`, `by-material`, `cost`.
+8. **Cost estimator.** On a model's page (and as a small calculator on Statistics): what a print costs, its plates' grams at the chosen spools' prices plus electricity (the printer's watts, the print time, a price per kWh in Filament settings). FilamentHub: `features/cost-estimator`.
+9. **More alerts, per person.** Besides low stock: a spool runs out soon (from the forecast), a spool is used up, drying is done (its target time passed), a print was logged as failed; a weekly email digest; quiet hours. Each person picks which they get in the bell, by email and on Discord (Settings → Account). FilamentHub: `settings/NotificationsSection.tsx`, `users/me/notification-prefs`.
+10. **Spool export and CSV import.** Export spools as CSV or JSON (Filament page); import a CSV with a column mapping step. FilamentHub: `endpoints/data.py` (`/import/csv`, `/export/csv`, `/export/json`).
+11. **Home Assistant.** Settings → Integrations → Home Assistant (admin): its address and a long-lived token; JusttPrint pushes one sensor per spool (grams left, with material, color and percent as attributes) after each change and hourly. FilamentHub: `services/home_assistant.py`.
+12. **Sign-in security.** Two-factor sign-in with an authenticator app (TOTP) per account, with recovery codes; a list of where you are signed in, ending one or all; API keys per person with a role no higher than theirs, beside the one backend token. FilamentHub: `endpoints/auth.py` (`/totp/*`, `/sessions`), `users/me/api-keys`.
+13. **Community filaments.** The catalogue also searches SpoolmanDB, and an admin can refresh both from the internet (Settings → Integrations), instead of only the copy bundled at build time. FilamentHub: `endpoints/community.py`, `services/spoolmandb.py`, `services/filamentprofiles.py`.
+
+Release 10.2.0.
+
+## Progress
+
+- **Phase 1 done.** Filament page → **Filaments** (everyone can open it; editors change things): `filament/FilamentsDialog.tsx` lists every profile with search (brand, name, material, color), its diameter, nozzle temperatures, where it came from and its spool count, with **Add spool** (the spool form starts from it), edit (`FilamentProfileDialog`: brand, name, material, color, diameter, density, max speed, nozzle and bed ranges, drying, product page, notes) and delete (its spools keep their material and color). The Brands tab renames, adds and deletes brands; `saveBrand` in `src/core/filament-profiles.js` merges a brand renamed to another's name (filaments and spools move, the website is kept when the other has none), `deleteBrand` leaves its filaments and spools without a brand. Actions `save-filament-brand`, `delete-filament-brand` (editors). Tests: `tests/filament.test.js` (brands), e2e (add, rename, delete; viewers refused).
+
+## Open questions
+
+- **Phase 5:** should scanning a label also offer **Sign in to edit**, or only show the spool?
+- **Phase 12:** must admins be able to require two-factor sign-in for everyone?
