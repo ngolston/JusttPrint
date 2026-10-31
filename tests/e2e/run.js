@@ -6817,8 +6817,10 @@ async function accountChecks(base, wsUrl, admin) {
     await invoke(base, admin, 'create-user', [{ username: 'e2e-2fa', password: 'e2e-2fa-pass', role: 'editor' }]);
     const first = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
     const second = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
-    const started = (await invoke(base, first, 'start-two-factor')).result;
-    const turnedOn = (await invoke(base, first, 'enable-two-factor', [totp.codeAt(started.secret, totp.stepOf(Date.now()))])).result;
+    const starting = await invoke(base, first, 'start-two-factor');
+    const started = starting.result || {};
+    check('two-factor setup starts with a secret and a QR code', Boolean(started.secret && started.qrSvg), JSON.stringify(starting));
+    const turnedOn = started.secret ? (await invoke(base, first, 'enable-two-factor', [totp.codeAt(started.secret, totp.stepOf(Date.now()))])).result : null;
     check(
       'two-factor sign-in turns on with a code from the app and gives ten recovery codes',
       turnedOn?.recoveryCodes?.length === 10,

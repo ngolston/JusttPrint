@@ -1,6 +1,6 @@
 {
   "name": "justtprint",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "JusttPrint",
   "main": "src/server/index.js",
   "scripts": {
@@ -64,7 +64,6 @@
     "lucide-react": "^1.52.0",
     "mammoth": "1.13.0",
     "prettier": "^3.9.9",
-    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^7.0.2",
@@ -89,6 +88,7 @@
     "nodemailer": "^6.10.1",
     "openai": "^6.9.1",
     "puppeteer": "^25.12.0",
+    "qrcode": "^1.5.4",
     "selfsigned": "^5.5.0",
     "three": "^0.181.2",
     "ws": "^8.14.2"
