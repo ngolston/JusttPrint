@@ -1,4 +1,5 @@
 import { PrintPanel } from '../model/PrintPanel';
+import { PrintPhotos } from '../print/PrintPhotos';
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { ArrowLeft, Box, ClipboardPen, Copy, Download, ExternalLink, FileBox, FolderPlus, FolderUp, Heart, MoreHorizontal, Pencil, Upload } from 'lucide-react';
 import { callAction, dedup, downloadUrl, LIBRARY_CHANGED, models as modelApi, prints, type PrintEvent } from '../api';
@@ -13,7 +14,7 @@ import { directoryLabel, folderCrumbs, folderFilterFor, formatFileSize } from '.
 import { stlHomeDirectories } from '../scan/stlHome';
 import { MakerWorldSection } from '../makerworld/MakerWorldSection';
 import { onServerEvent, showMessage } from '../page';
-import { effectiveStatus, formatPrintDate, OUTCOME_LABELS, STATUS_LABELS, type PrintModel, type PrintStatus } from '../print/printStatus';
+import { effectiveStatus, formatDuration, formatPrintDate, OUTCOME_LABELS, STATUS_LABELS, type PrintModel, type PrintStatus } from '../print/printStatus';
 import { isPreviewablePath } from '../preview/studio';
 import { useCan } from '../session';
 import { loadSlicers, type Slicer } from '../slicer';
@@ -727,12 +728,16 @@ export function ModelView({
         <ul className="jp-model-page__history">
           {events.map((entry) => (
             <li key={entry.id}>
-              <span>{formatPrintDate(entry.printed_at)}</span>
+              <span>
+                {formatPrintDate(entry.printed_at)}
+                {entry.duration_seconds ? ` · ${formatDuration(entry.duration_seconds)}` : ''}
+              </span>
               <span>
                 {OUTCOME_LABELS[entry.outcome] || entry.outcome}
                 {entry.quantity > 1 ? ` ×${entry.quantity}` : ''}
               </span>
               {entry.notes && <span className="jp-meta">{entry.notes}</span>}
+              <PrintPhotos eventId={entry.id} photos={entry.photos} canEdit={canEdit} />
               {canEdit && <DeletePrintButton id={entry.id} label={formatPrintDate(entry.printed_at)} onDeleted={() => void load()} />}
             </li>
           ))}

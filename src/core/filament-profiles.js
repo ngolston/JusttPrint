@@ -58,6 +58,43 @@ function ensureBrand(db, name, extra = {}) {
   );
 }
 
+/**
+ * Rename a brand or change its website. Renaming onto another brand's name merges the two: its
+ * filaments and spools move to that brand, and this one goes. Returns the brand kept.
+ * @param {any} db
+ * @param {{ id?: number | string, name?: string, website?: string | null }} input
+ */
+function saveBrand(db, input) {
+  const id = v.id(input && input.id);
+  const name = v.text(input && input.name, 100);
+  if (!name) throw new Error('A brand needs a name');
+  const at = v.now();
+  if (!id) {
+    const made = ensureBrand(db, name, { website: input.website });
+    return db.prepare('SELECT * FROM filament_brands WHERE id = ?').get(made);
+  }
+  const brand = db.prepare('SELECT * FROM filament_brands WHERE id = ?').get(id);
+  if (!brand) throw new Error('That brand no longer exists');
+  const other = db.prepare('SELECT * FROM filament_brands WHERE name = ? COLLATE NOCASE AND id != ?').get(name, id);
+  return db.transaction(() => {
+    if (other) {
+      db.prepare('UPDATE filament_profiles SET brand_id = ?, updated_at = ? WHERE brand_id = ?').run(other.id, at, id);
+      db.prepare('UPDATE spools SET brand_id = ?, updated_at = ? WHERE brand_id = ?').run(other.id, at, id);
+      if (!other.website && brand.website) db.prepare('UPDATE filament_brands SET website = ? WHERE id = ?').run(brand.website, other.id);
+      db.prepare('DELETE FROM filament_brands WHERE id = ?').run(id);
+      return { ...db.prepare('SELECT * FROM filament_brands WHERE id = ?').get(other.id), merged: true };
+    }
+    const website = input.website === undefined ? brand.website : v.url(input.website);
+    db.prepare('UPDATE filament_brands SET name = ?, website = ?, updated_at = ? WHERE id = ?').run(name, website, at, id);
+    return { ...db.prepare('SELECT * FROM filament_brands WHERE id = ?').get(id), merged: false };
+  })();
+}
+
+/** Delete a brand; its filaments and spools keep everything else, without a brand. */
+function deleteBrand(db, id) {
+  return db.prepare('DELETE FROM filament_brands WHERE id = ?').run(id).changes > 0;
+}
+
 /** Profiles with their brand name, A–Z by brand then name; `search` matches brand, name, material or color. */
 function listProfiles(db, { search = '', material = '' } = {}) {
   const where = [];
@@ -80,17 +117,25 @@ function listProfiles(db, { search = '', material = '' } = {}) {
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
        ORDER BY b.name COLLATE NOCASE, p.name COLLATE NOCASE`
     )
-    .all(...args);
+    .all(...args)
+    .map(withPhoto);
 }
+
+/** `photo`: an uploaded photo, else a link to one (docs/plan-10.1.md, Phase 2). */
+const withPhoto = (row) => ({ ...row, photo: row.photo_file ? `/api/photo/filament/${row.photo_file}` : row.photo_url || null });
 
 function getProfile(db, id) {
-  return (
-    db.prepare('SELECT p.*, b.name AS brand_name FROM filament_profiles p LEFT JOIN filament_brands b ON b.id = p.brand_id WHERE p.id = ?').get(id) || null
-  );
+  const row = db.prepare('SELECT p.*, b.name AS brand_name FROM filament_profiles p LEFT JOIN filament_brands b ON b.id = p.brand_id WHERE p.id = ?').get(id);
+  return row ? withPhoto(row) : null;
 }
 
-/** The checked columns of a profile from the page's form (brand by name or id). */
-function profileValues(db, input) {
+/**
+ * The checked columns of a profile from the page's form (brand by name or id).
+ * @param {any} db
+ * @param {any} input
+ * @param {any} [existing] The profile being changed: what the input leaves out stays.
+ */
+function profileValues(db, input, existing = null) {
   const material = v.text(input.material, 50);
   if (!material) throw new Error('A filament needs a material (PLA, PETG, …)');
   const name = v.text(input.name, 200) || [material, v.text(input.color_name, 100)].filter(Boolean).join(' ');
@@ -112,7 +157,7 @@ function profileValues(db, input) {
     drying_temp: v.number(input.drying_temp, 'Drying temperature', { min: 0, max: 150 }),
     drying_hours: v.number(input.drying_hours, 'Drying time', { min: 0, max: 200 }),
     product_url: v.url(input.product_url),
-    photo_url: v.url(input.photo_url),
+    photo_url: input.photo_url === undefined ? (existing?.photo_url ?? null) : v.url(input.photo_url),
     notes: v.text(input.notes, 5000),
     source,
     source_ref: v.text(input.source_ref, 100)
@@ -121,11 +166,12 @@ function profileValues(db, input) {
 
 /** Add a profile (no id) or change one. Returns the saved profile. */
 function saveProfile(db, input = {}) {
-  const values = profileValues(db, input);
-  const at = v.now();
   const id = v.id(input.id);
+  const existing = id ? getProfile(db, id) : null;
+  if (id && !existing) throw new Error('That filament no longer exists');
+  const values = profileValues(db, input, existing);
+  const at = v.now();
   if (id) {
-    if (!getProfile(db, id)) throw new Error('That filament no longer exists');
     db.prepare(`UPDATE filament_profiles SET ${PROFILE_COLUMNS.map((c) => `${c} = @${c}`).join(', ')}, updated_at = @at WHERE id = @id`).run({
       ...values,
       at,
@@ -223,4 +269,16 @@ function addFromCatalog(db, catalogId, { file } = {}) {
   return { profile, entry: publicItem(entry), materialType: entry.material === profile.material ? null : entry.material };
 }
 
-module.exports = { listBrands, ensureBrand, listProfiles, getProfile, saveProfile, deleteProfile, loadCatalog, searchCatalog, addFromCatalog };
+module.exports = {
+  listBrands,
+  ensureBrand,
+  saveBrand,
+  deleteBrand,
+  listProfiles,
+  getProfile,
+  saveProfile,
+  deleteProfile,
+  loadCatalog,
+  searchCatalog,
+  addFromCatalog
+};

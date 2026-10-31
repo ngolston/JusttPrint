@@ -143,6 +143,28 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
     }
   }
 
+  // Print time (docs/plan-10.1.md, Phase 3): the time logged with prints, failed ones too (the
+  // printer was busy), per month and printer; `timedPrints` says how many prints have a time.
+  const time = { seconds: 0, timedPrints: 0 };
+  const secondsByMonth = new Map(keys.map((key) => [key, 0]));
+  const secondsByPrinter = new Map();
+  if (hasEvents && columnExists(db, 'print_events', 'duration_seconds')) {
+    for (const row of db
+      .prepare(
+        `SELECT substr(pe.printed_at, 1, 7) AS month, pe.printer_id AS printer, SUM(pe.duration_seconds) AS seconds, COUNT(*) AS n
+         FROM print_events pe ${where ? `${where} AND` : 'WHERE'} pe.duration_seconds > 0
+         GROUP BY month, pe.printer_id`
+      )
+      .all(...params)) {
+      const seconds = Number(row.seconds) || 0;
+      time.seconds += seconds;
+      time.timedPrints += Number(row.n) || 0;
+      if (secondsByMonth.has(row.month)) secondsByMonth.set(row.month, (secondsByMonth.get(row.month) || 0) + seconds);
+      const key = row.printer == null ? 'none' : Number(row.printer);
+      secondsByPrinter.set(key, (secondsByPrinter.get(key) || 0) + seconds);
+    }
+  }
+
   // Library growth: models added per month in the same period.
   const added = new Map(keys.map((key) => [key, 0]));
   if (columnExists(db, 'models', 'dateAdded')) {
@@ -163,11 +185,11 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
     from: keys[0],
     to: keys[keys.length - 1],
     firstPrintMonth: firstPrint || null,
-    totals: { ...totals, successRate: rate(totals.printed, totals.failed) },
-    byMonth: keys.map((key) => ({ ...byMonth.get(key), added: added.get(key) })),
+    totals: { ...totals, successRate: rate(totals.printed, totals.failed), seconds: time.seconds, timedPrints: time.timedPrints },
+    byMonth: keys.map((key) => ({ ...byMonth.get(key), added: added.get(key), hours: Math.round(((secondsByMonth.get(key) || 0) / 3600) * 10) / 10 })),
     designers,
     models,
-    printers,
+    printers: printers.map((printer) => ({ ...printer, seconds: secondsByPrinter.get(printer.id == null ? 'none' : printer.id) || 0 })),
     // Filament used and its cost (Phase 10 of docs/merge-10.md; src/core/filament-stats.js).
     filament: require('./filament-stats').filamentStatistics(db, { from, months: keys }),
     currency: require('./filament-stats').currency(db)

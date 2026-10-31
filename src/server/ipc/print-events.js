@@ -105,7 +105,9 @@ ipcMain.handle('log-print-events-batch', announcing(logPrintEventsBatchHandler, 
 
 async function deletePrintEventHandler(event, eventId) {
   try {
-    return printEvents.deletePrintEvent(database.db, eventId);
+    const result = printEvents.deletePrintEvent(database.db, eventId);
+    require('../photos').sweepSoon();
+    return result;
   } catch (error) {
     console.error('Error deleting print event:', error);
     throw error;
@@ -113,6 +115,10 @@ async function deletePrintEventHandler(event, eventId) {
 }
 
 ipcMain.handle('delete-print-event', announcing(deletePrintEventHandler));
+
+// Photos of a logged print (docs/plan-10.1.md, Phase 2); its files go with the print (photos.js sweep).
+ipcMain.handle('add-print-photo', (event, eventId, photo) => require('../photos').addPrintPhoto(database.db, Number(eventId), photo || {}));
+ipcMain.handle('delete-print-photo', (event, photoId) => require('../photos').deletePrintPhoto(database.db, Number(photoId)));
 
 async function setPrintStatusHandler(event, payload) {
   try {

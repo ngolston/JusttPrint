@@ -111,3 +111,123 @@ export function formatMoney(amount: number | null | undefined, currency = 'USD')
     return `${value.toFixed(2)} ${currency}`;
   }
 }
+
+// ---- The spool list: sorting and saved views (docs/plan-10.1.md, Phase 4) ----
+
+export type SpoolSortKey = 'default' | 'name' | 'material' | 'color' | 'remaining' | 'pct' | 'place' | 'price' | 'lastUsed';
+export interface SpoolSort {
+  key: SpoolSortKey;
+  dir: 'asc' | 'desc';
+}
+export const DEFAULT_SORT: SpoolSort = { key: 'default', dir: 'asc' };
+export const SORT_LABELS: Record<SpoolSortKey, string> = {
+  default: 'In use first, fullest first',
+  name: 'Name',
+  material: 'Material',
+  color: 'Color',
+  remaining: 'Grams left',
+  pct: 'Percent left',
+  place: 'Where',
+  price: 'Price',
+  lastUsed: 'Last used'
+};
+
+/** A color's hue (0–360), then lightness, so a sort by color runs through the rainbow; grays last. */
+function colorKey(hex: string | null): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return 1e6;
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const light = (max + min) / 2;
+  if (max - min < 0.08) return 1000 + light;
+  let hue = 0;
+  if (max === r) hue = ((g - b) / (max - min)) % 6;
+  else if (max === g) hue = (b - r) / (max - min) + 2;
+  else hue = (r - g) / (max - min) + 4;
+  return ((hue * 60 + 360) % 360) + light / 10;
+}
+
+const pctOf = (spool: Spool) => (spool.initial_weight > 0 ? spool.remaining / spool.initial_weight : 0);
+
+/** The value a spool sorts by; null sorts last either way. */
+function sortValue(spool: Spool, key: SpoolSortKey): string | number | null {
+  switch (key) {
+    case 'name':
+      return spool.display_name.toLowerCase();
+    case 'material':
+      return `${spool.material} ${spool.material_type || ''}`.toLowerCase();
+    case 'color':
+      return spool.color_hex ? colorKey(spool.color_hex) : null;
+    case 'remaining':
+      return spool.remaining;
+    case 'pct':
+      return pctOf(spool);
+    case 'place':
+      return spoolWhere(spool).toLowerCase();
+    case 'price':
+      return spool.purchase_price;
+    case 'lastUsed':
+      return spool.last_used_at;
+    default:
+      return null;
+  }
+}
+
+/** The spools in the chosen order (a copy); `default` keeps the server's (in use first, fullest first). */
+export function sortSpools(spools: Spool[], sort: SpoolSort): Spool[] {
+  if (sort.key === 'default') return spools.slice();
+  const factor = sort.dir === 'desc' ? -1 : 1;
+  return spools
+    .map((spool, index) => ({ spool, index, value: sortValue(spool, sort.key) }))
+    .sort((a, b) => {
+      if (a.value === null || a.value === undefined) return b.value === null || b.value === undefined ? a.index - b.index : 1;
+      if (b.value === null || b.value === undefined) return -1;
+      const order = typeof a.value === 'number' && typeof b.value === 'number' ? a.value - b.value : String(a.value).localeCompare(String(b.value));
+      return order * factor || a.index - b.index;
+    })
+    .map((item) => item.spool);
+}
+
+export type SpoolLayout = 'cards' | 'table';
+
+/** A saved view: a name for a filter, a search, an order and a layout, kept per person. */
+export interface SpoolView {
+  name: string;
+  filter: SpoolFilter;
+  search: string;
+  sort: SpoolSort;
+  layout: SpoolLayout;
+}
+
+export const MAX_VIEWS = 20;
+
+/** The saved views from the spoolViews setting; anything malformed is left out. */
+export function parseViews(raw: string | null | undefined): SpoolView[] {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw || '[]');
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  const keys = Object.keys(SORT_LABELS);
+  return list
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item) => {
+      const sort = (item.sort || {}) as Record<string, unknown>;
+      const filter = String(item.filter || 'all');
+      return {
+        name: String(item.name || '')
+          .trim()
+          .slice(0, 60),
+        filter: (/^(all|low|drying|archived|material:.+)$/.test(filter) ? filter : 'all') as SpoolFilter,
+        search: String(item.search || '').slice(0, 200),
+        sort: { key: (keys.includes(String(sort.key)) ? sort.key : 'default') as SpoolSortKey, dir: sort.dir === 'desc' ? 'desc' : 'asc' },
+        layout: item.layout === 'table' ? 'table' : 'cards'
+      } satisfies SpoolView;
+    })
+    .filter((view) => view.name)
+    .slice(0, MAX_VIEWS);
+}

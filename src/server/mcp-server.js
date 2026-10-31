@@ -177,6 +177,7 @@ const TOOL_DEFINITIONS = [
         notes: { type: 'string' },
         printerId: { type: 'integer', description: 'The printer it was printed on' },
         plateIndex: { type: 'integer', description: 'The plate printed (from 1), when only one' },
+        durationMinutes: { type: 'number', description: 'How long the print took, in minutes' },
         spools: {
           type: 'array',
           description: 'Filament taken off spools: { spoolId, grams } (grams for all copies). See list_spools.',

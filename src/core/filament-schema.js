@@ -235,6 +235,8 @@ const INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_filament_profiles_brand ON filament_profiles(brand_id)',
   'CREATE INDEX IF NOT EXISTS idx_filament_profiles_material ON filament_profiles(material)',
   'CREATE INDEX IF NOT EXISTS idx_spools_profile ON spools(profile_id)',
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_spools_label_token ON spools(label_token)',
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_storage_locations_label_token ON storage_locations(label_token)',
   'CREATE INDEX IF NOT EXISTS idx_spools_location ON spools(location_id)',
   'CREATE INDEX IF NOT EXISTS idx_spools_status ON spools(status)',
   'CREATE INDEX IF NOT EXISTS idx_spools_material ON spools(material)',
@@ -269,7 +271,13 @@ const COLUMNS = [
   ['print_events', 'duration_seconds', 'INTEGER'],
   ['print_events', 'started_at', 'TEXT'],
   ['print_events', 'filament_used_g', 'REAL'],
-  ['print_events', 'source_ref', 'TEXT']
+  ['print_events', 'source_ref', 'TEXT'],
+  // An uploaded photo (photos/<kind>/<name>, src/server/photos.js); photo_url stays for a link (10.1).
+  ['spools', 'photo_file', 'TEXT'],
+  ['filament_profiles', 'photo_file', 'TEXT'],
+  // The token a public QR label opens (src/server/label-pages.js; 10.1).
+  ['spools', 'label_token', 'TEXT'],
+  ['storage_locations', 'label_token', 'TEXT']
 ];
 
 /** @param {string} sql */

@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { Spool } from '../api';
-import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, matchesFilter, matchesSearch, numberOrNull, spoolWhere } from './format';
+import {
+  dryingProgress,
+  formatMoney,
+  formatTimeLeft,
+  formatWeight,
+  matchesFilter,
+  matchesSearch,
+  numberOrNull,
+  parseViews,
+  sortSpools,
+  spoolWhere
+} from './format';
 
 const spool = (over: Partial<Spool> = {}): Spool =>
   ({
@@ -76,5 +87,39 @@ describe('formatMoney', () => {
     expect(formatMoney(18.8, 'EUR')).toMatch(/€/);
     expect(formatMoney(null, 'USD')).toMatch(/0\.00/);
     expect(formatMoney(5, 'XYZ1')).toBe('5.00 XYZ1');
+  });
+});
+
+describe('sortSpools and saved views (10.1)', () => {
+  const list = [
+    spool({ id: 1, display_name: 'Blue', color_hex: '#2f6fdf', remaining: 500, initial_weight: 1000, purchase_price: 20 }),
+    spool({ id: 2, display_name: 'red', color_hex: '#d02020', remaining: 900, initial_weight: 1000, purchase_price: null }),
+    spool({ id: 3, display_name: 'Gray', color_hex: '#808080', remaining: 200, initial_weight: 250, purchase_price: 15 })
+  ];
+  const ids = (spools: Spool[]) => spools.map((s) => s.id);
+  it('sorts by name, grams, percent, color and price; empty values last', () => {
+    expect(ids(sortSpools(list, { key: 'default', dir: 'asc' }))).toEqual([1, 2, 3]);
+    expect(ids(sortSpools(list, { key: 'name', dir: 'asc' }))).toEqual([1, 3, 2]);
+    expect(ids(sortSpools(list, { key: 'remaining', dir: 'desc' }))).toEqual([2, 1, 3]);
+    expect(ids(sortSpools(list, { key: 'pct', dir: 'desc' }))).toEqual([2, 3, 1]);
+    expect(ids(sortSpools(list, { key: 'color', dir: 'asc' }))).toEqual([2, 1, 3]);
+    expect(ids(sortSpools(list, { key: 'price', dir: 'asc' }))).toEqual([3, 1, 2]);
+    expect(ids(sortSpools(list, { key: 'price', dir: 'desc' }))).toEqual([1, 3, 2]);
+  });
+  it('reads saved views back, leaving out what is broken', () => {
+    expect(parseViews('not json')).toEqual([]);
+    expect(parseViews('{"name":"x"}')).toEqual([]);
+    expect(
+      parseViews(
+        JSON.stringify([
+          { name: ' Low PLA ', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
+          { name: '' },
+          { name: 'Odd', filter: 'drop table', sort: { key: 'x' } }
+        ])
+      )
+    ).toEqual([
+      { name: 'Low PLA', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
+      { name: 'Odd', filter: 'all', search: '', sort: { key: 'default', dir: 'asc' }, layout: 'cards' }
+    ]);
   });
 });

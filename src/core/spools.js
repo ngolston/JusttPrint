@@ -74,6 +74,8 @@ function present(row, places) {
     ...rest,
     remaining,
     display_name: row.name || row.profile_name || [row.material, row.color_name].filter(Boolean).join(' ') || 'Spool',
+    // An uploaded photo, else a link to one (docs/plan-10.1.md, Phase 2).
+    photo: row.photo_file ? `/api/photo/spool/${row.photo_file}` : row.photo_url || null,
     loaded: places.get(row.id) || [],
     drying: drying_id ? { id: drying_id, drying_temp, target_hours: drying_target_hours, started_at: drying_started_at } : null
   };
@@ -129,9 +131,10 @@ function spoolValues(db, input, existing) {
     material,
     material_type: v.text(input.material_type, 100),
     color_hex: v.color(input.color_hex) || profile?.color_hex || null,
-    color_hex_2: v.color(input.color_hex_2),
-    color_hex_3: v.color(input.color_hex_3),
-    color_hex_4: v.color(input.color_hex_4),
+    // Left out of the request (the page's form has one color): kept as they are.
+    color_hex_2: input.color_hex_2 === undefined ? (existing?.color_hex_2 ?? null) : v.color(input.color_hex_2),
+    color_hex_3: input.color_hex_3 === undefined ? (existing?.color_hex_3 ?? null) : v.color(input.color_hex_3),
+    color_hex_4: input.color_hex_4 === undefined ? (existing?.color_hex_4 ?? null) : v.color(input.color_hex_4),
     initial_weight: initial,
     spool_weight: v.number(input.spool_weight, 'Empty spool weight', { min: 0, max: 10000 }),
     used_weight: Math.min(Number(used), initial),
@@ -140,15 +143,30 @@ function spoolValues(db, input, existing) {
     supplier: v.text(input.supplier, 200),
     product_url: v.url(input.product_url),
     lot_nr: v.text(input.lot_nr, 100),
-    photo_url: v.url(input.photo_url),
+    photo_url: input.photo_url === undefined ? (existing?.photo_url ?? null) : v.url(input.photo_url),
     status,
     notes: v.text(input.notes, 5000)
   };
 }
 
-/** Add a spool (no id) or change one. Returns the saved spool. */
+/** Most spools one Add spool makes at once (`copies`). */
+const MAX_COPIES = 50;
+
+/**
+ * Add a spool (no id) or change one. Returns the saved spool. Adding with `copies` (2 to 50) adds
+ * that many of the same spool at once, in one go; the first is returned, with `added`.
+ */
 function saveSpool(db, input = {}, { userId = null } = {}) {
   const id = v.id(input.id);
+  const copies = input.copies === undefined || input.copies === null || input.copies === '' ? 1 : Number(input.copies);
+  if (!Number.isInteger(copies) || copies < 1 || copies > MAX_COPIES) throw new Error(`How many is a whole number from 1 to ${MAX_COPIES}`);
+  if (!id && copies > 1) {
+    return db.transaction(() => {
+      const first = saveSpool(db, { ...input, copies: 1 }, { userId });
+      for (let i = 1; i < copies; i += 1) saveSpool(db, { ...input, copies: 1 }, { userId });
+      return { ...first, added: copies };
+    })();
+  }
   const existing = id ? db.prepare('SELECT * FROM spools WHERE id = ?').get(id) : null;
   if (id && !existing) throw new Error('That spool no longer exists');
   const values = spoolValues(db, input, existing);

@@ -397,6 +397,15 @@ function statusAfterOutcome(currentStatus, outcome) {
   return status;
 }
 
+/** How long a print took, in whole seconds (up to 30 days); null when not given. */
+function normalizeDuration(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const seconds = Math.round(Number(value));
+  if (!Number.isFinite(seconds) || seconds < 0) throw new Error('A print time is a number of seconds');
+  if (seconds > 30 * 24 * 3600) throw new Error('A print time is at most 30 days');
+  return seconds || null;
+}
+
 function logPrintEvent(db, payload) {
   const modelId = resolveModelId(db, payload);
   if (!modelId) throw new Error('Model not found');
@@ -407,6 +416,7 @@ function logPrintEvent(db, payload) {
   const partsUsage = normalizePartsUsage(payload.parts);
   const printerIdRaw = payload?.printerId ?? payload?.printer_id;
   const printerId = printerIdRaw != null && Number(printerIdRaw) > 0 ? Number(printerIdRaw) : null;
+  const durationSeconds = normalizeDuration(payload.durationSeconds);
   const createdAt = new Date().toISOString();
 
   const result = db.transaction(() => {
@@ -419,6 +429,16 @@ function logPrintEvent(db, payload) {
       )
       .run(modelId, printedAt, outcome, quantity, notes || null, createdAt, printerId);
     const eventId = insert.lastInsertRowid;
+    // The column comes with 10.0's schema (filament-schema.js); without it the time is dropped.
+    if (
+      durationSeconds !== null &&
+      db
+        .prepare('PRAGMA table_info(print_events)')
+        .all()
+        .some((c) => c.name === 'duration_seconds')
+    ) {
+      db.prepare('UPDATE print_events SET duration_seconds = ? WHERE id = ?').run(durationSeconds, eventId);
+    }
     applyPartUsage(db, eventId, partsUsage, quantity);
     // Filament taken off the spools it came from (docs/merge-10.md, Phase 4).
     if (Array.isArray(payload.spools) && payload.spools.length) {
@@ -524,11 +544,17 @@ function getPrintEvents(db, modelId) {
       }
     })();
 
+  // How long the print took (docs/plan-10.1.md, Phase 3); the column comes with 10.0's schema.
+  const hasDuration = db
+    .prepare('PRAGMA table_info(print_events)')
+    .all()
+    .some((c) => c.name === 'duration_seconds');
+  const durationField = hasDuration ? 'pe.duration_seconds' : 'NULL AS duration_seconds';
   const selectFields = hasPrintersTable
-    ? `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id,
+    ? `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id, ${durationField},
        pr.nickname AS printer_nickname, pr.manufacturer AS printer_manufacturer, pr.model AS printer_model,
        ${hasPrinterTypeCol ? 'pr.printer_type' : 'NULL'} AS printer_type`
-    : `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id,
+    : `pe.id, pe.model_id, pe.printed_at, pe.outcome, pe.quantity, pe.notes, pe.created_at, pe.printer_id, ${durationField},
        NULL AS printer_nickname, NULL AS printer_manufacturer, NULL AS printer_model, NULL AS printer_type`;
 
   const fromClause = hasPrintersTable ? `FROM print_events pe LEFT JOIN printers pr ON pr.id = pe.printer_id` : `FROM print_events pe`;
@@ -579,10 +605,26 @@ function getPrintEvents(db, modelId) {
     db,
     events.map((event) => event.id)
   );
+  const photosByEventId = new Map();
+  if (events.length) {
+    try {
+      const ids = events.map((event) => event.id);
+      for (const row of db
+        .prepare(`SELECT id, event_id, file_path, caption FROM print_event_photos WHERE event_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`)
+        .all(...ids)) {
+        const list = photosByEventId.get(row.event_id) || [];
+        list.push({ id: row.id, url: `/api/photo/print/${row.file_path}`, caption: row.caption });
+        photosByEventId.set(row.event_id, list);
+      }
+    } catch (_) {
+      /* no print photos table (a database before 10.0) */
+    }
+  }
   return events.map((event) => ({
     ...event,
     parts: partsByEventId.get(event.id) || [],
-    spools: spoolsByEventId.get(event.id) || []
+    spools: spoolsByEventId.get(event.id) || [],
+    photos: photosByEventId.get(event.id) || []
   }));
 }
 

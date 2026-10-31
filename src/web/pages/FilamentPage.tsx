@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CircleDot, MapPin, Plus, Tag, Upload } from 'lucide-react';
-import { alerts, filament, printers as printerApi, type FilamentSummary, type Printer, type PrinterLoads, type ReorderItem, type Spool } from '../api';
+import { BookOpen, CircleDot, Layers, LayoutGrid, MapPin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
+import {
+  alerts,
+  filament,
+  printers as printerApi,
+  settings,
+  type FilamentProfile,
+  type FilamentSummary,
+  type Printer,
+  type PrinterLoads,
+  type ReorderItem,
+  type Spool
+} from '../api';
 import { LabelsDialog, ReorderTile, ShoppingListDialog } from '../filament/ReorderAndLabels';
 import { LoadedStrip, loadedSpools } from '../printers/LoadedFilament';
 import { navigate } from '../shell/routes';
 import { BentoGrid, Tile, TileFigure } from '../components/Bento';
-import { Button, cx } from '../components/Button';
+import { Button, IconButton, cx } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
 import { SpoolRing } from '../components/Filament';
 import { EmptyState, Panel, Skeleton } from '../components/Panel';
@@ -19,8 +30,17 @@ import {
   LOW_GRAMS,
   matchesFilter,
   matchesSearch,
+  DEFAULT_SORT,
+  MAX_VIEWS,
+  parseViews,
+  SORT_LABELS,
+  sortSpools,
   spoolWhere,
-  type SpoolFilter
+  type SpoolFilter,
+  type SpoolLayout,
+  type SpoolSort,
+  type SpoolSortKey,
+  type SpoolView
 } from '../filament/format';
 import {
   CatalogDialog,
@@ -34,6 +54,9 @@ import {
   type SpoolPreset
 } from '../filament/SpoolDialogs';
 import { SpoolDrawer, type SpoolAction } from '../filament/SpoolDrawer';
+import { FilamentProfileDialog, FilamentsDialog } from '../filament/FilamentsDialog';
+import { SpoolTable } from '../filament/SpoolTable';
+import { askText, showMessage } from '../page';
 
 const loadPage = async () => {
   const [spools, summary, printers, loads, reorder] = await Promise.all([
@@ -73,11 +96,26 @@ function LoadedTile({ printers, loads }: { printers: Printer[]; loads: PrinterLo
   );
 }
 
+/** The order choices: each sort key in the direction people mostly want, and some reversed. */
+const SORT_OPTIONS: [SpoolSortKey, 'asc' | 'desc', string][] = [
+  ['default', 'asc', SORT_LABELS.default],
+  ['remaining', 'desc', 'Most grams left'],
+  ['remaining', 'asc', 'Fewest grams left'],
+  ['pct', 'asc', 'Emptiest first (%)'],
+  ['name', 'asc', 'Name, A–Z'],
+  ['material', 'asc', 'Material'],
+  ['color', 'asc', 'Color'],
+  ['place', 'asc', 'Where'],
+  ['price', 'desc', 'Dearest first'],
+  ['lastUsed', 'desc', 'Last used']
+];
+
 type Dialog =
   | { kind: 'spool'; spool?: Spool; preset?: SpoolPreset }
   | { kind: 'weigh' | 'dry' | 'move'; spool: Spool }
   | { kind: 'finish-drying'; sessionId: number; name: string }
-  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' };
+  | { kind: 'profile'; profile: FilamentProfile | null }
+  | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' | 'filaments' };
 
 /** "24 spools · 3 running low · 1 drying". */
 function headline(summary: FilamentSummary, drying: number) {
@@ -169,6 +207,7 @@ function SpoolCard({ spool, onOpen }: { spool: Spool; onOpen: () => void }) {
             <span className="jp-spool-card__name">{spool.display_name}</span>
             <span className="jp-spool-card__brand">{spool.brand_name || 'No brand'}</span>
           </span>
+          {spool.photo && <img className="jp-spool-card__photo" src={spool.photo} alt="" loading="lazy" />}
         </span>
         <span className="jp-spool-card__grams">
           <span className={cx('jp-spool-card__left', empty && 'is-empty')}>{formatWeight(spool.remaining)}</span>
@@ -193,6 +232,45 @@ export function FilamentPage({ section = '' }: { section?: string }) {
   const data = useLibraryData(loadPage);
   const [filter, setFilter] = useState<SpoolFilter>('all');
   const [search, setSearch] = useState('');
+  // The list's order and layout, and the saved views: kept per person (docs/plan-10.1.md, Phase 4).
+  const [sort, setSort] = useState<SpoolSort>(DEFAULT_SORT);
+  const [layout, setLayoutState] = useState<SpoolLayout>('cards');
+  const [views, setViews] = useState<SpoolView[]>([]);
+  useEffect(() => {
+    settings.get<string | null>('spoolLayout').then(
+      (value) => value === 'table' && setLayoutState('table'),
+      () => {}
+    );
+    settings.get<string | null>('spoolViews').then(
+      (value) => setViews(parseViews(value)),
+      () => {}
+    );
+  }, []);
+  const setLayout = (next: SpoolLayout) => {
+    setLayoutState(next);
+    settings.save('spoolLayout', next).catch(() => {});
+  };
+  const keepViews = (next: SpoolView[]) => {
+    setViews(next);
+    settings.save('spoolViews', JSON.stringify(next)).catch(() => {});
+  };
+  const applyView = (view: SpoolView) => {
+    setFilter(view.filter);
+    setSearch(view.search);
+    setSort(view.sort);
+    setLayout(view.layout);
+  };
+  const saveView = async () => {
+    const name = (await askText('Save view', 'A name for this filter, search, order and layout:', ''))?.trim();
+    if (!name) return;
+    const view: SpoolView = { name: name.slice(0, 60), filter, search, sort, layout };
+    keepViews([...views.filter((v) => v.name.toLowerCase() !== view.name.toLowerCase()), view].slice(-MAX_VIEWS));
+  };
+  const removeView = async (view: SpoolView) => {
+    if ((await showMessage('Delete view?', `Delete the saved view ${view.name}?`, ['Delete', 'Cancel'])) === 'Delete')
+      keepViews(views.filter((v) => v !== view));
+  };
+  const activeView = views.find((v) => v.filter === filter && v.search === search && v.sort.key === sort.key && v.sort.dir === sort.dir && v.layout === layout);
   // #/filament/<id> (a spool's label) opens that spool.
   const [openId, setOpenIdState] = useState<number | null>(() => (Number(section) > 0 ? Number(section) : null));
   useEffect(() => {
@@ -208,7 +286,14 @@ export function FilamentPage({ section = '' }: { section?: string }) {
   const spools = data?.spools;
   const summary = data?.summary;
   const drying = useMemo(() => (spools || []).filter((spool) => spool.drying && spool.status !== 'archived'), [spools]);
-  const shown = useMemo(() => (spools || []).filter((spool) => matchesFilter(spool, filter) && matchesSearch(spool, search)), [spools, filter, search]);
+  const shown = useMemo(
+    () =>
+      sortSpools(
+        (spools || []).filter((spool) => matchesFilter(spool, filter) && matchesSearch(spool, search)),
+        sort
+      ),
+    [spools, filter, search, sort]
+  );
   const materials = summary?.materials.map((m) => m.material) || [];
   const chips: [SpoolFilter, string][] = [
     ['all', 'All'],
@@ -249,8 +334,11 @@ export function FilamentPage({ section = '' }: { section?: string }) {
             {summary ? headline(summary, drying.length) : 'The filament you own, how much is left, and where it is.'}
           </p>
         </div>
-        <EditOnly>
-          <div className="jp-printers__header-actions">
+        <div className="jp-printers__header-actions">
+          <Button icon={Layers} onClick={() => setDialog({ kind: 'filaments' })} id="jp-filament-profiles">
+            Filaments
+          </Button>
+          <EditOnly>
             <Button icon={MapPin} onClick={() => setDialog({ kind: 'places' })} id="jp-filament-places">
               Places
             </Button>
@@ -260,8 +348,8 @@ export function FilamentPage({ section = '' }: { section?: string }) {
             <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'spool' })}>
               Add spool
             </Button>
-          </div>
-        </EditOnly>
+          </EditOnly>
+        </div>
       </header>
 
       {!data || !summary || !spools ? (
@@ -314,7 +402,61 @@ export function FilamentPage({ section = '' }: { section?: string }) {
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
-            {shown.length ? (
+            <div className="jp-filament__toolbar jp-filament__toolbar--views">
+              <div className="jp-filament__chips" role="group" aria-label="Saved views">
+                {views.map((view) => (
+                  <span key={view.name} className={cx('jp-chip jp-filament__view', activeView === view && 'is-on')}>
+                    <button type="button" className="jp-filament__view-apply" aria-pressed={activeView === view} onClick={() => applyView(view)}>
+                      <Star size={12} aria-hidden="true" />
+                      {view.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="jp-filament__view-remove"
+                      aria-label={`Delete the view ${view.name}`}
+                      onClick={() => void removeView(view)}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+                {!activeView && (
+                  <button type="button" className="jp-chip" id="jp-save-view" onClick={() => void saveView()}>
+                    <Plus size={12} aria-hidden="true" /> Save view
+                  </button>
+                )}
+              </div>
+              <label className="jp-filament__sort">
+                <span className="jp-meta">Sort</span>
+                <select
+                  className="jp-input"
+                  id="jp-spool-sort"
+                  value={`${sort.key}:${sort.dir}`}
+                  onChange={(event) => {
+                    const [key, dir] = event.target.value.split(':');
+                    setSort({ key: key as SpoolSortKey, dir: dir === 'desc' ? 'desc' : 'asc' });
+                  }}
+                >
+                  {!SORT_OPTIONS.some(([key, dir]) => key === sort.key && dir === sort.dir) && (
+                    <option value={`${sort.key}:${sort.dir}`}>
+                      {SORT_LABELS[sort.key]} ({sort.dir === 'asc' ? 'up' : 'down'})
+                    </option>
+                  )}
+                  {SORT_OPTIONS.map(([key, dir, label]) => (
+                    <option key={`${key}:${dir}`} value={`${key}:${dir}`}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="jp-filament__layout" role="group" aria-label="Show as">
+                <IconButton icon={LayoutGrid} label="Cards" pressed={layout === 'cards'} onClick={() => setLayout('cards')} id="jp-spool-layout-cards" />
+                <IconButton icon={Table2} label="Table" pressed={layout === 'table'} onClick={() => setLayout('table')} id="jp-spool-layout-table" />
+              </div>
+            </div>
+            {shown.length && layout === 'table' ? (
+              <SpoolTable spools={shown} sort={sort} onSort={setSort} onOpen={(spool) => setOpenId(spool.id)} />
+            ) : shown.length ? (
               <ul className="jp-filament__grid" aria-label="Spools">
                 {shown.map((spool) => (
                   <SpoolCard key={spool.id} spool={spool} onOpen={() => setOpenId(spool.id)} />
@@ -336,6 +478,14 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'catalog' && <CatalogDialog onClose={close} onPicked={(preset) => setDialog({ kind: 'spool', preset })} />}
       {dialog?.kind === 'spoolman' && <SpoolmanDialog onClose={close} />}
       {dialog?.kind === 'places' && <PlacesDialog onClose={close} />}
+      {dialog?.kind === 'filaments' && (
+        <FilamentsDialog
+          onClose={close}
+          onEdit={(profile) => setDialog({ kind: 'profile', profile })}
+          onAddSpool={(profile) => setDialog({ kind: 'spool', preset: { profile } })}
+        />
+      )}
+      {dialog?.kind === 'profile' && <FilamentProfileDialog profile={dialog.profile} onClose={() => setDialog({ kind: 'filaments' })} />}
       {dialog?.kind === 'shopping' && <ShoppingListDialog items={data?.reorder || []} onClose={close} />}
       {dialog?.kind === 'labels' && <LabelsDialog spools={data?.spools || []} onClose={close} />}
     </div>

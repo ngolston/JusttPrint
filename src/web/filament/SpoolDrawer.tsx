@@ -9,6 +9,7 @@ import { Skeleton } from '../components/Panel';
 import { showMessage } from '../page';
 import { useLibraryData } from '../shell/libraryData';
 import { useCurrency } from './currency';
+import { PhotoBlock } from './Photo';
 import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, spoolWhere } from './format';
 
 export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move';
@@ -79,6 +80,7 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
               )}
             </div>
           </div>
+          <PhotoBlock photo={spool.photo} label={spool.display_name} onSave={(photo) => filament.setSpoolPhoto(spool.id, photo)} idPrefix="jp-spool" />
           <EditOnly>
             <div className="jp-spool-detail__actions">
               {!archived && (

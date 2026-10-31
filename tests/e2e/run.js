@@ -1356,6 +1356,8 @@ async function browserChecks(base, wsUrl, session) {
       );
       if (logDialog) {
         await page.fill('#log-print-quantity', '2');
+        await page.fill('#log-print-hours', '1');
+        await page.fill('#log-print-minutes', '30');
         await page.fill('#log-print-notes', 'e2e log entry');
         await page.click('#log-print-save');
       }
@@ -1376,6 +1378,8 @@ async function browserChecks(base, wsUrl, session) {
           (await page.inputValue('#model-print-status')) === 'printed',
         String(loggedPrint)
       );
+      const whenText = await page.textContent(`${historyItem} .print-history-when`).catch(() => '');
+      check('Log Print keeps how long the print took and the history shows it (10.1)', /1 h 30 min/.test(whenText || ''), whenText);
       await page.click(`${historyItem} .print-history-delete`);
       const confirmDelete = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
       if (confirmDelete) await confirmDelete.click();
@@ -4147,6 +4151,235 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.1 Phase 1 (docs/plan-10.1.md): the Filaments dialog: filaments and brands.
+    try {
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-filament-profiles', { timeout: 15000 });
+      await page.click('#jp-filament-profiles');
+      await page.waitForSelector('#jp-filaments-dialog', { timeout: 10000 });
+      await page.click('#jp-filament-new');
+      await page.waitForSelector('#jp-profile-form-form', { timeout: 10000 });
+      await page.fill('#jp-profile-brand', 'E2E Profile Brand');
+      await page.fill('#jp-profile-material', 'PETG');
+      await page.fill('#jp-profile-color-name', 'Teal');
+      await page.fill('#jp-profile-nozzle-min', '230');
+      await page.fill('#jp-profile-nozzle-max', '250');
+      await page.click('#jp-profile-form button[type="submit"]');
+      await page.waitForSelector('#jp-filaments-dialog', { timeout: 10000 });
+      check(
+        'a new filament shows in the Filaments dialog with its temperatures',
+        await page.waitForSelector('#jp-filaments-dialog li:has-text("E2E Profile Brand"):has-text("230–250 °C")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#jp-filaments-dialog [role="tab"]:has-text("Brands")');
+      await page.click('#jp-filaments-dialog button[aria-label="Rename E2E Profile Brand"]');
+      await page.fill('#jp-filaments-dialog input[aria-label="New name for E2E Profile Brand"]', 'E2E Renamed Brand');
+      await page.click('#jp-filaments-dialog .jp-places__rename button[type="submit"]');
+      const renamed = await page.waitForSelector('#jp-filaments-dialog li:has-text("E2E Renamed Brand")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+      const profile = ((await invoke(base, session, 'get-filament-profiles', [{ search: 'Teal' }])).result || []).find(
+        (p) => p.material === 'PETG' && p.print_temp_min === 230 && p.print_temp_max === 250
+      );
+      check('renaming a brand renames it for its filaments', renamed && profile?.brand_name === 'E2E Renamed Brand', JSON.stringify(profile?.brand_name));
+      await page.click('#jp-filaments-dialog button:has-text("Done")').catch(() => {});
+      if (profile) await invoke(base, session, 'delete-filament-profile', [profile.id]);
+      const brand = ((await invoke(base, session, 'get-filament-brands')).result || []).find((b) => b.name === 'E2E Renamed Brand');
+      if (brand) check('a brand can be deleted', (await invoke(base, session, 'delete-filament-brand', [brand.id])).result === true);
+    } catch (error) {
+      check('the 10.1 Phase 1 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.1 Phase 2 (docs/plan-10.1.md): photos of spools and logged prints.
+    try {
+      const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const photoFile = path.join(WORK, 'spool-photo.png');
+      fs.writeFileSync(photoFile, Buffer.from(PIXEL, 'base64'));
+      const photoSpool = (await invoke(base, session, 'save-spool', [{ name: 'E2E Photo Spool', material: 'PLA', initial_weight: 1000, remaining: 800 }]))
+        .result;
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, photoSpool.id);
+      await page.waitForSelector('#jp-spool-photo-upload', { timeout: 15000 });
+      const chooser = page.waitForEvent('filechooser', { timeout: 10000 });
+      await page.click('#jp-spool-photo-upload');
+      await (await chooser).setFiles(photoFile);
+      const shown = await page
+        .waitForSelector('#jp-spool-detail img[alt="Photo of E2E Photo Spool"]', { timeout: 15000 })
+        .then((el) => el.getAttribute('src'))
+        .catch(() => '');
+      const served = shown ? await page.evaluate((url) => fetch(url).then((r) => ({ status: r.status, type: r.headers.get('content-type') })), shown) : null;
+      check(
+        "a spool's photo is uploaded from the drawer, shrunk to a JPEG and served to signed-in browsers",
+        /^\/api\/photo\/spool\/[a-f0-9]{32}\.jpg$/.test(shown) && served?.status === 200 && served?.type === 'image/jpeg',
+        JSON.stringify({ shown, served })
+      );
+      check('photos are not served without signing in', shown ? (await fetch(`${base}${shown}`, { redirect: 'manual' })).status !== 200 : false);
+      check(
+        'a photo name that is not one of ours is refused',
+        (await fetch(`${base}/api/photo/spool/..%2Fjusttprint.db`, { headers: { cookie: session.cookie } })).status === 404
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+
+      const kit = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const logged = (await invoke(base, session, 'log-print-event', [{ filePath: kit.filePath, outcome: 'printed', quantity: 1 }])).result;
+      const added = (
+        await invoke(base, session, 'add-print-photo', [logged.eventId, { dataUrl: `data:image/png;base64,${PIXEL}`, caption: 'E2E first layer' }])
+      ).result;
+      const withPhoto = ((await invoke(base, session, 'get-print-events', [kit.id])).result || []).find((e) => e.id === logged.eventId);
+      check(
+        'a logged print keeps its photos and lists them',
+        withPhoto?.photos?.length === 1 && withPhoto.photos[0].caption === 'E2E first layer' && /^\/api\/photo\/print\//.test(withPhoto.photos[0].url),
+        JSON.stringify(withPhoto?.photos)
+      );
+      check('a print photo can be removed', (await invoke(base, session, 'delete-print-photo', [added.id])).result === true);
+      await invoke(base, session, 'delete-print-event', [logged.eventId]);
+      await invoke(base, session, 'delete-spool', [photoSpool.id]);
+    } catch (error) {
+      check('the 10.1 Phase 2 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.1 Phase 4 (docs/plan-10.1.md): How many, the table, sorting and saved views.
+    try {
+      const made = (
+        await invoke(base, session, 'save-spool', [
+          { name: 'E2E Batch Spool', material: 'PETG', color_hex: '#123456', initial_weight: 1000, remaining: 250, copies: 3 }
+        ])
+      ).result;
+      const batch = ((await invoke(base, session, 'get-spools', [{}])).result || []).filter((sp) => sp.display_name === 'E2E Batch Spool');
+      check(
+        'How many adds several of the same spool at once',
+        made?.added === 3 && batch.length === 3,
+        JSON.stringify({ added: made?.added, found: batch.length })
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-spool-layout-table', { timeout: 15000 });
+      await page.fill('.jp-filament__search', 'E2E Batch Spool');
+      await page.click('#jp-spool-layout-table');
+      const rows = await page
+        .waitForSelector('#jp-spool-table tbody tr', { timeout: 10000 })
+        .then(() => page.$$eval('#jp-spool-table tbody tr', (trs) => trs.length))
+        .catch(() => 0);
+      check('the spool list shows as a table', rows === 3, String(rows));
+      await page.click('#jp-spool-table th:has-text("Left") button');
+      check(
+        'a table heading sorts by its column',
+        (await page.getAttribute('#jp-spool-table th:has-text("Left")', 'aria-sort')) === 'descending' &&
+          (await page.inputValue('#jp-spool-sort')) === 'remaining:desc'
+      );
+      await page.click('#jp-save-view');
+      const viewName = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (viewName) {
+        await viewName.fill('E2E Batch view');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      await page.waitForSelector('.jp-filament__view:has-text("E2E Batch view")', { timeout: 10000 }).catch(() => {});
+      const saved = await waitFor(
+        async () => {
+          const raw = (await invoke(base, session, 'get-setting', ['spoolViews'])).result;
+          return /E2E Batch view/.test(raw || '') ? raw : null;
+        },
+        10000,
+        'view saved'
+      ).catch(() => '');
+      check(
+        'a saved view keeps the search, order and layout for this person',
+        /"search":"E2E Batch Spool"/.test(saved) && /"key":"remaining"/.test(saved) && /"layout":"table"/.test(saved),
+        String(saved).slice(0, 200)
+      );
+      await page.click('#jp-spool-layout-cards');
+      await page.fill('.jp-filament__search', '');
+      await page.click('.jp-filament__view-apply:has-text("E2E Batch view")');
+      check(
+        'choosing a saved view brings its search and table back',
+        (await page.inputValue('.jp-filament__search')) === 'E2E Batch Spool' && (await page.isVisible('#jp-spool-table'))
+      );
+      await page.click('.jp-filament__view-remove[aria-label="Delete the view E2E Batch view"]');
+      const confirmView = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmView) await confirmView.click();
+      await page.click('#jp-spool-layout-cards');
+      await page.fill('.jp-filament__search', '');
+      for (const sp of batch) await invoke(base, session, 'delete-spool', [sp.id]);
+      await invoke(base, session, 'save-setting', ['spoolLayout', 'cards']);
+    } catch (error) {
+      check('the 10.1 Phase 4 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.1 Phase 5 (docs/plan-10.1.md): QR labels anyone can scan, for spools and places.
+    try {
+      const labelPlace = (await invoke(base, session, 'save-storage-location', [{ name: 'E2E Label Shelf' }])).result;
+      const labelSpool = (
+        await invoke(base, session, 'save-spool', [
+          {
+            name: 'E2E Label Spool',
+            material: 'PLA',
+            color_hex: '#336699',
+            initial_weight: 1000,
+            remaining: 700,
+            location_id: labelPlace.id,
+            purchase_price: 42.42,
+            notes: 'e2e secret note'
+          }
+        ])
+      ).result;
+      await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-filament-labels', { timeout: 15000 });
+      await page.click('#jp-filament-labels');
+      await page.waitForSelector('#jp-labels-public', { timeout: 10000 });
+      // The preview shows the first four: label only this spool.
+      await page.click('#jp-labels-dialog .jp-labels__pick button:has-text("None")');
+      await page.check('#jp-labels-dialog .jp-labels__list label:has-text("E2E Label Spool") input');
+      const card = `#jp-labels-dialog .jp-label-card:has-text("E2E Label Spool")`;
+      const offUrl = await page
+        .waitForSelector(`${card}[data-url*="/#/filament/"]`, { timeout: 10000 })
+        .then((el) => el.getAttribute('data-url'))
+        .catch(() => '');
+      check('with public labels off, a label opens the spool in the app', offUrl.endsWith(`/#/filament/${labelSpool.id}`), offUrl);
+      await page.check('#jp-labels-public');
+      const onUrl = await page
+        .waitForSelector(`${card}[data-url*="/l/spool/"]`, { timeout: 10000 })
+        .then((el) => el.getAttribute('data-url'))
+        .catch(() => '');
+      const publicPage = onUrl ? await fetch(onUrl.replace(/^https?:\/\/[^/]+/, base)) : null;
+      const publicHtml = publicPage ? await publicPage.text() : '';
+      check(
+        'with public labels on, a spool label opens a read-only page without signing in, with no price or notes',
+        publicPage?.status === 200 &&
+          /E2E Label Spool/.test(publicHtml) &&
+          /700 g/.test(publicHtml) &&
+          /E2E Label Shelf/.test(publicHtml) &&
+          !/42\.42|e2e secret note/.test(publicHtml),
+        `${onUrl} ${publicPage?.status}`
+      );
+      await page.click('#jp-labels-dialog [role="tab"]:has-text("Places")');
+      const placeUrl = await page
+        .waitForSelector('#jp-labels-dialog .jp-label-card:has-text("E2E Label Shelf")', { timeout: 10000 })
+        .then((el) => el.getAttribute('data-url'))
+        .catch(() => '');
+      const placeHtml = placeUrl ? await (await fetch(placeUrl.replace(/^https?:\/\/[^/]+/, base))).text() : '';
+      check('a place label lists the spools in it', /\/l\/place\//.test(placeUrl) && /E2E Label Spool/.test(placeHtml), placeUrl);
+      await page.click('#jp-labels-dialog [role="tab"]:has-text("Spools")');
+      await page.uncheck('#jp-labels-public');
+      await page.waitForSelector(`${card}[data-url*="/#/filament/"]`, { timeout: 10000 }).catch(() => {});
+      check('turning public labels off closes the pages again', onUrl ? (await fetch(onUrl.replace(/^https?:\/\/[^/]+/, base))).status === 404 : false);
+      await page.click('#jp-labels-dialog button:has-text("Close")').catch(() => {});
+      await invoke(base, session, 'delete-spool', [labelSpool.id]);
+      await invoke(base, session, 'delete-storage-location', [labelPlace.id]);
+    } catch (error) {
+      check('the 10.1 Phase 5 checks ran to the end', false, error.message.split('\n')[0]);
+      await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6229,6 +6462,12 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
+  await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);
+  check('only admins turn public labels on', (await invoke(base, admin, 'get-setting', ['publicLabels'])).result !== 'true');
+  check('viewers cannot set a spool photo', (await invoke(base, viewer, 'set-spool-photo', [1, null])).status === 403);
+  check('viewers cannot add print photos', (await invoke(base, viewer, 'add-print-photo', [1, { dataUrl: 'x' }])).status === 403);
+  check('viewers cannot change brands', (await invoke(base, viewer, 'save-filament-brand', [{ name: 'Viewer Brand' }])).status === 403);
   await invoke(base, editor, 'save-setting', ['currency', 'GBP']);
   check('editors cannot change the currency', (await invoke(base, admin, 'get-setting', ['currency'])).result !== 'GBP');
   check('editors cannot see or change webhooks', (await invoke(base, editor, 'get-webhooks')).status === 403);

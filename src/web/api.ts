@@ -343,11 +343,12 @@ export interface PrintStatistics {
   from: string;
   to: string;
   firstPrintMonth: string | null;
-  totals: { printed: number; failed: number; cancelled: number; successRate: number | null };
-  byMonth: { month: string; printed: number; failed: number; cancelled: number; added: number }[];
+  /** `seconds`: print time logged in the period (failed prints too); `timedPrints`: prints with a time. */
+  totals: { printed: number; failed: number; cancelled: number; successRate: number | null; seconds: number; timedPrints: number };
+  byMonth: { month: string; printed: number; failed: number; cancelled: number; added: number; hours: number }[];
   designers: { name: string; printed: number; models: number }[];
   models: { id: number; fileName: string; filePath: string; printed: number }[];
-  printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null }[];
+  printers: { id: number | null; name: string; printed: number; failed: number; successRate: number | null; seconds: number }[];
   /** Filament taken off spools by logged prints, and its cost at each spool's price. */
   filament: FilamentUse;
   /** The library's currency (ISO 4217). */
@@ -610,14 +611,23 @@ export interface FilamentProfile {
   bed_temp_max: number | null;
   drying_temp: number | null;
   drying_hours: number | null;
+  max_print_speed?: number | null;
   product_url: string | null;
+  photo_url?: string | null;
+  /** An uploaded photo (/api/photo/…), else the link in photo_url, else null. */
+  photo?: string | null;
+  notes?: string | null;
   source: 'manual' | 'catalog' | 'spoolman';
   spool_count?: number;
 }
 
+/** A filament profile as the Filaments dialog saves it (brand by name or id). */
+export type FilamentProfileInput = Partial<Omit<FilamentProfile, 'id' | 'spool_count' | 'source'>> & { id?: number; material: string };
+
 export interface FilamentBrand {
   id: number;
   name: string;
+  website?: string | null;
   profile_count: number;
   spool_count: number;
 }
@@ -649,6 +659,8 @@ export interface Spool {
   location_id: number | null;
   name: string | null;
   display_name: string;
+  /** An uploaded photo (/api/photo/…), else a link, else null (docs/plan-10.1.md, Phase 2). */
+  photo?: string | null;
   profile_name: string | null;
   brand_name: string | null;
   location_name: string | null;
@@ -725,7 +737,12 @@ export interface SpoolmanImport {
 }
 
 /** What the spool form sends: a Spool's columns, `remaining` for grams left, a brand by name. */
-export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & { remaining?: number | null; brand_name?: string | null };
+export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & {
+  remaining?: number | null;
+  brand_name?: string | null;
+  /** Adding: how many of the same spool (1 to 50). */
+  copies?: number;
+};
 
 /** One needed color and the spool the check picked (src/core/filament-check.js checkNeeds). */
 export interface FilamentCheckNeed {
@@ -863,7 +880,7 @@ export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
   spool: (id: number) => callAction<SpoolDetail | null>('get-spool', id),
   summary: () => callAction<FilamentSummary>('get-filament-summary'),
-  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail>('save-spool', spool),
+  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail & { added?: number }>('save-spool', spool),
   weigh: (id: number, weighing: { weight: number; withSpool: boolean; notes?: string | null }) => callAction<SpoolDetail>('weigh-spool', id, weighing),
   move: (id: number, locationId: number | null) => callAction<SpoolDetail>('move-spool', id, locationId),
   archive: (id: number, archived: boolean) => callAction<SpoolDetail>('archive-spool', id, archived),
@@ -871,6 +888,17 @@ export const filament = {
   importSpoolman: (data: unknown) => callAction<SpoolmanImport>('import-spoolman', data),
   brands: () => callAction<FilamentBrand[]>('get-filament-brands'),
   profiles: (options: { search?: string; material?: string } = {}) => callAction<FilamentProfile[]>('get-filament-profiles', options),
+  saveProfile: (profile: FilamentProfileInput) => callAction<FilamentProfile>('save-filament-profile', profile),
+  removeProfile: (id: number) => callAction<boolean>('delete-filament-profile', id),
+  /** Renaming onto another brand's name merges them (`merged`). */
+  saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
+  removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
+  /** A picture (`dataUrl`, shrunk by filament/photos.ts), a link (`url`), or null for none. */
+  /** The addresses the labels' QR codes open (docs/plan-10.1.md, Phase 5; paths, null for none). */
+  labelLinks: (input: { spoolIds: number[]; placeIds: number[] }) =>
+    callAction<{ public: boolean; spools: Record<string, string | null>; places: Record<string, string | null> }>('get-label-links', input),
+  setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
+  setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
   searchCatalog: (query: string, limit = 50) =>
     callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
   addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
@@ -1311,7 +1339,20 @@ export interface PrintEvent {
   parts?: { id: number; name?: string | null; quantity: number }[];
   /** Filament taken off spools (docs/merge-10.md, Phase 4). */
   spools?: { spoolId: number | null; grams: number; name: string; color: string | null }[];
+  /** Photos of the print (docs/plan-10.1.md, Phase 2). */
+  photos?: PrintPhoto[];
+  /** How long it took (docs/plan-10.1.md, Phase 3). */
+  duration_seconds?: number | null;
 }
+
+export interface PrintPhoto {
+  id: number;
+  url: string;
+  caption: string | null;
+}
+
+/** A photo to keep: a picture as a data URL, or a link. */
+export type PhotoInput = { dataUrl: string; caption?: string | null } | { url: string };
 
 export interface LogPrintInput {
   printedAt: string;
@@ -1325,11 +1366,15 @@ export interface LogPrintInput {
   /** Grams taken off each spool (all copies), and the plate when only one was printed. */
   spools?: { spoolId: number; grams: number }[];
   plateIndex?: number | null;
+  /** How long it took (one model). */
+  durationSeconds?: number | null;
 }
 
 export const prints = {
   events: (modelId: number) => callAction<PrintEvent[]>('get-print-events', modelId),
-  log: (filePath: string, input: LogPrintInput) => callAction<unknown>('log-print-event', { ...input, filePath }),
+  log: (filePath: string, input: LogPrintInput) => callAction<{ eventId?: number } | null>('log-print-event', { ...input, filePath }),
+  addPhoto: (eventId: number, photo: { dataUrl: string; caption?: string | null }) => callAction<PrintPhoto>('add-print-photo', eventId, photo),
+  removePhoto: (photoId: number) => callAction<boolean>('delete-print-photo', photoId),
   logMany: (filePaths: string[], input: LogPrintInput) => callAction<unknown>('log-print-events-batch', { ...input, filePaths }),
   removeEvent: (id: number) => callAction<unknown>('delete-print-event', id),
   setStatus: (filePaths: string[], printStatus: string) =>

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { Copy, ExternalLink, Printer as PrinterIcon } from 'lucide-react';
-import { type ReorderItem, type Spool } from '../api';
+import { filament, settings, type ReorderItem, type Spool, type StorageLocation } from '../api';
 import { Tile } from '../components/Bento';
 import { Button } from '../components/Button';
 import { ColorDot } from '../components/Filament';
 import { Modal } from '../components/Overlay';
+import { Tabs } from '../components/Tabs';
+import { useCan } from '../session';
 import { useCurrency } from './currency';
 import { formatMoney, formatWeight } from './format';
 
@@ -110,33 +112,38 @@ export const LABEL_SIZES = [
 ] as const;
 export type LabelSize = (typeof LABEL_SIZES)[number]['id'];
 
-/** The address a spool's QR code opens: its panel on the Filament page. */
-export const spoolLink = (origin: string, id: number) => `${origin}/#/filament/${id}`;
+/** What a label shows: its QR address, a title, up to two lines and a color swatch. */
+interface LabelContent {
+  key: string;
+  url: string;
+  title: string;
+  meta: string;
+  color: string | null;
+  colorText: string;
+}
 
-function Label({ spool, size, origin }: { spool: Spool; size: (typeof LABEL_SIZES)[number]; origin: string }) {
+function Label({ label, size }: { label: LabelContent; size: (typeof LABEL_SIZES)[number] }) {
   const [svg, setSvg] = useState('');
   useEffect(() => {
     let alive = true;
-    QRCode.toString(spoolLink(origin, spool.id), { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }).then(
+    QRCode.toString(label.url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }).then(
       (markup) => alive && setSvg(markup),
       () => {}
     );
     return () => {
       alive = false;
     };
-  }, [spool.id, origin]);
+  }, [label.url]);
   return (
-    <div className={`jp-label-card jp-label-card--${size.id}`} style={{ width: `${size.mmW}mm`, height: `${size.mmH}mm` }}>
+    <div className={`jp-label-card jp-label-card--${size.id}`} style={{ width: `${size.mmW}mm`, height: `${size.mmH}mm` }} data-url={label.url}>
       <span className="jp-label-card__qr" dangerouslySetInnerHTML={{ __html: svg }} />
       <span className="jp-label-card__text">
-        <span className="jp-label-card__name">{spool.display_name}</span>
-        {size.id !== 'strip' && (
-          <span className="jp-label-card__meta">{[spool.brand_name, spool.material_type || spool.material].filter(Boolean).join(' · ')}</span>
-        )}
-        {size.id !== 'strip' && (
+        <span className="jp-label-card__name">{label.title}</span>
+        {size.id !== 'strip' && label.meta && <span className="jp-label-card__meta">{label.meta}</span>}
+        {size.id !== 'strip' && label.colorText && (
           <span className="jp-label-card__meta">
-            <span className="jp-label-card__swatch" style={{ background: spool.color_hex || 'transparent' }} />
-            {spool.color_hex || ''} · #{spool.id}
+            {label.color && <span className="jp-label-card__swatch" style={{ background: label.color }} />}
+            {label.colorText}
           </span>
         )}
       </span>
@@ -144,15 +151,89 @@ function Label({ spool, size, origin }: { spool: Spool; size: (typeof LABEL_SIZE
   );
 }
 
-/** Choose spools and a size, preview the labels, print them (the browser's print dialog). */
+type LabelKind = 'spools' | 'places';
+type Links = { public: boolean; spools: Record<string, string | null>; places: Record<string, string | null> };
+
+/**
+ * Choose spools or places and a size, preview the labels, print them (the browser's print dialog).
+ * The QR codes open the spool in the app (sign in first), or, when an admin lets anyone scan
+ * labels, a read-only page for the spool or the place (docs/plan-10.1.md, Phase 5).
+ */
 export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: () => void }) {
+  const isAdmin = useCan('admin');
   const usable = useMemo(() => spools.filter((spool) => spool.status !== 'archived'), [spools]);
-  const [chosen, setChosen] = useState<Set<number>>(() => new Set(usable.map((spool) => spool.id)));
+  const [kind, setKind] = useState<LabelKind>('spools');
+  const [places, setPlaces] = useState<StorageLocation[]>([]);
+  const [chosenSpools, setChosenSpools] = useState<Set<number>>(() => new Set(usable.map((spool) => spool.id)));
+  const [chosenPlaces, setChosenPlaces] = useState<Set<number>>(new Set());
+  const [links, setLinks] = useState<Links | null>(null);
   const [sizeId, setSizeId] = useState<LabelSize>('badge');
   const [printing, setPrinting] = useState(false);
+  const [error, setError] = useState('');
   const size = LABEL_SIZES.find((s) => s.id === sizeId) || LABEL_SIZES[0];
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  const picked = usable.filter((spool) => chosen.has(spool.id));
+
+  const loadLinks = async (placeList: StorageLocation[]) => {
+    try {
+      setLinks(await filament.labelLinks({ spoolIds: usable.map((spool) => spool.id), placeIds: placeList.map((place) => place.id) }));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+  const [placesLoaded, setPlacesLoaded] = useState(false);
+  useEffect(() => {
+    filament.locations().then(
+      (list) => {
+        setPlaces(list);
+        setChosenPlaces(new Set(list.map((place) => place.id)));
+        setPlacesLoaded(true);
+      },
+      () => setPlacesLoaded(true)
+    );
+  }, []);
+  // The links, again whenever the spools change while the dialog is open (one added elsewhere).
+  const spoolKey = usable.map((spool) => spool.id).join(',');
+  useEffect(() => {
+    if (placesLoaded) void loadLinks(places);
+    // loadLinks reads `usable` and `places`, which spoolKey and placesLoaded follow.
+  }, [spoolKey, placesLoaded]);
+
+  /** The admin's checkbox: shown ticked at once, while the setting saves and the links reload. */
+  const [publicOn, setPublicOn] = useState<boolean | null>(null);
+  const setPublic = async (on: boolean) => {
+    setError('');
+    setPublicOn(on);
+    try {
+      await settings.save('publicLabels', on ? 'true' : 'false');
+      await loadLinks(places);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setPublicOn(null);
+    }
+  };
+
+  const spoolLabels: LabelContent[] = usable
+    .filter((spool) => chosenSpools.has(spool.id) && links?.spools[spool.id])
+    .map((spool) => ({
+      key: `spool-${spool.id}`,
+      url: `${origin}${links?.spools[spool.id]}`,
+      title: spool.display_name,
+      meta: [spool.brand_name, spool.material_type || spool.material].filter(Boolean).join(' · '),
+      color: spool.color_hex,
+      colorText: `${spool.color_hex || ''} · #${spool.id}`
+    }));
+  const placeLabels: LabelContent[] = places
+    .filter((place) => chosenPlaces.has(place.id) && links?.places[place.id])
+    .map((place) => ({
+      key: `place-${place.id}`,
+      url: `${origin}${links?.places[place.id]}`,
+      title: place.name,
+      meta: place.is_dry_box ? 'Dry box' : 'Place',
+      color: null,
+      colorText: 'Scan for its spools'
+    }));
+  const picked = kind === 'spools' ? spoolLabels : placeLabels;
 
   useEffect(() => {
     if (!printing) return;
@@ -168,8 +249,8 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
     };
   }, [printing]);
 
-  const toggle = (id: number) =>
-    setChosen((previous) => {
+  const toggle = (setter: typeof setChosenSpools, id: number) =>
+    setter((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -180,7 +261,7 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
     <Modal
       open
       onClose={onClose}
-      title="Spool labels"
+      title="Labels"
       id="jp-labels-dialog"
       className="jp-filament-form jp-filament-form--wide"
       footer={
@@ -195,7 +276,37 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
         </>
       }
     >
-      <p className="jp-meta">The QR code opens the spool on the Filament page (log in first on the phone that scans it).</p>
+      <Tabs<LabelKind>
+        label="Labels for"
+        items={[
+          { id: 'spools', label: 'Spools' },
+          { id: 'places', label: 'Places' }
+        ]}
+        value={kind}
+        onChange={setKind}
+      />
+      {isAdmin ? (
+        <label className="jp-filament-form__check jp-labels__public">
+          <input
+            type="checkbox"
+            id="jp-labels-public"
+            checked={publicOn ?? !!links?.public}
+            disabled={!links || publicOn !== null}
+            onChange={(event) => void setPublic(event.target.checked)}
+          />
+          Anyone who scans a label sees the spool or place (read-only, without signing in)
+        </label>
+      ) : null}
+      <p className="jp-meta" id="jp-labels-how">
+        {links?.public
+          ? 'The QR code opens a read-only page for the spool or the place (no price, shop or notes), for anyone who scans it. Sign in from there to change things.'
+          : 'The QR code opens the spool on the Filament page: sign in first on the phone that scans it.'}
+      </p>
+      {error && (
+        <p className="jp-filament-form__error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="jp-labels__sizes" role="group" aria-label="Label size">
         {LABEL_SIZES.map((s) => (
           <label key={s.id} className="jp-filament-form__check">
@@ -203,36 +314,62 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
           </label>
         ))}
       </div>
-      <div className="jp-labels__pick">
-        <Button size="sm" onClick={() => setChosen(new Set(usable.map((spool) => spool.id)))}>
-          All
-        </Button>
-        <Button size="sm" onClick={() => setChosen(new Set())}>
-          None
-        </Button>
-      </div>
-      <ul className="jp-labels__list">
-        {usable.map((spool) => (
-          <li key={spool.id}>
-            <label className="jp-filament-form__check">
-              <input type="checkbox" checked={chosen.has(spool.id)} onChange={() => toggle(spool.id)} />
-              <ColorDot color={spool.color_hex || '#9aa4b4'} size={14} /> {spool.display_name}
-              {spool.brand_name ? <span className="jp-meta"> · {spool.brand_name}</span> : null}
-            </label>
-          </li>
-        ))}
-      </ul>
+      {kind === 'spools' ? (
+        <>
+          <div className="jp-labels__pick">
+            <Button size="sm" onClick={() => setChosenSpools(new Set(usable.map((spool) => spool.id)))}>
+              All
+            </Button>
+            <Button size="sm" onClick={() => setChosenSpools(new Set())}>
+              None
+            </Button>
+          </div>
+          <ul className="jp-labels__list">
+            {usable.map((spool) => (
+              <li key={spool.id}>
+                <label className="jp-filament-form__check">
+                  <input type="checkbox" checked={chosenSpools.has(spool.id)} onChange={() => toggle(setChosenSpools, spool.id)} />
+                  <ColorDot color={spool.color_hex || '#9aa4b4'} size={14} /> {spool.display_name}
+                  {spool.brand_name ? <span className="jp-meta"> · {spool.brand_name}</span> : null}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : !links?.public ? (
+        <p className="jp-meta" id="jp-labels-places-off">
+          A place&apos;s label opens a page listing the spools in it, which needs labels anyone can scan
+          {isAdmin ? ': turn that on above.' : ' (an admin turns that on).'}
+        </p>
+      ) : !places.length ? (
+        <p className="jp-meta">No places yet: add them with Places on the Filament page.</p>
+      ) : (
+        <ul className="jp-labels__list">
+          {places.map((place) => (
+            <li key={place.id}>
+              <label className="jp-filament-form__check">
+                <input type="checkbox" checked={chosenPlaces.has(place.id)} onChange={() => toggle(setChosenPlaces, place.id)} />
+                {place.name}
+                <span className="jp-meta">
+                  {' '}
+                  · {place.spool_count || 0} {place.spool_count === 1 ? 'spool' : 'spools'}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="jp-labels__preview" aria-label="Preview">
-        {picked.slice(0, 4).map((spool) => (
-          <Label key={spool.id} spool={spool} size={size} origin={origin} />
+        {picked.slice(0, 4).map((label) => (
+          <Label key={label.key} label={label} size={size} />
         ))}
         {picked.length > 4 && <span className="jp-meta">and {picked.length - 4} more</span>}
       </div>
       {printing &&
         createPortal(
           <div className="jp-labels-sheet" id="jp-labels-sheet">
-            {picked.map((spool) => (
-              <Label key={spool.id} spool={spool} size={size} origin={origin} />
+            {picked.map((label) => (
+              <Label key={label.key} label={label} size={size} />
             ))}
           </div>,
           document.body
