@@ -737,7 +737,12 @@ export interface SpoolmanImport {
 }
 
 /** What the spool form sends: a Spool's columns, `remaining` for grams left, a brand by name. */
-export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & { remaining?: number | null; brand_name?: string | null };
+export type SpoolInput = Partial<Omit<Spool, 'loaded' | 'drying' | 'remaining'>> & {
+  remaining?: number | null;
+  brand_name?: string | null;
+  /** Adding: how many of the same spool (1 to 50). */
+  copies?: number;
+};
 
 /** One needed color and the spool the check picked (src/core/filament-check.js checkNeeds). */
 export interface FilamentCheckNeed {
@@ -875,7 +880,7 @@ export const filament = {
   spools: (includeArchived = true) => callAction<Spool[]>('get-spools', { includeArchived }),
   spool: (id: number) => callAction<SpoolDetail | null>('get-spool', id),
   summary: () => callAction<FilamentSummary>('get-filament-summary'),
-  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail>('save-spool', spool),
+  saveSpool: (spool: SpoolInput) => callAction<SpoolDetail & { added?: number }>('save-spool', spool),
   weigh: (id: number, weighing: { weight: number; withSpool: boolean; notes?: string | null }) => callAction<SpoolDetail>('weigh-spool', id, weighing),
   move: (id: number, locationId: number | null) => callAction<SpoolDetail>('move-spool', id, locationId),
   archive: (id: number, archived: boolean) => callAction<SpoolDetail>('archive-spool', id, archived),

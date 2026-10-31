@@ -277,3 +277,23 @@ test('brands (10.1): rename, rename onto another to merge, delete; profiles and 
   assert.ok(profiles.deleteProfile(db, pla.id));
   assert.deepStrictEqual([spools.getSpool(db, spool.id).profile_id, spools.getSpool(db, spool.id).material], [null, 'PLA'], 'a spool keeps its own material');
 });
+
+test('How many (10.1): several of the same spool at once, all or none', () => {
+  const db = fresh();
+  const first = spools.saveSpool(db, { material: 'PLA', color_hex: '#ff0000', initial_weight: 1000, copies: 3 });
+  assert.strictEqual(first.added, 3);
+  assert.deepStrictEqual(
+    spools.listSpools(db).map((s) => [s.material, s.color_hex, s.remaining]),
+    [
+      ['PLA', '#ff0000', 1000],
+      ['PLA', '#ff0000', 1000],
+      ['PLA', '#ff0000', 1000]
+    ]
+  );
+  assert.throws(() => spools.saveSpool(db, { material: 'PLA', initial_weight: 1000, copies: 51 }), /1 to 50/);
+  assert.throws(() => spools.saveSpool(db, { material: 'PLA', initial_weight: 1000, copies: 2.5 }), /whole number/);
+  assert.throws(() => spools.saveSpool(db, { initial_weight: 1000, copies: 4 }), /needs a material/);
+  assert.strictEqual(spools.listSpools(db).length, 3, 'a refused add adds nothing');
+  assert.strictEqual(spools.saveSpool(db, { id: first.id, material: 'PETG', copies: 5 }).added, undefined, 'an edit ignores How many');
+  assert.strictEqual(spools.listSpools(db).length, 3);
+});

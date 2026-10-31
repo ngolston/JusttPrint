@@ -816,3 +816,152 @@
   top: 2px;
   right: 2px;
 }
+
+/* The spool list: saved views, sort, cards or table (docs/plan-10.1.md, Phase 4) */
+.jp-filament__toolbar--views {
+  margin-top: calc(-1 * var(--jp-space-2));
+}
+.jp-filament__view {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+}
+.jp-filament__view-apply,
+.jp-filament__view-remove {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+}
+.jp-filament__view-apply {
+  padding: 6px 4px 6px 12px;
+}
+.jp-filament__view-remove {
+  padding: 6px 10px 6px 4px;
+  opacity: 0.7;
+}
+.jp-filament__view-remove:hover,
+.jp-filament__view-remove:focus-visible {
+  opacity: 1;
+}
+.jp-filament__view-apply:focus-visible,
+.jp-filament__view-remove:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-filament__sort {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-filament__sort .jp-input {
+  width: auto;
+}
+.jp-filament__layout {
+  display: inline-flex;
+  gap: 4px;
+}
+.jp-spool-table__wrap {
+  overflow-x: auto;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface);
+  box-shadow: var(--jp-shadow-card);
+}
+.jp-spool-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--jp-text-small);
+}
+.jp-spool-table th,
+.jp-spool-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--jp-border);
+  white-space: nowrap;
+}
+.jp-spool-table th.is-numeric,
+.jp-spool-table td.is-numeric {
+  text-align: right;
+}
+.jp-spool-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.jp-spool-table tr.is-archived td {
+  color: var(--jp-text-3);
+}
+.jp-spool-table td.is-low {
+  color: var(--jp-danger-text);
+  font-weight: 700;
+}
+.jp-spool-table__sort {
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  color: var(--jp-text-2);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.jp-spool-table__sort:hover {
+  color: var(--jp-text);
+  background: none;
+}
+.jp-spool-table__name {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--jp-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.jp-spool-table__name:hover {
+  color: var(--jp-accent-text);
+  background: none;
+}
+.jp-spool-table__sort:focus-visible,
+.jp-spool-table__name:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: 4px;
+}
+.jp-spool-table__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* The page-wide button rule (base-elements.css) makes buttons wide, centered flex boxes: not these. */
+.jp-filament__view-apply,
+.jp-filament__view-remove,
+.jp-spool-table__sort,
+.jp-spool-table__name {
+  width: auto;
+  min-width: 0;
+  justify-content: flex-start;
+  white-space: nowrap;
+  font-weight: inherit;
+}
+.jp-spool-table__sort {
+  font-weight: 700;
+}
+.jp-spool-table__name {
+  display: inline;
+  font-weight: 700;
+}
+.jp-spool-table th.is-numeric .jp-spool-table__sort {
+  justify-content: flex-end;
+}

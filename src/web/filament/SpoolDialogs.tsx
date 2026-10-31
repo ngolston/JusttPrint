@@ -155,6 +155,8 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
   }, []);
 
   const set = (key: keyof typeof form) => (event: { target: { value: string } }) => setForm((previous) => ({ ...previous, [key]: event.target.value }));
+  /** Adding: how many of the same spool (docs/plan-10.1.md, Phase 4). */
+  const [copies, setCopies] = useState('1');
   const pickProfile = (id: string) => {
     const profile = profiles.find((p) => String(p.id) === id);
     setForm((previous) => ({
@@ -187,7 +189,8 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
         purchase_date: form.purchase_date || null,
         lot_nr: form.lot_nr,
         product_url: form.product_url,
-        notes: form.notes
+        notes: form.notes,
+        ...(spool ? {} : { copies: Math.round(numberOrNull(copies) ?? 1) })
       };
       await filament.saveSpool(input);
     }, onClose);
@@ -198,7 +201,7 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
       title={spool ? `Edit ${spool.display_name}` : 'Add a spool'}
       onClose={onClose}
       onSubmit={save}
-      saveLabel={spool ? 'Save' : 'Add spool'}
+      saveLabel={spool ? 'Save' : Number(copies) > 1 ? `Add ${Math.round(Number(copies))} spools` : 'Add spool'}
       busy={busy}
       error={error}
       wide
@@ -266,6 +269,19 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
         <Field label="Empty spool (g)" htmlFor="jp-spool-tare" hint="Lets you weigh it on the spool.">
           <input id="jp-spool-tare" className="jp-input" inputMode="decimal" value={form.spool_weight} onChange={set('spool_weight')} />
         </Field>
+        {!spool && (
+          <Field label="How many" htmlFor="jp-spool-copies" hint="Bought several of the same? Adds each as its own spool.">
+            <input
+              id="jp-spool-copies"
+              className="jp-input"
+              type="number"
+              min="1"
+              max="50"
+              value={copies}
+              onChange={(event) => setCopies(event.target.value)}
+            />
+          </Field>
+        )}
         <Field label="Status" htmlFor="jp-spool-status">
           <select id="jp-spool-status" className="jp-input" value={form.status} onChange={set('status')}>
             <option value="active">In use</option>

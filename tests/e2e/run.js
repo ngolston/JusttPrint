@@ -4244,6 +4244,74 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.1 Phase 2 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.1 Phase 4 (docs/plan-10.1.md): How many, the table, sorting and saved views.
+    try {
+      const made = (
+        await invoke(base, session, 'save-spool', [
+          { name: 'E2E Batch Spool', material: 'PETG', color_hex: '#123456', initial_weight: 1000, remaining: 250, copies: 3 }
+        ])
+      ).result;
+      const batch = ((await invoke(base, session, 'get-spools', [{}])).result || []).filter((sp) => sp.display_name === 'E2E Batch Spool');
+      check(
+        'How many adds several of the same spool at once',
+        made?.added === 3 && batch.length === 3,
+        JSON.stringify({ added: made?.added, found: batch.length })
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-spool-layout-table', { timeout: 15000 });
+      await page.fill('.jp-filament__search', 'E2E Batch Spool');
+      await page.click('#jp-spool-layout-table');
+      const rows = await page
+        .waitForSelector('#jp-spool-table tbody tr', { timeout: 10000 })
+        .then(() => page.$$eval('#jp-spool-table tbody tr', (trs) => trs.length))
+        .catch(() => 0);
+      check('the spool list shows as a table', rows === 3, String(rows));
+      await page.click('#jp-spool-table th:has-text("Left") button');
+      check(
+        'a table heading sorts by its column',
+        (await page.getAttribute('#jp-spool-table th:has-text("Left")', 'aria-sort')) === 'descending' &&
+          (await page.inputValue('#jp-spool-sort')) === 'remaining:desc'
+      );
+      await page.click('#jp-save-view');
+      const viewName = await page.waitForSelector('dialog.browser-input-dialog[open] input', { timeout: 10000 }).catch(() => null);
+      if (viewName) {
+        await viewName.fill('E2E Batch view');
+        await page.click('dialog.browser-input-dialog[open] button[type=submit]');
+      }
+      await page.waitForSelector('.jp-filament__view:has-text("E2E Batch view")', { timeout: 10000 }).catch(() => {});
+      const saved = await waitFor(
+        async () => {
+          const raw = (await invoke(base, session, 'get-setting', ['spoolViews'])).result;
+          return /E2E Batch view/.test(raw || '') ? raw : null;
+        },
+        10000,
+        'view saved'
+      ).catch(() => '');
+      check(
+        'a saved view keeps the search, order and layout for this person',
+        /"search":"E2E Batch Spool"/.test(saved) && /"key":"remaining"/.test(saved) && /"layout":"table"/.test(saved),
+        String(saved).slice(0, 200)
+      );
+      await page.click('#jp-spool-layout-cards');
+      await page.fill('.jp-filament__search', '');
+      await page.click('.jp-filament__view-apply:has-text("E2E Batch view")');
+      check(
+        'choosing a saved view brings its search and table back',
+        (await page.inputValue('.jp-filament__search')) === 'E2E Batch Spool' && (await page.isVisible('#jp-spool-table'))
+      );
+      await page.click('.jp-filament__view-remove[aria-label="Delete the view E2E Batch view"]');
+      const confirmView = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+      if (confirmView) await confirmView.click();
+      await page.click('#jp-spool-layout-cards');
+      await page.fill('.jp-filament__search', '');
+      for (const sp of batch) await invoke(base, session, 'delete-spool', [sp.id]);
+      await invoke(base, session, 'save-setting', ['spoolLayout', 'cards']);
+    } catch (error) {
+      check('the 10.1 Phase 4 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (

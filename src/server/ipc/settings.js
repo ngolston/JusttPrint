@@ -29,7 +29,10 @@ const PER_USER_SETTING_KEYS = new Set([
   'uiTheme',
   'uiColorScheme',
   'detailsSidebar',
-  'folderModels'
+  'folderModels',
+  // The Filament page's spool list: cards or table, and the saved views (docs/plan-10.1.md, Phase 4).
+  'spoolLayout',
+  'spoolViews'
 ]);
 
 /** Server-wide settings any user may save: the update check. Everything else needs an admin. */

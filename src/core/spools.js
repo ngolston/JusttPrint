@@ -149,9 +149,24 @@ function spoolValues(db, input, existing) {
   };
 }
 
-/** Add a spool (no id) or change one. Returns the saved spool. */
+/** Most spools one Add spool makes at once (`copies`). */
+const MAX_COPIES = 50;
+
+/**
+ * Add a spool (no id) or change one. Returns the saved spool. Adding with `copies` (2 to 50) adds
+ * that many of the same spool at once, in one go; the first is returned, with `added`.
+ */
 function saveSpool(db, input = {}, { userId = null } = {}) {
   const id = v.id(input.id);
+  const copies = input.copies === undefined || input.copies === null || input.copies === '' ? 1 : Number(input.copies);
+  if (!Number.isInteger(copies) || copies < 1 || copies > MAX_COPIES) throw new Error(`How many is a whole number from 1 to ${MAX_COPIES}`);
+  if (!id && copies > 1) {
+    return db.transaction(() => {
+      const first = saveSpool(db, { ...input, copies: 1 }, { userId });
+      for (let i = 1; i < copies; i += 1) saveSpool(db, { ...input, copies: 1 }, { userId });
+      return { ...first, added: copies };
+    })();
+  }
   const existing = id ? db.prepare('SELECT * FROM spools WHERE id = ?').get(id) : null;
   if (id && !existing) throw new Error('That spool no longer exists');
   const values = spoolValues(db, input, existing);
