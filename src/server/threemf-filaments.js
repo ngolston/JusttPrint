@@ -135,17 +135,21 @@ async function isPainted(zip, entries) {
     const stream = await zip.stream(entry.name);
     const found = await new Promise((resolve, reject) => {
       let tail = '';
+      let painted = false;
+      // Reads to the end even after the first sign: destroying the stream leaves a read of the
+      // file in flight, and zip.close() then fails it with EBADF, an error nobody can catch,
+      // which takes the whole server down.
       stream.on('data', (chunk) => {
+        if (painted) return;
         const text = tail + chunk.toString('latin1');
         if (PAINT.test(text)) {
-          stream.destroy();
-          resolve(true);
+          painted = true;
           return;
         }
         tail = text.slice(-64);
       });
-      stream.on('end', () => resolve(false));
-      stream.on('close', () => resolve(false));
+      stream.on('end', () => resolve(painted));
+      stream.on('close', () => resolve(painted));
       stream.on('error', reject);
     });
     if (found) return true;
