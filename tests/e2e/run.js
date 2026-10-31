@@ -4680,6 +4680,30 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 11 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 12 (docs/plan-10.1.md): Sign-in & security shows this browser and makes an API key.
+    try {
+      await page.evaluate(() => window.openSignInSecurity());
+      check(
+        'Sign-in & security lists this browser',
+        await page.waitForSelector('#security-sessions td:has-text("This browser")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.fill('#security-key-name', 'E2E dialog key');
+      await page.click('#security-key-create');
+      const token = await page
+        .waitForSelector('#security-key-made code', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check('a new API key is shown once in the dialog', /^jpk_/.test(token || ''), token);
+      const keys = (await invoke(base, session, 'list-my-api-keys')).result || [];
+      for (const key of keys.filter((k) => k.name === 'E2E dialog key')) await invoke(base, session, 'delete-my-api-key', [key.id]);
+      await page.click('#sign-in-security-dialog button:has-text("Close")').catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 12 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6770,6 +6794,77 @@ async function accountChecks(base, wsUrl, admin) {
       (await invoke(base, viewer, 'import-spool-csv', [{ text: 'material\nPLA' }])).status === 403
   );
   check('editors cannot see or set up Home Assistant', (await invoke(base, editor, 'get-home-assistant')).status === 403);
+  // 10.2 Phase 12 (docs/plan-10.1.md): two-factor sign-in, sessions and API keys, on an account of its own.
+  {
+    const totp = require('../../src/server/totp');
+    await invoke(base, admin, 'create-user', [{ username: 'e2e-2fa', password: 'e2e-2fa-pass', role: 'editor' }]);
+    const first = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
+    const second = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
+    const started = (await invoke(base, first, 'start-two-factor')).result;
+    const turnedOn = (await invoke(base, first, 'enable-two-factor', [totp.codeAt(started.secret, totp.stepOf(Date.now()))])).result;
+    check(
+      'two-factor sign-in turns on with a code from the app and gives ten recovery codes',
+      turnedOn?.recoveryCodes?.length === 10,
+      JSON.stringify(turnedOn)
+    );
+    const step1 = await (
+      await fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base },
+        body: JSON.stringify({ username: 'e2e-2fa', password: 'e2e-2fa-pass' })
+      })
+    ).json();
+    const wrong = await fetch(`${base}/api/auth/login/code`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ pending: step1.pending, code: '000000' })
+    });
+    const right = await fetch(`${base}/api/auth/login/code`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ pending: step1.pending, code: turnedOn.recoveryCodes[0] })
+    });
+    const third = { cookie: (right.headers.get('set-cookie') || '').split(';')[0], origin: base };
+    check(
+      'with two-factor on, the password alone gives no session; a wrong code is refused, a recovery code signs in',
+      step1.twoFactor === 'code' &&
+        !step1.success &&
+        wrong.status === 401 &&
+        right.status === 200 &&
+        (await invoke(base, third, 'get-two-factor')).result?.recoveryCodesLeft === 9
+    );
+    const sessions = (await invoke(base, third, 'list-my-sessions')).result || [];
+    check('each sign-in is a session the account can see', sessions.length === 3 && sessions.filter((s) => s.current).length === 1, String(sessions.length));
+    await invoke(base, third, 'end-other-sessions');
+    check(
+      'ending the other sessions signs those browsers out, not this one',
+      (await invoke(base, first, 'get-two-factor')).status === 401 &&
+        (await invoke(base, second, 'get-two-factor')).status === 401 &&
+        (await invoke(base, third, 'get-two-factor')).status === 200
+    );
+    const made = (await invoke(base, third, 'create-my-api-key', [{ name: 'E2E script', role: 'viewer' }])).result;
+    const asKey = (channel, args = []) =>
+      fetch(`${base}/api/actions/${channel}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base, authorization: `Bearer ${made.token}` },
+        body: JSON.stringify({ args })
+      });
+    check(
+      'an API key acts as its account, with its own lower role, and cannot manage sign-in',
+      (await asKey('get-spools', [{}])).status === 200 &&
+        (await asKey('save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 403 &&
+        (await asKey('create-my-api-key', [{ name: 'x' }])).status !== 200
+    );
+    await invoke(base, third, 'delete-my-api-key', [made.key.id]);
+    check('a deleted API key stops working', (await asKey('get-spools', [{}])).status === 401);
+    check(
+      'editors cannot turn off someone else’s two-factor or require it',
+      (await invoke(base, editor, 'reset-two-factor', [1])).status === 403 && (await invoke(base, editor, 'set-require-two-factor', [true])).status === 403
+    );
+    const e2eUser = ((await invoke(base, admin, 'list-users')).result?.users || []).find((u) => u.username === 'e2e-2fa');
+    check('the users list shows who has two-factor sign-in', e2eUser?.twoFactor === true);
+    if (e2eUser) await invoke(base, admin, 'delete-user', [e2eUser.id]);
+  }
   check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);

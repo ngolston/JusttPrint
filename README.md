@@ -159,6 +159,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_PASSWORD` | Password of the admin account. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
 | `JUSTTPRINT_USERNAME` | User name of that admin account (default `admin`). Other accounts are added under **Settings → Authentication → Users**. |
 | `JUSTTPRINT_GUEST_ACCESS` | `true`: people who open JusttPrint without logging in browse like a Viewer (also under **Settings → Authentication → Users**). Off by default. |
+| `JUSTTPRINT_RESET_TWO_FACTOR` | A user name: turns two-factor sign-in off for that account when JusttPrint starts, for someone who lost both their phone and their recovery codes (also the only admin). Remove it afterwards. |
 | `JUSTTPRINT_MAX_UPLOAD_MB` | Largest file the browser may upload, in MB (default `2048`; `10240` for 10 GB). |
 | `JUSTTPRINT_UPLOAD_CHUNK_MB` | Size of the pieces uploads are sent in, in MB (default `16`). Lower it only if a proxy in front takes less per request. |
 | `STL_HOME` | Folders to scan automatically, as container paths. Several: `/mnt/models,/mnt/archive`. The first start fills the STL Home list with them; later, folders added to or removed from `STL_HOME` are added or removed on the next start, and folders chosen in the web UI stay. Without it, an admin is asked which folders to scan after logging in. |

@@ -509,6 +509,15 @@ export const SETTINGS: SettingsGroup[] = [
         embed: { dialog: 'users-dialog', open: 'openUsers' }
       },
       {
+        id: 'sign-in-security',
+        label: 'Sign-in & security',
+        description: 'Two-factor sign-in, where you are signed in, and your API keys.',
+        icon: ShieldCheck,
+        run: open('openSignInSecurity'),
+        embed: { dialog: 'sign-in-security-dialog', open: 'openSignInSecurity' },
+        role: 'viewer'
+      },
+      {
         id: 'my-alerts',
         label: 'My alerts',
         description: 'Which alerts reach you in the bell, by email and on Discord; quiet hours; a weekly digest.',

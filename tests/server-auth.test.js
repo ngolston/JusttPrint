@@ -158,7 +158,9 @@ test('login sets a session cookie that authenticates requests as that user', () 
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /SameSite=Lax/);
   const cookie = cookieOf(res);
-  assert.deepStrictEqual(auth.authenticate(req({ cookie })), { id: res.body.user.id, username: 'maker', role: 'editor', canDeleteFiles: false });
+  const { sessionId, ...who } = auth.authenticate(req({ cookie }));
+  assert.deepStrictEqual(who, { id: res.body.user.id, username: 'maker', role: 'editor', canDeleteFiles: false });
+  assert.match(sessionId, /^[\w-]{24}$/, 'a session of its own (10.2)');
   assert.ok(!auth.isAuthenticated(req()));
   assert.ok(auth.listUsers().find((u) => u.username === 'maker').lastLoginAt, 'the login time is kept');
 });

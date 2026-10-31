@@ -79,6 +79,25 @@ function closeClientsOfUser(userId, code, reason) {
   });
 }
 
+/**
+ * Close the browsers of one session (10.2: Sign-in & security → End), or of an account except one
+ * session (End all the others).
+ */
+function closeClientsOfSession(sessionId, code, reason, { userId = null, except = false } = {}) {
+  if (!wsClients) return;
+  wsClients.forEach((client) => {
+    const user = client.user;
+    if (!user) return;
+    const match = except ? user.id === userId && user.sessionId !== sessionId : user.sessionId === sessionId;
+    if (!match) return;
+    try {
+      client.close(code, reason);
+    } catch (_) {
+      /* ignore */
+    }
+  });
+}
+
 /** Stop accepting HTTP connections (server shutdown). */
 function closeHttpServer() {
   if (httpServer) httpServer.close();
@@ -689,6 +708,7 @@ async function maybeRenewLetsEncryptCertificate() {
 module.exports = {
   closeAllClients,
   closeClientsOfUser,
+  closeClientsOfSession,
   closeHttpServer,
   ensurePort80ForAcme,
   getAppListenPort,

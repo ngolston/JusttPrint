@@ -3,6 +3,7 @@
 const { flushSettingsToDisk, persistSetting } = require('../../core/settings');
 const { ipcMain } = require('../runtime');
 const {
+  closeClientsOfSession,
   closeClientsOfUser,
   ensurePort80ForAcme,
   getAppListenPort,
@@ -84,7 +85,8 @@ ipcMain.handle('set-server-password', async (event, currentPassword, newPassword
 // Settings → Users (admins only, api-actions.js).
 ipcMain.handle('list-users', async () => ({
   users: getServerAuth().listUsers(),
-  minPasswordLength: MIN_PASSWORD_LENGTH
+  minPasswordLength: MIN_PASSWORD_LENGTH,
+  requireTwoFactor: getServerAuth().requireTwoFactor()
 }));
 
 ipcMain.handle('create-user', async (event, details) => getServerAuth().createUser(details || {}));
@@ -101,6 +103,40 @@ ipcMain.handle('delete-user', async (event, id) => {
   const result = getServerAuth().deleteUser(event && event.user, userId);
   require('./settings').forgetUserSettings(userId);
   endSessionsOf(userId, 'Account deleted');
+  return result;
+});
+
+// Each account's sign-in security (docs/plan-10.1.md, Phase 12): everyone, for themselves.
+const me = (event) => (event && event.user) || null;
+ipcMain.handle('get-two-factor', async (event) => getServerAuth().twoFactorStatus(me(event)));
+ipcMain.handle('start-two-factor', async (event) => getServerAuth().startTwoFactor(me(event)));
+ipcMain.handle('enable-two-factor', async (event, code) => getServerAuth().enableTwoFactor(me(event), code));
+ipcMain.handle('disable-two-factor', async (event, password) => getServerAuth().disableTwoFactor(me(event), password));
+ipcMain.handle('new-recovery-codes', async (event, password) => getServerAuth().newRecoveryCodes(me(event), password));
+ipcMain.handle('list-my-sessions', async (event) => getServerAuth().listSessions(me(event)));
+ipcMain.handle('end-my-session', async (event, id) => {
+  const result = getServerAuth().endSession(me(event), id);
+  if (result.ended) setTimeout(() => closeClientsOfSession(String(id), 4001, 'Signed out from another browser'), 500);
+  return result;
+});
+ipcMain.handle('end-other-sessions', async (event) => {
+  const user = me(event);
+  const result = getServerAuth().endOtherSessions(user);
+  setTimeout(() => closeClientsOfSession(user.sessionId, 4001, 'Signed out from another browser', { userId: user.id, except: true }), 500);
+  return result;
+});
+ipcMain.handle('list-my-api-keys', async (event) => getServerAuth().listApiKeys(me(event)));
+ipcMain.handle('create-my-api-key', async (event, input) => getServerAuth().createApiKey(me(event), input || {}));
+ipcMain.handle('delete-my-api-key', async (event, id) => getServerAuth().deleteApiKey(me(event), id));
+// Admins: turn someone's two-factor sign-in off (a lost phone), and require it for everyone.
+ipcMain.handle('reset-two-factor', async (event, id) => {
+  const result = getServerAuth().resetTwoFactor(me(event), Number(id));
+  endSessionsOf(Number(id), 'Two-factor sign-in was reset');
+  return result;
+});
+ipcMain.handle('set-require-two-factor', async (event, on) => {
+  const result = getServerAuth().setRequireTwoFactor(me(event), on === true);
+  for (const user of getServerAuth().listUsers()) if (result.signedOut.includes(user.username)) endSessionsOf(user.id, 'Two-factor sign-in is now required');
   return result;
 });
 

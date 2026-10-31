@@ -161,11 +161,16 @@ export interface UserAccount {
   lastLoginAt: string | null;
   /** The JUSTTPRINT_PASSWORD account: stays an admin, password set by the variable. */
   fromEnv: boolean;
+  /** Two-factor sign-in is on (10.2). */
+  twoFactor?: boolean;
 }
 
 /** Settings → Users (admins). */
 export const users = {
-  list: () => callAction<{ users: UserAccount[]; minPasswordLength: number }>('list-users'),
+  list: () => callAction<{ users: UserAccount[]; minPasswordLength: number; requireTwoFactor?: boolean }>('list-users'),
+  /** Admins: turn someone's two-factor sign-in off (a lost phone); they are signed out. */
+  resetTwoFactor: (id: number) => callAction<UserAccount>('reset-two-factor', id),
+  setRequireTwoFactor: (on: boolean) => callAction<{ required: boolean; signedOut: string[] }>('set-require-two-factor', on),
   create: (details: { username: string; password: string; role: UserRole; canDeleteFiles?: boolean }) => callAction<UserAccount>('create-user', details),
   update: (id: number, changes: { role?: UserRole; password?: string; canDeleteFiles?: boolean }) => callAction<UserAccount>('update-user', id, changes),
   remove: (id: number) => callAction<unknown>('delete-user', id)
@@ -397,6 +402,38 @@ export interface FilamentUse {
     costPerKg: { material: string; perKg: number; spools: number }[];
   };
 }
+
+/** Each account's sign-in security (src/server/server-auth.js; docs/plan-10.1.md, Phase 12). */
+export interface MySession {
+  id: string;
+  current: boolean;
+  createdAt: string;
+  lastSeenAt: string;
+  userAgent: string | null;
+  ip: string | null;
+}
+export interface MyApiKey {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** The key's first characters, to tell keys apart. */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+export const signInSecurity = {
+  twoFactor: () => callAction<{ enabled: boolean; recoveryCodesLeft: number; required: boolean }>('get-two-factor'),
+  startTwoFactor: () => callAction<{ secret: string; otpauthUrl: string; qrSvg: string }>('start-two-factor'),
+  enableTwoFactor: (code: string) => callAction<{ recoveryCodes: string[] }>('enable-two-factor', code),
+  disableTwoFactor: (password: string) => callAction<{ enabled: boolean }>('disable-two-factor', password),
+  newRecoveryCodes: (password: string) => callAction<{ recoveryCodes: string[] }>('new-recovery-codes', password),
+  sessions: () => callAction<MySession[]>('list-my-sessions'),
+  endSession: (id: string) => callAction<{ ended: boolean }>('end-my-session', id),
+  endOtherSessions: () => callAction<{ ended: number }>('end-other-sessions'),
+  apiKeys: () => callAction<MyApiKey[]>('list-my-api-keys'),
+  createApiKey: (input: { name: string; role: UserRole }) => callAction<{ key: MyApiKey; token: string }>('create-my-api-key', input),
+  deleteApiKey: (id: number) => callAction<{ deleted: boolean }>('delete-my-api-key', id)
+};
 
 /** Home Assistant: one sensor per spool (src/server/home-assistant.js; docs/plan-10.1.md, Phase 11). */
 export interface HomeAssistantStatus {

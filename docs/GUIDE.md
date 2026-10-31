@@ -291,6 +291,14 @@ Change a role with its menu; **Set Password** gives someone a new password and l
 
 **Guest access** (the switch under the list of users, or `JUSTTPRINT_GUEST_ACCESS=true`) lets people who open JusttPrint without logging in browse, preview and download like a Viewer. Guests keep no settings, cannot edit, and find **Log In** under the account button; the login page offers **Browse as a guest**. Anyone who can reach the JusttPrint backend gets in, so leave it off if it is reachable from the internet.
 
+**Sign-in & security** (**Settings → Authentication**, everyone for their own account):
+
+- **Two-factor sign-in**: **Set Up**, scan the QR code with an authenticator app (Google Authenticator, 1Password, Aegis…), enter the code it shows and **Turn On**. Keep the ten recovery codes it gives you: each signs you in once without your phone. From then on, signing in asks for the app's code after your password. Your password turns it off or makes new recovery codes.
+- **Where you are signed in**: every browser and device, with its address and when it was last used; **End** signs one out, **End All Others** signs out everything but this browser. Signing out, or a new password, ends sessions too.
+- **API keys**: for scripts and apps that use JusttPrint as you (`Authorization: Bearer jpk_…`), each with a name and a role no higher than yours. A key is shown once; **Delete** stops it. A key cannot change how you sign in.
+
+Admins see who has two-factor sign-in under **Users**, and **Turn Off Two-factor** for someone who lost their phone and recovery codes (they are signed out). **Require two-factor sign-in** (under the list of users) makes everyone use it: turn it on for your own account first; accounts without it are signed out and set it up at their next sign-in, before they get in. If the only admin loses both their phone and their recovery codes, restart JusttPrint with `JUSTTPRINT_RESET_TWO_FACTOR=<their user name>` to turn it off for that account, then remove the variable.
+
 ## Managing the library
 
 - **Tags** lists every tag with how many models use it. Create, rename (renaming onto an existing tag merges the two), delete, or show a tag's models.
