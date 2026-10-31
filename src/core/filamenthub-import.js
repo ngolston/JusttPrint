@@ -7,15 +7,13 @@
  * again skips what is already here. Brands and places with the same name, and printers with the
  * same serial number or name, are used rather than doubled.
  *
- * Accounts: a FilamentHub user is matched to a JusttPrint account by its email's name or its
- * display name; without one, an account is made (operator → editor) with a random password an
- * admin resets. Logged prints need a library model with the job's file name; the others are
+ * Accounts: no account is matched or made. Everything a FilamentHub user owned (spools, places,
+ * low-stock rules, webhooks) belongs to whoever runs the import. Logged prints need a library model with the job's file name; the others are
  * counted and left out. Their grams are already off FilamentHub's spools, so they are not taken
  * off again. Left out and counted: projects (not decided yet), print photos, API keys and sign-in
  * tokens.
  */
 
-const crypto = require('crypto');
 const v = require('./filament-values');
 
 const REF = (table, id) => `filamenthub:${table}:${id}`;
@@ -66,33 +64,8 @@ function readSource(source) {
 }
 
 const has = (db, table, ref) => !!db.prepare(`SELECT 1 FROM ${table} WHERE source_ref = ?`).get(ref);
-const roleOf = (role) => (role === 'admin' ? 'admin' : role === 'viewer' ? 'viewer' : 'editor');
-
-/** A username for a FilamentHub user: the email's name, made to fit JusttPrint's rules. */
-function usernameFor(user) {
-  const base = String(user.email || user.display_name || 'filamenthub')
-    .split('@')[0]
-    .replace(/[^A-Za-z0-9._-]/g, '')
-    .replace(/^[^A-Za-z0-9]+/, '')
-    .slice(0, 60);
-  return base || 'filamenthub';
-}
-
-/** Which JusttPrint account each FilamentHub user is: [{ fhId, label, match, create, role }]. */
-function matchUsers(data, accounts) {
-  const byName = new Map(accounts.map((account) => [String(account.username).toLowerCase(), account]));
-  const taken = new Set(byName.keys());
-  return data.users.map((user) => {
-    const candidates = [String(user.email || '').split('@')[0], user.display_name].filter(Boolean).map((s) => String(s).toLowerCase());
-    const found = candidates.map((name) => byName.get(name)).find(Boolean);
-    if (found)
-      return { fhId: user.id, label: user.email || user.display_name, match: found.username, matchId: found.id, create: null, role: roleOf(user.role) };
-    let name = usernameFor(user);
-    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${usernameFor(user).slice(0, 56)}-${n}`;
-    taken.add(name.toLowerCase());
-    return { fhId: user.id, label: user.email || user.display_name, match: null, matchId: null, create: name, role: roleOf(user.role) };
-  });
-}
+/** The file's FilamentHub users, for the preview (they all become the importer). */
+const usersOf = (data) => data.users.map((user) => String(user.email || user.display_name || user.id));
 
 /** Models by file name (any case), for print jobs. */
 function modelsByFileName(db) {
@@ -106,14 +79,18 @@ function modelsByFileName(db) {
 
 /**
  * What an import would do, without changing anything: per kind, how many rows the file has and
- * how many are new; the accounts matched and made; what is left out.
+ * how many are new; whose they become (`owner`, the importer's name); what is left out.
+ * @param {any} data
+ * @param {any} db
+ * @param {{ id: number, username: string } | null} [owner]
  */
-function preview(data, db, accounts) {
+function preview(data, db, owner = null) {
   const count = (rows, table, kind) => ({ total: rows.length, add: rows.filter((row) => !has(db, table, REF(kind, row.id))).length });
   const models = modelsByFileName(db);
   const jobs = data.print_jobs;
   return {
-    users: matchUsers(data, accounts),
+    owner: owner ? owner.username : null,
+    fromUsers: usersOf(data),
     counts: {
       brands: count(data.brands, 'filament_brands', 'brands'),
       profiles: count(data.filament_profiles, 'filament_profiles', 'filament_profiles'),
@@ -145,18 +122,19 @@ function preview(data, db, accounts) {
 }
 
 /**
- * Import everything new in one transaction. `createUser(username, role)` makes an account and
- * returns its id. `alertDelivery` ({ read, save }) takes the email and Discord settings when
+ * Import everything new in one transaction, owned by `owner` (the account running it; null when
+ * signing in is off). `alertDelivery` ({ read, save }) takes the email and Discord settings when
  * JusttPrint has none yet. Returns what was added.
  * @param {any} data
  * @param {any} db
- * @param {{ accounts: { id: number, username: string }[], createUser: (username: string, role: string) => number, alertDelivery?: { read: () => any, save: (input: any) => any } }} options
+ * @param {{ owner?: { id: number, username: string } | null, alertDelivery?: { read: () => any, save: (input: any) => any } }} options
  */
-function runImport(data, db, { accounts, createUser, alertDelivery }) {
-  const plan = preview(data, db, accounts);
+function runImport(data, db, { owner = null, alertDelivery }) {
+  const plan = preview(data, db, owner);
+  // Whoever owned a row in FilamentHub, it is the importer's here.
+  const ownerId = owner ? owner.id : null;
   const now = v.now();
   const added = {
-    users: /** @type {{ username: string, role: string, from: string }[]} */ ([]),
     brands: 0,
     profiles: 0,
     locations: 0,
@@ -172,7 +150,6 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
     discord: false
   };
   const ids = {
-    users: new Map(),
     brands: new Map(),
     profiles: new Map(),
     locations: new Map(),
@@ -184,16 +161,6 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
   const ref = (table, kind, id) => db.prepare(`SELECT id FROM ${table} WHERE source_ref = ?`).get(REF(kind, id))?.id;
 
   db.transaction(() => {
-    // Accounts.
-    for (const user of plan.users) {
-      if (user.matchId) ids.users.set(user.fhId, user.matchId);
-      else {
-        ids.users.set(user.fhId, createUser(String(user.create), user.role));
-        added.users.push({ username: user.create, role: user.role, from: user.label });
-      }
-    }
-    const who = (fhUserId) => ids.users.get(fhUserId) ?? null;
-
     // Brands (reused by name).
     for (const brand of data.brands) {
       const known =
@@ -273,7 +240,7 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
       if (!v.text(l.name, 100)) continue;
       const id = db
         .prepare('INSERT INTO storage_locations (name, description, is_dry_box, created_by, source_ref, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(v.text(l.name, 100), v.text(l.description, 300), l.is_dry_box ? 1 : 0, who(l.owner_id), REF('storage_locations', l.id), now, now).lastInsertRowid;
+        .run(v.text(l.name, 100), v.text(l.description, 300), l.is_dry_box ? 1 : 0, ownerId, REF('storage_locations', l.id), now, now).lastInsertRowid;
       ids.locations.set(l.id, Number(id));
       added.locations++;
     }
@@ -315,7 +282,7 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
           v.url(s.photo_url),
           status,
           v.text(s.notes, 5000),
-          who(s.owner_id),
+          ownerId,
           REF('spools', s.id),
           isoDate(s.registered) || now,
           isoDate(s.first_used),
@@ -493,7 +460,7 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
         rule.notify_discord ? 1 : 0,
         rule.notify_email ? 1 : 0,
         rule.is_active === 0 ? 0 : 1,
-        who(rule.owner_id),
+        ownerId,
         REF('alert_rules', rule.id),
         isoDate(rule.created_at) || now
       );
@@ -515,7 +482,7 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
         events.join(' '),
         v.text(hook.secret, 500),
         hook.is_active === 0 ? 0 : 1,
-        who(hook.owner_id),
+        ownerId,
         REF('webhooks', hook.id),
         isoDate(hook.created_at) || now,
         isoDate(hook.last_triggered_at),
@@ -561,6 +528,5 @@ function runImport(data, db, { accounts, createUser, alertDelivery }) {
 }
 
 /** A random password for an account made by the import (nobody knows it; an admin sets one). */
-const randomPassword = () => crypto.randomBytes(18).toString('base64url');
 
-module.exports = { readSource, preview, runImport, matchUsers, isoDate, randomPassword, REF };
+module.exports = { readSource, preview, runImport, isoDate, REF };

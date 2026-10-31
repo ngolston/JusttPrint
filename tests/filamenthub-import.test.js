@@ -106,12 +106,9 @@ try {
     session_key TEXT NOT NULL, created_at TEXT NOT NULL, last_login_at TEXT, can_delete_files INTEGER NOT NULL DEFAULT 0)`);
   db.prepare("INSERT INTO users (username, password_hash, role, session_key, created_at) VALUES ('admin', 'x', 'admin', 'k', 'now')").run();
   db.prepare("INSERT INTO models (filePath, fileName, dateAdded) VALUES ('/lib/bezel.3mf', 'bezel.3mf', '2026-01-01')").run();
-  const accounts = () => db.prepare('SELECT id, username FROM users').all();
-  const createUser = (username, role) =>
-    Number(
-      db.prepare("INSERT INTO users (username, password_hash, role, session_key, created_at) VALUES (?, 'x', ?, 'k', 'now')").run(username, role)
-        .lastInsertRowid
-    );
+  // The account running the import: everything in the file becomes theirs.
+  const owner = { id: db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id, username: 'admin' };
+  const userCount = () => db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
   const delivered = {};
   const alertDelivery = { read: () => ({}), save: (input) => Object.assign(delivered, input) };
   const data = fhImport.readSource(filamentHub());
@@ -126,15 +123,10 @@ try {
     assert.throws(() => fhImport.readSource(new Database(':memory:')), /not a FilamentHub database/);
   });
 
-  test('the preview says what comes in, which accounts match, and what is left out', () => {
-    const plan = fhImport.preview(data, db, accounts());
-    assert.deepStrictEqual(
-      plan.users.map((u) => [u.label, u.match, u.create, u.role]),
-      [
-        ['admin@example.com', 'admin', null, 'admin'],
-        ['bob.builder@example.com', null, 'bob.builder', 'editor']
-      ]
-    );
+  test('the preview says what comes in, whose it becomes, and what is left out', () => {
+    const plan = fhImport.preview(data, db, owner);
+    assert.strictEqual(plan.owner, 'admin');
+    assert.deepStrictEqual(plan.fromUsers, ['admin@example.com', 'bob.builder@example.com']);
     assert.deepStrictEqual(plan.counts.spools, { total: 2, add: 2 });
     assert.deepStrictEqual(
       [plan.counts.locations, plan.counts.prints],
@@ -149,35 +141,28 @@ try {
   });
 
   test('the import brings everything over as the plan maps it', () => {
-    const result = fhImport.runImport(data, db, { accounts: accounts(), createUser, alertDelivery });
-    assert.deepStrictEqual(
-      result.added.users.map((u) => u.username),
-      ['bob.builder']
-    );
-    assert.deepStrictEqual(
-      { ...result.added, users: undefined },
-      {
-        users: undefined,
-        brands: 2,
-        profiles: 1,
-        locations: 1,
-        spools: 2,
-        weighings: 1,
-        dryings: 1,
-        printers: 1,
-        amsUnits: 1,
-        prints: 1,
-        alertRules: 1,
-        webhooks: 1,
-        email: true,
-        discord: true
-      }
-    );
-    const bob = db.prepare("SELECT id FROM users WHERE username = 'bob.builder'").get().id;
+    const result = fhImport.runImport(data, db, { owner, alertDelivery });
+    assert.strictEqual(userCount(), 1, 'no account is made for a FilamentHub user');
+    assert.deepStrictEqual(result.added, {
+      brands: 2,
+      profiles: 1,
+      locations: 1,
+      spools: 2,
+      weighings: 1,
+      dryings: 1,
+      printers: 1,
+      amsUnits: 1,
+      prints: 1,
+      alertRules: 1,
+      webhooks: 1,
+      email: true,
+      discord: true
+    });
     const black = db.prepare("SELECT * FROM spools WHERE source_ref = 'filamenthub:spools:1'").get();
     assert.deepStrictEqual(
       [black.material, black.used_weight, black.status, black.created_by, black.registered_at, black.purchase_price],
-      ['PLA', 982, 'active', bob, '2026-01-02T10:00:00.000Z', 19.99]
+      ['PLA', 982, 'active', owner.id, '2026-01-02T10:00:00.000Z', 19.99],
+      "Bob's spool is the importer's"
     );
     const gray = db.prepare("SELECT * FROM spools WHERE source_ref = 'filamenthub:spools:2'").get();
     assert.deepStrictEqual([gray.name, gray.color_hex, gray.color_hex_2, gray.material_type], ['PolyTerra Gray', '#8b8f96', '#ffffff', 'PolyTerra']);
@@ -223,25 +208,21 @@ try {
   });
 
   test('importing the same file again adds nothing', () => {
-    const plan = fhImport.preview(data, db, accounts());
+    const plan = fhImport.preview(data, db, owner);
     assert.ok(
       Object.values(plan.counts).every((c) => c.add === 0),
       JSON.stringify(plan.counts)
     );
-    assert.deepStrictEqual(
-      plan.users.map((u) => u.match),
-      ['admin', 'bob.builder']
-    );
     const again = fhImport.runImport(data, db, {
-      accounts: accounts(),
-      createUser,
+      owner,
       alertDelivery: { read: () => ({ smtp: { host: 'x' }, discordWebhookUrl: 'y' }), save: () => assert.fail('saved') }
     });
     assert.ok(
-      Object.entries(again.added).every(([k, value]) => (k === 'users' ? value.length === 0 : !value)),
+      Object.values(again.added).every((value) => !value),
       JSON.stringify(again.added)
     );
     assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM spools').get().n, 2);
+    assert.strictEqual(userCount(), 1);
   });
 } finally {
   if (database.db && database.db.open) database.db.close();
