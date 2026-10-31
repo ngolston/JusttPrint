@@ -4650,6 +4650,36 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 11 (docs/plan-10.1.md): Home Assistant (nothing answers at the address here).
+    try {
+      const haToken = 'eyJhbGciOiJIUzI1NiJ9.e2e-home-assistant-token';
+      await page.evaluate(() => window.openHomeAssistant());
+      await page.waitForSelector('#home-assistant-url', { timeout: 10000 });
+      await page.fill('#home-assistant-url', 'http://127.0.0.1:9/');
+      await page.fill('#home-assistant-token', haToken);
+      await page.click('#home-assistant-save');
+      await page.waitForSelector('#home-assistant-dialog :text("Saved.")', { timeout: 10000 }).catch(() => {});
+      const haStatus = await invoke(base, session, 'get-home-assistant');
+      check(
+        'Home Assistant keeps its address and token; the token never comes back',
+        haStatus.result?.url === 'http://127.0.0.1:9' && haStatus.result?.tokenSet === true && !JSON.stringify(haStatus).includes(haToken),
+        JSON.stringify(haStatus.result)
+      );
+      check('the settings API cannot read the Home Assistant token', !(await invoke(base, session, 'get-setting', ['homeAssistant'])).result);
+      await page.click('#home-assistant-test');
+      check(
+        'Test says when Home Assistant cannot be reached',
+        await page.waitForSelector('#home-assistant-dialog [role="alert"]:has-text("Could not reach Home Assistant")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#home-assistant-dialog button:has-text("Close")').catch(() => {});
+      await invoke(base, session, 'save-home-assistant', [{ url: '', token: '', enabled: false }]);
+    } catch (error) {
+      check('the 10.2 Phase 11 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6739,6 +6769,7 @@ async function accountChecks(base, wsUrl, admin) {
     (await invoke(base, viewer, 'export-spools', [{ format: 'json' }])).status === 200 &&
       (await invoke(base, viewer, 'import-spool-csv', [{ text: 'material\nPLA' }])).status === 403
   );
+  check('editors cannot see or set up Home Assistant', (await invoke(base, editor, 'get-home-assistant')).status === 403);
   check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);

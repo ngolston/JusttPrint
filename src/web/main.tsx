@@ -6,6 +6,7 @@ import { FilamentHubImportDialog } from './filament/FilamentHubImportDialog';
 import { AlertsSettingsDialog } from './filament/AlertsSettingsDialog';
 import { FilamentSettingsDialog } from './filament/FilamentSettingsDialog';
 import { MyAlertsDialog } from './MyAlertsDialog';
+import { HomeAssistantDialog } from './HomeAssistantDialog';
 import { AiTagRunDialog } from './tags/AiTagRunDialog';
 import './styles/index.css';
 // First: the server connection and window.electron, which the screens use.
@@ -135,6 +136,7 @@ function Screens() {
       <AlertsSettingsDialog />
       <FilamentSettingsDialog />
       <MyAlertsDialog />
+      <HomeAssistantDialog />
       <FilamentHubImportDialog />
       <SlicerSettingsDialog />
       <MetadataEditorDialog />

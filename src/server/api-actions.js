@@ -224,6 +224,11 @@ const ACTIONS = {
   'get-print-cost': ['object'],
   'get-print-time': ['string', 'array?'],
   'get-alert-prefs': [],
+  // Home Assistant (admins; home-assistant.js).
+  'get-home-assistant': [],
+  'save-home-assistant': ['object'],
+  'test-home-assistant': [],
+  'push-home-assistant': [],
   'save-alert-prefs': ['object'],
   'send-test-alert': [],
   'add-print-photo': ['id', 'object'],

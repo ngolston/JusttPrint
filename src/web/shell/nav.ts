@@ -420,6 +420,15 @@ export const SETTINGS: SettingsGroup[] = [
         embed: { dialog: 'thingiverse-settings-dialog', open: 'openThingiverseSettings' }
       },
       {
+        id: 'home-assistant',
+        label: 'Home Assistant',
+        description: 'A sensor per spool in Home Assistant: grams left, material, color and when it runs out.',
+        icon: Home,
+        run: open('openHomeAssistant'),
+        embed: { dialog: 'home-assistant-dialog', open: 'openHomeAssistant' },
+        role: 'admin'
+      },
+      {
         id: 'filamenthub',
         label: 'Import from FilamentHub',
         description: 'Bring over FilamentHub’s spools, filaments, printers, prints and alerts from its database or a backup.',

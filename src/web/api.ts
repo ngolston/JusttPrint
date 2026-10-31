@@ -398,6 +398,21 @@ export interface FilamentUse {
   };
 }
 
+/** Home Assistant: one sensor per spool (src/server/home-assistant.js; docs/plan-10.1.md, Phase 11). */
+export interface HomeAssistantStatus {
+  url: string;
+  enabled: boolean;
+  tokenSet: boolean;
+  lastPush: { at: string; pushed: number; removed: number; errors: number; message: string | null } | null;
+}
+export const homeAssistant = {
+  get: () => callAction<HomeAssistantStatus>('get-home-assistant'),
+  /** `token`: a new one, '' to remove it, left out to keep it. */
+  save: (input: { url?: string; enabled?: boolean; token?: string }) => callAction<HomeAssistantStatus>('save-home-assistant', input),
+  test: () => callAction<{ ok: boolean; message: string }>('test-home-assistant'),
+  push: () => callAction<NonNullable<HomeAssistantStatus['lastPush']> & { skipped?: boolean }>('push-home-assistant')
+};
+
 /** Each person's alerts (src/server/personal-alerts.js; docs/plan-10.1.md, Phase 9). */
 export type AlertChannel = 'bell' | 'email' | 'discord';
 export interface AlertPrefs {

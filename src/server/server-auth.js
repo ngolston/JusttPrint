@@ -37,7 +37,9 @@ const SETTING_KEYS = {
   /** The Google Cloud Translation API key: google-translate.js. */
   googleTranslateApiKey: 'googleTranslateApiKey',
   /** Where low-stock alerts go: the Discord webhook and the email server with its password (alert-delivery.js). */
-  alertDelivery: 'alertDelivery'
+  alertDelivery: 'alertDelivery',
+  /** Home Assistant's address and long-lived access token (home-assistant.js). */
+  homeAssistant: 'homeAssistant'
 };
 
 /** Settings that must never be read or written through the generic settings API. */

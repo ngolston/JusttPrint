@@ -75,6 +75,7 @@ function announcing(handler, { logs = false } = {}) {
       // Phase 8: a logged print may leave spools low, and webhooks hear about it.
       require('../low-stock-alerts').soon();
       require('../personal-alerts').soon();
+      require('../home-assistant').pushSoon();
       if (String((payload && payload.outcome) || '').toLowerCase() === 'failed') void failedPrintAlert(event, payload);
       void require('../webhooks').deliver('print.logged', {
         filePaths: payload && (payload.filePaths || (payload.filePath ? [payload.filePath] : [])),

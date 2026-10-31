@@ -14,6 +14,7 @@ require('./filament-check');
 require('./filament-profiles');
 require('./files');
 require('./filamenthub');
+require('./home-assistant');
 require('./folders');
 require('./model-folders');
 require('./versions');

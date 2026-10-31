@@ -14,6 +14,7 @@ ipcMain.handle('set-loaded-spool', (event, where, spoolId) => {
   const result = ams.loadSpool(database.db, where || {}, Number(spoolId) > 0 ? Number(spoolId) : null);
   // Loading a spool archived or in storage makes it available: other browsers' badges may change.
   require('../events').broadcastToOthers(event, 'filament-check-changed');
+  require('../home-assistant').pushSoon();
   return result;
 });
 ipcMain.handle('list-bambu-printers', () => require('../bambu-devices').listDevices());
