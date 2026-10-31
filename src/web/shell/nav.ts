@@ -380,7 +380,7 @@ export const SETTINGS: SettingsGroup[] = [
       {
         id: 'filament-settings',
         label: 'Filament settings',
-        description: 'The currency spool prices are in, for prices, what your spools are worth and filament cost.',
+        description: 'The currency, units (weight, temperature, length) and date format for spools, prices and prints.',
         icon: Coins,
         run: open('openFilamentSettings'),
         embed: { dialog: 'filament-settings-dialog', open: 'openFilamentSettings' },

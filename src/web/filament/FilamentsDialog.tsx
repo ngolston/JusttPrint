@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  formatLength,
+  formatTemperatureRange,
+  fromLengthInput,
+  fromTemperatureInput,
+  lengthLabel,
+  temperatureLabel,
+  toLengthInput,
+  toTemperatureInput
+} from '../units';
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { filament, type FilamentBrand, type FilamentProfile } from '../api';
 import { Button, IconButton } from '../components/Button';
@@ -18,12 +28,6 @@ import { PhotoBlock } from './Photo';
  */
 
 const SOURCE_LABELS: Record<FilamentProfile['source'], string> = { manual: 'Added by hand', catalog: 'Catalogue', spoolman: 'Spoolman' };
-
-const range = (min: number | null, max: number | null, unit: string) => {
-  if (min === null && max === null) return '';
-  if (min === null || max === null || min === max) return `${min ?? max} ${unit}`;
-  return `${min}–${max} ${unit}`;
-};
 
 type Tab = 'filaments' | 'brands';
 
@@ -173,8 +177,8 @@ export function FilamentsDialog({
                   <span className="jp-catalog__meta">
                     {[
                       profile.material,
-                      `${profile.diameter} mm`,
-                      range(profile.print_temp_min, profile.print_temp_max, '°C'),
+                      formatLength(profile.diameter),
+                      formatTemperatureRange(profile.print_temp_min, profile.print_temp_max),
                       SOURCE_LABELS[profile.source],
                       profile.spool_count ? `${profile.spool_count} ${profile.spool_count === 1 ? 'spool' : 'spools'}` : ''
                     ]
@@ -272,14 +276,14 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
     material: text(profile?.material),
     color_name: text(profile?.color_name),
     color_hex: text(profile?.color_hex),
-    diameter: text(profile?.diameter ?? 1.75),
+    diameter: toLengthInput(profile?.diameter ?? 1.75),
     density: text(profile?.density),
-    print_temp_min: text(profile?.print_temp_min),
-    print_temp_max: text(profile?.print_temp_max),
-    bed_temp_min: text(profile?.bed_temp_min),
-    bed_temp_max: text(profile?.bed_temp_max),
+    print_temp_min: toTemperatureInput(profile?.print_temp_min),
+    print_temp_max: toTemperatureInput(profile?.print_temp_max),
+    bed_temp_min: toTemperatureInput(profile?.bed_temp_min),
+    bed_temp_max: toTemperatureInput(profile?.bed_temp_max),
     max_print_speed: text(profile?.max_print_speed),
-    drying_temp: text(profile?.drying_temp),
+    drying_temp: toTemperatureInput(profile?.drying_temp),
     drying_hours: text(profile?.drying_hours),
     product_url: text(profile?.product_url),
     notes: text(profile?.notes)
@@ -300,14 +304,14 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
           material: form.material,
           color_name: form.color_name || null,
           color_hex: form.color_hex || null,
-          diameter: numberOrNull(form.diameter) ?? 1.75,
+          diameter: fromLengthInput(form.diameter) ?? 1.75,
           density: numberOrNull(form.density),
-          print_temp_min: numberOrNull(form.print_temp_min),
-          print_temp_max: numberOrNull(form.print_temp_max),
-          bed_temp_min: numberOrNull(form.bed_temp_min),
-          bed_temp_max: numberOrNull(form.bed_temp_max),
+          print_temp_min: fromTemperatureInput(form.print_temp_min),
+          print_temp_max: fromTemperatureInput(form.print_temp_max),
+          bed_temp_min: fromTemperatureInput(form.bed_temp_min),
+          bed_temp_max: fromTemperatureInput(form.bed_temp_max),
           max_print_speed: numberOrNull(form.max_print_speed),
-          drying_temp: numberOrNull(form.drying_temp),
+          drying_temp: fromTemperatureInput(form.drying_temp),
           drying_hours: numberOrNull(form.drying_hours),
           product_url: form.product_url || null,
           notes: form.notes || null
@@ -372,14 +376,14 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
             <input id="jp-profile-color" className="jp-input" value={form.color_hex} onChange={set('color_hex')} placeholder="#2f6fdf" />
           </span>
         </Field>
-        {number('diameter', 'Diameter (mm)', 'jp-profile-diameter')}
+        {number('diameter', `Diameter (${lengthLabel()})`, 'jp-profile-diameter')}
         {number('density', 'Density (g/cm³)', 'jp-profile-density')}
         {number('max_print_speed', 'Max speed (mm/s)', 'jp-profile-speed')}
-        {number('print_temp_min', 'Nozzle from (°C)', 'jp-profile-nozzle-min')}
-        {number('print_temp_max', 'Nozzle to (°C)', 'jp-profile-nozzle-max')}
-        {number('bed_temp_min', 'Bed from (°C)', 'jp-profile-bed-min')}
-        {number('bed_temp_max', 'Bed to (°C)', 'jp-profile-bed-max')}
-        {number('drying_temp', 'Drying (°C)', 'jp-profile-dry-temp', 'Dry starts from it.')}
+        {number('print_temp_min', `Nozzle from (${temperatureLabel()})`, 'jp-profile-nozzle-min')}
+        {number('print_temp_max', `Nozzle to (${temperatureLabel()})`, 'jp-profile-nozzle-max')}
+        {number('bed_temp_min', `Bed from (${temperatureLabel()})`, 'jp-profile-bed-min')}
+        {number('bed_temp_max', `Bed to (${temperatureLabel()})`, 'jp-profile-bed-max')}
+        {number('drying_temp', `Drying (${temperatureLabel()})`, 'jp-profile-dry-temp', 'Dry starts from it.')}
         {number('drying_hours', 'Drying (hours)', 'jp-profile-dry-hours')}
         <Field label="Product page" htmlFor="jp-profile-url" wide>
           <input id="jp-profile-url" className="jp-input" type="url" value={form.product_url} onChange={set('product_url')} placeholder="https://" />

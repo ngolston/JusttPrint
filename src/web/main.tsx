@@ -11,6 +11,7 @@ import './styles/index.css';
 import './bridge/server';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { loadUnits } from './units';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
@@ -166,9 +167,13 @@ initPage();
 
 const root = document.getElementById('react-root');
 if (root) {
-  createRoot(root).render(
-    <StrictMode>
-      <Screens />
-    </StrictMode>
+  // The library's units first (docs/plan-10.1.md, Phase 6), so every number draws in them; a slow
+  // answer does not hold the page up for more than a moment.
+  void Promise.race([loadUnits(), new Promise((resolve) => setTimeout(resolve, 1500))]).finally(() =>
+    createRoot(root).render(
+      <StrictMode>
+        <Screens />
+      </StrictMode>
+    )
   );
 }

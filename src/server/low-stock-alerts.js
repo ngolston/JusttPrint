@@ -17,18 +17,19 @@ let timer = null;
 /** @type {NodeJS.Timeout | null} */
 let hourly = null;
 
-const line = (alert) =>
-  `${alert.severity === 'critical' ? 'Critical' : 'Low'}: ${alert.spool.name}${alert.spool.brand ? ` (${alert.spool.brand})` : ''}, ${Math.round(alert.spool.remaining)} g left (${alert.spool.pct}%)`;
+/** One spool's alert, its weight in the library's unit (core/units.js; grams by default). */
+const line = (alert, unit = 'g') =>
+  `${alert.severity === 'critical' ? 'Critical' : 'Low'}: ${alert.spool.name}${alert.spool.brand ? ` (${alert.spool.brand})` : ''}, ${require('../core/units').formatWeight(alert.spool.remaining, unit)} left (${alert.spool.pct}%)`;
 
 /** The Discord message for a rule's alerts (one embed, critical first). */
-function discordPayload(group) {
+function discordPayload(group, unit = 'g') {
   const critical = group.alerts.some((alert) => alert.severity === 'critical');
   return {
     embeds: [
       {
         title: `${group.rule.name}: ${group.alerts.length} ${group.alerts.length === 1 ? 'spool' : 'spools'} running low`,
         description: group.alerts
-          .map((alert) => `${alert.severity === 'critical' ? '🔴' : '🟡'} ${line(alert)}`)
+          .map((alert) => `${alert.severity === 'critical' ? '🔴' : '🟡'} ${line(alert, unit)}`)
           .join('\n')
           .slice(0, 4000),
         color: critical ? 0xd23b3b : 0xe8a33c
@@ -38,12 +39,12 @@ function discordPayload(group) {
 }
 
 /** The email for a rule's alerts: { subject, text, html }. */
-function emailMessage(group) {
+function emailMessage(group, unit = 'g') {
   const escape = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const subject = `JusttPrint: ${group.alerts.length} ${group.alerts.length === 1 ? 'spool' : 'spools'} running low`;
-  const text = `${group.rule.name}\n\n${group.alerts.map(line).join('\n')}\n`;
+  const text = `${group.rule.name}\n\n${group.alerts.map((alert) => line(alert, unit)).join('\n')}\n`;
   const html = `<p><strong>${escape(group.rule.name)}</strong></p><ul>${group.alerts
-    .map((alert) => `<li>${escape(line(alert))}${alert.spool.productUrl ? ` · <a href="${escape(alert.spool.productUrl)}">reorder</a>` : ''}</li>`)
+    .map((alert) => `<li>${escape(line(alert, unit))}${alert.spool.productUrl ? ` · <a href="${escape(alert.spool.productUrl)}">reorder</a>` : ''}</li>`)
     .join('')}</ul>`;
   return { subject, text, html };
 }
@@ -53,8 +54,10 @@ async function run() {
   const db = database.db;
   if (!db || !db.open) return 0;
   let groups;
+  let unit = 'g';
   try {
     groups = evaluate(db);
+    unit = require('../core/units').readUnits(db).weight;
   } catch (error) {
     console.warn(`[Low stock] Check failed: ${error instanceof Error ? error.message : error}`);
     return 0;
@@ -68,15 +71,15 @@ async function run() {
     notifications.notify({
       level: critical ? 'error' : 'warning',
       title: group.alerts.length === 1 ? `${group.alerts[0].spool.name} is running low` : `${group.alerts.length} spools are running low`,
-      body: group.alerts.map(line).join('\n'),
+      body: group.alerts.map((alert) => line(alert, unit)).join('\n'),
       link: '#/filament',
       minRole: 'editor'
     });
     if (group.rule.notify_discord) {
-      await delivery.sendDiscord(discordPayload(group)).catch((error) => console.warn(`[Low stock] Discord: ${error.message}`));
+      await delivery.sendDiscord(discordPayload(group, unit)).catch((error) => console.warn(`[Low stock] Discord: ${error.message}`));
     }
     if (group.rule.notify_email) {
-      await delivery.sendEmail(emailMessage(group)).catch((error) => console.warn(`[Low stock] Email: ${error.message}`));
+      await delivery.sendEmail(emailMessage(group, unit)).catch((error) => console.warn(`[Low stock] Email: ${error.message}`));
     }
     void require('./webhooks').deliver('spool.low_stock', {
       rule: { id: group.rule.id || null, name: group.rule.name },

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { fromTemperatureInput, fromWeightInput, temperatureLabel, toTemperatureInput, toWeightInput, weightInputUnit, weightUnitName } from '../units';
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   filament,
@@ -134,9 +135,10 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
     material: text(spool?.material ?? start?.material),
     material_type: text(spool?.material_type ?? preset?.materialType),
     color_hex: text(spool?.color_hex ?? start?.color_hex),
-    initial_weight: text(spool?.initial_weight ?? holds),
-    remaining: text(spool ? Math.round(spool.remaining * 10) / 10 : holds),
-    spool_weight: text(spool?.spool_weight ?? preset?.entry?.spool_weight),
+    // Weights in the library's unit (units.ts); grams again when saved.
+    initial_weight: toWeightInput(spool?.initial_weight ?? holds),
+    remaining: toWeightInput(spool ? Math.round(spool.remaining * 10) / 10 : holds),
+    spool_weight: toWeightInput(spool?.spool_weight ?? preset?.entry?.spool_weight),
     location_id: text(spool?.location_id),
     status: spool?.status ?? 'storage',
     purchase_price: text(spool?.purchase_price),
@@ -179,9 +181,9 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
         material: form.material,
         material_type: form.material_type,
         color_hex: form.color_hex,
-        initial_weight: numberOrNull(form.initial_weight) ?? undefined,
-        remaining: numberOrNull(form.remaining),
-        spool_weight: numberOrNull(form.spool_weight),
+        initial_weight: fromWeightInput(form.initial_weight) ?? undefined,
+        remaining: fromWeightInput(form.remaining),
+        spool_weight: fromWeightInput(form.spool_weight),
         location_id: numberOrNull(form.location_id),
         status: form.status,
         purchase_price: numberOrNull(form.purchase_price),
@@ -260,13 +262,13 @@ export function SpoolFormDialog({ spool, preset, onClose }: { spool?: Spool | nu
             ))}
           </select>
         </Field>
-        <Field label="Holds (g)" htmlFor="jp-spool-initial" hint="Filament on a full spool.">
+        <Field label={`Holds (${weightInputUnit()})`} htmlFor="jp-spool-initial" hint="Filament on a full spool.">
           <input id="jp-spool-initial" className="jp-input" inputMode="decimal" value={form.initial_weight} onChange={set('initial_weight')} />
         </Field>
-        <Field label="Left (g)" htmlFor="jp-spool-remaining" hint="Or weigh it later.">
+        <Field label={`Left (${weightInputUnit()})`} htmlFor="jp-spool-remaining" hint="Or weigh it later.">
           <input id="jp-spool-remaining" className="jp-input" inputMode="decimal" value={form.remaining} onChange={set('remaining')} />
         </Field>
-        <Field label="Empty spool (g)" htmlFor="jp-spool-tare" hint="Lets you weigh it on the spool.">
+        <Field label={`Empty spool (${weightInputUnit()})`} htmlFor="jp-spool-tare" hint="Lets you weigh it on the spool.">
           <input id="jp-spool-tare" className="jp-input" inputMode="decimal" value={form.spool_weight} onChange={set('spool_weight')} />
         </Field>
         {!spool && (
@@ -319,17 +321,17 @@ export function WeighDialog({ spool, onClose }: { spool: Spool; onClose: () => v
   const [withSpool, setWithSpool] = useState(tare !== null);
   const [notes, setNotes] = useState('');
   const { busy, error, run } = useSave();
-  const measured = numberOrNull(weight);
+  const measured = fromWeightInput(weight);
   const left = measured === null ? null : Math.max(0, withSpool && tare !== null ? measured - tare : measured);
   const save = () =>
     run(async () => {
-      if (measured === null) throw new Error('Enter what the scale shows (grams)');
+      if (measured === null) throw new Error(`Enter what the scale shows (${weightUnitName().toLowerCase()})`);
       await filament.weigh(spool.id, { weight: measured, withSpool, notes });
     }, onClose);
   return (
     <FormModal id="jp-weigh-form" title={`Weigh ${spool.display_name}`} onClose={onClose} onSubmit={save} saveLabel="Save weight" busy={busy} error={error}>
       <div className="jp-edit__grid">
-        <Field label="The scale shows (g)" htmlFor="jp-weigh-weight" wide>
+        <Field label={`The scale shows (${weightInputUnit()})`} htmlFor="jp-weigh-weight" wide>
           <input id="jp-weigh-weight" className="jp-input" inputMode="decimal" autoFocus value={weight} onChange={(event) => setWeight(event.target.value)} />
         </Field>
         <label className="jp-filament-form__check jp-edit__field--wide">
@@ -349,19 +351,20 @@ export function WeighDialog({ spool, onClose }: { spool: Spool; onClose: () => v
 
 /** Start drying a spool, with its filament's drying settings filled in. */
 export function DryDialog({ spool, onClose }: { spool: Spool; onClose: () => void }) {
-  const [temp, setTemp] = useState(text(spool.profile_drying_temp));
+  const [temp, setTemp] = useState(toTemperatureInput(spool.profile_drying_temp));
   const [hours, setHours] = useState(text(spool.profile_drying_hours));
   const [humidity, setHumidity] = useState('');
   const { busy, error, run } = useSave();
   const save = () =>
     run(
-      () => filament.startDrying(spool.id, { drying_temp: numberOrNull(temp), target_hours: numberOrNull(hours), humidity_before: numberOrNull(humidity) }),
+      () =>
+        filament.startDrying(spool.id, { drying_temp: fromTemperatureInput(temp), target_hours: numberOrNull(hours), humidity_before: numberOrNull(humidity) }),
       onClose
     );
   return (
     <FormModal id="jp-dry-form" title={`Dry ${spool.display_name}`} onClose={onClose} onSubmit={save} saveLabel="Start drying" busy={busy} error={error}>
       <div className="jp-edit__grid">
-        <Field label="Temperature (°C)" htmlFor="jp-dry-temp">
+        <Field label={`Temperature (${temperatureLabel()})`} htmlFor="jp-dry-temp">
           <input id="jp-dry-temp" className="jp-input" inputMode="numeric" autoFocus value={temp} onChange={(event) => setTemp(event.target.value)} />
         </Field>
         <Field label="Hours" htmlFor="jp-dry-hours">

@@ -2,16 +2,14 @@
  * Figures on the Filament page: weights, drying time left, and the spool filters.
  */
 import type { Spool } from '../api';
+import { formatWeightIn } from '../units';
 
 /** Under this many grams a spool is running low (src/core/spools.js LOW_GRAMS, the ring's light coral). */
 export const LOW_GRAMS = 300;
 
-/** 640 → "640 g", 18600 → "18.6 kg", 1000 → "1 kg". */
+/** 640 → "640 g", 18600 → "18.6 kg", 1000 → "1 kg"; in the library's weight unit (units.ts). */
 export function formatWeight(grams: number | null | undefined): string {
-  const g = Math.max(0, Math.round(Number(grams) || 0));
-  if (g < 1000) return `${g} g`;
-  const kg = Math.round(g / 100) / 10;
-  return `${kg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`;
+  return formatWeightIn(grams);
 }
 
 /** How far a drying session is: the share of its time gone (0 to 1) and milliseconds left. */

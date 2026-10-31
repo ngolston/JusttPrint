@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { type Spool } from '../api';
+import { formatDay } from '../units';
 import { cx } from '../components/Button';
 import { ColorDot } from '../components/Filament';
 import { useCurrency } from './currency';
@@ -21,7 +22,7 @@ const COLUMNS: { key: SpoolSortKey; label: string; numeric?: boolean }[] = [
   { key: 'lastUsed', label: 'Last used' }
 ];
 
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
+const day = (iso: string | null) => formatDay(iso);
 
 export function SpoolTable({
   spools,

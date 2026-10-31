@@ -1,3 +1,4 @@
+import { formatDayTime, getUnits } from '../units';
 /**
  * Print status and print history wording: labels, card badges, the sidebar print filter and the
  * bundle summary. Same rules as the server's src/core/print-events.js.
@@ -67,6 +68,8 @@ export function formatPrintDate(value: string | null | undefined): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
+  // The library's date format (units.ts), when one is chosen; else this browser's way.
+  if (getUnits().date !== 'locale') return formatDayTime(date);
   return date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 

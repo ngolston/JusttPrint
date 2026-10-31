@@ -43,7 +43,7 @@ export function shoppingText(items: ReorderItem[], currency = 'USD'): string {
   return items
     .map((item) =>
       [
-        `${[item.brand, item.name].filter(Boolean).join(' ')} (${Math.round(item.remaining)} g left${item.severity === 'critical' ? ', critical' : ''})`,
+        `${[item.brand, item.name].filter(Boolean).join(' ')} (${formatWeight(item.remaining)} left${item.severity === 'critical' ? ', critical' : ''})`,
         item.supplier,
         item.price !== null ? `last paid ${formatMoney(item.price, currency)}` : '',
         item.productUrl

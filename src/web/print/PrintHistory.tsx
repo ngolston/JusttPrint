@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { formatWeight } from '../filament/format';
+import { fromWeightInput, toWeightInput, weightInputUnit, weightUnitName } from '../units';
 import { createPortal } from 'react-dom';
 import { filament, models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer, type Spool } from '../api';
 import { ColorDot } from '../components/Filament';
@@ -150,7 +152,7 @@ let nextFilamentRow = 1;
 
 /** "PLA Blue · 640 g left" for the spool picker. */
 const spoolOptionLabel = (spool: Spool) =>
-  `${spool.display_name}${spool.brand_name ? ` (${spool.brand_name})` : ''} · ${Math.round(spool.remaining)} g left${spool.loaded.length ? ` · ${spool.loaded[0].label}` : ''}`;
+  `${spool.display_name}${spool.brand_name ? ` (${spool.brand_name})` : ''} · ${formatWeight(spool.remaining)} left${spool.loaded.length ? ` · ${spool.loaded[0].label}` : ''}`;
 
 /** Log a print on one or more models (#log-print-dialog). */
 function LogPrintDialog() {
@@ -268,7 +270,7 @@ function LogPrintDialog() {
             color: need.color,
             need: [need.material, need.colorName].filter(Boolean).join(' '),
             spoolId: need.spool ? String(need.spool.id) : '',
-            perCopy: need.grams === null ? '' : String(Math.round(need.grams * 10) / 10)
+            perCopy: need.grams === null ? '' : toWeightInput(Math.round(need.grams * 10) / 10)
           }))
         );
       },
@@ -306,10 +308,10 @@ function LogPrintDialog() {
 
   const copies = Math.max(1, Number(quantity) || 1);
   const filamentUsed = filamentRows
-    .map((row) => ({ spoolId: Number(row.spoolId), grams: (Number(String(row.perCopy).replace(',', '.')) || 0) * copies }))
+    .map((row) => ({ spoolId: Number(row.spoolId), grams: (fromWeightInput(String(row.perCopy)) || 0) * copies }))
     .filter((use) => use.spoolId > 0 && use.grams > 0);
   const filamentSummary = filamentUsed.length
-    ? `Takes ${Math.round(filamentUsed.reduce((sum, use) => sum + use.grams, 0) * 10) / 10} g off your spools${copies > 1 ? ` (${copies} copies)` : ''}.`
+    ? `Takes ${formatWeight(filamentUsed.reduce((sum, use) => sum + use.grams, 0))} off your spools${copies > 1 ? ` (${copies} copies)` : ''}.`
     : '';
   const partsSummary = chosenParts.length
     ? `Removes ${chosenParts.map((c) => `${c.part.name || 'Part'} ×${c.quantity * copies * Math.max(1, filePaths.length)}`).join(', ')} from Parts Stock.`
@@ -500,12 +502,12 @@ function LogPrintDialog() {
                     type="text"
                     inputMode="decimal"
                     className="log-print-filament__grams"
-                    aria-label={row.need ? `Grams of ${row.need} per copy` : 'Grams per copy'}
-                    placeholder="g"
+                    aria-label={row.need ? `${weightUnitName()} of ${row.need} per copy` : `${weightUnitName()} per copy`}
+                    placeholder={weightInputUnit()}
                     value={row.perCopy}
                     onChange={(e) => editFilament(filamentRows.map((r) => (r === row ? { ...r, perCopy: e.target.value } : r)))}
                   />
-                  <span className="setting-description">g</span>
+                  <span className="setting-description">{weightInputUnit()}</span>
                   <button
                     type="button"
                     className="log-print-filament__remove"
@@ -716,7 +718,7 @@ const LOG_PRINT_ICON = (
 function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => void }) {
   const canEdit = useCan('editor');
   const parts = (event.parts || []).map((part) => `${part.name || 'Part'} ×${Number(part.quantity) || 0}`).join(', ');
-  const filamentUsed = (event.spools || []).map((spool) => `${spool.name} ${Math.round(spool.grams * 10) / 10} g`).join(', ');
+  const filamentUsed = (event.spools || []).map((spool) => `${spool.name} ${formatWeight(spool.grams)}`).join(', ');
   const printerName = event.printer_nickname || event.printer_name;
   return (
     <li className={`print-history-item outcome-${event.outcome}`}>

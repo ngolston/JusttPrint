@@ -4380,6 +4380,57 @@ async function browserChecks(base, wsUrl, session) {
       await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
     }
 
+    // 10.2 Phase 6 (docs/plan-10.1.md): units and date format, from Filament settings.
+    try {
+      const unitSpool = (await invoke(base, session, 'save-spool', [{ name: 'E2E Units Spool', material: 'PLA', initial_weight: 1000, remaining: 1000 }]))
+        .result;
+      await page.evaluate(() => window.openFilamentSettings());
+      await page.waitForSelector('#filament-settings-dialog[open]', { timeout: 10000 });
+      await page.selectOption('#filament-weight-unit', 'lb');
+      await page.selectOption('#filament-temperature-unit', 'F');
+      await page.selectOption('#filament-date-format', 'ymd');
+      await Promise.all([page.waitForEvent('load', { timeout: 20000 }).catch(() => {}), page.click('#filament-settings-save')]);
+      const saved = (await invoke(base, session, 'get-setting', ['units'])).result;
+      check(
+        'Filament settings saves the units and date format',
+        /"weight":"lb"/.test(saved || '') && /"temperature":"F"/.test(saved || '') && /"date":"ymd"/.test(saved || ''),
+        saved
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      check(
+        'the Filament page shows weights in the chosen unit after saving',
+        await page.waitForSelector('.jp-spool-card:has-text("E2E Units Spool"):has-text("2.2 lb")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('.jp-spool-card:has-text("E2E Units Spool")');
+      await page.waitForSelector('#jp-spool-detail', { timeout: 10000 });
+      await page.click('#jp-spool-detail button:has-text("Edit")');
+      await page.waitForSelector('#jp-spool-initial', { timeout: 10000 });
+      const holds = await page.inputValue('#jp-spool-initial');
+      const holdsLabel = await page.textContent('label[for="jp-spool-initial"]');
+      await page.fill('#jp-spool-remaining', '1');
+      await page.click('#jp-spool-form button[type="submit"]');
+      await page.waitForSelector('#jp-spool-form', { state: 'detached', timeout: 10000 }).catch(() => {});
+      const after = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === unitSpool.id);
+      check(
+        'spool weights are typed in the chosen unit and kept in grams',
+        holds === '2.205' && /lb/.test(holdsLabel || '') && Math.abs((after?.remaining || 0) - 453.6) < 0.2,
+        JSON.stringify({ holds, holdsLabel, remaining: after?.remaining })
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+      await invoke(base, session, 'save-setting', ['units', '{}']);
+      await invoke(base, session, 'delete-spool', [unitSpool.id]);
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForSelector('.jp-shell, #react-root *', { timeout: 15000 }).catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 6 checks ran to the end', false, error.message.split('\n')[0]);
+      await invoke(base, session, 'save-setting', ['units', '{}']);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6462,6 +6513,8 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  await invoke(base, editor, 'save-setting', ['units', '{"weight":"oz"}']);
+  check('only admins change the units', !/oz/.test((await invoke(base, admin, 'get-setting', ['units'])).result || ''));
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);
   check('only admins turn public labels on', (await invoke(base, admin, 'get-setting', ['publicLabels'])).result !== 'true');

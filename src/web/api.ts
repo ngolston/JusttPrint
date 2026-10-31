@@ -69,13 +69,38 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   return copy(answer);
 }
 
-async function sendAction<T>(name: string, args: unknown[]): Promise<T> {
-  const response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: clientHeaders(),
-    body: JSON.stringify({ args })
+/**
+ * Set while the page is going away (a reload, such as after saving the units, or leaving): a
+ * request the browser then cuts off is not an error anyone should see.
+ */
+let leaving = false;
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('beforeunload', () => {
+    leaving = true;
+    // Still here a moment later (the leaving was called off): requests count again.
+    setTimeout(() => {
+      leaving = false;
+    }, 5000);
   });
+  window.addEventListener('pageshow', () => {
+    leaving = false;
+  });
+}
+
+async function sendAction<T>(name: string, args: unknown[]): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: clientHeaders(),
+      body: JSON.stringify({ args })
+    });
+  } catch (error) {
+    // Cut off by the page going away: never settle, so no caller logs it.
+    if (leaving) return new Promise<T>(() => {});
+    throw error;
+  }
   if (response.status === 401) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   }

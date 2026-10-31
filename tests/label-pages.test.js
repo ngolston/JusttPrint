@@ -105,3 +105,28 @@ test("the place's page lists the spools in it, each linking to its own page", ()
   assert.ok(!/Elsewhere|Used up/.test(html));
   assert.match(html, /href="\/l\/spool\/[A-Za-z0-9_-]{22}"/);
 });
+
+test("the library's units (10.2): label pages and alert messages follow them", () => {
+  const db = fresh();
+  setPublic(db, true);
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('units', ?)").run(JSON.stringify({ weight: 'lb', length: 'in' }));
+  const spool = spools.saveSpool(db, { name: 'Imperial', material: 'PLA', initial_weight: 1000, remaining: 500, diameter: 1.75 });
+  const html = labels.spoolPage(db, labels.tokenFor(db, 'spool', spool.id));
+  assert.match(html, /1\.1 lb/);
+  assert.match(html, /left of 2\.2 lb \(50%\)/);
+  const units = require('../src/core/units');
+  assert.deepStrictEqual(units.readUnits(db), { weight: 'lb', temperature: 'C', length: 'in', date: 'locale' });
+  const { discordPayload, emailMessage } = require('../src/server/low-stock-alerts');
+  const group = {
+    rule: { name: 'Low' },
+    alerts: [
+      { severity: 'low', spool: { name: 'Imperial', remaining: 500, pct: 50 } },
+      { severity: 'low', spool: { name: 'Second', remaining: 100, pct: 10 } }
+    ]
+  };
+  assert.match(discordPayload(group, 'lb').embeds[0].description, /1\.1 lb left/);
+  const mail = emailMessage(group, 'oz');
+  assert.match(mail.text, /17\.6 oz left/);
+  assert.match(mail.text, /3\.5 oz left/, 'the second line too (not the index as a unit)');
+  assert.match(emailMessage(group).text, /500 g left/, 'grams by default');
+});

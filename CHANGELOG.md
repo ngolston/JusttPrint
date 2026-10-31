@@ -4,6 +4,9 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+**Changes:**
+- **Units and date format.** Settings → Printers → Filament settings now chooses how weights (grams, kilograms, ounces or pounds), temperatures (°C or °F) and lengths (mm or inches) are shown and typed, and how dates are written (this browser's way, 2026-10-30, 30/10/2026 or 10/30/2026). The Filament page, spool and filament forms, drying, Log Print, Home, the print history, labels anyone can scan and low-stock alerts follow it. Everything is still kept in grams, °C and mm.
+
 ## [10.1.0] - 2026-10-30
 
 The rest of FilamentHub, part one (docs/plan-10.1.md): what 10.0 started and left half done.

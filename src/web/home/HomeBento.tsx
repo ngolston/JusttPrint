@@ -59,7 +59,7 @@ export function needsYou(queue: QueueItem[] | null, printers: Printer[] | null, 
     if (!item.check || item.check.ready) continue;
     const short = item.check.needs.filter((need) => !need.ok);
     const what = short
-      .map((need) => `${need.colorName}${need.material ? ` ${need.material}` : ''}${need.short ? ` (${Math.round(need.short)} g short)` : ''}`)
+      .map((need) => `${need.colorName}${need.material ? ` ${need.material}` : ''}${need.short ? ` (${formatWeight(need.short)} short)` : ''}`)
       .join(', ');
     items.push({ key: `queue-${item.id}`, text: `${itemName(item)} needs ${what}`, go: () => navigate('queue') });
   }

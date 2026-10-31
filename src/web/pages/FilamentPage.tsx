@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatTemperature } from '../units';
 import { BookOpen, CircleDot, Layers, LayoutGrid, MapPin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
 import {
   alerts,
@@ -181,7 +182,7 @@ function Dryer({ spools, onFinish }: { spools: Spool[]; onFinish: (spool: Spool)
             <div className="jp-filament__drying-text">
               <div className="jp-model-title">{spool.display_name}</div>
               <div className="jp-meta">
-                {drying.drying_temp} °C · {formatTimeLeft(progress.leftMs)}
+                {formatTemperature(drying.drying_temp)} · {formatTimeLeft(progress.leftMs)}
               </div>
             </div>
             {canEdit && (
@@ -297,7 +298,7 @@ export function FilamentPage({ section = '' }: { section?: string }) {
   const materials = summary?.materials.map((m) => m.material) || [];
   const chips: [SpoolFilter, string][] = [
     ['all', 'All'],
-    ['low', `Running low (under ${LOW_GRAMS} g)`],
+    ['low', `Running low (under ${formatWeight(LOW_GRAMS)})`],
     ...(drying.length ? [['drying', 'Drying'] as [SpoolFilter, string]] : []),
     ...materials.slice(0, 6).map((m) => [`material:${m}`, m] as [SpoolFilter, string]),
     ...(summary?.archivedCount ? [['archived', `Archived (${summary.archivedCount})`] as [SpoolFilter, string]] : [])
