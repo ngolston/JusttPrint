@@ -10,7 +10,7 @@ import { Modal } from '../components/Overlay';
 import { Tabs } from '../components/Tabs';
 import { useCan } from '../session';
 import { useCurrency } from './currency';
-import { formatMoney, formatWeight } from './format';
+import { formatMoney, formatWeight, runsOutShort, runsOutText } from './format';
 
 /*
  * The Filament page's Reorder tile and shopping list, and QR labels for spools (docs/merge-10.md,
@@ -27,7 +27,7 @@ export function ReorderTile({ items, onOpen }: { items: ReorderItem[] | null; on
           <li key={item.id}>
             <ColorDot color={item.color || '#9aa4b4'} size={18} />
             <span className="jp-filament-reorder__name">{item.name}</span>
-            <span>{formatWeight(item.remaining)}</span>
+            <span title={runsOutText(item.forecast) || undefined}>{formatWeight(item.remaining)}</span>
           </li>
         ))}
       </ul>
@@ -89,6 +89,7 @@ export function ShoppingListDialog({ items, onClose }: { items: ReorderItem[]; o
               <span className="jp-shopping__name">{[item.brand, item.name].filter(Boolean).join(' ')}</span>
               <span className="jp-meta">
                 {formatWeight(item.remaining)} left ({item.pct}%){item.severity === 'critical' ? ' · critical' : ''}
+                {item.forecast ? ` · runs out in about ${runsOutShort(item.forecast)}` : ''}
                 {item.supplier ? ` · ${item.supplier}` : ''}
                 {item.price !== null ? ` · last paid ${formatMoney(item.price, currency)}` : ''}
               </span>

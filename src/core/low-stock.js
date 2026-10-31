@@ -118,6 +118,8 @@ function severityFor(rule, spool) {
  */
 function reorderList(db) {
   const rules = activeRules(db);
+  const forecast = require('./filament-forecast');
+  const used = forecast.recentUse(db);
   const out = [];
   for (const spool of spoolLevels(db)) {
     /** @type {'low' | 'critical' | null} */
@@ -126,7 +128,8 @@ function reorderList(db) {
       const severity = severityFor(rule, spool);
       if (severity === 'critical' || (severity === 'low' && !worst)) worst = severity;
     }
-    if (worst) out.push({ ...spool, severity: worst });
+    // When it runs out at its recent rate (null when not used lately).
+    if (worst) out.push({ ...spool, severity: worst, forecast: forecast.forecastOf({ remaining: spool.remaining }, used.get(spool.id) || 0) });
   }
   return out.sort((a, b) => Number(b.severity === 'critical') - Number(a.severity === 'critical') || a.pct - b.pct);
 }

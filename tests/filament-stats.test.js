@@ -133,6 +133,66 @@ test('MCP: spools, the filament check, what can print, the queue and the stats',
   assert.strictEqual(spools.getSpool(db, red.id).remaining, 920);
 });
 
+test('runout forecast and recent use (10.2): the last 30 days set the rate; weeks fold to three materials and Other', () => {
+  const forecast = require('../src/core/filament-forecast');
+  const { recentFilament } = require('../src/core/filament-stats');
+  const now = new Date('2027-03-31T12:00:00.000Z');
+  const model = Number(
+    db.prepare("INSERT INTO models (filePath, fileName, print_status, dateAdded) VALUES ('/lib/fc.3mf', 'fc.3mf', 'unprinted', '2027-01-01')").run()
+      .lastInsertRowid
+  );
+  const fast = spools.saveSpool(db, { name: 'Fast', material: 'ASA', initial_weight: 1000, remaining: 600, purchase_price: 30 });
+  const slow = spools.saveSpool(db, { name: 'Slow', material: 'TPU', initial_weight: 500, remaining: 500, purchase_price: 25 });
+  const log = (spool, grams, printedAt) =>
+    printEvents.logPrintEvent(db, { modelId: model, outcome: 'printed', printedAt, spools: [{ spoolId: spool.id, grams }] });
+  log(fast, 150, '2027-03-20T10:00:00.000Z');
+  log(fast, 150, '2027-03-30T10:00:00.000Z');
+  log(slow, 40, '2027-01-05T10:00:00.000Z'); // before the 30 days
+  const used = forecast.recentUse(db, now);
+  assert.deepStrictEqual([used.get(fast.id), used.get(slow.id)], [300, undefined]);
+  const f = forecast.forecastOf(spools.getSpool(db, fast.id), used.get(fast.id), now);
+  assert.deepStrictEqual(f, { perDay: 10, daysLeft: 30, runsOut: '2027-04-30' }, '300 g left at 10 g a day');
+  assert.strictEqual(forecast.forecastOf(spools.getSpool(db, slow.id), 0, now), null, 'not used lately: no forecast');
+  assert.strictEqual(forecast.forecastOf({ remaining: 50, status: 'archived' }, 100, now), null);
+  const soon = forecast.runningOut(
+    [
+      { id: 1, forecast: { daysLeft: 40 } },
+      { id: 2, forecast: { daysLeft: 3 } },
+      { id: 3, forecast: null },
+      { id: 4, forecast: { daysLeft: 12 } }
+    ],
+    { within: 30 }
+  );
+  assert.deepStrictEqual(
+    soon.map((s) => s.id),
+    [2, 4]
+  );
+
+  const recent = recentFilament(db, now);
+  assert.strictEqual(recent.daily.length, 30);
+  assert.deepStrictEqual(recent.daily[recent.daily.length - 1], { day: '2027-03-31', grams: 0 });
+  assert.deepStrictEqual(
+    recent.daily.filter((d) => d.grams).map((d) => [d.day, d.grams]),
+    [
+      ['2027-03-20', 150],
+      ['2027-03-30', 150]
+    ]
+  );
+  assert.strictEqual(recent.weekly.rows.length, 12);
+  assert.strictEqual(recent.weekly.rows[0].week, '2027-01-11', 'Mondays, oldest first');
+  assert.deepStrictEqual(recent.weekly.materials, ['ASA']);
+  assert.deepStrictEqual(
+    recent.weekly.rows.filter((r) => r.ASA).map((r) => [r.week, r.ASA]),
+    [
+      ['2027-03-15', 150],
+      ['2027-03-29', 150]
+    ]
+  );
+  const asa = recent.costPerKg.find((c) => c.material === 'ASA');
+  assert.deepStrictEqual(asa, { material: 'ASA', perKg: 30, spools: 1 });
+  assert.strictEqual(recent.costPerKg.find((c) => c.material === 'TPU').perKg, 50, '25 for 500 g');
+});
+
 (async () => {
   try {
     for (const [name, fn] of tests) {

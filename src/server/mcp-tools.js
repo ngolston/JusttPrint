@@ -860,7 +860,9 @@ function getMcpToolContext() {
         status: spool.status,
         place: spool.location_name,
         loadedIn: spool.loaded.map((place) => place.label),
-        drying: !!spool.drying
+        drying: !!spool.drying,
+        // At the rate prints used it over the last 30 days; null when not used lately.
+        runsOut: spool.forecast ? { date: spool.forecast.runsOut, inDays: spool.forecast.daysLeft, gramsPerDay: spool.forecast.perDay } : null
       }));
     },
     getSpool: async (args) => {

@@ -6,6 +6,7 @@ import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
 import { formatMoney, formatWeight } from '../filament/format';
 import { formatDuration } from '../print/printStatus';
+import { formatDay } from '../units';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
@@ -78,7 +79,31 @@ interface Series {
  * Columns per month, stacked by series, one axis. Hover or focus a month for its numbers.
  * With one series there is no legend; the panel title names it.
  */
-function MonthChart({ months, series, label, height = 220 }: { months: Month[]; series: readonly Series[]; label: string; height?: number }) {
+/** How a chart names its columns: months by default; days or weeks for the recent charts. */
+interface Axis {
+  /** The short label under a column (the first gets the year). */
+  short: (key: string, first: boolean) => string;
+  /** The full name in the tooltip, the column's label read aloud and the table. */
+  full: (key: string) => string;
+}
+const MONTHS: Axis = { short: (key, first) => monthLabel(key, first), full: (key) => monthTitle(key) };
+
+function MonthChart({
+  months,
+  series,
+  label,
+  height = 220,
+  axis = MONTHS,
+  format = fmt
+}: {
+  months: Month[];
+  series: readonly Series[];
+  label: string;
+  height?: number;
+  axis?: Axis;
+  /** How values read in the tooltip and on the axis (grams in the chosen unit, say). */
+  format?: (n: number) => string;
+}) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const valueOf = (month: Month, key: string) => Number((month as unknown as Record<string, number>)[key]) || 0;
@@ -102,7 +127,7 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
             <g key={tick} className="jp-chart__grid">
               <line x1={left} x2={width - 4} y1={y(tick)} y2={y(tick)} />
               <text x={left - 8} y={y(tick)} dy="0.32em" textAnchor="end">
-                {fmt(tick)}
+                {format(tick)}
               </text>
             </g>
           ))}
@@ -127,7 +152,7 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
                 })}
                 {index % every === 0 && (
                   <text className="jp-chart__x" x={cx} y={height - 8} textAnchor="middle">
-                    {monthLabel(month.month, index === 0)}
+                    {axis.short(month.month, index === 0)}
                   </text>
                 )}
                 {/* Hit area: the whole column, wider than the bar. */}
@@ -139,7 +164,7 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
                   width={band}
                   height={plotH}
                   tabIndex={0}
-                  aria-label={`${monthTitle(month.month)}: ${series.map((s) => `${s.label} ${valueOf(month, s.key)}`).join(', ')}`}
+                  aria-label={`${axis.full(month.month)}: ${series.map((s) => `${s.label} ${format(valueOf(month, s.key))}`).join(', ')}`}
                   onMouseEnter={() => setActive(index)}
                   onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(index)}
@@ -153,12 +178,12 @@ function MonthChart({ months, series, label, height = 220 }: { months: Month[]; 
       )}
       {activeMonth && active != null && (
         <div className="jp-chart__tooltip" role="presentation" style={{ left: Math.min(Math.max(8, left + band * active + band / 2), width - 8), top: 4 }}>
-          <div className="jp-chart__tooltip-title">{monthTitle(activeMonth.month)}</div>
+          <div className="jp-chart__tooltip-title">{axis.full(activeMonth.month)}</div>
           {series.map((s) => (
             <div key={s.key} className="jp-chart__tooltip-row">
               {series.length > 1 && <span className="jp-chart__swatch" style={{ background: s.color }} />}
               <span>{s.label}</span>
-              <span className="jp-chart__tooltip-value">{fmt(valueOf(activeMonth, s.key))}</span>
+              <span className="jp-chart__tooltip-value">{format(valueOf(activeMonth, s.key))}</span>
             </div>
           ))}
         </div>
@@ -181,13 +206,25 @@ function Legend({ series }: { series: readonly Series[] }) {
 }
 
 /** The months as a table (for screen readers, and anyone who wants the numbers). */
-function MonthTable({ months, series }: { months: Month[]; series: readonly Series[] }) {
+function MonthTable({
+  months,
+  series,
+  axis = MONTHS,
+  format = fmt,
+  firstColumn = 'Month'
+}: {
+  months: Month[];
+  series: readonly Series[];
+  axis?: Axis;
+  format?: (n: number) => string;
+  firstColumn?: string;
+}) {
   return (
     <div className="jp-stats__table-wrap">
       <table className="jp-stats__table">
         <thead>
           <tr>
-            <th scope="col">Month</th>
+            <th scope="col">{firstColumn}</th>
             {series.map((s) => (
               <th key={s.key} scope="col">
                 {s.label}
@@ -198,9 +235,9 @@ function MonthTable({ months, series }: { months: Month[]; series: readonly Seri
         <tbody>
           {months.map((month) => (
             <tr key={month.month}>
-              <th scope="row">{monthTitle(month.month)}</th>
+              <th scope="row">{axis.full(month.month)}</th>
               {series.map((s) => (
-                <td key={s.key}>{fmt(Number((month as unknown as Record<string, number>)[s.key]) || 0)}</td>
+                <td key={s.key}>{format(Number((month as unknown as Record<string, number>)[s.key]) || 0)}</td>
               ))}
             </tr>
           ))}
@@ -219,24 +256,204 @@ interface Ranked {
 }
 
 /** A ranked list with bars on one scale and the value written beside each. */
-function RankedBars({ rows, unit, empty }: { rows: Ranked[]; unit: string; empty: string }) {
+function RankedBars({ rows, unit, empty, format }: { rows: Ranked[]; unit: string; empty: string; format?: (n: number) => string }) {
   if (!rows.length) return <p className="jp-meta jp-stats__empty">{empty}</p>;
   const max = Math.max(...rows.map((row) => row.value), 1);
+  // With `format` the value says its own unit (grams in the chosen unit, money).
+  const text = (n: number) => (format ? format(n) : `${fmt(n)} ${unit}`);
   return (
     <ol className="jp-ranked">
       {rows.map((row) => (
-        <li key={row.key} className="jp-ranked__row" title={`${row.title}: ${fmt(row.value)} ${unit}${row.detail ? ` · ${row.detail}` : ''}`}>
+        <li key={row.key} className="jp-ranked__row" title={`${row.title}: ${text(row.value)}${row.detail ? ` · ${row.detail}` : ''}`}>
           <span className="jp-ranked__label">{row.label}</span>
           <span className="jp-ranked__track">
             <span className="jp-ranked__bar" style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }} />
           </span>
           <span className="jp-ranked__value">
-            {fmt(row.value)}
+            {format ? format(row.value) : fmt(row.value)}
             {row.detail && <span className="jp-ranked__detail"> · {row.detail}</span>}
           </span>
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * A running total as a line (it only grows, so a line reads it better than columns): 2px line,
+ * a marker and a guide on the month pointed at, with its value.
+ */
+function TotalLine({
+  months,
+  label,
+  format,
+  height = 180
+}: {
+  months: { month: string; total: number }[];
+  label: string;
+  format: (n: number) => string;
+  height?: number;
+}) {
+  const [ref, width] = useWidth<HTMLDivElement>();
+  const [active, setActive] = useState<number | null>(null);
+  const top = niceMax(Math.max(0, ...months.map((m) => m.total)));
+  const left = 56;
+  const bottom = 26;
+  const plotW = Math.max(0, width - left - 12);
+  const plotH = height - bottom - 8;
+  const step = months.length > 1 ? plotW / (months.length - 1) : 0;
+  const x = (index: number) => left + step * index;
+  const y = (value: number) => 8 + plotH - (value / top) * plotH;
+  const every = labelEvery(months.length, plotW);
+  const path = months.map((m, index) => `${index ? 'L' : 'M'}${x(index)} ${y(m.total)}`).join('');
+  const point = active == null ? null : months[active];
+  return (
+    <div className="jp-chart" ref={ref}>
+      {width > 0 && months.length > 0 && (
+        <svg width={width} height={height} role="img" aria-label={label} onMouseLeave={() => setActive(null)}>
+          {ticks(top).map((tick) => (
+            <g key={tick} className="jp-chart__grid">
+              <line x1={left} x2={width - 12} y1={y(tick)} y2={y(tick)} />
+              <text x={left - 8} y={y(tick)} dy="0.32em" textAnchor="end">
+                {format(tick)}
+              </text>
+            </g>
+          ))}
+          <path d={path} fill="none" stroke="var(--jp-series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {point && active != null && (
+            <g className="jp-chart__guide">
+              <line x1={x(active)} x2={x(active)} y1={8} y2={8 + plotH} />
+              <circle cx={x(active)} cy={y(point.total)} r={5} fill="var(--jp-series-1)" stroke="var(--jp-surface-1)" strokeWidth={2} />
+            </g>
+          )}
+          {months.map((m, index) => (
+            <g key={m.month}>
+              {index % every === 0 && (
+                <text className="jp-chart__x" x={x(index)} y={height - 8} textAnchor="middle">
+                  {monthLabel(m.month, index === 0)}
+                </text>
+              )}
+              <rect
+                className="jp-chart__hit"
+                role="img"
+                tabIndex={0}
+                x={x(index) - Math.max(step, 12) / 2}
+                y={8}
+                width={Math.max(step, 12)}
+                height={plotH}
+                aria-label={`${monthTitle(m.month)}: ${format(m.total)} in all`}
+                onMouseEnter={() => setActive(index)}
+                onFocus={() => setActive(index)}
+                onBlur={() => setActive(null)}
+              />
+            </g>
+          ))}
+        </svg>
+      )}
+      {point && active != null && (
+        <div className="jp-chart__tooltip" role="presentation" style={{ left: Math.min(Math.max(8, x(active)), width - 8), top: 4 }}>
+          <div className="jp-chart__tooltip-title">{monthTitle(point.month)}</div>
+          <div className="jp-chart__tooltip-row">
+            <span>In all</span>
+            <span className="jp-chart__tooltip-value">{format(point.total)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Oct 2": a day under its column; "October 2, 2026" in full. */
+const DAYS: Axis = {
+  short: (key, first) => {
+    const date = new Date(`${key}T12:00:00Z`);
+    return first || date.getUTCDate() === 1
+      ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
+      : String(date.getUTCDate());
+  },
+  full: (key) => formatDay(`${key}T12:00:00Z`)
+};
+/** A week by its Monday: "Oct 26"; "Week of Oct 26, 2026" in full. */
+const WEEKS: Axis = {
+  short: (key) => new Date(`${key}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+  full: (key) => `Week of ${formatDay(`${key}T12:00:00Z`)}`
+};
+/** The materials of the weekly chart: three keep a series color in fixed order, the rest are Other. */
+const MATERIAL_COLORS = ['var(--jp-series-1)', 'var(--jp-series-2)', 'var(--jp-series-3)'];
+
+/** Cost per kg by material: what the spools with a price cost (Phase 7). */
+function CostPerKg({ rows, currency }: { rows: PrintStatistics['filament']['recent']['costPerKg']; currency: string }) {
+  return (
+    <Panel title="What filament costs per kg">
+      <RankedBars
+        unit=""
+        format={(n) => formatMoney(n, currency)}
+        empty="Give your spools a price to see what each material costs."
+        rows={rows.map((r) => ({
+          key: r.material,
+          label: r.material,
+          title: r.material,
+          value: r.perKg,
+          detail: `${r.spools} ${r.spools === 1 ? 'spool' : 'spools'}`
+        }))}
+      />
+    </Panel>
+  );
+}
+
+/**
+ * The last 30 days and 12 weeks, whatever the period (docs/plan-10.1.md, Phase 7): grams per day,
+ * the running total over the period, and the weeks by material.
+ */
+function RecentFilament({ stats }: { stats: PrintStatistics }) {
+  const [table, setTable] = useState(false);
+  const recent = stats.filament.recent;
+  const daily = recent.daily.map((d) => ({ month: d.day, grams: d.grams }));
+  const weeklySeries: Series[] = [
+    ...recent.weekly.materials.map((material, index) => ({ key: material, label: material, color: MATERIAL_COLORS[index] })),
+    { key: 'other', label: 'Other', color: 'var(--jp-chart-other)' }
+  ];
+  const weekly = recent.weekly.rows.map((row) => ({ ...row, month: row.week }));
+  const anyWeekly = weekly.some((row) => weeklySeries.some((s) => Number((row as Record<string, unknown>)[s.key]) > 0));
+  let total = 0;
+  const running = stats.filament.byMonth.map((m) => ({ month: m.month, total: (total += m.grams) }));
+  return (
+    <>
+      <div className="jp-stats__grid">
+        <Panel title="The last 30 days" className="jp-stats__daily">
+          <MonthChart
+            months={daily}
+            series={[{ key: 'grams', label: 'Filament', color: 'var(--jp-series-1)' }]}
+            label="Filament used per day, the last 30 days"
+            height={180}
+            axis={DAYS}
+            format={formatWeight}
+          />
+        </Panel>
+        <Panel title="Filament used, running total">
+          <TotalLine months={running} label="Filament used in all, month by month" format={formatWeight} />
+        </Panel>
+      </div>
+      <Panel title="The last 12 weeks by material" className="jp-stats__wide">
+        {anyWeekly ? (
+          <>
+            <div className="jp-stats__chart-bar">
+              <Legend series={weeklySeries} />
+              <Button size="sm" variant="ghost" icon={Table2} aria-pressed={table} onClick={() => setTable(!table)}>
+                {table ? 'Show chart' : 'Show table'}
+              </Button>
+            </div>
+            {table ? (
+              <MonthTable months={weekly} series={weeklySeries} axis={WEEKS} format={formatWeight} firstColumn="Week" />
+            ) : (
+              <MonthChart months={weekly} series={weeklySeries} label="Filament used per week by material" axis={WEEKS} format={formatWeight} />
+            )}
+          </>
+        ) : (
+          <p className="jp-meta jp-stats__empty">No filament logged in the last 12 weeks.</p>
+        )}
+      </Panel>
+    </>
   );
 }
 
@@ -257,6 +474,7 @@ function FilamentSection({ stats }: { stats: PrintStatistics }) {
             When you log a print with the spools it used, the grams and their cost show up here.
           </EmptyState>
         </Panel>
+        {stats.filament.recent.costPerKg.length > 0 && <CostPerKg rows={stats.filament.recent.costPerKg} currency={stats.currency} />}
       </div>
     );
   }
@@ -271,22 +489,25 @@ function FilamentSection({ stats }: { stats: PrintStatistics }) {
           label={priced ? (use.pricedGrams < use.grams ? `Cost (${formatWeight(use.pricedGrams)} with a price)` : 'Filament cost') : 'Cost (no spool prices)'}
         />
       </div>
-      <Panel title="Filament used per month (grams)" className="jp-stats__wide">
+      <Panel title="Filament used per month" className="jp-stats__wide">
         <MonthChart
           months={use.byMonth}
-          series={[{ key: 'grams', label: 'Grams', color: 'var(--jp-series-1)' }]}
-          label="Grams of filament used per month"
+          series={[{ key: 'grams', label: 'Filament', color: 'var(--jp-series-1)' }]}
+          label="Filament used per month"
           height={180}
+          format={formatWeight}
         />
         <p className="jp-meta jp-stats__note">
           From prints logged with the spools they used. Cost is each print&apos;s grams at its spool&apos;s price
           {priced ? '' : '; give your spools a price to see it'}.
         </p>
       </Panel>
+      <RecentFilament stats={stats} />
       <div className="jp-stats__grid">
         <Panel title="Models by filament">
           <RankedBars
             unit="g"
+            format={formatWeight}
             empty="No model has filament logged."
             rows={use.models.map((m) => ({ key: m.id, label: m.name, title: m.filePath, value: Math.round(m.grams), detail: costOf(m) }))}
           />
@@ -294,6 +515,7 @@ function FilamentSection({ stats }: { stats: PrintStatistics }) {
         <Panel title="Printers by filament">
           <RankedBars
             unit="g"
+            format={formatWeight}
             empty="No prints are logged with a printer."
             rows={use.printers.map((p) => ({
               key: p.id ?? 'none',
@@ -307,10 +529,12 @@ function FilamentSection({ stats }: { stats: PrintStatistics }) {
         <Panel title="Materials">
           <RankedBars
             unit="g"
+            format={formatWeight}
             empty="No materials logged."
             rows={use.materials.map((m) => ({ key: m.material, label: m.material, title: m.material, value: Math.round(m.grams) }))}
           />
         </Panel>
+        <CostPerKg rows={stats.filament.recent.costPerKg} currency={stats.currency} />
       </div>
     </section>
   );

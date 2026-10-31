@@ -389,6 +389,21 @@ export interface FilamentUse {
   models: { id: number; name: string; filePath: string; grams: number; cost: number }[];
   printers: { id: number | null; name: string; grams: number; cost: number }[];
   materials: { material: string; grams: number }[];
+  /** The last 30 days and 12 weeks whatever the period, and cost per kg (docs/plan-10.1.md, Phase 7). */
+  recent: {
+    daily: { day: string; grams: number }[];
+    /** Up to three materials keep their own column color; `other` holds the rest. */
+    weekly: { materials: string[]; rows: ({ week: string; other: number } & Record<string, number | string>)[] };
+    costPerKg: { material: string; perKg: number; spools: number }[];
+  };
+}
+
+/** When a spool runs out at the rate prints used it over the last 30 days (filament-forecast.js). */
+export interface SpoolForecast {
+  perDay: number;
+  daysLeft: number;
+  /** "2026-11-12" */
+  runsOut: string;
 }
 
 export const statistics = {
@@ -686,6 +701,8 @@ export interface Spool {
   display_name: string;
   /** An uploaded photo (/api/photo/…), else a link, else null (docs/plan-10.1.md, Phase 2). */
   photo?: string | null;
+  /** When it runs out at its recent rate; null when not used lately (Phase 7). */
+  forecast?: SpoolForecast | null;
   profile_name: string | null;
   brand_name: string | null;
   location_name: string | null;
@@ -856,6 +873,7 @@ export interface ReorderItem {
   price: number | null;
   location: string | null;
   severity: 'low' | 'critical';
+  forecast?: SpoolForecast | null;
 }
 
 export interface AlertDeliveryStatus {

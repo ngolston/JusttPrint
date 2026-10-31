@@ -603,3 +603,16 @@
 .jp-links__list-error {
   color: var(--jp-danger-text);
 }
+
+/* "Other": the materials past the three that keep a series color (docs/plan-10.1.md, Phase 7). A
+   neutral gray, never a fourth hue. Validated (dataviz validate_palette.js) beside series 1-3: CVD
+   and normal-vision separation pass in both modes and contrast passes on the dark surface; on the
+   light surface it is 2.5:1, so the weekly chart keeps its legend and table view. A darker gray
+   would sit too close to series 3 (normal-vision ΔE under 15). */
+:root {
+  --jp-chart-other: #9aa4b4;
+}
+.jp-chart__guide line {
+  stroke: var(--jp-border);
+  stroke-width: 1;
+}

@@ -201,7 +201,8 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'list_spools',
-    description: 'The filament spools on hand: material, color, grams left, where each is (a place, or loaded in a printer), drying.',
+    description:
+      'The filament spools on hand: material, color, grams left, where each is (a place, or loaded in a printer), drying, and when it runs out at its recent rate.',
     inputSchema: { type: 'object', properties: { includeArchived: { type: 'boolean', description: 'Also used-up (archived) spools' } } }
   },
   {

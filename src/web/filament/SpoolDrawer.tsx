@@ -11,7 +11,7 @@ import { showMessage } from '../page';
 import { useLibraryData } from '../shell/libraryData';
 import { useCurrency } from './currency';
 import { PhotoBlock } from './Photo';
-import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, spoolWhere } from './format';
+import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, runsOutText, spoolWhere } from './format';
 
 export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move';
 
@@ -71,6 +71,11 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
               <div className="jp-meta">
                 of {formatWeight(spool.initial_weight)} · {spoolWhere(spool)}
               </div>
+              {spool.forecast && (
+                <div className="jp-meta jp-spool-detail__forecast" id="jp-spool-forecast">
+                  {runsOutText(spool.forecast)}
+                </div>
+              )}
               {progress && spool.drying && (
                 <div className="jp-meta">
                   Drying at {formatTemperature(spool.drying.drying_temp)} · {formatTimeLeft(progress.leftMs)}

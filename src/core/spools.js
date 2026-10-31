@@ -66,8 +66,14 @@ const SPOOL_SELECT = `SELECT s.*, p.name AS profile_name, p.color_name, p.drying
   LEFT JOIN storage_locations l ON l.id = s.location_id
   LEFT JOIN drying_sessions d ON d.spool_id = s.id AND d.finished_at IS NULL`;
 
-/** A spool row as the page reads it: remaining grams, where it is loaded, and its drying session. */
-function present(row, places) {
+/**
+ * A spool row as the page reads it: remaining grams, where it is loaded, its drying session and
+ * when it runs out.
+ * @param {any} row
+ * @param {Map<number, any[]>} places
+ * @param {Map<number, number> | null} [used] Grams used lately per spool (filament-forecast.js).
+ */
+function present(row, places, used = null) {
   const remaining = Math.max(0, (Number(row.initial_weight) || 0) - (Number(row.used_weight) || 0));
   const { drying_id, drying_temp, drying_target_hours, drying_started_at, ...rest } = row;
   return {
@@ -77,20 +83,23 @@ function present(row, places) {
     // An uploaded photo, else a link to one (docs/plan-10.1.md, Phase 2).
     photo: row.photo_file ? `/api/photo/spool/${row.photo_file}` : row.photo_url || null,
     loaded: places.get(row.id) || [],
-    drying: drying_id ? { id: drying_id, drying_temp, target_hours: drying_target_hours, started_at: drying_started_at } : null
+    drying: drying_id ? { id: drying_id, drying_temp, target_hours: drying_target_hours, started_at: drying_started_at } : null,
+    // When it runs out at the rate prints used it lately (filament-forecast.js), or null.
+    forecast: used ? require('./filament-forecast').forecastOf({ ...row, remaining }, used.get(row.id) || 0) : null
   };
 }
 
 /** Spools, fullest first within each status (active, storage, then archived unless left out). */
 function listSpools(db, { includeArchived = true } = {}) {
   const places = loadedPlaces(db);
+  const used = require('./filament-forecast').recentUse(db);
   return db
     .prepare(
       `${SPOOL_SELECT} ${includeArchived ? '' : "WHERE s.status != 'archived'"}
        ORDER BY CASE s.status WHEN 'active' THEN 0 WHEN 'storage' THEN 1 ELSE 2 END, (s.initial_weight - s.used_weight) DESC, s.id`
     )
     .all()
-    .map((row) => present(row, places));
+    .map((row) => present(row, places, used));
 }
 
 /** One spool with its weighings and drying sessions, newest first; null when there is none. */
@@ -98,7 +107,7 @@ function getSpool(db, id) {
   const row = db.prepare(`${SPOOL_SELECT} WHERE s.id = ?`).get(id);
   if (!row) return null;
   return {
-    ...present(row, loadedPlaces(db)),
+    ...present(row, loadedPlaces(db), require('./filament-forecast').recentUse(db)),
     weighings: db.prepare('SELECT * FROM spool_weight_logs WHERE spool_id = ? ORDER BY logged_at DESC, id DESC LIMIT 50').all(id),
     dryings: db.prepare('SELECT * FROM drying_sessions WHERE spool_id = ? ORDER BY started_at DESC, id DESC LIMIT 50').all(id)
   };

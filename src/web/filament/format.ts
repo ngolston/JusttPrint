@@ -1,8 +1,8 @@
 /**
  * Figures on the Filament page: weights, drying time left, and the spool filters.
  */
-import type { Spool } from '../api';
-import { formatWeightIn } from '../units';
+import type { Spool, SpoolForecast } from '../api';
+import { formatDay, formatWeightIn } from '../units';
 
 /** Under this many grams a spool is running low (src/core/spools.js LOW_GRAMS, the ring's light coral). */
 export const LOW_GRAMS = 300;
@@ -228,4 +228,20 @@ export function parseViews(raw: string | null | undefined): SpoolView[] {
     })
     .filter((view) => view.name)
     .slice(0, MAX_VIEWS);
+}
+
+/** "Runs out in about 5 days (Nov 5) at 12 g a day", or "" with no forecast (docs/plan-10.1.md, Phase 7). */
+export function runsOutText(forecast: SpoolForecast | null | undefined): string {
+  if (!forecast) return '';
+  const days = Math.round(forecast.daysLeft);
+  const when = days < 1 ? 'Runs out today' : days === 1 ? 'Runs out in about a day' : `Runs out in about ${days} days`;
+  const rate = forecast.perDay < 1 ? `under ${formatWeight(1)}` : formatWeight(forecast.perDay);
+  return `${when} (${formatDay(`${forecast.runsOut}T12:00:00`)}) at ${rate} a day`;
+}
+
+/** "5 days", "today": how soon, short (the reorder list, Home). */
+export function runsOutShort(forecast: SpoolForecast | null | undefined): string {
+  if (!forecast) return '';
+  const days = Math.round(forecast.daysLeft);
+  return days < 1 ? 'today' : days === 1 ? '1 day' : `${days} days`;
 }

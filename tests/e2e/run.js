@@ -4431,6 +4431,68 @@ async function browserChecks(base, wsUrl, session) {
       await invoke(base, session, 'save-setting', ['units', '{}']);
     }
 
+    // 10.2 Phase 7 (docs/plan-10.1.md): the runout forecast and the recent statistics.
+    try {
+      const fcSpool = (
+        await invoke(base, session, 'save-spool', [{ name: 'E2E Forecast Spool', material: 'PETG', initial_weight: 1000, remaining: 250, purchase_price: 20 }])
+      ).result;
+      const fcModel = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const fcEvent = (
+        await invoke(base, session, 'log-print-event', [
+          { filePath: fcModel.filePath, outcome: 'printed', printedAt: yesterday, spools: [{ spoolId: fcSpool.id, grams: 200 }] }
+        ])
+      ).result;
+      const withForecast = (await invoke(base, session, 'get-spool', [fcSpool.id])).result;
+      check(
+        'a spool used lately says when it runs out (50 g left at 200 g in 30 days)',
+        withForecast?.forecast?.daysLeft === 7.5 && withForecast?.forecast?.perDay === 6.7,
+        JSON.stringify(withForecast?.forecast)
+      );
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, fcSpool.id);
+      check(
+        'the spool panel shows the forecast',
+        await page.waitForSelector('#jp-spool-forecast:has-text("Runs out in about 8 days")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      check(
+        'Home lists the spools that run out soon',
+        await page.waitForSelector('.jp-home-runsout:has-text("E2E Forecast Spool"):has-text("8 days")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      const statsReady = await page.waitForSelector('.jp-stats__daily svg', { timeout: 15000 }).then(
+        () => true,
+        () => false
+      );
+      const statsText = statsReady ? await page.textContent('#jp-stats-filament') : '';
+      check(
+        'Statistics shows the last 30 days, the running total, the weeks by material and cost per kg',
+        statsReady &&
+          /running total/.test(statsText) &&
+          /The last 12 weeks by material/.test(statsText) &&
+          /PETG/.test(statsText) &&
+          /costs per kg/.test(statsText),
+        statsText.slice(0, 200)
+      );
+      await invoke(base, session, 'delete-print-event', [fcEvent.eventId]);
+      await invoke(base, session, 'delete-spool', [fcSpool.id]);
+    } catch (error) {
+      check('the 10.2 Phase 7 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (

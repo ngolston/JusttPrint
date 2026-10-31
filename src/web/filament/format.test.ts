@@ -9,6 +9,8 @@ import {
   matchesSearch,
   numberOrNull,
   parseViews,
+  runsOutShort,
+  runsOutText,
   sortSpools,
   spoolWhere
 } from './format';
@@ -121,5 +123,14 @@ describe('sortSpools and saved views (10.1)', () => {
       { name: 'Low PLA', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
       { name: 'Odd', filter: 'all', search: '', sort: { key: 'default', dir: 'asc' }, layout: 'cards' }
     ]);
+  });
+});
+
+describe('runout text (10.2)', () => {
+  it('says when a spool runs out and how fast it goes', () => {
+    expect(runsOutText({ perDay: 12, daysLeft: 5.4, runsOut: '2026-11-05' })).toMatch(/^Runs out in about 5 days \(.+2026\) at 12 g a day$/);
+    expect(runsOutText({ perDay: 0.3, daysLeft: 0.4, runsOut: '2026-10-31' })).toMatch(/^Runs out today .* at under 1 g a day$/);
+    expect(runsOutText(null)).toBe('');
+    expect(runsOutShort({ perDay: 5, daysLeft: 1.2, runsOut: '2026-11-01' })).toBe('1 day');
   });
 });

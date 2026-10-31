@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
 import { ColorDot, FilamentCheck, FitBadge, IsoThumb, SpoolRing } from '../components/Filament';
 import { cardTitle } from '../grid/ModelCard';
-import { formatWeight } from '../filament/format';
+import { formatWeight, runsOutShort, runsOutText } from '../filament/format';
 import { loadedSpools } from '../printers/LoadedFilament';
 import { checkRows, itemName, plateLabel } from '../queue/QueueParts';
 import { navigate } from '../shell/routes';
@@ -126,6 +126,29 @@ export function SpoolsTile({ summary, spools }: { summary: FilamentSummary | nul
           </li>
         ))}
       </ul>
+    </Tile>
+  );
+}
+
+/** Spools that run out within 30 days at the rate prints used them lately, soonest first (Phase 7). */
+export function RunsOutTile({ spools }: { spools: Spool[] | null }) {
+  const soon = (spools || [])
+    .filter((spool) => spool.status !== 'archived' && spool.forecast && spool.forecast.daysLeft <= 30)
+    .sort((a, b) => (a.forecast?.daysLeft ?? 0) - (b.forecast?.daysLeft ?? 0))
+    .slice(0, 5);
+  if (!soon.length) return null;
+  return (
+    <Tile title="Runs out soon" className="jp-home-runsout">
+      <ul className="jp-home-tile__list">
+        {soon.map((spool) => (
+          <li key={spool.id} className="jp-home-spools__row" title={runsOutText(spool.forecast)}>
+            <ColorDot color={spool.color_hex || '#9aa4b4'} size={18} />
+            <span className="jp-home-spools__name">{spool.display_name}</span>
+            <span className="jp-home-spools__grams">{runsOutShort(spool.forecast)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="jp-meta">At the rate your logged prints used them over the last 30 days.</p>
     </Tile>
   );
 }

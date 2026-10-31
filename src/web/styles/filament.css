@@ -872,7 +872,7 @@
 .jp-spool-table__wrap {
   overflow-x: auto;
   border-radius: var(--jp-radius-lg);
-  background: var(--jp-surface);
+  background: var(--jp-surface-1);
   box-shadow: var(--jp-shadow-card);
 }
 .jp-spool-table {

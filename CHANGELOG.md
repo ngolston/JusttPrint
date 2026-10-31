@@ -5,7 +5,11 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Changes:**
+- **When each spool runs out.** From what your logged prints took off a spool over the last 30 days, its panel says when it runs out and how fast it goes; the shopping list says it too, MCP `list_spools` gives it, and Home has a **Runs out soon** tile. Statistics adds the last 30 days day by day, a running total over the period, the last 12 weeks by material, and what filament costs per kg for each material.
 - **Units and date format.** Settings → Printers → Filament settings now chooses how weights (grams, kilograms, ounces or pounds), temperatures (°C or °F) and lengths (mm or inches) are shown and typed, and how dates are written (this browser's way, 2026-10-30, 30/10/2026 or 10/30/2026). The Filament page, spool and filament forms, drying, Log Print, Home, the print history, labels anyone can scan and low-stock alerts follow it. Everything is still kept in grams, °C and mm.
+
+**Fixes:**
+- The spool table on the Filament page (10.1.0) now has its card background; it was drawn with a color that does not exist.
 
 ## [10.1.0] - 2026-10-30
 
