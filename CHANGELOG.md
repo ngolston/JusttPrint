@@ -4,6 +4,16 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [10.3.1] - 2026-10-31
+
+Import from FilamentHub puts every spool where it is.
+
+**Fixes:**
+- **Spools in a printer's AMS came in with no place.** FilamentHub keeps where a spool is twice: its place (a printer slot is a place there) and its AMS slot list, which can lag behind. The import read only the list, so spools in an AMS slot it had missed came in with no place and not loaded, and a spool the list still had in a slot was loaded there although it was on a shelf. Now a spool whose place is a printer slot is loaded into that AMS slot (or onto the printer's own holder for Ext), the list fills in only spools with no place, and the result says how many spools were loaded in printers.
+
+**Upgrading:**
+- Spools an earlier import left with no place: delete them and import the file again (only what is missing comes back, and loaded), or load each one from its printer's page.
+
 ## [10.3.0] - 2026-10-31
 
 Import from FilamentHub brings everything in as yours.

@@ -143,6 +143,7 @@ function runImport(data, db, { owner = null, alertDelivery }) {
     dryings: 0,
     printers: 0,
     amsUnits: 0,
+    loaded: 0,
     prints: 0,
     alertRules: 0,
     webhooks: 0,
@@ -158,6 +159,8 @@ function runImport(data, db, { owner = null, alertDelivery }) {
     units: new Map(),
     jobs: new Map()
   };
+  /** FilamentHub spools this import adds (only they are loaded into printers). */
+  const newSpools = new Set();
   const ref = (table, kind, id) => db.prepare(`SELECT id FROM ${table} WHERE source_ref = ?`).get(REF(kind, id))?.id;
 
   db.transaction(() => {
@@ -290,6 +293,7 @@ function runImport(data, db, { owner = null, alertDelivery }) {
           now
         ).lastInsertRowid;
       ids.spools.set(s.id, Number(id));
+      newSpools.add(s.id);
       added.spools++;
     }
 
@@ -384,18 +388,54 @@ function runImport(data, db, { owner = null, alertDelivery }) {
       ids.units.set(u.id, id);
       added.amsUnits++;
     }
+    // FilamentHub keeps where a spool is twice: its place (a printer slot is a place there) and the
+    // AMS slot table, which can lag behind. The place wins: the table loads only spools with no place.
+    const placeOf = new Map(data.storage_locations.map((l) => [l.id, l]));
+    const fromTable = (fhSpoolId) => {
+      const fhSpool = fhSpoolId ? data.spools.find((sp) => sp.id === fhSpoolId) : null;
+      return fhSpool && !placeOf.get(fhSpool.location_id) ? (ids.spools.get(fhSpool.id) ?? null) : null;
+    };
     for (const slot of data.ams_slots) {
       const unit = ids.units.get(slot.ams_unit_id);
       if (!unit || has(db, 'printer_ams_slots', REF('ams_slots', slot.id))) continue;
       if (db.prepare('SELECT 1 FROM printer_ams_slots WHERE unit_id = ? AND slot_index = ?').get(unit, Number(slot.slot_index) || 0)) continue;
-      const spool = slot.spool_id ? (ids.spools.get(slot.spool_id) ?? null) : null;
-      if (spool) db.prepare('UPDATE printer_ams_slots SET spool_id = NULL WHERE spool_id = ?').run(spool);
+      const spool = fromTable(slot.spool_id);
+      if (spool) {
+        db.prepare('UPDATE printer_ams_slots SET spool_id = NULL WHERE spool_id = ?').run(spool);
+        added.loaded++;
+      }
       db.prepare('INSERT INTO printer_ams_slots (unit_id, slot_index, spool_id, source_ref) VALUES (?, ?, ?, ?)').run(
         unit,
         Number(slot.slot_index) || 0,
         spool,
         REF('ams_slots', slot.id)
       );
+    }
+
+    // Spools whose place is a printer slot: loaded into that AMS slot, or onto the printer's own
+    // holder (FilamentHub's "Ext"). A slot that holds a spool already keeps it.
+    for (const s of data.spools) {
+      const place = placeOf.get(s.location_id);
+      const spool = ids.spools.get(s.id);
+      const printer = place && place.printer_id ? ids.printers.get(place.printer_id) : null;
+      if (!newSpools.has(s.id) || !spool || !printer) continue;
+      if (place.slot_type === 'ams' && place.ams_unit_index !== null && place.ams_slot_index !== null) {
+        const unit = db.prepare('SELECT id FROM printer_ams_units WHERE printer_id = ? AND unit_index = ?').get(printer, Number(place.ams_unit_index))?.id;
+        if (!unit) continue;
+        const slotIndex = Number(place.ams_slot_index);
+        const slot = db.prepare('SELECT id, spool_id FROM printer_ams_slots WHERE unit_id = ? AND slot_index = ?').get(unit, slotIndex);
+        if (slot && slot.spool_id) continue;
+        db.prepare('UPDATE printer_ams_slots SET spool_id = NULL WHERE spool_id = ?').run(spool);
+        db.prepare('UPDATE printers SET direct_spool_id = NULL WHERE direct_spool_id = ?').run(spool);
+        if (slot) db.prepare('UPDATE printer_ams_slots SET spool_id = ? WHERE id = ?').run(spool, slot.id);
+        else db.prepare('INSERT INTO printer_ams_slots (unit_id, slot_index, spool_id) VALUES (?, ?, ?)').run(unit, slotIndex, spool);
+        added.loaded++;
+      } else if (place.slot_type === 'ext') {
+        if (db.prepare('SELECT direct_spool_id FROM printers WHERE id = ?').get(printer)?.direct_spool_id) continue;
+        db.prepare('UPDATE printer_ams_slots SET spool_id = NULL WHERE spool_id = ?').run(spool);
+        db.prepare('UPDATE printers SET direct_spool_id = ? WHERE id = ?').run(spool, printer);
+        added.loaded++;
+      }
     }
 
     // Logged prints, for jobs whose file is a library model; their grams are already off the spools.
