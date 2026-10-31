@@ -4704,6 +4704,23 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.2 Phase 12 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.2 Phase 13 (docs/plan-10.1.md): the catalogue's sources (nothing is downloaded in the tests).
+    try {
+      await page.evaluate(() => window.openCatalogSources());
+      const sourcesText = await page
+        .waitForSelector('#catalog-sources', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check(
+        'Filament catalogue shows the bundled catalogue and that SpoolmanDB is not downloaded',
+        /3dfilamentprofiles\.com/.test(sourcesText) && /27,\d{3}|2\d,\d{3}/.test(sourcesText) && /Not downloaded/.test(sourcesText),
+        sourcesText.slice(0, 160)
+      );
+      await page.click('#catalog-sources-dialog button:has-text("Close")').catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 13 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6865,6 +6882,7 @@ async function accountChecks(base, wsUrl, admin) {
     check('the users list shows who has two-factor sign-in', e2eUser?.twoFactor === true);
     if (e2eUser) await invoke(base, admin, 'delete-user', [e2eUser.id]);
   }
+  check('editors cannot download into the catalogue', (await invoke(base, editor, 'refresh-spoolmandb')).status === 403);
   check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);

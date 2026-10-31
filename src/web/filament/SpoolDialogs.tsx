@@ -4,6 +4,7 @@ import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   filament,
   type CatalogFilament,
+  type CatalogSource,
   type FilamentBrand,
   type FilamentProfile,
   type Spool,
@@ -438,7 +439,9 @@ export function MoveDialog({ spool, onClose }: { spool: Spool; onClose: () => vo
 /** Search the bundled catalogue; choosing a filament adds it as a profile and opens the spool form. */
 export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPicked: (preset: SpoolPreset) => void }) {
   const [query, setQuery] = useState('');
-  const [result, setResult] = useState<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null } | null>(null);
+  const [result, setResult] = useState<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null; sources?: CatalogSource[] } | null>(
+    null
+  );
   const [error, setError] = useState('');
   useEffect(() => {
     const words = query.trim();
@@ -489,9 +492,11 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
       )}
       <p className="jp-meta" aria-live="polite">
         {!result
-          ? 'About 27,000 filaments from 3dfilamentprofiles.com.'
+          ? 'About 27,000 filaments from 3dfilamentprofiles.com, and SpoolmanDB when an admin downloaded it (Settings → Integrations → Filament catalogue).'
           : `${result.total.toLocaleString()} ${result.total === 1 ? 'filament' : 'filaments'}${result.total > result.items.length ? `, the first ${result.items.length} shown` : ''}`}
-        {snapshot && ` · Catalogue from ${snapshot}`}
+        {result?.sources && result.sources.length > 1
+          ? ` · From ${result.sources.map((source) => source.name).join(' and ')}`
+          : snapshot && ` · Catalogue from ${snapshot}`}
       </p>
       {result && result.items.length > 0 && (
         <ul className="jp-catalog__list" aria-label="Catalogue filaments">
@@ -502,6 +507,7 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
                 <span className="jp-catalog__text">
                   <span className="jp-catalog__name">
                     {item.brand} · {item.name}
+                    {item.from === 'spoolmandb' && <span className="jp-badge jp-catalog__from">SpoolmanDB</span>}
                   </span>
                   <span className="jp-catalog__meta">
                     {[item.material, item.diameter ? `${item.diameter} mm` : '', item.weight ? formatWeight(item.weight) : ''].filter(Boolean).join(' · ')}

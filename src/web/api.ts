@@ -892,7 +892,23 @@ export interface CatalogFilament {
   bed_temp_min: number | null;
   bed_temp_max: number | null;
   product_url: string | null;
+  /** Where it comes from: the bundled snapshot, or SpoolmanDB when an admin downloaded it (10.2). */
+  from?: '3dfilamentprofiles' | 'spoolmandb';
 }
+
+/** A source of the filament catalogue and how many filaments it has. */
+export interface CatalogSource {
+  id: '3dfilamentprofiles' | 'spoolmandb';
+  name: string;
+  count: number;
+  fetchedAt: string | null;
+}
+
+export const catalogSources = {
+  get: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('get-catalog-sources'),
+  refreshSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('refresh-spoolmandb'),
+  removeSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('remove-spoolmandb')
+};
 
 export interface SpoolmanImport {
   imported: number;
@@ -1078,7 +1094,11 @@ export const filament = {
   setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
   setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
   searchCatalog: (query: string, limit = 50) =>
-    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
+    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null; sources?: CatalogSource[] }>(
+      'search-filament-catalog',
+      query,
+      { limit }
+    ),
   addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
   locations: () => callAction<StorageLocation[]>('get-storage-locations'),
   saveLocation: (location: { id?: number; name: string; description?: string | null; is_dry_box?: boolean }) =>

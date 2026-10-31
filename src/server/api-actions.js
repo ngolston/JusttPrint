@@ -226,6 +226,10 @@ const ACTIONS = {
   'get-alert-prefs': [],
   // Home Assistant (admins; home-assistant.js).
   'get-home-assistant': [],
+  // The filament catalogue's sources (admins; community-catalog.js).
+  'get-catalog-sources': [],
+  'refresh-spoolmandb': [],
+  'remove-spoolmandb': [],
   // Sign-in security (server-auth.js, 10.2): each account its own; admins reset and require.
   'get-two-factor': [],
   'start-two-factor': [],

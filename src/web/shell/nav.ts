@@ -420,6 +420,15 @@ export const SETTINGS: SettingsGroup[] = [
         embed: { dialog: 'thingiverse-settings-dialog', open: 'openThingiverseSettings' }
       },
       {
+        id: 'catalog-sources',
+        label: 'Filament catalogue',
+        description: 'What Add from catalogue searches: the bundled catalogue, and SpoolmanDB when downloaded.',
+        icon: BookOpen,
+        run: open('openCatalogSources'),
+        embed: { dialog: 'catalog-sources-dialog', open: 'openCatalogSources' },
+        role: 'admin'
+      },
+      {
         id: 'home-assistant',
         label: 'Home Assistant',
         description: 'A sensor per spool in Home Assistant: grams left, material, color and when it runs out.',

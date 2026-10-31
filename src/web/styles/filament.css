@@ -1050,3 +1050,7 @@
   border-bottom: 1px solid var(--jp-border);
   text-align: left;
 }
+.jp-catalog__from {
+  margin-left: 6px;
+  vertical-align: middle;
+}
