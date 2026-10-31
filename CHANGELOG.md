@@ -4,8 +4,15 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [10.3.0] - 2026-10-31
+
+Import from FilamentHub brings everything in as yours.
+
 **Changes:**
 - **Import from FilamentHub makes no accounts.** Everything in the file (spools, places, low-stock rules, webhooks) comes in as the account running the import, whoever owned it in FilamentHub. Before, each FilamentHub user was matched to an account by name or a new account was made with a random password. The preview says whose it becomes.
+
+**Upgrading:**
+- Accounts an earlier FilamentHub import made stay as they are. Delete any you do not use under **Settings → Authentication → Users**.
 
 ## [10.2.1] - 2026-10-31
 
