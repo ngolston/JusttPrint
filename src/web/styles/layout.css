@@ -136,6 +136,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Room for g, p, y (see .jp-btn > span). */
+  line-height: 1.3;
 }
 .jp-nav__badge {
   display: inline-flex;

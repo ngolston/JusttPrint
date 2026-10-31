@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 10.2.0**
+**Version 10.2.1**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -58,7 +58,7 @@ See [GUIDE.md](docs/GUIDE.md) for how to use each feature and [CHANGELOG.md](CHA
 
 | Home | On a phone |
 |------|------------|
-| ![Home: greeting, library figures, recent activity and printers](docs/images/home.png) | ![The library on a phone, two cards per row and a bottom bar](docs/images/phone-library.png) |
+| ![Home: greeting, library figures, spools, what runs out soon and the queue](docs/images/home.png) | ![Home on a phone, the tiles stacked and a bottom bar](docs/images/phone-home.png) |
 
 <a id="server-mode"></a>
 
