@@ -4,6 +4,16 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [10.2.1] - 2026-10-31
+
+Cut-off letters fixed, and new screenshots.
+
+**Changes:**
+- **New screenshots.** The README and the guide show 10.2 in the Bento look: Home, the library, the details panel, filters, the queue, printers, settings and Home on a phone, and new pictures of the Filament page and Statistics.
+
+**Fixes:**
+- **Letters cut off at the bottom.** The tails of g, j, p, q and y were clipped in the sidebar (Categories, Tags, AI Tagging) and on button labels across the app (Export, Add spool, Log Print, Show in Library…): their lines were exactly as tall as the font. They have room now; buttons and sidebar rows keep their size.
+
 ## [10.2.0] - 2026-10-31
 
 The rest of FilamentHub, part two (docs/plan-10.1.md, phases 6 to 13): what 10.0 never had.

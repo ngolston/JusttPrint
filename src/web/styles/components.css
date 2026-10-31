@@ -55,6 +55,8 @@ button.jp-tag__label:hover,
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Room for g, p, y: hidden overflow clips the descenders when the line is only as tall as the font. */
+  line-height: 1.3;
 }
 .jp-btn--sm {
   height: 30px;
