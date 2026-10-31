@@ -69,17 +69,23 @@ function filamentHub() {
     INSERT INTO brands VALUES (1, 'Bambu Lab', 'https://bambulab.com', 'China', NULL, NULL, '2026-01-02 10:00:00.000000'), (2, 'Polymaker', NULL, NULL, NULL, NULL, '2026-01-02 10:00:00');
     INSERT INTO filament_profiles VALUES (1, 1, 'PLA Basic Black', 'PLA Basic', 'Black', '#111111', 1.75, 1.24, 190, 230, 35, 60, NULL, 55, 8, 1, 1, NULL, NULL, NULL,
       '2026-01-02 10:00:00', '2026-01-02 10:00:00');
-    INSERT INTO storage_locations VALUES (1, '${ALICE}', 'Shelf 2', NULL, 0, NULL, NULL, NULL, NULL), (2, '${ALICE}', 'P1S AMS A1', NULL, 0, 1, 'ams', 0, 0);
+    INSERT INTO storage_locations VALUES (1, '${ALICE}', 'Shelf 2', NULL, 0, NULL, NULL, NULL, NULL), (2, '${ALICE}', 'P1S AMS A1', NULL, 0, 1, 'ams', 0, 0),
+      (3, '${ALICE}', 'P1S Ext', NULL, 0, 1, 'ext', NULL, NULL);
     INSERT INTO spools VALUES
       (1, '${BOB}', 1, 1, 1, NULL, 'L1', NULL, 1000, 250, 982, '2026-01-02 00:00:00', 19.99, 'Bambu store', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'active', NULL,
        '2026-01-02 10:00:00+00:00', '2026-01-03 10:00:00', NULL, '2026-01-04 10:00:00'),
-      (2, '${ALICE}', NULL, 2, NULL, 'PolyTerra Gray', NULL, NULL, 1000, NULL, 360, NULL, NULL, NULL, NULL, '#8b8f96', '#ffffff', NULL, NULL, 'PLA', 'PolyTerra', 'storage', 'opened',
-       '2026-01-05 10:00:00', NULL, NULL, '2026-01-05 10:00:00');
+      (2, '${ALICE}', NULL, 2, 3, 'PolyTerra Gray', NULL, NULL, 1000, NULL, 360, NULL, NULL, NULL, NULL, '#8b8f96', '#ffffff', NULL, NULL, 'PLA', 'PolyTerra', 'storage', 'opened',
+       '2026-01-05 10:00:00', NULL, NULL, '2026-01-05 10:00:00'),
+      (3, '${ALICE}', NULL, 2, 2, 'AMS Red', NULL, NULL, 1000, NULL, 100, NULL, NULL, NULL, NULL, '#d23b3b', NULL, NULL, NULL, 'PLA', NULL, 'active', NULL,
+       '2026-01-06 10:00:00', NULL, NULL, '2026-01-06 10:00:00'),
+      (5, '${ALICE}', NULL, 2, NULL, 'Loose Blue', NULL, NULL, 1000, NULL, 0, NULL, NULL, NULL, NULL, '#2a6ad8', NULL, NULL, NULL, 'PLA', NULL, 'active', NULL,
+       '2026-01-06 10:00:00', NULL, NULL, '2026-01-06 10:00:00');
     INSERT INTO weight_logs VALUES (1, 1, 268, 18, 'after the bezel', '2026-01-04 10:00:00');
     INSERT INTO drying_sessions VALUES (1, 2, 50, 4, '2026-01-05 10:00:00', '2026-01-05 14:00:00', 38, 12, NULL);
-    INSERT INTO printers VALUES (1, '${ALICE}', 'Bambu P1S', 'P1S', 'bambu', '01P00A1', '192.168.1.40', '12345678', 'idle', NULL, '2026-01-01 10:00:00', NULL, 2);
+    INSERT INTO printers VALUES (1, '${ALICE}', 'Bambu P1S', 'P1S', 'bambu', '01P00A1', '192.168.1.40', '12345678', 'idle', NULL, '2026-01-01 10:00:00', NULL, NULL);
     INSERT INTO ams_units VALUES (1, 1, 0, 'AMS 1');
-    INSERT INTO ams_slots VALUES (1, 1, 0, 1), (2, 1, 1, NULL), (3, 1, 2, NULL), (4, 1, 3, NULL);
+    -- FilamentHub's slot table lags: A1 still says spool 1, which is on Shelf 2 now (spool 3's place is A1).
+    INSERT INTO ams_slots VALUES (1, 1, 0, 1), (2, 1, 1, 5), (3, 1, 2, NULL), (4, 1, 3, NULL);
     INSERT INTO projects VALUES (1, '${ALICE}', 'Client order');
     INSERT INTO print_jobs VALUES (1, '${BOB}', 1, NULL, NULL, 1, 'bezel.3mf', 30, 13200, 'success', NULL, '2026-01-04 06:00:00', '2026-01-04 09:40:00'),
       (2, '${BOB}', 1, 1, NULL, NULL, 'not-in-library.3mf', 12, 600, 'failed', 'spaghetti', NULL, '2026-01-04 11:00:00');
@@ -127,7 +133,7 @@ try {
     const plan = fhImport.preview(data, db, owner);
     assert.strictEqual(plan.owner, 'admin');
     assert.deepStrictEqual(plan.fromUsers, ['admin@example.com', 'bob.builder@example.com']);
-    assert.deepStrictEqual(plan.counts.spools, { total: 2, add: 2 });
+    assert.deepStrictEqual(plan.counts.spools, { total: 4, add: 4 });
     assert.deepStrictEqual(
       [plan.counts.locations, plan.counts.prints],
       [
@@ -147,11 +153,12 @@ try {
       brands: 2,
       profiles: 1,
       locations: 1,
-      spools: 2,
+      spools: 4,
       weighings: 1,
       dryings: 1,
       printers: 1,
       amsUnits: 1,
+      loaded: 3,
       prints: 1,
       alertRules: 1,
       webhooks: 1,
@@ -186,10 +193,14 @@ try {
         'SELECT s.slot_index, s.spool_id FROM printer_ams_slots s JOIN printer_ams_units u ON u.id = s.unit_id WHERE u.printer_id = ? ORDER BY s.slot_index'
       )
       .all(printer.id);
+    const spoolOf = (fhId) => db.prepare('SELECT id, location_id FROM spools WHERE source_ref = ?').get(`filamenthub:spools:${fhId}`);
     assert.deepStrictEqual(
       slots.map((s) => s.spool_id),
-      [black.id, null, null, null]
+      [spoolOf(3).id, spoolOf(5).id, null, null],
+      'a spool whose place is an AMS slot is loaded there; the slot table only loads spools with no place'
     );
+    assert.ok(black.location_id, 'a spool on a shelf stays there, whatever the slot table says');
+    assert.strictEqual(spoolOf(3).location_id, null, 'a loaded spool has no place of its own');
     const event = db.prepare("SELECT * FROM print_events WHERE source_ref = 'filamenthub:print_jobs:1'").get();
     assert.deepStrictEqual([event.outcome, event.plate_index, event.duration_seconds, event.printer_id], ['printed', 1, 13200, printer.id]);
     assert.deepStrictEqual(
@@ -221,7 +232,7 @@ try {
       Object.values(again.added).every((value) => !value),
       JSON.stringify(again.added)
     );
-    assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM spools').get().n, 2);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM spools').get().n, 4);
     assert.strictEqual(userCount(), 1);
   });
 } finally {

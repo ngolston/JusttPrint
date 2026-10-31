@@ -46,6 +46,7 @@ const LABELS: Record<string, string> = {
   dryings: 'Drying sessions',
   printers: 'Printers',
   amsUnits: 'AMS units',
+  loaded: 'Spools loaded in printers',
   prints: 'Logged prints',
   alertRules: 'Low-stock rules',
   webhooks: 'Webhooks'
