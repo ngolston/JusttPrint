@@ -894,6 +894,9 @@ export const filament = {
   saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
   removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
   /** A picture (`dataUrl`, shrunk by filament/photos.ts), a link (`url`), or null for none. */
+  /** The addresses the labels' QR codes open (docs/plan-10.1.md, Phase 5; paths, null for none). */
+  labelLinks: (input: { spoolIds: number[]; placeIds: number[] }) =>
+    callAction<{ public: boolean; spools: Record<string, string | null>; places: Record<string, string | null> }>('get-label-links', input),
   setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
   setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
   searchCatalog: (query: string, limit = 50) =>

@@ -30,6 +30,7 @@ ipcMain.handle('delete-spool', (event, id) => {
   require('../photos').sweepSoon();
   return deleted;
 });
+ipcMain.handle('get-label-links', (event, input) => require('../label-pages').labelLinks(database.db, input || {}));
 ipcMain.handle('set-spool-photo', (event, id, photo) => {
   require('../photos').setPhoto(database.db, 'spool', Number(id), photo || null);
   return spools.getSpool(database.db, Number(id));

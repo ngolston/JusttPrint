@@ -217,6 +217,7 @@ const ACTIONS = {
   'save-filament-brand': ['object'],
   'set-filament-photo': ['id', 'object?'],
   'set-spool-photo': ['id', 'object?'],
+  'get-label-links': ['object'],
   'add-print-photo': ['id', 'object'],
   'delete-print-photo': ['id'],
   'delete-filament-brand': ['id'],
@@ -554,6 +555,8 @@ const EDITOR_ACTIONS = new Set([
   'delete-filament-brand',
   'set-filament-photo',
   'set-spool-photo',
+  // Makes label tokens when labels are public: editors, as the Labels dialog.
+  'get-label-links',
   'add-print-photo',
   'delete-print-photo',
   'add-catalog-filament',

@@ -137,6 +137,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   auth.registerRoutes(expressApp, express);
   // Share links (core/share-links.js): public, the token is the permission.
   registerSharePages(expressApp);
+  // QR labels anyone can scan, when an admin turns them on (docs/plan-10.1.md, Phase 5).
+  require('./label-pages').registerLabelPages(expressApp);
   // OrcaSlicer downloads models through short-lived per-file addresses (slicer-links.js).
   registerSlicerFileRoutes(expressApp);
   expressApp.use(auth.requireAuth);

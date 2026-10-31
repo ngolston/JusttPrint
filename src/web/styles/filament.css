@@ -965,3 +965,6 @@
 .jp-spool-table th.is-numeric .jp-spool-table__sort {
   justify-content: flex-end;
 }
+.jp-labels__public {
+  margin-top: var(--jp-space-3);
+}
