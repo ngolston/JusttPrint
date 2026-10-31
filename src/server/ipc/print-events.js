@@ -46,6 +46,27 @@ async function tickKits(event, payload) {
 }
 
 /** Run a print action, then tell the other browsers which models changed. */
+/** "A print failed": the bell and the people who asked (docs/plan-10.1.md, Phase 9). */
+async function failedPrintAlert(event, payload) {
+  try {
+    const names = touchedPaths(payload, null).map((filePath) =>
+      require('path')
+        .basename(filePath)
+        .replace(/\.[^.]+$/, '')
+    );
+    const who = event && event.user && event.user.username ? ` by ${event.user.username}` : '';
+    await require('../personal-alerts').alert('printFailed', {
+      title: names.length === 1 ? `${names[0]} failed` : `${names.length} prints failed`,
+      body: `Logged as failed${who}.${payload && payload.notes ? ` ${String(payload.notes).slice(0, 300)}` : ''}`,
+      link: names.length === 1 ? `#/model/${encodeURIComponent(touchedPaths(payload, null)[0])}` : '#/library',
+      level: 'error',
+      minRole: 'viewer'
+    });
+  } catch (error) {
+    console.warn(`[Alerts] Failed print: ${error.message}`);
+  }
+}
+
 function announcing(handler, { logs = false } = {}) {
   return async (event, payload) => {
     const result = await handler(event, payload);
@@ -53,6 +74,9 @@ function announcing(handler, { logs = false } = {}) {
     if (logs) {
       // Phase 8: a logged print may leave spools low, and webhooks hear about it.
       require('../low-stock-alerts').soon();
+      require('../personal-alerts').soon();
+      require('../home-assistant').pushSoon();
+      if (String((payload && payload.outcome) || '').toLowerCase() === 'failed') void failedPrintAlert(event, payload);
       void require('../webhooks').deliver('print.logged', {
         filePaths: payload && (payload.filePaths || (payload.filePath ? [payload.filePath] : [])),
         outcome: payload && payload.outcome,

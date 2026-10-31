@@ -95,6 +95,22 @@ function UserRow({
     }
   }
 
+  async function resetTwoFactor() {
+    const answer = await showMessage(
+      'Turn off two-factor sign-in',
+      `Turn off two-factor sign-in for ${user.username}? They are signed out, and sign in with their password alone (or set it up again, when the library requires it).`,
+      ['Turn Off', 'Cancel']
+    );
+    if (answer !== 'Turn Off') return;
+    try {
+      await usersApi.resetTwoFactor(user.id);
+      setStatus(`Two-factor sign-in is off for ${user.username}.`);
+    } catch (error) {
+      setStatus(errorText(error));
+    }
+    onChanged();
+  }
+
   async function remove() {
     const answer = await showMessage('Delete User', `Delete ${user.username}? They are logged out and can no longer log in. Their library edits stay.`, [
       'Delete',
@@ -121,6 +137,11 @@ function UserRow({
               JUSTTPRINT_PASSWORD
             </span>
           )}
+          {user.twoFactor && (
+            <span className="users-row__tag" title="Signs in with a code from an authenticator app">
+              Two-factor
+            </span>
+          )}
         </span>
         <span className="users-row__meta">{user.lastLoginAt ? `Last login ${timeAgo(user.lastLoginAt)}` : 'Never logged in'}</span>
       </div>
@@ -138,6 +159,11 @@ function UserRow({
         {!user.fromEnv && !settingPassword && (
           <button type="button" onClick={() => setSettingPassword(true)}>
             Set Password
+          </button>
+        )}
+        {user.twoFactor && !isMe && (
+          <button type="button" onClick={() => void resetTwoFactor()} title="When they lost their phone and their recovery codes">
+            Turn Off Two-factor
           </button>
         )}
         {!user.fromEnv && !isMe && (
@@ -191,6 +217,7 @@ export function UsersDialog() {
   const [canDelete, setCanDelete] = useState(false);
   const load = useRef(0);
   const [guestAccess, setGuestAccess] = useState(false);
+  const [require2fa, setRequire2fa] = useState(false);
 
   async function refresh() {
     const ticket = ++load.current;
@@ -200,6 +227,7 @@ export function UsersDialog() {
       setList(result.users);
       setMinLength(result.minPasswordLength);
       setGuestAccess((await settings.get<string | null>('guestAccess').catch(() => null)) === 'true');
+      setRequire2fa(!!result.requireTwoFactor);
     } catch (error) {
       if (ticket === load.current) setStatus(`Could not load the users: ${errorText(error)}`);
     }
@@ -285,6 +313,40 @@ export function UsersDialog() {
         <span>
           <strong>Guest access</strong>: people who open JusttPrint without logging in can browse, preview and download, like a Viewer. Anyone who can reach
           this server gets in, so leave it off if it is reachable from the internet.
+        </span>
+      </label>
+      <label className="users-guest">
+        <input
+          type="checkbox"
+          id="users-require-two-factor"
+          checked={require2fa}
+          onChange={async (event) => {
+            const on = event.target.checked;
+            if (on) {
+              const answer = await showMessage(
+                'Require two-factor sign-in',
+                'Everyone will sign in with a code from an authenticator app. Accounts without it are signed out now and set it up at their next sign-in. Your own account needs it on first (Sign-in & security).',
+                ['Require It', 'Cancel']
+              );
+              if (answer !== 'Require It') return;
+            }
+            try {
+              const result = await usersApi.setRequireTwoFactor(on);
+              setRequire2fa(result.required);
+              setStatus(
+                result.required
+                  ? `Two-factor sign-in is required.${result.signedOut.length ? ` Signed out to set it up: ${result.signedOut.join(', ')}.` : ''}`
+                  : 'Two-factor sign-in is no longer required.'
+              );
+              void refresh();
+            } catch (error) {
+              setStatus(errorText(error));
+            }
+          }}
+        />
+        <span>
+          <strong>Require two-factor sign-in</strong>: everyone signs in with a code from an authenticator app as well as their password. Each person sets it up
+          under Sign-in &amp; security, or at their next sign-in.
         </span>
       </label>
       <p id="users-status" className="setting-description" role="status">

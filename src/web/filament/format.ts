@@ -1,17 +1,15 @@
 /**
  * Figures on the Filament page: weights, drying time left, and the spool filters.
  */
-import type { Spool } from '../api';
+import type { Spool, SpoolForecast } from '../api';
+import { formatDay, formatWeightIn } from '../units';
 
 /** Under this many grams a spool is running low (src/core/spools.js LOW_GRAMS, the ring's light coral). */
 export const LOW_GRAMS = 300;
 
-/** 640 → "640 g", 18600 → "18.6 kg", 1000 → "1 kg". */
+/** 640 → "640 g", 18600 → "18.6 kg", 1000 → "1 kg"; in the library's weight unit (units.ts). */
 export function formatWeight(grams: number | null | undefined): string {
-  const g = Math.max(0, Math.round(Number(grams) || 0));
-  if (g < 1000) return `${g} g`;
-  const kg = Math.round(g / 100) / 10;
-  return `${kg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`;
+  return formatWeightIn(grams);
 }
 
 /** How far a drying session is: the share of its time gone (0 to 1) and milliseconds left. */
@@ -230,4 +228,27 @@ export function parseViews(raw: string | null | undefined): SpoolView[] {
     })
     .filter((view) => view.name)
     .slice(0, MAX_VIEWS);
+}
+
+/** "Runs out in about 5 days (Nov 5) at 12 g a day", or "" with no forecast (docs/plan-10.1.md, Phase 7). */
+export function runsOutText(forecast: SpoolForecast | null | undefined): string {
+  if (!forecast) return '';
+  const days = Math.round(forecast.daysLeft);
+  const when = days < 1 ? 'Runs out today' : days === 1 ? 'Runs out in about a day' : `Runs out in about ${days} days`;
+  const rate = forecast.perDay < 1 ? `under ${formatWeight(1)}` : formatWeight(forecast.perDay);
+  return `${when} (${formatDay(`${forecast.runsOut}T12:00:00`)}) at ${rate} a day`;
+}
+
+/** "5 days", "today": how soon, short (the reorder list, Home). */
+export function runsOutShort(forecast: SpoolForecast | null | undefined): string {
+  if (!forecast) return '';
+  const days = Math.round(forecast.daysLeft);
+  return days < 1 ? 'today' : days === 1 ? '1 day' : `${days} days`;
+}
+
+/** The cost of a print by hand: grams at a price per kg, plus hours at a printer's watts (Phase 8). */
+export function printCostOf(input: { grams: number; perKg: number; hours: number; watts: number; perKWh: number }) {
+  const filamentCost = (Math.max(0, input.grams) / 1000) * Math.max(0, input.perKg);
+  const electricityCost = ((Math.max(0, input.hours) * Math.max(0, input.watts)) / 1000) * Math.max(0, input.perKWh);
+  return { filamentCost, electricityCost, total: filamentCost + electricityCost };
 }

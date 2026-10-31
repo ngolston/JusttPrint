@@ -12,6 +12,17 @@ const { getPlateFilaments, platesOf } = require('../../core/plate-filaments');
  * is false while the library has no spools; `check` is null when the model's filament is not known.
  */
 // Read new and changed 3MF files' plate filament now, instead of waiting for the background job's turn.
+// What a print costs: filament and electricity (docs/plan-10.1.md, Phase 8).
+// The slicer's print time for some plates (all when none), also for a file with one plate: Log Print fills it in.
+ipcMain.handle('get-print-time', async (event, filePath, plates) => {
+  const found = await require('../threemf-plates')
+    .readPlates(String(filePath || ''), { single: true })
+    .catch(() => []);
+  const chosen = Array.isArray(plates) && plates.length ? found.filter((p) => plates.map(Number).includes(Number(p.index))) : found;
+  const known = chosen.filter((p) => Number(p.seconds) > 0);
+  return { seconds: known.length ? known.reduce((sum, p) => sum + Number(p.seconds), 0) : null };
+});
+ipcMain.handle('get-print-cost', (event, input) => require('../print-cost').estimatePrintCost(database.db, input || {}));
 ipcMain.handle('read-plate-filaments', () => require('../plate-filament-job').run());
 
 ipcMain.handle('get-model-filament', (event, filePath, options) => {

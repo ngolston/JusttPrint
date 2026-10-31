@@ -69,13 +69,38 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   return copy(answer);
 }
 
-async function sendAction<T>(name: string, args: unknown[]): Promise<T> {
-  const response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: clientHeaders(),
-    body: JSON.stringify({ args })
+/**
+ * Set while the page is going away (a reload, such as after saving the units, or leaving): a
+ * request the browser then cuts off is not an error anyone should see.
+ */
+let leaving = false;
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('beforeunload', () => {
+    leaving = true;
+    // Still here a moment later (the leaving was called off): requests count again.
+    setTimeout(() => {
+      leaving = false;
+    }, 5000);
   });
+  window.addEventListener('pageshow', () => {
+    leaving = false;
+  });
+}
+
+async function sendAction<T>(name: string, args: unknown[]): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/actions/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: clientHeaders(),
+      body: JSON.stringify({ args })
+    });
+  } catch (error) {
+    // Cut off by the page going away: never settle, so no caller logs it.
+    if (leaving) return new Promise<T>(() => {});
+    throw error;
+  }
   if (response.status === 401) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   }
@@ -136,11 +161,16 @@ export interface UserAccount {
   lastLoginAt: string | null;
   /** The JUSTTPRINT_PASSWORD account: stays an admin, password set by the variable. */
   fromEnv: boolean;
+  /** Two-factor sign-in is on (10.2). */
+  twoFactor?: boolean;
 }
 
 /** Settings → Users (admins). */
 export const users = {
-  list: () => callAction<{ users: UserAccount[]; minPasswordLength: number }>('list-users'),
+  list: () => callAction<{ users: UserAccount[]; minPasswordLength: number; requireTwoFactor?: boolean }>('list-users'),
+  /** Admins: turn someone's two-factor sign-in off (a lost phone); they are signed out. */
+  resetTwoFactor: (id: number) => callAction<UserAccount>('reset-two-factor', id),
+  setRequireTwoFactor: (on: boolean) => callAction<{ required: boolean; signedOut: string[] }>('set-require-two-factor', on),
   create: (details: { username: string; password: string; role: UserRole; canDeleteFiles?: boolean }) => callAction<UserAccount>('create-user', details),
   update: (id: number, changes: { role?: UserRole; password?: string; canDeleteFiles?: boolean }) => callAction<UserAccount>('update-user', id, changes),
   remove: (id: number) => callAction<unknown>('delete-user', id)
@@ -364,6 +394,138 @@ export interface FilamentUse {
   models: { id: number; name: string; filePath: string; grams: number; cost: number }[];
   printers: { id: number | null; name: string; grams: number; cost: number }[];
   materials: { material: string; grams: number }[];
+  /** The last 30 days and 12 weeks whatever the period, and cost per kg (docs/plan-10.1.md, Phase 7). */
+  recent: {
+    daily: { day: string; grams: number }[];
+    /** Up to three materials keep their own column color; `other` holds the rest. */
+    weekly: { materials: string[]; rows: ({ week: string; other: number } & Record<string, number | string>)[] };
+    costPerKg: { material: string; perKg: number; spools: number }[];
+  };
+}
+
+/** Each account's sign-in security (src/server/server-auth.js; docs/plan-10.1.md, Phase 12). */
+export interface MySession {
+  id: string;
+  current: boolean;
+  createdAt: string;
+  lastSeenAt: string;
+  userAgent: string | null;
+  ip: string | null;
+}
+export interface MyApiKey {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** The key's first characters, to tell keys apart. */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+export const signInSecurity = {
+  twoFactor: () => callAction<{ enabled: boolean; recoveryCodesLeft: number; required: boolean }>('get-two-factor'),
+  startTwoFactor: () => callAction<{ secret: string; otpauthUrl: string; qrSvg: string }>('start-two-factor'),
+  enableTwoFactor: (code: string) => callAction<{ recoveryCodes: string[] }>('enable-two-factor', code),
+  disableTwoFactor: (password: string) => callAction<{ enabled: boolean }>('disable-two-factor', password),
+  newRecoveryCodes: (password: string) => callAction<{ recoveryCodes: string[] }>('new-recovery-codes', password),
+  sessions: () => callAction<MySession[]>('list-my-sessions'),
+  endSession: (id: string) => callAction<{ ended: boolean }>('end-my-session', id),
+  endOtherSessions: () => callAction<{ ended: number }>('end-other-sessions'),
+  apiKeys: () => callAction<MyApiKey[]>('list-my-api-keys'),
+  createApiKey: (input: { name: string; role: UserRole }) => callAction<{ key: MyApiKey; token: string }>('create-my-api-key', input),
+  deleteApiKey: (id: number) => callAction<{ deleted: boolean }>('delete-my-api-key', id)
+};
+
+/** Home Assistant: one sensor per spool (src/server/home-assistant.js; docs/plan-10.1.md, Phase 11). */
+export interface HomeAssistantStatus {
+  url: string;
+  enabled: boolean;
+  tokenSet: boolean;
+  lastPush: { at: string; pushed: number; removed: number; errors: number; message: string | null } | null;
+}
+export const homeAssistant = {
+  get: () => callAction<HomeAssistantStatus>('get-home-assistant'),
+  /** `token`: a new one, '' to remove it, left out to keep it. */
+  save: (input: { url?: string; enabled?: boolean; token?: string }) => callAction<HomeAssistantStatus>('save-home-assistant', input),
+  test: () => callAction<{ ok: boolean; message: string }>('test-home-assistant'),
+  push: () => callAction<NonNullable<HomeAssistantStatus['lastPush']> & { skipped?: boolean }>('push-home-assistant')
+};
+
+/** Each person's alerts (src/server/personal-alerts.js; docs/plan-10.1.md, Phase 9). */
+export type AlertChannel = 'bell' | 'email' | 'discord';
+export interface AlertPrefs {
+  email: string | null;
+  /** A Discord webhook is set (it is never sent back). */
+  discordSet: boolean;
+  kinds: Record<string, Record<AlertChannel, boolean>>;
+  quietHours: { from: string; to: string } | null;
+  weeklyDigest: boolean;
+  /** get-alert-prefs only: each kind's name. */
+  kinds_meta?: Record<string, string>;
+}
+export const myAlerts = {
+  get: () => callAction<AlertPrefs>('get-alert-prefs'),
+  /** `discordWebhook`: a new one, '' to remove it, left out to keep it. */
+  save: (prefs: Omit<AlertPrefs, 'discordSet' | 'kinds_meta'> & { discordWebhook?: string }) => callAction<AlertPrefs>('save-alert-prefs', prefs),
+  test: () => callAction<{ sent: string[] }>('send-test-alert')
+};
+
+/** What importing a CSV of spools would do (src/core/spool-transfer.js). */
+export interface SpoolCsvPreview {
+  headers: string[];
+  /** Each column's field, or null for none. */
+  mapping: (string | null)[];
+  fields: Record<string, string>;
+  rows: number;
+  already: number;
+  problems: { line: number; error: string }[];
+  problemCount: number;
+  sample: (SpoolInput & { location: string | null })[];
+}
+
+/** What a print costs (src/server/print-cost.js; docs/plan-10.1.md, Phase 8). */
+export interface PrintCost {
+  currency: string;
+  quantity: number;
+  /** The filament the model needs is known. */
+  known: boolean;
+  lines: {
+    label: string;
+    color: string | null;
+    spool: string | null;
+    grams: number | null;
+    perKg: number | null;
+    cost: number | null;
+    basis: 'spool' | 'material' | 'none';
+  }[];
+  grams: number;
+  filamentCost: number;
+  /** Colors with no price to go on. */
+  unpriced: number;
+  seconds: number | null;
+  watts: number | null;
+  pricePerKWh: number | null;
+  kwh: number | null;
+  electricityCost: number | null;
+  total: number;
+}
+
+export const printCost = {
+  estimate: (input: {
+    filePath: string;
+    plates?: number[] | null;
+    printerId?: number | null;
+    quantity?: number;
+    hours?: number | null;
+    watts?: number | null;
+  }) => callAction<PrintCost>('get-print-cost', input)
+};
+
+/** When a spool runs out at the rate prints used it over the last 30 days (filament-forecast.js). */
+export interface SpoolForecast {
+  perDay: number;
+  daysLeft: number;
+  /** "2026-11-12" */
+  runsOut: string;
 }
 
 export const statistics = {
@@ -497,6 +659,8 @@ export interface Printer {
   api_url?: string | null;
   /** An API key or access code is kept on the server (it is never sent to the browser). */
   has_api_secret?: boolean;
+  /** Watts while printing (cost estimate). */
+  power_watts?: number | null;
   status?: string | null;
   last_seen_at?: string | null;
 }
@@ -539,6 +703,8 @@ export interface PrinterInput {
   apiUrl?: string | null;
   /** Given only to change it: a value sets it, '' clears it. */
   apiSecret?: string | null;
+  /** Watts while printing; null clears it, left out keeps it. */
+  powerWatts?: number | null;
 }
 
 export interface PrinterReminder {
@@ -661,6 +827,8 @@ export interface Spool {
   display_name: string;
   /** An uploaded photo (/api/photo/…), else a link, else null (docs/plan-10.1.md, Phase 2). */
   photo?: string | null;
+  /** When it runs out at its recent rate; null when not used lately (Phase 7). */
+  forecast?: SpoolForecast | null;
   profile_name: string | null;
   brand_name: string | null;
   location_name: string | null;
@@ -724,7 +892,23 @@ export interface CatalogFilament {
   bed_temp_min: number | null;
   bed_temp_max: number | null;
   product_url: string | null;
+  /** Where it comes from: the bundled snapshot, or SpoolmanDB when an admin downloaded it (10.2). */
+  from?: '3dfilamentprofiles' | 'spoolmandb';
 }
+
+/** A source of the filament catalogue and how many filaments it has. */
+export interface CatalogSource {
+  id: '3dfilamentprofiles' | 'spoolmandb';
+  name: string;
+  count: number;
+  fetchedAt: string | null;
+}
+
+export const catalogSources = {
+  get: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('get-catalog-sources'),
+  refreshSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('refresh-spoolmandb'),
+  removeSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('remove-spoolmandb')
+};
 
 export interface SpoolmanImport {
   imported: number;
@@ -831,6 +1015,7 @@ export interface ReorderItem {
   price: number | null;
   location: string | null;
   severity: 'low' | 'critical';
+  forecast?: SpoolForecast | null;
 }
 
 export interface AlertDeliveryStatus {
@@ -893,6 +1078,15 @@ export const filament = {
   /** Renaming onto another brand's name merges them (`merged`). */
   saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
   removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
+  /** Spools out as CSV or JSON, and a CSV in with its columns matched (docs/plan-10.1.md, Phase 10). */
+  exportSpools: (options: { format: 'csv' | 'json'; includeArchived: boolean }) =>
+    callAction<{ filename: string; mime: string; content: string }>('export-spools', options),
+  previewCsv: (input: { text: string; mapping?: (string | null)[] | null }) => callAction<SpoolCsvPreview>('preview-spool-csv', input),
+  importCsv: (input: { text: string; mapping: (string | null)[] }) =>
+    callAction<{ added: number; already: number; placesAdded: number; problems: { line: number; error: string }[]; problemCount: number }>(
+      'import-spool-csv',
+      input
+    ),
   /** A picture (`dataUrl`, shrunk by filament/photos.ts), a link (`url`), or null for none. */
   /** The addresses the labels' QR codes open (docs/plan-10.1.md, Phase 5; paths, null for none). */
   labelLinks: (input: { spoolIds: number[]; placeIds: number[] }) =>
@@ -900,7 +1094,11 @@ export const filament = {
   setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
   setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
   searchCatalog: (query: string, limit = 50) =>
-    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
+    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null; sources?: CatalogSource[] }>(
+      'search-filament-catalog',
+      query,
+      { limit }
+    ),
   addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
   locations: () => callAction<StorageLocation[]>('get-storage-locations'),
   saveLocation: (location: { id?: number; name: string; description?: string | null; is_dry_box?: boolean }) =>

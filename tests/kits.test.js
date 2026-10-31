@@ -23,6 +23,11 @@ async function main() {
   // --- Plates ---
   assert.deepStrictEqual(platesFrom({ entryNames: ['Metadata/plate_1.png'] }), [], 'one plate is not a kit');
   assert.deepStrictEqual(
+    platesFrom({ sliceInfo: '<config><plate><metadata key="index" value="1"/><metadata key="prediction" value="5400"/></plate></config>' }, { single: true }),
+    [{ index: 1, name: null, seconds: 5400, grams: null }],
+    'with single: the one plate, for its print time (10.2)'
+  );
+  assert.deepStrictEqual(
     platesFrom({ entryNames: ['Metadata/plate_1.png', 'Metadata/plate_2.png', 'Metadata/plate_3.png'], modelSettings: MODEL_SETTINGS, sliceInfo: SLICE_INFO }),
     [
       { index: 1, name: 'Legs & arms', seconds: 3600, grams: 42.3 },

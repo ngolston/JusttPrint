@@ -84,6 +84,8 @@ interface PrinterForm {
   apiSecret: string;
   hasApiSecret: boolean;
   clearApiSecret: boolean;
+  /** Watts while printing, for the cost estimate (docs/plan-10.1.md, Phase 8). */
+  power: string;
 }
 
 const CONNECTIONS: [string, string][] = [
@@ -108,7 +110,8 @@ const EMPTY_PRINTER: PrinterForm = {
   apiUrl: '',
   apiSecret: '',
   hasApiSecret: false,
-  clearApiSecret: false
+  clearApiSecret: false,
+  power: ''
 };
 
 function errorText(error: unknown, fallback: string): string {
@@ -231,6 +234,7 @@ export function PrinterManagerDialog() {
         connectionType: form.connection,
         serialNumber: form.serial.trim() || null,
         apiUrl: form.apiUrl.trim() || null,
+        powerWatts: form.power.trim() ? Number(form.power.trim().replace(',', '.')) : null,
         ...(form.apiSecret.trim() ? { apiSecret: form.apiSecret.trim() } : form.clearApiSecret ? { apiSecret: '' } : {})
       });
       flashForm(form.id ? 'Printer updated successfully' : 'Printer added successfully');
@@ -259,7 +263,8 @@ export function PrinterManagerDialog() {
       apiUrl: printer.api_url || '',
       apiSecret: '',
       hasApiSecret: Boolean(printer.has_api_secret),
-      clearApiSecret: false
+      clearApiSecret: false,
+      power: printer.power_watts ? String(printer.power_watts) : ''
     });
     setFormOpen(true);
     setTab('printers');
@@ -479,6 +484,19 @@ export function PrinterManagerDialog() {
                       ))}
                     </select>
                     <span className="jp-meta">Kept for later: JusttPrint does not talk to printers yet.</span>
+                  </label>
+                  <label className="jp-mgr__field">
+                    <span className="jp-label">Power while printing (W)</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      id="printer-form-power"
+                      className="jp-input"
+                      placeholder="150"
+                      value={form.power}
+                      onChange={(event) => setForm({ ...form, power: event.target.value })}
+                    />
+                    <span className="jp-meta">For the cost of a print: about 100–150 W for most FDM printers, more with a hot enclosure.</span>
                   </label>
                   <label className="jp-mgr__field">
                     <span className="jp-label">Serial number</span>

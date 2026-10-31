@@ -860,7 +860,9 @@ function getMcpToolContext() {
         status: spool.status,
         place: spool.location_name,
         loadedIn: spool.loaded.map((place) => place.label),
-        drying: !!spool.drying
+        drying: !!spool.drying,
+        // At the rate prints used it over the last 30 days; null when not used lately.
+        runsOut: spool.forecast ? { date: spool.forecast.runsOut, inDays: spool.forecast.daysLeft, gramsPerDay: spool.forecast.perDay } : null
       }));
     },
     getSpool: async (args) => {
@@ -916,6 +918,17 @@ function getMcpToolContext() {
         .map((id) => database.db.prepare('SELECT id, filePath, fileName, title, designer FROM models WHERE id = ?').get(id))
         .filter(Boolean);
       return { count: ids.length, models: rows };
+    },
+    estimatePrintCost: async (args) => {
+      const model = resolveModelForMcp(args);
+      return require('./print-cost').estimatePrintCost(database.db, {
+        filePath: model.filePath,
+        plates: Array.isArray(args.plates) ? args.plates : args.plate ? [args.plate] : null,
+        printerId: args.printerId ?? null,
+        quantity: args.quantity,
+        hours: args.hours ?? null,
+        watts: args.watts ?? null
+      });
     },
     getReorderList: async () => require('../core/low-stock').reorderList(database.db),
     getPrintQueue: async () =>

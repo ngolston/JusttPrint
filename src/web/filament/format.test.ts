@@ -9,6 +9,9 @@ import {
   matchesSearch,
   numberOrNull,
   parseViews,
+  printCostOf,
+  runsOutShort,
+  runsOutText,
   sortSpools,
   spoolWhere
 } from './format';
@@ -121,5 +124,21 @@ describe('sortSpools and saved views (10.1)', () => {
       { name: 'Low PLA', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
       { name: 'Odd', filter: 'all', search: '', sort: { key: 'default', dir: 'asc' }, layout: 'cards' }
     ]);
+  });
+});
+
+describe('runout text (10.2)', () => {
+  it('says when a spool runs out and how fast it goes', () => {
+    expect(runsOutText({ perDay: 12, daysLeft: 5.4, runsOut: '2026-11-05' })).toMatch(/^Runs out in about 5 days \(.+2026\) at 12 g a day$/);
+    expect(runsOutText({ perDay: 0.3, daysLeft: 0.4, runsOut: '2026-10-31' })).toMatch(/^Runs out today .* at under 1 g a day$/);
+    expect(runsOutText(null)).toBe('');
+    expect(runsOutShort({ perDay: 5, daysLeft: 1.2, runsOut: '2026-11-01' })).toBe('1 day');
+  });
+});
+
+describe('printCostOf (10.2)', () => {
+  it("adds filament at its price per kg and electricity at the printer's watts", () => {
+    expect(printCostOf({ grams: 250, perKg: 20, hours: 4, watts: 150, perKWh: 0.3 })).toEqual({ filamentCost: 5, electricityCost: 0.18, total: 5.18 });
+    expect(printCostOf({ grams: -5, perKg: 20, hours: 0, watts: 150, perKWh: 0.3 }).total).toBe(0);
   });
 });

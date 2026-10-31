@@ -331,7 +331,8 @@ async function runAsync() {
       getReorderList: handler('getReorderList'),
       getPrintQueue: handler('getPrintQueue'),
       addToQueue: handler('addToQueue'),
-      getFilamentStats: handler('getFilamentStats')
+      getFilamentStats: handler('getFilamentStats'),
+      estimatePrintCost: handler('estimatePrintCost')
     });
     const call = (name, args) => handleMcpJsonRpc({ jsonrpc: '2.0', id: 70, method: 'tools/call', params: { name, arguments: args } }, ctx);
     const listed = listToolDefinitions().map((t) => t.name);
@@ -344,7 +345,8 @@ async function runAsync() {
       ['get_reorder_list', {}],
       ['get_print_queue', {}],
       ['add_to_queue', { id: 7 }],
-      ['get_filament_stats', { months: 6 }]
+      ['get_filament_stats', { months: 6 }],
+      ['estimate_print_cost', { id: 7, quantity: 2 }]
     ];
     for (const [name, args] of calls) {
       assert.ok(listed.includes(name), name);
@@ -353,7 +355,18 @@ async function runAsync() {
     }
     assert.deepStrictEqual(
       seen.map(([name]) => name),
-      ['listSpools', 'getSpool', 'weighSpool', 'checkModelFilament', 'whatCanIPrint', 'getReorderList', 'getPrintQueue', 'addToQueue', 'getFilamentStats']
+      [
+        'listSpools',
+        'getSpool',
+        'weighSpool',
+        'checkModelFilament',
+        'whatCanIPrint',
+        'getReorderList',
+        'getPrintQueue',
+        'addToQueue',
+        'getFilamentStats',
+        'estimatePrintCost'
+      ]
     );
     assert.deepStrictEqual(seen[2][1], { id: 3, weight: 512 });
     const logSchema = listToolDefinitions().find((t) => t.name === 'log_print_event').inputSchema.properties;

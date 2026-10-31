@@ -128,10 +128,7 @@ const GONE_HTML = pageHtml(
   `<div class="gone"><h1>Label not available</h1><p class="sub">This label does not open a page, or the library does not share its labels.</p></div>`
 );
 
-const grams = (n) => {
-  const g = Math.max(0, Math.round(Number(n) || 0));
-  return g < 1000 ? `${g} g` : `${(Math.round(g / 100) / 10).toLocaleString('en', { maximumFractionDigits: 1 })} kg`;
-};
+const units = require('../core/units');
 const color = (hex) => (/^#[0-9a-f]{6}$/i.test(String(hex || '')) ? hex : '#9aa4b4');
 
 /** Where a spool is, in words: a printer slot, drying, a place, archived. */
@@ -145,6 +142,8 @@ function whereOf(spool) {
 }
 
 function spoolPage(db, token) {
+  const { weight, length } = units.readUnits(db);
+  const grams = (n) => units.formatWeight(n, weight);
   const row = db.prepare('SELECT id FROM spools WHERE label_token = ?').get(token);
   const spool = row && require('../core/spools').getSpool(db, row.id);
   if (!spool) return null;
@@ -163,7 +162,7 @@ ${photo ? `<img class="photo" src="${escapeHtml(photo)}" alt="">` : ''}
 <dl>
 <dt>Color</dt><dd><span class="dot" style="background:${color(spool.color_hex)}"></span>${escapeHtml(spool.color_name || spool.color_hex || '')}</dd>
 <dt>Where</dt><dd>${escapeHtml(whereOf(spool))}</dd>
-${spool.diameter ? `<dt>Diameter</dt><dd>${escapeHtml(spool.diameter)} mm</dd>` : ''}
+${spool.diameter ? `<dt>Diameter</dt><dd>${escapeHtml(units.formatLength(spool.diameter, length))}</dd>` : ''}
 </dl>
 <a class="edit" href="/#/filament/${Number(spool.id)}">Sign in to edit</a>
 </main>`
@@ -171,6 +170,8 @@ ${spool.diameter ? `<dt>Diameter</dt><dd>${escapeHtml(spool.diameter)} mm</dd>` 
 }
 
 function placePage(db, token) {
+  const { weight } = units.readUnits(db);
+  const grams = (n) => units.formatWeight(n, weight);
   const place = db.prepare('SELECT * FROM storage_locations WHERE label_token = ?').get(token);
   if (!place) return null;
   const spools = require('../core/spools')

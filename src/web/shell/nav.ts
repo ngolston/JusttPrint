@@ -380,7 +380,7 @@ export const SETTINGS: SettingsGroup[] = [
       {
         id: 'filament-settings',
         label: 'Filament settings',
-        description: 'The currency spool prices are in, for prices, what your spools are worth and filament cost.',
+        description: 'The currency, units (weight, temperature, length) and date format for spools, prices and prints.',
         icon: Coins,
         run: open('openFilamentSettings'),
         embed: { dialog: 'filament-settings-dialog', open: 'openFilamentSettings' },
@@ -418,6 +418,24 @@ export const SETTINGS: SettingsGroup[] = [
         icon: KeyRound,
         run: open('openThingiverseSettings'),
         embed: { dialog: 'thingiverse-settings-dialog', open: 'openThingiverseSettings' }
+      },
+      {
+        id: 'catalog-sources',
+        label: 'Filament catalogue',
+        description: 'What Add from catalogue searches: the bundled catalogue, and SpoolmanDB when downloaded.',
+        icon: BookOpen,
+        run: open('openCatalogSources'),
+        embed: { dialog: 'catalog-sources-dialog', open: 'openCatalogSources' },
+        role: 'admin'
+      },
+      {
+        id: 'home-assistant',
+        label: 'Home Assistant',
+        description: 'A sensor per spool in Home Assistant: grams left, material, color and when it runs out.',
+        icon: Home,
+        run: open('openHomeAssistant'),
+        embed: { dialog: 'home-assistant-dialog', open: 'openHomeAssistant' },
+        role: 'admin'
       },
       {
         id: 'filamenthub',
@@ -498,6 +516,24 @@ export const SETTINGS: SettingsGroup[] = [
         icon: UserCog,
         run: open('openUsers'),
         embed: { dialog: 'users-dialog', open: 'openUsers' }
+      },
+      {
+        id: 'sign-in-security',
+        label: 'Sign-in & security',
+        description: 'Two-factor sign-in, where you are signed in, and your API keys.',
+        icon: ShieldCheck,
+        run: open('openSignInSecurity'),
+        embed: { dialog: 'sign-in-security-dialog', open: 'openSignInSecurity' },
+        role: 'viewer'
+      },
+      {
+        id: 'my-alerts',
+        label: 'My alerts',
+        description: 'Which alerts reach you in the bell, by email and on Discord; quiet hours; a weekly digest.',
+        icon: BellRing,
+        run: open('openMyAlerts'),
+        embed: { dialog: 'my-alerts-dialog', open: 'openMyAlerts' },
+        role: 'viewer'
       },
       {
         id: 'password',

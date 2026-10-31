@@ -1,6 +1,6 @@
 import { filament, home, printQueue, type PrinterLoads, type QueueItem, type Spool } from '../api';
 import { BentoGrid, Tile } from '../components/Bento';
-import { MonthTile, NeedsYouTile, NewTile, PrintersTile, PrintingTile, SpoolsTile, UpNextTile, needsYou } from '../home/HomeBento';
+import { MonthTile, NeedsYouTile, NewTile, PrintersTile, PrintingTile, RunsOutTile, SpoolsTile, UpNextTile, needsYou } from '../home/HomeBento';
 import { useEffect, useState } from 'react';
 import {
   Box,
@@ -309,6 +309,7 @@ export function HomeDashboard() {
         <LibraryTile counts={counts} />
         <NeedsYouTile items={needsYou(queue, list, spools)} />
         <SpoolsTile summary={filamentSummary} spools={spools} />
+        <RunsOutTile spools={spools} />
         <UpNextTile items={queue} />
         <PrintingTile models={printing} />
         <NewTile models={newest} thisWeek={thisWeek} />

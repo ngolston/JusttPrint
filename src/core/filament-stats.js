@@ -84,6 +84,76 @@ function filamentStatistics(db, options = {}) {
   };
 }
 
+const DAY_MS = 24 * 3600 * 1000;
+const dayKey = (date) => date.toISOString().slice(0, 10);
+/** The Monday (UTC) of a date's week, as "2026-10-26". */
+function weekKey(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return dayKey(d);
+}
+
+/**
+ * Recent use, whatever period Statistics shows (docs/plan-10.1.md, Phase 7): grams per day over
+ * the last 30 days (`daily`), grams per week over the last 12 weeks for the three materials used
+ * most then and the rest as Other (`weekly`), and what filament costs per kg by material, from
+ * every spool with a price (`costPerKg`: total paid over total grams bought).
+ * @param {any} db
+ * @param {Date} [now]
+ */
+function recentFilament(db, now = new Date()) {
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const days = Array.from({ length: 30 }, (_, i) => dayKey(new Date(today.getTime() - (29 - i) * DAY_MS)));
+  const weeks = Array.from({ length: 12 }, (_, i) => weekKey(new Date(today.getTime() - (11 - i) * 7 * DAY_MS)));
+  const empty = { daily: days.map((day) => ({ day, grams: 0 })), weekly: { materials: [], rows: weeks.map((week) => ({ week, other: 0 })) }, costPerKg: [] };
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'print_event_spools'").get()) return empty;
+  const rows = db
+    .prepare(
+      `SELECT pes.grams, pe.printed_at, s.material FROM print_event_spools pes JOIN print_events pe ON pe.id = pes.event_id
+       LEFT JOIN spools s ON s.id = pes.spool_id WHERE pe.printed_at >= ? AND pe.printed_at < ?`
+    )
+    .all(`${weeks[0]}T00:00:00.000Z`, new Date(today.getTime() + DAY_MS).toISOString());
+  const daily = new Map(days.map((day) => [day, 0]));
+  const byMaterial = new Map();
+  for (const row of rows) {
+    const grams = Number(row.grams) || 0;
+    const day = String(row.printed_at).slice(0, 10);
+    if (daily.has(day)) daily.set(day, (daily.get(day) || 0) + grams);
+    const material = String(row.material || 'Other');
+    byMaterial.set(material, (byMaterial.get(material) || 0) + grams);
+  }
+  // Three materials keep their own color; more fold into Other (one color per material, fixed order).
+  const materials = [...byMaterial]
+    .filter(([name]) => name !== 'Other')
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name]) => name);
+  const weekly = new Map(weeks.map((week) => [week, { week, ...Object.fromEntries(materials.map((m) => [m, 0])), other: 0 }]));
+  for (const row of rows) {
+    const bucket = weekly.get(weekKey(new Date(row.printed_at)));
+    if (!bucket) continue;
+    const key = materials.includes(String(row.material)) ? String(row.material) : 'other';
+    bucket[key] += Number(row.grams) || 0;
+  }
+  const round = (n) => Math.round(n * 10) / 10;
+  const costPerKg = db
+    .prepare(
+      `SELECT material, SUM(purchase_price) AS paid, SUM(initial_weight) AS grams, COUNT(*) AS spools FROM spools
+       WHERE purchase_price > 0 AND initial_weight > 0 GROUP BY material ORDER BY material`
+    )
+    .all()
+    .map((row) => ({ material: row.material || 'Other', perKg: Math.round((row.paid / row.grams) * 1000 * 100) / 100, spools: row.spools }))
+    .sort((a, b) => b.perKg - a.perKg);
+  return {
+    daily: [...daily].map(([day, grams]) => ({ day, grams: round(grams) })),
+    weekly: {
+      materials,
+      rows: [...weekly.values()].map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === 'number' ? round(v) : v])))
+    },
+    costPerKg
+  };
+}
+
 /** The library's currency (Settings → Printers → Filament settings), an ISO 4217 code. */
 function currency(db) {
   try {
@@ -94,4 +164,4 @@ function currency(db) {
   }
 }
 
-module.exports = { filamentStatistics, currency };
+module.exports = { filamentStatistics, recentFilament, currency };

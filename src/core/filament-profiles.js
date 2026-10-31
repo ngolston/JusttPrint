@@ -192,24 +192,55 @@ function deleteProfile(db, id) {
   return db.prepare('DELETE FROM filament_profiles WHERE id = ?').run(id).changes > 0;
 }
 
-// --- The bundled catalogue ---
+// --- The catalogue: the bundled one, and SpoolmanDB when an admin downloaded it ---
 
 const CATALOG_FILE = path.join(__dirname, 'data', 'filament-catalog.json');
-/** @type {{ source: string, fetchedAt: string | null, items: any[] } | null} */
+/** @type {{ source: string, fetchedAt: string | null, items: any[], sources: { id: string, name: string, count: number, fetchedAt: string | null }[] } | null} */
 let catalog = null;
 
-/** The catalogue, read once (about 27,000 filaments). */
-function loadCatalog(file = CATALOG_FILE) {
-  if (catalog && file === CATALOG_FILE) return catalog;
+/** Where a downloaded SpoolmanDB is kept (src/server/community-catalog.js writes it). */
+function communityFile() {
+  return path.join(path.dirname(require('./db-path').getDatabasePath()), 'catalog', 'spoolmandb.json');
+}
+
+/** A catalogue file's entries: rows under one list of fields, tagged with where they come from. */
+function readCatalogFile(file, sourceId) {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
   const items = raw.rows.map((row) => {
     const item = Object.fromEntries(raw.fields.map((field, i) => [field, row[i]]));
+    item.from = sourceId;
     item.search = `${item.brand} ${item.name} ${item.material} ${item.color_name || ''}`.toLowerCase();
     return item;
   });
-  const loaded = { source: raw.source, fetchedAt: raw.fetchedAt, items };
+  return { source: raw.source, fetchedAt: raw.fetchedAt || null, items };
+}
+
+/**
+ * The catalogue, read once: the bundled one (about 27,000 filaments from 3dfilamentprofiles.com)
+ * and, when an admin downloaded it, SpoolmanDB's (docs/plan-10.1.md, Phase 13).
+ */
+function loadCatalog(file = CATALOG_FILE) {
+  if (catalog && file === CATALOG_FILE) return catalog;
+  const bundled = readCatalogFile(file, '3dfilamentprofiles');
+  const sources = [{ id: '3dfilamentprofiles', name: '3dfilamentprofiles.com', count: bundled.items.length, fetchedAt: bundled.fetchedAt }];
+  let items = bundled.items;
+  if (file === CATALOG_FILE) {
+    try {
+      const community = readCatalogFile(communityFile(), 'spoolmandb');
+      sources.push({ id: 'spoolmandb', name: 'SpoolmanDB', count: community.items.length, fetchedAt: community.fetchedAt });
+      items = items.concat(community.items);
+    } catch (_) {
+      /* not downloaded (or unreadable): the bundled catalogue alone */
+    }
+  }
+  const loaded = { source: bundled.source, fetchedAt: bundled.fetchedAt, items, sources };
   if (file === CATALOG_FILE) catalog = loaded;
   return loaded;
+}
+
+/** Read the catalogue again next time (SpoolmanDB downloaded, refreshed or removed). */
+function forgetCatalog() {
+  catalog = null;
 }
 
 /** Catalogue entries as the page shows them (without the search text). */
@@ -217,23 +248,24 @@ const publicItem = ({ search, ...item }) => item;
 
 /**
  * Search the catalogue: every word must appear in the brand, name, material or color. Brands that
- * start with the first word come first. Returns at most `limit` entries and how many matched.
+ * start with the first word come first. Returns at most `limit` entries, how many matched, and the
+ * sources searched.
  * @param {string} query
  * @param {{ limit?: number, file?: string }} [options]
  */
 function searchCatalog(query, { limit = 50, file } = {}) {
-  const { items, source, fetchedAt } = loadCatalog(file);
+  const { items, source, fetchedAt, sources } = loadCatalog(file);
   const words = String(query || '')
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 8);
-  if (!words.length) return { total: 0, items: [], source, fetchedAt };
+  if (!words.length) return { total: 0, items: [], source, fetchedAt, sources };
   const matches = items.filter((item) => words.every((word) => item.search.includes(word)));
   const first = words[0];
   matches.sort((a, b) => Number(!a.brand.toLowerCase().startsWith(first)) - Number(!b.brand.toLowerCase().startsWith(first)));
   const max = Math.min(Math.max(1, Number(limit) || 50), 200);
-  return { total: matches.length, items: matches.slice(0, max).map(publicItem), source, fetchedAt };
+  return { total: matches.length, items: matches.slice(0, max).map(publicItem), source, fetchedAt, sources };
 }
 
 /**
@@ -279,6 +311,8 @@ module.exports = {
   saveProfile,
   deleteProfile,
   loadCatalog,
+  forgetCatalog,
+  communityFile,
   searchCatalog,
   addFromCatalog
 };

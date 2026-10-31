@@ -191,7 +191,11 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
     models,
     printers: printers.map((printer) => ({ ...printer, seconds: secondsByPrinter.get(printer.id == null ? 'none' : printer.id) || 0 })),
     // Filament used and its cost (Phase 10 of docs/merge-10.md; src/core/filament-stats.js).
-    filament: require('./filament-stats').filamentStatistics(db, { from, months: keys }),
+    filament: {
+      ...require('./filament-stats').filamentStatistics(db, { from, months: keys }),
+      // The last 30 days and 12 weeks, and cost per kg (docs/plan-10.1.md, Phase 7).
+      recent: require('./filament-stats').recentFilament(db, now)
+    },
     currency: require('./filament-stats').currency(db)
   };
 }

@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 10.1.0**
+**Version 10.2.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -11,12 +11,12 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 ## Features
 
 - **A home for your printing**: Home shows your figures, recent prints and printers, the kits you are partway through, what needs attention (models without tags, a license, a category or a thumbnail, duplicates, maintenance, late backups), your favorites, collections and categories; the Library has tabs for Printed, Unprinted, Queue and Favorites
-- **Filament and spools**: add spools from a catalogue of about 27,000 filaments, by hand, from Spoolman or from FilamentHub; weigh them to know what is left, dry them, keep them in places, see what is loaded in each printer's AMS, get low-stock alerts (Discord, email, webhooks), a shopping list and QR labels (which anyone can scan, if you allow it); photos of spools, filaments and prints; your filaments and brands in one list; the spools as cards or a sortable table, with saved views
+- **Filament and spools**: add spools from a catalogue of about 27,000 filaments (and SpoolmanDB's 9,000 when you download it), by hand, from a CSV, from Spoolman or from FilamentHub; weigh them to know what is left, dry them, keep them in places, see what is loaded in each printer's AMS, get low-stock alerts (Discord, email, webhooks), a shopping list and QR labels (which anyone can scan, if you allow it); photos of spools, filaments and prints; your filaments and brands in one list; the spools as cards or a sortable table, with saved views; when each spool runs out at the rate you use it; export as CSV or JSON; grams, kg, ounces or pounds, °C or °F; a sensor per spool in **Home Assistant**
 - **Ready to print**: JusttPrint reads what each 3MF's plates need and checks it against your spools, so cards say **Ready to print** or **Need black**, **Fits my filament** shows what you can print now, and Log Print takes the grams off the spools it used
 - **Print queue and printers** pages: a queue in the order you set, by plate and printer, where each item says whether your spools cover it (counting the prints before it); your printers with their AMS, web pages and maintenance reminders
 - **Quick to load**: the backend compresses what it sends, browsers keep the app's code between visits, and the Library loads a card's other pictures only when you look at them; lists, searches and sorts stay fast on large libraries (the pictures are kept apart from the details the Library reads)
 - **What runs in the background**: above Library Storage, a progress bar for each job while it runs (library scans, AI Tagging, Categorize Library, thumbnails, duplicate checks, site downloads, uploads, backups, Organize and Tidy), with how far it is and how long it should still take; nothing when nothing runs
-- **Notifications**: a bell for what finished or went wrong in the background (new models from scans, thumbnail and AI tagging jobs, maintenance coming due, failed backups), each person seeing what their role may; **Clear** empties your list
+- **Notifications**: a bell for what finished or went wrong in the background (new models from scans, thumbnail and AI tagging jobs, maintenance coming due, failed backups) and for your filament (running low or out soon, used up, drying done, a print failed), each person seeing what their role may; under **My alerts** each person also gets the ones they choose by email or on Discord, with quiet hours and a weekly digest; **Clear** empties your list
 - **Light or dark**: the Bento look (slate and coral) in light or dark for each person, or following their computer's setting
 - **Works on phones and tablets**: a bottom bar and full-screen details on phones, an icon rail on tablets, finger-sized controls on touch screens, and **Install App** for the home screen (Android and desktop need HTTPS)
 - **Automatic scanning** of STL, 3MF and other model files, and of ZIP, RAR and 7Z files (each archive is one model, never opened), with thumbnails rendered by the JusttPrint backend; large pictures show as small copies in the grid, and the originals are kept; files moved to another folder or share outside JusttPrint keep their tags, notes and print history
@@ -27,7 +27,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Same-geometry duplicates**: besides identical files, the Duplicates page finds the same model saved as different files (an STL and its 3MF, a re-export), and the same design exported at another mesh resolution
 - **MakerWorld, Printables and Thingiverse details and downloads**: MakerWorld models show their English title, print profile (plates, print time, filament by color), files with English names and video in the details panel, and download as a 3MF into a library folder after a one-time MakerWorld sign-in; Printables and Thingiverse models show their popularity and rating, what they are a remix of, print settings, the printer and settings each G-code file was sliced for, and their files to download
 - **Several people at once**: edits show up live in every open browser, and two people editing the same field are asked whose version stays instead of one silently overwriting the other
-- **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download; optional **guest access** to browse without an account
+- **User accounts** for family or a makerspace: admins, editors who manage the library, and viewers who browse and download; **two-factor sign-in** with an authenticator app (which admins can require), the sessions each person is signed in with, and **API keys** per person; optional **guest access** to browse without an account
 - **A page for every model**: **Open** shows a model on its own page with large pictures, its description, the site's print profile, videos, documents, notes and the other files in its folder with a 3D view right on the page; the details sidebar shows the same sections in one column, and can be turned off so a click opens the page
 - **Edit everything in one place**: the **Edit** dialog changes a model's name (renaming its file), designer, source, title, license, tags, categories, rating and notes at once, and for models from MakerWorld, Printables or Thingiverse also the site's title, description, tags and print profile names
 - **Categories**: every model has one place, a Category and a Subcategory (Art › Sculptures, Toys & Games › Puzzles…) from MakerWorld's list of 11 categories and their subcategories; MakerWorld models bring theirs, and the AI service places the rest from each model's picture, in **Categorize Library** and in every AI Tagging run
@@ -39,7 +39,8 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Typed search**: `tag:robot creator:"M Armory" -tag:broken (category:Toys OR category:Art) is:unprinted rating:4+` in the search box
 - **Notes in English**: notes in another language get an English translation, and new models' notes are saved in English with the original kept; translated by Google Cloud Translation (with a warning before its 500,000 free characters a month run out), the free MyMemory service or your AI service, in the order you choose
 - **Share links and QR codes**: a read-only page for a model or a collection that opens without an account, with a 3D view, optional downloads and an expiry date
-- **Statistics**: prints per month, success rate, top designers, most printed models and printers, print hours, and filament used and its cost per month, model, printer and material
+- **Statistics**: prints per month, success rate, top designers, most printed models and printers, print hours, filament used and its cost per month, model, printer and material, the last 30 days and 12 weeks, what filament costs per kg, and a calculator for what a print would cost
+- **What a print costs**: on a model's page, its filament at your spools' prices plus electricity for the printer and print time you choose
 - **3D preview** of single models or every part in a folder
 - **Tags, designers, licenses, notes and source links** for every model
 - **Print status and history**: Unprinted, Want, Queued, Printing, Printed, Failed, with dated print logs
@@ -48,7 +49,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **Undo** for metadata and tag edits, for renaming, merging and deleting tags, and for the Metadata Editor's renames, merges and clears: the Undo button after a change, or Ctrl/⌘ Z for the last 20
 - **Duplicate finder** based on file contents
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
-- **MCP server** so AI agents can search and update your library, add models from links, and work with your spools, the filament check and the queue
+- **MCP server** so AI agents can search and update your library, add models from links, and work with your spools, the filament check, the queue and what a print costs
 - **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
@@ -159,6 +160,7 @@ All are optional. You can change most of these later under **Settings** in the a
 | `JUSTTPRINT_PASSWORD` | Password of the admin account. Applied on every start, which is also how to reset a forgotten one. If unset, a random password is printed once in `docker logs justtprint-server`. |
 | `JUSTTPRINT_USERNAME` | User name of that admin account (default `admin`). Other accounts are added under **Settings → Authentication → Users**. |
 | `JUSTTPRINT_GUEST_ACCESS` | `true`: people who open JusttPrint without logging in browse like a Viewer (also under **Settings → Authentication → Users**). Off by default. |
+| `JUSTTPRINT_RESET_TWO_FACTOR` | A user name: turns two-factor sign-in off for that account when JusttPrint starts, for someone who lost both their phone and their recovery codes (also the only admin). Remove it afterwards. |
 | `JUSTTPRINT_MAX_UPLOAD_MB` | Largest file the browser may upload, in MB (default `2048`; `10240` for 10 GB). |
 | `JUSTTPRINT_UPLOAD_CHUNK_MB` | Size of the pieces uploads are sent in, in MB (default `16`). Lower it only if a proxy in front takes less per request. |
 | `STL_HOME` | Folders to scan automatically, as container paths. Several: `/mnt/models,/mnt/archive`. The first start fills the STL Home list with them; later, folders added to or removed from `STL_HOME` are added or removed on the next start, and folders chosen in the web UI stay. Without it, an admin is asked which folders to scan after logging in. |

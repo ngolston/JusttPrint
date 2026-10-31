@@ -4380,6 +4380,347 @@ async function browserChecks(base, wsUrl, session) {
       await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
     }
 
+    // 10.2 Phase 6 (docs/plan-10.1.md): units and date format, from Filament settings.
+    try {
+      const unitSpool = (await invoke(base, session, 'save-spool', [{ name: 'E2E Units Spool', material: 'PLA', initial_weight: 1000, remaining: 1000 }]))
+        .result;
+      await page.evaluate(() => window.openFilamentSettings());
+      await page.waitForSelector('#filament-settings-dialog[open]', { timeout: 10000 });
+      await page.selectOption('#filament-weight-unit', 'lb');
+      await page.selectOption('#filament-temperature-unit', 'F');
+      await page.selectOption('#filament-date-format', 'ymd');
+      await Promise.all([page.waitForEvent('load', { timeout: 20000 }).catch(() => {}), page.click('#filament-settings-save')]);
+      const saved = (await invoke(base, session, 'get-setting', ['units'])).result;
+      check(
+        'Filament settings saves the units and date format',
+        /"weight":"lb"/.test(saved || '') && /"temperature":"F"/.test(saved || '') && /"date":"ymd"/.test(saved || ''),
+        saved
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      check(
+        'the Filament page shows weights in the chosen unit after saving',
+        await page.waitForSelector('.jp-spool-card:has-text("E2E Units Spool"):has-text("2.2 lb")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('.jp-spool-card:has-text("E2E Units Spool")');
+      await page.waitForSelector('#jp-spool-detail', { timeout: 10000 });
+      await page.click('#jp-spool-detail button:has-text("Edit")');
+      await page.waitForSelector('#jp-spool-initial', { timeout: 10000 });
+      const holds = await page.inputValue('#jp-spool-initial');
+      const holdsLabel = await page.textContent('label[for="jp-spool-initial"]');
+      await page.fill('#jp-spool-remaining', '1');
+      await page.click('#jp-spool-form button[type="submit"]');
+      await page.waitForSelector('#jp-spool-form', { state: 'detached', timeout: 10000 }).catch(() => {});
+      const after = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === unitSpool.id);
+      check(
+        'spool weights are typed in the chosen unit and kept in grams',
+        holds === '2.205' && /lb/.test(holdsLabel || '') && Math.abs((after?.remaining || 0) - 453.6) < 0.2,
+        JSON.stringify({ holds, holdsLabel, remaining: after?.remaining })
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+      await invoke(base, session, 'save-setting', ['units', '{}']);
+      await invoke(base, session, 'delete-spool', [unitSpool.id]);
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForSelector('.jp-shell, #react-root *', { timeout: 15000 }).catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 6 checks ran to the end', false, error.message.split('\n')[0]);
+      await invoke(base, session, 'save-setting', ['units', '{}']);
+    }
+
+    // 10.2 Phase 7 (docs/plan-10.1.md): the runout forecast and the recent statistics.
+    try {
+      const fcSpool = (
+        await invoke(base, session, 'save-spool', [{ name: 'E2E Forecast Spool', material: 'PETG', initial_weight: 1000, remaining: 250, purchase_price: 20 }])
+      ).result;
+      const fcModel = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const fcEvent = (
+        await invoke(base, session, 'log-print-event', [
+          { filePath: fcModel.filePath, outcome: 'printed', printedAt: yesterday, spools: [{ spoolId: fcSpool.id, grams: 200 }] }
+        ])
+      ).result;
+      const withForecast = (await invoke(base, session, 'get-spool', [fcSpool.id])).result;
+      check(
+        'a spool used lately says when it runs out (50 g left at 200 g in 30 days)',
+        withForecast?.forecast?.daysLeft === 7.5 && withForecast?.forecast?.perDay === 6.7,
+        JSON.stringify(withForecast?.forecast)
+      );
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, fcSpool.id);
+      check(
+        'the spool panel shows the forecast',
+        await page.waitForSelector('#jp-spool-forecast:has-text("Runs out in about 8 days")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.evaluate(() => {
+        window.location.hash = '#/home';
+      });
+      check(
+        'Home lists the spools that run out soon',
+        await page.waitForSelector('.jp-home-runsout:has-text("E2E Forecast Spool"):has-text("8 days")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      const statsReady = await page.waitForSelector('.jp-stats__daily svg', { timeout: 15000 }).then(
+        () => true,
+        () => false
+      );
+      const statsText = statsReady ? await page.textContent('#jp-stats-filament') : '';
+      check(
+        'Statistics shows the last 30 days, the running total, the weeks by material and cost per kg',
+        statsReady &&
+          /running total/.test(statsText) &&
+          /The last 12 weeks by material/.test(statsText) &&
+          /PETG/.test(statsText) &&
+          /costs per kg/.test(statsText),
+        statsText.slice(0, 200)
+      );
+      await invoke(base, session, 'delete-print-event', [fcEvent.eventId]);
+      await invoke(base, session, 'delete-spool', [fcSpool.id]);
+    } catch (error) {
+      check('the 10.2 Phase 7 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 8 (docs/plan-10.1.md): what a print costs.
+    try {
+      // A sliced 3MF of its own: one plate, 25 g of blue PLA, two hours by the slicer.
+      const { zipSync: zipCost, unzipSync: unzipCost } = require('fflate');
+      const costDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-cost-'));
+      const costFile = path.join(costDir, 'cost-kit.3mf');
+      const costEntries = unzipCost(new Uint8Array(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf'))));
+      costEntries['Metadata/slice_info.config'] = new TextEncoder().encode(
+        '<config><plate><metadata key="index" value="1"/><metadata key="prediction" value="7200"/><filament id="1" type="PLA" color="#2F6FDF" used_g="25" /></plate></config>'
+      );
+      fs.writeFileSync(costFile, Buffer.from(zipCost(costEntries)));
+      const costScan = await invoke(base, session, 'scan-directory', [costDir]);
+      await invoke(base, session, 'read-plate-filaments');
+      const allModels = (await invoke(base, session, 'get-models-filtered', [{ limit: 1000 }])).result || [];
+      const kit = allModels.find((m) => m.filePath === costFile);
+      const scanDetail = {
+        status: costScan.status,
+        error: costScan.error,
+        costFile,
+        like: allModels.filter((m) => /cost-kit/.test(m.filePath)).map((m) => m.filePath),
+        count: allModels.length
+      };
+      const costPrinter = (await invoke(base, session, 'save-printer', [{ nickname: 'E2E Watt Printer', powerWatts: 100 }])).result;
+      await invoke(base, session, 'save-setting', ['electricityPrice', '0.5']);
+      const priced = (
+        await invoke(base, session, 'save-spool', [
+          { name: 'E2E Cost Blue', material: 'PLA', color_hex: '#2f6fdf', initial_weight: 1000, remaining: 1000, purchase_price: 30 }
+        ])
+      ).result;
+      const estimate = kit ? (await invoke(base, session, 'get-print-cost', [{ filePath: kit.filePath, printerId: costPrinter.id }])).result : null;
+      check(
+        'a print cost estimate adds filament at spool prices and electricity at the printer power',
+        !!estimate && estimate.seconds === 7200 && estimate.electricityCost === 0.1 && estimate.lines[0]?.cost === 0.75 && estimate.total === 0.85,
+        JSON.stringify(estimate ? { s: estimate.seconds, e: estimate.electricityCost, lines: estimate.lines, total: estimate.total } : scanDetail)
+      );
+      if (kit) {
+        await page.evaluate((file) => window.PrintHistory?.openLogDialog({ filePaths: [file] }), kit.filePath);
+        await page.waitForSelector('#log-print-dialog[open]', { timeout: 10000 }).catch(() => {});
+        const filled = await page
+          .waitForFunction(() => document.querySelector('#log-print-hours')?.value === '2', null, { timeout: 10000 })
+          .then(
+            () => true,
+            () => false
+          );
+        check("Log Print fills in a one-plate file's print time from the slicer", filled, await page.inputValue('#log-print-hours').catch(() => ''));
+        await page.click('#log-print-dialog button:has-text("Cancel")').catch(() => {});
+        await page.evaluate((file) => {
+          window.location.hash = `#/model/${encodeURIComponent(file)}`;
+        }, kit.filePath);
+        check(
+          "a model's page shows what printing it costs",
+          await page.waitForSelector('#jp-print-cost:has-text("Filament")', { timeout: 15000 }).then(
+            () => true,
+            () => false
+          )
+        );
+      }
+      await page.evaluate(() => {
+        window.location.hash = '#/stats';
+      });
+      await page.waitForSelector('#jp-calc-grams', { timeout: 15000 });
+      await page.fill('#jp-calc-grams', '250');
+      await page.fill('#jp-calc-perkg', '20');
+      await page.fill('#jp-calc-hours', '4');
+      await page.fill('#jp-calc-watts', '150');
+      await page.fill('#jp-calc-kwh', '0.3');
+      const total = await page.textContent('#jp-calc-total');
+      check('the cost calculator on Statistics adds filament and electricity', /5\.18/.test(total || ''), total);
+      await invoke(base, session, 'save-setting', ['electricityPrice', '']);
+      await invoke(base, session, 'delete-spool', [priced.id]);
+      await invoke(base, session, 'delete-printer', [costPrinter.id]);
+      // Leave the library as the later checks expect it (their model counts, the folder tree).
+      if (kit) await invoke(base, session, 'delete-models', [[kit.filePath], 'library']);
+      fs.rmSync(costDir, { recursive: true, force: true });
+    } catch (error) {
+      check('the 10.2 Phase 8 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 9 (docs/plan-10.1.md): each person's alerts.
+    try {
+      const failModel = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const failTitle = `${failModel.fileName.replace(/\.[^.]+$/, '')} failed`;
+      const failed = (await invoke(base, session, 'log-print-event', [{ filePath: failModel.filePath, outcome: 'failed', quantity: 1 }])).result;
+      const bellHas = async () => ((await invoke(base, session, 'get-notifications', [{}])).result?.items || []).some((n) => n.title === failTitle);
+      const told = await waitFor(async () => ((await bellHas()) ? true : null), 10000, 'failed print in the bell').catch(() => false);
+      check('a failed print reaches the bell', told === true);
+      await page.evaluate(() => window.openMyAlerts());
+      await page.waitForSelector('#my-alerts-table', { timeout: 10000 });
+      await page.fill('#my-alerts-email', 'e2e-alerts@example.com');
+      await page.uncheck('#my-alerts-table input[aria-label="A print failed: Bell"]');
+      await page.check('#my-alerts-table input[aria-label="A spool is used up: Email"]');
+      await page.check('#my-alerts-digest');
+      await page.click('#my-alerts-save');
+      await page.waitForSelector('#my-alerts-dialog :text("Saved.")', { timeout: 10000 }).catch(() => {});
+      const mine = (await invoke(base, session, 'get-alert-prefs')).result || {};
+      check(
+        'My alerts saves the email, the channels and the digest for this account',
+        mine.email === 'e2e-alerts@example.com' && mine.kinds?.printFailed?.bell === false && mine.kinds?.usedUp?.email === true && mine.weeklyDigest === true,
+        JSON.stringify(mine).slice(0, 200)
+      );
+      check('turning an alert off for the bell takes it out of your bell', !(await bellHas()));
+      await page.click('#my-alerts-dialog button:has-text("Close")').catch(() => {});
+      await invoke(base, session, 'delete-print-event', [failed.eventId]);
+      await invoke(base, session, 'save-alert-prefs', [{ email: null, kinds: {}, quietHours: null, weeklyDigest: false, discordWebhook: '' }]);
+    } catch (error) {
+      check('the 10.2 Phase 9 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 10 (docs/plan-10.1.md): spools out as CSV, and a CSV in.
+    try {
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-export-spools-open', { timeout: 15000 });
+      await page.click('#jp-export-spools-open');
+      await page.waitForSelector('#jp-export-spools-run', { timeout: 10000 });
+      const [exported] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#jp-export-spools-run')]);
+      const exportedText = fs.readFileSync(await exported.path(), 'utf8');
+      check(
+        'Export downloads the spools as a CSV',
+        /^\uFEFF?id,name,brand,material/.test(exportedText) && exported.suggestedFilename().endsWith('.csv'),
+        `${exported.suggestedFilename()} ${exportedText.slice(0, 60)}`
+      );
+      const csvFile = path.join(WORK, 'spools-in.csv');
+      fs.writeFileSync(
+        csvFile,
+        'Spool Name,Vendor,Material,Color,Weight,Remaining,Location\nE2E CSV Spool,E2E CSV Brand,PETG,#123abc,1 kg,640,E2E CSV Shelf\nE2E Broken,,,,1000,,\n'
+      );
+      await page.click('#jp-import-csv-open');
+      await page.setInputFiles('#jp-import-csv-file', csvFile);
+      const summary = await page
+        .waitForSelector('#jp-import-csv-summary', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check('Import a CSV guesses the columns and says what would come in', /2 rows/.test(summary) && /1 with a problem/.test(summary), summary);
+      await page.click('#jp-import-csv-run');
+      const resultText = await page
+        .waitForSelector('#jp-import-csv-result', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      const imported = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.name === 'E2E CSV Spool');
+      check(
+        'importing the CSV adds its spools and places, and lists the row that did not come in',
+        /Added 1 spool and 1 place/.test(resultText) &&
+          /Line 3: No material/.test(resultText) &&
+          imported?.remaining === 640 &&
+          imported?.location_name === 'E2E CSV Shelf',
+        resultText
+      );
+      await page.click('#jp-import-csv button:has-text("Done")').catch(() => {});
+      if (imported) await invoke(base, session, 'delete-spool', [imported.id]);
+      const shelf = ((await invoke(base, session, 'get-storage-locations')).result || []).find((p) => p.name === 'E2E CSV Shelf');
+      if (shelf) await invoke(base, session, 'delete-storage-location', [shelf.id]);
+    } catch (error) {
+      check('the 10.2 Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 11 (docs/plan-10.1.md): Home Assistant (nothing answers at the address here).
+    try {
+      const haToken = 'eyJhbGciOiJIUzI1NiJ9.e2e-home-assistant-token';
+      await page.evaluate(() => window.openHomeAssistant());
+      await page.waitForSelector('#home-assistant-url', { timeout: 10000 });
+      await page.fill('#home-assistant-url', 'http://127.0.0.1:9/');
+      await page.fill('#home-assistant-token', haToken);
+      await page.click('#home-assistant-save');
+      await page.waitForSelector('#home-assistant-dialog :text("Saved.")', { timeout: 10000 }).catch(() => {});
+      const haStatus = await invoke(base, session, 'get-home-assistant');
+      check(
+        'Home Assistant keeps its address and token; the token never comes back',
+        haStatus.result?.url === 'http://127.0.0.1:9' && haStatus.result?.tokenSet === true && !JSON.stringify(haStatus).includes(haToken),
+        JSON.stringify(haStatus.result)
+      );
+      check('the settings API cannot read the Home Assistant token', !(await invoke(base, session, 'get-setting', ['homeAssistant'])).result);
+      await page.click('#home-assistant-test');
+      check(
+        'Test says when Home Assistant cannot be reached',
+        await page.waitForSelector('#home-assistant-dialog [role="alert"]:has-text("Could not reach Home Assistant")', { timeout: 15000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.click('#home-assistant-dialog button:has-text("Close")').catch(() => {});
+      await invoke(base, session, 'save-home-assistant', [{ url: '', token: '', enabled: false }]);
+    } catch (error) {
+      check('the 10.2 Phase 11 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 12 (docs/plan-10.1.md): Sign-in & security shows this browser and makes an API key.
+    try {
+      await page.evaluate(() => window.openSignInSecurity());
+      check(
+        'Sign-in & security lists this browser',
+        await page.waitForSelector('#security-sessions td:has-text("This browser")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.fill('#security-key-name', 'E2E dialog key');
+      await page.click('#security-key-create');
+      const token = await page
+        .waitForSelector('#security-key-made code', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check('a new API key is shown once in the dialog', /^jpk_/.test(token || ''), token);
+      const keys = (await invoke(base, session, 'list-my-api-keys')).result || [];
+      for (const key of keys.filter((k) => k.name === 'E2E dialog key')) await invoke(base, session, 'delete-my-api-key', [key.id]);
+      await page.click('#sign-in-security-dialog button:has-text("Close")').catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 12 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
+    // 10.2 Phase 13 (docs/plan-10.1.md): the catalogue's sources (nothing is downloaded in the tests).
+    try {
+      await page.evaluate(() => window.openCatalogSources());
+      const sourcesText = await page
+        .waitForSelector('#catalog-sources', { timeout: 10000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      check(
+        'Filament catalogue shows the bundled catalogue and that SpoolmanDB is not downloaded',
+        /3dfilamentprofiles\.com/.test(sourcesText) && /27,\d{3}|2\d,\d{3}/.test(sourcesText) && /Not downloaded/.test(sourcesText),
+        sourcesText.slice(0, 160)
+      );
+      await page.click('#catalog-sources-dialog button:has-text("Close")').catch(() => {});
+    } catch (error) {
+      check('the 10.2 Phase 13 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6462,6 +6803,89 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  await invoke(base, editor, 'save-setting', ['units', '{"weight":"oz"}']);
+  check('only admins change the units', !/oz/.test((await invoke(base, admin, 'get-setting', ['units'])).result || ''));
+  check(
+    'viewers can export spools but not import them',
+    (await invoke(base, viewer, 'export-spools', [{ format: 'json' }])).status === 200 &&
+      (await invoke(base, viewer, 'import-spool-csv', [{ text: 'material\nPLA' }])).status === 403
+  );
+  check('editors cannot see or set up Home Assistant', (await invoke(base, editor, 'get-home-assistant')).status === 403);
+  // 10.2 Phase 12 (docs/plan-10.1.md): two-factor sign-in, sessions and API keys, on an account of its own.
+  {
+    const totp = require('../../src/server/totp');
+    await invoke(base, admin, 'create-user', [{ username: 'e2e-2fa', password: 'e2e-2fa-pass', role: 'editor' }]);
+    const first = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
+    const second = await loginAs(base, 'e2e-2fa', 'e2e-2fa-pass');
+    const starting = await invoke(base, first, 'start-two-factor');
+    const started = starting.result || {};
+    check('two-factor setup starts with a secret and a QR code', Boolean(started.secret && started.qrSvg), JSON.stringify(starting));
+    const turnedOn = started.secret ? (await invoke(base, first, 'enable-two-factor', [totp.codeAt(started.secret, totp.stepOf(Date.now()))])).result : null;
+    check(
+      'two-factor sign-in turns on with a code from the app and gives ten recovery codes',
+      turnedOn?.recoveryCodes?.length === 10,
+      JSON.stringify(turnedOn)
+    );
+    const step1 = await (
+      await fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base },
+        body: JSON.stringify({ username: 'e2e-2fa', password: 'e2e-2fa-pass' })
+      })
+    ).json();
+    const wrong = await fetch(`${base}/api/auth/login/code`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ pending: step1.pending, code: '000000' })
+    });
+    const right = await fetch(`${base}/api/auth/login/code`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ pending: step1.pending, code: turnedOn.recoveryCodes[0] })
+    });
+    const third = { cookie: (right.headers.get('set-cookie') || '').split(';')[0], origin: base };
+    check(
+      'with two-factor on, the password alone gives no session; a wrong code is refused, a recovery code signs in',
+      step1.twoFactor === 'code' &&
+        !step1.success &&
+        wrong.status === 401 &&
+        right.status === 200 &&
+        (await invoke(base, third, 'get-two-factor')).result?.recoveryCodesLeft === 9
+    );
+    const sessions = (await invoke(base, third, 'list-my-sessions')).result || [];
+    check('each sign-in is a session the account can see', sessions.length === 3 && sessions.filter((s) => s.current).length === 1, String(sessions.length));
+    await invoke(base, third, 'end-other-sessions');
+    check(
+      'ending the other sessions signs those browsers out, not this one',
+      (await invoke(base, first, 'get-two-factor')).status === 401 &&
+        (await invoke(base, second, 'get-two-factor')).status === 401 &&
+        (await invoke(base, third, 'get-two-factor')).status === 200
+    );
+    const made = (await invoke(base, third, 'create-my-api-key', [{ name: 'E2E script', role: 'viewer' }])).result;
+    const asKey = (channel, args = []) =>
+      fetch(`${base}/api/actions/${channel}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base, authorization: `Bearer ${made.token}` },
+        body: JSON.stringify({ args })
+      });
+    check(
+      'an API key acts as its account, with its own lower role, and cannot manage sign-in',
+      (await asKey('get-spools', [{}])).status === 200 &&
+        (await asKey('save-spool', [{ material: 'PLA', initial_weight: 1000 }])).status === 403 &&
+        (await asKey('create-my-api-key', [{ name: 'x' }])).status !== 200
+    );
+    await invoke(base, third, 'delete-my-api-key', [made.key.id]);
+    check('a deleted API key stops working', (await asKey('get-spools', [{}])).status === 401);
+    check(
+      'editors cannot turn off someone else’s two-factor or require it',
+      (await invoke(base, editor, 'reset-two-factor', [1])).status === 403 && (await invoke(base, editor, 'set-require-two-factor', [true])).status === 403
+    );
+    const e2eUser = ((await invoke(base, admin, 'list-users')).result?.users || []).find((u) => u.username === 'e2e-2fa');
+    check('the users list shows who has two-factor sign-in', e2eUser?.twoFactor === true);
+    if (e2eUser) await invoke(base, admin, 'delete-user', [e2eUser.id]);
+  }
+  check('editors cannot download into the catalogue', (await invoke(base, editor, 'refresh-spoolmandb')).status === 403);
+  check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);
   check('only admins turn public labels on', (await invoke(base, admin, 'get-setting', ['publicLabels'])).result !== 'true');

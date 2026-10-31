@@ -174,6 +174,17 @@ function saveConnection(db, id, printer) {
     const secret = printer.apiSecret === null ? '' : String(printer.apiSecret).trim().slice(0, 500);
     db.prepare('UPDATE printers SET api_secret = ? WHERE id = ?').run(secret || null, id);
   }
+  // Power while printing, for the cost estimate (docs/plan-10.1.md, Phase 8); kept when not given.
+  const hasPower = db
+    .prepare('PRAGMA table_info(printers)')
+    .all()
+    .some((c) => c.name === 'power_watts');
+  if (hasPower && printer && (Object.prototype.hasOwnProperty.call(printer, 'powerWatts') || Object.prototype.hasOwnProperty.call(printer, 'power_watts'))) {
+    const raw = printer.powerWatts ?? printer.power_watts;
+    const watts = raw === null || raw === '' || raw === undefined ? null : Number(raw);
+    if (watts !== null && (!Number.isFinite(watts) || watts < 0 || watts > 10000)) throw new Error('Power is a number of watts, up to 10,000');
+    db.prepare('UPDATE printers SET power_watts = ? WHERE id = ?').run(watts, id);
+  }
 }
 
 function savePrinter(db, printer) {

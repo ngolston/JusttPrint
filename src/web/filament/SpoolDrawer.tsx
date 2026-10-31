@@ -1,4 +1,5 @@
 import { useCallback, type ReactNode } from 'react';
+import { formatDay, formatTemperature } from '../units';
 import { Archive, ArchiveRestore, Droplets, ExternalLink, MapPin, Pencil, Scale, Trash2 } from 'lucide-react';
 import { filament, type Spool, type SpoolDetail } from '../api';
 import { Button } from '../components/Button';
@@ -10,14 +11,11 @@ import { showMessage } from '../page';
 import { useLibraryData } from '../shell/libraryData';
 import { useCurrency } from './currency';
 import { PhotoBlock } from './Photo';
-import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, spoolWhere } from './format';
+import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, runsOutText, spoolWhere } from './format';
 
 export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move';
 
-const day = (value: string | null | undefined) => {
-  const ms = Date.parse(String(value || ''));
-  return Number.isFinite(ms) ? new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-};
+const day = (value: string | null | undefined) => (Number.isFinite(Date.parse(String(value || ''))) ? formatDay(value) : '');
 
 function Prop({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -73,9 +71,14 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
               <div className="jp-meta">
                 of {formatWeight(spool.initial_weight)} · {spoolWhere(spool)}
               </div>
+              {spool.forecast && (
+                <div className="jp-meta jp-spool-detail__forecast" id="jp-spool-forecast">
+                  {runsOutText(spool.forecast)}
+                </div>
+              )}
               {progress && spool.drying && (
                 <div className="jp-meta">
-                  Drying at {spool.drying.drying_temp} °C · {formatTimeLeft(progress.leftMs)}
+                  Drying at {formatTemperature(spool.drying.drying_temp)} · {formatTimeLeft(progress.leftMs)}
                 </div>
               )}
             </div>
@@ -168,7 +171,7 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
                   <li key={entry.id}>
                     <span>{day(entry.started_at)}</span>
                     <strong>
-                      {entry.drying_temp} °C · {entry.target_hours} h
+                      {formatTemperature(entry.drying_temp)} · {entry.target_hours} h
                     </strong>
                     <span className="jp-meta">
                       {entry.finished_at ? '' : 'Running'}
