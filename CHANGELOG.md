@@ -4,15 +4,21 @@ All notable changes contributed via pull request are documented in this file.
 
 ## [Unreleased]
 
+## [10.1.0] - 2026-10-30
+
+The rest of FilamentHub, part one (docs/plan-10.1.md): what 10.0 started and left half done.
+
 **Changes:**
-- **QR labels anyone can scan, and labels for places.** An admin can let anyone who scans a spool label see the spool without signing in (Labels → the checkbox; off unless turned on): its photo, what is left, its color and where it is, never its price, shop or notes, with **Sign in to edit**. Places get labels too: scanning one lists the spools in it. Each label has its own random address, not the spool's number.
-- **The spool list sorts, shows as a table, and keeps views.** Sort spools by grams or percent left, name, material, color, where they are, price or last use; switch between cards and a table whose headings sort; save a filter, search, order and layout as a view to come back to (each person has their own). **How many** in Add spool adds several of the same spool at once.
-- **Print time.** Log Print asks how long the print took, filled in from the slicer's estimate for the plates and quantity (change it to the real time). The print history shows it, and Statistics adds the print time, print hours per month and the hours on each printer. MCP `log_print_event` takes `durationMinutes`.
-- **Photos of spools, filaments and prints.** Add a photo to a spool (its panel) or a filament (its form), from the computer or phone or as a link; spool cards and the Filaments list show it. Add photos when you log a print, or later on the print in its history; the model page shows them. Pictures are shrunk before they are sent and kept in `photos/` next to the database.
 - **Filaments and brands** (Filament page → Filaments): every filament you have, from the catalogue, Spoolman, FilamentHub or added by hand, with search. Add a spool from one, edit its details (brand, color, temperatures, drying, product page) or delete it; its spools keep their material and color. Add, rename and delete brands; renaming a brand to the name of another merges them. Everyone can look; editors change them.
+- **Photos of spools, filaments and prints.** Add a photo to a spool (its panel) or a filament (its form), from the computer or phone or as a link; spool cards and the Filaments list show it. Add photos when you log a print, or later on the print in its history; the model page shows them. Pictures are shrunk before they are sent and kept in `photos/` next to the database.
+- **Print time.** Log Print asks how long the print took, filled in from the slicer's estimate for the plates and quantity (change it to the real time). The print history shows it, and Statistics adds the print time, print hours per month and the hours on each printer. MCP `log_print_event` takes `durationMinutes`.
+- **The spool list sorts, shows as a table, and keeps views.** Sort spools by grams or percent left, name, material, color, where they are, price or last use; switch between cards and a table whose headings sort; save a filter, search, order and layout as a view to come back to (each person has their own). **How many** in Add spool adds several of the same spool at once.
+- **QR labels anyone can scan, and labels for places.** An admin can let anyone who scans a spool label see the spool without signing in (Labels → the checkbox; off unless turned on): its photo, what is left, its color and where it is, never its price, shop or notes, with **Sign in to edit**. Places get labels too: scanning one lists the spools in it. Each label has its own random address, not the spool's number.
 
 **Fixes:**
 - Editing a spool no longer clears its photo link, or the second to fourth colors of a multi-color spool brought from FilamentHub or Spoolman.
+
+**Upgrading:** nothing to do. The first start adds the new columns (spool and filament photos, label tokens). Photos are kept in `photos/` next to the database, on the data volume like `versions/`; the database backups do not include them, so back up the data folder to keep them. Labels anyone can scan stay off until an admin ticks the box under Labels.
 
 ## [10.0.0] - 2026-10-30
 
