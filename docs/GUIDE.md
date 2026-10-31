@@ -135,6 +135,7 @@ Each model has a status (Unprinted, Want, Queued, Printing, Printed, Failed) and
 - **Add from catalogue** searches about 27,000 filaments (brand, material, color: *bambu pla basic black*) from [3dfilamentprofiles.com](https://3dfilamentprofiles.com); choosing one fills in the spool form, with the spool's empty weight when the catalogue knows it. **Add by hand** starts from an empty form.
 - **Import from Spoolman** reads a Spoolman export (JSON, or what Spoolman's `/api/v1/spool` returns): vendors become brands, filaments become filaments, locations become places. Importing the same file again skips the spools already here.
 - Click a spool for its details. **Weigh** it on a kitchen scale: on its spool (enter the empty spool's weight under **Edit** first) or the filament alone; JusttPrint works out what is left and keeps every weighing. **Dry** starts a drying session (temperature and time come from the filament when it has them); **Finish drying** ends it, with the humidity after if you measured it. **Move** puts it in a place (a shelf, a dry box), **Archive** keeps a used-up spool for your records and takes it out of every printer, **Delete** removes it.
+- **Photos**: a spool's panel has **Add photo** (from your computer, or the camera on a phone), **Link** (a picture on the web) and **Remove**; so does a filament's form under **Filaments**. Spool cards and the Filaments list show the photo. Pictures are shrunk to 1600 px before they are sent and kept in `photos/` next to the database.
 - **Filaments** lists every filament you have (each spool from the catalogue or an import adds its filament): search them, **Add spool** from one, edit one (brand, color, temperatures, drying, product page) or add one with **New filament**. **Brands** renames, adds and deletes brands; renaming one to another's name merges them. Deleting a filament or a brand keeps its spools as they are.
 - **Places** lists your shelves and dry boxes. The chips above the spools show those running low (under 300 g), drying, of one material, or archived.
 
@@ -151,6 +152,8 @@ Viewers see the spools; editors and admins change them.
 **Ready to print.** JusttPrint reads what each 3MF's plates need, in the background (a progress bar shows while it reads): a file sliced in Bambu Studio or OrcaSlicer gives each plate's colors, materials and grams; an unsliced project gives the colors its objects use (all of them when it is painted), without grams; a model saved from MakerWorld whose file says nothing uses its print profile. Each color is matched to a spool of the same material and a close color. Once you have spools, cards say **Ready to print** or **Need black** (the colors you are short of), and **Fits my filament** in the filters shows only the models you can print now.
 
 **Log Print** on one model has **Filament used**: a spool and the grams per copy for each color the ticked plates need, filled in from that check (spools loaded in the printer you choose come first). Change a spool or the grams, remove a row or **Add a spool**; saving takes the grams off the spools, and deleting the logged print puts them back.
+
+**Photos** in Log Print (one model) adds pictures of the print. Later, the camera button on a print in its history (the details panel or the model page) adds more, up to 12; click one to see it full size.
 
 ### Statistics
 

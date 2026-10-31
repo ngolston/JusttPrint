@@ -117,17 +117,25 @@ function listProfiles(db, { search = '', material = '' } = {}) {
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
        ORDER BY b.name COLLATE NOCASE, p.name COLLATE NOCASE`
     )
-    .all(...args);
+    .all(...args)
+    .map(withPhoto);
 }
+
+/** `photo`: an uploaded photo, else a link to one (docs/plan-10.1.md, Phase 2). */
+const withPhoto = (row) => ({ ...row, photo: row.photo_file ? `/api/photo/filament/${row.photo_file}` : row.photo_url || null });
 
 function getProfile(db, id) {
-  return (
-    db.prepare('SELECT p.*, b.name AS brand_name FROM filament_profiles p LEFT JOIN filament_brands b ON b.id = p.brand_id WHERE p.id = ?').get(id) || null
-  );
+  const row = db.prepare('SELECT p.*, b.name AS brand_name FROM filament_profiles p LEFT JOIN filament_brands b ON b.id = p.brand_id WHERE p.id = ?').get(id);
+  return row ? withPhoto(row) : null;
 }
 
-/** The checked columns of a profile from the page's form (brand by name or id). */
-function profileValues(db, input) {
+/**
+ * The checked columns of a profile from the page's form (brand by name or id).
+ * @param {any} db
+ * @param {any} input
+ * @param {any} [existing] The profile being changed: what the input leaves out stays.
+ */
+function profileValues(db, input, existing = null) {
   const material = v.text(input.material, 50);
   if (!material) throw new Error('A filament needs a material (PLA, PETG, …)');
   const name = v.text(input.name, 200) || [material, v.text(input.color_name, 100)].filter(Boolean).join(' ');
@@ -149,7 +157,7 @@ function profileValues(db, input) {
     drying_temp: v.number(input.drying_temp, 'Drying temperature', { min: 0, max: 150 }),
     drying_hours: v.number(input.drying_hours, 'Drying time', { min: 0, max: 200 }),
     product_url: v.url(input.product_url),
-    photo_url: v.url(input.photo_url),
+    photo_url: input.photo_url === undefined ? (existing?.photo_url ?? null) : v.url(input.photo_url),
     notes: v.text(input.notes, 5000),
     source,
     source_ref: v.text(input.source_ref, 100)
@@ -158,11 +166,12 @@ function profileValues(db, input) {
 
 /** Add a profile (no id) or change one. Returns the saved profile. */
 function saveProfile(db, input = {}) {
-  const values = profileValues(db, input);
-  const at = v.now();
   const id = v.id(input.id);
+  const existing = id ? getProfile(db, id) : null;
+  if (id && !existing) throw new Error('That filament no longer exists');
+  const values = profileValues(db, input, existing);
+  const at = v.now();
   if (id) {
-    if (!getProfile(db, id)) throw new Error('That filament no longer exists');
     db.prepare(`UPDATE filament_profiles SET ${PROFILE_COLUMNS.map((c) => `${c} = @${c}`).join(', ')}, updated_at = @at WHERE id = @id`).run({
       ...values,
       at,

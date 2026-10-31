@@ -269,7 +269,10 @@ const COLUMNS = [
   ['print_events', 'duration_seconds', 'INTEGER'],
   ['print_events', 'started_at', 'TEXT'],
   ['print_events', 'filament_used_g', 'REAL'],
-  ['print_events', 'source_ref', 'TEXT']
+  ['print_events', 'source_ref', 'TEXT'],
+  // An uploaded photo (photos/<kind>/<name>, src/server/photos.js); photo_url stays for a link (10.1).
+  ['spools', 'photo_file', 'TEXT'],
+  ['filament_profiles', 'photo_file', 'TEXT']
 ];
 
 /** @param {string} sql */

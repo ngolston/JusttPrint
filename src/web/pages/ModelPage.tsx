@@ -1,4 +1,5 @@
 import { PrintPanel } from '../model/PrintPanel';
+import { PrintPhotos } from '../print/PrintPhotos';
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { ArrowLeft, Box, ClipboardPen, Copy, Download, ExternalLink, FileBox, FolderPlus, FolderUp, Heart, MoreHorizontal, Pencil, Upload } from 'lucide-react';
 import { callAction, dedup, downloadUrl, LIBRARY_CHANGED, models as modelApi, prints, type PrintEvent } from '../api';
@@ -733,6 +734,7 @@ export function ModelView({
                 {entry.quantity > 1 ? ` ×${entry.quantity}` : ''}
               </span>
               {entry.notes && <span className="jp-meta">{entry.notes}</span>}
+              <PrintPhotos eventId={entry.id} photos={entry.photos} canEdit={canEdit} />
               {canEdit && <DeletePrintButton id={entry.id} label={formatPrintDate(entry.printed_at)} onDeleted={() => void load()} />}
             </li>
           ))}

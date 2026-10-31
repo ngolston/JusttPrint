@@ -579,10 +579,26 @@ function getPrintEvents(db, modelId) {
     db,
     events.map((event) => event.id)
   );
+  const photosByEventId = new Map();
+  if (events.length) {
+    try {
+      const ids = events.map((event) => event.id);
+      for (const row of db
+        .prepare(`SELECT id, event_id, file_path, caption FROM print_event_photos WHERE event_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`)
+        .all(...ids)) {
+        const list = photosByEventId.get(row.event_id) || [];
+        list.push({ id: row.id, url: `/api/photo/print/${row.file_path}`, caption: row.caption });
+        photosByEventId.set(row.event_id, list);
+      }
+    } catch (_) {
+      /* no print photos table (a database before 10.0) */
+    }
+  }
   return events.map((event) => ({
     ...event,
     parts: partsByEventId.get(event.id) || [],
-    spools: spoolsByEventId.get(event.id) || []
+    spools: spoolsByEventId.get(event.id) || [],
+    photos: photosByEventId.get(event.id) || []
   }));
 }
 

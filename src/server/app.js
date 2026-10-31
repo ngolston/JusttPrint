@@ -163,6 +163,8 @@ async function start() {
   autoBackup.schedule({ startup: true });
   // Low-stock alerts (Phase 8).
   require('./low-stock-alerts').start();
+  // Photo files left by prints and models deleted while the server was down, or before 10.1.
+  require('./photos').sweepSoon(60 * 1000);
   // What each 3MF's plates need, for the filament check (docs/merge-10.md, Phase 4).
   require('./plate-filament-job').startup();
   require('./notifications').startReminderChecks();

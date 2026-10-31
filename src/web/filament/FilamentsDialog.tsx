@@ -9,6 +9,7 @@ import { Tabs } from '../components/Tabs';
 import { showMessage } from '../page';
 import { errorText, Field, FormModal, MATERIALS, text, useSave } from './SpoolDialogs';
 import { numberOrNull } from './format';
+import { PhotoBlock } from './Photo';
 
 /*
  * Filament page → Filaments (docs/plan-10.1.md, Phase 1): every filament profile (from the
@@ -162,7 +163,11 @@ export function FilamentsDialog({
           <ul className="jp-catalog__list jp-filaments__list" aria-label="Filaments">
             {shown.map((profile) => (
               <li key={profile.id} className="jp-places__row jp-filaments__row">
-                <ColorDot color={profile.color_hex || '#9aa4b4'} size={22} />
+                {profile.photo ? (
+                  <img className="jp-filaments__photo" src={profile.photo} alt="" loading="lazy" />
+                ) : (
+                  <ColorDot color={profile.color_hex || '#9aa4b4'} size={22} />
+                )}
                 <span className="jp-catalog__text">
                   <span className="jp-catalog__name">{[profile.brand_name, profile.name].filter(Boolean).join(' · ')}</span>
                   <span className="jp-catalog__meta">
@@ -280,6 +285,7 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
     notes: text(profile?.notes)
   }));
   const { busy, error, run } = useSave();
+  const [photo, setPhoto] = useState(profile?.photo ?? null);
   useEffect(() => {
     filament.brands().then(setBrands, () => {});
   }, []);
@@ -304,7 +310,6 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
           drying_temp: numberOrNull(form.drying_temp),
           drying_hours: numberOrNull(form.drying_hours),
           product_url: form.product_url || null,
-          photo_url: profile?.photo_url ?? null,
           notes: form.notes || null
         }),
       onClose
@@ -325,6 +330,14 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
       error={error}
       wide
     >
+      {profile && (
+        <PhotoBlock
+          photo={photo}
+          label={[profile.brand_name, profile.name].filter(Boolean).join(' ')}
+          onSave={async (next) => setPhoto((await filament.setFilamentPhoto(profile.id, next)).photo ?? null)}
+          idPrefix="jp-profile"
+        />
+      )}
       <div className="jp-edit__grid">
         <Field label="Brand" htmlFor="jp-profile-brand">
           <input id="jp-profile-brand" className="jp-input" list="jp-profile-brands" value={form.brand_name} onChange={set('brand_name')} />

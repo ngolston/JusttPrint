@@ -5,7 +5,11 @@ All notable changes contributed via pull request are documented in this file.
 ## [Unreleased]
 
 **Changes:**
+- **Photos of spools, filaments and prints.** Add a photo to a spool (its panel) or a filament (its form), from the computer or phone or as a link; spool cards and the Filaments list show it. Add photos when you log a print, or later on the print in its history; the model page shows them. Pictures are shrunk before they are sent and kept in `photos/` next to the database.
 - **Filaments and brands** (Filament page → Filaments): every filament you have, from the catalogue, Spoolman, FilamentHub or added by hand, with search. Add a spool from one, edit its details (brand, color, temperatures, drying, product page) or delete it; its spools keep their material and color. Add, rename and delete brands; renaming a brand to the name of another merges them. Everyone can look; editors change them.
+
+**Fixes:**
+- Editing a spool no longer clears its photo link, or the second to fourth colors of a multi-color spool brought from FilamentHub or Spoolman.
 
 ## [10.0.0] - 2026-10-30
 

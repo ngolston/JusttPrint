@@ -181,6 +181,7 @@ function SpoolCard({ spool, onOpen }: { spool: Spool; onOpen: () => void }) {
             <span className="jp-spool-card__name">{spool.display_name}</span>
             <span className="jp-spool-card__brand">{spool.brand_name || 'No brand'}</span>
           </span>
+          {spool.photo && <img className="jp-spool-card__photo" src={spool.photo} alt="" loading="lazy" />}
         </span>
         <span className="jp-spool-card__grams">
           <span className={cx('jp-spool-card__left', empty && 'is-empty')}>{formatWeight(spool.remaining)}</span>

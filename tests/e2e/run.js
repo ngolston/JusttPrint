@@ -4191,6 +4191,55 @@ async function browserChecks(base, wsUrl, session) {
       check('the 10.1 Phase 1 checks ran to the end', false, error.message.split('\n')[0]);
     }
 
+    // 10.1 Phase 2 (docs/plan-10.1.md): photos of spools and logged prints.
+    try {
+      const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const photoFile = path.join(WORK, 'spool-photo.png');
+      fs.writeFileSync(photoFile, Buffer.from(PIXEL, 'base64'));
+      const photoSpool = (await invoke(base, session, 'save-spool', [{ name: 'E2E Photo Spool', material: 'PLA', initial_weight: 1000, remaining: 800 }]))
+        .result;
+      await page.evaluate((id) => {
+        window.location.hash = `#/filament/${id}`;
+      }, photoSpool.id);
+      await page.waitForSelector('#jp-spool-photo-upload', { timeout: 15000 });
+      const chooser = page.waitForEvent('filechooser', { timeout: 10000 });
+      await page.click('#jp-spool-photo-upload');
+      await (await chooser).setFiles(photoFile);
+      const shown = await page
+        .waitForSelector('#jp-spool-detail img[alt="Photo of E2E Photo Spool"]', { timeout: 15000 })
+        .then((el) => el.getAttribute('src'))
+        .catch(() => '');
+      const served = shown ? await page.evaluate((url) => fetch(url).then((r) => ({ status: r.status, type: r.headers.get('content-type') })), shown) : null;
+      check(
+        "a spool's photo is uploaded from the drawer, shrunk to a JPEG and served to signed-in browsers",
+        /^\/api\/photo\/spool\/[a-f0-9]{32}\.jpg$/.test(shown) && served?.status === 200 && served?.type === 'image/jpeg',
+        JSON.stringify({ shown, served })
+      );
+      check('photos are not served without signing in', shown ? (await fetch(`${base}${shown}`, { redirect: 'manual' })).status !== 200 : false);
+      check(
+        'a photo name that is not one of ours is refused',
+        (await fetch(`${base}/api/photo/spool/..%2Fjusttprint.db`, { headers: { cookie: session.cookie } })).status === 404
+      );
+      await page.keyboard.press('Escape').catch(() => {});
+
+      const kit = ((await invoke(base, session, 'get-models-filtered', [{ limit: 5 }])).result || [])[0];
+      const logged = (await invoke(base, session, 'log-print-event', [{ filePath: kit.filePath, outcome: 'printed', quantity: 1 }])).result;
+      const added = (
+        await invoke(base, session, 'add-print-photo', [logged.eventId, { dataUrl: `data:image/png;base64,${PIXEL}`, caption: 'E2E first layer' }])
+      ).result;
+      const withPhoto = ((await invoke(base, session, 'get-print-events', [kit.id])).result || []).find((e) => e.id === logged.eventId);
+      check(
+        'a logged print keeps its photos and lists them',
+        withPhoto?.photos?.length === 1 && withPhoto.photos[0].caption === 'E2E first layer' && /^\/api\/photo\/print\//.test(withPhoto.photos[0].url),
+        JSON.stringify(withPhoto?.photos)
+      );
+      check('a print photo can be removed', (await invoke(base, session, 'delete-print-photo', [added.id])).result === true);
+      await invoke(base, session, 'delete-print-event', [logged.eventId]);
+      await invoke(base, session, 'delete-spool', [photoSpool.id]);
+    } catch (error) {
+      check('the 10.1 Phase 2 checks ran to the end', false, error.message.split('\n')[0]);
+    }
+
     // Phase 5: printers' connection details (the access code stays on the server), AMS slots, loading spools, Bambu Lab import.
     try {
       const amsPrinter = (
@@ -6273,6 +6322,8 @@ async function accountChecks(base, wsUrl, admin) {
   check('viewers cannot load spools into printers', (await invoke(base, viewer, 'set-loaded-spool', [{ printerId: 1 }, null])).status === 403);
   check("editors cannot import Bambu Lab printers (the account is the server's)", (await invoke(base, editor, 'import-bambu-printers')).status === 403);
   check('editors cannot import from FilamentHub', (await invoke(base, editor, 'preview-filamenthub-import', [{ base64: '' }])).status === 403);
+  check('viewers cannot set a spool photo', (await invoke(base, viewer, 'set-spool-photo', [1, null])).status === 403);
+  check('viewers cannot add print photos', (await invoke(base, viewer, 'add-print-photo', [1, { dataUrl: 'x' }])).status === 403);
   check('viewers cannot change brands', (await invoke(base, viewer, 'save-filament-brand', [{ name: 'Viewer Brand' }])).status === 403);
   await invoke(base, editor, 'save-setting', ['currency', 'GBP']);
   check('editors cannot change the currency', (await invoke(base, admin, 'get-setting', ['currency'])).result !== 'GBP');

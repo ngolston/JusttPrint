@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type Reac
 import { createPortal } from 'react-dom';
 import { filament, models, parts as partApi, printers as printerApi, prints, type Part, type PrintEvent, type Printer, type Spool } from '../api';
 import { ColorDot } from '../components/Filament';
+import { shrinkImage } from '../filament/photos';
+import { PrintPhotos } from './PrintPhotos';
 import { exposeGlobal, showMessage } from '../page';
 import { getKit } from '../kits/kits';
 import { getCurrentUser, roleAllows, useCan } from '../session';
@@ -157,6 +159,8 @@ function LogPrintDialog() {
   const [outcome, setOutcome] = useState('printed');
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
+  /** Photos of the print (one model; docs/plan-10.1.md Phase 2), sent after it is logged. */
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [printerList, setPrinterList] = useState<Printer[]>([]);
   const [printerId, setPrinterId] = useState('');
   const [partList, setPartList] = useState<Part[]>([]);
@@ -186,6 +190,7 @@ function LogPrintDialog() {
     setOutcome('printed');
     setQuantity('1');
     setNotes('');
+    setPhotoFiles([]);
     setPrinterId('');
     setPartId('');
     setPartQuantity('1');
@@ -314,9 +319,20 @@ function LogPrintDialog() {
     };
     setSaving(true);
     try {
-      if (filePaths.length === 1) await prints.log(filePaths[0], input);
-      else await prints.logMany(filePaths, input);
+      let photoError = '';
+      if (filePaths.length === 1) {
+        const logged = await prints.log(filePaths[0], input);
+        const eventId = logged?.eventId;
+        for (const file of eventId ? photoFiles : []) {
+          try {
+            await prints.addPhoto(eventId as number, { dataUrl: await shrinkImage(file) });
+          } catch (error) {
+            photoError = `${file.name}: ${friendlyError(error)}`;
+          }
+        }
+      } else await prints.logMany(filePaths, input);
       dialogRef.current?.close();
+      if (photoError) void showMessage('Photo not added', `The print was logged, but a photo was not added. ${photoError}`);
       document.dispatchEvent(new CustomEvent('parts-stock-changed'));
       await refreshAfterChange(filePaths);
     } catch (error) {
@@ -546,6 +562,17 @@ function LogPrintDialog() {
             onChange={(e) => setNotes(e.target.value)}
           />
         </div>
+        {filePaths.length === 1 && (
+          <div className="form-group">
+            <label htmlFor="log-print-photos">Photos</label>
+            <input id="log-print-photos" type="file" accept="image/*" multiple onChange={(e) => setPhotoFiles([...(e.target.files || [])].slice(0, 12))} />
+            {photoFiles.length > 0 && (
+              <p className="print-history-hint">
+                {photoFiles.length} {photoFiles.length === 1 ? 'photo' : 'photos'} to add
+              </p>
+            )}
+          </div>
+        )}
         <p id="log-print-status" className="print-history-hint">
           {status}
         </p>
@@ -628,6 +655,7 @@ const LOG_PRINT_ICON = (
 );
 
 function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => void }) {
+  const canEdit = useCan('editor');
   const parts = (event.parts || []).map((part) => `${part.name || 'Part'} ×${Number(part.quantity) || 0}`).join(', ');
   const filamentUsed = (event.spools || []).map((spool) => `${spool.name} ${Math.round(spool.grams * 10) / 10} g`).join(', ');
   const printerName = event.printer_nickname || event.printer_name;
@@ -655,6 +683,7 @@ function HistoryItem({ event, onDelete }: { event: PrintEvent; onDelete?: () => 
       {parts && <div className="print-history-parts">{parts}</div>}
       {filamentUsed && <div className="print-history-parts print-history-filament">{filamentUsed}</div>}
       {event.notes && <div className="print-history-notes">{event.notes}</div>}
+      <PrintPhotos eventId={event.id} photos={event.photos} canEdit={canEdit} />
       {onDelete && (
         <button
           type="button"

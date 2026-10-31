@@ -613,6 +613,8 @@ export interface FilamentProfile {
   max_print_speed?: number | null;
   product_url: string | null;
   photo_url?: string | null;
+  /** An uploaded photo (/api/photo/…), else the link in photo_url, else null. */
+  photo?: string | null;
   notes?: string | null;
   source: 'manual' | 'catalog' | 'spoolman';
   spool_count?: number;
@@ -656,6 +658,8 @@ export interface Spool {
   location_id: number | null;
   name: string | null;
   display_name: string;
+  /** An uploaded photo (/api/photo/…), else a link, else null (docs/plan-10.1.md, Phase 2). */
+  photo?: string | null;
   profile_name: string | null;
   brand_name: string | null;
   location_name: string | null;
@@ -883,6 +887,9 @@ export const filament = {
   /** Renaming onto another brand's name merges them (`merged`). */
   saveBrand: (brand: { id?: number; name: string; website?: string | null }) => callAction<FilamentBrand & { merged?: boolean }>('save-filament-brand', brand),
   removeBrand: (id: number) => callAction<boolean>('delete-filament-brand', id),
+  /** A picture (`dataUrl`, shrunk by filament/photos.ts), a link (`url`), or null for none. */
+  setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
+  setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
   searchCatalog: (query: string, limit = 50) =>
     callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null }>('search-filament-catalog', query, { limit }),
   addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
@@ -1323,7 +1330,18 @@ export interface PrintEvent {
   parts?: { id: number; name?: string | null; quantity: number }[];
   /** Filament taken off spools (docs/merge-10.md, Phase 4). */
   spools?: { spoolId: number | null; grams: number; name: string; color: string | null }[];
+  /** Photos of the print (docs/plan-10.1.md, Phase 2). */
+  photos?: PrintPhoto[];
 }
+
+export interface PrintPhoto {
+  id: number;
+  url: string;
+  caption: string | null;
+}
+
+/** A photo to keep: a picture as a data URL, or a link. */
+export type PhotoInput = { dataUrl: string; caption?: string | null } | { url: string };
 
 export interface LogPrintInput {
   printedAt: string;
@@ -1341,7 +1359,9 @@ export interface LogPrintInput {
 
 export const prints = {
   events: (modelId: number) => callAction<PrintEvent[]>('get-print-events', modelId),
-  log: (filePath: string, input: LogPrintInput) => callAction<unknown>('log-print-event', { ...input, filePath }),
+  log: (filePath: string, input: LogPrintInput) => callAction<{ eventId?: number } | null>('log-print-event', { ...input, filePath }),
+  addPhoto: (eventId: number, photo: { dataUrl: string; caption?: string | null }) => callAction<PrintPhoto>('add-print-photo', eventId, photo),
+  removePhoto: (photoId: number) => callAction<boolean>('delete-print-photo', photoId),
   logMany: (filePaths: string[], input: LogPrintInput) => callAction<unknown>('log-print-events-batch', { ...input, filePaths }),
   removeEvent: (id: number) => callAction<unknown>('delete-print-event', id),
   setStatus: (filePaths: string[], printStatus: string) =>

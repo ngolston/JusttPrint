@@ -754,3 +754,65 @@
   gap: var(--jp-space-3);
   padding: 8px 10px;
 }
+
+/* Photos (docs/plan-10.1.md, Phase 2) */
+.jp-photo-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  margin: var(--jp-space-3) 0;
+}
+.jp-photo-block__frame {
+  display: block;
+  border-radius: var(--jp-radius-lg);
+  overflow: hidden;
+  background: var(--jp-surface-2);
+}
+.jp-photo-block__img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+.jp-photo-block__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
+}
+.jp-spool-card__photo {
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  flex: none;
+  border-radius: var(--jp-radius-md);
+  object-fit: cover;
+}
+.jp-filaments__photo {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--jp-radius-md);
+  object-fit: cover;
+}
+.jp-print-photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.jp-print-photos__item {
+  position: relative;
+}
+.jp-print-photos__item img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--jp-radius-md);
+  object-fit: cover;
+}
+.jp-print-photos__remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
