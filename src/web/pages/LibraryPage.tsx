@@ -139,6 +139,56 @@ function LibraryEmpty() {
 }
 
 /**
+ * The header scrolls away with the cards, all but its bar (tabs, view buttons, filters and chips),
+ * which sticks under the top bar (10.5). The slot (.grid-view-selector) is sticky with a top of
+ * minus the part above the bar (--jp-library-hero); --jp-library-pinned on the body is the bar's
+ * height, for what else sits under it (the list view's column header, scrolling into view).
+ * `is-stuck` marks the bar while it is pinned. New filters, a search, a sort or a tab show their
+ * models from the first: scrolled past the banners, the page goes back to the top of the grid,
+ * the bar still pinned (edits and background refreshes keep the place: they do not change filters).
+ */
+function usePinnedBar(slot: HTMLElement | null) {
+  useEffect(() => {
+    if (!slot) return undefined;
+    const measure = () => {
+      const bar = slot.querySelector<HTMLElement>('.jp-library-header__bar');
+      if (!bar) return;
+      const hero = Math.round(bar.getBoundingClientRect().top - slot.getBoundingClientRect().top);
+      slot.style.setProperty('--jp-library-hero', `${hero}px`);
+      document.body.style.setProperty('--jp-library-pinned', `${Math.max(0, slot.offsetHeight - hero)}px`);
+    };
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const hero = parseFloat(slot.style.getPropertyValue('--jp-library-hero')) || 0;
+        slot.classList.toggle('is-stuck', hero > 0 && window.scrollY >= hero - 1);
+      });
+    };
+    measure();
+    onScroll();
+    const observer = new ResizeObserver(() => {
+      measure();
+      onScroll();
+    });
+    observer.observe(slot);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const unsubscribe = subscribeFilters(() => {
+      const hero = parseFloat(slot.style.getPropertyValue('--jp-library-hero')) || 0;
+      if (window.scrollY > hero) window.scrollTo({ top: hero });
+    });
+    return () => {
+      unsubscribe();
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+      document.body.style.removeProperty('--jp-library-pinned');
+    };
+  }, [slot]);
+}
+
+/**
  * The Library's header: the title with the model count, Filter and Edit on the right; then the
  * state tabs, with the view buttons and the Folders and sidebar toggles on the right (Upload and
  * Add Links only on phones, where the top bar has no Add New Model); the active filters under it.
@@ -161,6 +211,7 @@ export function LibraryHeader() {
   useAdopt('#grid-toolbar-slot', tools);
   useAdopt('#folder-rail-toggle-slot', rail);
   useAdopt('#current-filter', chips);
+  usePinnedBar(slot);
 
   const tab = tabOf(state);
   const extra = extraFilterCount(state);

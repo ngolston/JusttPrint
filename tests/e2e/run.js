@@ -1096,9 +1096,12 @@ async function browserChecks(base, wsUrl, session) {
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     await page.waitForTimeout(3000);
 
-    // The page fits the window: the grid and the details panel scroll, the page itself does not (no empty strip under it).
-    const pageFits = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight);
-    check('the page is no taller than the window', pageFits);
+    // The library scrolls with the page (10.5); a page over it scrolls in its own box, so the window keeps the library's place.
+    const covered = await page.evaluate(() => ({
+      overlay: document.body.classList.contains('jp-overlay-page'),
+      overflow: getComputedStyle(document.documentElement).overflowY
+    }));
+    check('a page over the library scrolls on its own, not the window', !covered.overlay || covered.overflow === 'hidden', JSON.stringify(covered));
     check('the top bar has Add New Model next to the search box', await page.isVisible('.jp-topbar #jp-topbar-add-button'));
     await page.click('#jp-topbar-add-button');
     check(
@@ -2278,6 +2281,31 @@ async function browserChecks(base, wsUrl, session) {
           !(await page.isVisible('#clear-all-filters-button')) &&
           !(await page.getAttribute('#invert-filter-button', 'class'))
       );
+      // 10.5: scrolled down, the title, categories and banners go and the bar (tabs, filters) stays under the top bar.
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const pinned = await page
+        .waitForFunction(
+          () => {
+            const slot = document.querySelector('.grid-view-selector');
+            const bar = slot.querySelector('.jp-library-header__bar').getBoundingClientRect();
+            const topbar = document.querySelector('.jp-topbar').getBoundingClientRect().bottom;
+            const title = document.querySelector('.jp-library-header__title').getBoundingClientRect();
+            return slot.classList.contains('is-stuck') &&
+              Math.abs(bar.top - topbar) <= 2 &&
+              title.bottom <= topbar &&
+              document.querySelector('.file-grid .file-item')
+              ? { scrollY: window.scrollY, bar: Math.round(bar.top), topbar: Math.round(topbar) }
+              : null;
+          },
+          null,
+          { timeout: 5000 }
+        )
+        .then(
+          (handle) => handle.jsonValue(),
+          () => null
+        );
+      check('scrolling the library leaves the tabs and filters pinned under the top bar', !!pinned, JSON.stringify(pinned));
+      await page.evaluate(() => window.scrollTo(0, 0));
       await openFilters();
       await page.selectOption('#tag-filter', 'e2e-s1');
       const oneTag = await waitShown([other, third]);

@@ -4,9 +4,20 @@
  * (.sidebar in index.html) on the right (spec §20). responsive.css changes this for narrower
  * screens.
  */
-/* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar. */
+/* Scrolling an element into view (focus, find, links) keeps it clear of the fixed top bar and the library's pinned bar. */
 html:has(body.jp-shell-on) {
-  scroll-padding-top: calc(var(--jp-topbar-height) + 8px);
+  scroll-padding-top: calc(var(--jp-topbar-height) + var(--jp-library-pinned, 0px) + 8px);
+}
+/* The library scrolls with the page (grid/LibraryGrid.tsx); a page over it scrolls in its own box, so the window keeps the library's place and shows no second scrollbar. */
+html:has(body.jp-shell-on.jp-overlay-page) {
+  overflow: hidden;
+}
+
+/* clip, not hidden: hidden would make the body a scroll box of its own, and the library header's
+   sticky bar would stick to it (which never scrolls) instead of the window. */
+body.jp-shell-on,
+body.server-mode.jp-shell-on {
+  overflow-x: clip;
 }
 
 body.jp-shell-on {
@@ -70,9 +81,27 @@ body.jp-shell-on .grid-view-selector {
   background: var(--jp-bg);
   /* Above the cards' badges and ratings, so the Filter popover inside it covers them. */
   z-index: 20;
+  /* The title, categories and banners scroll away with the cards; the bar under them (tabs, view
+     buttons, filters, chips) sticks under the top bar. --jp-library-hero: the height above the bar
+     (pages/LibraryPage.tsx usePinnedBar). */
+  position: sticky;
+  top: calc(var(--jp-topbar-height) - var(--jp-library-hero, 0px));
+  transition: box-shadow 0.15s ease;
+}
+body.jp-shell-on .grid-view-selector.is-stuck {
+  box-shadow:
+    0 1px 0 var(--jp-border),
+    0 6px 12px -10px rgba(0, 0, 0, 0.35);
 }
 
 body.jp-shell-on .file-grid {
+  /* The grid keeps a card in place itself when its columns change (grid/LibraryGrid.tsx). */
+  overflow-anchor: none;
+  /* At least a window under the pinned bar: a short list (a filter, the Filter popover closing)
+     never makes the page shorter than the banners, so the bar stays where it is and a click on it
+     lands. */
+  min-height: calc(100vh - var(--jp-topbar-height) - var(--jp-library-pinned, 0px));
+  box-sizing: border-box;
   padding: 0;
   background: var(--jp-bg);
   background-image: none;
