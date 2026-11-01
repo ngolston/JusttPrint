@@ -1,15 +1,13 @@
 'use strict';
 
 /**
- * Filament brands and profiles (docs/merge-10.md, Phase 3), and the bundled filament catalogue
- * (src/core/data/filament-catalog.json, built by scripts/build-filament-catalog.js) that "Add from
- * catalogue" searches. A profile is a kind of filament (brand, material, color, temperatures);
+ * Filament brands and profiles (docs/merge-10.md, Phase 3), and adding one from the filament
+ * catalogue (src/core/filament-catalog.js) that "Add from catalogue" searches. A profile is a kind of filament (brand, material, color, temperatures);
  * spools point at one.
  */
 
-const path = require('path');
-const fs = require('fs');
 const v = require('./filament-values');
+const catalog = require('./filament-catalog');
 
 const PROFILE_COLUMNS = [
   'brand_id',
@@ -192,99 +190,39 @@ function deleteProfile(db, id) {
   return db.prepare('DELETE FROM filament_profiles WHERE id = ?').run(id).changes > 0;
 }
 
-// --- The catalogue: the bundled one, and SpoolmanDB when an admin downloaded it ---
-
-const CATALOG_FILE = path.join(__dirname, 'data', 'filament-catalog.json');
-/** @type {{ source: string, fetchedAt: string | null, items: any[], sources: { id: string, name: string, count: number, fetchedAt: string | null }[] } | null} */
-let catalog = null;
-
-/** Where a downloaded SpoolmanDB is kept (src/server/community-catalog.js writes it). */
-function communityFile() {
-  return path.join(path.dirname(require('./db-path').getDatabasePath()), 'catalog', 'spoolmandb.json');
-}
-
-/** A catalogue file's entries: rows under one list of fields, tagged with where they come from. */
-function readCatalogFile(file, sourceId) {
-  const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const items = raw.rows.map((row) => {
-    const item = Object.fromEntries(raw.fields.map((field, i) => [field, row[i]]));
-    item.from = sourceId;
-    item.search = `${item.brand} ${item.name} ${item.material} ${item.color_name || ''}`.toLowerCase();
-    return item;
-  });
-  return { source: raw.source, fetchedAt: raw.fetchedAt || null, items };
-}
+// --- The catalogue (src/core/filament-catalog.js) ---
 
 /**
- * The catalogue, read once: the bundled one (about 27,000 filaments from 3dfilamentprofiles.com)
- * and, when an admin downloaded it, SpoolmanDB's (docs/plan-10.1.md, Phase 13).
- */
-function loadCatalog(file = CATALOG_FILE) {
-  if (catalog && file === CATALOG_FILE) return catalog;
-  const bundled = readCatalogFile(file, '3dfilamentprofiles');
-  const sources = [{ id: '3dfilamentprofiles', name: '3dfilamentprofiles.com', count: bundled.items.length, fetchedAt: bundled.fetchedAt }];
-  let items = bundled.items;
-  if (file === CATALOG_FILE) {
-    try {
-      const community = readCatalogFile(communityFile(), 'spoolmandb');
-      sources.push({ id: 'spoolmandb', name: 'SpoolmanDB', count: community.items.length, fetchedAt: community.fetchedAt });
-      items = items.concat(community.items);
-    } catch (_) {
-      /* not downloaded (or unreadable): the bundled catalogue alone */
-    }
-  }
-  const loaded = { source: bundled.source, fetchedAt: bundled.fetchedAt, items, sources };
-  if (file === CATALOG_FILE) catalog = loaded;
-  return loaded;
-}
-
-/** Read the catalogue again next time (SpoolmanDB downloaded, refreshed or removed). */
-function forgetCatalog() {
-  catalog = null;
-}
-
-/** Catalogue entries as the page shows them (without the search text). */
-const publicItem = ({ search, ...item }) => item;
-
-/**
- * Search the catalogue: every word must appear in the brand, name, material or color. Brands that
- * start with the first word come first. Returns at most `limit` entries, how many matched, and the
- * sources searched.
- * @param {string} query
- * @param {{ limit?: number, file?: string }} [options]
- */
-function searchCatalog(query, { limit = 50, file } = {}) {
-  const { items, source, fetchedAt, sources } = loadCatalog(file);
-  const words = String(query || '')
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 8);
-  if (!words.length) return { total: 0, items: [], source, fetchedAt, sources };
-  const matches = items.filter((item) => words.every((word) => item.search.includes(word)));
-  const first = words[0];
-  matches.sort((a, b) => Number(!a.brand.toLowerCase().startsWith(first)) - Number(!b.brand.toLowerCase().startsWith(first)));
-  const max = Math.min(Math.max(1, Number(limit) || 50), 200);
-  return { total: matches.length, items: matches.slice(0, max).map(publicItem), source, fetchedAt, sources };
-}
-
-/**
- * The profile for a catalogue entry: the one added from it before, or a new one (source catalog).
- * Returns the profile and the entry, whose weights fill the spool form.
+ * Search the catalogue: every word must appear in the brand, material, name or color.
  * @param {any} db
- * @param {string} catalogId
- * @param {{ file?: string }} [options]
+ * @param {string} query
+ * @param {{ limit?: number }} [options]
  */
-function addFromCatalog(db, catalogId, { file } = {}) {
-  const entry = loadCatalog(file).items.find((item) => item.id === String(catalogId));
+function searchCatalog(db, query, { limit = 50 } = {}) {
+  return catalog.search(db, query, { limit });
+}
+
+/**
+ * The profile for a catalogue filament: the one added from it before (also from the catalogue of
+ * 10.0–10.3, whose ids its refs keep), or a new one (source catalog). Returns the profile and the
+ * filament, whose weights fill the spool form.
+ * @param {any} db
+ * @param {number | string} catalogId
+ */
+function addFromCatalog(db, catalogId) {
+  const entry = catalog.getFilament(db, catalogId);
   if (!entry) throw new Error('That filament is not in the catalogue');
-  const existing = db.prepare("SELECT id FROM filament_profiles WHERE source = 'catalog' AND source_ref = ?").get(`catalog:${entry.id}`);
+  const refs = [`catalog-filament:${entry.id}`, ...catalog.oldIds(db, entry.id).map((ref) => `catalog:${ref}`)];
+  const existing = db
+    .prepare(`SELECT id FROM filament_profiles WHERE source = 'catalog' AND source_ref IN (${refs.map(() => '?').join(',')}) ORDER BY id LIMIT 1`)
+    .get(...refs);
+  const material = v.baseMaterial(entry.material) || entry.material;
   const profile = existing
     ? getProfile(db, existing.id)
     : saveProfile(db, {
         brand_name: entry.brand,
-        name: `${entry.material} ${entry.name}`,
-        material: v.baseMaterial(entry.material) || entry.material,
+        name: entry.name.toLowerCase().includes(entry.material.toLowerCase()) ? entry.name : `${entry.material} ${entry.name}`,
+        material,
         color_name: entry.color_name,
         color_hex: entry.color_hex,
         diameter: entry.diameter,
@@ -295,10 +233,10 @@ function addFromCatalog(db, catalogId, { file } = {}) {
         bed_temp_max: entry.bed_temp_max,
         product_url: entry.product_url,
         source: 'catalog',
-        source_ref: `catalog:${entry.id}`
+        source_ref: `catalog-filament:${entry.id}`
       });
-  // The spool form starts from the entry: its full material ("PLA Silk") is the spool's material type.
-  return { profile, entry: publicItem(entry), materialType: entry.material === profile.material ? null : entry.material };
+  // The spool form starts from the filament: its full material ("PLA Silk") is the spool's material type.
+  return { profile, entry, materialType: entry.material === profile.material ? null : entry.material };
 }
 
 module.exports = {
@@ -310,9 +248,6 @@ module.exports = {
   getProfile,
   saveProfile,
   deleteProfile,
-  loadCatalog,
-  forgetCatalog,
-  communityFile,
   searchCatalog,
   addFromCatalog
 };

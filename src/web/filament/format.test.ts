@@ -13,6 +13,7 @@ import {
   runsOutShort,
   runsOutText,
   sortSpools,
+  spoolNumber,
   spoolWhere
 } from './format';
 
@@ -61,6 +62,10 @@ describe('filament figures', () => {
     expect(matchesFilter(spool({ status: 'archived', remaining: 0 }), 'low')).toBe(false);
     expect(matchesFilter(spool({ status: 'archived' }), 'archived')).toBe(true);
     expect(matchesFilter(spool({ drying: { id: 1, drying_temp: 50, target_hours: 4, started_at: '' } }), 'drying')).toBe(true);
+    expect(matchesFilter(spool({ location_id: 7 }), 'place:7')).toBe(true);
+    expect(matchesFilter(spool({ location_id: 8 }), 'place:7')).toBe(false);
+    expect(matchesFilter(spool({ location_id: null }), 'place:7')).toBe(false);
+    expect(matchesFilter(spool({ location_id: 7, status: 'archived' }), 'place:7')).toBe(false);
   });
 
   it('searches every word in the name, brand, material, color and place', () => {
@@ -68,6 +73,14 @@ describe('filament figures', () => {
     expect(matchesSearch(spool(), 'shelf')).toBe(true);
     expect(matchesSearch(spool(), 'petg')).toBe(false);
     expect(matchesSearch(spool(), '  ')).toBe(true);
+  });
+
+  it('finds a spool by its number', () => {
+    expect(spoolNumber(spool({ id: 12 }))).toBe('#12');
+    expect(matchesSearch(spool({ id: 12 }), '#12')).toBe(true);
+    expect(matchesSearch(spool({ id: 1 }), '#12')).toBe(false);
+    expect(matchesSearch(spool({ id: 12 }), '#12 black')).toBe(true);
+    expect(matchesSearch(spool({ id: 12 }), '#12 petg')).toBe(false);
   });
 
   it('says where a spool is', () => {
@@ -108,6 +121,7 @@ describe('sortSpools and saved views (10.1)', () => {
     expect(ids(sortSpools(list, { key: 'color', dir: 'asc' }))).toEqual([2, 1, 3]);
     expect(ids(sortSpools(list, { key: 'price', dir: 'asc' }))).toEqual([3, 1, 2]);
     expect(ids(sortSpools(list, { key: 'price', dir: 'desc' }))).toEqual([1, 3, 2]);
+    expect(ids(sortSpools(list, { key: 'id', dir: 'desc' }))).toEqual([3, 2, 1]);
   });
   it('reads saved views back, leaving out what is broken', () => {
     expect(parseViews('not json')).toEqual([]);
@@ -117,11 +131,13 @@ describe('sortSpools and saved views (10.1)', () => {
         JSON.stringify([
           { name: ' Low PLA ', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
           { name: '' },
+          { name: 'Box', filter: 'place:4', sort: { key: 'id', dir: 'asc' } },
           { name: 'Odd', filter: 'drop table', sort: { key: 'x' } }
         ])
       )
     ).toEqual([
       { name: 'Low PLA', filter: 'material:PLA', search: 'basic', sort: { key: 'remaining', dir: 'desc' }, layout: 'table' },
+      { name: 'Box', filter: 'place:4', search: '', sort: { key: 'id', dir: 'asc' }, layout: 'cards' },
       { name: 'Odd', filter: 'all', search: '', sort: { key: 'default', dir: 'asc' }, layout: 'cards' }
     ]);
   });

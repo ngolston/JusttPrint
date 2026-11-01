@@ -181,6 +181,12 @@
   color: var(--jp-text-3);
   font-size: var(--jp-text-meta);
 }
+.jp-spool-card__number,
+.jp-spool-table__number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--jp-text-2);
+}
 .jp-spool-card__grams {
   display: flex;
   align-items: baseline;
@@ -207,11 +213,36 @@
   text-overflow: ellipsis;
 }
 
-/* Spool drawer */
+/* Spool window: the ring, photo and buttons on the left, the details and history on the right. */
+.jp-modal.jp-spool-drawer {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+}
+.jp-modal.jp-spool-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+.jp-spool-drawer .jp-overlay__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .jp-spool-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--jp-space-6);
+}
+.jp-spool-detail__side,
+.jp-spool-detail__main {
   display: flex;
   flex-direction: column;
   gap: var(--jp-space-5);
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .jp-spool-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .jp-spool-detail__head {
   display: flex;
@@ -312,12 +343,41 @@
 }
 
 /* Catalogue */
+.jp-catalog__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  margin-bottom: var(--jp-space-2);
+}
 .jp-catalog__search {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--jp-space-2);
-  margin-bottom: var(--jp-space-2);
   color: var(--jp-text-3);
+}
+@media (max-width: 560px) {
+  .jp-catalog__bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.jp-catalog__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.jp-catalog-form__from {
+  margin: 0 0 var(--jp-space-4);
+}
+.jp-catalog-form__range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--jp-space-2);
+}
+.jp-catalog-form__delete {
+  margin: var(--jp-space-4) 0 0;
 }
 .jp-catalog__list {
   list-style: none;
@@ -389,6 +449,26 @@
   align-items: center;
   gap: var(--jp-space-2);
   font-weight: 700;
+}
+.jp-places__show {
+  justify-content: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.jp-places__show:hover {
+  color: var(--jp-accent-text);
+  text-decoration: underline;
+}
+.jp-places__show:focus-visible {
+  outline: none;
+  border-radius: var(--jp-radius-sm);
+  box-shadow: var(--jp-focus-ring);
 }
 .jp-places__rename,
 .jp-places__add {
@@ -1053,4 +1133,86 @@
 .jp-catalog__from {
   margin-left: 6px;
   vertical-align: middle;
+}
+
+/* Settings → Filament catalogue (filament/CatalogSourcesDialog.tsx): sources, brand suggestions, brands. */
+.jp-catalog-admin {
+  width: min(760px, calc(100vw - 32px));
+}
+.jp-catalog-admin__actions {
+  white-space: nowrap;
+}
+.jp-catalog-admin__section {
+  margin-top: var(--jp-space-5);
+}
+.jp-catalog-admin__section h3 {
+  margin: 0 0 var(--jp-space-2);
+  font-size: var(--jp-text-meta);
+  letter-spacing: 0.04em;
+}
+.jp-catalog-admin__suggestions,
+.jp-catalog-admin__brands {
+  list-style: none;
+  margin: var(--jp-space-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jp-catalog-admin__suggestions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--jp-border);
+}
+.jp-catalog-admin__names {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.jp-catalog-admin__brands {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.jp-catalog-admin__brands li {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  min-height: 34px;
+}
+.jp-catalog-admin__brand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  cursor: pointer;
+}
+.jp-catalog-admin__brand input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--jp-accent);
+}
+.jp-catalog-admin__brand .jp-meta {
+  margin-left: auto;
+}
+.jp-catalog-admin__rename {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-catalog-admin__merge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+  margin: var(--jp-space-2) 0;
+  padding: var(--jp-space-2) var(--jp-space-3);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+}
+.jp-catalog-admin__merge select {
+  width: auto;
 }

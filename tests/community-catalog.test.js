@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// 10.2 Phase 13 (docs/plan-10.1.md): SpoolmanDB downloaded on request into the filament catalogue,
-// searched beside the bundled 3dfilamentprofiles.com snapshot.
+// SpoolmanDB in the filament catalogue (10.2 Phase 13; merged since 10.4): checked for updates on
+// request (an unchanged list is not downloaded again), merged into the catalogue, removed again.
 
 const assert = require('assert');
 const fs = require('fs');
@@ -14,6 +14,7 @@ const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jp-community-
 process.env.JUSTTPRINT_DB_PATH = path.join(tmp, 'justtprint.db');
 const { ensureFilamentSchema } = require('../src/core/filament-schema');
 const profiles = require('../src/core/filament-profiles');
+const catalog = require('../src/core/filament-catalog');
 const community = require('../src/server/community-catalog');
 
 const tests = [];
@@ -49,7 +50,32 @@ const SAMPLE = [
   { id: 'broken', manufacturer: '', material: 'PLA' },
   { id: 'e2etestbrand_petg_galaxyteal_1000_175_n', manufacturer: 'Repeat', material: 'PETG' }
 ];
-const fakeFetch = (status, body) => async () => ({ ok: status >= 200 && status < 300, status, headers: { get: () => null }, text: async () => body });
+/** A fetch that answers with `status` and `body`, an ETag, and records the headers it was asked with. */
+function fakeFetch(status, body, etag = null) {
+  const calls = [];
+  const fn = async (url, options) => {
+    calls.push(options.headers);
+    return { ok: status >= 200 && status < 300, status, headers: { get: (name) => (name === 'etag' ? etag : null) }, text: async () => body };
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+const fresh = () => {
+  const db = new Database(':memory:');
+  db.exec('CREATE TABLE models (id INTEGER PRIMARY KEY AUTOINCREMENT, print_status TEXT, dateAdded TEXT)');
+  const log = console.log;
+  console.log = () => {};
+  try {
+    ensureFilamentSchema(db);
+    catalog.ensureCatalog(db, { legacyFile: null });
+  } finally {
+    console.log = log;
+  }
+  return db;
+};
+const db = fresh();
+const spoolman = (status) => status.sources.find((s) => s.id === 'spoolmandb') || null;
 
 test("SpoolmanDB's entries become catalogue rows: colors, temperature ranges, repeats and broken ones left out", () => {
   const rows = community.rowsFrom(SAMPLE);
@@ -76,58 +102,58 @@ test("SpoolmanDB's entries become catalogue rows: colors, temperature ranges, re
   assert.throws(() => community.rowsFrom([]), /no filaments/);
 });
 
-test('download: SpoolmanDB is searched beside the bundled catalogue; a filament from it can be added; remove takes it out', async () => {
-  const before = community.status();
-  assert.strictEqual(before.spoolmandb, null, 'nothing downloaded until an admin asks');
-  assert.ok(before.bundled.count > 20000);
-  const after = await community.refresh({ fetchImpl: fakeFetch(200, JSON.stringify(SAMPLE)), now: new Date('2026-10-31T12:00:00Z') });
-  assert.deepStrictEqual([after.spoolmandb.count, after.spoolmandb.fetchedAt], [2, '2026-10-31T12:00:00.000Z']);
-  const found = profiles.searchCatalog('e2e test brand teal');
+test('check for updates: SpoolmanDB merges into the catalogue; unchanged, it is not downloaded again; remove takes it out', async () => {
+  const before = community.status(db);
+  assert.strictEqual(spoolman(before), null, 'nothing downloaded until an admin asks');
+  assert.ok(before.filaments > 20000);
+  const first = fakeFetch(200, JSON.stringify(SAMPLE), '"v1"');
+  const after = await community.refresh(db, { fetchImpl: first, now: new Date('2026-10-31T12:00:00Z') });
+  assert.strictEqual(first.calls[0]['if-none-match'], undefined, 'the first download asks for the whole list');
+  assert.deepStrictEqual([spoolman(after).count, spoolman(after).fetchedAt, after.upToDate, after.report.added], [2, '2026-10-31T12:00:00.000Z', false, 2]);
+  const found = profiles.searchCatalog(db, 'e2e test brand teal');
   assert.deepStrictEqual(
-    found.items.map((i) => [i.id, i.from]),
-    [['sdb:e2etestbrand_petg_galaxyteal_1000_175_n', 'spoolmandb']]
+    found.items.map((i) => [i.name, i.sources]),
+    [['Galaxy Teal', ['spoolmandb']]]
   );
-  assert.deepStrictEqual(
-    found.sources.map((s) => s.id),
-    ['3dfilamentprofiles', 'spoolmandb']
-  );
-  assert.ok(profiles.searchCatalog('bambu pla basic black').items.every((i) => i.from === '3dfilamentprofiles'));
 
-  const db = new Database(':memory:');
-  db.exec('CREATE TABLE models (id INTEGER PRIMARY KEY AUTOINCREMENT, print_status TEXT, dateAdded TEXT)');
-  const log = console.log;
-  console.log = () => {};
-  try {
-    ensureFilamentSchema(db);
-  } finally {
-    console.log = log;
-  }
-  const added = profiles.addFromCatalog(db, 'sdb:e2etestbrand_petg_galaxyteal_1000_175_n');
+  const unchanged = fakeFetch(304, '');
+  const checked = await community.refresh(db, { fetchImpl: unchanged, now: new Date('2026-11-02T08:00:00Z') });
+  assert.strictEqual(unchanged.calls[0]['if-none-match'], '"v1"', 'asks with the ETag of the list it has');
+  assert.deepStrictEqual(
+    [checked.upToDate, spoolman(checked).fetchedAt, spoolman(checked).checkedAt],
+    [true, '2026-10-31T12:00:00.000Z', '2026-11-02T08:00:00.000Z']
+  );
+  const forced = fakeFetch(200, JSON.stringify(SAMPLE), '"v1"');
+  await community.refresh(db, { fetchImpl: forced, force: true });
+  assert.strictEqual(forced.calls[0]['if-none-match'], undefined, 'force downloads anyway');
+
+  const added = profiles.addFromCatalog(db, found.items[0].id);
   assert.deepStrictEqual(
     [added.profile.brand_name, added.profile.material, added.profile.color_hex, added.profile.print_temp_max, added.entry.spool_weight],
     ['E2E Test Brand', 'PETG', '#14b8a6', 250, 230]
   );
 
-  const removed = community.remove();
-  assert.strictEqual(removed.spoolmandb, null);
-  assert.strictEqual(profiles.searchCatalog('e2e test brand').total, 0);
+  const removed = community.remove(db);
+  assert.strictEqual(spoolman(removed), null);
+  assert.strictEqual(profiles.searchCatalog(db, 'e2e test brand').total, 0);
   assert.strictEqual(profiles.getProfile(db, added.profile.id).brand_name, 'E2E Test Brand', 'filaments added from it stay');
 });
 
 test('a failed download says why and leaves the catalogue as it was', async () => {
-  await assert.rejects(() => community.refresh({ fetchImpl: fakeFetch(503, '') }), /answered 503/);
-  await assert.rejects(() => community.refresh({ fetchImpl: fakeFetch(200, '<html>') }), /not its filament list/);
+  const before = community.status(db).filaments;
+  await assert.rejects(() => community.refresh(db, { fetchImpl: fakeFetch(503, '') }), /answered 503/);
+  await assert.rejects(() => community.refresh(db, { fetchImpl: fakeFetch(200, '<html>') }), /not its filament list/);
   await assert.rejects(
     () =>
-      community.refresh({
+      community.refresh(db, {
         fetchImpl: async () => {
           throw new Error('ENOTFOUND');
         }
       }),
     /Could not reach SpoolmanDB: ENOTFOUND/
   );
-  assert.strictEqual(community.status().spoolmandb, null);
-  assert.ok(!fs.existsSync(profiles.communityFile()));
+  assert.strictEqual(spoolman(community.status(db)), null);
+  assert.strictEqual(community.status(db).filaments, before);
 });
 
 (async () => {

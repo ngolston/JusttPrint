@@ -68,14 +68,14 @@ test('profiles: a brand is made once (any case) and a profile needs a material',
   assert.strictEqual(profiles.listBrands(db)[0].profile_count, 2);
 });
 
-test('catalogue: search by words, add an entry once as a catalogue profile', () => {
+test('catalogue: search by words, add a filament once as a catalogue profile', () => {
   const db = fresh();
-  const found = profiles.searchCatalog('bambu pla basic black');
+  const found = profiles.searchCatalog(db, 'bambu pla basic black');
   assert.ok(found.total >= 1, 'Bambu PLA Basic Black is in the catalogue');
   const entry = found.items[0];
   assert.strictEqual(entry.search, undefined, 'search text stays on the server');
-  assert.strictEqual(profiles.searchCatalog('').total, 0);
-  assert.ok(profiles.searchCatalog('pla', { limit: 5 }).items.length === 5);
+  assert.strictEqual(profiles.searchCatalog(db, '').total, 0);
+  assert.ok(profiles.searchCatalog(db, 'pla', { limit: 5 }).items.length === 5);
   const first = profiles.addFromCatalog(db, entry.id);
   assert.strictEqual(first.profile.source, 'catalog');
   assert.strictEqual(first.profile.material, 'PLA');

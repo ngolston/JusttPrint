@@ -36,6 +36,7 @@ import {
   parseViews,
   SORT_LABELS,
   sortSpools,
+  spoolNumber,
   spoolWhere,
   type SpoolFilter,
   type SpoolLayout,
@@ -105,6 +106,7 @@ const SORT_OPTIONS: [SpoolSortKey, 'asc' | 'desc', string][] = [
   ['remaining', 'asc', 'Fewest grams left'],
   ['pct', 'asc', 'Emptiest first (%)'],
   ['name', 'asc', 'Name, A–Z'],
+  ['id', 'asc', 'Number'],
   ['material', 'asc', 'Material'],
   ['color', 'asc', 'Color'],
   ['place', 'asc', 'Where'],
@@ -207,7 +209,9 @@ function SpoolCard({ spool, onOpen }: { spool: Spool; onOpen: () => void }) {
           <SpoolRing color={spool.color_hex || '#9aa4b4'} remaining={spool.remaining} capacity={spool.initial_weight} size={64} />
           <span className="jp-spool-card__names">
             <span className="jp-spool-card__name">{spool.display_name}</span>
-            <span className="jp-spool-card__brand">{spool.brand_name || 'No brand'}</span>
+            <span className="jp-spool-card__brand">
+              <span className="jp-spool-card__number">{spoolNumber(spool)}</span> · {spool.brand_name || 'No brand'}
+            </span>
           </span>
           {spool.photo && <img className="jp-spool-card__photo" src={spool.photo} alt="" loading="lazy" />}
         </span>
@@ -234,6 +238,8 @@ export function FilamentPage({ section = '' }: { section?: string }) {
   const data = useLibraryData(loadPage);
   const [filter, setFilter] = useState<SpoolFilter>('all');
   const [search, setSearch] = useState('');
+  // The place whose spools show (Places → a place's name), for its chip.
+  const [placeShown, setPlaceShown] = useState<{ id: number; name: string } | null>(null);
   // The list's order and layout, and the saved views: kept per person (docs/plan-10.1.md, Phase 4).
   const [sort, setSort] = useState<SpoolSort>(DEFAULT_SORT);
   const [layout, setLayoutState] = useState<SpoolLayout>('cards');
@@ -302,8 +308,19 @@ export function FilamentPage({ section = '' }: { section?: string }) {
     ['low', `Running low (under ${formatWeight(LOW_GRAMS)})`],
     ...(drying.length ? [['drying', 'Drying'] as [SpoolFilter, string]] : []),
     ...materials.slice(0, 6).map((m) => [`material:${m}`, m] as [SpoolFilter, string]),
-    ...(summary?.archivedCount ? [['archived', `Archived (${summary.archivedCount})`] as [SpoolFilter, string]] : [])
+    ...(summary?.archivedCount ? [['archived', `Archived (${summary.archivedCount})`] as [SpoolFilter, string]] : []),
+    ...(filter.startsWith('place:') ? [[filter, placeLabel(Number(filter.slice(6)))] as [SpoolFilter, string]] : [])
   ];
+  function placeLabel(id: number) {
+    return (placeShown?.id === id ? placeShown.name : (spools || []).find((spool) => spool.location_id === id)?.location_name) || 'This place';
+  }
+  const showPlace = (place: { id: number; name: string }) => {
+    setPlaceShown({ id: place.id, name: place.name });
+    setFilter(`place:${place.id}`);
+    setSearch('');
+    close();
+    requestAnimationFrame(() => document.getElementById('jp-filament-all')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  };
 
   const onAction = (action: SpoolAction, spool: Spool) => {
     if (action === 'edit') setDialog({ kind: 'spool', spool });
@@ -485,7 +502,7 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'finish-drying' && <FinishDryingDialog sessionId={dialog.sessionId} name={dialog.name} onClose={close} />}
       {dialog?.kind === 'catalog' && <CatalogDialog onClose={close} onPicked={(preset) => setDialog({ kind: 'spool', preset })} />}
       {dialog?.kind === 'spoolman' && <SpoolmanDialog onClose={close} />}
-      {dialog?.kind === 'places' && <PlacesDialog onClose={close} />}
+      {dialog?.kind === 'places' && <PlacesDialog onClose={close} onShow={showPlace} />}
       {dialog?.kind === 'export' && <ExportSpoolsDialog onClose={close} />}
       {dialog?.kind === 'csv' && <ImportCsvDialog onClose={close} />}
       {dialog?.kind === 'filaments' && (

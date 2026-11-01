@@ -2,7 +2,23 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [10.4.0] - 2026-10-31
+
+One filament catalogue with duplicates merged, your own filaments in it, and spools that are easier to find: numbered, opened in a window, with their place.
+
+**Upgrade notes:**
+- The filament catalogue is now kept in the database. The first time someone opens **Add from catalogue** (or the catalogue settings) after upgrading, JusttPrint reads the bundled list into it, which takes a second or two; a SpoolmanDB downloaded before comes in too, and its old file (`catalog/spoolmandb.json` next to the database) is deleted. The database grows by about 15 MB.
+- Filaments already added from the catalogue keep working: adding the same filament again finds the profile made before.
+
+**Changes:**
+- **One filament catalogue, duplicates merged.** 3dfilamentprofiles.com and SpoolmanDB are merged into one list: brands spelled differently (SUNLU, Sunlu) are one brand, and a filament both lists have is one filament with the details of each (SpoolmanDB's spool sizes are one filament too). With SpoolmanDB, about 31,200 filaments from 932 brands instead of 37,000 entries from 962 spellings.
+- **Check for updates.** Settings → Integrations → Filament catalogue checks SpoolmanDB for a newer list and downloads it only when it changed, then says what came in (new, merged, changed, gone).
+- **Add your own filaments to the catalogue.** Add from catalogue has **Add to the catalogue** for a filament it lacks, and a pencil to change or delete one (editors). Updates never undo those changes, and a deleted filament does not come back. Results say which list each filament comes from, or **Yours**.
+- **Merge and rename brands.** The catalogue settings suggest brands that may be the same (Fusion and Fusion Filaments) to merge, or mark as not the same, and list every brand to rename or merge. Updates keep merged brands together and keep the names you give.
+- **See what is in a place.** In **Filament → Places**, a place's name is now a link: it closes Places and shows only the spools in that place, with a chip of its name above them (**All** shows every spool again).
+- **Every spool has a number.** Each spool shows its number (#12) on its card, in the first column of the table and in its window's title, so you can write it on the spool and count them. Sort by **Number**, or type `#12` in the search to find that spool.
+- **A spool opens in a window.** Clicking a spool opens it in a window in the middle of the page instead of a panel on the right: the ring, photo and buttons on the left, its details and history on the right (one column on a phone).
+- **A spool shows its place.** Clicking a spool now lists its **Place** at the top of its details, and **In printer** when it is loaded, also while it dries; before, only the small line under the grams said where it was, and it showed the printer or Drying instead of the place.
 
 ## [10.3.1] - 2026-10-31
 

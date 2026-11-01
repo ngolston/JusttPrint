@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 10.3.1**
+**Version 10.4.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -11,7 +11,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 ## Features
 
 - **A home for your printing**: Home shows your figures, recent prints and printers, the kits you are partway through, what needs attention (models without tags, a license, a category or a thumbnail, duplicates, maintenance, late backups), your favorites, collections and categories; the Library has tabs for Printed, Unprinted, Queue and Favorites
-- **Filament and spools**: add spools from a catalogue of about 27,000 filaments (and SpoolmanDB's 9,000 when you download it), by hand, from a CSV, from Spoolman or from FilamentHub; weigh them to know what is left, dry them, keep them in places, see what is loaded in each printer's AMS, get low-stock alerts (Discord, email, webhooks), a shopping list and QR labels (which anyone can scan, if you allow it); photos of spools, filaments and prints; your filaments and brands in one list; the spools as cards or a sortable table, with saved views; when each spool runs out at the rate you use it; export as CSV or JSON; grams, kg, ounces or pounds, °C or °F; a sensor per spool in **Home Assistant**
+- **Filament and spools**: add spools from a catalogue of over 27,000 filaments (over 31,000 with SpoolmanDB, which you download and check for updates), one list with duplicates and brand spellings merged, and filaments you add to it yourself, by hand, from a CSV, from Spoolman or from FilamentHub; weigh them to know what is left, dry them, keep them in places, see what is loaded in each printer's AMS, get low-stock alerts (Discord, email, webhooks), a shopping list and QR labels (which anyone can scan, if you allow it); photos of spools, filaments and prints; your filaments and brands in one list; the spools as cards or a sortable table, with saved views; when each spool runs out at the rate you use it; export as CSV or JSON; grams, kg, ounces or pounds, °C or °F; a sensor per spool in **Home Assistant**
 - **Ready to print**: JusttPrint reads what each 3MF's plates need and checks it against your spools, so cards say **Ready to print** or **Need black**, **Fits my filament** shows what you can print now, and Log Print takes the grams off the spools it used
 - **Print queue and printers** pages: a queue in the order you set, by plate and printer, where each item says whether your spools cover it (counting the prints before it); your printers with their AMS, web pages and maintenance reminders
 - **Quick to load**: the backend compresses what it sends, browsers keep the app's code between visits, and the Library loads a card's other pictures only when you look at them; lists, searches and sorts stay fast on large libraries (the pictures are kept apart from the details the Library reads)
