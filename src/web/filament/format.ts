@@ -31,7 +31,7 @@ export function formatTimeLeft(ms: number): string {
   return `${parts.join(' ')} left`;
 }
 
-export type SpoolFilter = 'all' | 'low' | 'drying' | 'archived' | `material:${string}`;
+export type SpoolFilter = 'all' | 'low' | 'drying' | 'archived' | `material:${string}` | `place:${number}`;
 
 /** Does a spool show under a filter? Archived spools show only under Archived. */
 export function matchesFilter(spool: Spool, filter: SpoolFilter): boolean {
@@ -40,13 +40,15 @@ export function matchesFilter(spool: Spool, filter: SpoolFilter): boolean {
   if (filter === 'low') return spool.remaining < LOW_GRAMS;
   if (filter === 'drying') return !!spool.drying;
   if (filter.startsWith('material:')) return spool.material.toLowerCase() === filter.slice(9).toLowerCase();
+  if (filter.startsWith('place:')) return spool.location_id === Number(filter.slice(6));
   return true;
 }
 
-/** Does a spool match the search words (name, brand, material, color, place)? */
+/** Does a spool match the search words (name, brand, material, color, place)? "#12" finds spool number 12. */
 export function matchesSearch(spool: Spool, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
+  if (words.some((word) => /^#\d+$/.test(word) && Number(word.slice(1)) !== spool.id)) return false;
   const text = [
     spool.display_name,
     spool.brand_name,
@@ -59,7 +61,7 @@ export function matchesSearch(spool: Spool, query: string): boolean {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-  return words.every((word) => text.includes(word));
+  return words.every((word) => /^#\d+$/.test(word) || text.includes(word));
 }
 
 /** Where a spool is, in a few words: loaded in a printer, its place, drying, or archived. */
@@ -69,6 +71,9 @@ export function spoolWhere(spool: Spool): string {
   if (spool.loaded.length) return spool.loaded.map((place) => place.label).join(', ');
   return spool.location_name || 'No place';
 }
+
+/** A spool's number, the one to write on the spool: "#12". */
+export const spoolNumber = (spool: Pick<Spool, 'id'>) => `#${spool.id}`;
 
 /** A number field's text as a number, or null when empty. */
 export function numberOrNull(value: string): number | null {
@@ -112,7 +117,7 @@ export function formatMoney(amount: number | null | undefined, currency = 'USD')
 
 // ---- The spool list: sorting and saved views (docs/plan-10.1.md, Phase 4) ----
 
-export type SpoolSortKey = 'default' | 'name' | 'material' | 'color' | 'remaining' | 'pct' | 'place' | 'price' | 'lastUsed';
+export type SpoolSortKey = 'default' | 'id' | 'name' | 'material' | 'color' | 'remaining' | 'pct' | 'place' | 'price' | 'lastUsed';
 export interface SpoolSort {
   key: SpoolSortKey;
   dir: 'asc' | 'desc';
@@ -120,6 +125,7 @@ export interface SpoolSort {
 export const DEFAULT_SORT: SpoolSort = { key: 'default', dir: 'asc' };
 export const SORT_LABELS: Record<SpoolSortKey, string> = {
   default: 'In use first, fullest first',
+  id: 'Number',
   name: 'Name',
   material: 'Material',
   color: 'Color',
@@ -152,6 +158,8 @@ const pctOf = (spool: Spool) => (spool.initial_weight > 0 ? spool.remaining / sp
 /** The value a spool sorts by; null sorts last either way. */
 function sortValue(spool: Spool, key: SpoolSortKey): string | number | null {
   switch (key) {
+    case 'id':
+      return spool.id;
     case 'name':
       return spool.display_name.toLowerCase();
     case 'material':
@@ -220,7 +228,7 @@ export function parseViews(raw: string | null | undefined): SpoolView[] {
         name: String(item.name || '')
           .trim()
           .slice(0, 60),
-        filter: (/^(all|low|drying|archived|material:.+)$/.test(filter) ? filter : 'all') as SpoolFilter,
+        filter: (/^(all|low|drying|archived|material:.+|place:\d+)$/.test(filter) ? filter : 'all') as SpoolFilter,
         search: String(item.search || '').slice(0, 200),
         sort: { key: (keys.includes(String(sort.key)) ? sort.key : 'default') as SpoolSortKey, dir: sort.dir === 'desc' ? 'desc' : 'asc' },
         layout: item.layout === 'table' ? 'table' : 'cards'

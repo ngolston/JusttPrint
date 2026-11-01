@@ -3749,9 +3749,22 @@ async function browserChecks(base, wsUrl, session) {
       (await page.isVisible('#jp-add-from-catalog')) && !(await page.isVisible('.jp-spool-card'))
     );
     await page.click('#jp-add-from-catalog');
+    // 10.4: a filament the catalogue lacks is added to it, and is found there marked as added here.
+    await page.click('#jp-catalog-add');
+    await page.fill('#jp-catalog-filament-brand', 'E2E Catalogue Brand');
+    await page.fill('#jp-catalog-filament-material', 'PLA Silk');
+    await page.fill('#jp-catalog-filament-name', 'Moon Grey');
+    await page.click('#jp-catalog-filament button[type=submit]');
+    check(
+      'a filament added to the catalogue is found there, marked as added here',
+      await page.waitForSelector('.jp-catalog__item:has-text("E2E Catalogue Brand · Moon Grey"):has-text("Yours")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
     await page.fill('#jp-catalog-search', 'bambu pla basic black');
-    await page.waitForSelector('.jp-catalog__item', { timeout: 10000 }).catch(() => {});
-    await page.click('.jp-catalog__item >> nth=0');
+    await page.waitForSelector('.jp-catalog__item:has-text("Bambu Lab")', { timeout: 10000 }).catch(() => {});
+    await page.click('.jp-catalog__item:has-text("Bambu Lab") >> nth=0');
     await page.waitForSelector('#jp-spool-form-form', { timeout: 10000 }).catch(() => {});
     const prefilled = {
       brand: await page.inputValue('#jp-spool-brand').catch(() => ''),
@@ -3772,8 +3785,11 @@ async function browserChecks(base, wsUrl, session) {
       (await page.isVisible('.jp-spool-card.is-empty:has-text("18 g")')) &&
         (await page.textContent('.jp-filament__headline').catch(() => '')).includes('1 running low')
     );
+    const firstId = ((await invoke(base, session, 'get-spools', [{}])).result || [])[0]?.id;
+    check("a spool card shows the spool's number", await page.isVisible(`.jp-spool-card .jp-spool-card__number:text-is("#${firstId}")`), String(firstId));
     await page.click('.jp-spool-card');
     await page.waitForSelector('#jp-spool-detail', { timeout: 10000 }).catch(() => {});
+    check("the spool window shows the spool's number in its title", await page.isVisible(`.jp-spool-drawer .jp-overlay__header:has-text("#${firstId} ·")`));
     await page.click('#jp-spool-detail button:has-text("Weigh")');
     await page.fill('#jp-weigh-weight', '900');
     await page.click('#jp-weigh-form button[type=submit]');
@@ -3792,6 +3808,13 @@ async function browserChecks(base, wsUrl, session) {
     await page.fill('#jp-dry-temp', '50');
     await page.fill('#jp-dry-hours', '4');
     await page.click('#jp-dry-form button[type=submit]');
+    check(
+      'a drying spool still shows its place',
+      await page.waitForSelector('#jp-spool-detail .jp-prop:has-text("Place"):has-text("E2E Shelf")', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
     check(
       'drying a spool shows it in the Dryer tile',
       await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { timeout: 10000 }).then(
@@ -4380,6 +4403,30 @@ async function browserChecks(base, wsUrl, session) {
       await page.waitForSelector(`${card}[data-url*="/#/filament/"]`, { timeout: 10000 }).catch(() => {});
       check('turning public labels off closes the pages again', onUrl ? (await fetch(onUrl.replace(/^https?:\/\/[^/]+/, base))).status === 404 : false);
       await page.click('#jp-labels-dialog button:has-text("Close")').catch(() => {});
+      // Places: a place's name shows the spools in it.
+      await page.click('#jp-filament-places');
+      await page.click('#jp-places-dialog .jp-places__show:has-text("E2E Label Shelf")');
+      const shown = await page
+        .waitForFunction(
+          () => {
+            const chip = document.querySelector('.jp-filament__chips .jp-chip.is-on');
+            const names = [...document.querySelectorAll('.jp-spool-card')].map((c) => c.textContent || '');
+            return (
+              !document.querySelector('#jp-places-dialog[open]') &&
+              /E2E Label Shelf/.test(chip?.textContent || '') &&
+              names.length === 1 &&
+              /E2E Label Spool/.test(names[0])
+            );
+          },
+          null,
+          { timeout: 10000 }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      check('clicking a place in Places shows only the spools in it, with its chip on', shown);
+      await page.click('.jp-filament__chips .jp-chip:has-text("All")').catch(() => {});
       await invoke(base, session, 'delete-spool', [labelSpool.id]);
       await invoke(base, session, 'delete-storage-location', [labelPlace.id]);
     } catch (error) {
@@ -4722,6 +4769,35 @@ async function browserChecks(base, wsUrl, session) {
         'Filament catalogue shows the bundled catalogue and that SpoolmanDB is not downloaded',
         /3dfilamentprofiles\.com/.test(sourcesText) && /27,\d{3}|2\d,\d{3}/.test(sourcesText) && /Not downloaded/.test(sourcesText),
         sourcesText.slice(0, 160)
+      );
+      // 10.4: one merged list; brands spelled differently are one, and an admin merges the ones left.
+      const totals = await page.textContent('#catalog-totals').catch(() => '');
+      check(
+        'Filament catalogue says how many filaments and brands it has, duplicates merged',
+        /2\d,\d{3} filaments from \d{3} brands, [\d,]+ duplicates merged/.test(totals),
+        totals
+      );
+      check(
+        'Filament catalogue suggests brands that may be the same',
+        await page.waitForSelector('#catalog-suggestions li:has-text("Solutech")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )
+      );
+      await page.fill('#catalog-brand-search', 'solutech');
+      await page.waitForSelector('#catalog-brands input[aria-label="Choose Solutech to merge"]', { timeout: 10000 }).catch(() => {});
+      await page.check('#catalog-brands input[aria-label="Choose 3D Solutech to merge"]').catch(() => {});
+      await page.check('#catalog-brands input[aria-label="Choose Solutech to merge"]').catch(() => {});
+      await page.click('#catalog-merge-bar button:has-text("Merge")').catch(() => {});
+      const mergedText = await page
+        .waitForSelector('#catalog-sources-status:has-text("Merged Solutech into 3D Solutech")', { timeout: 15000 })
+        .then((el) => el.textContent())
+        .catch(() => '');
+      const solutech = (await invoke(base, session, 'get-catalog-brands', [{ search: 'solutech' }])).result || [];
+      check(
+        'ticking two brands and Merge makes them one brand',
+        !!mergedText && solutech.length === 1 && solutech[0].name === '3D Solutech',
+        `${mergedText} ${JSON.stringify(solutech.map((b) => b.name))}`
       );
       await page.click('#catalog-sources-dialog button:has-text("Close")').catch(() => {});
     } catch (error) {
@@ -6892,6 +6968,15 @@ async function accountChecks(base, wsUrl, admin) {
     if (e2eUser) await invoke(base, admin, 'delete-user', [e2eUser.id]);
   }
   check('editors cannot download into the catalogue', (await invoke(base, editor, 'refresh-spoolmandb')).status === 403);
+  check('editors cannot merge catalogue brands', (await invoke(base, editor, 'merge-catalog-brands', [[1], 2])).status === 403);
+  const editorFilament = await invoke(base, editor, 'save-catalog-filament', [{ brand: 'E2E Editor Brand', material: 'PETG', name: 'Lime' }]);
+  check(
+    'editors add filaments to the catalogue',
+    editorFilament.status === 200 && editorFilament.result?.manual === true,
+    JSON.stringify(editorFilament.result || editorFilament.error)
+  );
+  check('viewers cannot change the catalogue', (await invoke(base, viewer, 'save-catalog-filament', [{ brand: 'X', material: 'PLA' }])).status === 403);
+  check('viewers search the catalogue', ((await invoke(base, viewer, 'search-filament-catalog', ['e2e editor brand lime'])).result?.total || 0) === 1);
   check('viewers choose their own alerts', (await invoke(base, viewer, 'save-alert-prefs', [{ weeklyDigest: false }])).status === 200);
   check('viewers cannot make label links', (await invoke(base, viewer, 'get-label-links', [{ spoolIds: [1] }])).status === 403);
   await invoke(base, editor, 'save-setting', ['publicLabels', 'true']);

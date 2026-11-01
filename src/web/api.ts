@@ -875,10 +875,11 @@ export interface FilamentSummary {
   currency: string;
 }
 
-/** A filament in the bundled catalogue (search-filament-catalog). */
+/** A filament in the catalogue (search-filament-catalog; src/core/filament-catalog.js). */
 export interface CatalogFilament {
-  id: string;
+  id: number;
   brand: string;
+  brand_id: number;
   name: string;
   material: string;
   color_name: string | null;
@@ -892,22 +893,72 @@ export interface CatalogFilament {
   bed_temp_min: number | null;
   bed_temp_max: number | null;
   product_url: string | null;
-  /** Where it comes from: the bundled snapshot, or SpoolmanDB when an admin downloaded it (10.2). */
-  from?: '3dfilamentprofiles' | 'spoolmandb';
+  /** The sources it was merged from (none for one added by hand). */
+  sources: CatalogSourceId[];
+  /** Added by hand. */
+  manual: boolean;
+  /** Changed by hand: updates leave its details alone. */
+  edited: boolean;
 }
 
-/** A source of the filament catalogue and how many filaments it has. */
+export type CatalogSourceId = '3dfilamentprofiles' | 'spoolmandb';
+
+/** What one update of a source did. */
+export interface CatalogReport {
+  source: CatalogSourceId;
+  entries: number;
+  added: number;
+  merged: number;
+  duplicates: number;
+  updated: number;
+  removed: number;
+  brands: number;
+}
+
+/** A source of the filament catalogue: how many entries it has and when its list is from. */
 export interface CatalogSource {
-  id: '3dfilamentprofiles' | 'spoolmandb';
+  id: CatalogSourceId;
   name: string;
   count: number;
   fetchedAt: string | null;
+  checkedAt: string | null;
+  report: CatalogReport | null;
 }
 
+/** What the catalogue holds (get-catalog-sources). */
+export interface CatalogStatus {
+  sources: CatalogSource[];
+  filaments: number;
+  brands: number;
+  manual: number;
+  /** Source entries merged into another (duplicates). */
+  merged: number;
+  url: string;
+  /** After a check: SpoolmanDB had nothing new. */
+  upToDate?: boolean;
+  report?: CatalogReport | null;
+}
+
+export interface CatalogBrand {
+  id: number;
+  name: string;
+  count: number;
+  renamed: boolean;
+}
+
+export type CatalogFilamentInput = Partial<Omit<CatalogFilament, 'sources' | 'manual' | 'edited' | 'brand_id'>> & { brand: string; material: string };
+
 export const catalogSources = {
-  get: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('get-catalog-sources'),
-  refreshSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('refresh-spoolmandb'),
-  removeSpoolmanDb: () => callAction<{ bundled: CatalogSource | null; spoolmandb: CatalogSource | null; url: string }>('remove-spoolmandb')
+  get: () => callAction<CatalogStatus>('get-catalog-sources'),
+  checkSpoolmanDb: (force = false) => callAction<CatalogStatus>('refresh-spoolmandb', { force }),
+  removeSpoolmanDb: () => callAction<CatalogStatus>('remove-spoolmandb'),
+  brands: (search: string, limit = 200) => callAction<CatalogBrand[]>('get-catalog-brands', { search, limit }),
+  renameBrand: (id: number, name: string) => callAction<{ brand: CatalogBrand; merged: number }>('rename-catalog-brand', id, name),
+  mergeBrands: (fromIds: number[], intoId: number) => callAction<{ brand: CatalogBrand; merged: number }>('merge-catalog-brands', fromIds, intoId),
+  suggestions: () => callAction<{ id: number; name: string; count: number }[][]>('get-catalog-brand-suggestions'),
+  ignoreSuggestion: (ids: number[]) => callAction<boolean>('ignore-catalog-brand-suggestion', ids),
+  saveFilament: (filament: CatalogFilamentInput) => callAction<CatalogFilament>('save-catalog-filament', filament),
+  deleteFilament: (id: number) => callAction<boolean>('delete-catalog-filament', id)
 };
 
 export interface SpoolmanImport {
@@ -1093,13 +1144,8 @@ export const filament = {
     callAction<{ public: boolean; spools: Record<string, string | null>; places: Record<string, string | null> }>('get-label-links', input),
   setSpoolPhoto: (id: number, photo: PhotoInput | null) => callAction<SpoolDetail>('set-spool-photo', id, photo),
   setFilamentPhoto: (id: number, photo: PhotoInput | null) => callAction<FilamentProfile>('set-filament-photo', id, photo),
-  searchCatalog: (query: string, limit = 50) =>
-    callAction<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null; sources?: CatalogSource[] }>(
-      'search-filament-catalog',
-      query,
-      { limit }
-    ),
-  addFromCatalog: (id: string) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
+  searchCatalog: (query: string, limit = 50) => callAction<{ total: number; items: CatalogFilament[] }>('search-filament-catalog', query, { limit }),
+  addFromCatalog: (id: number) => callAction<{ profile: FilamentProfile; entry: CatalogFilament; materialType: string | null }>('add-catalog-filament', id),
   locations: () => callAction<StorageLocation[]>('get-storage-locations'),
   saveLocation: (location: { id?: number; name: string; description?: string | null; is_dry_box?: boolean }) =>
     callAction<StorageLocation>('save-storage-location', location),

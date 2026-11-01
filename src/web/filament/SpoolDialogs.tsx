@@ -4,7 +4,6 @@ import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   filament,
   type CatalogFilament,
-  type CatalogSource,
   type FilamentBrand,
   type FilamentProfile,
   type Spool,
@@ -16,6 +15,8 @@ import { Button, IconButton, cx } from '../components/Button';
 import { ColorDot } from '../components/Filament';
 import { Modal } from '../components/Overlay';
 import { showMessage } from '../page';
+import { useCan } from '../session';
+import { CatalogFilamentForm } from './CatalogFilamentForm';
 import { formatWeight, numberOrNull } from './format';
 
 /*
@@ -436,13 +437,26 @@ export function MoveDialog({ spool, onClose }: { spool: Spool; onClose: () => vo
   );
 }
 
-/** Search the bundled catalogue; choosing a filament adds it as a profile and opens the spool form. */
+const SOURCE_BADGES: Record<string, string> = { '3dfilamentprofiles': '3dfilamentprofiles.com', spoolmandb: 'SpoolmanDB' };
+
+/** Where a catalogue filament comes from, in a few words. */
+function catalogFrom(item: CatalogFilament) {
+  if (item.manual) return 'Yours';
+  if (item.sources.length > 1) return 'Both lists';
+  return SOURCE_BADGES[item.sources[0]] || '';
+}
+
+/**
+ * Search the catalogue (src/core/filament-catalog.js); choosing a filament adds it as a profile and
+ * opens the spool form. Editors add filaments that are missing and change the ones that are wrong.
+ */
 export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPicked: (preset: SpoolPreset) => void }) {
   const [query, setQuery] = useState('');
-  const [result, setResult] = useState<{ total: number; items: CatalogFilament[]; source: string; fetchedAt: string | null; sources?: CatalogSource[] } | null>(
-    null
-  );
+  const [result, setResult] = useState<{ total: number; items: CatalogFilament[] } | null>(null);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState<{ filament: CatalogFilament | null } | null>(null);
+  const [round, setRound] = useState(0);
+  const canEdit = useCan('editor');
   useEffect(() => {
     const words = query.trim();
     if (!words) {
@@ -460,7 +474,7 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
       alive = false;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, round]);
   const pick = async (item: CatalogFilament) => {
     try {
       const added = await filament.addFromCatalog(item.id);
@@ -469,22 +483,42 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
       setError(errorText(failure));
     }
   };
-  const snapshot = result?.fetchedAt ? new Date(result.fetchedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : '';
+  if (editing) {
+    return (
+      <CatalogFilamentForm
+        filament={editing.filament}
+        start={editing.filament ? undefined : { brand: query.trim().split(/\s+/)[0] || '' }}
+        onClose={() => setEditing(null)}
+        onSaved={(saved) => {
+          setEditing(null);
+          if (saved && !editing.filament) setQuery(`${saved.brand} ${saved.name}`);
+          setRound((n) => n + 1);
+        }}
+      />
+    );
+  }
   return (
     <Modal open onClose={onClose} title="Add from catalogue" id="jp-catalog-dialog" className="jp-filament-form jp-filament-form--wide">
-      <label className="jp-catalog__search">
-        <Search size={16} aria-hidden="true" />
-        <span className="jp-sr-only">Search the filament catalogue</span>
-        <input
-          id="jp-catalog-search"
-          className="jp-input"
-          type="search"
-          autoFocus
-          placeholder="Brand, material, color: bambu pla basic black"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <div className="jp-catalog__bar">
+        <label className="jp-catalog__search">
+          <Search size={16} aria-hidden="true" />
+          <span className="jp-sr-only">Search the filament catalogue</span>
+          <input
+            id="jp-catalog-search"
+            className="jp-input"
+            type="search"
+            autoFocus
+            placeholder="Brand, material, color: bambu pla basic black"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        {canEdit && (
+          <Button icon={Plus} onClick={() => setEditing({ filament: null })} id="jp-catalog-add">
+            Add to the catalogue
+          </Button>
+        )}
+      </div>
       {error && (
         <p className="jp-filament-form__error" role="alert">
           {error}
@@ -492,22 +526,20 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
       )}
       <p className="jp-meta" aria-live="polite">
         {!result
-          ? 'About 27,000 filaments from 3dfilamentprofiles.com, and SpoolmanDB when an admin downloaded it (Settings → Integrations → Filament catalogue).'
+          ? 'Over 30,000 filaments from 3dfilamentprofiles.com and SpoolmanDB, duplicates merged, and the ones added here.'
           : `${result.total.toLocaleString()} ${result.total === 1 ? 'filament' : 'filaments'}${result.total > result.items.length ? `, the first ${result.items.length} shown` : ''}`}
-        {result?.sources && result.sources.length > 1
-          ? ` · From ${result.sources.map((source) => source.name).join(' and ')}`
-          : snapshot && ` · Catalogue from ${snapshot}`}
+        {result && !result.total && canEdit && ' Not there? Add it to the catalogue.'}
       </p>
       {result && result.items.length > 0 && (
         <ul className="jp-catalog__list" aria-label="Catalogue filaments">
           {result.items.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="jp-catalog__row">
               <button type="button" className="jp-catalog__item" onClick={() => void pick(item)}>
                 <ColorDot color={item.color_hex || '#9aa4b4'} size={22} />
                 <span className="jp-catalog__text">
                   <span className="jp-catalog__name">
                     {item.brand} · {item.name}
-                    {item.from === 'spoolmandb' && <span className="jp-badge jp-catalog__from">SpoolmanDB</span>}
+                    {catalogFrom(item) && <span className="jp-badge jp-catalog__from">{catalogFrom(item)}</span>}
                   </span>
                   <span className="jp-catalog__meta">
                     {[item.material, item.diameter ? `${item.diameter} mm` : '', item.weight ? formatWeight(item.weight) : ''].filter(Boolean).join(' · ')}
@@ -515,6 +547,9 @@ export function CatalogDialog({ onClose, onPicked }: { onClose: () => void; onPi
                 </span>
                 <Plus size={16} aria-hidden="true" />
               </button>
+              {canEdit && (
+                <IconButton icon={Pencil} label={`Change ${item.brand} ${item.name} in the catalogue`} onClick={() => setEditing({ filament: item })} />
+              )}
             </li>
           ))}
         </ul>
@@ -585,8 +620,8 @@ export function SpoolmanDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** The places spools are kept: add, rename, delete. */
-export function PlacesDialog({ onClose }: { onClose: () => void }) {
+/** The places spools are kept: add, rename, delete; a place's name shows its spools (`onShow`). */
+export function PlacesDialog({ onClose, onShow }: { onClose: () => void; onShow?: (place: StorageLocation) => void }) {
   const [places, setPlaces] = useState<StorageLocation[] | null>(null);
   const [name, setName] = useState('');
   const [dryBox, setDryBox] = useState(false);
@@ -658,10 +693,17 @@ export function PlacesDialog({ onClose }: { onClose: () => void }) {
               </form>
             ) : (
               <>
-                <span className="jp-places__name">
-                  {place.name}
-                  {place.is_dry_box ? <span className="jp-badge">Dry box</span> : null}
-                </span>
+                {onShow ? (
+                  <button type="button" className="jp-places__name jp-places__show" onClick={() => onShow(place)} title={`Show the spools in ${place.name}`}>
+                    {place.name}
+                    {place.is_dry_box ? <span className="jp-badge">Dry box</span> : null}
+                  </button>
+                ) : (
+                  <span className="jp-places__name">
+                    {place.name}
+                    {place.is_dry_box ? <span className="jp-badge">Dry box</span> : null}
+                  </span>
+                )}
                 <span className="jp-meta">
                   {place.spool_count || 0} {place.spool_count === 1 ? 'spool' : 'spools'}
                 </span>

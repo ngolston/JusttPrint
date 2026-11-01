@@ -228,6 +228,73 @@ const TABLES = [
     spool_id INTEGER NOT NULL REFERENCES spools(id) ON DELETE CASCADE,
     grams REAL NOT NULL,
     PRIMARY KEY (queue_id, spool_id)
+  )`,
+  // The filament catalogue (src/core/filament-catalog.js, 10.4): one list merged from its sources.
+  // key: the name folded (case, spaces, punctuation, "Inc"), so "SUNLU" and "Sunlu" are one brand.
+  // renamed: an admin named it; updates keep that name.
+  `CREATE TABLE IF NOT EXISTS catalog_brands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    key TEXT NOT NULL UNIQUE,
+    renamed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  // Other keys that mean a brand: a merged brand's, or a renamed one's old key.
+  `CREATE TABLE IF NOT EXISTS catalog_brand_aliases (
+    key TEXT PRIMARY KEY,
+    brand_id INTEGER NOT NULL REFERENCES catalog_brands(id) ON DELETE CASCADE
+  )`,
+  // Brand pairs an admin said are not the same (keys "a|b", sorted), so they are not suggested again.
+  `CREATE TABLE IF NOT EXISTS catalog_brand_pairs_ignored (
+    pair TEXT PRIMARY KEY
+  )`,
+  // origin: source (from a source) | manual (added by hand). edited: changed by hand, so updates
+  // leave its details alone. hidden: deleted by hand, so updates do not bring it back.
+  // match_key: the words of its material and name, and its diameter, that duplicates share.
+  `CREATE TABLE IF NOT EXISTS catalog_filaments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand_id INTEGER NOT NULL REFERENCES catalog_brands(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    material TEXT NOT NULL,
+    color_name TEXT,
+    color_hex TEXT,
+    diameter REAL,
+    weight REAL,
+    spool_weight REAL,
+    density REAL,
+    print_temp_min INTEGER,
+    print_temp_max INTEGER,
+    bed_temp_min INTEGER,
+    bed_temp_max INTEGER,
+    product_url TEXT,
+    match_key TEXT NOT NULL,
+    search TEXT NOT NULL,
+    origin TEXT NOT NULL DEFAULT 'source',
+    edited INTEGER NOT NULL DEFAULT 0,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  // Which source entries became a catalogue filament (source: 3dfilamentprofiles | spoolmandb; ref:
+  // the entry's id there). full_name tells two of one source's filaments apart.
+  `CREATE TABLE IF NOT EXISTS catalog_filament_refs (
+    source TEXT NOT NULL,
+    ref TEXT NOT NULL,
+    filament_id INTEGER NOT NULL REFERENCES catalog_filaments(id) ON DELETE CASCADE,
+    full_name TEXT,
+    PRIMARY KEY (source, ref)
+  )`,
+  // Each source: when its list is from, when it was last checked, and what the last update did.
+  `CREATE TABLE IF NOT EXISTS catalog_sources (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    fetched_at TEXT,
+    checked_at TEXT,
+    count INTEGER NOT NULL DEFAULT 0,
+    etag TEXT,
+    report TEXT
   )`
 ];
 
@@ -250,7 +317,10 @@ const INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_model_plate_filaments_model ON model_plate_filaments(model_id)',
   'CREATE INDEX IF NOT EXISTS idx_print_queue_position ON print_queue(position)',
   'CREATE INDEX IF NOT EXISTS idx_print_queue_model ON print_queue(model_id)',
-  'CREATE INDEX IF NOT EXISTS idx_queue_spool_holds_spool ON queue_spool_holds(spool_id)'
+  'CREATE INDEX IF NOT EXISTS idx_queue_spool_holds_spool ON queue_spool_holds(spool_id)',
+  'CREATE INDEX IF NOT EXISTS idx_catalog_filaments_brand ON catalog_filaments(brand_id)',
+  'CREATE INDEX IF NOT EXISTS idx_catalog_filaments_match ON catalog_filaments(match_key)',
+  'CREATE INDEX IF NOT EXISTS idx_catalog_filament_refs_filament ON catalog_filament_refs(filament_id)'
 ];
 
 /** Columns JusttPrint's own tables gain in 10.0: [table, column, definition]. */

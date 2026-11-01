@@ -4,7 +4,7 @@ import { formatDay } from '../units';
 import { cx } from '../components/Button';
 import { ColorDot } from '../components/Filament';
 import { useCurrency } from './currency';
-import { formatMoney, formatWeight, LOW_GRAMS, spoolWhere, type SpoolSort, type SpoolSortKey } from './format';
+import { formatMoney, formatWeight, LOW_GRAMS, spoolNumber, spoolWhere, type SpoolSort, type SpoolSortKey } from './format';
 
 /*
  * The spool list as a table (docs/plan-10.1.md, Phase 4): one row per spool, columns that sort
@@ -12,6 +12,7 @@ import { formatMoney, formatWeight, LOW_GRAMS, spoolWhere, type SpoolSort, type 
  */
 
 const COLUMNS: { key: SpoolSortKey; label: string; numeric?: boolean }[] = [
+  { key: 'id', label: '#', numeric: true },
   { key: 'name', label: 'Spool' },
   { key: 'material', label: 'Material' },
   { key: 'color', label: 'Color' },
@@ -72,6 +73,7 @@ export function SpoolTable({
             const low = spool.status !== 'archived' && spool.remaining < LOW_GRAMS;
             return (
               <tr key={spool.id} className={cx(spool.status === 'archived' && 'is-archived')}>
+                <td className="is-numeric jp-spool-table__number">{spoolNumber(spool)}</td>
                 <td>
                   <button type="button" className="jp-spool-table__name" onClick={() => onOpen(spool)}>
                     {spool.display_name}
