@@ -59,6 +59,8 @@ The library shows your models as cards: preview, name, designer (or folder), fil
 - **Banners** (the whole library): **Printable right now** shows only the models your spools cover (click again for all), **New this week** the models added in the last 7 days.
 - **Fits my filament** (next to the tabs, once something fits) shows only what you can print with the spools on hand.
 
+The page scrolls as one: the title, categories and banners go up with the cards, and the bar with the tabs, the view buttons, the filters and the filter chips stays under the top bar, so they are always in reach. A new filter, search, sort or tab shows its models from the first one, the bar still in place. Going to another page and back keeps your place.
+
 - **Tabs**: **All Models**, **Printed**, **Unprinted**, **Queue** (queued or printing) and **Favorites**. The count next to them is the number of models shown.
 - **Views**: **Grid** (cards), **Wall** (large previews only; the tile size is next to the view buttons) and **List** (one row per model with columns you can show, hide and resize).
 - **Folders**: the folder button opens a folder panel beside the grid; click a folder to show only its models.

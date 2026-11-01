@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.5.0] - 2026-11-01
+
+The library scrolls as one page, its tabs and filters pinned under the top bar.
+
+**Changes:**
+- **The library's cards get the whole window.** The page scrolls as one: the title, categories and banners go up with the cards, and the bar with the tabs, view buttons, filters and chips stays pinned under the top bar. Before, the whole header stayed put and the cards scrolled in the space left under it (on a phone, one row of half-cut cards). A new filter, search, sort or tab starts at its first models, opening the details sidebar keeps the card you clicked where it was, and other pages keep the library's place.
+
 ## [10.4.0] - 2026-10-31
 
 One filament catalogue with duplicates merged, your own filaments in it, and spools that are easier to find: numbered, opened in a window, with their place.

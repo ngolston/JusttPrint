@@ -58,14 +58,18 @@ declare global {
  */
 let committing = false;
 
-/** The grid fills the window from its top edge down to the bottom chrome (the phone tab bar). */
-function fitHeight(container: HTMLElement, host: GridHost | undefined) {
-  const top = container.getBoundingClientRect().top;
+/**
+ * The grid scrolls with the page (10.5): the library header above it scrolls away, all but its
+ * pinned bar (tabs, filters and chips), which stays under the top bar. What part of the grid shows
+ * is measured from the page: `top` is how far into the grid the view starts (below the header's
+ * bottom edge, which is the pinned bar once it sticks; negative while the grid starts lower down),
+ * `height` how much of the window it has, down to the phone's tab bar.
+ */
+function gridView(container: HTMLElement, host: GridHost | undefined): { top: number; height: number } {
+  const header = container.previousElementSibling?.getBoundingClientRect();
+  const visibleFrom = Math.max(header ? header.bottom : 0, 0);
   const bottom = host?.bottomChrome() ?? 0;
-  const height = `calc(100vh - ${top}px - ${bottom}px)`;
-  if (container.style.height === height) return;
-  container.style.height = height;
-  container.style.maxHeight = height;
+  return { top: visibleFrom - container.getBoundingClientRect().top, height: Math.max(0, window.innerHeight - visibleFrom - bottom) };
 }
 
 const groupCardKey = (record: GroupRecord) => `${record.key}#${record.children.length}#${record.expanded ? 1 : 0}`;
@@ -81,6 +85,7 @@ export function LibraryGrid() {
   const [tick, setTick] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [viewHeight, setViewHeight] = useState(() => window.innerHeight);
   const [content, setContent] = useState<HTMLElement | null>(null);
   const focusRef = useRef(false);
   const host = window.gridHost;
@@ -112,26 +117,37 @@ export function LibraryGrid() {
     };
   }, []);
 
-  // Size and scroll position of the grid.
+  // The grid's width, and the part of it the window shows as the page scrolls (gridView).
   useEffect(() => {
     if (!container) return undefined;
     let frame = 0;
-    const measure = () => setSize({ width: container.clientWidth, height: container.clientHeight });
+    const place = () => {
+      const shown = gridView(container, window.gridHost);
+      setScrollTop(shown.top);
+      setViewHeight(shown.height);
+    };
+    const measure = () => {
+      setSize({ width: container.clientWidth, height: container.clientHeight });
+      place();
+    };
     const onScroll = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        setScrollTop(container.scrollTop);
+        place();
       });
     };
     measure();
     const resize = new ResizeObserver(() => measure());
     resize.observe(container);
-    container.addEventListener('scroll', onScroll, { passive: true });
+    // The header above changes height (banners, filter chips): the grid moves without a scroll.
+    const header = container.previousElementSibling;
+    if (header) resize.observe(header);
+    window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', measure);
     return () => {
       resize.disconnect();
-      container.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', measure);
       if (frame) cancelAnimationFrame(frame);
     };
@@ -153,14 +169,16 @@ export function LibraryGrid() {
     };
   }, [host, metrics, view, tick, generation, folders]);
 
-  // Grid box: fills the window below its top edge; preview wall styles.
+  // Grid box: as tall as its rows, scrolled by the page, clear of the phone's tab bar; preview wall styles.
   useLayoutEffect(() => {
     if (!container) return;
     container.style.position = 'relative';
-    container.style.overflowY = 'auto';
-    container.style.overflowX = 'hidden';
+    container.style.overflowY = 'visible';
+    container.style.overflowX = 'clip';
     container.style.display = 'block';
-    fitHeight(container, host);
+    container.style.height = '';
+    container.style.maxHeight = '';
+    container.style.paddingBottom = `${(host?.bottomChrome() ?? 0) + 16}px`;
     container.classList.toggle('preview-wall', view === 'preview');
     const grid = container as HTMLElement & { _previewTilePx?: number };
     if (view === 'preview') {
@@ -172,15 +190,6 @@ export function LibraryGrid() {
     }
   }, [container, host, view, metrics, generation]);
 
-  // The header above the grid changes height (filter chips, the Home dashboard): fit again.
-  useEffect(() => {
-    const header = container?.previousElementSibling;
-    if (!container || !header) return undefined;
-    const observer = new ResizeObserver(() => fitHeight(container, window.gridHost));
-    observer.observe(header);
-    return () => observer.disconnect();
-  }, [container]);
-
   // The list view's columns follow their saved layout (also on rows drawn before it loaded).
   useEffect(() => {
     loadColumnLayout();
@@ -191,17 +200,46 @@ export function LibraryGrid() {
   useLayoutEffect(() => {
     if (!focusRef.current || !container || !host) return;
     focusRef.current = false;
-    const target = scrollTopForSelection(layout, container.clientHeight, (path) => host.isSelected(path));
-    if (target != null && container.scrollTop !== target) {
-      container.scrollTop = target;
+    const shown = gridView(container, host);
+    const target = scrollTopForSelection(layout, shown.height, (path) => host.isSelected(path));
+    if (target != null && Math.round(shown.top) !== target) {
+      window.scrollBy(0, target - shown.top);
       setScrollTop(target);
     }
   }, [container, host, layout]);
 
-  // Start each rebuilt grid at the top unless a caller scrolls it.
+  // When the columns change (the details sidebar opens or closes, the window is resized), the
+  // selected card, else the first card in view, stays where it was on screen. The browser's own
+  // scroll anchoring is off for the grid (library-frame.css): it held on to whatever element it
+  // chose and moved the page.
+  const anchorRef = useRef<{ key: string; offset: number; columns: number; view: string } | null>(null);
   useLayoutEffect(() => {
-    if (container) setScrollTop(container.scrollTop);
-  }, [container, generation]);
+    const anchor = anchorRef.current;
+    if (!container || !anchor || anchor.view !== view || anchor.columns === metrics.columns) return;
+    const row = layout.rows.find((candidate) => candidate.records.some((record) => record.key === anchor.key));
+    if (!row) return;
+    const shown = gridView(container, host);
+    const want = row.top - anchor.offset;
+    if (Math.abs(want - shown.top) > 1) {
+      window.scrollBy(0, want - shown.top);
+      setScrollTop(gridView(container, host).top);
+    }
+  }, [container, host, layout, metrics.columns, view]);
+  useLayoutEffect(() => {
+    if (!container || !host) return;
+    const top = gridView(container, host).top;
+    const inView = layout.rows.filter((row) => row.bottom > top && row.top < top + viewHeight);
+    const selected = inView.find((row) => row.records.some((record) => record.type === 'model' && host.isSelected(record.model.filePath)));
+    const row = selected || inView[0];
+    if (!row) return;
+    const record = selected ? row.records.find((r) => r.type === 'model' && host.isSelected(r.model.filePath)) || row.records[0] : row.records[0];
+    anchorRef.current = { key: record.key, offset: row.top - top, columns: metrics.columns, view };
+  });
+
+  // A rebuilt grid shows the part of it the page is scrolled to.
+  useLayoutEffect(() => {
+    if (container) setScrollTop(gridView(container, host).top);
+  }, [container, host, generation]);
 
   useLayoutEffect(() => {
     committing = false;
@@ -211,7 +249,7 @@ export function LibraryGrid() {
   if (!container || !host) return null;
   committing = true;
 
-  const viewportHeight = size.height || container.clientHeight;
+  const viewportHeight = viewHeight;
   const rowHeight = view === 'preview' ? metrics.cellWidth : metrics.cellHeight;
   const buffer = Math.max(rowHeight, metrics.groupHeight) * 2;
   const shown = visibleRows(layout, scrollTop, viewportHeight, buffer);

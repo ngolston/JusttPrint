@@ -87,7 +87,9 @@ export function applyFilterChange(change: () => void) {
 export async function runSearch(options: SearchOptions = {}): Promise<void> {
   if (inProgress && !options.force) return;
   const grid = options.preserveScroll ? document.querySelector<HTMLElement & { currentModels?: Model[] }>('.file-grid') : null;
-  const savedScrollTop = grid ? grid.scrollTop : 0;
+  // The grid scrolls with the page (grid/LibraryGrid.tsx).
+  const page = document.scrollingElement || document.documentElement;
+  const savedScrollTop = grid ? page.scrollTop : 0;
   const shownCount = grid && Array.isArray(grid.currentModels) ? grid.currentModels.length : 0;
   let scrollRestored = !grid;
   let renderedCount = 0;
@@ -99,7 +101,7 @@ export async function runSearch(options: SearchOptions = {}): Promise<void> {
     renderedCount = models.length;
     if (!scrollRestored && grid) {
       scrollRestored = true;
-      if (grid.scrollTop !== savedScrollTop) grid.scrollTop = savedScrollTop;
+      if (page.scrollTop !== savedScrollTop) page.scrollTop = savedScrollTop;
     }
   };
 

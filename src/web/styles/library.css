@@ -1081,7 +1081,8 @@ body.jp-shell-on .file-grid .parent-model-group-thumbnail {
 }
 
 body.jp-shell-on .file-grid .list-view-header {
-  top: 0 !important;
+  /* Under the library's pinned bar, as the page scrolls (library-frame.css). */
+  top: calc(var(--jp-topbar-height) + var(--jp-library-pinned, 0px)) !important;
   /* Lined up with the rows (grid/layout.ts: list rows sit 20 px from the edges). */
   margin: 0 20px var(--jp-space-1);
   width: auto;

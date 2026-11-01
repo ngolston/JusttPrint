@@ -1,18 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/** A page with a grid that has 2000 models loaded and is scrolled to 840; the server answers in pages. */
+/** A page scrolled to 840 with a grid that has 2000 models loaded (it scrolls with the page); the server answers in pages. */
 function setupPage() {
-  const grid = { scrollTop: 840, currentModels: new Array(2000).fill(null).map((_, i) => ({ filePath: `m${i}.stl` })) };
+  const grid = { currentModels: new Array(2000).fill(null).map((_, i) => ({ filePath: `m${i}.stl` })) };
+  const page = { scrollTop: 840 };
   const renders: number[] = [];
   const pages: Record<string, number> = { '500:0': 500, '1200:500': 1200, '1200:1700': 300 };
   vi.stubGlobal('document', {
     getElementById: () => null,
+    scrollingElement: page,
     querySelector: (selector: string) => (selector === '.file-grid' ? grid : null)
   });
   vi.stubGlobal('window', {
     location: { href: 'http://test/', pathname: '/', search: '' },
     renderFiles: async (models: unknown[]) => {
-      grid.scrollTop = 0;
+      page.scrollTop = 0;
       renders.push(models.length);
     }
   });
@@ -25,7 +27,7 @@ function setupPage() {
     const result = new Array(count).fill(null).map((_, i) => ({ filePath: `p${offset + i}.stl` }));
     return { ok: true, status: 200, text: async () => JSON.stringify({ result }) };
   });
-  return { grid, renders };
+  return { grid, page, renders };
 }
 
 const until = async (check: () => boolean) => {
@@ -41,12 +43,12 @@ describe('runSearch', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('restores scroll on a background refresh and skips the short first page', async () => {
-    const { grid, renders } = setupPage();
+    const { page, renders } = setupPage();
     const { runSearch } = await import('./search');
     await runSearch({ preserveScroll: true });
     await until(() => (window as unknown as { _progressiveLibraryLoadActive?: boolean })._progressiveLibraryLoadActive === false && renders.length > 0);
     expect(renders).toEqual([2000]);
-    expect(grid.scrollTop).toBe(840);
+    expect(page.scrollTop).toBe(840);
   });
 
   it('renders the first page at once for a user search, then everything', async () => {

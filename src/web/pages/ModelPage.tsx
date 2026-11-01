@@ -403,10 +403,8 @@ export function ModelView({
     setSite(null);
     void load();
     loadSlicers().then(setSlicers, () => {});
-    if (!compact) {
-      window.scrollTo(0, 0);
-      document.getElementById('jp-content')?.scrollTo(0, 0);
-    }
+    // Only the page's own box: the window's scroll is the library's place (grid/LibraryGrid.tsx), kept for going back.
+    if (!compact) document.getElementById('jp-content')?.scrollTo(0, 0);
     let timer: ReturnType<typeof setTimeout> | null = null;
     const soon = () => {
       if (timer) clearTimeout(timer);
