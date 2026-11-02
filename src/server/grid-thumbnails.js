@@ -69,15 +69,19 @@ function copyFor(filePath) {
   return row ? { found: true, dataUrl: row.dataUrl } : { found: false, dataUrl: null };
 }
 
-/** Models whose first image is large and has no copy: { id, filePath }. */
+/** Finds the models without a copy without reading any picture: `thumbnail LIKE` on every model reads them all. */
+const MISSING_IDS_SQL = 'SELECT m.id FROM models m WHERE NOT EXISTS (SELECT 1 FROM grid_thumbnails g WHERE g.model_id = m.id) ORDER BY m.id';
+
+/** Models whose first image is large and has no copy: { id, filePath }. Only these few have their pictures read. */
 function missing() {
-  return table()
-    .prepare(
-      `SELECT m.id, m.filePath FROM models m LEFT JOIN grid_thumbnails g ON g.model_id = m.id
-       WHERE g.model_id IS NULL AND m.thumbnail LIKE 'data:image%' AND octet_length(m.thumbnail) > ?
-       ORDER BY m.id`
-    )
-    .all(SMALL_ENOUGH_CHARS);
+  const db = table();
+  const large = db.prepare("SELECT filePath FROM models WHERE id = ? AND octet_length(thumbnail) > ? AND thumbnail LIKE 'data:image%'");
+  const found = [];
+  for (const { id } of db.prepare(MISSING_IDS_SQL).all()) {
+    const row = large.get(id, SMALL_ENOUGH_CHARS);
+    if (row) found.push({ id, filePath: row.filePath });
+  }
+  return found;
 }
 
 /**
@@ -182,4 +186,13 @@ function stop() {
   timer = null;
 }
 
-module.exports = { MAX_DIMENSION, SMALL_ENOUGH_CHARS, copyFor, gridImage, run, scheduleAtStartup, stop, _internal: { makeCopy, missing, table } };
+module.exports = {
+  MAX_DIMENSION,
+  SMALL_ENOUGH_CHARS,
+  copyFor,
+  gridImage,
+  run,
+  scheduleAtStartup,
+  stop,
+  _internal: { makeCopy, missing, table, MISSING_IDS_SQL }
+};
