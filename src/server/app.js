@@ -179,6 +179,7 @@ async function start() {
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');
   purgeOversizedThumbnails();
+  require('./oversized-thumbnails').start();
   gridThumbnails.scheduleAtStartup();
   // A new category list (an update): every model is sorted into it once, with what is free.
   setTimeout(() => {
