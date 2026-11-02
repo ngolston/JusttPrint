@@ -41,9 +41,12 @@ function follow() {
     heard = true;
     set(next);
   });
-  callAction<Activity[]>('get-background-activity').then((snapshot) => {
-    if (!heard) set(snapshot);
-  }, () => {});
+  callAction<Activity[]>('get-background-activity').then(
+    (snapshot) => {
+      if (!heard) set(snapshot);
+    },
+    () => {}
+  );
 }
 
 /** The running jobs (every browser sees them all). */

@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.5.1] - 2026-11-01
+
+Two fixes from Lupolima (pull requests #1 and #2).
+
+**Fixes:**
+- **No stuck "Scanning the library" bar.** When a scan started and finished while the page was connecting (the scan on start often does), the background jobs bar could bring the finished scan back and keep showing it until the next job. Now a newer update always wins. The server's hidden thumbnail page no longer follows background jobs, so its animation no longer keeps the CPU busy (about 300% on a Raspberry Pi without a GPU).
+- **Add Downloaded Files puts a second batch in the same folder.** For a MakerWorld model without a print profile, adding its files in two batches made a second folder (`Name (2)`). Now the second batch joins the folder of the files added before. A model folder left empty by a refused upload is used again instead of making `Name (2)` next to it.
+
 ## [10.5.0] - 2026-11-01
 
 The library scrolls as one page, its tabs and filters pinned under the top bar.
