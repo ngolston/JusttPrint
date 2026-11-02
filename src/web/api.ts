@@ -682,10 +682,50 @@ export interface PrinterLoads {
   units: {
     id: number;
     unit_index: number;
+    /** The printer's own number for this AMS (Bambu live status), else null. */
+    live_id: number | null;
     name: string;
     humidity: number | null;
-    slots: { id: number; slot_index: number; label: string; spool: LoadedSpool | null }[];
+    slots: {
+      id: number;
+      slot_index: number;
+      label: string;
+      spool: LoadedSpool | null;
+      /** What the printer last said is in the tray (Bambu live status). */
+      printer_tray: { type: string | null; color: string | null } | null;
+    }[];
   }[];
+}
+
+/** A Bambu Lab printer's live status over the LAN (src/server/bambu-live.js `summarize`). */
+export interface PrinterLive {
+  printerId: number;
+  connected: boolean;
+  /** Why it is not connected (wrong access code, could not connect…). */
+  error: string | null;
+  state: 'printing' | 'paused' | 'finished' | 'failed' | 'idle' | 'offline' | null;
+  job: string | null;
+  /** The library model the job was printed from, when one has its name. */
+  model: { filePath: string; title: string } | null;
+  progress: number | null;
+  remainingMinutes: number | null;
+  layer: number | null;
+  totalLayers: number | null;
+  nozzle: number | null;
+  nozzleTarget: number | null;
+  bed: number | null;
+  bedTarget: number | null;
+  /** The tray feeding the printer now: 'A1'…, 'Holder', or null. */
+  feeding: string | null;
+  ams: {
+    id: number;
+    humidity: number | null;
+    humidityLevel: number | null;
+    temperature: number | null;
+    trays: ({ type: string | null; name: string | null; color: string | null; remain: number | null } | null)[];
+  }[];
+  external: { type: string | null; color: string | null } | null;
+  updatedAt: string | null;
 }
 
 export interface PrinterInput {
@@ -748,7 +788,9 @@ export const printers = {
   /** Load a spool into a slot or onto a printer's own holder; null empties it. */
   load: (where: { slotId?: number; printerId?: number }, spoolId: number | null) => callAction<unknown>('set-loaded-spool', where, spoolId),
   /** Bambu Lab cloud: the signed-in account's printers, added to Printers (admin). */
-  importBambu: () => callAction<{ created: number; updated: number; unchanged: number; total: number }>('import-bambu-printers')
+  importBambu: () => callAction<{ created: number; updated: number; unchanged: number; total: number }>('import-bambu-printers'),
+  /** Bambu Lab live status (LAN), one entry per printer followed. */
+  live: () => callAction<PrinterLive[]>('get-printer-live')
 };
 
 /** A place spools are kept (src/core/storage-locations.js). */

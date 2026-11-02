@@ -4890,6 +4890,152 @@ async function browserChecks(base, wsUrl, session) {
       check('the Phase 5 printer checks ran to the end', false, `${error.message} (open dialogs: ${JSON.stringify(open)})`);
     }
 
+    // Bambu Lab live status (src/server/bambu-live.js): a fake printer over TLS, as LAN mode.
+    let fakeBambu = null;
+    try {
+      const { startFakeBambu } = require('./fake-bambu');
+      fakeBambu = await startFakeBambu({ host: DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1', accessCode: 'e2e-live-code', serial: '01PE2ELIVE' });
+      const liveSpool = (
+        await invoke(base, session, 'save-spool', [{ name: 'E2E Live Orange', material: 'PETG', color_hex: '#e05a1a', initial_weight: 1000, remaining: 800 }])
+      ).result;
+      const livePrinter = (
+        await invoke(base, session, 'save-printer', [
+          {
+            nickname: 'E2E Live P1S',
+            manufacturer: 'Bambu Lab',
+            model: 'P1S',
+            connectionType: 'bambu',
+            serialNumber: '01PE2ELIVE',
+            apiUrl: `${HOST_FOR_SERVER}:${fakeBambu.port}`,
+            apiSecret: 'e2e-live-code'
+          }
+        ])
+      ).result;
+      const asked = await waitFor(async () => (fakeBambu.received.some((m) => m.type === 'publish') ? true : null), 20000 * SLOW, 'pushall').catch(() => false);
+      check(
+        'a Bambu printer with an address and access code is followed: bblp, its report topic, pushall',
+        asked === true &&
+          JSON.stringify(fakeBambu.received.slice(0, 3).map((m) => [m.type, m.username || m.topic, m.password || m.payload?.pushing?.command || ''])) ===
+            JSON.stringify([
+              ['connect', 'bblp', 'e2e-live-code'],
+              ['subscribe', 'device/01PE2ELIVE/report', ''],
+              ['publish', 'device/01PE2ELIVE/request', 'pushall']
+            ]),
+        JSON.stringify(fakeBambu.received.slice(0, 3))
+      );
+      const amsReport = (present) => ({
+        tray_now: present ? '0' : '255',
+        tray_exist_bits: present ? '1' : '0',
+        ams: [
+          {
+            id: '0',
+            humidity: '4',
+            humidity_raw: '18',
+            temp: '24.5',
+            tray: [
+              present
+                ? { id: '0', tray_type: 'PETG', tray_sub_brands: 'PETG HF', tray_color: 'E05A1AFF', remain: 80, tray_uuid: '0'.repeat(32) }
+                : { id: '0', tray_type: '', tray_color: '' },
+              { id: '1', tray_type: '' },
+              { id: '2', tray_type: '' },
+              { id: '3', tray_type: '' }
+            ]
+          }
+        ]
+      });
+      fakeBambu.report({
+        gcode_state: 'RUNNING',
+        subtask_name: 'E2E Live Benchy',
+        mc_percent: 42,
+        mc_remaining_time: 75,
+        layer_num: 40,
+        total_layer_num: 120,
+        nozzle_temper: 220,
+        nozzle_target_temper: 220,
+        bed_temper: 65,
+        bed_target_temper: 65,
+        ams: amsReport(true),
+        vt_tray: { id: '254', tray_type: '' }
+      });
+      await page.evaluate((id) => {
+        window.location.hash = `#/printers/${id}`;
+      }, livePrinter.id);
+      const liveShown = await page
+        .waitForSelector('#jp-printer-live-section:has-text("Printing 42%"):has-text("E2E Live Benchy"):has-text("1 h 15 min left · layer 40 of 120")', {
+          timeout: 15000 * SLOW
+        })
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        'the printer page shows the live job, its progress and what is left',
+        liveShown && (await page.isVisible('.jp-printer-card:has-text("E2E Live P1S") .jp-live-badge:has-text("Printing 42%")')),
+        liveShown ? '' : await page.textContent('#jp-printer-live-section').catch(() => 'no Live section')
+      );
+      const slotFilled = await page
+        .waitForSelector('.jp-loaded-slot:has-text("A1"):has-text("E2E Live Orange"):has-text("printing"):has-text("Printer: 80%")', { timeout: 15000 * SLOW })
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        "the AMS slot follows the printer's tray: the spool that fits, its humidity, the tray feeding the print",
+        slotFilled && (await page.isVisible('.jp-loaded__unit:has(.jp-loaded-slot:has-text("A1")) :text("18%")')),
+        await page
+          .textContent('.jp-loaded')
+          .then((text) => text.slice(0, 200))
+          .catch(() => '')
+      );
+      const liveJson = JSON.stringify((await invoke(base, session, 'get-printer-live')).result || []);
+      check('the live status sent to browsers holds no access code', liveJson.includes('E2E Live Benchy') && !liveJson.includes('e2e-live-code'));
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Home")');
+      check(
+        'Home shows the printer under Printing now, with its job and progress',
+        await page
+          .waitForSelector('.jp-home-printing .jp-live-row:has-text("E2E Live P1S"):has-text("E2E Live Benchy") [role="progressbar"][aria-valuenow="42"]', {
+            timeout: 15000 * SLOW
+          })
+          .then(
+            () => true,
+            () => false
+          )
+      );
+      fakeBambu.report({ ams: amsReport(false) });
+      const emptied = await waitFor(
+        async () => {
+          const loads = ((await invoke(base, session, 'get-printer-loads', [livePrinter.id])).result || [])[0];
+          return loads && loads.units[0] && !loads.units[0].slots[0].spool ? true : null;
+        },
+        15000 * SLOW,
+        'the slot emptied'
+      ).catch(() => false);
+      const after = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === liveSpool.id);
+      check('a tray taken out of the AMS empties its slot; the spool stays', emptied === true && !!after && after.loaded.length === 0);
+      await fakeBambu.close();
+      await page.evaluate((id) => {
+        window.location.hash = `#/printers/${id}`;
+      }, livePrinter.id);
+      check(
+        'a printer that goes away shows Offline, and why',
+        await page.waitForSelector('#jp-printer-live-section:has-text("Offline") #jp-live-error', { timeout: 20000 * SLOW }).then(
+          () => true,
+          () => false
+        )
+      );
+      await invoke(base, session, 'delete-printer', [livePrinter.id]);
+      check(
+        'a deleted printer is no longer followed',
+        !((await invoke(base, session, 'get-printer-live')).result || []).some((entry) => entry.printerId === livePrinter.id)
+      );
+      await invoke(base, session, 'delete-spool', [liveSpool.id]).catch(() => {});
+    } catch (error) {
+      await page.screenshot({ path: path.join(WORK, 'bambu-live-failure.png') }).catch(() => {});
+      check('the Bambu live status checks ran to the end', false, error.message.split('\n')[0]);
+    } finally {
+      if (fakeBambu) await fakeBambu.close().catch(() => {});
+    }
+
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
     const auditContext = await browser.newContext({
       viewport: { width: 1400, height: 900 },

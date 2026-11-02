@@ -143,14 +143,14 @@ test('the device list uses the Bambu Lab sign-in, refreshes an expired token onc
     seen.push([url.replace('https://api.bambulab.com', ''), options.headers.authorization || '']);
     if (url.endsWith('/user/bind')) {
       return options.headers.authorization === 'Bearer new'
-        ? reply(200, { message: 'success', devices: [{ dev_id: 'SN1', name: 'P1S', dev_product_name: 'P1S', online: true }] })
+        ? reply(200, { message: 'success', devices: [{ dev_id: 'SN1', name: 'P1S', dev_product_name: 'P1S', online: true, dev_access_code: '24681357' }] })
         : reply(401, {});
     }
     if (url.endsWith('/refreshtoken')) return reply(200, { accessToken: 'new', refreshToken: 'r2' });
     return reply(200, {});
   };
   const list = await devices.listDevices(fetchImpl);
-  assert.deepStrictEqual(list, [{ serial: 'SN1', name: 'P1S', product: 'P1S', model: null, online: true, nozzle: null }]);
+  assert.deepStrictEqual(list, [{ serial: 'SN1', name: 'P1S', product: 'P1S', model: null, online: true, nozzle: null, accessCode: '24681357' }]);
   assert.deepStrictEqual(
     seen.filter(([url]) => /bind|refresh/.test(url)).map(([url, auth]) => `${url} ${auth}`),
     ['/v1/iot-service/api/user/bind Bearer old', '/v1/user-service/user/refreshtoken ', '/v1/iot-service/api/user/bind Bearer new']

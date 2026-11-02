@@ -16,7 +16,7 @@ const { addAmsUnit } = require('../core/printer-ams');
 const DEVICES_URL = 'https://api.bambulab.com/v1/iot-service/api/user/bind';
 const TIMEOUT_MS = 20000;
 
-/** The device list for a token: [{ dev_id, name, dev_product_name, dev_model_name, online, print_status, nozzle_diameter }]. */
+/** The device list for a token: [{ dev_id, name, dev_product_name, dev_model_name, online, print_status, nozzle_diameter, dev_access_code }]. */
 async function fetchDevices(headers, fetchImpl) {
   const response = await fetchImpl(DEVICES_URL, {
     method: 'GET',
@@ -52,13 +52,15 @@ async function listDevices(fetchImpl = httpsFetch) {
     product: String(device.dev_product_name || '').trim() || null,
     model: String(device.dev_model_name || device.model || '').trim() || null,
     online: device.online === undefined ? null : Boolean(device.online),
-    nozzle: Number(device.nozzle_diameter) > 0 ? Number(device.nozzle_diameter) : null
+    nozzle: Number(device.nozzle_diameter) > 0 ? Number(device.nozzle_diameter) : null,
+    // The LAN access code (live status, bambu-live.js): kept as the printer's api_secret, never sent to browsers.
+    accessCode: String(device.dev_access_code || '').trim() || null
   }));
 }
 
 /**
  * Add the devices to Printers, or update the name and model of those already there (same serial
- * number). Returns { created, updated, unchanged, total }.
+ * number). A printer without an access code gets the account's. Returns { created, updated, unchanged, total }.
  * @param {any} db
  * @param {Awaited<ReturnType<typeof listDevices>>} devices
  */
@@ -73,6 +75,9 @@ function importDevices(db, devices) {
       const model = device.product || device.model || null;
       const existing = db.prepare("SELECT id, nickname, model FROM printers WHERE serial_number = ? AND connection_type = 'bambu'").get(device.serial);
       const status = device.online === null ? null : device.online ? 'idle' : 'offline';
+      if (existing && device.accessCode) {
+        db.prepare('UPDATE printers SET api_secret = ? WHERE id = ? AND api_secret IS NULL').run(device.accessCode, existing.id);
+      }
       if (existing) {
         if (existing.nickname !== name || existing.model !== model) {
           db.prepare('UPDATE printers SET nickname = ?, model = ?, status = COALESCE(?, status), last_seen_at = ?, updated_at = ? WHERE id = ?').run(
@@ -98,6 +103,7 @@ function importDevices(db, devices) {
           )
           .run(name, model, device.serial, status, now, now, now).lastInsertRowid
       );
+      if (device.accessCode) db.prepare('UPDATE printers SET api_secret = ? WHERE id = ?').run(device.accessCode, id);
       addAmsUnit(db, id, { name: 'AMS 1', slots: 4 });
       summary.created++;
     }

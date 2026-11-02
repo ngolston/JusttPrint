@@ -1,6 +1,6 @@
 'use strict';
 
-// What is loaded in each printer (src/core/printer-ams.js) and Bambu Lab cloud printers (bambu-devices.js).
+// What is loaded in each printer (src/core/printer-ams.js), Bambu Lab cloud printers (bambu-devices.js) and their live status (bambu-live.js).
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
@@ -17,5 +17,11 @@ ipcMain.handle('set-loaded-spool', (event, where, spoolId) => {
   require('../home-assistant').pushSoon();
   return result;
 });
-ipcMain.handle('list-bambu-printers', () => require('../bambu-devices').listDevices());
-ipcMain.handle('import-bambu-printers', () => require('../bambu-devices').importFromCloud());
+ipcMain.handle('list-bambu-printers', async () => (await require('../bambu-devices').listDevices()).map(({ accessCode, ...device }) => device));
+ipcMain.handle('import-bambu-printers', async () => {
+  const result = await require('../bambu-devices').importFromCloud();
+  require('../bambu-live').printersChanged();
+  return result;
+});
+// Bambu Lab live status over the LAN (bambu-live.js): state, progress, temperatures, AMS trays.
+ipcMain.handle('get-printer-live', () => require('../bambu-live').status());

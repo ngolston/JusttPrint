@@ -550,6 +550,13 @@ export function PrinterManagerDialog() {
                           </span>
                         )}
                       </label>
+                      {form.connection === 'bambu' && (
+                        <p className="jp-meta jp-mgr__field is-wide" id="printer-form-live-hint">
+                          With the address, serial number and access code (the printer&apos;s screen shows the access code in its network settings and the
+                          serial number in its device information), JusttPrint follows the printer live: what it prints, how far it is, and what is in each AMS
+                          slot. It only reads; it never sends a print. Turn on LAN mode or Developer mode on the printer, on the same network as the server.
+                        </p>
+                      )}
                     </>
                   )}
                   <label className="jp-mgr__field is-wide">

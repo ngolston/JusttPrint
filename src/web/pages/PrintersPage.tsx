@@ -26,8 +26,10 @@ import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { LoadedSection, LoadedStrip } from '../printers/LoadedFilament';
+import { LiveBadge, LiveSection } from '../printers/LiveStatus';
+import { usePrinterLive } from '../printers/live';
 import { useCan } from '../session';
-import type { PrinterLoads } from '../api';
+import type { PrinterLive, PrinterLoads } from '../api';
 
 const loadPrinters = () => printerApi.list();
 const loadAllLoads = () => printerApi.loads();
@@ -57,7 +59,19 @@ const makeModel = (printer: Printer) => [printer.manufacturer, printer.model].fi
 /** Things that changed printers elsewhere (the Printer Manager dialog listens to it too). */
 const printersChanged = () => document.dispatchEvent(new CustomEvent('printers-changed'));
 
-function PrinterCard({ printer, selected, onSelect, loads }: { printer: Printer; selected: boolean; onSelect: () => void; loads?: PrinterLoads | null }) {
+function PrinterCard({
+  printer,
+  selected,
+  onSelect,
+  loads,
+  live
+}: {
+  printer: Printer;
+  selected: boolean;
+  onSelect: () => void;
+  loads?: PrinterLoads | null;
+  live?: PrinterLive | null;
+}) {
   const due = Number(printer.due_reminders_count) || 0;
   const prints = Number(printer.total_prints) || 0;
   return (
@@ -80,6 +94,7 @@ function PrinterCard({ printer, selected, onSelect, loads }: { printer: Printer;
           <LoadedStrip loads={loads} />
         </span>
         <span className="jp-printer-card__side">
+          <LiveBadge live={live} />
           {due > 0 && (
             <StatusBadge tone="warning" icon={Wrench}>
               Maintenance due
@@ -118,7 +133,7 @@ interface Detail {
 }
 
 /** The selected printer (spec §44): details, maintenance and its recent prints. */
-function PrinterDetail({ printer, onDeleted, loads }: { printer: Printer; onDeleted: () => void; loads: PrinterLoads | null }) {
+function PrinterDetail({ printer, onDeleted, loads, live }: { printer: Printer; onDeleted: () => void; loads: PrinterLoads | null; live: PrinterLive | null }) {
   const load = useCallback(async (): Promise<Detail> => {
     const [reminders, logs, prints] = await Promise.all([
       printerApi.reminders(printer.id).catch(() => []),
@@ -187,7 +202,9 @@ function PrinterDetail({ printer, onDeleted, loads }: { printer: Printer; onDele
         </EditOnly>
       </div>
 
-      <LoadedSection printerId={printer.id} loads={loads} />
+      <LiveSection printer={printer} live={live} />
+
+      <LoadedSection printerId={printer.id} loads={loads} live={live} />
 
       <section className="jp-printer-detail__section">
         <h3 className="jp-details__heading">Details</h3>
@@ -324,14 +341,16 @@ function PrinterDetail({ printer, onDeleted, loads }: { printer: Printer; onDele
 /**
  * Printers (spec §44): a card per saved printer with its make, type, firmware, print count and
  * maintenance; the selected one (#/printers/<id>) shows its details, maintenance and recent
- * prints. Adding and editing use the Printer Manager's form. No live status: JusttPrint does not
- * connect to printers yet (docs/redesign-5.md).
+ * prints. Adding and editing use the Printer Manager's form. Bambu Lab printers with an address
+ * and access code show their live status (printers/LiveStatus.tsx); nothing is sent to printers.
  */
 export function PrintersPage({ section }: { section: string }) {
   // Reloads after any change, also those saved in the Printer Manager dialog.
   const list = useLibraryData(loadPrinters);
   const allLoads = useLibraryData(loadAllLoads);
   const loadsOf = (id: number) => allLoads?.find((loads) => loads.printerId === id) || null;
+  const live = usePrinterLive();
+  const liveOf = (id: number) => live.find((entry) => entry.printerId === id) || null;
   const isAdmin = useCan('admin');
   const importBambu = async () => {
     try {
@@ -415,12 +434,13 @@ export function PrintersPage({ section }: { section: string }) {
                 selected={printer.id === selected?.id}
                 onSelect={() => navigate('printers', String(printer.id))}
                 loads={loadsOf(printer.id)}
+                live={liveOf(printer.id)}
               />
             ))}
           </ul>
           {selected && (
             <div className="jp-card jp-printers__detail">
-              <PrinterDetail printer={selected} onDeleted={() => navigate('printers')} loads={loadsOf(selected.id)} />
+              <PrinterDetail printer={selected} onDeleted={() => navigate('printers')} loads={loadsOf(selected.id)} live={liveOf(selected.id)} />
             </div>
           )}
         </div>

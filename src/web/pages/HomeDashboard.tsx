@@ -29,6 +29,7 @@ import { NAV } from '../shell/nav';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { useScanProgress } from '../scan/scan';
+import { usePrinterLive } from '../printers/live';
 
 const loadActivity = () => library.activity(8);
 const loadQueue = () => printQueue.list().catch(() => [] as QueueItem[]);
@@ -294,6 +295,7 @@ export function HomeDashboard() {
   const loads = useLibraryData(loadLoads);
   const printing = useLibraryData(loadPrinting);
   const newest = useLibraryData(loadNewest);
+  const live = usePrinterLive();
   const [hour] = useState(() => new Date().getHours());
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const thisWeek = (activity || []).reduce((sum, item) => sum + (item.kind === 'added' && Date.parse(item.at) >= weekAgo ? item.count : 0), 0);
@@ -311,7 +313,7 @@ export function HomeDashboard() {
         <SpoolsTile summary={filamentSummary} spools={spools} />
         <RunsOutTile spools={spools} />
         <UpNextTile items={queue} />
-        <PrintingTile models={printing} />
+        <PrintingTile models={printing} live={live} printers={list} />
         <NewTile models={newest} thisWeek={thisWeek} />
         <MonthTile month={month} />
         <PrintersTile printers={list} loads={loads} />

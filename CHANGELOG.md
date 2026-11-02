@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.6.0] - 2026-11-01
+
+Bambu Lab printers followed live over your network: what they print, how far along, and their AMS slots filled in by themselves.
+
+**Changes:**
+- **Bambu Lab live status.** A Bambu Lab printer with its address, serial number and access code (printer form) is followed over your network, the way Bambu Studio does in LAN mode: its tile and page say what it is doing (**Printing 63%**, **Paused**, **Idle**, **Offline**), the page's new **Live** section shows the job, progress, time left, layer, temperatures and the tray it prints from, and **Printing now** on Home lists the printers printing. Its AMS slots fill in by themselves: the spool that fits each tray is loaded (a Bambu spool found again by its RFID), a tray taken out empties its slot, and one with no spool that fits asks **Which spool?**; a spool you load by hand stays until the printer reports something else there. AMS humidity comes from the printer where it gives a percentage, and Bambu spools show what the printer reads is left on them. JusttPrint only reads: the one request it sends is for the printer's current state, never a print or a setting.
+- **Import from Bambu Lab keeps the access code.** Printers imported from your Bambu Lab account get their LAN access code, so only their address is left to type in for live status. A code you typed yourself is kept.
+
+**Upgrade notes:**
+- Live status needs LAN mode or Developer mode turned on on the printer (newer Bambu firmware), and the server must reach the printer on port 8883. In Docker on the default bridge network that usually works for printers on your LAN; if not, check your firewall or use host networking.
+
 ## [10.5.1] - 2026-11-01
 
 Two fixes from Lupolima (pull requests #1 and #2).
