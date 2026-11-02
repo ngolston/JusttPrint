@@ -31,6 +31,7 @@ const MODEL_MIME_TYPES = {
   '.ply': 'application/octet-stream',
   '.x3d': 'application/octet-stream',
   '.blender': 'application/octet-stream',
+  '.blend': 'application/octet-stream',
   '.dxf': 'application/octet-stream',
   '.dwg': 'application/octet-stream',
   '.fbx': 'application/octet-stream',
