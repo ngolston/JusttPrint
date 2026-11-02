@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Droplets, Plus, Trash2 } from 'lucide-react';
-import { filament, printers as printerApi, type LoadedSpool, type PrinterLoads, type Spool } from '../api';
+import { filament, printers as printerApi, type LoadedSpool, type PrinterLive, type PrinterLoads, type Spool } from '../api';
 import { Button, cx } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
 import { SpoolRing } from '../components/Filament';
@@ -127,22 +127,55 @@ function LoadDialog({ target, onClose }: { target: Target; onClose: () => void }
   );
 }
 
-function Slot({ label, spool, onClick, canEdit }: { label: string; spool: LoadedSpool | null; onClick: () => void; canEdit: boolean }) {
+type LiveTray = { type: string | null; name: string | null; color: string | null; remain: number | null } | null;
+
+function Slot({
+  label,
+  spool,
+  onClick,
+  canEdit,
+  tray,
+  live,
+  feeding
+}: {
+  label: string;
+  spool: LoadedSpool | null;
+  onClick: () => void;
+  canEdit: boolean;
+  /** What the printer last said is in the tray (stored). */
+  tray?: { type: string | null; color: string | null } | null;
+  /** The tray as the printer says now (live), with what is left on Bambu spools. */
+  live?: LiveTray;
+  feeding?: boolean;
+}) {
+  const printerSays = live || tray;
   const inner = (
     <>
       {spool ? (
         <SpoolRing color={spool.color_hex || '#9aa4b4'} remaining={spool.remaining} capacity={spool.initial_weight} size={48} />
+      ) : printerSays ? (
+        <span className="jp-loaded-slot__empty is-unmatched" style={{ borderColor: printerSays.color || undefined }} aria-hidden="true" />
       ) : (
         <span className="jp-loaded-slot__empty" aria-hidden="true" />
       )}
-      <span className="jp-loaded-slot__label">{label}</span>
-      <span className="jp-loaded-slot__name">{spool ? spool.name : 'Empty'}</span>
+      <span className="jp-loaded-slot__label">
+        {label}
+        {feeding && <span className="jp-loaded-slot__feeding"> · printing</span>}
+      </span>
+      <span className="jp-loaded-slot__name">{spool ? spool.name : printerSays ? live?.name || printerSays.type || 'Unknown filament' : 'Empty'}</span>
       {spool && <span className={cx('jp-loaded-slot__grams', spool.remaining < 50 && 'is-empty')}>{formatWeight(spool.remaining)}</span>}
+      {!spool && printerSays && <span className="jp-loaded-slot__printer">Which spool?</span>}
+      {spool && live && live.remain !== null && (
+        <span className="jp-loaded-slot__printer" title="What the printer reads from the spool's RFID">
+          Printer: {live.remain}%
+        </span>
+      )}
       {canEdit && <span className="jp-sr-only">, change</span>}
     </>
   );
+  const title = !spool && printerSays ? `The printer has ${printerSays.type || 'filament'} in ${label}: load its spool` : `Load ${label}`;
   return canEdit ? (
-    <button type="button" className={cx('jp-loaded-slot', !spool && 'is-empty')} onClick={onClick} title={`Load ${label}`}>
+    <button type="button" className={cx('jp-loaded-slot', !spool && 'is-empty')} onClick={onClick} title={title}>
       {inner}
     </button>
   ) : (
@@ -151,10 +184,13 @@ function Slot({ label, spool, onClick, canEdit }: { label: string; spool: Loaded
 }
 
 /** The printer page's Filament loaded section. */
-export function LoadedSection({ printerId, loads }: { printerId: number; loads: PrinterLoads | null }) {
+export function LoadedSection({ printerId, loads, live = null }: { printerId: number; loads: PrinterLoads | null; live?: PrinterLive | null }) {
   const canEdit = useCan('editor');
   const [target, setTarget] = useState<Target | null>(null);
   const fail = (error: unknown) => showMessage('Filament', errorText(error));
+  // The printer's live report for a unit (Bambu): its trays and humidity level.
+  const liveUnit = (unit: PrinterLoads['units'][number]) =>
+    live?.connected && unit.live_id !== null ? live.ams.find((entry) => entry.id === unit.live_id) || null : null;
 
   const addAms = () => printerApi.addAms(printerId).catch(fail);
   const rename = async (unit: PrinterLoads['units'][number]) => {
@@ -188,10 +224,16 @@ export function LoadedSection({ printerId, loads }: { printerId: number; loads: 
             <div key={unit.id} className="jp-loaded__unit">
               <div className="jp-loaded__unit-head">
                 <span className="jp-loaded__unit-name">{unit.name}</span>
-                {unit.humidity !== null && (
+                {unit.humidity !== null ? (
                   <span className="jp-meta">
                     <Droplets size={12} aria-hidden="true" /> {unit.humidity}%
                   </span>
+                ) : (
+                  liveUnit(unit)?.humidityLevel != null && (
+                    <span className="jp-meta" title="The humidity level the printer gives this AMS (1 to 5), as on its screen">
+                      <Droplets size={12} aria-hidden="true" /> Humidity level {liveUnit(unit)!.humidityLevel}
+                    </span>
+                  )
                 )}
                 <EditOnly>
                   <span className="jp-loaded__unit-actions">
@@ -213,6 +255,9 @@ export function LoadedSection({ printerId, loads }: { printerId: number; loads: 
                     key={slot.id}
                     label={slot.label}
                     spool={slot.spool}
+                    tray={slot.printer_tray}
+                    live={liveUnit(unit)?.trays[slot.slot_index] ?? undefined}
+                    feeding={live?.feeding === slot.label}
                     canEdit={canEdit}
                     onClick={() => setTarget({ label: slot.label, slotId: slot.id, current: slot.spool })}
                   />
@@ -229,6 +274,8 @@ export function LoadedSection({ printerId, loads }: { printerId: number; loads: 
               <Slot
                 label="Holder"
                 spool={loads.direct}
+                live={live?.external ? { ...live.external, name: live.external.type, remain: null } : undefined}
+                feeding={live?.feeding === 'Holder'}
                 canEdit={canEdit}
                 onClick={() => setTarget({ label: 'the holder', printerId, current: loads.direct })}
               />

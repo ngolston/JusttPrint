@@ -349,7 +349,12 @@ const COLUMNS = [
   ['spools', 'label_token', 'TEXT'],
   ['storage_locations', 'label_token', 'TEXT'],
   // What the printer draws while printing, for the cost estimate (src/server/print-cost.js; 10.2).
-  ['printers', 'power_watts', 'REAL']
+  ['printers', 'power_watts', 'REAL'],
+  // Bambu Lab live status (src/server/bambu-live.js): the tray a slot or the holder last held, as
+  // the printer said (JSON), and a spool's Bambu RFID (tray_uuid), so it is found again.
+  ['printer_ams_slots', 'live_tray', 'TEXT'],
+  ['printers', 'live_tray', 'TEXT'],
+  ['spools', 'bambu_tray_uuid', 'TEXT']
 ];
 
 /** @param {string} sql */

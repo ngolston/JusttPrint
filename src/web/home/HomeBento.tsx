@@ -1,6 +1,6 @@
 import { ClipboardPen, Printer as PrinterIcon } from 'lucide-react';
 import { type GridModel } from '../grid/layout';
-import type { FilamentSummary, MonthSummary, Printer, PrinterLoads, QueueItem, Spool } from '../api';
+import type { FilamentSummary, MonthSummary, Printer, PrinterLive, PrinterLoads, QueueItem, Spool } from '../api';
 import { Tile, TileFigure } from '../components/Bento';
 import { Button } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
@@ -8,6 +8,7 @@ import { ColorDot, FilamentCheck, FitBadge, IsoThumb, SpoolRing } from '../compo
 import { cardTitle } from '../grid/ModelCard';
 import { formatWeight, runsOutShort, runsOutText } from '../filament/format';
 import { loadedSpools } from '../printers/LoadedFilament';
+import { LivePrintingRows } from '../printers/LiveStatus';
 import { checkRows, itemName, plateLabel } from '../queue/QueueParts';
 import { navigate } from '../shell/routes';
 import { openModel, useThumbnail } from './HomeSections';
@@ -17,18 +18,21 @@ import { openModel, useThumbnail } from './HomeSections';
  * answers one question from real data, and is left out when there is nothing to say.
  */
 
-/** Models that are printing now, with Log Print. */
-export function PrintingTile({ models }: { models: GridModel[] | null }) {
-  if (!models?.length) return null;
+/** Bambu printers printing now (live, printers/LiveStatus.tsx), and models marked Printing, with Log Print. */
+export function PrintingTile({ models, live = [], printers = null }: { models: GridModel[] | null; live?: PrinterLive[]; printers?: Printer[] | null }) {
+  const busy = live.filter((entry) => entry.state === 'printing' || entry.state === 'paused').length;
+  if (!models?.length && !busy) return null;
+  const count = [
+    busy ? (busy === 1 ? '1 printer' : `${busy} printers`) : null,
+    models?.length ? (models.length === 1 ? '1 model' : `${models.length} models`) : null
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
-    <Tile
-      title="Printing now"
-      cols={2}
-      className="jp-home-printing"
-      action={<span className="jp-meta">{models.length === 1 ? '1 model' : `${models.length} models`}</span>}
-    >
+    <Tile title="Printing now" cols={2} className="jp-home-printing" action={<span className="jp-meta">{count}</span>}>
+      <LivePrintingRows printers={printers} live={live} />
       <ul className="jp-home-tile__list">
-        {models.slice(0, 4).map((model) => (
+        {(models || []).slice(0, busy ? 2 : 4).map((model) => (
           <li key={model.filePath} className="jp-home-tile__row">
             <button type="button" className="jp-home-tile__name" onClick={() => openModel(model.filePath)}>
               <span className="jp-model-title">{cardTitle(model)}</span>

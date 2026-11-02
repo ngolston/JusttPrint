@@ -47,6 +47,7 @@ function closeDatabaseOnQuit() {
   autoBackup.stop();
   require('./notifications').stop();
   require('./low-stock-alerts').stop();
+  require('./bambu-live').stop();
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();
@@ -167,6 +168,8 @@ async function start() {
   require('./personal-alerts').start();
   // One sensor per spool in Home Assistant, when an admin set it up (Phase 11).
   require('./home-assistant').start();
+  // Bambu Lab printers with an address and access code: live status over the LAN.
+  require('./bambu-live').start();
   // Photo files left by prints and models deleted while the server was down, or before 10.1.
   require('./photos').sweepSoon(60 * 1000);
   // What each 3MF's plates need, for the filament check (docs/merge-10.md, Phase 4).

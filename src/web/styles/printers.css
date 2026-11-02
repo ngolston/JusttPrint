@@ -384,3 +384,61 @@ button.jp-loaded-slot:focus-visible {
   color: var(--jp-accent-text);
   font-weight: 700;
 }
+
+/* Bambu Lab live status (printers/LiveStatus.tsx). */
+.jp-loaded-slot__empty.is-unmatched {
+  border-style: solid;
+  border-width: 4px;
+}
+.jp-loaded-slot__printer {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-3);
+}
+.jp-loaded-slot__feeding {
+  color: var(--jp-accent-text);
+  font-weight: 700;
+}
+.jp-live__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-3);
+}
+.jp-live__job-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-live__job {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.jp-live__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--jp-space-4);
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-2);
+}
+.jp-live__facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jp-live-rows {
+  margin-bottom: var(--jp-space-3);
+}
+.jp-live-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-live-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jp-space-2);
+}
+.jp-live-row__printer {
+  font-weight: 700;
+}

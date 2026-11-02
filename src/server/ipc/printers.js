@@ -17,7 +17,9 @@ ipcMain.handle('get-all-printers', getAllPrintersHandler);
 
 async function savePrinterHandler(event, printer) {
   try {
-    return printerManager.savePrinter(database.db, printer);
+    const saved = printerManager.savePrinter(database.db, printer);
+    require('../bambu-live').printersChanged();
+    return saved;
   } catch (error) {
     console.error('Error saving printer:', error);
     throw error;
@@ -28,7 +30,9 @@ ipcMain.handle('save-printer', savePrinterHandler);
 
 async function deletePrinterHandler(event, printerId) {
   try {
-    return printerManager.deletePrinter(database.db, printerId);
+    const deleted = printerManager.deletePrinter(database.db, printerId);
+    require('../bambu-live').printersChanged();
+    return deleted;
   } catch (error) {
     console.error('Error deleting printer:', error);
     throw error;
