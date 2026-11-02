@@ -31,13 +31,22 @@ interface GoogleStatus {
   stopped: boolean;
 }
 
+/** makerworld-accounts (src/server/makerworld-account.js). */
+interface SavedAccount {
+  account: string | null;
+  name: string | null;
+  active: boolean;
+}
+
 /**
- * Settings → MakerWorld: the MakerWorld sign-in downloads use (sign in, sign out), and where the
+ * Settings → MakerWorld: the MakerWorld sign-in downloads use (sign in, sign out, switch to another
+ * account signed in before), and where the
  * English names of MakerWorld files come from. Registers window.openMakerWorldSettings.
  */
 export function MakerWorldSettingsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [status, setStatus] = useState<AccountStatus | null>(null);
+  const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [rows, setRows] = useState<TranslatorRow[]>(rowsFor(['free']));
   const [google, setGoogle] = useState<GoogleStatus | null>(null);
   const [googleKey, setGoogleKey] = useState('');
@@ -74,7 +83,20 @@ export function MakerWorldSettingsDialog() {
     }
   }
 
-  const refresh = () => accountStatus().then(setStatus, () => setStatus(null));
+  const refresh = () =>
+    Promise.all([
+      accountStatus().then(setStatus, () => setStatus(null)),
+      callAction<SavedAccount[]>('makerworld-accounts').then(setAccounts, () => setAccounts([]))
+    ]);
+
+  async function changeAccount(action: 'makerworld-activate-account' | 'makerworld-forget-account', email: string | null) {
+    try {
+      await callAction(action, email);
+      await refresh();
+    } catch (error) {
+      await showMessage('MakerWorld', error instanceof Error ? error.message : String(error));
+    }
+  }
 
   useEffect(
     () =>
@@ -97,6 +119,7 @@ export function MakerWorldSettingsDialog() {
 
   async function signOut() {
     setStatus(await callAction<AccountStatus>('makerworld-sign-out'));
+    await refresh();
   }
 
   async function save() {
@@ -147,14 +170,43 @@ export function MakerWorldSettingsDialog() {
             : 'Not signed in. MakerWorld asks for a sign-in before the first download.'}
         </p>
         {!status?.signedIn && <MakerWorldSteps />}
-        {status?.signedIn ? (
-          <button type="button" id="makerworld-sign-out" onClick={signOut}>
-            Sign Out
-          </button>
-        ) : (
-          <button type="button" id="makerworld-sign-in" onClick={signIn}>
-            Sign In…
-          </button>
+        <div className="translator-key-buttons">
+          {status?.signedIn ? (
+            <>
+              <button type="button" id="makerworld-sign-out" onClick={signOut}>
+                Sign Out
+              </button>
+              <button type="button" id="makerworld-add-account" onClick={signIn}>
+                Add Another Account…
+              </button>
+            </>
+          ) : (
+            <button type="button" id="makerworld-sign-in" onClick={signIn}>
+              Sign In…
+            </button>
+          )}
+        </div>
+        {accounts.some((saved) => !saved.active) && (
+          <>
+            <p className="setting-description">Signed in before: switch without the password. Downloads use one account at a time.</p>
+            <ul className="translator-list" id="makerworld-other-accounts">
+              {accounts
+                .filter((saved) => !saved.active)
+                .map((saved) => (
+                  <li key={saved.account}>
+                    <span>{saved.name && saved.account ? `${saved.name} (${saved.account})` : saved.name || saved.account}</span>
+                    <span className="translator-key-buttons">
+                      <button type="button" onClick={() => void changeAccount('makerworld-activate-account', saved.account)}>
+                        Use
+                      </button>
+                      <button type="button" onClick={() => void changeAccount('makerworld-forget-account', saved.account)}>
+                        Forget
+                      </button>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </>
         )}
       </div>
       <div className="settings-group">

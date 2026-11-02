@@ -32,6 +32,8 @@ const SETTING_KEYS = {
   apiToken: 'serverApiToken',
   /** The MakerWorld (Bambu Lab) sign-in for downloads: makerworld-account.js. */
   makerWorldAccount: 'makerWorldAccount',
+  /** The other MakerWorld sign-ins, kept to switch to without the password. */
+  makerWorldSavedAccounts: 'makerWorldSavedAccounts',
   /** The Thingiverse API token for downloads: site-files.js. */
   thingiverseToken: 'thingiverseToken',
   /** The Google Cloud Translation API key: google-translate.js. */

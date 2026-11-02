@@ -48,6 +48,10 @@ ipcMain.handle('makerworld-sign-in', async (event, input) => account.signIn(inpu
 
 ipcMain.handle('makerworld-sign-out', async () => account.signOut());
 
+ipcMain.handle('makerworld-accounts', async () => account.accounts());
+ipcMain.handle('makerworld-activate-account', async (event, email) => account.activate(email));
+ipcMain.handle('makerworld-forget-account', async (event, email) => account.forget(email));
+
 /** Whether files can be saved in a library folder (read-only mounts are common in Docker). */
 ipcMain.handle('makerworld-check-folder', async (event, folder) => siteDetails.checkFolder(folder));
 
