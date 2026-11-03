@@ -100,6 +100,12 @@ function table() {
         file_name TEXT NOT NULL,
         PRIMARY KEY (folder, url)
       );
+      -- Sizes when reapplyCover last found the cover first: a file is not read again while they stay the same.
+      CREATE TABLE IF NOT EXISTS cover_checked (
+        filePath TEXT PRIMARY KEY,
+        cover_bytes INTEGER NOT NULL,
+        thumb_bytes INTEGER
+      );
     `);
     readyFor = db;
   }
@@ -335,8 +341,14 @@ async function coverImage(filePath, deps = {}) {
 function putFirst(filePath, image, previous) {
   const { parseThumbnails } = require('../core/thumbnails');
   const row = database.db.prepare('SELECT thumbnail FROM models WHERE filePath = ?').get(filePath);
-  const list = parseThumbnails((row && row.thumbnail) || '').filter((thumb) => thumb !== image && (!previous || thumb !== previous));
-  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(image ? [image, ...list].join('::') : list.join('::'), filePath);
+  const current = (row && row.thumbnail) || '';
+  const list = parseThumbnails(current).filter((thumb) => thumb !== image && (!previous || thumb !== previous));
+  const next = image ? [image, ...list].join('::') : list.join('::');
+  // Unchanged (the cover is already first): no write. reapplyAllCovers runs after every thumbnail
+  // job, and rewriting every file of every folder with a cover each time took most of the
+  // server's time and gigabytes of disk writes.
+  if (next === current) return;
+  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(next, filePath);
 }
 
 /**
@@ -374,9 +386,23 @@ async function setCover(dir, name, deps = {}) {
 function reapplyCover(dir) {
   const folder = resolveFolder(dir);
   if (!folder) return;
-  const row = table().prepare('SELECT cover_thumbnail FROM model_folders WHERE path = ?').get(folder);
-  if (!row || !row.cover_thumbnail) return;
-  for (const filePath of modelFiles(folder)) putFirst(filePath, row.cover_thumbnail, null);
+  const db = table();
+  const row = db.prepare('SELECT octet_length(cover_thumbnail) AS bytes FROM model_folders WHERE path = ? AND cover_thumbnail IS NOT NULL').get(folder);
+  if (!row) return;
+  // A file is checked again only when its thumbnails or the cover changed size since the cover was
+  // last found first: sizes come from the row header, the thumbnails themselves are not read.
+  // Reading every file's thumbnails took ~50 s and 4 GB on a Raspberry Pi after every thumbnail job,
+  // with the whole server waiting.
+  const size = db.prepare('SELECT octet_length(thumbnail) AS bytes FROM models WHERE filePath = ?');
+  const checked = db.prepare('SELECT 1 FROM cover_checked WHERE filePath = ? AND cover_bytes = ? AND thumb_bytes IS ?');
+  const remember = db.prepare('INSERT OR REPLACE INTO cover_checked (filePath, cover_bytes, thumb_bytes) VALUES (?, ?, ?)');
+  let cover = null;
+  for (const filePath of modelFiles(folder)) {
+    if (checked.get(filePath, row.bytes, size.get(filePath).bytes)) continue;
+    if (cover === null) cover = db.prepare('SELECT cover_thumbnail FROM model_folders WHERE path = ?').get(folder).cover_thumbnail;
+    putFirst(filePath, cover, null);
+    remember.run(filePath, row.bytes, size.get(filePath).bytes);
+  }
 }
 
 /**
@@ -726,7 +752,11 @@ function ownPictures(filePath, thumbnail) {
  */
 function onlyCoverSql() {
   table();
-  return 'OR thumbnail IN (SELECT cover_thumbnail FROM model_folders WHERE cover_thumbnail IS NOT NULL)';
+  // Same answer, sizes first: comparing every model's thumbnails with the covers read all of them
+  // (~45 s and 5 GB on a Raspberry Pi) before each thumbnail job. And only with the covers of the
+  // same size: `thumbnail IN (SELECT cover_thumbnail …)` read every cover (93 MB, ~1.7 s on the Pi)
+  // each time Home counted "no thumbnail", i.e. after every model Add Links added.
+  return 'OR (octet_length(thumbnail) IN (SELECT octet_length(cover_thumbnail) FROM model_folders WHERE cover_thumbnail IS NOT NULL) AND EXISTS (SELECT 1 FROM model_folders f WHERE f.cover_thumbnail IS NOT NULL AND octet_length(f.cover_thumbnail) = octet_length(models.thumbnail) AND f.cover_thumbnail = models.thumbnail))';
 }
 
 /** Put every model folder's cover first again on its files (after a thumbnail job). */
