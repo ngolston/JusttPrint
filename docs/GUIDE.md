@@ -217,7 +217,7 @@ A notice shows how far Organize is (**Stop** ends it after the model it is on), 
 Keep track of models you have not downloaded yet: editors and admins can add Printables, Thingiverse and MakerWorld models from their links.
 
 1. Click **Add Links** in the Library.
-2. Paste the links, one per line (text around them is fine, up to 200 at a time). The list below shows each model; links already in your library, as an online model or as a file whose source is that link, are marked and skipped.
+2. Paste the links, one per line (text around them is fine, up to 600 at a time). The list below shows each model; links already in your library, as an online model or as a file whose source is that link, are marked and skipped.
 3. Click **Add**. Each model is added as an online model with its name, designer, license and picture from the site, and the link as its source (the ↗ button beside **Source** in the details opens the page).
 
 If a site does not answer, the model is still added with a name from the link and a note to fill in the rest; a link to a model the site does not have is left out. **Stop** finishes the model being added and leaves the rest.

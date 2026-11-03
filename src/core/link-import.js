@@ -7,7 +7,7 @@
  */
 
 /** Most links one paste may hold. */
-const MAX_LINKS = 200;
+const MAX_LINKS = 600;
 
 const SITES = {
   printables: {
