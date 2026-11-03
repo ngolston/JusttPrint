@@ -2,7 +2,7 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [10.7.0] - 2026-11-02
+## [10.7.0] - 2026-11-03
 
 The Filament page made yours: widgets you choose (with a color wall, material guide, brand shelf and spool of the day), filter chips for anything, and new QR labels in brand looks for spools and places.
 
