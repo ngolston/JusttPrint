@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [10.9.0] - 2026-11-03
+
+Several MakerWorld accounts: switch between them without signing in again, with nicknames, expired sign-ins shown, and the account in use shown where you download.
 
 **Changes:**
 - **Several MakerWorld accounts.** Settings → MakerWorld keeps every Bambu Lab account you sign in with, and **Use** switches between them without the password or the emailed code (from Lupolima, pull request #8). Downloads use one account at a time, for the whole server. **Sign Out** forgets the account in use and keeps the others; **Forget** removes a saved one.
