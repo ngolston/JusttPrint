@@ -32,7 +32,14 @@ const PER_USER_SETTING_KEYS = new Set([
   'folderModels',
   // The Filament page's spool list: cards or table, and the saved views (docs/plan-10.1.md, Phase 4).
   'spoolLayout',
-  'spoolViews'
+  'spoolViews',
+  // Its filter chips added with + Filter, and the chip it opens on.
+  'spoolFilterChips',
+  'spoolStartFilter',
+  // QR Labels: the layout chosen for each label size.
+  'labelLayouts',
+  // The Filament page's widgets: which show, in what order.
+  'filamentWidgets'
 ]);
 
 /** Server-wide settings any user may save: the update check. Everything else needs an admin. */

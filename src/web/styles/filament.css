@@ -651,50 +651,348 @@
   color: #1e2633;
   font-family: var(--jp-font);
 }
-.jp-label-card__qr {
-  flex: none;
-  height: 100%;
-  aspect-ratio: 1;
+/* Spool QR labels (filament/LabelLayouts.tsx): 1em is 1 mm. Black on white for label printers. */
+.jp-lbl {
+  font-size: 1mm;
+  line-height: 1.1;
+  color: #000000;
+  background: #ffffff;
+  padding: 1.4em;
+  gap: 1.4em;
+  font-family: Arial, Helvetica, var(--jp-font), sans-serif;
 }
-.jp-label-card__qr svg {
+.jp-lbl__qr {
+  display: block;
+  flex: none;
+  aspect-ratio: 1;
+  align-self: center;
+}
+.jp-lbl__qr svg {
   display: block;
   width: 100%;
   height: 100%;
 }
-.jp-label-card__text {
+.jp-lbl__fit {
+  display: block;
   min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.jp-lbl__col {
   display: flex;
   flex-direction: column;
-  gap: 0.6mm;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+  gap: 0.6em;
 }
-.jp-label-card__name {
-  font-size: 3mm;
+.jp-lbl__push {
+  flex: 1;
+}
+.jp-lbl__id {
   font-weight: 800;
-  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.jp-lbl__name {
+  font-weight: 800;
+}
+.jp-lbl__clamp {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.jp-label-card--strip .jp-label-card__name {
-  -webkit-line-clamp: 1;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  display: block;
+.jp-lbl__dim {
+  font-weight: 600;
 }
-.jp-label-card__meta {
+.jp-lbl__dot {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  border: 0.14em solid #000000;
+  vertical-align: -0.06em;
+  margin-right: 0.3em;
+}
+
+/* Brand layouts: brand name, the material on a black bar with the hex code, the color, then the settings and the QR. */
+.jp-lbl--badge-brand,
+.jp-lbl--card-brand,
+.jp-lbl--card-brand-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4em;
+  padding: 1.2em 1.5em;
+}
+.jp-lbl__brand {
+  font-family: var(--jp-font), Arial, sans-serif;
+  font-weight: 500;
+  font-size: 5.6em;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+}
+.jp-lbl__bar-row {
   display: flex;
   align-items: center;
-  gap: 1mm;
-  font-size: 2.2mm;
-  color: #3c4a60;
+  gap: 1.4em;
+  min-width: 0;
 }
-.jp-label-card__swatch {
-  display: inline-block;
-  width: 2.4mm;
-  height: 2.4mm;
-  border-radius: 50%;
-  border: 0.2mm solid #9aa4b4;
+.jp-lbl__bar {
+  background: #000000;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 3.3em;
+  padding: 0.08em 0.3em;
+  flex: 0 1 auto;
+}
+.jp-lbl__hex {
+  font-size: 3.1em;
+  white-space: nowrap;
+  flex: none;
+}
+.jp-lbl__color {
+  font-weight: 700;
+  font-size: 3.5em;
+}
+.jp-lbl__bottom {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5em;
+}
+.jp-lbl__bottom .jp-lbl__qr {
+  height: 100%;
+  align-self: flex-end;
+}
+.jp-lbl__specs {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.9em;
+  row-gap: 0.15em;
+  font-size: 2.05em;
+  align-self: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+.jp-lbl__spec {
+  display: contents;
+}
+.jp-lbl__spec span {
+  white-space: nowrap;
+}
+.jp-lbl--card-brand .jp-lbl__specs {
+  font-size: 2.5em;
+}
+.jp-lbl--card-brand-qr .jp-lbl__brand {
+  font-size: 7.2em;
+}
+.jp-lbl--card-brand-qr .jp-lbl__bottom {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+.jp-lbl--card-brand-qr .jp-lbl__col {
+  justify-content: flex-start;
+  gap: 0.8em;
+}
+.jp-lbl--card-brand-qr .jp-lbl__color {
+  font-weight: 400;
+  font-size: 4em;
+}
+.jp-lbl--card-brand-qr .jp-lbl__bar {
+  align-self: flex-start;
+  font-size: 3.4em;
+}
+
+/* Strip, brand: QR, then brand, material bar and color. */
+.jp-lbl--strip-brand {
+  padding: 1em;
+  gap: 1em;
+}
+.jp-lbl--strip-brand .jp-lbl__qr {
+  height: 10em;
+}
+.jp-lbl--strip-brand .jp-lbl__col {
+  gap: 0.3em;
+}
+.jp-lbl--strip-brand .jp-lbl__brand {
+  font-size: 3.5em;
+}
+.jp-lbl--strip-brand .jp-lbl__bar {
+  font-size: 2.5em;
+  align-self: stretch;
+}
+.jp-lbl--strip-brand .jp-lbl__color {
+  font-size: 2.6em;
+}
+
+/* Split (Badge), Biggest QR and Giant number (Wide card). */
+.jp-lbl--badge-split {
+  padding: 1.8em;
+  gap: 1.6em;
+}
+.jp-lbl--badge-split .jp-lbl__qr {
+  width: 21em;
+}
+.jp-lbl--badge-split .jp-lbl__id {
+  font-size: 4.4em;
+}
+.jp-lbl--badge-split .jp-lbl__name,
+.jp-lbl--card-biggest-qr .jp-lbl__name,
+.jp-lbl--card-number .jp-lbl__name {
+  font-size: 2.6em;
+}
+.jp-lbl--badge-split .jp-lbl__dim,
+.jp-lbl--card-biggest-qr .jp-lbl__dim,
+.jp-lbl--card-number .jp-lbl__dim {
+  font-size: 1.95em;
+}
+.jp-lbl--card-biggest-qr {
+  padding: 1.5em;
+  gap: 1.8em;
+}
+.jp-lbl--card-biggest-qr .jp-lbl__qr {
+  width: 27em;
+}
+.jp-lbl--card-biggest-qr .jp-lbl__id {
+  font-size: 4.2em;
+}
+.jp-lbl--card-number {
+  padding: 1.6em;
+  gap: 1.8em;
+}
+.jp-lbl--card-number .jp-lbl__qr {
+  width: 25em;
+}
+.jp-lbl--card-number .jp-lbl__id {
+  font-size: 8.4em;
+}
+
+/* Big number (Badge). */
+.jp-lbl--badge-number {
+  display: grid;
+  grid-template-columns: 17em minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 0.6em 1.5em;
+  padding: 1.6em 1.8em;
+  align-items: start;
+}
+.jp-lbl--badge-number .jp-lbl__qr {
+  width: 17em;
+  grid-row: 1 / 3;
+  align-self: start;
+}
+.jp-lbl--badge-number .jp-lbl__id {
+  font-size: 6.2em;
+}
+.jp-lbl--badge-number .jp-lbl__mat {
+  font-size: 2.6em;
+  font-weight: 800;
+  align-self: end;
+}
+.jp-lbl--badge-number .jp-lbl__foot {
+  grid-column: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  min-width: 0;
+}
+.jp-lbl--badge-number .jp-lbl__name {
+  font-size: 2.7em;
+}
+.jp-lbl--badge-number .jp-lbl__dim {
+  font-size: 1.9em;
+}
+
+/* Brand header (Wide card). */
+.jp-lbl--card-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 1.4em 1.8em;
+  gap: 1em;
+}
+.jp-lbl__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1.5em;
+  border-bottom: 0.25em solid #000000;
+  padding-bottom: 0.6em;
+  min-width: 0;
+}
+.jp-lbl__head-brand {
+  font-size: 2.3em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.jp-lbl--card-brand-header .jp-lbl__id {
+  font-size: 3.2em;
+}
+.jp-lbl--card-brand-header .jp-lbl__bottom {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.8em;
+}
+.jp-lbl--card-brand-header .jp-lbl__qr {
+  height: 100%;
+  align-self: center;
+}
+.jp-lbl--card-brand-header .jp-lbl__name {
+  font-size: 3.1em;
+}
+.jp-lbl--card-brand-header .jp-lbl__dim {
+  font-size: 2.1em;
+}
+
+/* Two lines and Material tab (Strip). */
+.jp-lbl--strip-two-lines,
+.jp-lbl--strip-material-tab {
+  padding: 1em;
+  gap: 1.1em;
+}
+.jp-lbl--strip-two-lines .jp-lbl__qr,
+.jp-lbl--strip-material-tab .jp-lbl__qr {
+  height: 10em;
+}
+.jp-lbl--strip-two-lines .jp-lbl__col,
+.jp-lbl--strip-material-tab .jp-lbl__col {
+  gap: 0.4em;
+}
+.jp-lbl--strip-two-lines .jp-lbl__name {
+  font-size: 2.6em;
+}
+.jp-lbl--strip-material-tab .jp-lbl__name {
+  font-size: 2.3em;
+}
+.jp-lbl--strip-two-lines .jp-lbl__dim,
+.jp-lbl--strip-material-tab .jp-lbl__dim {
+  font-size: 1.85em;
+}
+.jp-lbl--strip-material-tab {
+  padding-left: 0;
+}
+.jp-lbl__tab {
+  align-self: stretch;
+  margin: -1em 0;
+  background: #000000;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 0.8em;
+  max-width: 10em;
+  min-width: 0;
+}
+.jp-lbl__tab-text {
+  font-size: 2.6em;
+  font-weight: 800;
 }
 .jp-labels-sheet {
   display: none;
@@ -1215,4 +1513,214 @@
 }
 .jp-catalog-admin__merge select {
   width: auto;
+}
+.jp-lbl--badge-brand .jp-lbl__specs {
+  font-size: 1.9em;
+  column-gap: 0.7em;
+}
+/* Place labels: the same looks, with "Scan for its spools". */
+.jp-lbl__scan {
+  font-size: 2.1em;
+  font-weight: 600;
+  align-self: flex-end;
+  white-space: nowrap;
+}
+.jp-lbl--place .jp-lbl__place-name {
+  font-size: 3.4em;
+  overflow-wrap: anywhere;
+}
+.jp-lbl--badge-split.jp-lbl--place .jp-lbl__place-name,
+.jp-lbl--card-biggest-qr.jp-lbl--place .jp-lbl__place-name {
+  font-size: 2.6em;
+}
+.jp-lbl--badge-split.jp-lbl--place .jp-lbl__scan,
+.jp-lbl--card-biggest-qr.jp-lbl--place .jp-lbl__scan {
+  font-size: 1.8em;
+  white-space: normal;
+  align-self: flex-start;
+}
+.jp-lbl--card-brand-qr.jp-lbl--place .jp-lbl__scan {
+  align-self: flex-start;
+}
+
+/* Filament page widgets (filament/FilamentWidgets.tsx). */
+.jp-widgets__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+}
+.jp-widgets__item {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: var(--jp-space-2) var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-1);
+}
+.jp-widgets__check {
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+}
+.jp-widgets__check > span {
+  display: flex;
+  flex-direction: column;
+}
+.jp-widgets__name {
+  font-weight: 700;
+}
+.jp-widgets__move {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.jp-color-wall__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.jp-color-wall__swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.18);
+  cursor: pointer;
+  padding: 0;
+}
+.jp-color-wall__swatch:hover,
+.jp-color-wall__swatch:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-color-wall__swatch.is-close {
+  box-shadow:
+    0 0 0 2px var(--jp-surface-1),
+    0 0 0 4px var(--jp-accent);
+}
+.jp-color-wall__find {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2) var(--jp-space-3);
+  margin-top: var(--jp-space-4);
+}
+.jp-color-wall__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-color-wall__pick input {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--jp-border);
+  border-radius: 6px;
+  background: none;
+}
+.jp-color-wall__closest {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-3);
+}
+
+.jp-material-guide__pick select {
+  max-width: 260px;
+}
+.jp-material-guide__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--jp-space-2) var(--jp-space-4);
+  margin: var(--jp-space-3) 0 0;
+}
+.jp-material-guide__fact {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.jp-material-guide__fact dt {
+  font-size: var(--jp-text-small);
+  color: var(--jp-text-3);
+}
+.jp-material-guide__fact dd {
+  margin: 0;
+  font-weight: 600;
+}
+.jp-material-guide__notes {
+  margin: var(--jp-space-3) 0 0;
+  color: var(--jp-text-2);
+}
+.jp-material-guide__foot {
+  margin: var(--jp-space-2) 0 0;
+}
+
+.jp-brand-shelf__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--jp-space-2);
+}
+.jp-brand-shelf__brand {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.jp-brand-shelf__brand:hover {
+  background: var(--jp-surface-hover);
+}
+.jp-brand-shelf__brand:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-brand-shelf__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.jp-brand-shelf__dots {
+  display: inline-flex;
+  gap: 3px;
+  min-height: 10px;
+}
+.jp-brand-shelf__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--jp-overlay-rgb), 0.2);
+}
+
+.jp-spool-of-day__body {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-4);
+}
+.jp-spool-of-day__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-spool-of-day__name {
+  font-weight: 800;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.jp-spool-of-day__actions {
+  display: flex;
+  gap: var(--jp-space-2);
+  margin-top: var(--jp-space-4);
 }

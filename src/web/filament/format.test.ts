@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Spool } from '../api';
 import {
   dryingProgress,
+  fieldFilter,
+  fieldFilterLabel,
+  fieldValues,
+  isSpoolFilter,
+  parseFilterChips,
   formatMoney,
   formatTimeLeft,
   formatWeight,
@@ -156,5 +161,34 @@ describe('printCostOf (10.2)', () => {
   it("adds filament at its price per kg and electricity at the printer's watts", () => {
     expect(printCostOf({ grams: 250, perKg: 20, hours: 4, watts: 150, perKWh: 0.3 })).toEqual({ filamentCost: 5, electricityCost: 0.18, total: 5.18 });
     expect(printCostOf({ grams: -5, perKg: 20, hours: 0, watts: 150, perKWh: 0.3 }).total).toBe(0);
+  });
+});
+
+describe('+ Filter chips', () => {
+  const a = spool({ id: 1, brand_name: 'Bambu Lab', color_name: 'Black', loaded: [{ printerId: 3, label: 'P1S · A1' }] });
+  const b = spool({ id: 2, brand_name: 'eSUN', material: 'PETG', material_type: 'Silk', color_name: 'Gold', location_name: 'Dry box' });
+  const gone = spool({ id: 3, brand_name: 'eSUN', status: 'archived' });
+
+  it('filters on any field, case aside, and keeps archived spools out unless the status asks for them', () => {
+    expect([a, b, gone].filter((s) => matchesFilter(s, fieldFilter('brand', 'esun'))).map((s) => s.id)).toEqual([2]);
+    expect([a, b].filter((s) => matchesFilter(s, fieldFilter('kind', 'Silk'))).map((s) => s.id)).toEqual([2]);
+    expect([a, b].filter((s) => matchesFilter(s, fieldFilter('printer', 'P1S'))).map((s) => s.id)).toEqual([1]);
+    expect([a, b].filter((s) => matchesFilter(s, fieldFilter('place', 'Dry box'))).map((s) => s.id)).toEqual([2]);
+    expect([a, gone].filter((s) => matchesFilter(s, fieldFilter('status', 'Archived'))).map((s) => s.id)).toEqual([3]);
+  });
+
+  it('lists each value once, sorted, and names the chip after its field', () => {
+    expect(fieldValues([a, b, gone], 'brand')).toEqual(['Bambu Lab', 'eSUN']);
+    expect(fieldValues([a, b], 'printer')).toEqual(['P1S']);
+    expect(fieldFilterLabel(fieldFilter('color', 'Gold'))).toBe('Color: Gold');
+  });
+
+  it('reads stored chips and opening chips it knows, and drops the rest', () => {
+    expect(parseFilterChips(JSON.stringify(['field:brand=eSUN', 'field:brand=eSUN', 'field:nope=x', 'low', 42]))).toEqual(['field:brand=eSUN']);
+    expect(parseFilterChips('not json')).toEqual([]);
+    expect(isSpoolFilter('material:PLA')).toBe(true);
+    expect(isSpoolFilter('field:kind=Silk')).toBe(true);
+    expect(isSpoolFilter('field:bogus=1')).toBe(false);
+    expect(parseViews(JSON.stringify([{ name: 'Gold', filter: 'field:color=Gold' }]))[0].filter).toBe('field:color=Gold');
   });
 });

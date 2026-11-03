@@ -31,17 +31,88 @@ export function formatTimeLeft(ms: number): string {
   return `${parts.join(' ')} left`;
 }
 
-export type SpoolFilter = 'all' | 'low' | 'drying' | 'archived' | `material:${string}` | `place:${number}`;
+export type SpoolFilter = 'all' | 'low' | 'drying' | 'archived' | `material:${string}` | `place:${number}` | `field:${string}`;
 
-/** Does a spool show under a filter? Archived spools show only under Archived. */
+const STATUS_NAMES: Record<string, string> = { active: 'In use', storage: 'In storage', archived: 'Archived' };
+
+/** What + Filter can filter on: each spool's values for it (a spool loaded in two printers has two). */
+export const FILTER_FIELDS: { key: string; label: string; values: (spool: Spool) => (string | null | undefined)[] }[] = [
+  { key: 'brand', label: 'Brand', values: (spool) => [spool.brand_name] },
+  { key: 'material', label: 'Material', values: (spool) => [spool.material] },
+  { key: 'kind', label: 'Kind', values: (spool) => [spool.material_type] },
+  { key: 'color', label: 'Color', values: (spool) => [spool.color_name] },
+  { key: 'place', label: 'Place', values: (spool) => [spool.location_name] },
+  { key: 'printer', label: 'Printer', values: (spool) => spool.loaded.map((where) => where.label.split(' · ')[0]) },
+  { key: 'status', label: 'Status', values: (spool) => [STATUS_NAMES[spool.status] || spool.status] },
+  { key: 'supplier', label: 'Shop', values: (spool) => [spool.supplier] }
+];
+
+/** A + Filter chip's filter: field:<key>=<value>. */
+export const fieldFilter = (key: string, value: string): SpoolFilter => `field:${key}=${value}`;
+
+/** { field, value } of a field:… filter, or null. */
+export function parseFieldFilter(filter: string): { field: (typeof FILTER_FIELDS)[number]; value: string } | null {
+  const m = /^field:([a-z]+)=(.+)$/s.exec(filter);
+  const field = m ? FILTER_FIELDS.find((f) => f.key === m[1]) : undefined;
+  return m && field ? { field, value: m[2] } : null;
+}
+
+/** "Brand: Bambu Lab". */
+export function fieldFilterLabel(filter: string): string {
+  const parsed = parseFieldFilter(filter);
+  return parsed ? `${parsed.field.label}: ${parsed.value}` : filter;
+}
+
+/** The values a field has among these spools, sorted, each once. */
+export function fieldValues(spools: Spool[], key: string): string[] {
+  const field = FILTER_FIELDS.find((f) => f.key === key);
+  if (!field) return [];
+  const seen = new Map<string, string>();
+  for (const spool of spools)
+    for (const value of field.values(spool)) {
+      const text = String(value || '').trim();
+      if (text && !seen.has(text.toLowerCase())) seen.set(text.toLowerCase(), text);
+    }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+/** Does a spool show under a filter? Archived spools show only under Archived (or Status: Archived). */
 export function matchesFilter(spool: Spool, filter: SpoolFilter): boolean {
   if (filter === 'archived') return spool.status === 'archived';
+  const field = parseFieldFilter(filter);
+  if (field) {
+    if (spool.status === 'archived' && field.field.key !== 'status') return false;
+    const wanted = field.value.toLowerCase();
+    return field.field.values(spool).some(
+      (value) =>
+        String(value || '')
+          .trim()
+          .toLowerCase() === wanted
+    );
+  }
   if (spool.status === 'archived') return false;
   if (filter === 'low') return spool.remaining < LOW_GRAMS;
   if (filter === 'drying') return !!spool.drying;
   if (filter.startsWith('material:')) return spool.material.toLowerCase() === filter.slice(9).toLowerCase();
   if (filter.startsWith('place:')) return spool.location_id === Number(filter.slice(6));
   return true;
+}
+
+/** A filter as stored (saved views, chips, the chip the page opens on) that the page knows. */
+export function isSpoolFilter(value: string): value is SpoolFilter {
+  return /^(all|low|drying|archived|material:.+|place:\d+)$/s.test(value) || !!parseFieldFilter(value);
+}
+
+/** The + Filter chips as stored (JSON), the ones the page knows, each once. */
+export function parseFilterChips(raw: string | null | undefined): SpoolFilter[] {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw || '[]');
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.map(String).filter((item) => !!parseFieldFilter(item)))].slice(0, 30) as SpoolFilter[];
 }
 
 /** Does a spool match the search words (name, brand, material, color, place)? "#12" finds spool number 12. */
@@ -228,7 +299,7 @@ export function parseViews(raw: string | null | undefined): SpoolView[] {
         name: String(item.name || '')
           .trim()
           .slice(0, 60),
-        filter: (/^(all|low|drying|archived|material:.+|place:\d+)$/.test(filter) ? filter : 'all') as SpoolFilter,
+        filter: (isSpoolFilter(filter) ? filter : 'all') as SpoolFilter,
         search: String(item.search || '').slice(0, 200),
         sort: { key: (keys.includes(String(sort.key)) ? sort.key : 'default') as SpoolSortKey, dir: sort.dir === 'desc' ? 'desc' : 'asc' },
         layout: item.layout === 'table' ? 'table' : 'cards'

@@ -283,6 +283,8 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
     bed_temp_min: toTemperatureInput(profile?.bed_temp_min),
     bed_temp_max: toTemperatureInput(profile?.bed_temp_max),
     max_print_speed: text(profile?.max_print_speed),
+    flow_ratio: text(profile?.flow_ratio),
+    td: text(profile?.td),
     drying_temp: toTemperatureInput(profile?.drying_temp),
     drying_hours: text(profile?.drying_hours),
     product_url: text(profile?.product_url),
@@ -311,6 +313,8 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
           bed_temp_min: fromTemperatureInput(form.bed_temp_min),
           bed_temp_max: fromTemperatureInput(form.bed_temp_max),
           max_print_speed: numberOrNull(form.max_print_speed),
+          flow_ratio: numberOrNull(form.flow_ratio),
+          td: numberOrNull(form.td),
           drying_temp: fromTemperatureInput(form.drying_temp),
           drying_hours: numberOrNull(form.drying_hours),
           product_url: form.product_url || null,
@@ -385,6 +389,8 @@ export function FilamentProfileDialog({ profile, onClose }: { profile: FilamentP
         {number('bed_temp_max', `Bed to (${temperatureLabel()})`, 'jp-profile-bed-max')}
         {number('drying_temp', `Drying (${temperatureLabel()})`, 'jp-profile-dry-temp', 'Dry starts from it.')}
         {number('drying_hours', 'Drying (hours)', 'jp-profile-dry-hours')}
+        {number('flow_ratio', 'Flow ratio', 'jp-profile-flow', 'From your slicer, such as 0.98.')}
+        {number('td', 'TD', 'jp-profile-td', "HueForge's transmission distance.")}
         <Field label="Product page" htmlFor="jp-profile-url" wide>
           <input id="jp-profile-url" className="jp-input" type="url" value={form.product_url} onChange={set('product_url')} placeholder="https://" />
         </Field>

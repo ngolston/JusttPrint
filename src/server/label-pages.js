@@ -2,7 +2,7 @@
 
 /**
  * QR labels anyone can scan (docs/plan-10.1.md, Phase 5). With the admin setting `publicLabels`
- * on, a spool's or a place's label opens a read-only page without signing in:
+ * on (the default since 10.7; an admin can turn it off), a spool's or a place's label opens a read-only page without signing in:
  *
  *   GET /l/spool/:token         the spool: name, brand, material, color, grams left, where it is
  *   GET /l/spool/:token/photo   its uploaded photo
@@ -21,11 +21,12 @@ const { escapeHtml } = require('./share-pages');
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 const TABLES = { spool: 'spools', place: 'storage_locations' };
 
-/** Are labels public (the admin setting)? */
+/** Are labels public (the admin setting)? On until an admin turns it off. */
 function labelsPublic(db) {
   try {
     const row = db.prepare("SELECT value FROM settings WHERE key = 'publicLabels'").get();
-    return !!row && (row.value === 'true' || row.value === true || row.value === 1 || row.value === '1');
+    if (!row || row.value === null || row.value === undefined || row.value === '') return true;
+    return row.value === 'true' || row.value === true || row.value === 1 || row.value === '1';
   } catch (_) {
     return false;
   }
@@ -44,8 +45,8 @@ function tokenFor(db, kind, id) {
 
 /**
  * The addresses (paths) the labels' QR codes open. Public: /l/spool/<token>, /l/place/<token>
- * (tokens made as needed). Not public: the spool's panel on the Filament page, which asks to sign
- * in; places then have no label address (null).
+ * (tokens made as needed). Not public: the spool's panel, or the place's spools, on the Filament
+ * page (#/filament/place-<id>), which asks to sign in.
  * @param {any} db
  * @param {{ spoolIds?: number[], placeIds?: number[] }} input
  */
@@ -69,7 +70,7 @@ function labelLinks(db, input) {
     }
     for (const id of ids(input && input.placeIds)) {
       const token = isPublic ? tokenFor(db, 'place', id) : null;
-      places[id] = token ? `/l/place/${token}` : null;
+      places[id] = isPublic ? (token ? `/l/place/${token}` : null) : `/#/filament/place-${id}`;
     }
   })();
   return { public: isPublic, spools, places };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatTemperature } from '../units';
-import { BookOpen, CircleDot, Download, Layers, LayoutGrid, MapPin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
+import { BookOpen, CircleDot, Download, Layers, LayoutDashboard, LayoutGrid, MapPin, Pin, Plus, Star, Table2, Tag, Upload, X } from 'lucide-react';
 import {
   alerts,
   filament,
@@ -32,7 +32,11 @@ import {
   matchesFilter,
   matchesSearch,
   DEFAULT_SORT,
+  fieldFilterLabel,
+  isSpoolFilter,
   MAX_VIEWS,
+  parseFieldFilter,
+  parseFilterChips,
   parseViews,
   SORT_LABELS,
   sortSpools,
@@ -58,6 +62,17 @@ import {
 import { SpoolDrawer, type SpoolAction } from '../filament/SpoolDrawer';
 import { FilamentProfileDialog, FilamentsDialog } from '../filament/FilamentsDialog';
 import { SpoolTable } from '../filament/SpoolTable';
+import { FilterChipDialog } from '../filament/FilterChipDialog';
+import {
+  BrandShelf,
+  ColorWall,
+  MaterialGuide,
+  parseWidgetPrefs,
+  shownWidgets,
+  SpoolOfTheDay,
+  WidgetsDialog,
+  type WidgetPrefs
+} from '../filament/FilamentWidgets';
 import { ExportSpoolsDialog, ImportCsvDialog } from '../filament/SpoolTransferDialogs';
 import { askText, showMessage } from '../page';
 
@@ -253,7 +268,53 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       (value) => setViews(parseViews(value)),
       () => {}
     );
+    settings.get<string | null>('filamentWidgets').then(
+      (value) => setWidgets(parseWidgetPrefs(value)),
+      () => {}
+    );
+    settings.get<string | null>('spoolFilterChips').then(
+      (value) => setAddedChips(parseFilterChips(value)),
+      () => {}
+    );
+    settings.get<string | null>('spoolStartFilter').then(
+      (value) => {
+        const start = value && isSpoolFilter(value) && !value.startsWith('place:') ? value : 'all';
+        setStartFilter(start);
+        if (start !== 'all') setFilter((current) => (current === 'all' ? start : current));
+      },
+      () => {}
+    );
   }, []);
+  // The widgets shown and their order (Widgets), kept per person.
+  const [widgets, setWidgetsState] = useState<WidgetPrefs>(() => parseWidgetPrefs(null));
+  const [choosingWidgets, setChoosingWidgets] = useState(false);
+  const setWidgets = (next: WidgetPrefs) => setWidgetsState(next);
+  const keepWidgets = (next: WidgetPrefs) => {
+    setWidgetsState(next);
+    settings.save('filamentWidgets', JSON.stringify(next)).catch(() => {});
+  };
+  // Chips added with + Filter, and the chip the page opens on: kept per person.
+  const [addedChips, setAddedChips] = useState<SpoolFilter[]>([]);
+  const [startFilter, setStartFilter] = useState<SpoolFilter>('all');
+  const [addingChip, setAddingChip] = useState(false);
+  const keepChips = (next: SpoolFilter[]) => {
+    setAddedChips(next);
+    settings.save('spoolFilterChips', JSON.stringify(next)).catch(() => {});
+  };
+  const addChip = (chip: SpoolFilter) => {
+    if (!addedChips.includes(chip)) keepChips([...addedChips, chip]);
+    setFilter(chip);
+    setAddingChip(false);
+  };
+  const removeChip = (chip: SpoolFilter) => {
+    keepChips(addedChips.filter((c) => c !== chip));
+    if (filter === chip) setFilter('all');
+    if (startFilter === chip) startOn('all');
+  };
+  const startOn = (chip: SpoolFilter) => {
+    setStartFilter(chip);
+    settings.save('spoolStartFilter', chip).catch(() => {});
+  };
   const setLayout = (next: SpoolLayout) => {
     setLayoutState(next);
     settings.save('spoolLayout', next).catch(() => {});
@@ -307,10 +368,15 @@ export function FilamentPage({ section = '' }: { section?: string }) {
     ['all', 'All'],
     ['low', `Running low (under ${formatWeight(LOW_GRAMS)})`],
     ...(drying.length ? [['drying', 'Drying'] as [SpoolFilter, string]] : []),
-    ...materials.slice(0, 6).map((m) => [`material:${m}`, m] as [SpoolFilter, string]),
+    // Every material on hand gets a chip, so a new one (the first PA-CF) shows up by itself.
+    ...materials.map((m) => [`material:${m}`, m] as [SpoolFilter, string]),
     ...(summary?.archivedCount ? [['archived', `Archived (${summary.archivedCount})`] as [SpoolFilter, string]] : []),
-    ...(filter.startsWith('place:') ? [[filter, placeLabel(Number(filter.slice(6)))] as [SpoolFilter, string]] : [])
+    ...(filter.startsWith('place:') ? [[filter, placeLabel(Number(filter.slice(6)))] as [SpoolFilter, string]] : []),
+    // A field filter from a saved view that is no chip of its own.
+    ...(parseFieldFilter(filter) && !addedChips.includes(filter) ? [[filter, fieldFilterLabel(filter)] as [SpoolFilter, string]] : [])
   ];
+  // The chip the page opens on, if it can still be shown (a material with no spools left cannot).
+  const chipLabel = (id: SpoolFilter) => chips.find(([chip]) => chip === id)?.[1] || (addedChips.includes(id) ? fieldFilterLabel(id) : '');
   function placeLabel(id: number) {
     return (placeShown?.id === id ? placeShown.name : (spools || []).find((spool) => spool.location_id === id)?.location_name) || 'This place';
   }
@@ -321,6 +387,27 @@ export function FilamentPage({ section = '' }: { section?: string }) {
     close();
     requestAnimationFrame(() => document.getElementById('jp-filament-all')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   };
+  // A widget's link (a brand, a material): those spools, in the list below.
+  const showFilter = (next: SpoolFilter) => {
+    setFilter(next);
+    setSearch('');
+    requestAnimationFrame(() => document.getElementById('jp-filament-all')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  };
+  // #/filament/place-<id> (a place's QR label): the spools in that place.
+  useEffect(() => {
+    const m = /^place-(\d+)$/.exec(section);
+    if (!m) return;
+    const id = Number(m[1]);
+    let alive = true;
+    filament.locations().then(
+      (list) => alive && showPlace({ id, name: list.find((place) => place.id === id)?.name || 'This place' }),
+      () => alive && showPlace({ id, name: 'This place' })
+    );
+    return () => {
+      alive = false;
+    };
+    // showPlace only sets state.
+  }, [section]);
 
   const onAction = (action: SpoolAction, spool: Spool) => {
     if (action === 'edit') setDialog({ kind: 'spool', spool });
@@ -363,12 +450,15 @@ export function FilamentPage({ section = '' }: { section?: string }) {
           <Button icon={Download} onClick={() => setDialog({ kind: 'export' })} id="jp-export-spools-open">
             Export
           </Button>
+          <Button icon={LayoutDashboard} onClick={() => setChoosingWidgets(true)} id="jp-filament-widgets">
+            Widgets
+          </Button>
           <EditOnly>
             <Button icon={MapPin} onClick={() => setDialog({ kind: 'places' })} id="jp-filament-places">
               Places
             </Button>
             <Button icon={Tag} onClick={() => setDialog({ kind: 'labels' })} id="jp-filament-labels">
-              Labels
+              QR Labels
             </Button>
             <Button variant="primary" icon={Plus} onClick={() => setDialog({ kind: 'spool' })}>
               Add spool
@@ -390,21 +480,45 @@ export function FilamentPage({ section = '' }: { section?: string }) {
         </Panel>
       ) : (
         <>
-          <BentoGrid label="Filament overview">
-            {summary.spoolCount > 0 && <OnHand summary={summary} rows={drying.length ? 2 : 1} />}
-            <Tile variant="quiet" title="Add a spool" cols={2}>
-              <p className="jp-filament__add-text">Pick it from the filament catalogue, type it in, or bring over your Spoolman inventory.</p>
-              {addButtons}
-            </Tile>
-            <ReorderTile items={data.reorder} onOpen={() => setDialog({ kind: 'shopping' })} />
-            <LoadedTile printers={data.printers} loads={data.loads} />
-            {drying.length > 0 && (
-              <Dryer
-                spools={drying}
-                onFinish={(spool) => spool.drying && setDialog({ kind: 'finish-drying', sessionId: spool.drying.id, name: spool.display_name })}
-              />
-            )}
-          </BentoGrid>
+          {shownWidgets(widgets).length > 0 && (
+            <BentoGrid label="Filament overview">
+              {shownWidgets(widgets).map((id) => {
+                switch (id) {
+                  case 'on-hand':
+                    return summary.spoolCount > 0 ? <OnHand key={id} summary={summary} rows={drying.length ? 2 : 1} /> : null;
+                  case 'add':
+                    return (
+                      <Tile key={id} variant="quiet" title="Add a spool" cols={2}>
+                        <p className="jp-filament__add-text">Pick it from the filament catalogue, type it in, or bring over your Spoolman inventory.</p>
+                        {addButtons}
+                      </Tile>
+                    );
+                  case 'reorder':
+                    return <ReorderTile key={id} items={data.reorder} onOpen={() => setDialog({ kind: 'shopping' })} />;
+                  case 'loaded':
+                    return <LoadedTile key={id} printers={data.printers} loads={data.loads} />;
+                  case 'dryer':
+                    return drying.length > 0 ? (
+                      <Dryer
+                        key={id}
+                        spools={drying}
+                        onFinish={(spool) => spool.drying && setDialog({ kind: 'finish-drying', sessionId: spool.drying.id, name: spool.display_name })}
+                      />
+                    ) : null;
+                  case 'color-wall':
+                    return <ColorWall key={id} spools={spools} onOpen={(spool) => setOpenId(spool.id)} />;
+                  case 'material-guide':
+                    return <MaterialGuide key={id} spools={spools} onShow={showFilter} />;
+                  case 'brand-shelf':
+                    return <BrandShelf key={id} spools={spools} onShow={showFilter} />;
+                  case 'spool-of-the-day':
+                    return <SpoolOfTheDay key={id} spools={spools} onOpen={(spool) => setOpenId(spool.id)} />;
+                  default:
+                    return null;
+                }
+              })}
+            </BentoGrid>
+          )}
 
           <section className="jp-filament__all" aria-labelledby="jp-filament-all">
             <div className="jp-filament__toolbar">
@@ -414,9 +528,29 @@ export function FilamentPage({ section = '' }: { section?: string }) {
               <div className="jp-filament__chips" role="group" aria-label="Show">
                 {chips.map(([id, label]) => (
                   <button key={id} type="button" className={cx('jp-chip', filter === id && 'is-on')} aria-pressed={filter === id} onClick={() => setFilter(id)}>
+                    {startFilter === id && id !== 'all' && <Pin size={12} aria-label="The page opens here" />}
                     {label}
                   </button>
                 ))}
+                {addedChips.map((chip) => (
+                  <span key={chip} className={cx('jp-chip jp-filament__view jp-filament__added', filter === chip && 'is-on')}>
+                    <button type="button" className="jp-filament__view-apply" aria-pressed={filter === chip} onClick={() => setFilter(chip)}>
+                      {startFilter === chip && <Pin size={12} aria-label="The page opens here" />}
+                      {fieldFilterLabel(chip)}
+                    </button>
+                    <button
+                      type="button"
+                      className="jp-filament__view-remove"
+                      aria-label={`Remove the filter ${fieldFilterLabel(chip)}`}
+                      onClick={() => removeChip(chip)}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+                <button type="button" className="jp-chip" id="jp-add-filter-chip" onClick={() => setAddingChip(true)}>
+                  <Plus size={12} aria-hidden="true" /> Filter
+                </button>
               </div>
               <input
                 className="jp-input jp-filament__search"
@@ -448,6 +582,17 @@ export function FilamentPage({ section = '' }: { section?: string }) {
                 {!activeView && (
                   <button type="button" className="jp-chip" id="jp-save-view" onClick={() => void saveView()}>
                     <Plus size={12} aria-hidden="true" /> Save view
+                  </button>
+                )}
+                {filter !== startFilter && !filter.startsWith('place:') && (
+                  <button
+                    type="button"
+                    className="jp-chip"
+                    id="jp-start-filter"
+                    title={`Open the Filament page on ${chipLabel(filter) || 'this chip'} from now on`}
+                    onClick={() => startOn(filter)}
+                  >
+                    <Pin size={12} aria-hidden="true" /> Start here
                   </button>
                 )}
               </div>
@@ -515,6 +660,8 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'profile' && <FilamentProfileDialog profile={dialog.profile} onClose={() => setDialog({ kind: 'filaments' })} />}
       {dialog?.kind === 'shopping' && <ShoppingListDialog items={data?.reorder || []} onClose={close} />}
       {dialog?.kind === 'labels' && <LabelsDialog spools={data?.spools || []} onClose={close} />}
+      {choosingWidgets && <WidgetsDialog prefs={widgets} onChange={keepWidgets} onClose={() => setChoosingWidgets(false)} />}
+      {addingChip && <FilterChipDialog spools={data?.spools || []} onAdd={addChip} onClose={() => setAddingChip(false)} />}
     </div>
   );
 }

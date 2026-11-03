@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import QRCode from 'qrcode';
 import { Copy, ExternalLink, Printer as PrinterIcon } from 'lucide-react';
 import { filament, settings, type ReorderItem, type Spool, type StorageLocation } from '../api';
 import { Tile } from '../components/Bento';
@@ -11,6 +10,20 @@ import { Tabs } from '../components/Tabs';
 import { useCan } from '../session';
 import { useCurrency } from './currency';
 import { formatMoney, formatWeight, runsOutShort, runsOutText } from './format';
+import {
+  LABEL_LAYOUTS,
+  LABEL_SIZES,
+  layoutOf,
+  PLACE_LAYOUTS,
+  PlaceLabel,
+  placeLabelData,
+  placeLayoutOf,
+  SpoolLabel,
+  spoolLabelData,
+  type LabelSize,
+  type PlaceLabelData,
+  type SpoolLabelData
+} from './LabelLayouts';
 
 /*
  * The Filament page's Reorder tile and shopping list, and QR labels for spools (docs/merge-10.md,
@@ -106,49 +119,14 @@ export function ShoppingListDialog({ items, onClose }: { items: ReorderItem[]; o
   );
 }
 
-export const LABEL_SIZES = [
-  { id: 'badge', name: 'Badge', mmW: 40, mmH: 30 },
-  { id: 'card', name: 'Wide card', mmW: 50, mmH: 30 },
-  { id: 'strip', name: 'Strip', mmW: 40, mmH: 12 }
-] as const;
-export type LabelSize = (typeof LABEL_SIZES)[number]['id'];
+/** A label: its QR address and what a spool's or a place's layouts show. */
+type LabelContent = { key: string; url: string } & ({ spool: SpoolLabelData; place?: never } | { place: PlaceLabelData; spool?: never });
 
-/** What a label shows: its QR address, a title, up to two lines and a color swatch. */
-interface LabelContent {
-  key: string;
-  url: string;
-  title: string;
-  meta: string;
-  color: string | null;
-  colorText: string;
-}
-
-function Label({ label, size }: { label: LabelContent; size: (typeof LABEL_SIZES)[number] }) {
-  const [svg, setSvg] = useState('');
-  useEffect(() => {
-    let alive = true;
-    QRCode.toString(label.url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }).then(
-      (markup) => alive && setSvg(markup),
-      () => {}
-    );
-    return () => {
-      alive = false;
-    };
-  }, [label.url]);
-  return (
-    <div className={`jp-label-card jp-label-card--${size.id}`} style={{ width: `${size.mmW}mm`, height: `${size.mmH}mm` }} data-url={label.url}>
-      <span className="jp-label-card__qr" dangerouslySetInnerHTML={{ __html: svg }} />
-      <span className="jp-label-card__text">
-        <span className="jp-label-card__name">{label.title}</span>
-        {size.id !== 'strip' && label.meta && <span className="jp-label-card__meta">{label.meta}</span>}
-        {size.id !== 'strip' && label.colorText && (
-          <span className="jp-label-card__meta">
-            {label.color && <span className="jp-label-card__swatch" style={{ background: label.color }} />}
-            {label.colorText}
-          </span>
-        )}
-      </span>
-    </div>
+function Label({ label, size, layout }: { label: LabelContent; size: (typeof LABEL_SIZES)[number]; layout: string }) {
+  return label.spool ? (
+    <SpoolLabel data={label.spool} url={label.url} size={size} layout={layout} />
+  ) : (
+    <PlaceLabel data={label.place} url={label.url} size={size} layout={layout} />
   );
 }
 
@@ -172,6 +150,30 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState('');
   const size = LABEL_SIZES.find((s) => s.id === sizeId) || LABEL_SIZES[0];
+  // The layout chosen for each size, kept per person.
+  // Keys: the size for spools (badge), place-<size> for places.
+  const [layouts, setLayouts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    settings.get<string | null>('labelLayouts').then(
+      (value) => {
+        try {
+          const parsed = JSON.parse(value || '{}');
+          if (parsed && typeof parsed === 'object') setLayouts(parsed);
+        } catch {
+          /* none kept yet */
+        }
+      },
+      () => {}
+    );
+  }, []);
+  const layoutKey = kind === 'spools' ? sizeId : `place-${sizeId}`;
+  const layout = kind === 'spools' ? layoutOf(sizeId, layouts[layoutKey]) : placeLayoutOf(sizeId, layouts[layoutKey]);
+  const layoutChoices = (kind === 'spools' ? LABEL_LAYOUTS : PLACE_LAYOUTS)[sizeId];
+  const setLayout = (id: string) => {
+    const next = { ...layouts, [layoutKey]: id };
+    setLayouts(next);
+    settings.save('labelLayouts', JSON.stringify(next)).catch(() => {});
+  };
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
 
   const loadLinks = async (placeList: StorageLocation[]) => {
@@ -219,20 +221,14 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
     .map((spool) => ({
       key: `spool-${spool.id}`,
       url: `${origin}${links?.spools[spool.id]}`,
-      title: spool.display_name,
-      meta: [spool.brand_name, spool.material_type || spool.material].filter(Boolean).join(' · '),
-      color: spool.color_hex,
-      colorText: `${spool.color_hex || ''} · #${spool.id}`
+      spool: spoolLabelData(spool)
     }));
   const placeLabels: LabelContent[] = places
     .filter((place) => chosenPlaces.has(place.id) && links?.places[place.id])
     .map((place) => ({
       key: `place-${place.id}`,
       url: `${origin}${links?.places[place.id]}`,
-      title: place.name,
-      meta: place.is_dry_box ? 'Dry box' : 'Place',
-      color: null,
-      colorText: 'Scan for its spools'
+      place: placeLabelData(place)
     }));
   const picked = kind === 'spools' ? spoolLabels : placeLabels;
 
@@ -262,7 +258,7 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
     <Modal
       open
       onClose={onClose}
-      title="Labels"
+      title="QR Labels"
       id="jp-labels-dialog"
       className="jp-filament-form jp-filament-form--wide"
       footer={
@@ -301,7 +297,7 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
       <p className="jp-meta" id="jp-labels-how">
         {links?.public
           ? 'The QR code opens a read-only page for the spool or the place (no price, shop or notes), for anyone who scans it. Sign in from there to change things.'
-          : 'The QR code opens the spool on the Filament page: sign in first on the phone that scans it.'}
+          : 'The QR code opens the spool, or the spools in the place, on the Filament page: sign in first on the phone that scans it.'}
       </p>
       {error && (
         <p className="jp-filament-form__error" role="alert">
@@ -312,6 +308,13 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
         {LABEL_SIZES.map((s) => (
           <label key={s.id} className="jp-filament-form__check">
             <input type="radio" name="jp-label-size" checked={sizeId === s.id} onChange={() => setSizeId(s.id)} /> {s.name} ({s.mmW} × {s.mmH} mm)
+          </label>
+        ))}
+      </div>
+      <div className="jp-labels__sizes" role="group" aria-label="Layout" id="jp-label-layouts">
+        {layoutChoices.map((l) => (
+          <label key={l.id} className="jp-filament-form__check">
+            <input type="radio" name="jp-label-layout" value={l.id} checked={layout === l.id} onChange={() => setLayout(l.id)} /> {l.name}
           </label>
         ))}
       </div>
@@ -337,11 +340,6 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
             ))}
           </ul>
         </>
-      ) : !links?.public ? (
-        <p className="jp-meta" id="jp-labels-places-off">
-          A place&apos;s label opens a page listing the spools in it, which needs labels anyone can scan
-          {isAdmin ? ': turn that on above.' : ' (an admin turns that on).'}
-        </p>
       ) : !places.length ? (
         <p className="jp-meta">No places yet: add them with Places on the Filament page.</p>
       ) : (
@@ -362,7 +360,7 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
       )}
       <div className="jp-labels__preview" aria-label="Preview">
         {picked.slice(0, 4).map((label) => (
-          <Label key={label.key} label={label} size={size} />
+          <Label key={label.key} label={label} size={size} layout={layout} />
         ))}
         {picked.length > 4 && <span className="jp-meta">and {picked.length - 4} more</span>}
       </div>
@@ -370,7 +368,7 @@ export function LabelsDialog({ spools, onClose }: { spools: Spool[]; onClose: ()
         createPortal(
           <div className="jp-labels-sheet" id="jp-labels-sheet">
             {picked.map((label) => (
-              <Label key={label.key} label={label} size={size} />
+              <Label key={label.key} label={label} size={size} layout={layout} />
             ))}
           </div>,
           document.body

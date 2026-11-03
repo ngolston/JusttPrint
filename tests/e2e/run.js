@@ -43,7 +43,10 @@ const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROM
 
 let passed = 0;
 let failed = 0;
+// The last check that ran, so an error the page logs later can say where in the run it came.
+let lastCheck = 'start';
 function check(name, ok, detail = '') {
+  lastCheck = name;
   if (ok) {
     passed++;
     console.log(`ok   ${name}`);
@@ -1038,7 +1041,7 @@ async function browserChecks(base, wsUrl, session) {
     const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
     const errors = [];
     const badResponses = [];
-    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(`${error.message} (after "${lastCheck}")`));
     // The two ball models of the duplicates checks are deleted on purpose: a grid redraw just after
     // can still ask for one (and get 404), which is not a failure.
     const deletedOnPurpose = (text) => /(\/|%2F)Balls(\/|%2F)/.test(text || '');
@@ -1052,7 +1055,7 @@ async function browserChecks(base, wsUrl, session) {
       if (/Failed to launch 'justtprint:\/\/.*does not have a registered handler/.test(message.text())) return;
       const where = message.location();
       if (deletedOnPurpose(where.url) || deletedOnPurpose(message.text()) || justAfterDeletion(`${message.text()} ${where.url || ''}`)) return;
-      errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber})`);
+      errors.push(`${message.text()} (${where.url ? where.url.replace(base, '') : '?'}:${where.lineNumber}; after "${lastCheck}")`);
     });
     page.on('response', (response) => {
       if (response.status() < 400) return;
@@ -4387,6 +4390,17 @@ async function browserChecks(base, wsUrl, session) {
           }
         ])
       ).result;
+      // Public labels are on until an admin turns them off (10.7).
+      const neverSet = (await invoke(base, session, 'get-setting', ['publicLabels'])).result;
+      const defaultLinks = (await invoke(base, session, 'get-label-links', [{ spoolIds: [labelSpool.id], placeIds: [labelPlace.id] }])).result || {};
+      check(
+        'labels anyone can scan are on by default, for spools and places',
+        (neverSet === null || neverSet === undefined) &&
+          defaultLinks.public === true &&
+          /^\/l\/spool\//.test(defaultLinks.spools?.[labelSpool.id] || '') &&
+          /^\/l\/place\//.test(defaultLinks.places?.[labelPlace.id] || ''),
+        JSON.stringify({ neverSet, defaultLinks })
+      );
       await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
       await page.evaluate(() => {
         window.location.hash = '#/filament';
@@ -4403,6 +4417,20 @@ async function browserChecks(base, wsUrl, session) {
         .then((el) => el.getAttribute('data-url'))
         .catch(() => '');
       check('with public labels off, a label opens the spool in the app', offUrl.endsWith(`/#/filament/${labelSpool.id}`), offUrl);
+      // Layouts per size: Wide card's Giant number shows the spool number; the choice is kept.
+      await page.check('input[name=jp-label-size] >> nth=1');
+      await page.check('input[name=jp-label-layout][value="number"]');
+      const numbered = await page.waitForSelector(`#jp-labels-dialog .jp-lbl--card-number .jp-lbl__id:text-is("#${labelSpool.id}")`, { timeout: 10000 }).then(
+        () => true,
+        () => false
+      );
+      const keptLayouts = await waitFor(
+        async () => (/"card":"number"/.test((await invoke(base, session, 'get-setting', ['labelLayouts'])).result || '') ? true : null),
+        10000,
+        'layout kept'
+      ).catch(() => false);
+      check('QR Labels has layouts per size (Giant number shows the spool number), and keeps the one chosen', numbered && keptLayouts === true);
+      await page.check('input[name=jp-label-size] >> nth=0');
       await page.check('#jp-labels-public');
       const onUrl = await page
         .waitForSelector(`${card}[data-url*="/l/spool/"]`, { timeout: 10000 })
@@ -4430,6 +4458,35 @@ async function browserChecks(base, wsUrl, session) {
       await page.uncheck('#jp-labels-public');
       await page.waitForSelector(`${card}[data-url*="/#/filament/"]`, { timeout: 10000 }).catch(() => {});
       check('turning public labels off closes the pages again', onUrl ? (await fetch(onUrl.replace(/^https?:\/\/[^/]+/, base))).status === 404 : false);
+      // Not public: a place label still has a QR code, opening the place's spools on the Filament page.
+      await page.click('#jp-labels-dialog [role="tab"]:has-text("Places")');
+      const privatePlaceUrl = await page
+        .waitForSelector('#jp-labels-dialog .jp-label-card:has-text("E2E Label Shelf") svg', { timeout: 10000 })
+        .then(() => page.getAttribute('#jp-labels-dialog .jp-label-card:has-text("E2E Label Shelf")', 'data-url'))
+        .catch(() => '');
+      await page.click('#jp-labels-dialog [role="tab"]:has-text("Spools")');
+      if (privatePlaceUrl) await page.goto(privatePlaceUrl.replace(/^https?:\/\/[^/]+/, base));
+      await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
+      const placeOpened = await page
+        .waitForFunction(
+          () => {
+            const chip = document.querySelector('.jp-filament__chips .jp-chip.is-on');
+            const names = [...document.querySelectorAll('.jp-spool-card')].map((c) => c.textContent || '');
+            return /E2E Label Shelf/.test(chip?.textContent || '') && names.length === 1 && /E2E Label Spool/.test(names[0]);
+          },
+          null,
+          { timeout: 15000 }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        'with public labels off, a place label has a QR code that opens its spools on the Filament page',
+        new RegExp(`/#/filament/place-${labelPlace.id}$`).test(privatePlaceUrl || '') && placeOpened,
+        privatePlaceUrl || 'no QR'
+      );
+      await page.click('.jp-filament__chips .jp-chip:has-text("All")').catch(() => {});
       await page.click('#jp-labels-dialog button:has-text("Close")').catch(() => {});
       // Places: a place's name shows the spools in it.
       await page.click('#jp-filament-places');
@@ -4460,6 +4517,126 @@ async function browserChecks(base, wsUrl, session) {
     } catch (error) {
       check('the 10.1 Phase 5 checks ran to the end', false, error.message.split('\n')[0]);
       await invoke(base, session, 'save-setting', ['publicLabels', 'false']);
+    }
+
+    // + Filter chips and the chip the Filament page opens on; a new material gets its own chip; QR Labels.
+    try {
+      const chipSpool = (
+        await invoke(base, session, 'save-spool', [
+          { name: 'E2E Chip Spool', material: 'E2EMAT', material_type: 'E2E Silk', color_hex: '#7a3cc4', initial_weight: 1000, remaining: 900 }
+        ])
+      ).result;
+      await page.evaluate(() => {
+        window.location.hash = '#/filament';
+      });
+      await page.waitForSelector('#jp-add-filter-chip', { timeout: 15000 });
+      check(
+        'a material no other spool has gets its own chip, and the labels button is QR Labels',
+        (await page.waitForSelector('.jp-filament__chips .jp-chip:text-is("E2EMAT")', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )) && (await page.textContent('#jp-filament-labels'))?.trim() === 'QR Labels'
+      );
+      await page.click('#jp-add-filter-chip');
+      await page.waitForSelector('#jp-filter-chip-dialog[open]', { timeout: 10000 });
+      await page.selectOption('#jp-filter-chip-field', 'kind');
+      await page.selectOption('#jp-filter-chip-value', 'E2E Silk');
+      await page.click('#jp-filter-chip-add');
+      const onlyChip = await page
+        .waitForFunction(
+          () => {
+            const on = document.querySelector('.jp-filament__added.is-on');
+            const names = [...document.querySelectorAll('.jp-spool-card')].map((c) => c.textContent || '');
+            return /Kind: E2E Silk/.test(on?.textContent || '') && names.length === 1 && /E2E Chip Spool/.test(names[0]);
+          },
+          null,
+          { timeout: 10000 }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      check('+ Filter adds a chip for any field (Kind: E2E Silk) and shows only its spools', onlyChip);
+      await page.click('#jp-start-filter');
+      await waitFor(
+        async () => ((await invoke(base, session, 'get-setting', ['spoolStartFilter'])).result === 'field:kind=E2E Silk' ? true : null),
+        10000,
+        'start saved'
+      ).catch(() => {});
+      await page.reload();
+      await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
+      const opensOn = await page
+        .waitForFunction(
+          () => {
+            const on = document.querySelector('.jp-filament__added.is-on');
+            return /Kind: E2E Silk/.test(on?.textContent || '') && document.querySelectorAll('.jp-spool-card').length === 1;
+          },
+          null,
+          { timeout: 15000 }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      check('Start here makes the Filament page open on that chip, and the chip stays after a reload', opensOn);
+      await page.click('.jp-filament__added:has-text("Kind: E2E Silk") .jp-filament__view-remove');
+      const removed = await waitFor(
+        async () => {
+          const start = (await invoke(base, session, 'get-setting', ['spoolStartFilter'])).result;
+          const chips = (await invoke(base, session, 'get-setting', ['spoolFilterChips'])).result;
+          return start === 'all' && chips === '[]' && !(await page.isVisible('.jp-filament__added')) ? true : null;
+        },
+        10000,
+        'chip removed'
+      ).catch(() => false);
+      check('removing the chip goes back to All, and the page opens on All again', removed === true);
+
+      // Widgets: Color wall, Material guide, Brand shelf and Spool of the day; choose which show.
+      const tileShown = (title) => page.isVisible(`.jp-bento .jp-tile[aria-label="${title}"]`);
+      check(
+        'the Filament page shows the Color wall, Material guide, Brand shelf and Spool of the day',
+        (await page.waitForSelector('.jp-bento .jp-tile[aria-label="Color wall"]', { timeout: 10000 }).then(
+          () => true,
+          () => false
+        )) &&
+          (await tileShown('Material guide')) &&
+          (await tileShown('Brand shelf')) &&
+          (await tileShown('Spool of the day')) &&
+          (await page.isVisible(`.jp-color-wall__swatch[aria-label^="#${chipSpool.id} "]`))
+      );
+      const firstBrand = ((await page.textContent('.jp-brand-shelf__brand .jp-brand-shelf__name').catch(() => '')) || '').trim();
+      await page.click('.jp-brand-shelf__brand');
+      check(
+        "clicking a brand on the shelf shows that brand's spools",
+        !!firstBrand &&
+          (await page.waitForSelector(`.jp-filament__chips .jp-chip.is-on:has-text("Brand: ${firstBrand}")`, { timeout: 10000 }).then(
+            () => true,
+            () => false
+          )),
+        firstBrand
+      );
+      await page.click('.jp-filament__chips .jp-chip:has-text("All")').catch(() => {});
+      await page.click('#jp-filament-widgets');
+      await page.waitForSelector('#jp-filament-widgets-dialog[open]', { timeout: 10000 });
+      await page.uncheck('#jp-filament-widgets-dialog input[data-widget="add"]');
+      await page.click('#jp-filament-widgets-dialog button[aria-label="Move Spool of the day up"]');
+      await page.click('#jp-filament-widgets-dialog button:has-text("Done")');
+      const chosen = await waitFor(
+        async () => {
+          const saved = JSON.parse((await invoke(base, session, 'get-setting', ['filamentWidgets'])).result || '{}');
+          const order = saved.order || [];
+          return (saved.hidden || []).includes('add') && order.indexOf('spool-of-the-day') === order.indexOf('brand-shelf') - 1 ? true : null;
+        },
+        10000,
+        'widgets saved'
+      ).catch(() => false);
+      check('Widgets hides a widget and moves another, and keeps the choice', chosen === true && !(await tileShown('Add a spool')));
+      await invoke(base, session, 'save-setting', ['filamentWidgets', '']);
+      await invoke(base, session, 'delete-spool', [chipSpool.id]);
+    } catch (error) {
+      check('the filter chip checks ran to the end', false, error.message.split('\n')[0]);
+      await invoke(base, session, 'save-setting', ['spoolStartFilter', 'all']).catch(() => {});
+      await invoke(base, session, 'save-setting', ['spoolFilterChips', '[]']).catch(() => {});
     }
 
     // 10.2 Phase 6 (docs/plan-10.1.md): units and date format, from Filament settings.
