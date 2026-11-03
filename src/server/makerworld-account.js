@@ -7,12 +7,18 @@
  *
  * Sign-in goes through Bambu Lab's account API, as Bambu Studio does: email and password, then
  * the code Bambu Lab emails when it asks for one (or the authenticator code with two-factor sign-in).
+ *
+ * Other accounts signed in before are kept in makerWorldSavedAccounts, to switch back without the
+ * password; each can have a nickname. An account is marked expired when Bambu Lab turns its sign-in
+ * down and a refresh does not help (markExpired), until it is signed in again.
  */
 
 const database = require('../core/database');
 const { httpsFetch, readLimited, USER_AGENT } = require('./link-import');
 
 const KEY = 'makerWorldAccount';
+// The other accounts signed in before, kept to switch back without the password (see accounts()).
+const SAVED_KEY = 'makerWorldSavedAccounts';
 const API = 'https://api.bambulab.com';
 const TIMEOUT_MS = 20000;
 // When Bambu Lab does not say how long a token lasts.
@@ -32,11 +38,48 @@ function write(account) {
   else database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(KEY, JSON.stringify(account));
 }
 
+function readSaved() {
+  try {
+    const row = database.db.prepare('SELECT value FROM settings WHERE key = ?').get(SAVED_KEY);
+    const list = row && row.value ? JSON.parse(row.value) : [];
+    return Array.isArray(list) ? list.filter((saved) => saved && saved.accessToken) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeSaved(list) {
+  if (!list.length) database.db.prepare('DELETE FROM settings WHERE key = ?').run(SAVED_KEY);
+  else database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(SAVED_KEY, JSON.stringify(list));
+}
+
+const sameAccount = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+
+/** Keep the account in use among the saved ones (it stops being the one downloads use). */
+function park() {
+  const active = read();
+  if (!active || !active.accessToken) return;
+  writeSaved([...readSaved().filter((saved) => !sameAccount(saved.account, active.account)), active]);
+  write(null);
+}
+
+/** Bambu Lab turned the sign-in down, or it ran out with nothing to renew it. */
+const isExpired = (saved) => Boolean(saved.expired) || (!saved.refreshToken && Boolean(saved.expiresAt) && Date.parse(saved.expiresAt) < Date.now());
+
+/** What a browser may know about a sign-in: never the tokens. */
+const describe = (saved) => ({
+  account: saved.account || null,
+  name: saved.name || null,
+  nickname: saved.nickname || null,
+  expires: saved.expiresAt || null,
+  expired: isExpired(saved)
+});
+
 /** What a browser may know: signed in or not, and as whom. */
 function status() {
   const account = read();
-  if (!account || !account.accessToken) return { signedIn: false, account: null, name: null, expires: null };
-  return { signedIn: true, account: account.account || null, name: account.name || null, expires: account.expiresAt || null };
+  if (!account || !account.accessToken) return { signedIn: false, account: null, name: null, nickname: null, expires: null, expired: false };
+  return { signedIn: true, ...describe(account) };
 }
 
 /**
@@ -81,13 +124,20 @@ async function accountName(token, fetchImpl) {
 
 async function keep(account, tokens, fetchImpl) {
   const seconds = Number(tokens.expiresIn) > 0 ? Number(tokens.expiresIn) : DEFAULT_TOKEN_SECONDS;
+  // Signing in again (or a refresh) keeps the nickname given to the account.
+  const before = read();
+  const known = [before, ...readSaved()].find((other) => other && sameAccount(other.account, account));
   const saved = {
     account,
+    nickname: (known && known.nickname) || null,
     name: await accountName(tokens.accessToken, fetchImpl),
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken || null,
     expiresAt: new Date(Date.now() + seconds * 1000).toISOString()
   };
+  // Signing in with another account keeps the one in use among the saved ones.
+  if (before && !sameAccount(before.account, account)) park();
+  writeSaved(readSaved().filter((other) => !sameAccount(other.account, account)));
   write(saved);
   return { done: true, ...status() };
 }
@@ -154,6 +204,55 @@ async function refresh(fetchImpl = httpsFetch) {
   }
 }
 
+/** Every account signed in, the one downloads use first: [{ account, name, nickname, expires, expired, active }]. */
+function accounts() {
+  const active = read();
+  return [
+    ...(active && active.accessToken ? [{ ...describe(active), active: true }] : []),
+    ...readSaved().map((saved) => ({ ...describe(saved), active: false }))
+  ];
+}
+
+/** Give an account (in use or saved) a nickname, such as Personal or Home; an empty one removes it. */
+function rename(email, nickname) {
+  const name =
+    String(nickname || '')
+      .trim()
+      .slice(0, 40) || null;
+  const active = read();
+  if (active && sameAccount(active.account, email)) write({ ...active, nickname: name });
+  else {
+    const saved = readSaved();
+    if (!saved.some((other) => sameAccount(other.account, email))) throw new Error('That account is not saved. Sign in with it first');
+    writeSaved(saved.map((other) => (sameAccount(other.account, email) ? { ...other, nickname: name } : other)));
+  }
+  return accounts();
+}
+
+/** Bambu Lab turned down the sign-in in use and a refresh did not help: show it as expired. */
+function markExpired() {
+  const active = read();
+  if (active && active.accessToken && !active.expired) write({ ...active, expired: true });
+}
+
+/** Downloads use this saved account from now on; the one in use until now is kept with the others. */
+function activate(email) {
+  const chosen = readSaved().find((saved) => sameAccount(saved.account, email));
+  if (!chosen) throw new Error('That account is not saved. Sign in with it first');
+  park();
+  writeSaved(readSaved().filter((saved) => !sameAccount(saved.account, email)));
+  write(chosen);
+  return accounts();
+}
+
+/** Forget an account (in use or saved): signing in with it again needs the password. */
+function forget(email) {
+  const active = read();
+  if (active && sameAccount(active.account, email)) write(null);
+  writeSaved(readSaved().filter((saved) => !sameAccount(saved.account, email)));
+  return accounts();
+}
+
 /** The headers MakerWorld wants for a signed-in request, or null when not signed in. */
 function authHeaders() {
   const account = read();
@@ -161,4 +260,4 @@ function authHeaders() {
   return { authorization: `Bearer ${account.accessToken}`, cookie: `token=${account.accessToken}` };
 }
 
-module.exports = { authHeaders, refresh, signIn, signOut, status };
+module.exports = { accounts, activate, authHeaders, forget, markExpired, refresh, rename, signIn, signOut, status };

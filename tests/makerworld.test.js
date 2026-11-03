@@ -202,7 +202,7 @@ async function main() {
     "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); CREATE TABLE models (id INTEGER PRIMARY KEY, filePath TEXT UNIQUE, fileName TEXT, designer TEXT, license TEXT, source TEXT, notes TEXT, rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, print_status TEXT DEFAULT 'unprinted', printed INTEGER, print_count INTEGER DEFAULT 0, last_printed_at TEXT, thumbnail TEXT); CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER, PRIMARY KEY (model_id, tag_id)); CREATE TABLE collection_models (collection_id INTEGER, model_id INTEGER, added_at TEXT, PRIMARY KEY (collection_id, model_id)); CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER); CREATE TABLE share_links (token TEXT PRIMARY KEY, kind TEXT, target_id INTEGER)"
   );
   assert.ok(SECRET_SETTING_KEYS.has('makerWorldAccount'), 'the token is never readable through the settings API');
-  assert.deepStrictEqual(account.status(), { signedIn: false, account: null, name: null, expires: null });
+  assert.deepStrictEqual(account.status(), { signedIn: false, account: null, name: null, nickname: null, expires: null, expired: false });
 
   const bambuCalls = [];
   const bambu = async (url, options) => {

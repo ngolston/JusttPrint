@@ -8,6 +8,7 @@ import { runSearch } from '../filters/search';
 import { exposeGlobal, onServerEvent } from '../page';
 import { formatBytes } from '../shell/AppShell';
 import { navigate } from '../shell/routes';
+import { MakerWorldAccountNote } from './MakerWorldAccountNote';
 import { accountStatus, type MakerWorldDetails, type ProfileDownload } from './makerworld';
 import { mediaLine } from '../media/media';
 import { ProfileChecklist } from './ProfileChecklist';
@@ -233,6 +234,7 @@ export function MakerWorldDownloadDialog() {
           {folderProblem}
         </p>
       )}
+      {open && <MakerWorldAccountNote disabled={busy} />}
       {details && (
         <p className="jp-meta">
           {downloads.length ? (

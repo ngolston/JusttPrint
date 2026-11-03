@@ -7471,6 +7471,15 @@ async function accountChecks(base, wsUrl, admin) {
       (await invoke(base, viewer, 'makerworld-sign-in', [{ account: 'x' }])).status === 403
   );
   check('MakerWorld starts signed out', (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false);
+  check(
+    'viewers cannot list, switch, rename or forget MakerWorld accounts; editors see none at first',
+    (await invoke(base, viewer, 'makerworld-accounts')).status === 403 &&
+      (await invoke(base, viewer, 'makerworld-activate-account', ['a@x.com'])).status === 403 &&
+      (await invoke(base, viewer, 'makerworld-rename-account', ['a@x.com', 'Home'])).status === 403 &&
+      (await invoke(base, viewer, 'makerworld-forget-account', ['a@x.com'])).status === 403 &&
+      Array.isArray((await invoke(base, editor, 'makerworld-accounts')).result) &&
+      (await invoke(base, editor, 'makerworld-accounts')).result.length === 0
+  );
   // Downloads go to the Upload folder (8.4): one is set for this check.
   const mwUpload = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-mw-'));
   await invoke(base, admin, 'save-upload-folder', [mwUpload, '']);
@@ -7488,8 +7497,9 @@ async function accountChecks(base, wsUrl, admin) {
   );
   const mwSave = await invoke(base, admin, 'save-setting', ['makerWorldAccount', '{"accessToken":"x"}']);
   check(
-    'the MakerWorld sign-in cannot be read or set through settings',
+    'the MakerWorld sign-ins cannot be read or set through settings',
     (await invoke(base, admin, 'get-setting', ['makerWorldAccount'])).result === null &&
+      (await invoke(base, admin, 'get-setting', ['makerWorldSavedAccounts'])).result === null &&
       mwSave.result !== true &&
       (await invoke(base, editor, 'makerworld-account-status')).result?.signedIn === false,
     JSON.stringify(mwSave)
