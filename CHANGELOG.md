@@ -2,7 +2,26 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [10.6.0] - 2026-11-01
+## [10.7.0] - 2026-11-02
+
+The Filament page made yours: widgets you choose (with a color wall, material guide, brand shelf and spool of the day), filter chips for anything, and new QR labels in brand looks for spools and places.
+
+**Upgrade notes:**
+- QR labels are public by default now: on a library where no admin ever changed **Anyone who scans a label sees the spool or place**, it turns on. Labels printed before go on opening the spool in the app until you print them again. To keep labels private, untick it in **QR Labels**.
+
+**Changes:**
+- **Choose your Filament widgets.** **Widgets** on the Filament page lists every widget: tick the ones to show and move them into your order. The choice is yours alone.
+- **Four new widgets.** **Color wall**: every color you have, by hue; click one to open its spool, or pick a color to find your three closest. **Material guide**: typical nozzle and bed temperatures, enclosure, moisture, how hard it prints and how to dry it, for PLA, PETG, ABS, ASA, TPU, PA, PC, PVA and HIPS, with your materials first. **Brand shelf**: your brands with their colors, spools and grams; click one for its spools. **Spool of the day**: a spool you have not used for a month, the same all day, with **Another** for the next.
+- **Filter spools by anything.** On the Filament page, **+ Filter** adds a chip for any brand, material, kind (Matte, Silk, 95A…), color, place, printer, status or shop. The chip stays, for you, until you remove it with its ×.
+- **Choose the chip the Filament page opens on.** Select a chip and click **Start here**; the page then opens on it (a pin marks it). Click Start here on All to go back.
+- **Every material gets its chip.** A material none of your spools had before (the first PA-CF) shows up as a chip next to PLA and ABS by itself; before, only the six with the most grams had one.
+- **QR label layouts.** **QR Labels** (renamed from Labels) has layouts for each size, and remembers the one you choose. New brand layouts put the brand name large, the material on a black bar with the color's hex code, the color name, and the filament's settings (nozzle and bed temperatures, flow ratio, TD) beside the QR code: Badge and Wide card with settings, Wide card with the QR on the left, and Strip. Also: Split and Big number (Badge), Biggest QR, Brand header and Giant number (Wide card), Two lines and Material tab (Strip). Long names shrink to fit.
+- **QR labels open without signing in, by default.** **Anyone who scans a label sees the spool or place** is now on until an admin turns it off, for spools and places. The page a label opens shows the spool's name, brand, material, color, grams left and place, never its price, shop or notes.
+- **Place labels in the new look.** Places have layouts of their own in QR Labels: **Name** (the place name large, Dry box or Place on a black bar, its description) and **Big QR** for Badge and Wide card, **Name** and **Two lines** for Strip.
+- **Place labels without public labels.** A place's QR label now has a code even when labels are not open to anyone: it opens the Filament page showing the spools in that place (sign in first, as with spool labels). Before, the Places tab showed no labels until an admin made labels public.
+- **Flow ratio and TD on filaments.** A filament keeps its slicer flow ratio and its HueForge TD (transmission distance), for the labels.
+
+ - 2026-11-01
 
 Bambu Lab printers followed live over your network: what they print, how far along, and their AMS slots filled in by themselves.
 

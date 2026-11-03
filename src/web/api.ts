@@ -820,6 +820,9 @@ export interface FilamentProfile {
   drying_temp: number | null;
   drying_hours: number | null;
   max_print_speed?: number | null;
+  /** The slicer's flow ratio, and HueForge's transmission distance (for QR labels). */
+  flow_ratio?: number | null;
+  td?: number | null;
   product_url: string | null;
   photo_url?: string | null;
   /** An uploaded photo (/api/photo/…), else the link in photo_url, else null. */
@@ -896,6 +899,13 @@ export interface Spool {
   last_used_at: string | null;
   profile_drying_temp: number | null;
   profile_drying_hours: number | null;
+  /** From its filament, for QR labels. */
+  profile_print_temp_min?: number | null;
+  profile_print_temp_max?: number | null;
+  profile_bed_temp_min?: number | null;
+  profile_bed_temp_max?: number | null;
+  profile_flow_ratio?: number | null;
+  profile_td?: number | null;
   loaded: { printerId: number; label: string }[];
   drying: { id: number; drying_temp: number | null; target_hours: number | null; started_at: string } | null;
 }

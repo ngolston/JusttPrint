@@ -37,15 +37,25 @@ const fresh = () => {
 };
 const setPublic = (db, on) => db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('publicLabels', ?)").run(on ? 'true' : 'false');
 
-test('off: labels open the spool in the app, places have none, and no token is made', () => {
+test('labels are public until an admin turns them off', () => {
   const db = fresh();
+  assert.strictEqual(labels.labelsPublic(db), true, 'on when never set');
+  setPublic(db, false);
+  assert.strictEqual(labels.labelsPublic(db), false);
+  setPublic(db, true);
+  assert.strictEqual(labels.labelsPublic(db), true);
+});
+
+test('off: labels open the spool or the place in the app, and no token is made', () => {
+  const db = fresh();
+  setPublic(db, false);
   const spool = spools.saveSpool(db, { material: 'PLA', initial_weight: 1000 });
   const shelf = locations.saveLocation(db, { name: 'Shelf' });
   assert.strictEqual(labels.labelsPublic(db), false);
   assert.deepStrictEqual(labels.labelLinks(db, { spoolIds: [spool.id], placeIds: [shelf.id] }), {
     public: false,
     spools: { [spool.id]: `/#/filament/${spool.id}` },
-    places: { [shelf.id]: null }
+    places: { [shelf.id]: `/#/filament/place-${shelf.id}` }
   });
   assert.strictEqual(db.prepare('SELECT label_token FROM spools').get().label_token, null);
 });

@@ -354,7 +354,10 @@ const COLUMNS = [
   // the printer said (JSON), and a spool's Bambu RFID (tray_uuid), so it is found again.
   ['printer_ams_slots', 'live_tray', 'TEXT'],
   ['printers', 'live_tray', 'TEXT'],
-  ['spools', 'bambu_tray_uuid', 'TEXT']
+  ['spools', 'bambu_tray_uuid', 'TEXT'],
+  // For QR labels: the slicer's flow ratio, and HueForge's transmission distance (TD).
+  ['filament_profiles', 'flow_ratio', 'REAL'],
+  ['filament_profiles', 'td', 'REAL']
 ];
 
 /** @param {string} sql */

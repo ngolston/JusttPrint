@@ -58,6 +58,8 @@ function loadedPlaces(db) {
 }
 
 const SPOOL_SELECT = `SELECT s.*, p.name AS profile_name, p.color_name, p.drying_temp AS profile_drying_temp, p.drying_hours AS profile_drying_hours,
+    p.print_temp_min AS profile_print_temp_min, p.print_temp_max AS profile_print_temp_max, p.bed_temp_min AS profile_bed_temp_min,
+    p.bed_temp_max AS profile_bed_temp_max, p.flow_ratio AS profile_flow_ratio, p.td AS profile_td,
     b.name AS brand_name, l.name AS location_name,
     d.id AS drying_id, d.drying_temp AS drying_temp, d.target_hours AS drying_target_hours, d.started_at AS drying_started_at
   FROM spools s
