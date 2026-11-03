@@ -16,15 +16,15 @@ const oversized = require('./oversized-thumbnails');
 function purgeOversizedThumbnails(maxChars = THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS, { hardMax = oversized.HARD_MAX_CHARS } = {}) {
   if (!database.db) return 0;
   try {
-    const result = database.db.prepare('UPDATE models SET thumbnail = NULL WHERE thumbnail IS NOT NULL AND octet_length(thumbnail) > ?').run(hardMax);
-    if (result.changes > 0) {
-      console.warn(`Cleared ${result.changes} thumbnail(s) over ${hardMax} chars (corrupt/oversized safeguard)`);
+    // One read of every model's pictures for both: clearing runaway values and marking large galleries.
+    const { cleared, marked } = oversized.sortExisting(database.db, { limit: maxChars, hardMax });
+    if (cleared > 0) {
+      console.warn(`Cleared ${cleared} thumbnail(s) over ${hardMax} chars (corrupt/oversized safeguard)`);
     }
-    const marked = oversized.markExisting(database.db, { limit: maxChars, hardMax });
     if (marked > 0) {
       console.log(`[Oversized thumbnails] ${marked} model(s) with pictures over ${maxChars} chars: they are reduced to fit in the background`);
     }
-    return result.changes;
+    return cleared;
   } catch (error) {
     console.error('Failed to clear corrupt thumbnails:', error);
     return 0;

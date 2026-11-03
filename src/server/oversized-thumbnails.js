@@ -164,23 +164,54 @@ async function run({ resize = thumbnailWorker.resizeImage, limit = THUMBNAIL_ABS
   return { shrunk, failed, skipped };
 }
 
-/** Lists over the limit and under the runaway ceiling, marked at startup (the triggers do the rest). */
-function markExisting(db = database.db, { limit = THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS, hardMax = HARD_MAX_CHARS } = {}) {
+/**
+ * The startup pass, in one read of every model's pictures: a runaway value (over `hardMax`) is
+ * cleared, a list over the load limit is marked to be reduced (the triggers do the rest).
+ * Answers { cleared, marked }.
+ */
+function sortExisting(db = database.db, { limit = THUMBNAIL_ABSOLUTE_MAX_LOAD_CHARS, hardMax = HARD_MAX_CHARS } = {}) {
   ensureTable(db, { limit });
-  return db
-    .prepare('INSERT OR IGNORE INTO oversized_thumbnails (model_id) SELECT id FROM models WHERE octet_length(thumbnail) > ? AND octet_length(thumbnail) <= ?')
-    .run(limit, hardMax).changes;
+  const over = db.prepare('SELECT id, octet_length(thumbnail) AS n FROM models WHERE octet_length(thumbnail) > ?').all(limit);
+  const clear = db.prepare('UPDATE models SET thumbnail = NULL WHERE id = ?');
+  const mark = db.prepare('INSERT OR IGNORE INTO oversized_thumbnails (model_id) VALUES (?)');
+  let cleared = 0;
+  let marked = 0;
+  db.transaction(() => {
+    for (const { id, n } of over) {
+      if (n > hardMax) cleared += clear.run(id).changes;
+      else marked += mark.run(id).changes;
+    }
+  })();
+  return { cleared, marked };
+}
+
+/** Lists over the limit and under the runaway ceiling, marked (the startup pass, without clearing). */
+function markExisting(db = database.db, options = {}) {
+  return sortExisting(db, { ...options, hardMax: options.hardMax ?? HARD_MAX_CHARS }).marked;
 }
 
 /** In the background: first after Chromium has had time to start, then whenever something is marked. */
+/** @type {NodeJS.Timeout[]} */
+let timers = [];
+
 function start() {
+  stop();
   const tick = () => {
     if (!database.db) return;
     const pending = ensureTable(database.db).prepare('SELECT 1 FROM oversized_thumbnails LIMIT 1').get();
     if (pending) run().catch((error) => console.error('[Oversized thumbnails]', error.message));
   };
-  setTimeout(tick, START_DELAY_MS).unref?.();
-  setInterval(tick, CHECK_EVERY_MS).unref?.();
+  const first = setTimeout(tick, START_DELAY_MS);
+  const every = setInterval(tick, CHECK_EVERY_MS);
+  first.unref?.();
+  every.unref?.();
+  timers = [first, every];
 }
 
-module.exports = { TARGET_RATIO, DIMENSIONS, HARD_MAX_CHARS, ensureTable, markExisting, run, start, _internal: { shrink, isAnimated } };
+/** On shutdown (app.js), before the database closes. */
+function stop() {
+  for (const timer of timers) clearTimeout(timer);
+  timers = [];
+}
+
+module.exports = { TARGET_RATIO, DIMENSIONS, HARD_MAX_CHARS, ensureTable, sortExisting, markExisting, run, start, stop, _internal: { shrink, isAnimated } };
