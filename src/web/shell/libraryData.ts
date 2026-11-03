@@ -7,7 +7,8 @@ import { onServerEvent } from '../page';
 
 /**
  * Data that follows the library: loaded once, then again (at most once a second) after the server
- * announces a change (refresh-grid, from any browser) or this page changes something.
+ * announces a change (refresh-grid; models-changed, such as a print logged in another browser or
+ * by a printer itself) or this page changes something.
  */
 export function useLibraryData<T>(load: () => Promise<T>): T | null {
   const [data, setData] = useState<T | null>(null);
@@ -28,12 +29,14 @@ export function useLibraryData<T>(load: () => Promise<T>): T | null {
     };
     fetchNow();
     const off = onServerEvent('refresh-grid', refresh);
+    const offModels = onServerEvent('models-changed', refresh);
     const offFilament = onServerEvent('filament-check-changed', refresh);
     window.addEventListener(LIBRARY_CHANGED, refresh);
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);
       off();
+      offModels();
       offFilament();
       window.removeEventListener(LIBRARY_CHANGED, refresh);
     };

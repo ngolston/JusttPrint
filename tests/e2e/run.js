@@ -8101,6 +8101,18 @@ async function accountChecks(base, wsUrl, admin) {
         () => false
       )) && (await editorPage.isVisible('#jp-stats-tiles :text("75%")'))
     );
+    // A print logged elsewhere (another browser, or a printer by itself) shows without a reload.
+    const elsewhere = await invoke(base, admin, 'log-print-event', [{ filePath: path.join(folder, 'Uploaded Cube.stl'), outcome: 'printed' }]);
+    check(
+      'Statistics follows prints logged in another browser',
+      await editorPage.waitForSelector('#jp-stats-tiles :text("80%")', { timeout: 15000 }).then(
+        () => true,
+        () => false
+      ),
+      JSON.stringify(elsewhere.result)
+    );
+    if (elsewhere.result?.eventId) await invoke(base, admin, 'delete-print-event', [elsewhere.result.eventId]);
+    await editorPage.waitForSelector('#jp-stats-tiles :text("75%")', { timeout: 15000 }).catch(() => {});
     check(
       'the prints chart is drawn with a legend',
       (await editorPage.isVisible('.jp-chart svg[aria-label="Prints per month by outcome"]')) &&
