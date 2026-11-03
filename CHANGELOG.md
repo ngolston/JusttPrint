@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.9.1] - 2026-11-03
+
+**Fixes:**
+- **Statistics keeps up.** With Statistics open, prints logged in another browser, on your phone or by a Bambu printer itself now show without reloading the page. Home, Printers, Filament and the other pages that follow the library keep up the same way.
+
 ## [10.9.0] - 2026-11-03
 
 Several MakerWorld accounts: switch between them without signing in again, with nicknames, expired sign-ins shown, and the account in use shown where you download.
