@@ -48,6 +48,7 @@ function closeDatabaseOnQuit() {
   require('./notifications').stop();
   require('./low-stock-alerts').stop();
   require('./bambu-live').stop();
+  require('./bambu-camera').stop();
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();

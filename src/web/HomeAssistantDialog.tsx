@@ -41,6 +41,8 @@ export function HomeAssistantDialog() {
       exposeGlobal('openHomeAssistant', () => {
         setStatus('');
         setError('');
+        // The fields wait for what is saved: typing before it came would be overwritten.
+        setState(null);
         homeAssistant.get().then(show, (failure) => setError(errorText(failure)));
         if (!dialogRef.current?.open) dialogRef.current?.showModal();
       }),
@@ -106,7 +108,7 @@ export function HomeAssistantDialog() {
           <Button onClick={() => void pushNow()} disabled={busy || !state?.enabled} id="home-assistant-push">
             Send now
           </Button>
-          <Button variant="primary" onClick={() => void save()} disabled={busy} id="home-assistant-save">
+          <Button variant="primary" onClick={() => void save()} disabled={busy || !state} id="home-assistant-save">
             Save
           </Button>
           <Button onClick={() => dialogRef.current?.close()}>Close</Button>
@@ -120,7 +122,13 @@ export function HomeAssistantDialog() {
       </p>
       <div className="form-group">
         <label htmlFor="home-assistant-url">Home Assistant&apos;s address</label>
-        <input id="home-assistant-url" placeholder="http://homeassistant.local:8123" value={url} onChange={(event) => setUrl(event.target.value)} />
+        <input
+          id="home-assistant-url"
+          placeholder="http://homeassistant.local:8123"
+          value={url}
+          disabled={!state}
+          onChange={(event) => setUrl(event.target.value)}
+        />
       </div>
       <div className="form-group">
         <label htmlFor="home-assistant-token">Long-lived access token</label>
@@ -130,6 +138,7 @@ export function HomeAssistantDialog() {
           autoComplete="off"
           placeholder={state?.tokenSet ? 'Set (paste a new one to replace it)' : 'From your Home Assistant profile → Security → Long-lived access tokens'}
           value={token}
+          disabled={!state}
           onChange={(event) => setToken(event.target.value)}
         />
         {state?.tokenSet && (
@@ -139,7 +148,7 @@ export function HomeAssistantDialog() {
         )}
       </div>
       <label className="checkbox-container">
-        <input type="checkbox" id="home-assistant-enabled" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+        <input type="checkbox" id="home-assistant-enabled" checked={enabled} disabled={!state} onChange={(event) => setEnabled(event.target.checked)} />
         <span>Send the spools to Home Assistant</span>
       </label>
       {last && (

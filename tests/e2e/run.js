@@ -38,6 +38,8 @@ const APP_DIR = DOCKER_IMAGE ? '/app' : ROOT;
 const HOST_FOR_SERVER = DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1';
 /** The container renders thumbnails in software (SwiftShader): steps that wait for one get longer there. */
 const SLOW = DOCKER_IMAGE ? 3 : 1;
+// The fake Bambu printer's camera (fake-bambu.js), told to the server (bambu-camera.js).
+let CAMERA_PORT = 0;
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROME : '');
 
@@ -153,6 +155,7 @@ function startServer(port) {
       STL_HOME: LIBRARY,
       // Keep Move to Trash inside the work folder (the home trash is the fallback on a single-drive machine).
       XDG_DATA_HOME: path.join(WORK, 'share'),
+      JUSTTPRINT_BAMBU_CAMERA_PORT: String(CAMERA_PORT),
       ...(CHROME ? { JUSTTPRINT_CHROMIUM: CHROME } : {})
     }
   });
@@ -170,6 +173,7 @@ function startContainer(port, log) {
     JUSTTPRINT_UPLOAD_CHUNK_MB: '0.0001',
     STL_HOME: LIBRARY,
     XDG_DATA_HOME: path.join(WORK, 'share'),
+    JUSTTPRINT_BAMBU_CAMERA_PORT: String(CAMERA_PORT),
     PUID: String(process.getuid()),
     PGID: String(process.getgid()),
     ...(process.env.JUSTTPRINT_LOG_LEVEL ? { JUSTTPRINT_LOG_LEVEL: process.env.JUSTTPRINT_LOG_LEVEL } : {})
@@ -5069,9 +5073,26 @@ async function browserChecks(base, wsUrl, session) {
 
     // Bambu Lab live status (src/server/bambu-live.js): a fake printer over TLS, as LAN mode.
     let fakeBambu = null;
+    let fakeCamera = null;
+    const liveDir = path.join(LIBRARY, 'E2E Live');
     try {
-      const { startFakeBambu } = require('./fake-bambu');
+      const { startFakeBambu, startFakeCamera } = require('./fake-bambu');
       fakeBambu = await startFakeBambu({ host: DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1', accessCode: 'e2e-live-code', serial: '01PE2ELIVE' });
+      fakeCamera = await startFakeCamera({
+        host: DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1',
+        port: CAMERA_PORT,
+        accessCode: 'e2e-live-code',
+        jpeg: fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'camera.jpg'))
+      });
+      // A library model with the print's name, so the finished print is logged on it.
+      const liveModel = path.join(liveDir, 'E2E Live Benchy.stl');
+      fs.mkdirSync(liveDir, { recursive: true });
+      fs.copyFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer A', 'cube.stl'), liveModel);
+      await waitFor(
+        async () => (((await invoke(base, session, 'get-all-models')).result || []).some((m) => m.filePath === liveModel) ? true : null),
+        30000 * SLOW,
+        'the live model'
+      ).catch(() => {});
       const liveSpool = (
         await invoke(base, session, 'save-spool', [{ name: 'E2E Live Orange', material: 'PETG', color_hex: '#e05a1a', initial_weight: 1000, remaining: 800 }])
       ).result;
@@ -5164,6 +5185,33 @@ async function browserChecks(base, wsUrl, session) {
           .then((text) => text.slice(0, 200))
           .catch(() => '')
       );
+      const cameraShown = await page
+        .waitForFunction(
+          () => {
+            const img = document.querySelector('#jp-printer-live-section .jp-camera__img');
+            return !!img && !img.hidden && img.naturalWidth > 0;
+          },
+          null,
+          { timeout: 20000 * SLOW }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      check(
+        "the printer page shows the printer's camera, signed in with the access code",
+        cameraShown && fakeCamera.signIns.some((s) => s.user === 'bblp' && s.ok),
+        cameraShown ? JSON.stringify(fakeCamera.signIns) : await page.textContent('#jp-printer-live-section .jp-camera').catch(() => 'no camera')
+      );
+      fakeBambu.report({ hms: [{ attr: 0x07002000, code: 0x00020001 }] });
+      check(
+        'printer errors show on its page with their code and a link to look them up',
+        await page.waitForSelector('#jp-live-errors a[href*="0700_2000_0002_0001"]', { timeout: 15000 * SLOW }).then(
+          () => true,
+          () => false
+        )
+      );
+      fakeBambu.report({ hms: [] });
       const liveJson = JSON.stringify((await invoke(base, session, 'get-printer-live')).result || []);
       check('the live status sent to browsers holds no access code', liveJson.includes('E2E Live Benchy') && !liveJson.includes('e2e-live-code'));
       await page.click('.jp-sidebar .jp-nav__row:has-text("Home")');
@@ -5178,6 +5226,24 @@ async function browserChecks(base, wsUrl, session) {
             () => false
           )
       );
+      // The print finishes: logged by itself on the model, with its printer, plate and a camera picture; the bell says so.
+      fakeBambu.report({ gcode_state: 'FINISH', mc_percent: 100, mc_remaining_time: 0 });
+      const loggedPrint = await waitFor(
+        async () => {
+          const model = ((await invoke(base, session, 'get-model', [path.join(liveDir, 'E2E Live Benchy.stl')])).result || {}).id;
+          const events = model ? (await invoke(base, session, 'get-print-events', [model])).result || [] : [];
+          return events.find((e) => e.printer_id === livePrinter.id) || null;
+        },
+        30000 * SLOW,
+        'the logged print'
+      ).catch(() => null);
+      const bell = JSON.stringify((await invoke(base, session, 'get-notifications', [{}])).result || {});
+      check(
+        'a finished print is logged by itself on its model, with the printer and a camera picture, and the bell says so',
+        !!loggedPrint && loggedPrint.outcome === 'printed' && (loggedPrint.photos || []).length === 1 && /E2E Live P1S: E2E Live Benchy finished/.test(bell),
+        JSON.stringify({ outcome: loggedPrint?.outcome, photos: loggedPrint?.photos?.length, bell: bell.slice(0, 200) })
+      );
+      if (loggedPrint) await invoke(base, session, 'delete-print-event', [loggedPrint.id]);
       fakeBambu.report({ ams: amsReport(false) });
       const emptied = await waitFor(
         async () => {
@@ -5211,6 +5277,8 @@ async function browserChecks(base, wsUrl, session) {
       check('the Bambu live status checks ran to the end', false, error.message.split('\n')[0]);
     } finally {
       if (fakeBambu) await fakeBambu.close().catch(() => {});
+      if (fakeCamera) await fakeCamera.close().catch(() => {});
+      fs.rmSync(liveDir, { recursive: true, force: true });
     }
 
     // Accessibility audit (axe-core): no serious or critical problems on the JusttPrint 5 pages.
@@ -8255,6 +8323,7 @@ async function accountChecks(base, wsUrl, admin) {
 
 async function main() {
   const port = await freePort();
+  CAMERA_PORT = await freePort();
   const base = `http://127.0.0.1:${port}`;
   const wsUrl = `ws://127.0.0.1:${port}`;
   const server = startServer(port);

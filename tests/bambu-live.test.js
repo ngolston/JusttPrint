@@ -44,7 +44,8 @@ const tray = (id, type, color, extra = {}) => ({
 });
 
 /** A fake printer: answers CONNECT (access code `code`), takes SUBSCRIBE, and records what it is sent. */
-function fakePrinter(code) {
+/** `serial`: like a real printer, hang up on a subscription to another printer's topic. */
+function fakePrinter(code, serial = null) {
   const received = [];
   const sockets = new Set();
   const server = net.createServer((socket) => {
@@ -69,7 +70,12 @@ function fakePrinter(code) {
           socket.write(mqtt.packet(mqtt.CONNACK, 0, Buffer.from([0, password === code ? 0 : 5])));
         } else if (type === mqtt.SUBSCRIBE) {
           const length = body.readUInt16BE(2);
-          received.push({ type: 'subscribe', topic: body.subarray(4, 4 + length).toString() });
+          const topic = body.subarray(4, 4 + length).toString();
+          received.push({ type: 'subscribe', topic });
+          if (serial && topic !== `device/${serial}/report`) {
+            socket.destroy();
+            continue;
+          }
           socket.write(mqtt.packet(mqtt.SUBACK, 0, Buffer.concat([body.subarray(0, 2), Buffer.from([0])])));
         } else if (type === mqtt.PUBLISH) {
           const length = body.readUInt16BE(0);
@@ -356,6 +362,52 @@ test('live: a wrong access code says so; a printer without one is not followed',
     assert.strictEqual(following.list().length, 1);
     assert.strictEqual(status.error, 'wrong access code');
     assert.strictEqual(status.state, 'offline');
+  } finally {
+    following.stop();
+    await printer.close();
+  }
+});
+
+test('a serial number typed in lowercase still works: Bambu serials are capitals', async () => {
+  const db = fresh();
+  const printer = await fakePrinter('code', '01P00A123');
+  const saved = printerManager.savePrinter(db, {
+    nickname: 'P1S',
+    connectionType: 'bambu',
+    serialNumber: '01p00a123',
+    apiUrl: `127.0.0.1:${printer.port}`,
+    apiSecret: 'code'
+  });
+  assert.strictEqual(db.prepare('SELECT serial_number FROM printers WHERE id = ?').get(saved.id).serial_number, '01P00A123', 'saved in capitals');
+  // One saved before 10.7.1, in lowercase: followed in capitals all the same.
+  db.prepare("UPDATE printers SET serial_number = '01p00a123' WHERE id = ?").run(saved.id);
+  const following = live.createLive({ db: () => db, secure: false, log: () => {} });
+  try {
+    following.refresh();
+    await until(() => printer.received.some((m) => m.type === 'publish'), 'pushall');
+    assert.strictEqual(printer.received.find((m) => m.type === 'subscribe').topic, 'device/01P00A123/report');
+    assert.strictEqual(following.list()[0].connected, true);
+  } finally {
+    following.stop();
+    await printer.close();
+  }
+});
+
+test('a printer that hangs up right after signing in points at the serial number', async () => {
+  const db = fresh();
+  const printer = await fakePrinter('code', 'SOMEOTHER1');
+  printerManager.savePrinter(db, {
+    nickname: 'P1S',
+    connectionType: 'bambu',
+    serialNumber: '01P00A123',
+    apiUrl: `127.0.0.1:${printer.port}`,
+    apiSecret: 'code'
+  });
+  const following = live.createLive({ db: () => db, secure: false, log: () => {} });
+  try {
+    following.refresh();
+    const status = await until(() => following.list().find((p) => p.error), 'the hang-up');
+    assert.match(status.error, /serial number/);
   } finally {
     following.stop();
     await printer.close();

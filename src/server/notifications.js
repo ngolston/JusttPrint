@@ -216,6 +216,36 @@ function checkDueReminders(now = new Date()) {
       });
       if (id) added++;
     }
+    // By print hours (printer-manager.js): due once the printer has printed that long since.
+    const byHours = db
+      .prepare('PRAGMA table_info(printer_maintenance_reminders)')
+      .all()
+      .some((c) => c.name === 'interval_hours');
+    if (byHours) {
+      const { printerPrintHours } = require('../core/printer-manager');
+      const rows = db
+        .prepare(
+          `SELECT r.id, r.title, r.interval_hours, r.hours_start, p.nickname AS printer, p.id AS printerId
+           FROM printer_maintenance_reminders r JOIN printers p ON p.id = r.printer_id
+           WHERE r.status != 'completed' AND r.interval_hours > 0`
+        )
+        .all();
+      for (const reminder of rows) {
+        const dueAt = (Number(reminder.hours_start) || 0) + Number(reminder.interval_hours);
+        const hours = printerPrintHours(db, reminder.printerId);
+        if (hours < dueAt) continue;
+        const id = notify({
+          level: 'warning',
+          title: `${reminder.printer}: ${reminder.title}`,
+          body: `Due after ${reminder.interval_hours} print hours: the printer has printed ${Math.round((hours - (Number(reminder.hours_start) || 0)) * 10) / 10} h since.`,
+          link: `#/printers/${reminder.printerId}`,
+          minRole: 'editor',
+          key: `reminder:${reminder.id}:hours:${dueAt}`,
+          now
+        });
+        if (id) added++;
+      }
+    }
     return added;
   } catch (error) {
     console.warn(`[Notifications] Reminder check failed: ${error instanceof Error ? error.message : error}`);

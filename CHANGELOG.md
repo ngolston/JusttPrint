@@ -2,6 +2,25 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.8.0] - 2026-11-03
+
+Watch your Bambu printers: the camera, prints logged by themselves when they finish, alerts, errors in plain words, and maintenance by print hours.
+
+**Upgrade notes:**
+- For the camera, turn on **LAN Mode Liveview** on the printer (its network settings). The camera works on P1 and A1 printers; the X1 and H2 stream video another way, which JusttPrint does not read yet.
+- Finished prints are logged by themselves from now on, for Bambu printers followed live, when a model in the library has the print's name. Untick **Log finished prints by themselves** in a printer's form to keep logging them yourself.
+
+**Changes:**
+- **Watch your Bambu printer.** A printer's **Live** section shows its camera (a new picture every couple of seconds, about what the P1 sends), with **Camera off** to stop it; **Printing now** on Home shows a small picture of each printer printing. The picture goes through JusttPrint: the printer's address and access code never reach the browser.
+- **Finished prints logged by themselves.** When a Bambu printer finishes, fails or cancels a print, it is logged on the library model with the print's name, with the plate, how long it took, the printer, the spools it used (the ones loaded in that printer first) and their grams (a failed print counts the part it got through), and a camera picture of the end. Each print is logged once, also after a restart.
+- **Print alerts.** **A print finished** and **A print paused** join **A print failed** in **My alerts**, for the bell, email or Discord. A pause says what the printer says (filament ran out, a clog…).
+- **Printer errors in plain words.** The printer's error codes show on its page and on Home in words, from Bambu's own list (downloaded once a day), with the code linking to Bambu's page about it.
+- **Maintenance by print hours.** A reminder can be due every so many print hours instead of on a date ("Lubricate rods every 200 print hours"), counted from the print times of the printer's logged prints; Done starts the count again. A printer's details show its print hours.
+
+**Fixes:**
+- **Home Assistant settings no longer lose what you typed.** On a slow server, the address or token typed right after opening Settings → Integrations → Home Assistant could be wiped when the saved settings arrived. The fields now wait for them.
+- **Bambu live status with a serial number typed in lowercase.** The printer hung up right after signing in and never showed live, because Bambu serial numbers are capitals and the printer refuses any other spelling. Serial numbers of Bambu Lab printers are now kept in capitals, ones saved before are followed in capitals too, and a printer that hangs up right after signing in now says to check the serial number.
+
 ## [10.7.0] - 2026-11-03
 
 The Filament page made yours: widgets you choose (with a color wall, material guide, brand shelf and spool of the day), filter chips for anything, and new QR labels in brand looks for spools and places.

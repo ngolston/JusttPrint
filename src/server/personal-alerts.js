@@ -18,7 +18,10 @@ const KINDS = {
   runsOutSoon: 'A spool runs out within a week',
   usedUp: 'A spool is used up',
   dryingDone: 'Drying is done',
-  printFailed: 'A print failed'
+  printFailed: 'A print failed',
+  // From Bambu printers followed live (printer-jobs.js).
+  printFinished: 'A print finished',
+  printPaused: 'A print paused'
 };
 const CHANNELS = ['bell', 'email', 'discord'];
 const RUNS_OUT_DAYS = 7;

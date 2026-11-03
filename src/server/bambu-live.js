@@ -169,6 +169,8 @@ function summarize(entry) {
       };
     }),
     external: external ? { type: external.type, color: external.color } : null,
+    // The printer's errors now, in plain words where Bambu's list has them (bambu-hms.js).
+    errors: entry.connected ? require('./bambu-hms').errorsOf(print) : [],
     updatedAt: entry.updatedAt
   };
 }
@@ -176,12 +178,43 @@ function summarize(entry) {
 /**
  * The live connections. `connect(options)` makes an MqttClient (tests give their own); `db()`
  * answers the database; `broadcast(channel, data)` tells browsers.
- * @param {{ db: () => any, broadcast?: (channel: string, ...args: any[]) => void, connect?: (options: any) => any, secure?: boolean, now?: () => number, log?: (message: string) => void }} deps
+ * `jobs` watches prints start and end (printer-jobs.js); tests give their own.
+ * @param {{ db: () => any, broadcast?: (channel: string, ...args: any[]) => void, connect?: (options: any) => any, secure?: boolean, now?: () => number, log?: (message: string) => void, jobs?: { observe: (entry: any, before: string | null, summary: any) => void } }} deps
  */
 function createLive(deps) {
   const now = deps.now || Date.now;
   const log = deps.log || ((message) => console.log(`[Bambu live] ${message}`));
   const broadcast = deps.broadcast || (() => {});
+  const jobs = deps.jobs || require('./printer-jobs').createJobs({ db: deps.db, now, afterLogged: (payload) => afterLogged(payload) });
+
+  /** What Log Print does after a print is logged: alerts, webhooks, Home Assistant, other browsers. */
+  function afterLogged(payload) {
+    for (const [module, fn] of [
+      ['./low-stock-alerts', 'soon'],
+      ['./personal-alerts', 'soon'],
+      ['./home-assistant', 'pushSoon'],
+      // Maintenance by print hours may be due now.
+      ['./notifications', 'checkDueReminders']
+    ]) {
+      try {
+        require(module)[fn]();
+      } catch (_) {
+        /* not set up */
+      }
+    }
+    try {
+      void require('./webhooks').deliver('print.logged', {
+        filePaths: [payload.filePath],
+        outcome: payload.outcome,
+        quantity: payload.quantity,
+        spools: payload.spools
+      });
+    } catch (_) {
+      /* none */
+    }
+    broadcast('models-changed', { filePaths: [payload.filePath], by: null });
+    broadcast('filament-check-changed');
+  }
   const connect = deps.connect || ((options) => new MqttClient(options).connect());
   /** @type {Map<number, any>} */
   const entries = new Map();
@@ -280,10 +313,17 @@ function createLive(deps) {
     entry.print = merge(entry.print || {}, message.print);
     entry.updatedAt = new Date(now()).toISOString();
     entry.error = null;
+    findModel(entry);
     const summary = summarize(entry);
     setStatus(entry, summary.state);
-    findModel(entry);
     if (message.print.ams || message.print.vt_tray) syncAms(entry);
+    const before = entry.lastState ?? null;
+    entry.lastState = summary.state;
+    try {
+      jobs.observe(entry, before, summary);
+    } catch (error) {
+      log(`could not follow the print on printer ${entry.printerId}: ${error.message}`);
+    }
     announce();
   }
 
@@ -323,7 +363,16 @@ function createLive(deps) {
       const was = entry.connected;
       entry.connected = false;
       entry.client = null;
-      entry.error = error ? error.message : was ? 'the printer closed the connection' : 'could not connect';
+      // Hung up (closed or reset) after signing in, before saying anything: a topic it refuses,
+      // which is a serial number it does not know.
+      const hungUp = was && !entry.updatedAt && (!error || /ECONNRESET|EPIPE|socket hang up/i.test(`${error.code || ''} ${error.message}`));
+      entry.error = hungUp
+        ? 'the printer closed the connection right after signing in: check the serial number (as Bambu Studio or Bambu Handy shows it)'
+        : error
+          ? error.message
+          : was
+            ? 'the printer closed the connection'
+            : 'could not connect';
       if (was || entry.retry === 0) log(`printer ${entry.printerId} (${config.host}): ${entry.error}`);
       setStatus(entry, 'offline');
       announce();
@@ -365,7 +414,10 @@ function createLive(deps) {
     return rows
       .map((row) => {
         const address = parseAddress(row.api_url);
-        const serial = String(row.serial_number || '').trim();
+        // Bambu serial numbers are capitals; the printer hangs up on a topic with any other spelling.
+        const serial = String(row.serial_number || '')
+          .trim()
+          .toUpperCase();
         if (!address || !serial || !/^[A-Za-z0-9_-]+$/.test(serial)) return null;
         return { printerId: row.id, host: address.host, port: address.port, serial, secret: String(row.api_secret) };
       })
@@ -421,7 +473,13 @@ function createLive(deps) {
     entries.clear();
   }
 
-  return { refresh, stop, list, _entries: entries };
+  /** The address and access code of a followed printer, for its camera (bambu-camera.js). */
+  function cameraConfig(printerId) {
+    const entry = entries.get(Number(printerId));
+    return entry ? { host: entry.config.host, secret: entry.config.secret } : null;
+  }
+
+  return { refresh, stop, list, cameraConfig, _entries: entries };
 }
 
 /** @type {ReturnType<typeof createLive> | null} */
@@ -451,4 +509,7 @@ function stop() {
 /** What browsers see: one entry per followed printer. */
 const status = () => (live ? live.list() : []);
 
-module.exports = { start, stop, printersChanged, status, createLive, summarize, amsFromReport, merge, parseAddress };
+/** For the camera: the followed printer's address and access code, or null. */
+const cameraConfig = (printerId) => (live ? live.cameraConfig(printerId) : null);
+
+module.exports = { start, stop, printersChanged, status, cameraConfig, createLive, summarize, amsFromReport, merge, parseAddress };

@@ -357,7 +357,15 @@ const COLUMNS = [
   ['spools', 'bambu_tray_uuid', 'TEXT'],
   // For QR labels: the slicer's flow ratio, and HueForge's transmission distance (TD).
   ['filament_profiles', 'flow_ratio', 'REAL'],
-  ['filament_profiles', 'td', 'REAL']
+  ['filament_profiles', 'td', 'REAL'],
+  // Bambu live prints (src/server/printer-jobs.js): log them by themselves (1, the default) or not,
+  // and the print logged last, so it is logged once.
+  ['printers', 'auto_log', 'INTEGER NOT NULL DEFAULT 1'],
+  ['printers', 'live_last_job', 'TEXT'],
+  // Maintenance by print hours: due every interval_hours, counted from hours_start (the printer's
+  // print hours when it was set or last done).
+  ['printer_maintenance_reminders', 'interval_hours', 'REAL'],
+  ['printer_maintenance_reminders', 'hours_start', 'REAL']
 ];
 
 /** @param {string} sql */

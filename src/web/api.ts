@@ -661,6 +661,10 @@ export interface Printer {
   has_api_secret?: boolean;
   /** Watts while printing (cost estimate). */
   power_watts?: number | null;
+  /** Bambu live: log finished prints by themselves (1, the default) or not (0). */
+  auto_log?: number;
+  /** Hours printed: the print times of its logged prints. */
+  print_hours?: number;
   status?: string | null;
   last_seen_at?: string | null;
 }
@@ -725,6 +729,8 @@ export interface PrinterLive {
     trays: ({ type: string | null; name: string | null; color: string | null; remain: number | null } | null)[];
   }[];
   external: { type: string | null; color: string | null } | null;
+  /** The printer's errors now (bambu-hms.js): its code, the text Bambu gives it, a page about it. */
+  errors: { code: string; text: string | null; url: string }[];
   updatedAt: string | null;
 }
 
@@ -745,6 +751,8 @@ export interface PrinterInput {
   apiSecret?: string | null;
   /** Watts while printing; null clears it, left out keeps it. */
   powerWatts?: number | null;
+  /** Bambu live: log finished prints by themselves. */
+  autoLog?: boolean;
 }
 
 export interface PrinterReminder {
@@ -754,6 +762,10 @@ export interface PrinterReminder {
   maintenance_type: string | null;
   due_date: string;
   interval_days: number;
+  /** Every so many print hours (null: by date only), with the printer's hours now and when it is due. */
+  interval_hours?: number | null;
+  hours_now?: number;
+  hours_due?: number;
   notes: string | null;
   status: 'pending' | 'completed' | string;
 }
@@ -772,8 +784,15 @@ export const printers = {
   save: (printer: PrinterInput) => callAction<Printer>('save-printer', printer),
   remove: (id: number) => callAction<unknown>('delete-printer', id),
   reminders: (printerId: number) => callAction<PrinterReminder[]>('get-printer-reminders', printerId),
-  saveReminder: (reminder: { printerId: number; title: string; maintenanceType: string; dueDate: string; intervalDays: number; notes: string | null }) =>
-    callAction<PrinterReminder>('save-printer-reminder', reminder),
+  saveReminder: (reminder: {
+    printerId: number;
+    title: string;
+    maintenanceType: string;
+    dueDate: string | null;
+    intervalDays: number;
+    intervalHours?: number | null;
+    notes: string | null;
+  }) => callAction<PrinterReminder>('save-printer-reminder', reminder),
   completeReminder: (id: number, notes: string) => callAction<unknown>('complete-printer-reminder', { id, notes }),
   removeReminder: (id: number) => callAction<unknown>('delete-printer-reminder', id),
   logs: (printerId: number) => callAction<MaintenanceLog[]>('get-printer-maintenance-logs', printerId),
