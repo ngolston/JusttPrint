@@ -131,8 +131,26 @@ export interface AccountStatus {
   signedIn: boolean;
   account: string | null;
   name: string | null;
+  /** What the account was named in Settings → MakerWorld (Personal, Home…). */
+  nickname: string | null;
   expires: string | null;
+  /** Bambu Lab turned the sign-in down: sign in again. */
+  expired: boolean;
 }
+
+/** makerworld-accounts (src/server/makerworld-account.js): every account signed in, the one in use first. */
+export interface SavedAccount extends Omit<AccountStatus, 'signedIn'> {
+  active: boolean;
+}
+
+/** How an account reads in lists and notes: its nickname, else Bambu Lab's name, with the email. */
+export function accountLabel(account: Pick<AccountStatus, 'account' | 'name' | 'nickname'>): string {
+  const first = account.nickname || account.name;
+  return first && account.account ? `${first} (${account.account})` : first || account.account || '';
+}
+
+/** Window event: the MakerWorld account in use changed (signed in, switched, renamed, signed out). */
+export const MAKERWORLD_ACCOUNT_CHANGED = 'jp-makerworld-account-changed';
 
 /**
  * The print profiles the details panel offers, numbered as on MakerWorld (index from 0): once some

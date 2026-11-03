@@ -61,6 +61,35 @@ const summary = (list = account.accounts()) => list.map((a) => `${a.account}${a.
 
   await signIn('a@x.com');
   await signIn('b@x.com');
+
+  // Nicknames: kept through switching and signing in again; an empty one removes it.
+  account.rename('a@x.com', '  Home  ');
+  account.rename('B@x.com', 'Personal');
+  assert.deepStrictEqual(
+    account.accounts().map((a) => a.nickname),
+    ['Personal', 'Home']
+  );
+  assert.strictEqual(account.status().nickname, 'Personal');
+  account.activate('a@x.com');
+  await signIn('a@x.com');
+  assert.strictEqual(account.status().nickname, 'Home', 'signing in again keeps the nickname');
+  assert.throws(() => account.rename('c@x.com', 'X'), /not saved/);
+  account.rename('a@x.com', '');
+  assert.strictEqual(account.status().nickname, null);
+
+  // Expired: when Bambu Lab turns the sign-in down; signing in again clears it.
+  assert.strictEqual(account.status().expired, false);
+  account.markExpired();
+  assert.strictEqual(account.status().expired, true);
+  account.activate('b@x.com');
+  assert.deepStrictEqual(
+    account.accounts().map((a) => `${a.account}:${a.expired}`),
+    ['b@x.com:false', 'a@x.com:true'],
+    'a saved account keeps its expired mark'
+  );
+  await signIn('a@x.com');
+  assert.strictEqual(account.status().expired, false, 'signing in again clears it');
+
   const visible = JSON.stringify([account.accounts(), account.status()]);
   assert.ok(!/TOKEN|REFRESH/.test(visible), `no token leaves through the actions: ${visible}`);
   console.log('ok several MakerWorld accounts');

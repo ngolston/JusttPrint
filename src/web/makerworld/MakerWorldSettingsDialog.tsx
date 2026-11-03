@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { callAction, settings } from '../api';
 import { ModalDialog } from '../components/ModalDialog';
-import { exposeGlobal, showMessage } from '../page';
-import { accountStatus, type AccountStatus } from './makerworld';
+import { askText, exposeGlobal, showMessage } from '../page';
+import { accountLabel, accountStatus, MAKERWORLD_ACCOUNT_CHANGED, type AccountStatus, type SavedAccount } from './makerworld';
 import { GoogleTranslateSteps, MakerWorldSteps } from '../links/SiteSetup';
 import { googleFirst, move, orderOf, rowsFor, savedOrder, TRANSLATOR_LABELS, usageLine, type TranslatorRow } from './translators';
 
@@ -31,17 +31,10 @@ interface GoogleStatus {
   stopped: boolean;
 }
 
-/** makerworld-accounts (src/server/makerworld-account.js). */
-interface SavedAccount {
-  account: string | null;
-  name: string | null;
-  active: boolean;
-}
-
 /**
- * Settings → MakerWorld: the MakerWorld sign-in downloads use (sign in, sign out, switch to another
- * account signed in before), and where the
- * English names of MakerWorld files come from. Registers window.openMakerWorldSettings.
+ * Settings → MakerWorld: the MakerWorld sign-ins (sign in, sign out, switch to another account
+ * signed in before, nicknames, signing in again when one has expired), and where the English names
+ * of MakerWorld files come from. Registers window.openMakerWorldSettings.
  */
 export function MakerWorldSettingsDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -89,9 +82,10 @@ export function MakerWorldSettingsDialog() {
       callAction<SavedAccount[]>('makerworld-accounts').then(setAccounts, () => setAccounts([]))
     ]);
 
-  async function changeAccount(action: 'makerworld-activate-account' | 'makerworld-forget-account', email: string | null) {
+  async function changeAccount(action: string, ...args: (string | null)[]) {
     try {
-      await callAction(action, email);
+      await callAction(action, ...args);
+      window.dispatchEvent(new Event(MAKERWORLD_ACCOUNT_CHANGED));
       await refresh();
     } catch (error) {
       await showMessage('MakerWorld', error instanceof Error ? error.message : String(error));
@@ -113,13 +107,23 @@ export function MakerWorldSettingsDialog() {
     []
   );
 
-  async function signIn() {
-    if (await window.signInMakerWorld?.()) await refresh();
+  async function signIn(email = '') {
+    if (await window.signInMakerWorld?.(undefined, email)) await refresh();
   }
 
   async function signOut() {
     setStatus(await callAction<AccountStatus>('makerworld-sign-out'));
+    window.dispatchEvent(new Event(MAKERWORLD_ACCOUNT_CHANGED));
     await refresh();
+  }
+
+  async function rename(saved: SavedAccount) {
+    const nickname = await askText(
+      'Account Nickname',
+      `A short name for ${saved.account}, such as Personal or Home (leave it empty for none).`,
+      saved.nickname || ''
+    );
+    if (nickname !== null) await changeAccount('makerworld-rename-account', saved.account, nickname);
   }
 
   async function save() {
@@ -144,8 +148,6 @@ export function MakerWorldSettingsDialog() {
     }
   }
 
-  const who = status?.name && status.account ? `${status.name} (${status.account})` : status?.name || status?.account || '';
-
   return (
     <ModalDialog
       id="makerworld-settings-dialog"
@@ -165,49 +167,56 @@ export function MakerWorldSettingsDialog() {
       <div className="settings-group">
         <h4>Account</h4>
         <p className="setting-description" id="makerworld-account-status">
-          {status?.signedIn
-            ? `Signed in as ${who}. Downloads from MakerWorld use this account.`
-            : 'Not signed in. MakerWorld asks for a sign-in before the first download.'}
+          {!status?.signedIn
+            ? 'Not signed in. MakerWorld asks for a sign-in before the first download.'
+            : status.expired
+              ? `The sign-in for ${accountLabel(status)} has expired. Sign in again to download from MakerWorld.`
+              : `Downloads from MakerWorld use ${accountLabel(status)}.`}
         </p>
         {!status?.signedIn && <MakerWorldSteps />}
-        <div className="translator-key-buttons">
-          {status?.signedIn ? (
-            <>
-              <button type="button" id="makerworld-sign-out" onClick={signOut}>
-                Sign Out
-              </button>
-              <button type="button" id="makerworld-add-account" onClick={signIn}>
-                Add Another Account…
-              </button>
-            </>
-          ) : (
-            <button type="button" id="makerworld-sign-in" onClick={signIn}>
-              Sign In…
-            </button>
-          )}
-        </div>
-        {accounts.some((saved) => !saved.active) && (
-          <>
-            <p className="setting-description">Signed in before: switch without the password. Downloads use one account at a time.</p>
-            <ul className="translator-list" id="makerworld-other-accounts">
-              {accounts
-                .filter((saved) => !saved.active)
-                .map((saved) => (
-                  <li key={saved.account}>
-                    <span>{saved.name && saved.account ? `${saved.name} (${saved.account})` : saved.name || saved.account}</span>
-                    <span className="translator-key-buttons">
-                      <button type="button" onClick={() => void changeAccount('makerworld-activate-account', saved.account)}>
-                        Use
-                      </button>
-                      <button type="button" onClick={() => void changeAccount('makerworld-forget-account', saved.account)}>
-                        Forget
-                      </button>
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          </>
+        {accounts.length > 0 && (
+          <ul className="translator-list makerworld-accounts" id="makerworld-accounts">
+            {accounts.map((saved) => (
+              <li key={saved.account} className={saved.active ? 'is-on' : undefined}>
+                <span className="makerworld-accounts__who">
+                  <span>{accountLabel(saved)}</span>
+                  {saved.active && <span className="makerworld-accounts__tag">In use</span>}
+                  {saved.expired && <span className="makerworld-accounts__tag is-expired">Sign-in expired</span>}
+                </span>
+                <span className="makerworld-accounts__buttons">
+                  {!saved.active && (
+                    <button type="button" onClick={() => void changeAccount('makerworld-activate-account', saved.account)}>
+                      Use
+                    </button>
+                  )}
+                  {saved.expired && (
+                    <button type="button" onClick={() => void signIn(saved.account || '')}>
+                      Sign In Again…
+                    </button>
+                  )}
+                  <button type="button" onClick={() => void rename(saved)}>
+                    Rename…
+                  </button>
+                  {saved.active ? (
+                    <button type="button" id="makerworld-sign-out" onClick={signOut}>
+                      Sign Out
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void changeAccount('makerworld-forget-account', saved.account)}>
+                      Forget
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
+        {accounts.length > 1 && <p className="setting-description">Use switches accounts without the password. Downloads use one account at a time.</p>}
+        <div className="translator-key-buttons">
+          <button type="button" id={accounts.length ? 'makerworld-add-account' : 'makerworld-sign-in'} onClick={() => void signIn()}>
+            {accounts.length ? 'Add Another Account…' : 'Sign In…'}
+          </button>
+        </div>
       </div>
       <div className="settings-group">
         <h4>English file names and notes</h4>

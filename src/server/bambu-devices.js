@@ -45,6 +45,7 @@ async function listDevices(fetchImpl = httpsFetch) {
     headers = account.authHeaders();
     if (headers) answer = await fetchDevices(headers, fetchImpl);
   }
+  if (answer.unauthorized) account.markExpired();
   if (answer.unauthorized) throw new Error('The Bambu Lab sign-in has expired: sign in again (Settings → Integrations → MakerWorld)');
   return answer.devices.map((device) => ({
     serial: String(device.dev_id || device.serial_number || device.sn || '').trim(),

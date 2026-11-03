@@ -2,6 +2,14 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Changes:**
+- **Several MakerWorld accounts.** Settings → MakerWorld keeps every Bambu Lab account you sign in with, and **Use** switches between them without the password or the emailed code (from Lupolima, pull request #8). Downloads use one account at a time, for the whole server. **Sign Out** forgets the account in use and keeps the others; **Forget** removes a saved one.
+- **Account nicknames.** **Rename…** gives an account a short name, such as Personal or Home, used in the list and in the download dialogs.
+- **Expired sign-ins are shown.** When Bambu Lab turns a sign-in down and a refresh does not help, the account is marked **Sign-in expired**, with **Sign In Again…** (the email filled in).
+- **Which account downloads.** With more than one account, Download from MakerWorld and Add Links show **Downloads with** and a menu to switch; an expired account there offers **Sign In Again…**. With one account that works, nothing changes.
+
 ## [10.8.1] - 2026-11-03
 
 Five fixes from Lupolima (pull requests #3 to #7): no crash on painted 3MFs, faster starts on large libraries, Blender files found, and large galleries kept instead of cleared.

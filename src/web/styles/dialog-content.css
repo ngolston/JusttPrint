@@ -1771,6 +1771,32 @@
   gap: var(--jp-space-2);
   margin-top: var(--jp-space-2);
 }
+.makerworld-accounts li {
+  flex-wrap: wrap;
+}
+.makerworld-accounts__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.makerworld-accounts__tag {
+  padding: 0 var(--jp-space-2);
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-accent-soft);
+  color: var(--jp-text-2);
+  font-size: 0.85em;
+}
+.makerworld-accounts__tag.is-expired {
+  color: var(--jp-danger-text);
+}
+.makerworld-accounts__buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-1);
+}
 .google-usage {
   margin: var(--jp-space-2) 0 var(--jp-space-3);
 }

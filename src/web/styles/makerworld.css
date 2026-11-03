@@ -238,6 +238,25 @@
   color: var(--jp-text);
   font-size: var(--jp-text-meta);
 }
+/* Which MakerWorld account a download uses (MakerWorldAccountNote.tsx). */
+.jp-mw-account {
+  margin: 0 0 var(--jp-space-3);
+}
+.jp-mw-account__pick {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-mw-account__pick select {
+  flex: 1;
+  min-width: 0;
+}
+.jp-mw-account .jp-mw-download__problem {
+  margin: var(--jp-space-2) 0 0;
+}
+.jp-links__download .jp-mw-account {
+  margin: 0;
+}
 .jp-links__download {
   display: flex;
   flex-direction: column;

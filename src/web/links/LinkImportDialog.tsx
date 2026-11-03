@@ -4,6 +4,7 @@ import { callAction } from '../api';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Overlay';
 import { runSearch } from '../filters/search';
+import { MakerWorldAccountNote } from '../makerworld/MakerWorldAccountNote';
 import { accountStatus, getSiteDetails, type MakerWorldProfile } from '../makerworld/makerworld';
 import { ProfileChecklist } from '../makerworld/ProfileChecklist';
 import { FileChecklist, type SiteFile } from './FileChecklist';
@@ -493,6 +494,7 @@ export function LinkImportDialog() {
               {folderProblem}
             </p>
           )}
+          {download && rows.some((row) => row.site === 'makerworld') && <MakerWorldAccountNote disabled={busy} />}
         </div>
       )}
       {download && canEdit && !busy && (

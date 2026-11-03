@@ -4,11 +4,15 @@ import { callAction } from '../api';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Overlay';
 import { exposeGlobal } from '../page';
+import { MAKERWORLD_ACCOUNT_CHANGED } from './makerworld';
 
 declare global {
   interface Window {
-    /** Ask for the MakerWorld sign-in. Resolves true once signed in, false when cancelled. */
-    signInMakerWorld?: (reason?: string) => Promise<boolean>;
+    /**
+     * Ask for the MakerWorld sign-in. Resolves true once signed in, false when cancelled. `email`
+     * fills in the account (empty for another account; left out keeps the last one typed).
+     */
+    signInMakerWorld?: (reason?: string, email?: string) => Promise<boolean>;
   }
 }
 
@@ -41,11 +45,12 @@ export function MakerWorldSignInDialog() {
     () =>
       exposeGlobal(
         'signInMakerWorld',
-        (why?: string) =>
+        (why?: string, forEmail?: string) =>
           new Promise<boolean>((resolve) => {
             resolver.current?.(false);
             resolver.current = resolve;
             setReason(why || '');
+            if (forEmail !== undefined) setEmail(forEmail);
             setPassword('');
             setCode('');
             setStep('password');
@@ -70,6 +75,7 @@ export function MakerWorldSignInDialog() {
       const input = step === 'password' ? { account: email, password } : step === 'code' ? { account: email, code } : { account: email, tfaKey, tfaCode: code };
       const result = await callAction<Step>('makerworld-sign-in', input);
       if (result.done) {
+        window.dispatchEvent(new Event(MAKERWORLD_ACCOUNT_CHANGED));
         finish(true);
       } else if (result.next) {
         setStep(result.next);

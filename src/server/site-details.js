@@ -513,6 +513,7 @@ async function downloadLink(apiPath, fetchImpl) {
     }
     if (response.status === 401 || /log ?in/i.test(json.error || '')) {
       if (attempt === 0 && (await account.refresh(fetchImpl))) continue;
+      account.markExpired();
       throw signInError('Your MakerWorld sign-in has expired. Sign in again');
     }
     if (!response.ok) throw new Error(json.error || `MakerWorld answered ${response.status}`);
