@@ -86,6 +86,8 @@ interface PrinterForm {
   clearApiSecret: boolean;
   /** Watts while printing, for the cost estimate (docs/plan-10.1.md, Phase 8). */
   power: string;
+  /** Bambu live: log finished prints by themselves. */
+  autoLog: boolean;
 }
 
 const CONNECTIONS: [string, string][] = [
@@ -111,7 +113,8 @@ const EMPTY_PRINTER: PrinterForm = {
   apiSecret: '',
   hasApiSecret: false,
   clearApiSecret: false,
-  power: ''
+  power: '',
+  autoLog: true
 };
 
 function errorText(error: unknown, fallback: string): string {
@@ -235,6 +238,7 @@ export function PrinterManagerDialog() {
         serialNumber: form.serial.trim() || null,
         apiUrl: form.apiUrl.trim() || null,
         powerWatts: form.power.trim() ? Number(form.power.trim().replace(',', '.')) : null,
+        autoLog: form.autoLog,
         ...(form.apiSecret.trim() ? { apiSecret: form.apiSecret.trim() } : form.clearApiSecret ? { apiSecret: '' } : {})
       });
       flashForm(form.id ? 'Printer updated successfully' : 'Printer added successfully');
@@ -264,7 +268,8 @@ export function PrinterManagerDialog() {
       apiSecret: '',
       hasApiSecret: Boolean(printer.has_api_secret),
       clearApiSecret: false,
-      power: printer.power_watts ? String(printer.power_watts) : ''
+      power: printer.power_watts ? String(printer.power_watts) : '',
+      autoLog: printer.auto_log !== 0
     });
     setFormOpen(true);
     setTab('printers');
@@ -551,6 +556,18 @@ export function PrinterManagerDialog() {
                         )}
                       </label>
                       {form.connection === 'bambu' && (
+                        <label className="jp-mgr__check is-wide">
+                          <input
+                            type="checkbox"
+                            id="printer-form-auto-log"
+                            checked={form.autoLog}
+                            onChange={(event) => setForm({ ...form, autoLog: event.target.checked })}
+                          />
+                          Log finished prints by themselves (with their time, filament and a camera picture), when a model in the library has the print&apos;s
+                          name
+                        </label>
+                      )}
+                      {form.connection === 'bambu' && (
                         <p className="jp-meta jp-mgr__field is-wide" id="printer-form-live-hint">
                           With the address, serial number and access code (the printer&apos;s screen shows the access code in its network settings and the
                           serial number in its device information), JusttPrint follows the printer live: what it prints, how far it is, and what is in each AMS
@@ -721,7 +738,7 @@ function MaintenanceView({
   const printerId = selectedId && printers.some((p) => p.id === selectedId) ? selectedId : (printers[0]?.id ?? null);
   const [reminders, setReminders] = useState<PrinterReminder[]>([]);
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
-  const [reminder, setReminder] = useState({ title: '', dueDate: dateInputValue(30), interval: '0', notes: '' });
+  const [reminder, setReminder] = useState({ title: '', by: 'date', dueDate: dateInputValue(30), interval: '0', hours: '200', notes: '' });
   const [log, setLog] = useState({ type: LOG_TYPES[0][0], date: dateInputValue(), title: '', description: '' });
   const [reminderStatus, flashReminder] = useFlash();
   const [logStatus, flashLog] = useFlash();
@@ -759,8 +776,9 @@ function MaintenanceView({
         printerId,
         title,
         maintenanceType: 'General',
-        dueDate: noonIso(reminder.dueDate),
-        intervalDays: Number(reminder.interval) || 0,
+        ...(reminder.by === 'hours'
+          ? { dueDate: null, intervalDays: 0, intervalHours: Number(reminder.hours.replace(',', '.')) || null }
+          : { dueDate: noonIso(reminder.dueDate), intervalDays: Number(reminder.interval) || 0 }),
         notes: reminder.notes.trim() || null
       });
       setReminder({ ...reminder, title: '', notes: '' });
@@ -869,32 +887,67 @@ function MaintenanceView({
             </label>
             <div className="jp-mgr__grid">
               <label className="jp-mgr__field">
-                <span className="jp-label">Due</span>
-                <input
-                  type="date"
-                  id="reminder-form-due-date"
-                  className="jp-input"
-                  required
-                  value={reminder.dueDate}
-                  onChange={(event) => setReminder({ ...reminder, dueDate: event.target.value })}
-                />
-              </label>
-              <label className="jp-mgr__field">
-                <span className="jp-label">Repeats</span>
+                <span className="jp-label">Due by</span>
                 <select
-                  id="reminder-form-interval"
+                  id="reminder-form-by"
                   className="jp-input"
-                  value={reminder.interval}
-                  onChange={(event) => setReminder({ ...reminder, interval: event.target.value })}
+                  value={reminder.by}
+                  onChange={(event) => setReminder({ ...reminder, by: event.target.value })}
                 >
-                  {RECURRENCES.map(([days, label]) => (
-                    <option key={days} value={days}>
-                      {label}
-                    </option>
-                  ))}
+                  <option value="date">A date</option>
+                  <option value="hours">Print hours</option>
                 </select>
               </label>
+              {reminder.by === 'hours' ? (
+                <label className="jp-mgr__field">
+                  <span className="jp-label">Every (print hours)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    id="reminder-form-hours"
+                    className="jp-input"
+                    required
+                    value={reminder.hours}
+                    onChange={(event) => setReminder({ ...reminder, hours: event.target.value })}
+                  />
+                </label>
+              ) : (
+                <label className="jp-mgr__field">
+                  <span className="jp-label">Due</span>
+                  <input
+                    type="date"
+                    id="reminder-form-due-date"
+                    className="jp-input"
+                    required
+                    value={reminder.dueDate}
+                    onChange={(event) => setReminder({ ...reminder, dueDate: event.target.value })}
+                  />
+                </label>
+              )}
+              {reminder.by !== 'hours' && (
+                <label className="jp-mgr__field">
+                  <span className="jp-label">Repeats</span>
+                  <select
+                    id="reminder-form-interval"
+                    className="jp-input"
+                    value={reminder.interval}
+                    onChange={(event) => setReminder({ ...reminder, interval: event.target.value })}
+                  >
+                    {RECURRENCES.map(([days, label]) => (
+                      <option key={days} value={days}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
+            {reminder.by === 'hours' && (
+              <p className="jp-meta">
+                Counted from the print times of this printer&apos;s logged prints; Bambu printers followed live log theirs by themselves.
+              </p>
+            )}
             <label className="jp-mgr__field">
               <span className="jp-label">Notes</span>
               <input
@@ -994,7 +1047,14 @@ function ReminderItem({ reminder, onDone, onDelete }: { reminder: PrinterReminde
   const days = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   const plural = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
   let pill: { tone: StatusTone; text: string } = { tone: 'neutral', text: `Due in ${plural(days)}` };
+  const byHours = Number(reminder.interval_hours) > 0;
+  const hoursLeft = byHours ? Math.round(((reminder.hours_due ?? 0) - (reminder.hours_now ?? 0)) * 10) / 10 : 0;
   if (completed) pill = { tone: 'success', text: 'Completed' };
+  else if (byHours)
+    pill =
+      hoursLeft <= 0
+        ? { tone: 'danger', text: 'Due now' }
+        : { tone: hoursLeft <= (reminder.interval_hours || 0) * 0.05 ? 'warning' : 'neutral', text: `In ${hoursLeft} print hours` };
   else if (days < 0) pill = { tone: 'danger', text: `Overdue by ${plural(Math.abs(days))}` };
   else if (days <= 7) pill = { tone: 'warning', text: days === 0 ? 'Due today' : `Due in ${plural(days)}` };
 
@@ -1004,8 +1064,16 @@ function ReminderItem({ reminder, onDone, onDelete }: { reminder: PrinterReminde
         <span className="jp-mgr__name">{reminder.title}</span>
         <div className="jp-mgr__tags">
           <StatusBadge tone={pill.tone}>{pill.text}</StatusBadge>
-          <span className="jp-meta">{due.toLocaleDateString()}</span>
-          <span className="jp-meta">{reminder.interval_days > 0 ? `Repeats every ${reminder.interval_days} days` : 'One-time'}</span>
+          {byHours ? (
+            <span className="jp-meta">
+              Every {reminder.interval_hours} print hours · {reminder.hours_now ?? 0} h printed, due at {reminder.hours_due} h
+            </span>
+          ) : (
+            <>
+              <span className="jp-meta">{due.toLocaleDateString()}</span>
+              <span className="jp-meta">{reminder.interval_days > 0 ? `Repeats every ${reminder.interval_days} days` : 'One-time'}</span>
+            </>
+          )}
         </div>
         {reminder.notes && <div className="jp-meta">{reminder.notes}</div>}
       </div>

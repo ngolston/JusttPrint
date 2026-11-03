@@ -227,6 +227,7 @@ function PrinterDetail({ printer, onDeleted, loads, live }: { printer: Printer; 
             {(Number(printer.total_prints) || 0).toLocaleString()}
             {printer.last_printed_at ? `, last ${timeAgo(printer.last_printed_at)}` : ''}
           </Prop>
+          {Number(printer.print_hours) > 0 && <Prop label="Print hours">{Number(printer.print_hours).toLocaleString()} h</Prop>}
           {printer.connection_type && printer.connection_type !== 'manual' && (
             <Prop label="Connection">
               {CONNECTION_LABELS[printer.connection_type] || printer.connection_type}
@@ -257,15 +258,24 @@ function PrinterDetail({ printer, onDeleted, loads, live }: { printer: Printer; 
             {pending.length ? (
               <ul className="jp-printer-detail__list" aria-label="Reminders">
                 {pending.map((reminder) => {
-                  const overdue = Date.parse(reminder.due_date) < now;
+                  const overdue =
+                    Number(reminder.interval_hours) > 0 ? (reminder.hours_now ?? 0) >= (reminder.hours_due ?? Infinity) : Date.parse(reminder.due_date) < now;
                   return (
                     <li key={reminder.id} className="jp-printer-detail__item">
                       <CalendarClock size={18} aria-hidden="true" className={overdue ? 'is-warning' : undefined} />
                       <span className="jp-printer-detail__item-text">
                         <span className="jp-printer-detail__item-title">{reminder.title}</span>
                         <span className="jp-printer-detail__item-meta">
-                          Due {day(reminder.due_date)}
-                          {reminder.interval_days ? ` • every ${reminder.interval_days} days` : ''}
+                          {Number(reminder.interval_hours) > 0 ? (
+                            <>
+                              Every {reminder.interval_hours} print hours • due at {reminder.hours_due} h (now {reminder.hours_now ?? 0} h)
+                            </>
+                          ) : (
+                            <>
+                              Due {day(reminder.due_date)}
+                              {reminder.interval_days ? ` • every ${reminder.interval_days} days` : ''}
+                            </>
+                          )}
                         </span>
                       </span>
                       {overdue && <StatusBadge tone="warning">Due</StatusBadge>}

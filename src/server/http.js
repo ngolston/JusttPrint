@@ -163,6 +163,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   expressApp.use(auth.requireAuth);
   registerApiRoutes(expressApp);
   require('./photos').registerPhotoRoutes(expressApp);
+  // A Bambu printer's camera picture (bambu-camera.js), for anyone signed in.
+  require('./bambu-camera').registerCameraRoutes(expressApp);
 
   // MCP tools change anything (the API token is an admin); Puter AI requests come from AI tagging.
   expressApp.use('/mcp', requireRole('admin'));

@@ -442,3 +442,80 @@ button.jp-loaded-slot:focus-visible {
 .jp-live-row__printer {
   font-weight: 700;
 }
+
+/* The printer's camera and errors (printers/LiveStatus.tsx). */
+.jp-live__head-side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+}
+.jp-camera {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jp-camera--small {
+  width: 120px;
+  max-width: 120px;
+  flex: none;
+}
+.jp-camera__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.jp-camera__wait {
+  margin: 0;
+  padding: var(--jp-space-3);
+  text-align: center;
+}
+.jp-camera--small .jp-camera__wait {
+  font-size: 11px;
+  padding: 4px;
+}
+.jp-live__errors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-live__error {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: var(--jp-space-2) var(--jp-space-3);
+  border-radius: var(--jp-radius-md, 8px);
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent-strong-text);
+}
+.jp-live__error svg {
+  flex: none;
+  margin-top: 3px;
+}
+.jp-live-row__body {
+  display: flex;
+  gap: var(--jp-space-3);
+  align-items: flex-start;
+}
+.jp-live-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.jp-live-row__error {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}

@@ -93,6 +93,33 @@ function normalizeDate(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
 }
 
+/** A date so far ahead that a reminder by print hours alone is never due by date. */
+const NO_DATE = '2999-12-31T12:00:00.000Z';
+
+function hasColumn(db, table, column) {
+  try {
+    return db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .some((c) => c.name === column);
+  } catch (_) {
+    return false;
+  }
+}
+
+/** How many hours a printer has printed: the print times of its logged prints. */
+function printerPrintHours(db, printerId) {
+  if (!hasTable(db, 'print_events') || !hasColumn(db, 'print_events', 'duration_seconds')) return 0;
+  const row = db.prepare('SELECT COALESCE(SUM(duration_seconds), 0) AS s FROM print_events WHERE printer_id = ?').get(printerId);
+  return Math.round(((Number(row && row.s) || 0) / 3600) * 10) / 10;
+}
+
+/** The SQL of a printer's print hours (p.id), or 0 before the column. */
+const hoursSql = (db) =>
+  hasTable(db, 'print_events') && hasColumn(db, 'print_events', 'duration_seconds')
+    ? '(SELECT COALESCE(SUM(pe2.duration_seconds), 0) / 3600.0 FROM print_events pe2 WHERE pe2.printer_id = p.id)'
+    : '0';
+
 function hasTable(db, tableName) {
   try {
     const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(tableName);
@@ -122,12 +149,16 @@ function getAllPrinters(db) {
        (SELECT MAX(pe.printed_at) FROM print_events pe WHERE pe.printer_id = p.id) AS last_printed_at`
     : ', 0 AS total_prints, NULL AS last_printed_at';
 
+  const hours = hoursSql(db);
+  const byHours = hasColumn(db, 'printer_maintenance_reminders', 'interval_hours')
+    ? ` OR (pmr.interval_hours > 0 AND ${hours} >= COALESCE(pmr.hours_start, 0) + pmr.interval_hours * 0.95)`
+    : '';
   const printers = db
     .prepare(
       `
-    SELECT p.*${printEventsCols},
+    SELECT p.*${printEventsCols}, ${hours} AS print_hours,
       (SELECT COUNT(*) FROM printer_maintenance_reminders pmr 
-       WHERE pmr.printer_id = p.id AND pmr.status = 'pending' AND datetime(pmr.due_date) <= datetime('now', '+7 days')) AS due_reminders_count
+       WHERE pmr.printer_id = p.id AND pmr.status = 'pending' AND (datetime(pmr.due_date) <= datetime('now', '+7 days')${byHours})) AS due_reminders_count
     FROM printers p
     ORDER BY p.nickname COLLATE NOCASE ASC, p.id ASC
   `
@@ -161,10 +192,12 @@ function saveConnection(db, id, printer) {
     .trim()
     .toLowerCase();
   const connectionType = CONNECTION_TYPES.includes(raw) ? raw : 'manual';
-  const serial =
+  const typed =
     String(printer?.serialNumber ?? printer?.serial_number ?? '')
       .trim()
       .slice(0, 100) || null;
+  // Bambu Lab serial numbers are capitals (live status subscribes with them).
+  const serial = typed && connectionType === 'bambu' ? typed.toUpperCase() : typed;
   const apiUrl =
     String(printer?.apiUrl ?? printer?.api_url ?? '')
       .trim()
@@ -173,6 +206,15 @@ function saveConnection(db, id, printer) {
   if (printer && Object.prototype.hasOwnProperty.call(printer, 'apiSecret')) {
     const secret = printer.apiSecret === null ? '' : String(printer.apiSecret).trim().slice(0, 500);
     db.prepare('UPDATE printers SET api_secret = ? WHERE id = ?').run(secret || null, id);
+  }
+  // Log finished prints by themselves (Bambu live status, printer-jobs.js); kept when not given.
+  if (
+    printer &&
+    (Object.prototype.hasOwnProperty.call(printer, 'autoLog') || Object.prototype.hasOwnProperty.call(printer, 'auto_log')) &&
+    hasColumn(db, 'printers', 'auto_log')
+  ) {
+    const raw = printer.autoLog ?? printer.auto_log;
+    db.prepare('UPDATE printers SET auto_log = ? WHERE id = ?').run(raw === false || raw === 0 || raw === '0' ? 0 : 1, id);
   }
   // Power while printing, for the cost estimate (docs/plan-10.1.md, Phase 8); kept when not given.
   const hasPower = db
@@ -330,7 +372,20 @@ function getPrinterReminders(db, printerId) {
     CASE status WHEN 'pending' THEN 0 ELSE 1 END,
     due_date ASC, id ASC`;
 
-  return db.prepare(query).all(...params);
+  // Reminders by print hours also say the printer's hours now and the hours they are due at.
+  const hoursOf = new Map();
+  return db
+    .prepare(query)
+    .all(...params)
+    .map((reminder) => {
+      if (!(Number(reminder.interval_hours) > 0)) return reminder;
+      if (!hoursOf.has(reminder.printer_id)) hoursOf.set(reminder.printer_id, printerPrintHours(db, reminder.printer_id));
+      return {
+        ...reminder,
+        hours_now: hoursOf.get(reminder.printer_id),
+        hours_due: Math.round(((Number(reminder.hours_start) || 0) + Number(reminder.interval_hours)) * 10) / 10
+      };
+    });
 }
 
 function savePrinterReminder(db, reminder) {
@@ -342,7 +397,12 @@ function savePrinterReminder(db, reminder) {
   if (!title) throw new Error('Reminder title is required');
 
   const maintenanceType = String(reminder?.maintenanceType || reminder?.maintenance_type || 'General Maintenance').trim();
-  const dueDate = normalizeDate(reminder?.dueDate ?? reminder?.due_date);
+  // Every N print hours (Bambu printers log their prints' times by themselves); a reminder by hours
+  // alone has no date.
+  const intervalHoursRaw = Number(reminder?.intervalHours ?? reminder?.interval_hours);
+  const intervalHours = Number.isFinite(intervalHoursRaw) && intervalHoursRaw > 0 ? Math.min(100000, Math.round(intervalHoursRaw * 10) / 10) : null;
+  const dateGiven = reminder?.dueDate ?? reminder?.due_date;
+  const dueDate = intervalHours && !dateGiven ? NO_DATE : normalizeDate(dateGiven);
   const intervalDays = Math.max(0, Math.floor(Number(reminder?.intervalDays ?? reminder?.interval_days) || 0));
   const notes = String(reminder?.notes || '').trim() || null;
   const status = String(reminder?.status || 'pending').toLowerCase() === 'completed' ? 'completed' : 'pending';
@@ -358,7 +418,16 @@ function savePrinterReminder(db, reminder) {
       WHERE id = ? AND printer_id = ?
     `
     ).run(title, maintenanceType, dueDate, intervalDays, notes, status, id, printerId);
-    return db.prepare('SELECT * FROM printer_maintenance_reminders WHERE id = ?').get(id);
+    if (hasColumn(db, 'printer_maintenance_reminders', 'interval_hours')) {
+      const old = db.prepare('SELECT interval_hours, hours_start FROM printer_maintenance_reminders WHERE id = ?').get(id);
+      const start = old && old.hours_start !== null && Number(old.interval_hours) > 0 ? old.hours_start : printerPrintHours(db, printerId);
+      db.prepare('UPDATE printer_maintenance_reminders SET interval_hours = ?, hours_start = ? WHERE id = ?').run(
+        intervalHours,
+        intervalHours ? start : null,
+        id
+      );
+    }
+    return getPrinterReminders(db, printerId).find((r) => r.id === id);
   }
 
   const result = db
@@ -369,8 +438,15 @@ function savePrinterReminder(db, reminder) {
   `
     )
     .run(printerId, title, maintenanceType, dueDate, intervalDays, notes, status, now);
-
-  return db.prepare('SELECT * FROM printer_maintenance_reminders WHERE id = ?').get(result.lastInsertRowid);
+  const newId = Number(result.lastInsertRowid);
+  if (intervalHours && hasColumn(db, 'printer_maintenance_reminders', 'interval_hours')) {
+    db.prepare('UPDATE printer_maintenance_reminders SET interval_hours = ?, hours_start = ? WHERE id = ?').run(
+      intervalHours,
+      printerPrintHours(db, printerId),
+      newId
+    );
+  }
+  return getPrinterReminders(db, printerId).find((r) => r.id === newId);
 }
 
 function deletePrinterReminder(db, reminderId) {
@@ -402,8 +478,16 @@ function completePrinterReminder(db, reminderId, notes) {
       performedAt: now
     });
 
-    // If repeating, advance due date by intervalDays; otherwise mark as completed
-    if (reminder.interval_days > 0) {
+    // By print hours: due again interval_hours from now (and by date too when it repeats by days).
+    if (Number(reminder.interval_hours) > 0) {
+      const nextDue = reminder.interval_days > 0 ? new Date(Date.now() + reminder.interval_days * 24 * 3600 * 1000).toISOString() : reminder.due_date;
+      db.prepare(`UPDATE printer_maintenance_reminders SET hours_start = ?, due_date = ?, status = 'pending', last_completed_at = ? WHERE id = ?`).run(
+        printerPrintHours(db, reminder.printer_id),
+        nextDue,
+        now,
+        id
+      );
+    } else if (reminder.interval_days > 0) {
       const nextDue = new Date();
       nextDue.setDate(nextDue.getDate() + reminder.interval_days);
       db.prepare(
@@ -441,5 +525,6 @@ module.exports = {
   getPrinterReminders,
   savePrinterReminder,
   deletePrinterReminder,
-  completePrinterReminder
+  completePrinterReminder,
+  printerPrintHours
 };

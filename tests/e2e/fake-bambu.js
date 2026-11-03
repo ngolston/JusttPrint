@@ -69,4 +69,42 @@ async function startFakeBambu({ host = '127.0.0.1', accessCode, serial }) {
   };
 }
 
-module.exports = { startFakeBambu };
+/** A fake P1 camera on `port`: checks the sign-in packet, then sends `jpeg` once a second. */
+async function startFakeCamera({ host = '127.0.0.1', port, accessCode, jpeg }) {
+  const selfsigned = require('selfsigned');
+  const pems = await selfsigned.generate([{ name: 'commonName', value: 'bambu-e2e-camera' }], { days: 1, keySize: 2048 });
+  const sockets = new Set();
+  const signIns = [];
+  const server = tls.createServer({ key: pems.private, cert: pems.cert }, (socket) => {
+    sockets.add(socket);
+    let timer = null;
+    socket.once('data', (auth) => {
+      const code = auth.subarray(48, 80).toString('ascii').replace(/\0+$/, '');
+      signIns.push({ user: auth.subarray(16, 48).toString('ascii').replace(/\0+$/, ''), ok: code === accessCode });
+      if (code !== accessCode) return socket.destroy();
+      const send = () => {
+        const header = Buffer.alloc(16);
+        header.writeUInt32LE(jpeg.length, 0);
+        socket.write(Buffer.concat([header, jpeg]));
+      };
+      send();
+      timer = setInterval(send, 1000);
+    });
+    socket.on('close', () => {
+      if (timer) clearInterval(timer);
+      sockets.delete(socket);
+    });
+    socket.on('error', () => {});
+  });
+  await new Promise((resolve) => server.listen(port, host, resolve));
+  return {
+    signIns,
+    close: () =>
+      new Promise((resolve) => {
+        for (const socket of sockets) socket.destroy();
+        server.close(() => resolve());
+      })
+  };
+}
+
+module.exports = { startFakeBambu, startFakeCamera };

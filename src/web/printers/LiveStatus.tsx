@@ -1,9 +1,11 @@
-import { Flame, Layers, Thermometer, Timer } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Camera, CameraOff, ExternalLink, Flame, Layers, Thermometer, Timer } from 'lucide-react';
 import type { Printer, PrinterLive } from '../api';
 import { StatusBadge } from '../components/Badge';
 import { ProgressBar } from '../components/Panel';
 import { openModel } from '../home/HomeSections';
 import { navigate } from '../shell/routes';
+import { cx } from '../components/Button';
 import { liveLabel, liveTone, minutesText } from './live';
 
 /*
@@ -62,8 +64,85 @@ export function missingForLive(printer: Printer): string | null {
   return missing.length ? `For live status, add ${missing.join(', ').replace(/, ([^,]*)$/, ' and $1')} (Edit).` : null;
 }
 
-/** The printer page's Live section: state, job, progress, temperatures, the tray feeding it. */
+/**
+ * The printer's camera (bambu-camera.js): a new picture every `every` ms while the page is shown
+ * (a P1 or A1 sends about one a second). Says why when there is none.
+ */
+export function CameraView({ printerId, every = 2000, small = false }: { printerId: number; every?: number; small?: boolean }) {
+  const [tick, setTick] = useState(0);
+  const [error, setError] = useState('');
+  const [shown, setShown] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const src = `/api/printers/${printerId}/camera?t=${tick}`;
+  const next = (ms: number) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(function again() {
+      // Only while someone sees it: a hidden tab asks for nothing.
+      if (document.visibilityState === 'hidden') timer.current = setTimeout(again, 1000);
+      else setTick((t) => t + 1);
+    }, ms);
+  };
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+  return (
+    <div className={cx('jp-camera', small && 'jp-camera--small')}>
+      <img
+        src={src}
+        alt="The printer's camera"
+        className="jp-camera__img"
+        hidden={!shown}
+        onLoad={() => {
+          setShown(true);
+          setError('');
+          next(every);
+        }}
+        onError={() => {
+          setShown(false);
+          fetch(src, { credentials: 'same-origin' })
+            .then((response) => response.text())
+            .then(
+              (text) => setError(text.slice(0, 300) || 'No picture from the camera.'),
+              () => setError('No picture from the camera.')
+            );
+          next(10000);
+        }}
+      />
+      {!shown && (
+        <p className="jp-meta jp-camera__wait" id={small ? undefined : 'jp-camera-message'}>
+          {error || 'Waiting for the camera…'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The printer's errors now, in plain words where Bambu's list has them. */
+function Errors({ live }: { live: PrinterLive }) {
+  if (!live.errors?.length) return null;
+  return (
+    <ul className="jp-live__errors" aria-label="Printer errors" id="jp-live-errors">
+      {live.errors.map((error) => (
+        <li key={error.code} className="jp-live__error">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>
+            {error.text || 'The printer reports an error.'}{' '}
+            <a className="jp-link" href={error.url} target="_blank" rel="noopener noreferrer">
+              {error.code} <ExternalLink size={12} aria-hidden="true" />
+            </a>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The printer page's Live section: state, job, progress, temperatures, the tray feeding it, errors, the camera. */
 export function LiveSection({ printer, live }: { printer: Printer; live: PrinterLive | null | undefined }) {
+  const [cameraOn, setCameraOn] = useState(true);
   const missing = missingForLive(printer);
   if (printer.connection_type !== 'bambu') return null;
   const active = live && (live.state === 'printing' || live.state === 'paused');
@@ -73,7 +152,21 @@ export function LiveSection({ printer, live }: { printer: Printer; live: Printer
         <h3 className="jp-details__heading" id="jp-printer-live">
           Live
         </h3>
-        <LiveBadge live={live} />
+        <span className="jp-live__head-side">
+          {live?.connected && (
+            <button
+              type="button"
+              className="jp-link"
+              id="jp-camera-toggle"
+              onClick={() => setCameraOn((on) => !on)}
+              aria-pressed={cameraOn}
+              title={cameraOn ? 'Stop the camera' : 'Show the camera'}
+            >
+              {cameraOn ? <CameraOff size={14} aria-hidden="true" /> : <Camera size={14} aria-hidden="true" />} {cameraOn ? 'Camera off' : 'Camera'}
+            </button>
+          )}
+          <LiveBadge live={live} />
+        </span>
       </div>
       {missing ? (
         <p className="jp-meta">{missing} The printer must be on the same network as the server, with LAN mode or Developer mode turned on.</p>
@@ -86,6 +179,8 @@ export function LiveSection({ printer, live }: { printer: Printer; live: Printer
         </p>
       ) : (
         <div className="jp-live__body">
+          <Errors live={live} />
+          {cameraOn && <CameraView printerId={printer.id} />}
           {(active || live.job) && (
             <div className="jp-live__job-row">
               <JobName live={live} />
@@ -133,8 +228,18 @@ export function LivePrintingRows({ printers, live }: { printers: Printer[] | nul
               </button>
               <LiveBadge live={entry} />
             </span>
-            <JobName live={entry} />
-            <ProgressLine live={entry} />
+            <span className="jp-live-row__body">
+              <CameraView printerId={entry.printerId} every={5000} small />
+              <span className="jp-live-row__text">
+                <JobName live={entry} />
+                <ProgressLine live={entry} />
+                {entry.errors?.[0] && (
+                  <span className="jp-meta jp-live-row__error">
+                    <AlertTriangle size={12} aria-hidden="true" /> {entry.errors[0].text || entry.errors[0].code}
+                  </span>
+                )}
+              </span>
+            </span>
           </li>
         );
       })}
