@@ -338,6 +338,26 @@ async function scanDirectoryHandler(event, directoryPath, options = {}) {
   }
 }
 
+/**
+ * Only rows where something changed are written: SQLite rewrites the whole row, thumbnails included,
+ * so writing the same values on every scan read and rewrote every model's pictures. Same parameters,
+ * same order as before: hash, size, modifiedDate, bundleKey, bundleLabel, bundleKind, filePath.
+ */
+const UPDATE_EXISTING_SQL = `
+  UPDATE models
+  SET hash = COALESCE(NULLIF(v.hash, ''), models.hash),
+      size = v.size,
+      modifiedDate = v.modifiedDate,
+      bundleKey = v.bundleKey,
+      bundleLabel = v.bundleLabel,
+      bundleKind = v.bundleKind
+  FROM (SELECT ? AS hash, ? AS size, ? AS modifiedDate, ? AS bundleKey, ? AS bundleLabel, ? AS bundleKind, ? AS filePath) AS v
+  WHERE models.filePath = v.filePath
+    AND NOT (models.hash IS COALESCE(NULLIF(v.hash, ''), models.hash) AND models.size IS v.size
+      AND models.modifiedDate IS v.modifiedDate AND models.bundleKey IS v.bundleKey
+      AND models.bundleLabel IS v.bundleLabel AND models.bundleKind IS v.bundleKind)
+`;
+
 async function scanDirectoryInner(event, directoryPath, options = {}) {
   try {
     // Validate UNC path in server mode
@@ -388,16 +408,7 @@ async function scanDirectoryInner(event, directoryPath, options = {}) {
 
       // Preserve existing hash when scan doesn't provide one (worker sends null to avoid slow scans).
       // Otherwise every scan would overwrite hashes with '' and trigger full hash regeneration on each start.
-      const updateExisting = database.db.prepare(`
-        UPDATE models 
-        SET hash = COALESCE(NULLIF(?, ''), hash),
-            size = ?,
-            modifiedDate = ?,
-            bundleKey = ?,
-            bundleLabel = ?,
-            bundleKind = ?
-        WHERE filePath = ?
-      `);
+      const updateExisting = database.db.prepare(UPDATE_EXISTING_SQL);
 
       const insertNew = database.db.prepare(`
         INSERT INTO models (
@@ -666,4 +677,4 @@ function applyFolderTagsToNewScanFiles(filePaths) {
   return result;
 }
 
-module.exports = { removeMissingIn, scanDirectoryHandler, readStlHomeExcludeDirectories };
+module.exports = { UPDATE_EXISTING_SQL, removeMissingIn, scanDirectoryHandler, readStlHomeExcludeDirectories };

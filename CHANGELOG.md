@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.8.1] - 2026-11-03
+
+Five fixes from Lupolima (pull requests #3 to #7): no crash on painted 3MFs, faster starts on large libraries, Blender files found, and large galleries kept instead of cleared.
+
+**Fixes:**
+- **A painted 3MF no longer crashes the server.** Reading the filaments of an unsliced, painted 3MF could take the whole server down (EBADF), more often on a slow disk, and over and over with Docker's restart.
+- **Scans no longer rewrite models that did not change.** Every scan wrote every model again, pictures included: on a large library that was most of the startup time. Now only changed models are written.
+- **Finding the models that need a grid picture no longer reads every picture.** On a large library that held the whole server up for about a minute at each start.
+- **Blender files are found.** The Blender file type now finds `.blend`, the extension Blender saves (`.blender` still works).
+- **Large galleries are kept.** A model whose pictures were over the size limit lost all of them at the next start (a big MakerWorld gallery could get there). Now its largest pictures are reduced, gently and only as much as needed, until it fits; none are removed and animations are left alone. Only values far over the limit (runaway, not galleries) are still cleared, in the same single pass over the pictures at startup.
+
 ## [10.8.0] - 2026-11-03
 
 Watch your Bambu printers: the camera, prints logged by themselves when they finish, alerts, errors in plain words, and maintenance by print hours.

@@ -49,6 +49,7 @@ function closeDatabaseOnQuit() {
   require('./low-stock-alerts').stop();
   require('./bambu-live').stop();
   require('./bambu-camera').stop();
+  require('./oversized-thumbnails').stop();
   downloadFiles.stop();
   stopWatching();
   thumbnailWorker.stop();
@@ -179,6 +180,7 @@ async function start() {
   downloadFiles.start();
   scheduleBackgroundHashGeneration('startup');
   purgeOversizedThumbnails();
+  require('./oversized-thumbnails').start();
   gridThumbnails.scheduleAtStartup();
   // A new category list (an update): every model is sorted into it once, with what is free.
   setTimeout(() => {

@@ -8,7 +8,7 @@ const { directoryFilterLikePrefix } = require('./folder-tree-lib');
 const ADDITIONAL_FILE_TYPES_CATALOG = [
   { id: '3ds', label: '3DS (.3ds)', extensions: ['.3ds'] },
   { id: 'amf', label: 'AMF (.amf)', extensions: ['.amf'] },
-  { id: 'blender', label: 'Blender (.blender)', extensions: ['.blender'] },
+  { id: 'blender', label: 'Blender (.blend)', extensions: ['.blend', '.blender'] },
   { id: 'chitubox', label: 'ChiTuBox (.chitubox)', extensions: ['.chitubox'] },
   { id: 'dae', label: 'DAE (.dae)', extensions: ['.dae'] },
   { id: 'dxf', label: 'DXF (.dxf)', extensions: ['.dxf'] },
