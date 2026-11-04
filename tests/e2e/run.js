@@ -1088,7 +1088,7 @@ async function browserChecks(base, wsUrl, session) {
     };
     const showLibrary = () =>
       page.evaluate(() => {
-        window.location.hash = '#/library';
+        window.location.hash = '#/models';
       });
 
     await page.goto(base + '/');
@@ -1282,13 +1282,13 @@ async function browserChecks(base, wsUrl, session) {
       JSON.stringify({ widgetDialogOpen, widgetDialogClosed, messageClosed, keptLayout, insideStays })
     );
 
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
     check(
-      'Library shows the library without the dashboard',
+      'Models shows the library without the dashboard',
       (await page.waitForSelector('.jp-home-library', { state: 'detached', timeout: 5000 }).then(
         () => true,
         () => false
-      )) && /#\/library$/.test(page.url())
+      )) && /#\/models$/.test(page.url())
     );
 
     const previewView = await page.$('.view-button[data-view="preview"]');
@@ -1707,7 +1707,7 @@ async function browserChecks(base, wsUrl, session) {
         await page.click('#jp-filter-strip .jp-filter-clear, button:has-text("Clear All Filters")').catch(() => {});
         await invoke(base, session, 'update-category', [puzzles.id || 0, { keywords: (puzzles.keywords || []).join(', ') }]);
         await page.evaluate(() => {
-          window.location.hash = '#/library';
+          window.location.hash = '#/models';
         });
         await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
         await page.click(`${card} .file-name`).catch(() => {});
@@ -1761,7 +1761,7 @@ async function browserChecks(base, wsUrl, session) {
         const folder = path.dirname(cardPath);
         // Save Search: the current search becomes a smart collection that shows what it finds.
         await page.evaluate(() => {
-          window.location.hash = '#/library';
+          window.location.hash = '#/models';
         });
         await page.fill('.jp-topbar__search input', stem);
         await page.press('.jp-topbar__search input', 'Enter');
@@ -1791,7 +1791,7 @@ async function browserChecks(base, wsUrl, session) {
         check('Save Search makes a smart collection showing what the search finds', smartShows && (await page.isVisible('#jp-collection-show-search')));
         // Off its page first: a page showing a deleted collection would ask for it again.
         await page.evaluate(() => {
-          window.location.hash = '#/library';
+          window.location.hash = '#/models';
         });
         await page.waitForTimeout(300);
         const smart = ((await invoke(base, session, 'get-collections')).result || []).find((c) => c.name === 'E2E Smart');
@@ -1912,7 +1912,7 @@ async function browserChecks(base, wsUrl, session) {
 
         // Typed search: fields and NOT in the search box.
         await page.evaluate(() => {
-          window.location.hash = '#/library';
+          window.location.hash = '#/models';
         });
         await page.fill('.jp-topbar__search input', `name:"${stem}" -name:zzzz`);
         await page.press('.jp-topbar__search input', 'Enter');
@@ -1953,7 +1953,7 @@ async function browserChecks(base, wsUrl, session) {
         await page.fill('dialog[open] textarea', '');
         await page.keyboard.press('Escape');
         await page.evaluate(() => {
-          window.location.hash = '#/library';
+          window.location.hash = '#/models';
         });
         await page.waitForSelector(card, { timeout: 10000 }).catch(() => {});
         await page.click(`${card} .file-name`).catch(() => {});
@@ -2754,7 +2754,7 @@ async function browserChecks(base, wsUrl, session) {
     check("a merged model's page says what it is merged into, with Un-merge", /Merged into/.test(mergedNote) && /Un-merge/.test(mergedNote), mergedNote);
     await invoke(base, session, 'set-model-parts', [null, [grouped[1]]]);
     await page.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     await page.waitForSelector(cardOfPath(grouped[1]), { timeout: 15000 }).catch(() => {});
     // Edit mode (the header's Edit button), and Done leaves it.
@@ -3246,7 +3246,7 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-tag', ['e2e-page-other']);
     await invoke(base, session, 'update-models-batch', [[{ filePath: taggedModel, tags: ['e2e-page-other'] }]]);
     // Made through the API, not this page: open the page again to read them.
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
     await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
     await page.waitForSelector(`${pageTagRow('e2e-page-other')} :text("1 model")`, { timeout: 10000 }).catch(() => {});
     await page.click(`${pageTagRow('e2e-page-renamed')} button[aria-label^="Rename"]`);
@@ -3303,7 +3303,7 @@ async function browserChecks(base, wsUrl, session) {
         )) &&
         !(await tagNamesNow()).includes(mergedName)
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
 
     // Parts Manager (React): add, step the quantity, edit, remove.
     const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
@@ -3350,7 +3350,7 @@ async function browserChecks(base, wsUrl, session) {
         () => !document.querySelector('dialog.jp-add-filament, #filament-manager-dialog, #filament-filter') && !('openFilamentManager' in window)
       )
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
 
     // Printer Manager (React): add, edit, maintenance reminders and log, delete.
     const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
@@ -3513,7 +3513,7 @@ async function browserChecks(base, wsUrl, session) {
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
     // Opened from Settings in the JusttPrint 5 shell (src/web/shell/AppShell.tsx, src/web/pages/SettingsPage.tsx).
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
     await page.waitForSelector('.jp-page', { state: 'detached', timeout: 5000 }).catch(() => {});
     await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
     await page.waitForSelector('.jp-page h1:text-is("Settings")', { timeout: 5000 }).catch(() => {});
@@ -3769,9 +3769,9 @@ async function browserChecks(base, wsUrl, session) {
         window.location.hash = '#/queue';
       });
     }
-    await page.click('.jp-queue__header button:has-text("Show in Library")');
+    await page.click('.jp-queue__header button:has-text("Show in Models")');
     check(
-      "Show in Library opens the library's Queue tab",
+      "Show in Models opens the library's Queue tab",
       (await page
         .waitForFunction(() => window.libraryFilters.state().printed === 'in-queue', null, { timeout: 5000 })
         .then(
@@ -3785,7 +3785,7 @@ async function browserChecks(base, wsUrl, session) {
 
     // Keyboard (spec §37): the skip link, a card as one Tab stop, Enter selects, focus follows the arrows.
     await page.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     await page.click('.view-button[data-view="detailed"]');
     await page.waitForSelector('.file-grid .jp-model-card', { timeout: 10000 }).catch(() => {});
@@ -4086,7 +4086,7 @@ async function browserChecks(base, wsUrl, session) {
       check('deleting the logged print gives the grams back', afterDelete.remaining === charcoal.remaining, String(afterDelete.remaining));
 
       await page.evaluate(() => {
-        window.location.hash = '#/library';
+        window.location.hash = '#/models';
       });
       const card = '.file-grid .file-item:has-text("plate-kit")';
       check(
@@ -4147,7 +4147,7 @@ async function browserChecks(base, wsUrl, session) {
       check('Add to queue queues the plate chosen', queued.length === 1 && queued[0].plate === 1, JSON.stringify(queued.map((item) => item.plate)));
       for (const item of queued) await invoke(base, session, 'remove-from-queue', [item.id]);
       await page.evaluate(() => {
-        window.location.hash = '#/library';
+        window.location.hash = '#/models';
       });
       await page.waitForSelector(card, { timeout: 15000 }).catch(() => {});
       await page.click(`${card} .file-name`);
@@ -5436,11 +5436,11 @@ async function browserChecks(base, wsUrl, session) {
     });
     const audit = await auditContext.newPage();
     const axeProblems = [];
-    for (const hash of ['#/home', '#/library', '#/queue', '#/filament', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
+    for (const hash of ['#/home', '#/models', '#/queue', '#/filament', '#/printers', '#/stats', '#/tags', '#/settings', '#/help']) {
       await audit.goto(`${base}/${hash}`);
       await audit.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
-      await audit.waitForSelector(hash === '#/library' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
-      if (hash === '#/library') {
+      await audit.waitForSelector(hash === '#/models' ? '.file-grid .file-item' : '.jp-page h1, .jp-hero__title', { timeout: 20000 }).catch(() => {});
+      if (hash === '#/models') {
         await audit.click('.file-grid .file-item .file-name').catch(() => {});
         await audit.waitForSelector('#model-details .jp-details__title', { timeout: 10000 }).catch(() => {});
       }
@@ -5537,7 +5537,7 @@ async function browserChecks(base, wsUrl, session) {
       noOldBar: !(await phone.isVisible('#mobile-app-bar'))
     };
     check('the phone opens Home with the bottom bar instead of the sidebar', Object.values(phoneHome).every(Boolean), JSON.stringify(phoneHome));
-    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Models")');
     // Earlier checks leave the wall or the list as the saved view. On a phone the view buttons are under View (9.5.1).
     await phone.tap('#jp-view-menu-button');
     check('on a phone the view buttons open under View', await phone.isVisible('.view-button[data-view="detailed"]'));
@@ -5584,7 +5584,7 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       )) && !(await phone.evaluate(() => document.body.classList.contains('jp-nav-open')))
     );
-    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Library")');
+    await phone.tap('#jp-bottom-nav .jp-bottom-nav__item:has-text("Models")');
     await phone.tap('#jp-filter-button');
     const sheet = await phone.locator('#jp-filter-popover').boundingBox();
     check(
@@ -5644,7 +5644,7 @@ async function browserChecks(base, wsUrl, session) {
     // Tablet: the sidebar is an icon rail; laptop: the details are a drawer.
     const tablet = await (await browser.newContext({ viewport: { width: 900, height: 1000 }, storageState: await page.context().storageState() })).newPage();
     tablet.on('pageerror', (error) => errors.push(`tablet: ${error.message}`));
-    await tablet.goto(base + '/#/library');
+    await tablet.goto(base + '/#/models');
     await tablet.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     const rail = await tablet.waitForSelector('#jp-sidebar', { timeout: 10000 }).then(
       () => tablet.locator('#jp-sidebar').boundingBox(),
@@ -6540,7 +6540,7 @@ async function browserChecks(base, wsUrl, session) {
     await page.evaluate(() => {
       window._serverBulkThumbnailJobActive = false;
     });
-    await page.evaluate(() => (location.hash = '#/library'));
+    await page.evaluate(() => (location.hash = '#/models'));
     await page.waitForSelector('.file-grid [data-filepath]', { timeout: 30000 }).catch(() => {});
     // The deleted balls leave the grid once the refresh arrives.
     await page.waitForFunction(() => !document.querySelector('.file-grid [data-filepath*="/Balls/"]'), null, { timeout: 15000 }).catch(() => {});
@@ -6562,7 +6562,7 @@ async function browserChecks(base, wsUrl, session) {
         .catch(() => null);
       const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
       if (doneDialog) await doneDialog.click();
-      await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+      await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
       check(
         'Clear New Flag asks, clears the flag and says how many',
         !!askClear && !!done && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew
@@ -6730,7 +6730,7 @@ async function browserChecks(base, wsUrl, session) {
       'Delete Selected removes the copy from disk and the list',
       !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal)
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
+    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
     check(
       'leaving the page closes Duplicates',
       await page.waitForSelector('#dedup-page', { state: 'detached', timeout: 5000 }).then(
@@ -8002,7 +8002,7 @@ async function accountChecks(base, wsUrl, admin) {
     // A guest in the browser (guest access is on): the library, and Log In instead of the account items.
     const guestPage = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
     guestPage.on('pageerror', (error) => errors.push(`guest: ${error.message}`));
-    await guestPage.goto(base + '/#/library');
+    await guestPage.goto(base + '/#/models');
     const guestIn = await guestPage
       .waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 })
       .then(
@@ -8054,7 +8054,7 @@ async function accountChecks(base, wsUrl, admin) {
     );
     // Every upload goes to the Upload folder (8.4); none chosen (9.2): Uploads inside the first STL Home folder.
     await editorPage.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     // Upload and Add Links are in the top bar's Add New Model menu (the library's toolbar has them on phones).
     await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 });
@@ -8074,7 +8074,7 @@ async function accountChecks(base, wsUrl, admin) {
     await editorPage.waitForSelector('#jp-upload-input', { state: 'detached', timeout: 5000 }).catch(() => {});
     await invoke(base, admin, 'save-upload-folder', [folder, '']);
     await editorPage.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     // Upload and Add Links are in the top bar's Add New Model menu (the library's toolbar has them on phones).
     await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 });
@@ -8238,7 +8238,7 @@ async function accountChecks(base, wsUrl, admin) {
     await invoke(base, admin, 'save-upload-folder', ['', '']);
     await editorPage.keyboard.press('Escape');
     await editorPage.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     await editorPage.waitForSelector('#jp-topbar-add-button', { timeout: 10000 }).catch(() => {});
 
@@ -8346,7 +8346,7 @@ async function accountChecks(base, wsUrl, admin) {
 
     const viewerPage = await open('kid', 'kid-password');
     await viewerPage.evaluate(() => {
-      window.location.hash = '#/library';
+      window.location.hash = '#/models';
     });
     await viewerPage.waitForTimeout(1500);
     check(
@@ -8436,7 +8436,7 @@ async function accountChecks(base, wsUrl, admin) {
     const cardOf = (fp) => `.file-grid [data-filepath="${fp.replace(/"/g, '\\"')}"] .file-name`;
     for (const p of [editorPage, adminPage]) {
       await p.evaluate(() => {
-        window.location.hash = '#/library';
+        window.location.hash = '#/models';
       });
       await p.waitForSelector('.file-grid [data-filepath]', { timeout: 15000 }).catch(() => {});
       // The grid draws only the cards on screen: scroll down to the model's card.

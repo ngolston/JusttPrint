@@ -142,7 +142,7 @@ export function showsUnorganized(directory: string, info: UploadFolderInfo | nul
 export function showUnorganized() {
   const folder = state.info?.uploadFolder;
   if (!folder) return;
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     filterActions.setDirectory(folder);

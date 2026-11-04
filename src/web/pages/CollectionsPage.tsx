@@ -19,7 +19,7 @@ import { currentSearch, showSavedSearch } from '../filters/savedSearches';
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 function openModel(filePath: string) {
-  navigate('library');
+  navigate('models');
   selection.set([filePath]);
   void showModelDetails(filePath);
 }
@@ -283,7 +283,7 @@ function CollectionView({ id }: { id: number }) {
         </div>
         {detail?.smart && (
           <Button icon={Library} id="jp-collection-show-search" onClick={() => showSavedSearch(detail.query)}>
-            Show in Library
+            Show in Models
           </Button>
         )}
         <EditOnly>

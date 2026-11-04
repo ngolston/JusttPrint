@@ -429,10 +429,10 @@ export function LinkImportDialog() {
             <Button
               onClick={() => {
                 close();
-                navigate('library');
+                navigate('models');
               }}
             >
-              Show Library
+              Show Models
             </Button>
           )}
           <Button onClick={close}>{busy ? 'Stop' : 'Close'}</Button>

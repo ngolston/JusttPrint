@@ -189,7 +189,7 @@ function usePinnedBar(slot: HTMLElement | null) {
 }
 
 /**
- * The Library's header: the title with the model count, Filter and Edit on the right; then the
+ * The Models page's header: the title with the model count, Filter and Edit on the right; then the
  * state tabs, with the view buttons and the Folders and sidebar toggles on the right (Upload and
  * Add Links only on phones, where the top bar has no Add New Model); the active filters under it.
  */
@@ -225,7 +225,7 @@ export function LibraryHeader() {
       <div className="jp-library-header__top">
         <div className="jp-library-header__heading">
           <h1 className="jp-library-header__title">
-            Library
+            Models
             <span className="jp-library-header__count" id="jp-library-count" title={`${total.toLocaleString()} models in the library`}>
               {view.toLocaleString()} {view === 1 ? 'model' : 'models'}
             </span>

@@ -24,7 +24,7 @@ export function arrangeTags(list: Tag[], search: string, sort: TagSort, unusedOn
 }
 
 function showModels(tag: Tag) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     filterActions.setTags([tag.name]);

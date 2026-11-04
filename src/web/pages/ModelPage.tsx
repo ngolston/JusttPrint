@@ -65,10 +65,10 @@ const tagNames = (list: unknown[] | undefined) =>
   (list || []).map((tag) => (typeof tag === 'string' ? tag : String((tag as { name?: string })?.name ?? ''))).filter(Boolean);
 
 /** Back to the library, as it was left (its filters, scroll and selection stay under the page). */
-const goBack = () => navigate('library');
+const goBack = () => navigate('models');
 
 function showInLibrary(change: () => void) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     change();
@@ -431,7 +431,7 @@ export function ModelView({
     return (
       <div className="jp-page__inner jp-model-page">
         <Panel>
-          <EmptyState icon={FileBox} title="This model is not in the library" action={<Button onClick={() => navigate('library')}>Back to the Library</Button>}>
+          <EmptyState icon={FileBox} title="This model is not in the library" action={<Button onClick={() => navigate('models')}>Back to Models</Button>}>
             It may have been moved, renamed or removed.
           </EmptyState>
         </Panel>
@@ -447,7 +447,7 @@ export function ModelView({
   const folderPath = online ? '' : directoryLabel(model.filePath);
   // The folder's own name (the whole path is its tooltip).
   const folder = folderPath.split(/[\\/]/).filter(Boolean).pop() || folderPath;
-  // Library / Toys / Robots: the folders below the library root (inside a ZIP: the folder's name).
+  // Models / Toys / Robots: the folders below the library root (inside a ZIP: the folder's name).
   const crumbs = online || inZip ? [] : folderCrumbs(folderFilterFor(model.filePath), libraryRoots);
   const fromSite = !!siteModelUrl(model);
   const favorite = !!model.favorite;
@@ -965,7 +965,7 @@ export function ModelView({
       <nav className="jp-model-page__crumbs" aria-label="Where this model is">
         <button type="button" className="jp-model-page__back" onClick={goBack}>
           <ArrowLeft size={16} aria-hidden="true" />
-          Library
+          Models
         </button>
         {inZip && folder ? (
           <>

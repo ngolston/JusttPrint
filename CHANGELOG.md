@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Changes:**
+- **Library is now Models.** The sidebar, the phone's bottom bar, the page title, breadcrumbs, Home's **Your Models** and buttons such as **Show in Models** call the models page Models. Its address is `#/models`; old `#/library` links and bookmarks still open it. Collection-wide actions keep their names (Scan Library, Library Storage, Categorize Library, Settings → Library).
+
 ## [10.11.0] - 2026-11-04
 
 Load spools into printers from the spool, Categorize Library puts organized models in their folders, and a click outside a pop-up closes it.

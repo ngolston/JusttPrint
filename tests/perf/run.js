@@ -301,7 +301,7 @@ async function main() {
     page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(`${base}/#/library`);
+    await page.goto(`${base}/#/models`);
     const opened = Date.now();
     await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 });
     // Every card in view shows its picture (and there are some).

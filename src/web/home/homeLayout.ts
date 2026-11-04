@@ -28,7 +28,7 @@ export interface WidgetInfo {
 export const HOME_WIDGETS: WidgetInfo[] = [
   {
     id: 'library',
-    name: 'Your library',
+    name: 'Your models',
     description: 'Models, printed, in the queue and printers, with a picture.',
     sizes: ['2x2', '4x2', '2x1'],
     shown: true

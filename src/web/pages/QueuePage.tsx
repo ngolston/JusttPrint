@@ -27,7 +27,7 @@ const loadCompleted = () => library.recentPrints(10, 'printed');
 
 /** Show a model in the library with its details. */
 function openModel(filePath: string) {
-  navigate('library');
+  navigate('models');
   selection.set([filePath]);
   void showModelDetails(filePath);
 }
@@ -130,7 +130,7 @@ export function QueuePage() {
 
   const logPrint = (filePath: string) => void window.PrintHistory?.openLogDialog({ filePaths: [filePath] });
   const showInLibrary = () => {
-    navigate('library');
+    navigate('models');
     applyFilterChange(() => filterActions.setTab('in-queue', 'all'));
   };
 
@@ -144,7 +144,7 @@ export function QueuePage() {
           </p>
         </div>
         <Button icon={Library} onClick={showInLibrary}>
-          Show in Library
+          Show in Models
         </Button>
       </header>
 
@@ -196,8 +196,8 @@ export function QueuePage() {
             icon={ListChecks}
             title="The queue is empty"
             action={
-              <Button icon={Library} onClick={() => navigate('library')}>
-                Browse the Library
+              <Button icon={Library} onClick={() => navigate('models')}>
+                Browse Models
               </Button>
             }
           >

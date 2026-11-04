@@ -64,20 +64,20 @@ import { organizeUploads, showUnorganized, useOrganizeRun } from '../upload/inbo
 
 /** Show one model in the library with its details. */
 export function openModel(filePath: string) {
-  navigate('library');
+  navigate('models');
   selection.set([filePath]);
   void showModelDetails(filePath);
 }
 
 export function showTab(tab: LibraryTab) {
   const info = tabInfo(tab);
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => filterActions.setTab(info.printed, info.favorite));
 }
 
 /** The library with only these filters. */
 function showLibrary(apply: () => void) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     apply();
@@ -119,7 +119,7 @@ function useReloading<T>(load: () => Promise<T>, events: string[]): T | null {
   return useLibraryData(reload);
 }
 
-// ---- Model cards (Your Library, Favorites) --------------------------------------------------
+// ---- Model cards (Your Models, Favorites) --------------------------------------------------
 
 export function RecentCard({ model }: { model: GridModel }) {
   const src = useThumbnail(model.filePath);

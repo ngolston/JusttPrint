@@ -247,7 +247,7 @@ export function QuickActionsWidget({ printing, scan }: { printing: GridModel[] |
       await window.PrintHistory?.openLogDialog({ filePaths: [printing[0].filePath] });
       return;
     }
-    navigate('library');
+    navigate('models');
     await showMessage('Log a Print', 'Choose the model you printed, then Log Print from its menu or its details. Models marked Printing get it here at once.');
   }
   return (

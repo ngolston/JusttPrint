@@ -10,7 +10,7 @@ import { navigate } from '../shell/routes';
 import { fitInside } from './photo';
 
 function showWords(words: string[]) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => filterActions.searchAny(words));
 }
 

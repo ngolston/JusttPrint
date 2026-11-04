@@ -227,7 +227,7 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
     if (event.key !== 'Enter') return;
     const query = text.trim();
     if (!query) return;
-    navigate('library');
+    navigate('models');
     let problem: string | null = null;
     applyFilterChange(() => {
       problem = filterActions.searchTyped(query);
@@ -353,7 +353,7 @@ function BottomNav({ page, onMenu }: { page: PageId; onMenu: () => void }) {
   const queue = useQueueCount();
   const items: [PageId, string, typeof Home][] = [
     ['home', 'Home', Home],
-    ['library', 'Library', Library],
+    ['models', 'Models', Library],
     ['queue', 'Queue', ListChecks],
     ['printers', 'Printers', Printer]
   ];
@@ -457,7 +457,7 @@ const isThumbnailWorker = typeof window !== 'undefined' && new URLSearchParams(w
 
 const PAGE_TITLES: Record<PageId, string> = {
   home: 'Home',
-  library: 'Library',
+  models: 'Models',
   queue: 'Print Queue',
   filament: 'Filament',
   printers: 'Printers',
@@ -488,8 +488,8 @@ function NotAllowed() {
   );
 }
 
-/** Pages drawn over the library screen (every page but Library). */
-const isOverlayPage = (page: PageId) => page !== 'library';
+/** Pages drawn over the library screen (every page but Models). */
+const isOverlayPage = (page: PageId) => page !== 'models';
 
 /**
  * The JusttPrint 5 frame (spec §5): sidebar, top bar, and the page area. The library page is the

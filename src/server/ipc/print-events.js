@@ -58,7 +58,7 @@ async function failedPrintAlert(event, payload) {
     await require('../personal-alerts').alert('printFailed', {
       title: names.length === 1 ? `${names[0]} failed` : `${names.length} prints failed`,
       body: `Logged as failed${who}.${payload && payload.notes ? ` ${String(payload.notes).slice(0, 300)}` : ''}`,
-      link: names.length === 1 ? `#/model/${encodeURIComponent(touchedPaths(payload, null)[0])}` : '#/library',
+      link: names.length === 1 ? `#/model/${encodeURIComponent(touchedPaths(payload, null)[0])}` : '#/models',
       level: 'error',
       minRole: 'viewer'
     });

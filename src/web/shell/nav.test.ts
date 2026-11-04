@@ -17,7 +17,7 @@ describe('shell navigation', () => {
     expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'Tools', 'System']);
     expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
       'Home',
-      'Library',
+      'Models',
       'Collections',
       'Categories',
       'Queue',
@@ -66,7 +66,7 @@ describe('roles', () => {
   it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
     expect(labels('viewer')).toEqual([
       'Home',
-      'Library',
+      'Models',
       'Collections',
       'Categories',
       'Queue',
@@ -79,7 +79,7 @@ describe('roles', () => {
     ]);
     expect(labels('editor')).toEqual([
       'Home',
-      'Library',
+      'Models',
       'Collections',
       'Categories',
       'Queue',
@@ -113,6 +113,8 @@ describe('routes', () => {
   it('reads pages and sections from the hash, and falls back to Home', () => {
     expect(parseRoute('#/settings/ai')).toEqual({ page: 'settings', section: 'ai' });
     expect(parseRoute('#/home')).toEqual({ page: 'home', section: '' });
+    // #/library, the Models page's old address, still opens it.
+    expect(parseRoute('#/library')).toEqual({ page: 'models', section: '' });
     expect(parseRoute('')).toEqual({ page: 'home', section: '' });
     expect(parseRoute('#/design-system')).toEqual({ page: 'home', section: '' });
     expect(parseRoute('#/nope')).toEqual({ page: 'home', section: '' });

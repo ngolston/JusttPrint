@@ -70,7 +70,7 @@ const menu = (label: string) => () => {
 };
 /** An old menu action that changes what the library shows: show the library, then run it. */
 const inLibrary = (label: string) => () => {
-  navigate('library');
+  navigate('models');
   menu(label)();
 };
 /** Call a screen's global (window.openX), if that screen is loaded. */
@@ -114,7 +114,7 @@ export const NAV: NavSection[] = [
   {
     items: [
       { id: 'home', label: 'Home', icon: Home, page: 'home' },
-      { id: 'library', label: 'Library', icon: Library, page: 'library' },
+      { id: 'models', label: 'Models', icon: Library, page: 'models' },
       { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' },
       { id: 'categories', label: 'Categories', icon: Shapes, page: 'categories' }
     ]
