@@ -37,6 +37,6 @@ export async function saveCurrentSearch() {
 
 /** Show a smart collection's search in the library. */
 export function showSavedSearch(query: unknown) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => filterActions.restore(query));
 }

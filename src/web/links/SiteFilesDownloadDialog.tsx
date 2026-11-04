@@ -152,10 +152,10 @@ export function SiteFilesDownloadDialog() {
             <Button
               onClick={() => {
                 setOpen(false);
-                navigate('library');
+                navigate('models');
               }}
             >
-              Show Library
+              Show Models
             </Button>
           )}
           <Button onClick={close} disabled={busy}>

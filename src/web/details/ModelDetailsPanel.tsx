@@ -189,7 +189,7 @@ export function ModelDetailsPanel() {
   return createPortal(
     <div className="jp jp-details">
       {/* The page's sections, in one column (pages/ModelPage.tsx); not while a page covers the library. */}
-      {filePath && route.page === 'library' && (
+      {filePath && route.page === 'models' && (
         <ModelView key={filePath} filePath={filePath} compact statusSlot={setStatusSlot} historySlot={setHistorySlot} pathSlot={setPathSlot} />
       )}
       {/* The older editors stay loaded for the code that fills them, out of sight. */}

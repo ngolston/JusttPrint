@@ -134,8 +134,8 @@ export function AiTagRunDialog() {
       </p>
       <div className="jp-ai-run__options" role="radiogroup" aria-label="Which models">
         {option('untagged', 'Models without tags', 'The usual choice.')}
-        {option('shown', 'The models the Library shows', 'With its tabs and filters.')}
-        {option('chosen', 'The chosen models', 'Ticked in the Library.')}
+        {option('shown', 'The models on the Models page', 'With its tabs and filters.')}
+        {option('chosen', 'The chosen models', 'Ticked on the Models page.')}
       </div>
       {puterMissing && <p className="jp-ai-run__note">Sign in to Puter first (AI settings): the AI runs through your Puter account in this browser.</p>}
     </Modal>

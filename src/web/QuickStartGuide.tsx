@@ -16,11 +16,11 @@ interface GuidePage {
 
 const PAGES: GuidePage[] = [
   {
-    title: 'Your Library',
+    title: 'Your Models',
     content: (
       <>
         <p>
-          The sidebar on the left takes you everywhere. <strong>Library</strong> shows your models as cards, with tabs for <strong>All Models</strong>,{' '}
+          The sidebar on the left takes you everywhere. <strong>Models</strong> shows your models as cards, with tabs for <strong>All Models</strong>,{' '}
           <strong>Printed</strong>, <strong>Unprinted</strong>, <strong>Queue</strong> and <strong>Favorites</strong>.
         </p>
         <p>

@@ -661,7 +661,7 @@ function start({ by = null, event = null, puterSignedIn = false } = {}) {
           (current.warning ? `. ${current.warning}` : ''),
         level: current.failed.length ? 'warning' : 'success',
         minRole: 'editor',
-        link: '#/library'
+        link: '#/models'
       });
     }
   })();

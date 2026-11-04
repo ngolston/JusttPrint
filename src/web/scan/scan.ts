@@ -63,7 +63,7 @@ export const dismissScanResult = () => setResult(null);
 /** Show the models a scan added (the toast's Show Them). */
 export function showNewModels(since: string) {
   filterActions.showAddedSince(since);
-  navigate('library');
+  navigate('models');
 }
 
 /** The running scan's progress, or null when none runs. */

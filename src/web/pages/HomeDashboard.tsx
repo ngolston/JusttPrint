@@ -229,7 +229,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
           type="button"
           className="jp-activity"
           onClick={() => {
-            navigate('library');
+            navigate('models');
             applyFilterChange(() => filterActions.showAddedSince(`${item.day}T00:00:00.000Z`));
           }}
         >
@@ -301,7 +301,7 @@ function RecentActivity({ activity }: { activity: ActivityItem[] | null }) {
 }
 
 /**
- * The Home dashboard above "Your Library" (spec §10-§14): greeting, four figures and a cyan
+ * The Home dashboard above "Your Models" (spec §10-§14): greeting, four figures and a cyan
  * render of a library model; Recent Activity; Your Printers; Continue your kits and Needs
  * attention (home/HomeSections.tsx). Real data only (docs/redesign-5.md).
  */
@@ -495,7 +495,7 @@ export function HomeDashboard({ children }: { children?: ReactNode } = {}) {
 function LibraryTile({ counts }: { counts: LibraryCounts | null }) {
   const figure = (value: number | undefined) => (value == null ? <Skeleton width={44} height={20} /> : value.toLocaleString());
   return (
-    <Tile variant="ink" title="Your library" cols={2} rows={2} className="jp-home-library">
+    <Tile variant="ink" title="Your models" cols={2} rows={2} className="jp-home-library">
       <div className="jp-home-library__body">
         <div className="jp-home-library__stats">
           <StatCard icon={Box} tone="accent" value={figure(counts?.models)} label="Models" onClick={() => showTab('all')} />
@@ -515,7 +515,7 @@ function LibraryTile({ counts }: { counts: LibraryCounts | null }) {
   );
 }
 
-// ---- Your Library: the latest additions (spec §15, §41 "What did I recently add?") ----------
+// ---- Your Models: the latest additions (spec §15, §41 "What did I recently add?") ----------
 
 const loadRecent = () => callAction<GridModel[]>('get-models-filtered', { sortOption: 'dateadded-desc', limit: 8 });
 
@@ -526,7 +526,7 @@ function RecentModels() {
       <header className="jp-home__library-head">
         <div>
           <h2 className="jp-section-title" id="jp-home-library-title">
-            Your Library
+            Your Models
           </h2>
           <p className="jp-meta">Recently added</p>
         </div>

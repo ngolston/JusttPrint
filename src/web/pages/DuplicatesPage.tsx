@@ -574,11 +574,11 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
   const hasFilters = !!filters;
   const groups = view.kind === 'ready' ? view.groups : [];
   const scopeSummary = !hasFilters
-    ? 'Filter the Library first (by designer, tags, a search…) to look only at those models.'
+    ? 'Filter the Models page first (by designer, tags, a search…) to look only at those models.'
     : scope === 'current'
       ? (() => {
           const label = window.describeLibraryFilters?.(filters) || '';
-          return label ? `Only models matching: ${label}` : "Only the models the Library's filter shows.";
+          return label ? `Only models matching: ${label}` : "Only the models the Models page's filter shows.";
         })()
       : 'Every model in the library.';
 
@@ -657,7 +657,7 @@ function Duplicates({ footer }: { footer: (actions: ReactNode) => ReactNode }) {
               checked={scope === 'current'}
               onChange={() => changeScope('current')}
             />
-            <span>The Library's current filter</span>
+            <span>The Models page's current filter</span>
           </label>
           <label className="dedup-scope-option" htmlFor="dedup-scope-entire">
             <input type="radio" name="dedup-scope" id="dedup-scope-entire" value="entire" checked={scope === 'entire'} onChange={() => changeScope('entire')} />

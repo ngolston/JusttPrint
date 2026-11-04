@@ -10,14 +10,14 @@ The sidebar on the left holds every page:
 
 | Section | Pages |
 |---------|-------|
-| (top) | **Home**, **Library**, **Collections** |
+| (top) | **Home**, **Models**, **Collections** |
 | Printing | **Queue**, **Printers**, **Statistics** |
 | Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
 | System | **Settings**, **Help** |
 
 The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **JusttPrint Backend Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
 
-On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Library, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
+On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Models, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
 ### Install it as an app
 
@@ -51,7 +51,7 @@ Below them, when there is something to show:
 - **Needs attention** (editors and admins): automatic backups that failed or are late, printers with maintenance due, uploads not organized yet (with **Organize**, see [The Upload folder and Organize](#the-upload-folder-and-organize)), identical files, and models without a category, tags, a license or a thumbnail. Click one to go where it is fixed, such as the library showing just those models.
 - **Favorites**, your **Collections** (the most recently changed) and **Browse by category** (a click shows that category's models).
 
-## Library
+## Models
 
 The library shows your models as cards: preview, name, designer (or folder), file type, print status and, once you have spools, **Ready to print** or what it needs, with the colors it needs as dots (a ringed one is short). Hover a card for **Favorite**, **More** (the model menu) and the star rating.
 
@@ -184,7 +184,7 @@ Viewers see the spools; editors and admins change them.
 
 Editors and admins can add models from the browser:
 
-- Drop model files anywhere on the page, or click **Upload** in the Library.
+- Drop model files anywhere on the page, or click **Upload** on the Models page.
 - **Everything goes to the Upload folder** (below): model files, ZIP, RAR and 7Z files, each upload in a folder of its own. There is no other folder to choose; without an Upload folder, **Upload** opens **Settings → Scanning → Organize** to set it first (or set `JUSTTPRINT_UPLOAD_FOLDER` in Docker). Files added with **Upload** on a model's own page, and **New Version**, still go into that model's folder: **Upload** there takes any file (or drop files on the page) and puts pictures, videos and documents into their folders, model files beside the model's files and anything else into its `other` folder (**Other Files** on the page). A model without a folder of its own is given one first, after asking.
 - **An archive is one model**: a ZIP, RAR or 7Z file is added to the library as itself, never unpacked or opened (no 3D preview; download it to see what is inside). The Max File Size does not apply to archives.
 - Files of a type the library does not scan are skipped before anything is sent (turn more types on under **Settings → Scanning → File Types**), and so are files over the size limit (2 GB unless `JUSTTPRINT_MAX_UPLOAD_MB` says otherwise).
@@ -197,7 +197,7 @@ Editors and admins can add models from the browser:
 
 An admin sets up Organize under **Settings → Scanning → Organize**:
 
-- **Scanned directory** (the Upload folder, for example `/upload`; made if it is not there yet): uploads go there first, and its models show in the library right away with a **Not organized** badge. **Not organized** in the Library's header shows just them; Home's **Needs attention** lists them too.
+- **Scanned directory** (the Upload folder, for example `/upload`; made if it is not there yet): uploads go there first, and its models show in the library right away with a **Not organized** badge. **Not organized** in the Models page's header shows just them; Home's **Needs attention** lists them too.
 - **Destination directory** (for example `/mnt/user`; empty means your first STL Home folder).
 - **Folder structure**: the folder levels above each model's own folder, **Category / Subcategory** unless you change them (Designer and License are the other choices, up to four levels). The model's own folder is always last and named after its **Title**: `Destination/Category/Subcategory/Title/file`.
 - **Steps**, all on unless you turn them off: **Tidy into model folders**, **Generate tags** and **Apply the suggested tags**.
@@ -216,7 +216,7 @@ A notice shows how far Organize is (**Stop** ends it after the model it is on), 
 
 Keep track of models you have not downloaded yet: editors and admins can add Printables, Thingiverse and MakerWorld models from their links.
 
-1. Click **Add Links** in the Library.
+1. Click **Add Links** on the Models page.
 2. Paste the links, one per line (text around them is fine, up to 200 at a time). The list below shows each model; links already in your library, as an online model or as a file whose source is that link, are marked and skipped.
 3. Click **Add**. Each model is added as an online model with its name, designer, license and picture from the site, and the link as its source (the ↗ button beside **Source** in the details opens the page).
 
@@ -275,7 +275,7 @@ If two people edit the same field of the same model, nobody's work is lost silen
 A collection groups models from any folders: a project, a gift list, the spare parts for one printer. A model can be in several collections, and stays where it is on disk.
 
 - **Add to Collection…** in a model's menu (**…** on a card) adds it, or every selected model, to the collections you tick; **Create and Add** makes a new one on the spot. A dash means some of the selected models are in that collection already.
-- **Collections** in the sidebar shows them as cards with a picture of the latest model added. Open one to see its models; click a model to show it in the Library, or **×** to take it out of the collection.
+- **Collections** in the sidebar shows them as cards with a picture of the latest model added. Open one to see its models; click a model to show it on the Models page, or **×** to take it out of the collection.
 - **Rename**, **Description**, **Share** and the bin (delete) are at the top of a collection. Deleting a collection keeps the models and turns off its share links.
 
 Everyone can look at collections; editors and admins make and change them.

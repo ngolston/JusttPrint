@@ -303,10 +303,10 @@ export function UploadDialog() {
             <Button
               onClick={() => {
                 close();
-                navigate('library');
+                navigate('models');
               }}
             >
-              Show Library
+              Show Models
             </Button>
           )}
           <Button onClick={close}>{busy ? 'Cancel' : 'Close'}</Button>

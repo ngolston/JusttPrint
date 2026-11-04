@@ -80,7 +80,7 @@ function Gallery() {
       <section>
         <h2 className="jp-label">Typography</h2>
         <h1 className="jp-page-title">Good afternoon</h1>
-        <h2 className="jp-section-title">Your Library</h2>
+        <h2 className="jp-section-title">Your Models</h2>
         <div>
           <div className="jp-model-title">Gridfinity Tool Holder</div>
           <div className="jp-meta">Zack Freedman</div>

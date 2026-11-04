@@ -37,7 +37,7 @@ interface Folder {
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 function showInLibrary(change: () => void) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     change();
@@ -194,7 +194,7 @@ export function FolderPage({ path }: { path: string }) {
     return (
       <div className="jp-page__inner jp-model-page">
         <Panel>
-          <EmptyState icon={FolderOpen} title="No models in this folder" action={<Button onClick={() => navigate('library')}>Back to the Library</Button>}>
+          <EmptyState icon={FolderOpen} title="No models in this folder" action={<Button onClick={() => navigate('models')}>Back to Models</Button>}>
             The folder may have been moved or emptied.
           </EmptyState>
         </Panel>
@@ -203,7 +203,7 @@ export function FolderPage({ path }: { path: string }) {
   }
 
   const paths = folder.files.map((file) => file.filePath);
-  // Library / Toys / Robots: the folders above this one, below the library folder.
+  // Models / Toys / Robots: the folders above this one, below the library folder.
   const crumbs = folderCrumbs(folder.path, libraryRoots).slice(0, -1);
   const showFolder = () => showInLibrary(() => filterActions.setDirectory(folderFilterFor(folder.files[0].filePath)));
   const list = (items: string[], onPick?: (item: string) => void) => (
@@ -228,9 +228,9 @@ export function FolderPage({ path }: { path: string }) {
   return (
     <div className="jp-page__inner jp-model-page jp-folder-page" data-folder={folder.path}>
       <nav className="jp-model-page__crumbs" aria-label="Where this folder is">
-        <button type="button" className="jp-model-page__back" onClick={() => navigate('library')}>
+        <button type="button" className="jp-model-page__back" onClick={() => navigate('models')}>
           <ArrowLeft size={16} aria-hidden="true" />
-          Library
+          Models
         </button>
         {crumbs.map((crumb) => (
           <span key={crumb.path} className="jp-model-page__crumb">
@@ -286,7 +286,7 @@ export function FolderPage({ path }: { path: string }) {
             </Button>
           )}
           <Button icon={Library} onClick={showFolder}>
-            Show in Library
+            Show in Models
           </Button>
         </div>
       </header>

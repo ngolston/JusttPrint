@@ -1,5 +1,5 @@
 /**
- * Pages of the JusttPrint 5 shell, addressed by the URL hash (#/library, #/settings/ai, ...), so
+ * Pages of the JusttPrint 5 shell, addressed by the URL hash (#/models, #/settings/ai, ...), so
  * back, forward and reload keep the page. Unknown hashes (and #/design-system, the component
  * gallery) show Home.
  */
@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
 
 export const PAGES = [
   'home',
-  'library',
+  'models',
   'collections',
   'categories',
   'history',
@@ -24,6 +24,9 @@ export const PAGES = [
 ] as const;
 export type PageId = (typeof PAGES)[number];
 
+/** Old addresses of pages that were renamed: #/library is the Models page. */
+const RENAMED: Record<string, PageId> = { library: 'models' };
+
 export interface Route {
   page: PageId;
   /** A part of the page, e.g. the settings group (#/settings/ai). */
@@ -34,9 +37,10 @@ export interface Route {
 export const DEFAULT_PAGE: PageId = 'home';
 
 export function parseRoute(hash: string): Route {
-  const [page = '', section = ''] = String(hash || '')
+  const [name = '', section = ''] = String(hash || '')
     .replace(/^#\/?/, '')
     .split('/');
+  const page = RENAMED[name] ?? name;
   return (PAGES as readonly string[]).includes(page) ? { page: page as PageId, section: decodeURIComponent(section) } : { page: DEFAULT_PAGE, section: '' };
 }
 

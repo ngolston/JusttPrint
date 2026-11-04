@@ -12,7 +12,7 @@ import { navigate } from '../shell/routes';
 
 /** Show a Category's or Subcategory's models in the library. */
 export function showCategory(name: string) {
-  navigate('library');
+  navigate('models');
   applyFilterChange(() => {
     filterActions.clearAll();
     filterActions.search('category', name);

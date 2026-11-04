@@ -327,7 +327,7 @@ function PrinterDetail({ printer, onDeleted, loads, live }: { printer: Printer; 
                     type="button"
                     className="jp-printer-detail__item-text jp-printer-detail__model"
                     onClick={() => {
-                      navigate('library');
+                      navigate('models');
                       selection.set([event.filePath]);
                       void showModelDetails(event.filePath);
                     }}

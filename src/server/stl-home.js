@@ -45,7 +45,7 @@ function noteNewModels(count) {
       level: 'success',
       title: `${notifications.plural(newSinceNotice, 'new model')} in the library`,
       body: 'Found in the STL Home folders.',
-      link: '#/library'
+      link: '#/models'
     });
     newSinceNotice = 0;
     newModelsNoticeTimer = null;
