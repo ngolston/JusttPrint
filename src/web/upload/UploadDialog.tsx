@@ -4,7 +4,7 @@ import { callAction, cancelUpload, uploadFile, uploads, type UploadInfo } from '
 import { Button, IconButton } from '../components/Button';
 import { Modal } from '../components/Overlay';
 import { ProgressBar } from '../components/Panel';
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 import { navigate } from '../shell/routes';
 import { useCan } from '../session';
 import { exposeGlobal, showMessage } from '../page';

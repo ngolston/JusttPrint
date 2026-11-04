@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, HelpCircle } from 'lucide-react';
 import { cx } from '../components/Button';
 import { HELP, itemsFor, settingsFor, type SettingsGroup, type SettingsItem } from '../shell/nav';
 import { navigate } from '../shell/routes';
 import { Tabs } from '../components/Tabs';
 import { useCurrentUser } from '../session';
 import { EmbeddedDialog } from '../settings/EmbeddedDialog';
+import { StorageCard } from '../shell/Storage';
 
 /** One row: icon, name, what it does; the whole row opens it. */
 export function SettingsRow({ item }: { item: SettingsItem }) {
@@ -55,11 +56,16 @@ export function settingsView(groups: SettingsGroup[], section: string): { group:
  * Thingiverse, MakerWorld, MCP Server) shows one form at a time, with tabs for the others; its
  * tools and actions are rows under it. The forms are the dialogs, opened in place
  * (settings/EmbeddedDialog.tsx). #/settings/<group> opens a tab, #/settings/<form> that form.
+ * Library Storage is above the tabs; Help is the last tab.
  */
 export function SettingsPage({ section }: { section: string }) {
   const user = useCurrentUser();
   // Viewers and editors see only what their role can use (settings change the whole server).
-  const groups = useMemo(() => settingsFor(user?.role), [user?.role]);
+  // Help is the last tab, for everyone (#/help opens it).
+  const groups = useMemo(
+    () => [...settingsFor(user?.role), { id: 'help', label: 'Help', icon: HelpCircle, items: itemsFor(HELP, user?.role, 'viewer') }],
+    [user?.role]
+  );
   const view = settingsView(groups, section);
   const group = groups.find((g) => g.id === view.group);
   const forms = group ? group.items.filter((item) => item.embed) : [];
@@ -104,6 +110,7 @@ export function SettingsPage({ section }: { section: string }) {
             : `What your account (${user?.roleLabel ?? ''}) can change. An admin manages the rest.`}
         </p>
       </header>
+      <StorageCard />
       <div className="jp-settings-layout">
         <nav className="jp-settings-index" aria-label="Settings">
           <ul role="tablist" aria-label="Settings groups" aria-orientation="vertical" id="jp-settings-tabs">
@@ -160,17 +167,5 @@ export function SettingsPage({ section }: { section: string }) {
         )}
       </div>
     </div>
-  );
-}
-
-/** Help: the guide, shortcuts, setup docs and where to report problems. */
-export function HelpList() {
-  const user = useCurrentUser();
-  return (
-    <ul className="jp-settings-list">
-      {itemsFor(HELP, user?.role, 'viewer').map((item) => (
-        <SettingsRow key={item.id} item={item} />
-      ))}
-    </ul>
   );
 }

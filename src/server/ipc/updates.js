@@ -4,6 +4,8 @@ const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const { releasesApiUrl, releasesPageUrl, latestVersionFromReleases } = require('../releases');
 const https = require('https');
+const { version } = require('../../../package.json');
+const whatsNew = require('../whats-new');
 
 // Update the checkForUpdates function to track user's response
 async function checkForUpdates(isBeta = false) {
@@ -68,6 +70,12 @@ async function checkForUpdates(isBeta = false) {
 }
 
 // Update the IPC handler
+/** What's New (src/web/startup/WhatsNew.tsx): the changelog entries after `since` up to this version. */
+ipcMain.handle('get-whats-new', async (event, since) => ({
+  version,
+  entries: whatsNew.entriesSince(whatsNew.changelogText(), since || null, version)
+}));
+
 ipcMain.handle('check-for-updates', async (event, isBeta) => {
   try {
     console.debug('Main Process - Update check requested:', { isBeta });

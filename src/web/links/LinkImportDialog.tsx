@@ -10,7 +10,7 @@ import { ProfileChecklist } from '../makerworld/ProfileChecklist';
 import { FileChecklist, type SiteFile } from './FileChecklist';
 import { SiteSetupNotice } from './SiteSetup';
 import { exposeGlobal, onServerEvent, showMessage } from '../page';
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 import { navigate } from '../shell/routes';
 import { mediaLine } from '../media/media';
 import { useCan } from '../session';

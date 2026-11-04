@@ -109,6 +109,16 @@ async function start() {
 
   database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('false', 'versionCheckPerformedOnStartup');
   try {
+    // The first start of another version (an update): everyone logs in again, then sees What's New.
+    const before = database.db.prepare('SELECT value FROM settings WHERE key = ?').get('currentVersion');
+    if (before && before.value && before.value !== version) {
+      const accounts = getServerAuth().endAllSessions();
+      console.log(`[Auth] Updated from ${before.value} to ${version}: ${accounts} account(s) log in again`);
+    }
+  } catch (error) {
+    console.error('[Auth] Could not end the sessions after the update:', error);
+  }
+  try {
     database.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(version, 'currentVersion');
     console.log('Updated currentVersion in database to:', version);
   } catch (versionError) {

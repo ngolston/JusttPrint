@@ -7,7 +7,7 @@ import { ProgressBar } from '../components/Panel';
 import { runSearch } from '../filters/search';
 import { SITE_LABELS, type MakerWorldDetails, type ProfileDownload } from '../makerworld/makerworld';
 import { exposeGlobal, onServerEvent } from '../page';
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 import { navigate } from '../shell/routes';
 import { mediaLine } from '../media/media';
 import { FileChecklist, type SiteFile } from './FileChecklist';

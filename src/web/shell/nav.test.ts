@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MENU, type MenuItem } from './menu';
-import { ACCOUNT, HELP, NAV, SETTINGS, itemsFor, navFor, replacedMenuLabels, settingsFor } from './nav';
+import { ACCOUNT, HELP, MODEL_TOOLS, NAV, SETTINGS, itemsFor, navFor, navItems, replacedMenuLabels, settingsFor, toolsFor } from './nav';
 import { formatRoute, parseRoute } from './routes';
 
 const actionLabels = (items: MenuItem[]): string[] =>
@@ -13,26 +13,19 @@ describe('shell navigation', () => {
     expect(missing).toEqual([]);
   });
 
-  it('follows the spec navigation order', () => {
-    expect(NAV.map((s) => s.label ?? '')).toEqual(['', 'Printing', 'Manage', 'Tools', 'System']);
-    expect(NAV.flatMap((s) => s.items.map((i) => i.label))).toEqual([
-      'Home',
-      'Models',
-      'Collections',
-      'Categories',
-      'Queue',
-      'Filament',
-      'Printers',
-      'Statistics',
-      'Tags',
-      'Duplicates',
-      'History',
-      'Organize',
-      'Scan Library',
-      'AI Tagging',
-      'Settings',
-      'Help'
+  it('has five entries, three of them with a fly-out menu', () => {
+    const tree = NAV.map((item) => [item.label, (item.children ?? []).map((child) => child.label)]);
+    expect(tree).toEqual([
+      ['Home', []],
+      ['Models', ['Collections', 'Categories', 'Tags', 'Duplicates']],
+      ['Filament', []],
+      ['Printing', ['Queue', 'Printers', 'Statistics']],
+      ['Settings', ['History']]
     ]);
+    // Printing opens Printers; every fly-out entry says what it is.
+    expect(NAV.find((item) => item.id === 'printing')?.page).toBe('printers');
+    for (const child of NAV.flatMap((item) => item.children ?? [])) expect(child.description).toBeTruthy();
+    expect(MODEL_TOOLS.map((item) => item.label)).toEqual(['Organize', 'Scan Library', 'AI Tagging']);
     expect(SETTINGS.map((g) => g.label)).toEqual([
       'Appearance',
       'Library',
@@ -51,7 +44,9 @@ describe('shell navigation', () => {
   });
 
   it('gives every entry an action or a page, and unique ids', () => {
-    for (const section of NAV) for (const item of section.items) expect(!!item.page || typeof item.run === 'function').toBe(true);
+    for (const item of [...navItems(), ...MODEL_TOOLS]) expect(!!item.page || typeof item.run === 'function').toBe(true);
+    const navIds = navItems().map((item) => item.id);
+    expect(new Set(navIds).size).toBe(navIds.length);
     const ids = SETTINGS.map((g) => g.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const list of [HELP, ACCOUNT, ...SETTINGS.map((g) => g.items)]) {
@@ -61,7 +56,8 @@ describe('shell navigation', () => {
 });
 
 describe('roles', () => {
-  const labels = (role: string) => navFor(role).flatMap((s) => s.items.map((i) => i.label));
+  const labels = (role: string) => navItems(navFor(role)).map((item) => item.label);
+  const tools = (role: string) => toolsFor(role).map((item) => item.label);
 
   it('shows viewers the pages that only look, editors the library tools, admins everything', () => {
     expect(labels('viewer')).toEqual([
@@ -69,34 +65,36 @@ describe('roles', () => {
       'Models',
       'Collections',
       'Categories',
-      'Queue',
       'Filament',
+      'Printing',
+      'Queue',
       'Printers',
       'Statistics',
-      'History',
       'Settings',
-      'Help'
+      'History'
     ]);
     expect(labels('editor')).toEqual([
       'Home',
       'Models',
       'Collections',
       'Categories',
-      'Queue',
-      'Filament',
-      'Printers',
-      'Statistics',
       'Tags',
       'Duplicates',
-      'History',
-      // Editors run Organize; its settings are an admin's (Settings → Scanning → Organize).
-      'Organize',
-      'Scan Library',
+      'Filament',
+      'Printing',
+      'Queue',
+      'Printers',
+      'Statistics',
       'Settings',
-      'Help'
+      'History'
     ]);
-    expect(labels('admin')).toEqual(NAV.flatMap((s) => s.items.map((i) => i.label)));
+    expect(labels('admin')).toEqual(navItems().map((item) => item.label));
     expect(navFor(null)).toEqual([]);
+    // Viewers run none of the Models page's tools; editors Organize and Scan Library (Organize's
+    // settings are an admin's, Settings → Scanning → Organize); admins AI Tagging too.
+    expect(tools('viewer')).toEqual([]);
+    expect(tools('editor')).toEqual(['Organize', 'Scan Library']);
+    expect(tools('admin')).toEqual(['Organize', 'Scan Library', 'AI Tagging']);
   });
 
   it('keeps server settings, backups and accounts for admins', () => {
@@ -115,6 +113,8 @@ describe('routes', () => {
     expect(parseRoute('#/home')).toEqual({ page: 'home', section: '' });
     // #/library, the Models page's old address, still opens it.
     expect(parseRoute('#/library')).toEqual({ page: 'models', section: '' });
+    // #/help, the old Help page, opens the Settings page's Help tab.
+    expect(parseRoute('#/help')).toEqual({ page: 'settings', section: 'help' });
     expect(parseRoute('')).toEqual({ page: 'home', section: '' });
     expect(parseRoute('#/design-system')).toEqual({ page: 'home', section: '' });
     expect(parseRoute('#/nope')).toEqual({ page: 'home', section: '' });

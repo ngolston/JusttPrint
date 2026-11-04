@@ -129,6 +129,19 @@ test('a changed JUSTTPRINT_PASSWORD replaces the old one and logs that user out'
   assert.ok(!auth.isAuthenticated(req({ cookie })));
 });
 
+test('after an update everyone logs in again; API keys and the API token keep working', () => {
+  const { auth } = withAdmin('admin-pass');
+  auth.createUser({ username: 'maker', password: 'maker-pass', role: 'editor' });
+  const adminCookie = cookieOf(login(auth, 'admin-pass'));
+  const makerCookie = cookieOf(login(auth, 'maker-pass', 'maker'));
+  const token = auth.apiToken();
+  assert.strictEqual(auth.endAllSessions(), 2);
+  assert.ok(!auth.isAuthenticated(req({ cookie: adminCookie })));
+  assert.ok(!auth.isAuthenticated(req({ cookie: makerCookie })));
+  assert.ok(auth.isAuthenticated(req({ authorization: `Bearer ${token}` })), 'the API token still works');
+  assert.ok(auth.isAuthenticated(req({ cookie: cookieOf(login(auth, 'maker-pass', 'maker')) })), 'logging in again works');
+});
+
 test('upgrading: the old single password becomes the admin account', () => {
   const { auth, settings, logs } = makeAuth();
   settings.set('serverPasswordHash', hashPassword('the-old-password'));

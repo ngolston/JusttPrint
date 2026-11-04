@@ -12,6 +12,12 @@
   --jp-bg: #eef1f5;
   --jp-bg-2: #e6eaf0;
   --jp-sidebar: #ffffff;
+  /* The sidebar's dark rail (both schemes): its ground, hover, lines and text. */
+  --jp-rail: #1e2633;
+  --jp-rail-2: #2a3442;
+  --jp-rail-border: #3a4555;
+  --jp-rail-text: #ffffff;
+  --jp-rail-text-2: #c9d1dc;
   --jp-surface-1: #ffffff;
   --jp-surface-2: #f4f6f9;
   --jp-surface-hover: #e2e7ee;
@@ -88,7 +94,7 @@
   --jp-space-10: 40px;
 
   /* Layout */
-  --jp-sidebar-width: 220px;
+  --jp-sidebar-width: 248px;
   --jp-details-width: 360px;
   --jp-topbar-height: 64px;
   --jp-control-height: 36px;
@@ -133,6 +139,9 @@
   --jp-bg: #11161d;
   --jp-bg-2: #0d1117;
   --jp-sidebar: #161c25;
+  --jp-rail: #161c25;
+  --jp-rail-2: #232c39;
+  --jp-rail-border: #2f3a49;
   --jp-surface-1: #19202a;
   --jp-surface-2: #212a36;
   --jp-surface-hover: #2a3442;

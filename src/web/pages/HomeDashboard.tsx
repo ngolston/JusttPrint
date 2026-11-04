@@ -29,7 +29,7 @@ import type { GridModel } from '../grid/layout';
 import { greeting, timeAgo } from '../home/format';
 import { CategoryTiles, CollectionsRow, ContinueKits, FavoritesRow, NeedsAttention, RecentCard, openModel, showTab } from '../home/HomeSections';
 import { useLibraryData } from '../shell/libraryData';
-import { NAV } from '../shell/nav';
+import { scanLibrary } from '../shell/nav';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { useScanProgress } from '../scan/scan';
@@ -62,11 +62,6 @@ const loadPrinting = () => callAction<GridModel[]>('get-models-filtered', { prin
 const loadNewest = () => callAction<GridModel[]>('get-models-filtered', { sortOption: 'dateadded-desc', limit: 4 });
 const loadPrinters = () => printerApi.list();
 
-const scanLibrary = () =>
-  NAV.flatMap((section) => section.items)
-    .find((item) => item.id === 'scan')
-    ?.run?.();
-
 /** Scan Library, showing that it runs: spinning and not clickable until the scan is done. */
 function ScanLibraryButton({ primary = false }: { primary?: boolean }) {
   const scanning = !!useScanProgress();
@@ -77,7 +72,7 @@ function ScanLibraryButton({ primary = false }: { primary?: boolean }) {
       className={scanning ? 'jp-btn--busy' : undefined}
       disabled={scanning}
       aria-busy={scanning || undefined}
-      onClick={scanLibrary}
+      onClick={() => void scanLibrary()}
     >
       {scanning ? 'Scanning…' : 'Scan Library'}
     </Button>

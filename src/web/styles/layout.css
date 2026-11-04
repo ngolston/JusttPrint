@@ -1,30 +1,85 @@
 /* JusttPrint 5 shell (src/web/shell/AppShell.tsx; spec §5-§9). */
 
+/*
+ * The sidebar (shell/Sidebar.tsx): a dark rail in both color schemes. Inside it the text and
+ * surface tokens are the rail's, so what it holds (the background job cards) follows.
+ */
 .jp-sidebar {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  gap: var(--jp-space-2);
   width: var(--jp-sidebar-width);
-  background: var(--jp-sidebar);
-  border-right: 1px solid var(--jp-border);
+  padding: var(--jp-space-3) var(--jp-space-3) var(--jp-space-4);
+  background: var(--jp-rail);
+  color: var(--jp-rail-text);
   box-sizing: border-box;
+  --jp-bg: var(--jp-rail);
+  --jp-text: var(--jp-rail-text);
+  --jp-text-2: var(--jp-rail-text-2);
+  --jp-text-3: var(--jp-rail-text-2);
+  --jp-surface-1: var(--jp-rail-2);
+  --jp-surface-2: var(--jp-rail-border);
+  --jp-surface-hover: var(--jp-rail-border);
+  --jp-border: var(--jp-rail-border);
+  --jp-focus: var(--jp-accent-tint);
+}
+.jp-sidebar__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  margin-bottom: var(--jp-space-2);
+}
+.jp-sidebar__toggle,
+.jp-nav__row,
+.jp-nav__fly {
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-shadow: none;
+  overflow: visible;
+  cursor: pointer;
+}
+.jp-sidebar__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-rail-2);
+}
+.jp-sidebar__toggle:hover {
+  background: var(--jp-rail-border);
+}
+.jp-sidebar__toggle:focus-visible,
+.jp-nav__row:focus-visible,
+.jp-nav__fly:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
 }
 
-/* Brand: cyan rounded-square cube, name, tagline (spec §6). */
+/* Brand: the logo and name (spec §6). */
 .jp-brand {
   display: flex;
   align-items: center;
-  gap: var(--jp-space-3);
+  gap: 10px;
+  min-width: 0;
   width: auto;
-  height: var(--jp-topbar-height);
   margin: 0;
-  padding: 0 var(--jp-space-4);
+  padding: 4px;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--jp-radius-md);
   background: none;
-  color: var(--jp-text);
+  color: inherit;
   text-align: left;
   cursor: pointer;
   overflow: visible;
@@ -36,16 +91,14 @@
 }
 .jp-brand:focus-visible {
   outline: none;
-  box-shadow: inset var(--jp-focus-ring);
+  box-shadow: var(--jp-focus-ring);
 }
 .jp-brand__logo {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--jp-radius-md);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--jp-radius-sm);
   overflow: hidden;
 }
 .jp-brand__logo img {
@@ -59,90 +112,80 @@
   min-width: 0;
 }
 .jp-brand__name {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   letter-spacing: -0.01em;
 }
 .jp-brand__tagline {
   font-size: var(--jp-text-badge);
-  color: var(--jp-text-2);
+  color: var(--jp-rail-text-2);
 }
 
-/* Navigation (spec §7) */
+/* Navigation (spec §7): one row per entry; › opens its fly-out menu. */
 .jp-nav {
   flex: 1;
-  overflow-y: auto;
-  padding: var(--jp-space-2) 0 var(--jp-space-4);
-}
-.jp-nav ul {
-  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-1);
   margin: 0;
-  padding: 0 10px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
 }
-.jp-nav__section + .jp-nav__section {
-  margin-top: var(--jp-space-2);
+.jp-nav__item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--jp-radius-lg);
 }
-.jp-nav__heading {
-  padding: var(--jp-space-2) 22px var(--jp-space-1);
+.jp-nav__item:hover {
+  background: var(--jp-rail-2);
+}
+.jp-nav__item.is-active {
+  background: var(--jp-accent);
+  color: var(--jp-on-accent);
 }
 .jp-nav__row {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--jp-space-3);
-  width: 100%;
-  height: 38px;
-  margin: 0 0 2px;
-  padding: 0 var(--jp-space-3) 0 14px;
-  border: 0;
-  border-radius: var(--jp-radius-md);
-  background: transparent;
-  color: var(--jp-text-2);
+  min-height: 52px;
+  padding: 0 var(--jp-space-3) 0 var(--jp-space-4);
+  border-radius: var(--jp-radius-lg);
   font: 500 var(--jp-text-ui) var(--jp-font);
   text-align: left;
-  cursor: pointer;
-  overflow: visible;
-  box-shadow: none;
-  line-height: 1;
-  transition:
-    background-color var(--jp-transition),
-    color var(--jp-transition);
+}
+.jp-nav__row:hover {
+  background: transparent;
+}
+.jp-nav__item.is-active .jp-nav__row {
+  font-weight: 700;
 }
 .jp-nav__row svg {
   flex: none;
-  color: var(--jp-text-2);
-  transition: color var(--jp-transition);
-}
-.jp-nav__row:hover {
-  background: var(--jp-surface-hover);
-  color: var(--jp-text);
-}
-.jp-nav__row:hover svg {
-  color: var(--jp-text);
-}
-.jp-nav__row.is-active {
-  background: var(--jp-accent-soft);
-  color: var(--jp-text);
-}
-.jp-nav__row.is-active svg {
-  color: var(--jp-accent-text);
-}
-.jp-nav__row:focus-visible {
-  outline: none;
-  box-shadow: var(--jp-focus-ring);
 }
 .jp-nav__label {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  line-height: 1.3;
+}
+.jp-nav__label > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Room for g, p, y (see .jp-btn > span). */
-  line-height: 1.3;
+}
+.jp-nav__hint {
+  font-size: var(--jp-text-small);
 }
 .jp-nav__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
@@ -150,46 +193,172 @@
   background: var(--jp-accent);
   color: var(--jp-on-accent);
   font-size: var(--jp-text-small);
-  font-weight: 600;
+  font-weight: 700;
   box-sizing: border-box;
 }
-
-/* Bottom of the sidebar: Settings, Help and Library Storage, always in sight. */
-.jp-sidebar__footer {
+.jp-nav__item.is-active .jp-nav__badge {
+  background: var(--jp-on-accent);
+  color: var(--jp-accent);
+}
+.jp-nav__has-menu {
+  display: none;
+}
+.jp-nav__fly {
+  display: grid;
+  place-items: center;
   flex: none;
-  padding: var(--jp-space-2) 0 var(--jp-space-3);
-  border-top: 1px solid var(--jp-border);
+  width: 40px;
+  height: 40px;
+  margin-right: 6px;
+  border-radius: var(--jp-radius-md);
 }
-.jp-nav__footer {
-  list-style: none;
-  margin: 0;
-  padding: 0 10px;
+.jp-nav__fly:hover,
+.jp-nav__item.is-flying .jp-nav__fly {
+  background: var(--jp-rail-border);
+}
+.jp-nav__item.is-active .jp-nav__fly:hover,
+.jp-nav__item.is-active.is-flying .jp-nav__fly {
+  background: rgba(30, 38, 51, 0.18);
 }
 
-/* Storage indicator (spec §8): one line and a thin bar. */
-.jp-storage {
-  margin: var(--jp-space-2) 10px 0;
-  padding: 0 14px;
+/* Icons only (☰, and always on tablets): names hidden, an icon also opens its menu. */
+body.jp-shell-on.jp-nav-collapsed {
+  --jp-sidebar-width: 80px;
 }
-.jp-storage__title {
+.jp-sidebar.is-rail .jp-sidebar__head {
+  justify-content: center;
+}
+.jp-sidebar.is-rail .jp-brand,
+.jp-sidebar.is-rail .jp-nav__fly,
+.jp-sidebar.is-rail .jp-jobs {
+  display: none;
+}
+.jp-sidebar.is-rail .jp-nav__row {
+  justify-content: center;
+  padding: 0;
+}
+.jp-sidebar.is-rail .jp-nav__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.jp-sidebar.is-rail .jp-nav__badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  box-shadow: 0 0 0 2px var(--jp-rail);
+}
+.jp-sidebar.is-rail .jp-nav__has-menu {
+  display: block;
+  position: absolute;
+  right: 7px;
+  bottom: 9px;
+  opacity: 0.75;
+}
+
+/* A fly-out menu: the pages under a sidebar entry, beside the sidebar. */
+.jp-nav-flyout {
+  position: fixed;
+  z-index: 1005;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(320px, calc(100vw - 16px));
+  padding: var(--jp-space-2);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-lg);
+  background: var(--jp-surface-1);
   color: var(--jp-text);
-  font-weight: 500;
+  box-shadow: var(--jp-shadow-pop);
+  box-sizing: border-box;
+}
+.jp-nav-flyout__title {
+  padding: var(--jp-space-2) var(--jp-space-3) 6px;
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-small);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.jp-nav-flyout__item {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  width: 100%;
+  margin: 0;
+  padding: 10px var(--jp-space-3);
+  border: 0;
+  border-radius: var(--jp-radius-md);
+  background: transparent;
+  color: var(--jp-text);
+  font: inherit;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+}
+.jp-nav-flyout__item:hover {
+  background: var(--jp-surface-hover);
+}
+.jp-nav-flyout__item:focus-visible {
+  outline: none;
+  background: var(--jp-surface-hover);
+  box-shadow: var(--jp-focus-ring);
+}
+.jp-nav-flyout__item.is-active {
+  background: var(--jp-accent-soft);
+  color: var(--jp-accent-strong-text);
+}
+.jp-nav-flyout__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-nav-flyout__label {
+  font-weight: 700;
+}
+.jp-nav-flyout__description {
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+}
+
+/* Library Storage, on the Settings page (shell/Storage.tsx). */
+.jp-storage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  max-width: 560px;
+  margin-bottom: var(--jp-space-4);
 }
 .jp-storage__figures {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--jp-space-2);
-  margin-bottom: 6px;
-  font-size: var(--jp-text-small);
   color: var(--jp-text-2);
-  white-space: nowrap;
+  font-size: var(--jp-text-meta);
 }
-.jp-storage__figures--under {
-  margin: 6px 0 0;
+.jp-storage__title {
+  margin: 0;
+  color: var(--jp-text);
+  font-size: var(--jp-text-title);
+  font-weight: 700;
 }
-.jp-storage .jp-progress,
+.jp-storage__line {
+  margin: 0;
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+}
 .jp-storage [role='progressbar'] {
-  height: 4px;
+  height: 6px;
 }
 
 /* Top bar (spec §9) */
