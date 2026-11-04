@@ -2,7 +2,9 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [10.11.0] - 2026-11-04
+
+Load spools into printers from the spool, Categorize Library puts organized models in their folders, and a click outside a pop-up closes it.
 
 **Upgrade notes:**
 - **Categorize Library now moves files.** After it gives models their places, the model folders Organize made in the Organize destination move, whole, into `<Category>/<Subcategory>/` for their place (the ones in `Uncategorized/Other` too, once placed). Folders elsewhere, loose model files, the Upload folder and models still without a place are not moved.
