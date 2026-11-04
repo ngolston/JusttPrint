@@ -16,6 +16,7 @@ import {
 import { LabelsDialog, ReorderTile, ShoppingListDialog } from '../filament/ReorderAndLabels';
 import { LoadedStrip, loadedSpools } from '../printers/LoadedFilament';
 import { navigate } from '../shell/routes';
+import { LoadIntoPrinterDialog } from '../filament/LoadIntoPrinter';
 import { BentoGrid, Tile, TileFigure } from '../components/Bento';
 import { Button, IconButton, cx } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
@@ -131,7 +132,7 @@ const SORT_OPTIONS: [SpoolSortKey, 'asc' | 'desc', string][] = [
 
 type Dialog =
   | { kind: 'spool'; spool?: Spool; preset?: SpoolPreset }
-  | { kind: 'weigh' | 'dry' | 'move'; spool: Spool }
+  | { kind: 'weigh' | 'dry' | 'move' | 'load'; spool: Spool }
   | { kind: 'finish-drying'; sessionId: number; name: string }
   | { kind: 'profile'; profile: FilamentProfile | null }
   | { kind: 'catalog' | 'spoolman' | 'places' | 'shopping' | 'labels' | 'filaments' | 'export' | 'csv' };
@@ -420,7 +421,7 @@ export function FilamentPage({ section = '' }: { section?: string }) {
   const onAction = (action: SpoolAction, spool: Spool) => {
     if (action === 'edit') setDialog({ kind: 'spool', spool });
     else if (action === 'finish-drying' && spool.drying) setDialog({ kind: 'finish-drying', sessionId: spool.drying.id, name: spool.display_name });
-    else if (action === 'weigh' || action === 'dry' || action === 'move') setDialog({ kind: action, spool });
+    else if (action === 'weigh' || action === 'dry' || action === 'move' || action === 'load') setDialog({ kind: action, spool });
   };
 
   const addButtons = (
@@ -652,6 +653,7 @@ export function FilamentPage({ section = '' }: { section?: string }) {
       {dialog?.kind === 'weigh' && <WeighDialog spool={dialog.spool} onClose={close} />}
       {dialog?.kind === 'dry' && <DryDialog spool={dialog.spool} onClose={close} />}
       {dialog?.kind === 'move' && <MoveDialog spool={dialog.spool} onClose={close} />}
+      {dialog?.kind === 'load' && <LoadIntoPrinterDialog spool={dialog.spool} onClose={close} />}
       {dialog?.kind === 'finish-drying' && <FinishDryingDialog sessionId={dialog.sessionId} name={dialog.name} onClose={close} />}
       {dialog?.kind === 'catalog' && <CatalogDialog onClose={close} onPicked={(preset) => setDialog({ kind: 'spool', preset })} />}
       {dialog?.kind === 'spoolman' && <SpoolmanDialog onClose={close} />}

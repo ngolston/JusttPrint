@@ -2,6 +2,18 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.11.0] - 2026-11-04
+
+Load spools into printers from the spool, Categorize Library puts organized models in their folders, and a click outside a pop-up closes it.
+
+**Upgrade notes:**
+- **Categorize Library now moves files.** After it gives models their places, the model folders Organize made in the Organize destination move, whole, into `<Category>/<Subcategory>/` for their place (the ones in `Uncategorized/Other` too, once placed). Folders elsewhere, loose model files, the Upload folder and models still without a place are not moved.
+
+**Changes:**
+- **Load a spool into a printer from the spool.** The spool window has **Load into Printer**: your printers with their AMS slots and own holder, what is in each, and a click to load it there (it leaves any other slot). **Take Out of Printer** when it is loaded.
+- **Click outside a pop-up to close it.** Every pop-up window closes when you click anywhere outside it, as Escape closes it. A question counts it as Cancel, so nothing is changed by a stray click; a click inside, or a drag that ends outside, leaves it open.
+- **Categorize Library puts organized models in their folders.** After placing models it moves Organize's model folders whose Category or Subcategory changed to the matching folders, and removes the folders left empty. Uncategorized models Organize could not place move out of `Uncategorized/Other` once they have a place. The run says how many folders moved.
+
 ## [10.10.0] - 2026-11-03
 
 Home your way: choose its widgets, their size and their place, with new widgets for the camera, maintenance, reordering and more, and a print calendar on Statistics.

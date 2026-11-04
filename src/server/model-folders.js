@@ -128,6 +128,15 @@ function isModelFolder(dir) {
   return !!table().prepare('SELECT 1 FROM model_folders WHERE path = ?').get(folderKey(dir));
 }
 
+/** Every model folder kept, as paths. */
+function allFolders() {
+  if (!database.db) return [];
+  return table()
+    .prepare('SELECT path FROM model_folders')
+    .all()
+    .map((row) => row.path);
+}
+
 /** Keep a folder as a model folder (nothing changes on disk). Answers its key. */
 function register(dir) {
   const key = folderKey(dir);
@@ -742,6 +751,7 @@ function reapplyAllCovers() {
 
 module.exports = {
   ARCHIVES_DIR,
+  allFolders,
   KINDS,
   KIND_NAMES,
   MIME_TYPES,

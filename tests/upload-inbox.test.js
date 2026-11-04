@@ -174,6 +174,55 @@ try {
 
 (async () => {
   try {
+    // After Categorize Library: Organize's model folders move to the folders of their places now.
+    const sorted = path.join(tmp, 'Sorted');
+    setSetting('organizeDestination', sorted);
+    const made = (rel, file) => {
+      const dir = path.join(sorted, ...rel);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, file), 'solid x\nendsolid x\n');
+      fs.writeFileSync(path.join(dir, 'cover.png'), 'png');
+      modelFolders.register(dir);
+      return { dir, id: Number(addModel(path.join(dir, file))) };
+    };
+    const subs = categories.listCategories().filter((c) => c.parent_id);
+    const parentOf = (sub) => categories.listCategories().find((c) => c.id === sub.parent_id).name;
+    const waiting = made(['Uncategorized', 'Other', 'Dragon'], 'Dragon.stl');
+    const misplaced = made([parentOf(subs[0]), subs[0].name, 'Boat'], 'Boat.stl');
+    const fine = made([parentOf(subs[1]), subs[1].name, 'Gear'], 'Gear.stl');
+    const unplaced = made(['Uncategorized', 'Other', 'Blob'], 'Blob.stl');
+    const deeper = made(['Mine', 'Deep', 'Er', 'Vase'], 'Vase.stl');
+    categories.setModelPlace(waiting.id, subs[2].name, 'ai');
+    categories.setModelPlace(misplaced.id, subs[3].name, 'manual');
+    categories.setModelPlace(fine.id, subs[1].name, 'ai');
+    categories.setModelPlace(deeper.id, subs[2].name, 'ai');
+    // Not a model folder (a person's own), though it is in the destination: stays.
+    const own = path.join(sorted, 'Own', 'Stuff', 'Loose');
+    fs.mkdirSync(own, { recursive: true });
+    fs.writeFileSync(path.join(own, 'loose.stl'), 'x');
+    const ownId = Number(addModel(path.join(own, 'loose.stl')));
+    categories.setModelPlace(ownId, subs[2].name, 'ai');
+
+    const progress = [];
+    const result = await inbox.moveToPlaces({ onProgress: (done, total) => progress.push(`${done}/${total}`) });
+    const where = (id) => database.db.prepare('SELECT filePath FROM models WHERE id = ?').get(id).filePath;
+    assert.deepStrictEqual(
+      result.moved.map((m) => path.relative(sorted, m.to)).sort(),
+      [path.join(parentOf(subs[2]), subs[2].name, 'Dragon'), path.join(parentOf(subs[3]), subs[3].name, 'Boat')].sort()
+    );
+    assert.strictEqual(where(waiting.id), path.join(sorted, parentOf(subs[2]), subs[2].name, 'Dragon', 'Dragon.stl'), 'the record follows');
+    assert.ok(fs.existsSync(path.join(sorted, parentOf(subs[2]), subs[2].name, 'Dragon', 'cover.png')), 'the whole folder moves');
+    assert.strictEqual(where(fine.id), path.join(fine.dir, 'Gear.stl'), 'already in place: stays');
+    assert.strictEqual(where(unplaced.id), path.join(unplaced.dir, 'Blob.stl'), 'still without a place: stays in Uncategorized');
+    assert.strictEqual(where(deeper.id), path.join(deeper.dir, 'Vase.stl'), 'not at the folder levels Organize makes: stays');
+    assert.strictEqual(where(ownId), path.join(own, 'loose.stl'), "a person's own folder stays");
+    assert.ok(!fs.existsSync(path.join(sorted, parentOf(subs[0]), subs[0].name)), 'a folder left empty is removed');
+    assert.ok(fs.existsSync(path.join(sorted, 'Uncategorized', 'Other')), 'one still holding a model stays');
+    assert.strictEqual(progress.length, 4, progress.join(' '));
+    assert.deepStrictEqual((await inbox.moveToPlaces()).moved, [], 'a second run has nothing to move');
+    setSetting('organizeDestination', '');
+    console.log('ok after Categorize Library, Organize folders move to the folders of their places');
+
     // Files are named after the Title, keeping their extension; two files with it get "(2)".
     const kit = path.join(home, 'Kit Folder');
     fs.mkdirSync(kit, { recursive: true });

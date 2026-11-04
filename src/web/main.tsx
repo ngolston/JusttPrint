@@ -16,6 +16,7 @@ import './bridge/server';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { loadUnits } from './units';
+import { installOutsideClose } from './shell/outsideClose';
 import { AboutDialog } from './AboutDialog';
 import { AiConfigDialog } from './AiConfigDialog';
 import { BackupRestoreDialog } from './BackupRestoreDialog';
@@ -172,6 +173,8 @@ function Screens() {
 }
 
 initPage();
+// A click outside any pop-up window closes it, as Escape does (shell/outsideClose.ts).
+installOutsideClose();
 
 const root = document.getElementById('react-root');
 if (root) {

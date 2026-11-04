@@ -32,7 +32,12 @@ const models = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'model' : 'mode
 /** What a Categorize Library run did, one line each. */
 export function scanSummary(job: CategoryScan): string[] {
   const lines: string[] = [];
-  if (!job.total) return ['Every model already has a Category and a Subcategory.'];
+  const folders = (n: number) => `${n.toLocaleString()} model ${n === 1 ? 'folder' : 'folders'}`;
+  const moves = [
+    ...(job.moved ? [`${folders(job.moved)} moved into the folders of their Category and Subcategory.`] : []),
+    ...(job.moveFailed || []).slice(0, 5).map((f) => `Not moved: ${f.name} (${f.error}).`)
+  ];
+  if (!job.total) return ['Every model already has a Category and a Subcategory.', ...moves];
   const placed = Object.entries(job.placed).filter(([, n]) => n > 0);
   for (const [source, n] of placed) lines.push(`${models(n)} placed ${SOURCE_LABELS[source] || source}.`);
   if (!placed.length && job.phase === 'done') lines.push('Nothing about the models pointed to a category.');
@@ -40,6 +45,7 @@ export function scanSummary(job: CategoryScan): string[] {
     lines.push(`The AI looked at ${models(job.aiDone - job.noPicture)}${job.noPicture ? ` (${models(job.noPicture)} without a picture skipped)` : ''}.`);
   }
   if (job.left && job.phase === 'done') lines.push(`${models(job.left)} still without a Subcategory.`);
+  lines.push(...moves);
   if (job.error) lines.push(`Stopped: ${job.error}`);
   return lines;
 }
@@ -154,7 +160,9 @@ function ScanPanel({ uncategorized }: { uncategorized: number }) {
             ? 'Stopping…'
             : ai
               ? `Asking the AI about ${models(job.aiTotal)}… ${job.aiDone} of ${job.aiTotal}`
-              : `Looking at ${models(job.total)}… ${job.processed} of ${job.total}`}
+              : job.phase === 'move'
+                ? `Moving organized model folders into their category folders… ${job.processed} of ${job.total}`
+                : `Looking at ${models(job.total)}… ${job.processed} of ${job.total}`}
         </p>
         <ProgressBar value={ai ? job.aiDone : job.processed} max={(ai ? job.aiTotal : job.total) || 1} label="Categorize Library progress" />
         <div className="jp-category-scan__buttons">
@@ -227,14 +235,15 @@ function ScanPanel({ uncategorized }: { uncategorized: number }) {
           <span className="jp-meta">
             {uncategorized
               ? 'Categorize Library places them: the category MakerWorld, Printables or Thingiverse gives (free), then the AI, then words in their names.'
-              : 'Categorize Library can sort every model again.'}
+              : 'Categorize Library can sort every model again.'}{' '}
+            Then the model folders Organize made (Uncategorized ones too) move into the folders of their Category and Subcategory.
           </span>
         </div>
         <Button
           variant={uncategorized ? 'primary' : 'secondary'}
           icon={WandSparkles}
           id="jp-category-scan-start"
-          disabled={starting || (!uncategorized && !again && !(useAi && aiReady))}
+          disabled={starting}
           onClick={() => void start()}
         >
           Categorize Library
