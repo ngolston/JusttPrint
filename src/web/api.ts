@@ -566,7 +566,7 @@ export interface CategoryScan {
   id: number;
   running: boolean;
   stopping: boolean;
-  phase: 'free' | 'ai' | 'done';
+  phase: 'free' | 'ai' | 'move' | 'done';
   useAi: boolean;
   total: number;
   processed: number;
@@ -581,6 +581,9 @@ export interface CategoryScan {
   error: string | null;
   /** What the AI placed (to check them; the first 500). */
   aiPlaced: { filePath: string; fileName: string; category: string; subcategory: string }[];
+  /** Organize's model folders moved into the folders of their places, and those that could not be. */
+  moved?: number;
+  moveFailed?: { name: string; error: string }[];
 }
 
 export const categories = {

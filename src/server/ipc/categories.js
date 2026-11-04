@@ -56,7 +56,8 @@ ipcMain.handle('set-models-category', async (event, filePaths, name) => {
 ipcMain.handle('start-category-scan', async (event, options) => {
   const useAi = !!(options && options.useAi);
   if (useAi && !scan.aiReady()) throw new Error('Set up the AI service first (Settings → AI Tagging)');
-  const started = scan.start({ by: event && event.user ? event.user.username : null, useAi, again: !!(options && options.again), event });
+  // From the Categories page: Organize's model folders then move to the folders of their places.
+  const started = scan.start({ by: event && event.user ? event.user.username : null, useAi, again: !!(options && options.again), event, move: true });
   return started || { busy: true };
 });
 

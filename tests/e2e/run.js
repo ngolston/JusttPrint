@@ -3936,6 +3936,30 @@ async function browserChecks(base, wsUrl, session) {
     await page.click('#jp-finish-dry-form button[type=submit]');
     await page.waitForSelector('.jp-tile[aria-label="Dryer"]', { state: 'detached', timeout: 10000 }).catch(() => {});
     check('finishing drying takes it out of the Dryer tile', !(await page.isVisible('.jp-tile[aria-label="Dryer"]')) && (await spoolDetail('12%')));
+    // Load into Printer (filament/LoadIntoPrinter.tsx): from the spool, onto a printer's holder, then out again.
+    const loadPrinter = (await invoke(base, session, 'save-printer', [{ nickname: 'E2E Load Printer', manufacturer: 'Prusa', model: 'MK4' }])).result;
+    await page.click('#jp-spool-load');
+    const loadListed = await page.waitForSelector(`#jp-load-spool-printers [data-printer="${loadPrinter?.id}"] [data-place="Holder"]`, { timeout: 10000 }).then(
+      () => true,
+      () => false
+    );
+    await page.click(`#jp-load-spool-printers [data-printer="${loadPrinter?.id}"] [data-place="Holder"]`).catch(() => {});
+    const loadedIn = await spoolDetail('E2E Load Printer');
+    const loadsNow = ((await invoke(base, session, 'get-printer-loads', [loadPrinter?.id])).result || [])[0];
+    await page.click('#jp-spool-load');
+    await page.click('#jp-load-spool-out').catch(() => {});
+    const takenOut = await page
+      .waitForFunction(() => /Load into Printer/.test(document.getElementById('jp-spool-load')?.textContent || ''), null, { timeout: 10000 })
+      .then(
+        () => true,
+        () => false
+      );
+    check(
+      'a spool lists the printers and loads into one from its window, then comes out',
+      loadListed && loadedIn && loadsNow?.direct?.id === firstId && takenOut,
+      JSON.stringify({ loadListed, loadedIn, direct: loadsNow?.direct?.id, firstId, takenOut })
+    );
+    if (loadPrinter?.id) await invoke(base, session, 'delete-printer', [loadPrinter.id]);
     await page.click('#jp-spool-detail button:has-text("Archive")');
     await answerMessage('Archive');
     check('archiving a spool after asking', await spoolDetail('Archived'));
@@ -7265,6 +7289,31 @@ async function modelFolderChecks(base, { admin, editor, viewer }, cubeBytes) {
   const movedModel = (await invoke(base, viewer, 'get-model', [path.join(dragonTo?.to || '', 'skull.stl')])).result;
   check('the moved model keeps its record and has its place', !!movedModel, JSON.stringify(movedModel && movedModel.filePath));
   check('nothing waits any more', (await invoke(base, viewer, 'get-upload-folder')).result?.waiting === 0);
+  // Categorize Library then moves Organize's folders whose place changed (upload-inbox.js moveToPlaces).
+  const placeList = (await invoke(base, viewer, 'get-categories')).result?.categories || [];
+  const newPlace = placeList.find((c) => c.parent_id && c.name !== 'Puzzles' && !/^other/i.test(c.name));
+  const newMain = placeList.find((c) => c.id === newPlace?.parent_id);
+  await invoke(base, editor, 'set-model-categories', [path.join(dragonTo?.to || '', 'skull.stl'), [newPlace?.name]]);
+  await invoke(base, editor, 'start-category-scan', [{ useAi: false }]);
+  const recat = await waitFor(
+    async () => {
+      const current = (await invoke(base, editor, 'get-category-scan')).result?.job;
+      return current && !current.running ? current : null;
+    },
+    60000,
+    'Categorize Library'
+  );
+  await invoke(base, editor, 'dismiss-category-scan');
+  const dragonNow = path.join(sortedDir, newMain?.name || '', newPlace?.name || '', 'Dragon Skull');
+  check(
+    "Categorize Library moves an organized model's folder to its new place, the old one removed when empty",
+    recat.moved >= 1 &&
+      fs.existsSync(path.join(dragonNow, 'skull.stl')) &&
+      fs.existsSync(path.join(dragonNow, 'image', 'photo.png')) &&
+      !fs.existsSync(dragonTo?.to || '') &&
+      !!(await invoke(base, viewer, 'get-model', [path.join(dragonNow, 'skull.stl')])).result,
+    JSON.stringify({ moved: recat.moved, failed: recat.moveFailed, to: dragonNow })
+  );
   // The Upload folder off again, so the checks after these see the library as before.
   await invoke(base, admin, 'save-upload-folder', ['', '']);
 

@@ -341,6 +341,71 @@ function moveFolder(from, target, deps = {}) {
   return target;
 }
 
+/**
+ * After Categorize Library: the model folders Organize made (in the destination, at its folder
+ * levels, not in the Upload folder) whose place changed move, whole, to the folders of their place
+ * now: <destination>/<levels>/<their own folder>. Models without a place stay where they are, as do
+ * folders anywhere else. Folders left empty inside the destination are removed. Answers
+ * { moved: [{ from, to }], failed: [{ name, error }] }.
+ * @param {{ shouldStop?: () => boolean, onProgress?: (done: number, total: number) => void }} [options]
+ */
+async function moveToPlaces({ shouldStop = () => false, onProgress = () => {} } = {}) {
+  const dest = destination();
+  const inbox = uploadFolder();
+  const moved = /** @type {{ from: string, to: string }[]} */ ([]);
+  const failed = /** @type {{ name: string, error: string }[]} */ ([]);
+  if (!dest || !fs.existsSync(dest)) return { moved, failed };
+  const { isInsideOrSame } = require('./server-paths');
+  const { layers } = organizeOptions();
+  const folders = require('./model-folders')
+    .allFolders()
+    .filter((folder) => isInsideOrSame(folder, dest) && folder !== dest && !(inbox && isInsideOrSame(folder, inbox)))
+    // Organize's own: one folder per level above the model's own (the levels chosen now).
+    .filter((folder) => path.relative(dest, folder).split(path.sep).length === layers.length + 1)
+    .filter((folder) => fs.existsSync(folder));
+  let done = 0;
+  for (const folder of folders) {
+    if (shouldStop()) break;
+    try {
+      const models = modelsUnder(folder);
+      const [category] = placeOf(models);
+      if (models.length && category !== UNCATEGORIZED[0]) {
+        const parent = path.join(dest, ...layerFolders(models, layers));
+        if (path.dirname(folder) !== parent) {
+          const to = await require('./stl-home').withoutScans(async () => {
+            fs.mkdirSync(parent, { recursive: true });
+            return moveFolder(folder, freeFolder(parent, path.basename(folder)));
+          });
+          moved.push({ from: folder, to });
+          removeEmptyUp(path.dirname(folder), dest);
+        }
+      }
+    } catch (error) {
+      failed.push({ name: path.basename(folder), error: error.message });
+    }
+    onProgress(++done, folders.length);
+  }
+  if (moved.length) {
+    console.log(`[Organize] Categorize Library moved ${moved.length} model folder(s) into their category folders in ${dest}`);
+    events.broadcast('refresh-grid');
+  }
+  return { moved, failed };
+}
+
+/** Remove `dir` and the folders above it while empty, up to (not including) `top`. */
+function removeEmptyUp(dir, top) {
+  const { isInsideOrSame } = require('./server-paths');
+  for (let current = dir; current !== top && isInsideOrSame(current, top); current = path.dirname(current)) {
+    try {
+      if (fs.readdirSync(current).some((name) => name !== '.DS_Store')) break;
+      fs.rmSync(path.join(current, '.DS_Store'), { force: true });
+      fs.rmdirSync(current);
+    } catch (_) {
+      break;
+    }
+  }
+}
+
 /** @type {any} */
 let job = null;
 let nextId = 1;
@@ -627,6 +692,7 @@ module.exports = {
   isWaiting,
   itemsIn,
   moveFolder,
+  moveToPlaces,
   placeOf,
   running,
   saveFolders,

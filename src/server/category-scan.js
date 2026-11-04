@@ -8,7 +8,9 @@
  * right away; models placed earlier by a guess from words are looked at again. Without the AI,
  * the list's words in folder names, tags and model names place what they can ("Other …" when only
  * the Category is clear). `again` sorts every model again, except places a person chose. One run
- * at a time; every open page follows its progress.
+ * at a time; every open page follows its progress. A run started on the Categories page (`move`)
+ * then moves the model folders Organize made into the folders of their places
+ * (upload-inbox.js moveToPlaces), the Uncategorized ones it just placed among them.
  */
 
 const path = require('path');
@@ -43,6 +45,8 @@ function summary() {
     aiPlacedCount: job.aiPlaced.length,
     noPicture: job.noPicture,
     again: job.again,
+    moved: job.moved,
+    moveFailed: job.moveFailed,
     error: job.error
   };
 }
@@ -338,10 +342,10 @@ function modelsToSort({ useAi, again, only = null }) {
  * model again (not the places a person chose). Answers the summary, or null while another run is
  * going. `only` (model ids) sorts just those models (Organize Uploads). `deps.fetchImpl` and
  * `deps.ask` replace the network and the AI service (tests).
- * @param {{ by?: string | null, useAi?: boolean, again?: boolean, only?: number[] | null, event?: any }} [options]
+ * @param {{ by?: string | null, useAi?: boolean, again?: boolean, only?: number[] | null, event?: any, move?: boolean }} [options]
  * @param {{ fetchImpl?: Function, ask?: Function }} [deps]
  */
-function start({ by = null, useAi = false, again = false, only = null, event = null } = {}, deps = {}) {
+function start({ by = null, useAi = false, again = false, only = null, event = null, move = false } = {}, deps = {}) {
   if (running()) return null;
   const models = modelsToSort({ useAi, again, only: only ? new Set(only) : null });
   job = {
@@ -360,6 +364,8 @@ function start({ by = null, useAi = false, again = false, only = null, event = n
     aiDone: 0,
     noPicture: 0,
     aiPlaced: [],
+    moved: 0,
+    moveFailed: /** @type {{ name: string, error: string }[]} */ ([]),
     error: null
   };
   const current = job;
@@ -374,6 +380,26 @@ function start({ by = null, useAi = false, again = false, only = null, event = n
         announce(true);
         await aiStep(left, list, event, deps.ask);
         current.left = categories.uncategorizedCount();
+      }
+      // Organize's model folders go where their places are now (not while Organize itself runs).
+      if (move && !only && !current.stopping && !require('./upload-inbox').running()) {
+        current.phase = 'move';
+        current.processed = 0;
+        announce(true);
+        const result = await require('./upload-inbox').moveToPlaces({
+          shouldStop: () => current.stopping,
+          onProgress: (done, total) => {
+            current.processed = done;
+            current.total = total;
+            announce();
+          }
+        });
+        current.moved = result.moved.length;
+        current.moveFailed = result.failed;
+        // The AI's picks shown for review follow their files to the new folders.
+        for (const { from, to } of result.moved)
+          for (const pick of current.aiPlaced)
+            if (String(pick.filePath).startsWith(from + path.sep)) pick.filePath = to + String(pick.filePath).slice(from.length);
       }
     } catch (error) {
       console.error('[Categories] Categorize Library failed:', error);
