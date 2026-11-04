@@ -1,4 +1,4 @@
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 
 /** list-site-files (src/server/site-files.js): a Printables or Thingiverse file. */
 export interface SiteFile {

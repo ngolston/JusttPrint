@@ -25,6 +25,7 @@ import {
   Globe,
   FileCog,
   FolderTree,
+  Gift,
   Gauge,
   HardDrive,
   ExternalLink,
@@ -87,83 +88,97 @@ export interface NavItem {
   page?: PageId;
   /** Otherwise an action (most still open dialogs). */
   run?: () => void;
+  /** One line on what it is, under its name in a fly-out menu. */
+  description?: string;
+  /** The pages in its fly-out menu (Models: Collections, Categories, Tags, Duplicates). */
+  children?: NavItem[];
   /** Old menu bar labels this item replaces. */
   replaces?: string[];
   /** The least role that sees it (default viewer). */
   role?: Role;
 }
 
-export interface NavSection {
-  /** Section label ('PRINTING'); none for the first group. */
-  label?: string;
-  /** Pinned at the bottom of the sidebar, with Library Storage (Settings, Help). */
-  footer?: boolean;
-  items: NavItem[];
-}
-
-/** Scan Library: the STL Home folders, or one folder when STL Home is not set up. */
 /** Scan the STL Home folders; without any, an admin chooses them (startup/FolderSetup.tsx), others scan one folder. */
-async function scanLibrary() {
+export async function scanLibrary() {
   const dirs = await stlHomeDirectories().catch(() => []);
   if (dirs.length) await scanStlHome();
   else if (getCurrentUser()?.role === 'admin') openFolderSetup();
   else await scanDirectory();
 }
 
-export const NAV: NavSection[] = [
+/**
+ * The sidebar, a rail of five: each name opens its page, and Models, Printing and Settings have a
+ * fly-out menu with the pages under them. Printing opens Printers.
+ */
+export const NAV: NavItem[] = [
+  { id: 'home', label: 'Home', icon: Home, page: 'home' },
   {
-    items: [
-      { id: 'home', label: 'Home', icon: Home, page: 'home' },
-      { id: 'models', label: 'Models', icon: Library, page: 'models' },
-      { id: 'collections', label: 'Collections', icon: FolderHeart, page: 'collections' },
-      { id: 'categories', label: 'Categories', icon: Shapes, page: 'categories' }
-    ]
-  },
-  {
-    label: 'Printing',
-    items: [
-      { id: 'queue', label: 'Queue', icon: ListChecks, page: 'queue' },
-      { id: 'filament', label: 'Filament', icon: CircleDot, page: 'filament' },
-      { id: 'printers', label: 'Printers', icon: Printer, page: 'printers', replaces: ['Printer Manager'] },
-      { id: 'stats', label: 'Statistics', icon: BarChart3, page: 'stats' }
-    ]
-  },
-  {
-    label: 'Manage',
-    items: [
-      { id: 'tags', label: 'Tags', icon: Tags, page: 'tags', replaces: ['Tag Manager'], role: 'editor' },
-      { id: 'duplicates', label: 'Duplicates', icon: Copy, page: 'duplicates', replaces: ['De-Dup'], role: 'editor' },
-      { id: 'history', label: 'History', icon: History, page: 'history' }
-    ]
-  },
-  {
-    // Actions, not pages: each runs at once (or opens its dialog).
-    label: 'Tools',
-    items: [
-      // Runs Organize at once (upload/inbox.ts), with its settings (Settings → Scanning → Organize).
-      { id: 'organize', label: 'Organize', icon: FolderTree, run: () => void runOrganize(), replaces: ['Organize Library'], role: 'editor' },
+    id: 'models',
+    label: 'Models',
+    icon: Library,
+    page: 'models',
+    children: [
+      { id: 'collections', label: 'Collections', description: 'Your saved sets of models.', icon: FolderHeart, page: 'collections' },
+      { id: 'categories', label: 'Categories', description: 'A Category and Subcategory for every model.', icon: Shapes, page: 'categories' },
       {
-        id: 'scan',
-        label: 'Scan Library',
-        icon: ScanSearch,
-        run: () => {
-          void scanLibrary();
-        },
+        id: 'tags',
+        label: 'Tags',
+        description: 'Rename, merge and remove tags.',
+        icon: Tags,
+        page: 'tags',
+        replaces: ['Tag Manager'],
         role: 'editor'
       },
-      // Tags models now (tags/AiTagRunDialog.tsx); without an AI service, its settings open.
-      { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiTagging'), replaces: ['AI Config'], role: 'admin' }
+      {
+        id: 'duplicates',
+        label: 'Duplicates',
+        description: 'Find the same model twice.',
+        icon: Copy,
+        page: 'duplicates',
+        replaces: ['De-Dup'],
+        role: 'editor'
+      }
+    ]
+  },
+  { id: 'filament', label: 'Filament', icon: CircleDot, page: 'filament' },
+  {
+    id: 'printing',
+    label: 'Printing',
+    icon: Printer,
+    page: 'printers',
+    children: [
+      { id: 'queue', label: 'Queue', description: 'What you print next.', icon: ListChecks, page: 'queue' },
+      {
+        id: 'printers',
+        label: 'Printers',
+        description: 'Status, AMS slots and maintenance.',
+        icon: Printer,
+        page: 'printers',
+        replaces: ['Printer Manager']
+      },
+      { id: 'stats', label: 'Statistics', description: 'Prints, time and filament used.', icon: BarChart3, page: 'stats' }
     ]
   },
   {
-    label: 'System',
-    footer: true,
-    items: [
-      { id: 'settings', label: 'Settings', icon: Settings, page: 'settings' },
-      { id: 'help', label: 'Help', icon: HelpCircle, page: 'help' }
-    ]
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    page: 'settings',
+    children: [{ id: 'history', label: 'History', description: 'What changed, and who changed it.', icon: History, page: 'history' }]
   }
 ];
+
+/** The Models page's Tools menu: actions that run at once (or open their dialog). */
+export const MODEL_TOOLS: NavItem[] = [
+  // Runs Organize at once (upload/inbox.ts), with its settings (Settings → Scanning → Organize).
+  { id: 'organize', label: 'Organize', icon: FolderTree, run: () => void runOrganize(), replaces: ['Organize Library'], role: 'editor' },
+  { id: 'scan', label: 'Scan Library', icon: ScanSearch, run: () => void scanLibrary(), role: 'editor' },
+  // Tags models now (tags/AiTagRunDialog.tsx); without an AI service, its settings open.
+  { id: 'ai', label: 'AI Tagging', icon: Sparkles, run: open('openAiTagging'), replaces: ['AI Config'], role: 'admin' }
+];
+
+/** Every sidebar entry, the ones in fly-out menus too. */
+export const navItems = (items: NavItem[] = NAV): NavItem[] => items.flatMap((item) => [item, ...(item.children ?? [])]);
 
 export interface SettingsItem {
   id: string;
@@ -623,6 +638,7 @@ export const SETTINGS: SettingsGroup[] = [
 ];
 
 export const HELP: SettingsItem[] = [
+  { id: 'whats-new', label: "What's New", description: 'The changes in this version.', icon: Gift, run: open('openWhatsNew') },
   {
     id: 'guide',
     label: 'Quick Start Guide',
@@ -668,11 +684,14 @@ export const ACCOUNT: SettingsItem[] = [
   { id: 'logout', label: 'Log Out', description: '', icon: LogOut, run: menu('Log Out'), role: 'viewer' }
 ];
 
-/** Navigation entries the user's role may use. */
-export const navFor = (role: string | null | undefined) =>
-  NAV.map((section) => ({ ...section, items: section.items.filter((item) => roleAllows(role, item.role || 'viewer')) })).filter(
-    (section) => section.items.length > 0
-  );
+const allowed = (role: string | null | undefined) => (item: NavItem) => roleAllows(role, item.role || 'viewer');
+
+/** Sidebar entries the user's role may use (none before anyone logs in). */
+export const navFor = (role: string | null | undefined): NavItem[] =>
+  role ? NAV.filter(allowed(role)).map((item) => (item.children ? { ...item, children: item.children.filter(allowed(role)) } : item)) : [];
+
+/** The Models page's tools the user's role may use. */
+export const toolsFor = (role: string | null | undefined): NavItem[] => (role ? MODEL_TOOLS.filter(allowed(role)) : []);
 
 /** Settings, Help or account entries the user's role may use (settings default to admin, Help to viewer). */
 export const itemsFor = (items: SettingsItem[], role: string | null | undefined, fallback: Role = 'admin') =>
@@ -686,7 +705,8 @@ export const settingsFor = (role: string | null | undefined) =>
 export function replacedMenuLabels(): Set<string> {
   const labels = new Set<string>();
   const add = (item: { replaces?: string[] }) => item.replaces?.forEach((label) => labels.add(label));
-  NAV.forEach((section) => section.items.forEach(add));
+  navItems().forEach(add);
+  MODEL_TOOLS.forEach(add);
   SETTINGS.forEach((group) => group.items.forEach(add));
   HELP.forEach(add);
   ACCOUNT.forEach(add);

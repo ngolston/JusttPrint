@@ -6,7 +6,7 @@ import { Modal } from '../components/Overlay';
 import { ProgressBar } from '../components/Panel';
 import { runSearch } from '../filters/search';
 import { exposeGlobal, onServerEvent } from '../page';
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 import { navigate } from '../shell/routes';
 import { MakerWorldAccountNote } from './MakerWorldAccountNote';
 import { accountStatus, type MakerWorldDetails, type ProfileDownload } from './makerworld';

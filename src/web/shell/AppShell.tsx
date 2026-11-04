@@ -4,10 +4,10 @@ import {
   Camera,
   ChevronDown,
   CircleUserRound,
+  CircleDot,
   Home,
   Library,
   Link2,
-  ListChecks,
   Loader2,
   Lock,
   LogIn,
@@ -21,16 +21,14 @@ import {
 import { searchByMeaning } from '../search/aiSearch';
 import { useScanProgress } from '../scan/scan';
 import { showMessage } from '../page';
-import { library, type LibraryCounts, type LibraryStorage } from '../api';
 import { Menu } from '../components/Menu';
 import { cx } from '../components/Button';
-import { EmptyState, ProgressBar } from '../components/Panel';
+import { EmptyState } from '../components/Panel';
 import { SearchBox, shortcutLabel } from '../components/SearchBox';
 import { ModelDetailsPanel } from '../details/ModelDetailsPanel';
 import { detailsAreOpen, hideDetailsPanels, useDetailsVisibility } from '../details/visibility';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
-import { HelpPage } from '../pages/HelpPage';
 import { HomePage } from '../pages/HomeDashboard';
 import { LibraryHeader } from '../pages/LibraryPage';
 import { DuplicatesPage } from '../pages/DuplicatesPage';
@@ -51,133 +49,9 @@ import { roleAllows, useCurrentUser } from '../session';
 import { useAdopt } from './adopt';
 import { NotificationBell } from './Notifications';
 import { useLibraryData } from './libraryData';
-import { ACCOUNT, NAV, itemsFor, navFor, type NavItem } from './nav';
+import { ACCOUNT, itemsFor, navItems } from './nav';
+import { Sidebar, useQueueCount } from './Sidebar';
 import { navigate, useRoute, type PageId } from './routes';
-
-/** "12.4 GB", "820 MB", "0 B". */
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  const value = bytes / 1024 ** i;
-  return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
-}
-
-function StorageIndicator() {
-  const storage = useLibraryData<LibraryStorage>(library.storage);
-  if (!storage) return null;
-  const volume = storage.volume;
-  const percent = volume ? Math.round((volume.usedBytes / volume.totalBytes) * 100) : 0;
-  return (
-    <div
-      className="jp-storage"
-      title={volume ? `Library files: ${formatBytes(storage.libraryBytes)} (${storage.modelCount} models)\nVolume: ${volume.path}` : undefined}
-    >
-      {volume ? (
-        <>
-          <div className="jp-storage__figures">
-            <span className="jp-storage__title">Library Storage</span>
-            <span>{percent}%</span>
-          </div>
-          <ProgressBar value={volume.usedBytes} max={volume.totalBytes} label="Library volume used" />
-          <div className="jp-storage__figures jp-storage__figures--under">
-            {formatBytes(volume.usedBytes)} of {formatBytes(volume.totalBytes)}
-          </div>
-        </>
-      ) : (
-        <div className="jp-storage__figures">
-          <span className="jp-storage__title">Library Storage</span>
-          <span>
-            {formatBytes(storage.libraryBytes)} in {storage.modelCount} models
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NavRow({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
-  // Scan Library shows that it runs (and is not started twice); the notice says how far it is.
-  const scanning = !!useScanProgress() && item.id === 'scan';
-  const Icon = scanning ? Loader2 : item.icon;
-  const label = scanning ? 'Scanning…' : item.label;
-  return (
-    <li>
-      <button
-        type="button"
-        className={cx('jp-nav__row', active && 'is-active')}
-        aria-current={active ? 'page' : undefined}
-        aria-busy={scanning || undefined}
-        disabled={scanning}
-        title={label}
-        onClick={() => (item.page ? navigate(item.page) : item.run?.())}
-      >
-        <Icon size={18} aria-hidden="true" className={scanning ? 'jp-spin' : undefined} />
-        <span className="jp-nav__label">{label}</span>
-        {badge ? (
-          <span className="jp-nav__badge" aria-label={`${badge} in the queue`}>
-            {badge}
-          </span>
-        ) : null}
-      </button>
-    </li>
-  );
-}
-
-function useQueueCount(): number {
-  const counts = useLibraryData<LibraryCounts>(library.counts);
-  return counts ? counts.queued + counts.printing : 0;
-}
-
-function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
-  const queue = useQueueCount();
-  const user = useCurrentUser();
-  // Scan and thumbnail job progress (src/web/scan/Progress.tsx), above Library Storage.
-  const [jobs, setJobs] = useState<HTMLDivElement | null>(null);
-  useAdopt('#sidebar-progress-slot', jobs);
-  const sections = navFor(user?.role);
-  const row = (item: NavItem) => (
-    <NavRow key={item.id} item={item} active={!!item.page && item.page === page} badge={item.id === 'queue' ? queue : undefined} />
-  );
-  return (
-    <nav className="jp-sidebar" id="jp-sidebar" aria-label="Main">
-      <button type="button" className="jp-sidebar__close jp-icon-btn jp-icon-btn--md" aria-label="Close menu" title="Close menu" onClick={onClose}>
-        <X size={18} aria-hidden="true" />
-      </button>
-      <button type="button" className="jp-brand" onClick={() => navigate('home')} title="Home">
-        <span className="jp-brand__logo">
-          <img src="assets/logo.png" alt="" />
-        </span>
-        <span className="jp-brand__text">
-          <span className="jp-brand__name">JusttPrint</span>
-          <span className="jp-brand__tagline">Your 3D Printing Library</span>
-        </span>
-      </button>
-      <div className="jp-nav">
-        {sections
-          .filter((section) => !section.footer)
-          .map((section, index) => (
-            <div key={section.label ?? index} className="jp-nav__section">
-              {section.label && <div className="jp-label jp-nav__heading">{section.label}</div>}
-              <ul>{section.items.map(row)}</ul>
-            </div>
-          ))}
-      </div>
-      <div className="jp-jobs" ref={setJobs} />
-      {/* Settings and Help stay in sight at the bottom, with Library Storage under them. */}
-      <div className="jp-sidebar__footer">
-        {sections
-          .filter((section) => section.footer)
-          .map((section) => (
-            <ul key={section.label} className="jp-nav__footer" aria-label={section.label}>
-              {section.items.map(row)}
-            </ul>
-          ))}
-        <StorageIndicator />
-      </div>
-    </nav>
-  );
-}
 
 function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean }) {
   const phone = usePhoneLayout();
@@ -351,25 +225,26 @@ function TopBar({ onMenu, menuOpen }: { onMenu: () => void; menuOpen: boolean })
 /** Phones (spec §36): the main destinations at the bottom, and Menu for the rest. */
 function BottomNav({ page, onMenu }: { page: PageId; onMenu: () => void }) {
   const queue = useQueueCount();
-  const items: [PageId, string, typeof Home][] = [
-    ['home', 'Home', Home],
-    ['models', 'Models', Library],
-    ['queue', 'Queue', ListChecks],
-    ['printers', 'Printers', Printer]
+  // Printing opens Printers, and is the current one on Queue and Statistics too.
+  const items: [string, PageId, string, typeof Home, PageId[]][] = [
+    ['home', 'home', 'Home', Home, ['home']],
+    ['models', 'models', 'Models', Library, ['models']],
+    ['printing', 'printers', 'Printing', Printer, ['printers', 'queue', 'stats']],
+    ['filament', 'filament', 'Filament', CircleDot, ['filament']]
   ];
   return (
     <nav className="jp-bottom-nav" id="jp-bottom-nav" aria-label="Main (phone)">
-      {items.map(([id, label, Icon]) => (
+      {items.map(([id, target, label, Icon, pages]) => (
         <button
           key={id}
           type="button"
-          className={cx('jp-bottom-nav__item', page === id && 'is-active')}
-          aria-current={page === id ? 'page' : undefined}
-          onClick={() => navigate(id)}
+          className={cx('jp-bottom-nav__item', pages.includes(page) && 'is-active')}
+          aria-current={page === target ? 'page' : pages.includes(page) ? 'true' : undefined}
+          onClick={() => navigate(target)}
         >
           <span className="jp-bottom-nav__icon">
             <Icon size={20} aria-hidden="true" />
-            {id === 'queue' && queue > 0 && (
+            {id === 'printing' && queue > 0 && (
               <span className="jp-bottom-nav__badge" aria-label={`${queue} in the queue`}>
                 {queue}
               </span>
@@ -469,12 +344,11 @@ const PAGE_TITLES: Record<PageId, string> = {
   folder: 'Folder',
   tags: 'Tags',
   duplicates: 'Duplicates',
-  settings: 'Settings',
-  help: 'Help'
+  settings: 'Settings'
 };
 /** The least role a page needs: the role of its sidebar entry. */
 function pageRole(page: PageId) {
-  return NAV.flatMap((section) => section.items).find((item) => item.page === page)?.role || 'viewer';
+  return navItems().find((item) => item.page === page)?.role || 'viewer';
 }
 
 /** A page the account cannot use, opened by its address. */
@@ -606,7 +480,6 @@ export function AppShell() {
           {allowed && page === 'folder' && <FolderPage key={section} path={section} />}
           {allowed && page === 'duplicates' && <DuplicatesPage />}
           {allowed && page === 'settings' && <SettingsPage section={section} />}
-          {allowed && page === 'help' && <HelpPage />}
         </main>
       )}
     </div>,

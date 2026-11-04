@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronDown, Download, ExternalLink, Play, RefreshCw } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { Menu } from '../components/Menu';
-import { formatBytes } from '../shell/AppShell';
+import { formatBytes } from '../shell/Storage';
 import { useCan } from '../session';
 import { loadSlicers, offerSlicerSettings, sendToSlicer, type Slicer } from '../slicer';
 import { useCurrentUser } from '../session';

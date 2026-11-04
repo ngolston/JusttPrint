@@ -218,8 +218,8 @@ export function OrganizeSettingsDialog() {
       dialogRef={dialogRef}
       description={
         <p className="setting-description">
-          <strong>Organize</strong> in the sidebar (and in the library&apos;s <strong>Not organized</strong> view and on Home) puts every folder or model file
-          in the scanned directory where it belongs:{' '}
+          <strong>Tools → Organize</strong> on the Models page (and in its <strong>Not organized</strong> view and on Home) puts every folder or model file in
+          the scanned directory where it belongs:{' '}
           <code>{[destination || fallback || 'Destination', ...options.layers.map(label), 'Title', 'file'].join('/')}</code>.
         </p>
       }

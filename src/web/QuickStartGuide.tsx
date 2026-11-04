@@ -20,12 +20,13 @@ const PAGES: GuidePage[] = [
     content: (
       <>
         <p>
-          The sidebar on the left takes you everywhere. <strong>Models</strong> shows your models as cards, with tabs for <strong>All Models</strong>,{' '}
-          <strong>Printed</strong>, <strong>Unprinted</strong>, <strong>Queue</strong> and <strong>Favorites</strong>.
+          The sidebar on the left takes you everywhere: a name opens its page, and <strong>›</strong> shows the pages under it (☰ shrinks it to icons).{' '}
+          <strong>Models</strong> shows your models as cards, with tabs for <strong>All Models</strong>, <strong>Printed</strong>, <strong>Unprinted</strong>,{' '}
+          <strong>Queue</strong> and <strong>Favorites</strong>.
         </p>
         <p>
           JusttPrint scans your <strong>STL Home</strong> folders on its own. Add or change them under <strong>Settings → Scanning → STL Home</strong>, and use{' '}
-          <strong>Scan Library</strong> in the sidebar to scan right away.
+          <strong>Tools → Scan Library</strong> on the Models page to scan right away.
         </p>
       </>
     ),
@@ -64,8 +65,8 @@ const PAGES: GuidePage[] = [
     content: (
       <>
         <p>
-          <strong>Home</strong> shows your figures, recent activity and printers. <strong>Queue</strong> lists what is printing, what is up next and what
-          printed lately. <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders.
+          <strong>Home</strong> shows your figures, recent activity and printers. Under <strong>Printing</strong>, <strong>Queue</strong> lists what is
+          printing, what is up next and what printed lately, and <strong>Printers</strong> keeps your printers, their web pages and maintenance reminders.
         </p>
         <p>Log a print from a card's status badge or the details panel; JusttPrint keeps a dated history for each model.</p>
       </>
@@ -77,11 +78,12 @@ const PAGES: GuidePage[] = [
     content: (
       <>
         <p>
-          <strong>Tags</strong>, <strong>Duplicates</strong> and <strong>Organize</strong> help you tidy the library, and <strong>AI Tagging</strong> suggests
-          tags for you. <strong>Settings</strong> has everything else in one page: theme, scanning, slicers, AI, JusttPrint backend access, backups and more.
+          <strong>Tags</strong> and <strong>Duplicates</strong> (under Models) and <strong>Tools → Organize</strong> help you tidy the library, and{' '}
+          <strong>Tools → AI Tagging</strong> suggests tags for you. <strong>Settings</strong> has everything else in one page: theme, scanning, slicers, AI,
+          JusttPrint backend access, backups, Library Storage and more.
         </p>
         <p>
-          <strong>Help</strong> lists the keyboard shortcuts and links to the documentation. Thank you for using JusttPrint!
+          <strong>Settings → Help</strong> lists the keyboard shortcuts and links to the documentation. Thank you for using JusttPrint!
         </p>
       </>
     ),
@@ -93,7 +95,7 @@ const PAGES: GuidePage[] = [
 const FADE_MS = 400;
 
 /**
- * Help → Quick Start Guide, also shown after the first-run welcome (startup/FirstRun.tsx): five
+ * Settings → Help → Quick Start Guide, also shown after the first-run welcome (startup/FirstRun.tsx): five
  * pages with a picture each, Back and Next (or the arrow keys). Registers window.showGuide.
  */
 export function QuickStartGuide() {

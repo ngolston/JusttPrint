@@ -18,14 +18,13 @@ export const PAGES = [
   'tags',
   'duplicates',
   'settings',
-  'help',
   'model',
   'folder'
 ] as const;
 export type PageId = (typeof PAGES)[number];
 
-/** Old addresses of pages that were renamed: #/library is the Models page. */
-const RENAMED: Record<string, PageId> = { library: 'models' };
+/** Old addresses of pages that moved: #/library is the Models page, #/help the Settings page's Help tab. */
+const MOVED: Record<string, { page: PageId; section?: string }> = { library: { page: 'models' }, help: { page: 'settings', section: 'help' } };
 
 export interface Route {
   page: PageId;
@@ -40,8 +39,9 @@ export function parseRoute(hash: string): Route {
   const [name = '', section = ''] = String(hash || '')
     .replace(/^#\/?/, '')
     .split('/');
-  const page = RENAMED[name] ?? name;
-  return (PAGES as readonly string[]).includes(page) ? { page: page as PageId, section: decodeURIComponent(section) } : { page: DEFAULT_PAGE, section: '' };
+  const moved = MOVED[name];
+  if (moved) return { page: moved.page, section: moved.section ?? decodeURIComponent(section) };
+  return (PAGES as readonly string[]).includes(name) ? { page: name as PageId, section: decodeURIComponent(section) } : { page: DEFAULT_PAGE, section: '' };
 }
 
 export function formatRoute(page: PageId, section = ''): string {

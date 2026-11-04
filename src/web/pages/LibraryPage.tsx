@@ -1,6 +1,20 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckSquare, FilterX, FolderOpen, LayoutGrid, Library, Link2, PanelRight, ScanSearch, SlidersHorizontal, Upload, X } from 'lucide-react';
+import {
+  CheckSquare,
+  ChevronDown,
+  FilterX,
+  FolderOpen,
+  LayoutGrid,
+  Library,
+  Link2,
+  PanelRight,
+  ScanSearch,
+  SlidersHorizontal,
+  Upload,
+  Wrench,
+  X
+} from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
 import { EmptyState } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
@@ -10,8 +24,10 @@ import { applyFilterChange, getSearchStatus, subscribeSearchStatus } from '../fi
 import { filterActions, getFilterState, subscribeFilters } from '../filters/store';
 import { LIBRARY_TABS, extraFilterCount, tabInfo, tabOf, type LibraryTab } from '../library/tabs';
 import { useAdopt } from '../shell/adopt';
-import { NAV } from '../shell/nav';
-import { useCan } from '../session';
+import { Menu } from '../components/Menu';
+import { useScanProgress } from '../scan/scan';
+import { scanLibrary, toolsFor } from '../shell/nav';
+import { useCan, useCurrentUser } from '../session';
 import { setSidebarOn, useSidebarOn } from '../details/sidebarPref';
 import { setFoldersAsModels, useFoldersAsModels } from '../library/folderMode';
 import { toggleMultiEdit, useEditMode } from '../library/details';
@@ -22,10 +38,32 @@ import { Toggle } from '../components/Browse';
 import { library } from '../api';
 import { useLibraryData } from '../shell/libraryData';
 
-const scanLibrary = () =>
-  NAV.flatMap((section) => section.items)
-    .find((item) => item.id === 'scan')
-    ?.run?.();
+/** Tools: Organize, Scan Library and AI Tagging, for the roles that may run them. */
+function ToolsMenu() {
+  const user = useCurrentUser();
+  const scanning = !!useScanProgress();
+  const items = toolsFor(user?.role);
+  if (!items.length) return null;
+  return (
+    <Menu
+      label="Tools"
+      items={items.map((item) => ({
+        id: item.id,
+        label: item.id === 'scan' && scanning ? 'Scanning…' : item.label,
+        icon: item.icon,
+        disabled: item.id === 'scan' && scanning,
+        onSelect: () => item.run?.()
+      }))}
+      trigger={(props) => (
+        <button type="button" id="jp-tools-button" className="jp-btn jp-btn--secondary jp-btn--md" title="Organize, Scan Library and AI Tagging" {...props}>
+          <Wrench size={16} aria-hidden="true" />
+          <span>Tools</span>
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      )}
+    />
+  );
+}
 
 function useFilters() {
   return useSyncExternalStore(subscribeFilters, getFilterState);
@@ -101,7 +139,7 @@ function LibraryEmpty() {
           action={
             canEdit ? (
               <>
-                <Button variant="primary" icon={ScanSearch} onClick={scanLibrary}>
+                <Button variant="primary" icon={ScanSearch} onClick={() => void scanLibrary()}>
                   Scan Library
                 </Button>
                 <Button icon={Upload} onClick={() => window.openUpload?.()}>
@@ -264,6 +302,7 @@ export function LibraryHeader() {
                 Select all
               </Button>
             )}
+            <ToolsMenu />
             {canUpload && (
               <button
                 type="button"

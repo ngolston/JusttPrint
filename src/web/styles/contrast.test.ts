@@ -62,6 +62,13 @@ for (const [scheme, tokens] of Object.entries(SCHEMES)) {
       pair('jp-on-ink', 'jp-ink-tile-2');
     });
 
+    it('the sidebar rail: its text, hovered rows, the focus ring and the coral current row', () => {
+      for (const text of ['jp-rail-text', 'jp-rail-text-2']) for (const ground of ['jp-rail', 'jp-rail-2', 'jp-rail-border']) pair(text, ground);
+      // Inside the rail --jp-focus is var(--jp-accent-tint).
+      pair('jp-accent-tint', 'jp-rail', 3);
+      pair('jp-accent', 'jp-rail', 3);
+    });
+
     it('muted text stays readable on hover and quiet tiles', () => {
       pair('jp-text', 'jp-surface-hover');
       pair('jp-text-3', 'jp-surface-hover');

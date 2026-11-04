@@ -58,6 +58,38 @@ function check(name, ok, detail = '') {
   }
 }
 
+// The sidebar (src/web/shell/Sidebar.tsx): five rows; Models, Printing and Settings have a fly-out menu.
+const navRow = (label) => `#jp-sidebar .jp-nav__row[title="${label}"]`;
+const flyItem = (label) => `#jp-nav-flyout .jp-nav-flyout__item:has(.jp-nav-flyout__label:text-is("${label}"))`;
+/** Opens a row's fly-out menu (its ›) and picks a page in it: Models › Tags. */
+async function navMenu(page, parent, child, { tap = false } = {}) {
+  const fly = `#jp-sidebar .jp-nav__item:has(.jp-nav__row[title="${parent}"]) .jp-nav__fly`;
+  await (tap ? page.tap(fly) : page.click(fly));
+  await (tap ? page.tap(flyItem(child)) : page.click(flyItem(child)));
+}
+/** The pages in a row's fly-out menu (closed again after). */
+async function navMenuLabels(page, parent) {
+  await page.click(`#jp-sidebar .jp-nav__item:has(.jp-nav__row[title="${parent}"]) .jp-nav__fly`);
+  const labels = await page.$$eval('#jp-nav-flyout .jp-nav-flyout__label', (list) => list.map((el) => el.textContent));
+  await page.keyboard.press('Escape');
+  return labels;
+}
+/** Runs one of the Models page's Tools (Organize, Scan Library, AI Tagging); opens the Models page first. */
+async function modelTool(page, label) {
+  if (await page.isVisible('.jp-page')) await page.click(navRow('Models'));
+  await page.click('#jp-tools-button');
+  await page.click(`.jp-menu [role="menuitem"]:has-text("${label}")`);
+}
+/** The Tools menu's entries on the Models page ([] without the button). */
+async function toolLabels(page) {
+  if (await page.isVisible('.jp-page')) await page.click(navRow('Models'));
+  if (!(await page.isVisible('#jp-tools-button').catch(() => false))) return [];
+  await page.click('#jp-tools-button');
+  const labels = await page.$$eval('.jp-menu [role="menuitem"]', (list) => list.map((el) => el.textContent.trim()));
+  await page.keyboard.press('Escape');
+  return labels;
+}
+
 function freePort() {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -1039,6 +1071,8 @@ async function browserChecks(base, wsUrl, session) {
   const cubeThumbs = (await invoke(base, session, 'get-all-thumbnails', [path.join(LIBRARY, 'Designer A', 'cube.stl')])).result;
   check('rendered thumbnail stored for a model', JSON.stringify(cubeThumbs || '').includes('data:image'), JSON.stringify(cubeThumbs).slice(0, 120));
   await invoke(base, session, 'save-setting', ['hasRunBefore', 'true']);
+  // And this version's What's New seen (a check below shows it on purpose).
+  await invoke(base, session, 'save-setting', ['whatsNewSeen', require(path.join(ROOT, 'package.json')).version]);
 
   const browser = await chromium.launch({ executablePath: CHROME });
   try {
@@ -3219,7 +3253,7 @@ async function browserChecks(base, wsUrl, session) {
 
     // Tags page (React, src/web/pages/TagsPage.tsx): create, rename, merge, show models, delete.
     const tagNamesNow = async () => ((await invoke(base, session, 'get-all-tags')).result || []).map((t) => t.name);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await navMenu(page, 'Models', 'Tags');
     await page.fill('#jp-new-tag', 'e2e-page-tag');
     await page.click('.jp-tags__create button[type=submit]');
     const pageTagRow = (name) => `.jp-tag-row[data-tag-name="${name}"]`;
@@ -3246,8 +3280,8 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-tag', ['e2e-page-other']);
     await invoke(base, session, 'update-models-batch', [[{ filePath: taggedModel, tags: ['e2e-page-other'] }]]);
     // Made through the API, not this page: open the page again to read them.
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await page.click(navRow('Models'));
+    await navMenu(page, 'Models', 'Tags');
     await page.waitForSelector(`${pageTagRow('e2e-page-other')} :text("1 model")`, { timeout: 10000 }).catch(() => {});
     await page.click(`${pageTagRow('e2e-page-renamed')} button[aria-label^="Rename"]`);
     await page.fill(`${pageTagRow('e2e-page-renamed')} .jp-tag-row__input`, 'E2E-PAGE-OTHER');
@@ -3288,7 +3322,7 @@ async function browserChecks(base, wsUrl, session) {
           ))
     );
     await page.evaluate(() => window.clearAllLibraryFilters());
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await navMenu(page, 'Models', 'Tags');
     await page.click(`${pageTagRow(mergedName)} button[aria-label^="Delete"]`);
     const deleteTagAsk = await page
       .waitForSelector('dialog[id^="browser-message-"][open]:has-text("Delete Tag") button:text-is("Yes")', { timeout: 10000 })
@@ -3440,7 +3474,7 @@ async function browserChecks(base, wsUrl, session) {
         notes: null
       }
     ]);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Printers")');
+    await page.click(navRow('Printing'));
     const pageCard = '.jp-printer-card:has-text("E2E Page Printer")';
     check(
       'the Printers page lists the printer with its maintenance due',
@@ -3523,6 +3557,92 @@ async function browserChecks(base, wsUrl, session) {
         (await page.isVisible('.jp-page h1:text-is("Settings")')) &&
         (await page.getAttribute('.jp-sidebar .jp-nav__row:has-text("Settings")', 'aria-current')) === 'page'
     );
+    // The rail (src/web/shell/Sidebar.tsx): › opens a fly-out menu, Escape closes it and gives the focus back.
+    const sidebarRows = await page.$$eval('#jp-sidebar .jp-nav__row', (list) => list.map((el) => el.getAttribute('title')));
+    const modelsMenu = await navMenuLabels(page, 'Models');
+    const escapeBack = await page.evaluate(() => !document.querySelector('#jp-nav-flyout') && !!document.activeElement?.matches('.jp-nav__fly'));
+    await navMenu(page, 'Models', 'Collections');
+    await page.waitForSelector('.jp-page h1:text-is("Collections")', { timeout: 10000 }).catch(() => {});
+    const hint = await page.textContent('#jp-sidebar .jp-nav__item.is-active .jp-nav__hint').catch(() => '');
+    check(
+      'the sidebar has five rows, Models has its pages in a fly-out, and a page of it shows under Models',
+      JSON.stringify(sidebarRows) === JSON.stringify(['Home', 'Models', 'Filament', 'Printing', 'Settings']) &&
+        JSON.stringify(modelsMenu) === JSON.stringify(['All Models', 'Collections', 'Categories', 'Tags', 'Duplicates']) &&
+        escapeBack &&
+        /#\/collections$/.test(page.url()) &&
+        hint === 'Collections',
+      JSON.stringify({ sidebarRows, modelsMenu, escapeBack, url: page.url(), hint })
+    );
+    // ☰ shrinks it to icons, kept after a reload; an icon then opens its page and its menu.
+    await page.click('#jp-nav-toggle');
+    await page.reload();
+    await page.waitForFunction(() => window._electronBridgeReady === true, null, { timeout: 60000 }).catch(() => {});
+    const railWidth = await page.waitForSelector('#jp-sidebar.is-rail', { timeout: 10000 }).then(
+      async () => Math.round((await page.locator('#jp-sidebar').boundingBox())?.width ?? 0),
+      () => 0
+    );
+    await page.click(navRow('Printing'));
+    const railMenu = await page.waitForSelector(flyItem('Queue'), { timeout: 5000 }).then(
+      () => true,
+      () => false
+    );
+    const railPage = /#\/printers$/.test(page.url());
+    await page.click(flyItem('Statistics'));
+    const railPicked = await page.waitForSelector('.jp-page h1:text-is("Statistics")', { timeout: 10000 }).then(
+      () => true,
+      () => false
+    );
+    await page.click('#jp-nav-toggle');
+    check(
+      '☰ shrinks the sidebar to icons and keeps it so; an icon opens its page and its fly-out menu',
+      railWidth === 80 && railMenu && railPage && railPicked && !(await page.isVisible('#jp-sidebar.is-rail')),
+      JSON.stringify({ railWidth, railMenu, railPage, railPicked })
+    );
+    // Help moved into Settings: its old address opens the Help tab.
+    await page.evaluate(() => {
+      window.location.hash = '#/help';
+    });
+    check(
+      '#/help opens the Help tab of Settings',
+      await page.waitForSelector('#settings-tab-help[aria-selected="true"]', { timeout: 10000 }).then(
+        () => true,
+        () => false
+      ),
+      page.url()
+    );
+    // What's New (src/web/startup/WhatsNew.tsx): from Settings → Help, and once after an update.
+    await page.click('#settings-help .jp-settings-row:has-text("What\'s New")');
+    const helpWhatsNew = await page.waitForSelector('#whats-new-dialog[open] .jp-whats-new__body', { timeout: 10000 }).then(
+      () => true,
+      () => false
+    );
+    await page.click('#whats-new-dialog[open] button:text-is("Got it")').catch(() => {});
+    // As if this account last saw 10.10.0: the next visit shows every version since, then not again.
+    await invoke(base, session, 'save-setting', ['whatsNewSeen', '10.10.0']);
+    await page.reload();
+    const afterUpdate = await page.waitForSelector('#whats-new-dialog[open] .jp-whats-new__entry', { timeout: 30000 }).then(
+      async () => page.$$eval('#whats-new-dialog .jp-whats-new__version', (list) => list.map((el) => el.textContent)),
+      () => []
+    );
+    await page.click('#whats-new-dialog[open] button:text-is("Got it")').catch(() => {});
+    const seenNow = (await invoke(base, session, 'get-setting', ['whatsNewSeen'])).result;
+    await page.reload();
+    await page.waitForTimeout(3500);
+    const shownAgain = await page.isVisible('#whats-new-dialog[open]');
+    check(
+      "What's New opens from Settings → Help, and once after an update with every version since the last seen",
+      helpWhatsNew &&
+        afterUpdate.length >= 2 &&
+        afterUpdate.some((text) => text.startsWith('Version 10.11.0')) &&
+        !afterUpdate.some((text) => text.startsWith('Version 10.10.0')) &&
+        seenNow === require(path.join(ROOT, 'package.json')).version &&
+        !shownAgain,
+      JSON.stringify({ helpWhatsNew, afterUpdate, seenNow, shownAgain })
+    );
+    // Back to Settings from Models, as before these checks (a later check goes Back to the library).
+    await page.click(navRow('Models'));
+    await page.click(navRow('Settings'));
+    await page.waitForSelector('#settings-tab-appearance[aria-selected="true"]', { timeout: 10000 }).catch(() => {});
     // Settings forms sit on the page (src/web/settings/EmbeddedDialog.tsx): the dialogs, opened in place.
     const formOpen = (selector) =>
       page.waitForSelector(selector, { timeout: 10000 }).then(
@@ -3681,7 +3801,7 @@ async function browserChecks(base, wsUrl, session) {
     // Print Queue (React, src/web/pages/QueuePage.tsx): a queued model moves through the page with its status.
     const queuedModel = ((await invoke(base, session, 'get-all-models')).result || []).find((m) => !m.filePath.includes('::'))?.filePath;
     await invoke(base, session, 'set-print-status', [{ filePath: queuedModel, printStatus: 'queued' }]);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Queue")');
+    await navMenu(page, 'Printing', 'Queue');
     const queuedRow = `ol[aria-label="Up next"] .jp-queue__row:has(.jp-queue__title:text-is("${path.basename(queuedModel).replace(/\.[^.]+$/, '')}"))`;
     check(
       'Queue opens the Print Queue with the queued model up next',
@@ -3780,8 +3900,10 @@ async function browserChecks(base, wsUrl, session) {
         )) && (await page.isVisible('.jp-library-header .jp-tab[aria-selected="true"]:has-text("Queue")'))
     );
     await page.evaluate(() => window.clearAllLibraryFilters());
-    const storageText = await page.textContent('.jp-storage').catch(() => '');
-    check('the sidebar shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
+    await page.click(navRow('Settings'));
+    await page.waitForSelector('.jp-page .jp-storage', { timeout: 10000 }).catch(() => {});
+    const storageText = await page.textContent('.jp-page .jp-storage').catch(() => '');
+    check('the Settings page shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
 
     // Keyboard (spec §37): the skip link, a card as one Tab stop, Enter selects, focus follows the arrows.
     await page.evaluate(() => {
@@ -3858,7 +3980,7 @@ async function browserChecks(base, wsUrl, session) {
         )
     );
     await page.keyboard.press('Escape');
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Tags")');
+    await navMenu(page, 'Models', 'Tags');
     await page.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).catch(() => {});
     const inertState = await page.evaluate(() => {
       const card = document.querySelector('.file-grid .file-item');
@@ -5570,13 +5692,13 @@ async function browserChecks(base, wsUrl, session) {
           () => true,
           () => false
         )) &&
-        (await phone.waitForSelector('#jp-sidebar .jp-nav__row:has-text("Duplicates")', { timeout: 5000 }).then(
+        (await phone.waitForSelector(`${navRow('Printing')}:visible`, { timeout: 5000 }).then(
           () => true,
           () => false
         )),
       JSON.stringify(await phone.evaluate(() => ({ body: document.body.className, dialogs: [...document.querySelectorAll('dialog[open]')].map((d) => d.id) })))
     );
-    await phone.tap('#jp-sidebar .jp-nav__row:has-text("Tags")');
+    await navMenu(phone, 'Models', 'Tags', { tap: true });
     check(
       'a page from the drawer opens and closes the drawer',
       (await phone.waitForSelector('.jp-page h1:text-is("Tags")', { timeout: 10000 }).then(
@@ -5650,7 +5772,7 @@ async function browserChecks(base, wsUrl, session) {
       () => tablet.locator('#jp-sidebar').boundingBox(),
       () => null
     );
-    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 72 && !(await tablet.isVisible('#jp-sidebar .jp-storage')));
+    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 80 && !(await tablet.isVisible('#jp-sidebar .jp-nav__fly')));
     const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
     if (tabletCard) {
       // By locator: the grid may draw the card again before the click (slower machines).
@@ -6662,7 +6784,7 @@ async function browserChecks(base, wsUrl, session) {
     // no Upload folder to default to, so it opens Settings → Scanning → Organize and says so.
     await invoke(base, session, 'save-setting', ['stlHomeDirectories', '[]']);
     await invoke(base, session, 'save-setting', ['stlHome', '']);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Organize")');
+    await modelTool(page, 'Organize');
     const organizeAsk = await page.waitForSelector('dialog[id^="browser-message-"][open]:has-text("scanned directory")', { timeout: 10000 }).catch(() => null);
     if (organizeAsk) await page.click('dialog[id^="browser-message-"][open] button:text-is("OK")');
     const organizeForm = await page.waitForSelector('#organize-settings-dialog[open] #organize-layers', { timeout: 10000 }).catch(() => null);
@@ -6688,7 +6810,7 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-model', [{ filePath: dedupCopy, fileName: 'cube copy.stl' }]);
     await invoke(base, session, 'calculate-file-hash', [dedupOriginal]);
     await invoke(base, session, 'calculate-file-hash', [dedupCopy]);
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Duplicates")');
+    await navMenu(page, 'Models', 'Duplicates');
     const copyRow = `#dedup-page input[data-filepath="${dedupCopy}"]`;
     const originalRow = `#dedup-page input[data-filepath="${dedupOriginal}"]`;
     const dedupGroup = await page.waitForSelector(copyRow, { timeout: 30000 }).catch(() => null);
@@ -6942,7 +7064,7 @@ async function browserChecks(base, wsUrl, session) {
       await window.performCombinedSearch({ force: true });
     });
 
-    // Scan Library in the sidebar: busy while it runs, then the notice says how it went. STL Home is
+    // Tools → Scan Library on the Models page: busy while it runs, then the notice says how it went. STL Home is
     // a folder outside the app for this (the e2e library is inside it, and web scans of it are refused).
     const homeDir = fs.realpathSync(fs.mkdtempSync('/tmp/justtprint-e2e-home-'));
     fs.copyFileSync(cubePath, path.join(homeDir, 'home-cube.stl'));
@@ -6957,7 +7079,7 @@ async function browserChecks(base, wsUrl, session) {
     let scanClicked = false;
     for (let attempt = 0; attempt < 5 && !scanClicked; attempt++) {
       for (const button of await page.$$('dialog[id^="browser-message-"][open] button')) await button.click().catch(() => {});
-      scanClicked = await page.click('.jp-sidebar .jp-nav__row:has-text("Scan Library")', { timeout: 3000 }).then(
+      scanClicked = await modelTool(page, 'Scan Library').then(
         () => true,
         () => false
       );
@@ -6970,7 +7092,7 @@ async function browserChecks(base, wsUrl, session) {
       );
     check(
       'Scan Library says when the scan is done and how many models are new',
-      scanClicked && scanDone && !(await page.isDisabled('.jp-sidebar .jp-nav__row:has-text("Scan Library")')),
+      scanClicked && scanDone && (await toolLabels(page)).includes('Scan Library'),
       await page.textContent('[data-testid="scan-toast"]').catch(() => '')
     );
     // Its thumbnail is drawn from the file: wait until it is saved, so the folder is not deleted under it.
@@ -8048,9 +8170,8 @@ async function accountChecks(base, wsUrl, admin) {
     );
     check(
       'editors do not see admin pages',
-      !(await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("AI Tagging")')) &&
-        (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Organize")')) &&
-        (await editorPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Tags")'))
+      JSON.stringify(await toolLabels(editorPage)) === JSON.stringify(['Organize', 'Scan Library']) &&
+        (await navMenuLabels(editorPage, 'Models')).includes('Tags')
     );
     // Every upload goes to the Upload folder (8.4); none chosen (9.2): Uploads inside the first STL Home folder.
     await editorPage.evaluate(() => {
@@ -8368,9 +8489,10 @@ async function accountChecks(base, wsUrl, admin) {
     );
     check('viewers still open models in a slicer from the details', await viewerPage.isVisible('#jp-details-open-slicer'));
     check(
-      'viewers see no library tools in the sidebar',
-      !(await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Scan Library")')) &&
-        (await viewerPage.isVisible('.jp-sidebar .jp-nav__row:has-text("Statistics")'))
+      'viewers get no Tools menu, and no Tags in the Models menu',
+      !(await viewerPage.isVisible('#jp-tools-button')) &&
+        (await navMenuLabels(viewerPage, 'Printing')).includes('Statistics') &&
+        !(await navMenuLabels(viewerPage, 'Models')).includes('Tags')
     );
     await viewerPage.evaluate(() => {
       // Tags is an editor's page (Organize, the admin page this opened before 8.1, is no page now).

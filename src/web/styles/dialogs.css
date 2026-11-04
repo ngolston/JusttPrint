@@ -361,3 +361,46 @@
   border-radius: var(--jp-radius-md);
   background: var(--jp-surface-2);
 }
+
+/* What's New after an update (startup/WhatsNew.tsx): the changelog entries since the last one seen. */
+#whats-new-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+.jp-whats-new__entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-5);
+  max-height: min(60vh, 560px);
+  overflow-y: auto;
+}
+.jp-whats-new__version {
+  margin: 0 0 var(--jp-space-2);
+  color: var(--jp-text-2);
+  font-size: var(--jp-text-meta);
+  font-weight: 700;
+}
+.jp-whats-new__body {
+  color: var(--jp-text);
+  font-size: var(--jp-text-ui);
+  line-height: 1.55;
+}
+.jp-whats-new__body > :first-child {
+  margin-top: 0;
+}
+.jp-whats-new__body p {
+  margin: 0 0 var(--jp-space-3);
+}
+.jp-whats-new__body ul {
+  margin: 0 0 var(--jp-space-3);
+  padding-left: var(--jp-space-5);
+}
+.jp-whats-new__body li + li {
+  margin-top: var(--jp-space-2);
+}
+.jp-whats-new__body code {
+  padding: 1px 5px;
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-surface-2);
+  font-family: var(--jp-font-mono);
+  font-size: 0.92em;
+}
