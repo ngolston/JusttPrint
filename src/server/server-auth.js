@@ -373,6 +373,17 @@ function createServerAuth({
     for (const [key, seen] of sessionSeen) if (seen.userId === Number(id)) sessionSeen.delete(key);
   }
 
+  /**
+   * After an update (app.js): everyone logs in again. Every account's sessions end; the API token
+   * and people's API keys (MCP, scripts) keep working. Answers how many accounts it logged out.
+   */
+  function endAllSessions() {
+    const rows = users.list();
+    for (const row of rows) resetAllSessions(row.id);
+    sessionSeen.clear();
+    return rows.length;
+  }
+
   // ---- Two-factor sign-in (docs/plan-10.1.md, Phase 12) ----
 
   const PENDING_TTL_MS = 10 * 60 * 1000;
@@ -1296,6 +1307,7 @@ function createServerAuth({
     verifyUpgrade,
     registerRoutes,
     listUsers,
+    endAllSessions,
     createUser,
     updateUser,
     deleteUser,

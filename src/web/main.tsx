@@ -85,6 +85,7 @@ import { StatsDialog } from './StatsDialog';
 import { StlHomeDialog } from './StlHomeDialog';
 import { FirstRun } from './startup/FirstRun';
 import { FolderSetup } from './startup/FolderSetup';
+import { WhatsNew } from './startup/WhatsNew';
 import { SystemReportDialog } from './SystemReportDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 import { TagPreviewDialog } from './tags/TagPreviewDialog';
@@ -94,6 +95,7 @@ function Screens() {
   return (
     <>
       <FirstRun />
+      <WhatsNew />
       <ServerAccessDialog />
       <ChangePasswordDialog />
       <UsersDialog />

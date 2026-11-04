@@ -11,6 +11,7 @@ import { setFoldersAfterWelcome } from './FirstRun';
 import { needsFolderSetup, openFolderSetup } from './FolderSetup';
 import { applyColorScheme } from './theme';
 import { checkForUpdatesOnStartup } from './updates';
+import { showWhatsNewAfterUpdate } from './WhatsNew';
 
 declare global {
   interface Window {
@@ -51,7 +52,8 @@ async function start() {
   const guest = !!(await loadCurrentUser())?.guest;
   // No model folders yet: an admin chooses them (after the welcome on a first run).
   const chooseFolders = !guest && (await needsFolderSetup());
-  if (!guest && !(await settings.get<string | null>('hasRunBefore').catch(() => 'true'))) {
+  const firstRun = !guest && !(await settings.get<string | null>('hasRunBefore').catch(() => 'true'));
+  if (firstRun) {
     setFoldersAfterWelcome(chooseFolders);
     window.showWelcome?.();
     settings.save('hasRunBefore', 'true').catch(() => {});
@@ -59,9 +61,10 @@ async function start() {
   document.querySelector('.file-grid')?.classList.remove('hidden');
   await Promise.all([loadRenderSettings(), loadSavedFilterSettings()]);
   await runSearch();
-  // After the library is up, so the page paints first.
+  // After the library is up, so the page paints first: What's New after an update (guests keep
+  // no settings), then the update check.
   setTimeout(() => {
-    checkForUpdatesOnStartup();
+    void (guest ? Promise.resolve() : showWhatsNewAfterUpdate(firstRun)).finally(() => checkForUpdatesOnStartup());
   }, 2000);
 }
 

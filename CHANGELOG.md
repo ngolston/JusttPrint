@@ -2,6 +2,23 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.13.0] - 2026-11-04
+
+A new sidebar with menus, a What's New window after every update, and everyone logs in again after an update.
+
+**Upgrade notes:**
+- **Everyone logs in again after this update**, and after every update from now on. API keys, the API token and MCP connections keep working.
+- **The sidebar is new.** It has five entries: Home, Models, Filament, Printing and Settings. The other pages are in their fly-out menus (**›**): Collections, Categories, Tags and Duplicates under Models; Queue, Printers and Statistics under Printing; History under Settings. Organize, Scan Library and AI Tagging moved to **Tools** on the Models page, Library Storage to the top of Settings, and Help to the last Settings tab. `#/help` links open that tab.
+
+**Changes:**
+- **A dark rail with fly-out menus.** Click a name to open its page, or **›** for a menu of the pages under it, each with a line on what it is. On a page from a menu, its name shows under the entry (Models / Tags). The Queue count shows on Printing. Escape or a click outside closes a menu.
+- **☰ shrinks the sidebar to icons.** The browser remembers the choice from page to page. With icons only, an icon opens its page and its menu. Tablets always show the icons.
+- **Tools on the Models page.** **Tools** holds Organize, Scan Library and AI Tagging, for the roles that can run them.
+- **Settings has Library Storage and Help.** Library Storage (the models' size and how full their disk is) is at the top of Settings. Help is the last tab, for everyone.
+- **Phones:** the bottom bar is now Home, Models, Printing, Filament and Menu.
+- **What's New after every update.** The first time each person opens JusttPrint after an update, a window shows what changed in every version since the one they saw last. **Settings → Help → What's New** shows it again.
+- **Log in again after an update.** The first start of a new version ends every browser's login, so everyone signs in again with their user name and password.
+
 ## [10.12.0] - 2026-11-04
 
 The Library page is now called Models.

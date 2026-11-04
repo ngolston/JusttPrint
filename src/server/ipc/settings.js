@@ -26,6 +26,8 @@ const PER_USER_SETTING_KEYS = new Set([
   'dedupPreferredDirectory',
   'hideSkippedFileSizeNotice',
   'hasRunBefore',
+  // The version whose What's New this person saw last (src/web/startup/WhatsNew.tsx).
+  'whatsNewSeen',
   'uiTheme',
   'uiColorScheme',
   'detailsSidebar',

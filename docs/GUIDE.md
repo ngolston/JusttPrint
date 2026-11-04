@@ -6,22 +6,25 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 
 ## Finding your way around
 
-The sidebar on the left holds every page:
+The sidebar on the left is a dark rail with five entries. Click a name to open its page; click **›** beside Models, Printing or Settings for a menu of the pages under it:
 
-| Section | Pages |
-|---------|-------|
-| (top) | **Home**, **Models**, **Collections** |
-| Printing | **Queue**, **Printers**, **Statistics** |
-| Manage | **Tags**, **Duplicates**, **Organize**, **Scan Library**, **AI Tagging** |
-| System | **Settings**, **Help** |
+| Entry | Opens | Its menu |
+|-------|-------|----------|
+| **Home** | Home | |
+| **Models** | Your models | **Collections**, **Categories**, **Tags**, **Duplicates** |
+| **Filament** | Your spools | |
+| **Printing** | **Printers** | **Queue**, **Printers**, **Statistics** |
+| **Settings** | Settings | **History** |
 
-The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **JusttPrint Backend Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). **Library Storage** at the bottom of the sidebar shows how full the disk holding your models is; scan and thumbnail progress appear just above it while they run.
+On a page from a menu, its name shows under the entry (for example **Models / Tags**). **☰** at the top shrinks the sidebar to its icons and back; the browser remembers which you chose. With icons only, clicking an icon opens its page and its menu. **Organize**, **Scan Library** and **AI Tagging** are under **Tools** on the Models page.
 
-On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar shrinks to icons. On a **phone** a bottom bar holds Home, Models, Queue, Printers and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
+The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **JusttPrint Backend Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). Scan, thumbnail and other background progress shows at the bottom of the sidebar while it runs. **Library Storage** (how much space your models take, and how full their disk is) is at the top of **Settings**, and **Help** is the last Settings tab.
+
+On a **laptop** screen the details panel opens as a drawer from the right. On a **tablet** the sidebar always shows its icons. On a **phone** a bottom bar holds Home, Models, Printing, Filament and **Menu** (the full sidebar), cards show two per row, and the details fill the screen.
 
 ### Install it as an app
 
-**Settings → Install App** (also under **Help**) adds JusttPrint to your phone's home screen or your computer's apps. It then opens from its own icon, full screen without the address bar. It is still the same JusttPrint in your Docker container; nothing is copied to the device.
+**Settings → Install App** (also under **Settings → Help**) adds JusttPrint to your phone's home screen or your computer's apps. It then opens from its own icon, full screen without the address bar. It is still the same JusttPrint in your Docker container; nothing is copied to the device.
 
 - **iPhone and iPad:** in Safari, tap **Share**, then **Add to Home Screen**. Works over plain `http://` too.
 - **Android, Windows, Mac, Linux (Chrome or Edge):** click **Install JusttPrint** in the dialog, or choose **Install app** in the browser's menu (⋮). These browsers install apps only over **HTTPS with a trusted certificate**; over plain `http://` you get a shortcut that opens in the browser instead.
@@ -37,7 +40,7 @@ On a touch screen, buttons that appear on hover with a mouse (a card's heart and
 3. Thumbnails are rendered in the background; you can use the library while they appear.
 4. Optional: pick light or dark under **Settings → Appearance → Theme**, set up **AI Tagging**, add your slicers under **Settings → Slicer** and your printers on **Printers**.
 
-**Help → Quick Start Guide** shows a short tour in the app.
+**Settings → Help → Quick Start Guide** shows a short tour in the app.
 
 ## Home
 
@@ -174,7 +177,7 @@ Viewers see the spools; editors and admins change them.
 
 ![Statistics: the year's figures and prints per month](images/statistics.png)
 
-**Statistics** in the sidebar shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. When prints are logged with how long they took, a **Print time** figure, **Print hours per month** and the hours on each printer show too (failed prints count: the printer was busy). Everyone can open Statistics.
+**Statistics** (sidebar → Printing) shows what your print log says over the last 6 or 12 months, 2 years or all time: how many prints, the success rate (printed out of printed and failed; cancelled prints are counted on their own), failed and cancelled prints, and the models added. **Prints per month** stacks printed, failed and cancelled prints per month; point at a month for its numbers, or **Show table** for all of them. Below: the designers, models and printers printed most. When prints are logged with how long they took, a **Print time** figure, **Print hours per month** and the hours on each printer show too (failed prints count: the printer was busy). Everyone can open Statistics.
 
 **Filament used** counts the grams your logged prints took off your spools (prints logged with their spools), per month, and the models, printers and materials that used most. The cost is each print's grams at its spool's price (price over the grams the spool held when new); spools without a price add grams but no cost. Admins choose the currency under **Settings → Printers → Filament settings**; prices, the shopping list and what your spools are worth show in it (amounts are not converted). The same dialog sets the units for the whole library (weight in grams, kilograms, ounces or pounds; temperature in °C or °F; length in mm or inches) and how dates are written; saving reloads the page in them, and forms take values in them too. Everything is still kept in grams, °C and millimetres. Below it: the last 30 days day by day, a running total, the last 12 weeks by material (the three you use most, the rest as Other; **Show table** for the numbers), and what filament costs per kg for each material, from the spools you gave a price.
 
@@ -202,7 +205,7 @@ An admin sets up Organize under **Settings → Scanning → Organize**:
 - **Folder structure**: the folder levels above each model's own folder, **Category / Subcategory** unless you change them (Designer and License are the other choices, up to four levels). The model's own folder is always last and named after its **Title**: `Destination/Category/Subcategory/Title/file`.
 - **Steps**, all on unless you turn them off: **Tidy into model folders**, **Generate tags** and **Apply the suggested tags**.
 
-**Organize** in the sidebar (also in the Not organized view, and next to the item on Home) runs at once, without a page, and puts every model in the scanned directory where it belongs:
+**Tools → Organize** on the Models page (also in the Not organized view, and next to the item on Home) runs at once, without a page, and puts every model in the scanned directory where it belongs:
 
 1. Every folder there is one model, with everything in it; a model file on its own (an archive too) gets a folder named after it. Archives are never unpacked.
 2. **Tidy into model folders**: its loose pictures and documents go into its **Pictures** and **Documents**.
@@ -275,7 +278,7 @@ If two people edit the same field of the same model, nobody's work is lost silen
 A collection groups models from any folders: a project, a gift list, the spare parts for one printer. A model can be in several collections, and stays where it is on disk.
 
 - **Add to Collection…** in a model's menu (**…** on a card) adds it, or every selected model, to the collections you tick; **Create and Add** makes a new one on the spot. A dash means some of the selected models are in that collection already.
-- **Collections** in the sidebar shows them as cards with a picture of the latest model added. Open one to see its models; click a model to show it on the Models page, or **×** to take it out of the collection.
+- **Collections** (sidebar → Models) shows them as cards with a picture of the latest model added. Open one to see its models; click a model to show it on the Models page, or **×** to take it out of the collection.
 - **Rename**, **Description**, **Share** and the bin (delete) are at the top of a collection. Deleting a collection keeps the models and turns off its share links.
 
 Everyone can look at collections; editors and admins make and change them.
@@ -290,6 +293,8 @@ Everyone can look at collections; editors and admins make and change them.
 - The Share dialog lists the links to that item; **Settings → Sharing** lists every link with how often it was opened. The bin or **Turn Off** ends a link at once.
 
 ## Users and roles
+
+After every update, everyone logs in again with their user name and password, and then sees **What's New**: what changed in each version since the one they used last. **Settings → Help → What's New** shows it again. API keys and MCP connections keep working across updates.
 
 An admin adds people under **Settings → Authentication → Users** with a user name, a password and a role:
 
@@ -323,7 +328,7 @@ Admins see who has two-factor sign-in under **Users**, and **Turn Off Two-factor
 
 AI tagging looks at a model's thumbnail, name and folder names and suggests tags. You review them before they are saved.
 
-1. Click **AI Tagging** in the sidebar.
+1. On the Models page, click **Tools → AI Tagging**.
 2. Pick a service: OpenAI, Claude or Gemini need an API key; **Puter** signs in to your Puter account instead; **custom** works with a local OpenAI-compatible server such as Ollama or LM Studio (no key).
 3. Pick a model and the tagging options (number of tags, replace / merge / append, categories, detail level), then save.
 4. Choose models with **Edit**, open a chosen card's **⋯** menu and choose **Generate Tags**. **Tag from Folder** copies folder names onto the models as tags without asking the AI.
@@ -384,7 +389,7 @@ AI apps (Claude Code, Claude Desktop, Cursor, VS Code and others) can connect to
 
 ## Keyboard
 
-**Help → Keyboard Shortcuts** lists them all. The main ones: **Ctrl/⌘ K** search, **Tab** moves between cards (each card is one stop), **Enter** or **Space** selects, the arrow keys move the selection, **Ctrl/⌘ A** selects all, **Ctrl/⌘ E** Edit mode, **Ctrl/⌘ Z** undoes the last edit, **Escape** closes a dialog, drawer or popover. A **Skip to content** link is the first Tab stop on every page.
+**Settings → Help → Keyboard Shortcuts** lists them all. The main ones: **Ctrl/⌘ K** search, **Tab** moves between cards (each card is one stop), **Enter** or **Space** selects, the arrow keys move the selection, **Ctrl/⌘ A** selects all, **Ctrl/⌘ E** Edit mode, **Ctrl/⌘ Z** undoes the last edit, **Escape** closes a dialog, drawer or popover. A **Skip to content** link is the first Tab stop on every page.
 
 ## Your data
 
