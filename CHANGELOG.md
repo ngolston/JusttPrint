@@ -2,7 +2,12 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [10.12.0] - 2026-11-04
+
+The Library page is now called Models.
+
+**Upgrade notes:**
+- **New address.** The page is at `#/models`. Old `#/library` links and bookmarks still open it.
 
 **Changes:**
 - **Library is now Models.** The sidebar, the phone's bottom bar, the page title, breadcrumbs, Home's **Your Models** and buttons such as **Show in Models** call the models page Models. Its address is `#/models`; old `#/library` links and bookmarks still open it. Collection-wide actions keep their names (Scan Library, Library Storage, Categorize Library, Settings → Library).
