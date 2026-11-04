@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from 'react';
 import { formatDay, formatTemperature } from '../units';
-import { Archive, ArchiveRestore, Droplets, ExternalLink, MapPin, Pencil, Scale, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Droplets, ExternalLink, MapPin, Pencil, Printer as PrinterIcon, Scale, Trash2 } from 'lucide-react';
 import { filament, type Spool, type SpoolDetail } from '../api';
 import { Button } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
@@ -13,7 +13,7 @@ import { useCurrency } from './currency';
 import { PhotoBlock } from './Photo';
 import { dryingProgress, formatMoney, formatTimeLeft, formatWeight, runsOutText, spoolNumber, spoolWhere } from './format';
 
-export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move';
+export type SpoolAction = 'edit' | 'weigh' | 'dry' | 'finish-drying' | 'move' | 'load';
 
 const day = (value: string | null | undefined) => (Number.isFinite(Date.parse(String(value || ''))) ? formatDay(value) : '');
 
@@ -101,6 +101,9 @@ export function SpoolDrawer({ spoolId, onClose, onAction }: { spoolId: number; o
                         Dry
                       </Button>
                     )}
+                    <Button icon={PrinterIcon} id="jp-spool-load" onClick={() => onAction('load', spool)}>
+                      {spool.loaded.length ? 'Printer…' : 'Load into Printer'}
+                    </Button>
                     <Button icon={MapPin} onClick={() => onAction('move', spool)}>
                       Move
                     </Button>
