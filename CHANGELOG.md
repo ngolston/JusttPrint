@@ -2,6 +2,18 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.10.0] - 2026-11-03
+
+Home your way: choose its widgets, their size and their place, with new widgets for the camera, maintenance, reordering and more, and a print calendar on Statistics.
+
+**Changes:**
+- **Edit Home.** Click **Edit Home** to choose which widgets show, drag them into the order you like (or select one and use the arrow keys), give each a size (Small, Wide, Tall, Large, Full width), remove them, and **Add Widget** for the rest. **Reset Layout** puts Home back as it started. Each person's layout is their own and follows them to any browser; on a phone the widgets stack in the same order. Everything on Home is a widget now, Recently added, Favorites, Collections and Browse by category included.
+- **New Home widgets.** **Camera** (a Bambu printer's camera, with a menu to pick the printer), **Maintenance due** (reminders due soonest, by date or print hours, with Done), **Reorder list**, **Forgotten model** (one of your oldest models never printed, with Queue It and Another), **Quick actions** (Add Links, Upload, Scan Library, Log a Print), **Upload inbox** (models waiting, with Organize), **Tidy up** (models without tags, a category, a license or a picture) and **Duplicates found**. **Spool of the day**, **Color wall** and **Material guide** from the Filament page can be added too. A widget with nothing to show is left out until it has something.
+- **Print calendar.** Statistics shows the last year of days shaded by how many prints finished on each, days with a failed print outlined, with your longest streak.
+
+**Fixes:**
+- **The Quick Start Guide is no longer see-through.** On a first sign-in, the guide after the welcome let the page behind it show through its text and pictures. It is solid now, in light and dark, with a clearer Close button.
+
 ## [10.9.1] - 2026-11-03
 
 **Fixes:**

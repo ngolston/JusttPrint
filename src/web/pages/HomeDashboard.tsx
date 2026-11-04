@@ -1,9 +1,13 @@
 import { filament, home, printQueue, type PrinterLoads, type QueueItem, type Spool } from '../api';
 import { BentoGrid, Tile } from '../components/Bento';
 import { MonthTile, NeedsYouTile, NewTile, PrintersTile, PrintingTile, RunsOutTile, SpoolsTile, UpNextTile, needsYou } from '../home/HomeBento';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Box,
+  Check,
+  LayoutDashboard,
+  Plus,
+  RotateCcw,
   CheckCircle2,
   CircleSlash,
   Clock,
@@ -30,6 +34,23 @@ import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { useScanProgress } from '../scan/scan';
 import { usePrinterLive } from '../printers/live';
+import { settings } from '../api';
+import { showMessage } from '../page';
+import { ColorWall, MaterialGuide, SpoolOfTheDay } from '../filament/FilamentWidgets';
+import { AddWidgetDialog, WidgetFrame } from '../home/HomeEditor';
+import { addItem, defaultLayout, parseLayout, serializeLayout, updateItem, type HomeLayout, type LayoutItem } from '../home/homeLayout';
+import {
+  CameraWidget,
+  DuplicatesWidget,
+  ForgottenWidget,
+  MaintenanceWidget,
+  QuickActionsWidget,
+  ReorderWidget,
+  TidyUpWidget,
+  UploadInboxWidget
+} from '../home/HomeWidgets';
+
+const LAYOUT_KEY = 'homeLayout';
 
 const loadActivity = () => library.activity(8);
 const loadQueue = () => printQueue.list().catch(() => [] as QueueItem[]);
@@ -284,7 +305,7 @@ function RecentActivity({ activity }: { activity: ActivityItem[] | null }) {
  * render of a library model; Recent Activity; Your Printers; Continue your kits and Needs
  * attention (home/HomeSections.tsx). Real data only (docs/redesign-5.md).
  */
-export function HomeDashboard() {
+export function HomeDashboard({ children }: { children?: ReactNode } = {}) {
   const counts = useLibraryData<LibraryCounts>(library.counts);
   const activity = useLibraryData<ActivityItem[]>(loadActivity);
   const list = useLibraryData<Printer[]>(loadPrinters);
@@ -297,32 +318,175 @@ export function HomeDashboard() {
   const newest = useLibraryData(loadNewest);
   const live = usePrinterLive();
   const [hour] = useState(() => new Date().getHours());
+  const [layout, setLayout] = useState<HomeLayout | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const focusAfter = useRef<string | null>(null);
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const thisWeek = (activity || []).reduce((sum, item) => sum + (item.kind === 'added' && Date.parse(item.at) >= weekAgo ? item.count : 0), 0);
+
+  useEffect(() => {
+    let alive = true;
+    settings.get<string | null>(LAYOUT_KEY).then(
+      (raw) => alive && setLayout(parseLayout(raw)),
+      () => alive && setLayout(defaultLayout())
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  // After a move with the keys, the moved widget keeps the focus.
+  useEffect(() => {
+    if (!focusAfter.current) return;
+    document.querySelector<HTMLElement>(`.jp-home-widgets [data-widget="${focusAfter.current}"]`)?.focus();
+    focusAfter.current = null;
+  });
+
+  const change = (next: HomeLayout, focus?: string) => {
+    setLayout(next);
+    if (focus) focusAfter.current = focus;
+    settings.save(LAYOUT_KEY, serializeLayout(next)).catch(() => {});
+  };
+  async function reset() {
+    const answer = await showMessage('Reset Home', 'Put every widget back where it started, at its first size? Widgets you added are taken off.', [
+      'Reset',
+      'Cancel'
+    ]);
+    if (answer === 'Reset') change(defaultLayout());
+  }
+
+  const openSpool = (spool: Spool) => navigate('filament', `spool-${spool.id}`);
+  const showSpools = (filter: string) => navigate('filament', `show-${filter}`);
+  const body = (item: LayoutItem): ReactNode => {
+    switch (item.id) {
+      case 'library':
+        return <LibraryTile counts={counts} />;
+      case 'needs-you':
+        return <NeedsYouTile items={needsYou(queue, list, spools)} />;
+      case 'spools':
+        return <SpoolsTile summary={filamentSummary} spools={spools} />;
+      case 'runs-out':
+        return <RunsOutTile spools={spools} />;
+      case 'up-next':
+        return <UpNextTile items={queue} />;
+      case 'printing':
+        return <PrintingTile models={printing} live={live} printers={list} />;
+      case 'new':
+        return <NewTile models={newest} thisWeek={thisWeek} />;
+      case 'month':
+        return <MonthTile month={month} />;
+      case 'printers':
+        return <PrintersTile printers={list} loads={loads} />;
+      case 'camera':
+        return (
+          <CameraWidget
+            printers={list}
+            live={live}
+            printerId={item.printerId}
+            onPick={(id) => layout && change(updateItem(layout, 'camera', { printerId: id }))}
+          />
+        );
+      case 'maintenance':
+        return <MaintenanceWidget printers={list} />;
+      case 'reorder':
+        return <ReorderWidget />;
+      case 'forgotten':
+        return <ForgottenWidget />;
+      case 'quick-actions':
+        return <QuickActionsWidget printing={printing} scan={<ScanLibraryButton />} />;
+      case 'upload-inbox':
+        return <UploadInboxWidget />;
+      case 'tidy-up':
+        return <TidyUpWidget />;
+      case 'duplicates':
+        return <DuplicatesWidget />;
+      case 'spool-of-the-day':
+        return spools ? <SpoolOfTheDay spools={spools} onOpen={openSpool} /> : null;
+      case 'color-wall':
+        return spools ? <ColorWall spools={spools} onOpen={openSpool} /> : null;
+      case 'material-guide':
+        return spools ? <MaterialGuide spools={spools} onShow={showSpools} /> : null;
+      case 'activity':
+        return <RecentActivity activity={activity} />;
+      case 'kits':
+        return <ContinueKits />;
+      case 'attention':
+        return <NeedsAttention printers={list} models={counts?.models} />;
+      case 'recent':
+        return <RecentModels />;
+      case 'favorites':
+        return <FavoritesRow />;
+      case 'collections':
+        return <CollectionsRow />;
+      case 'categories':
+        return <CategoryTiles />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="jp-home">
       <header className="jp-home-head">
-        <h1 className="jp-display jp-hero__title" id="jp-hero-title">
-          {greeting(hour)}
-        </h1>
-        <p className="jp-home-head__summary">{summary(counts, activity)}</p>
+        <div>
+          <h1 className="jp-display jp-hero__title" id="jp-hero-title">
+            {greeting(hour)}
+          </h1>
+          <p className="jp-home-head__summary">{summary(counts, activity)}</p>
+        </div>
+        <div className="jp-home-head__actions">
+          {editing ? (
+            <>
+              <Button icon={Plus} id="jp-home-add-widget-button" onClick={() => setAdding(true)}>
+                Add Widget
+              </Button>
+              <Button variant="ghost" icon={RotateCcw} id="jp-home-reset" onClick={() => void reset()}>
+                Reset Layout
+              </Button>
+              <Button variant="primary" icon={Check} id="jp-home-done" onClick={() => setEditing(false)}>
+                Done
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" icon={LayoutDashboard} id="jp-home-edit" disabled={!layout} onClick={() => setEditing(true)}>
+              Edit Home
+            </Button>
+          )}
+        </div>
       </header>
-      <BentoGrid label="At a glance" className="jp-home-bento">
-        <LibraryTile counts={counts} />
-        <NeedsYouTile items={needsYou(queue, list, spools)} />
-        <SpoolsTile summary={filamentSummary} spools={spools} />
-        <RunsOutTile spools={spools} />
-        <UpNextTile items={queue} />
-        <PrintingTile models={printing} live={live} printers={list} />
-        <NewTile models={newest} thisWeek={thisWeek} />
-        <MonthTile month={month} />
-        <PrintersTile printers={list} loads={loads} />
-      </BentoGrid>
-      <div className="jp-home__panels jp-home__panels--extra">
-        <RecentActivity activity={activity} />
-        <ContinueKits />
-        <NeedsAttention printers={list} models={counts?.models} />
-      </div>
+      {editing && (
+        <p className="jp-meta jp-home__edit-hint" id="jp-home-edit-hint">
+          Drag a widget by its handle, or select it and use the arrow keys. Widgets with nothing to show right now are shown here so you can place them; Home
+          leaves them out until they have something. Your layout is yours alone.
+        </p>
+      )}
+      {layout && (
+        <BentoGrid label="At a glance" className={editing ? 'jp-home-widgets is-editing' : 'jp-home-widgets'}>
+          {layout.items.map((item, index) => (
+            <WidgetFrame
+              key={item.id}
+              item={item}
+              index={index}
+              count={layout.items.length}
+              editing={editing}
+              layout={layout}
+              onChange={change}
+              dragging={dragging}
+              setDragging={setDragging}
+            >
+              {body(item)}
+            </WidgetFrame>
+          ))}
+        </BentoGrid>
+      )}
+      {layout && !layout.items.length && !editing && (
+        <EmptyState icon={LayoutDashboard} title="Home has no widgets">
+          Click Edit Home, then Add Widget, or Reset Layout to start again.
+        </EmptyState>
+      )}
+      {adding && layout && <AddWidgetDialog layout={layout} onAdd={(id) => change(addItem(layout, id))} onClose={() => setAdding(false)} />}
+      {children}
     </div>
   );
 }
@@ -400,17 +564,13 @@ function RecentModels() {
 }
 
 /**
- * Home (spec §10-§15): the dashboard, the latest additions to the library, then Favorites,
- * Collections and Browse by category (each left out when empty). Scrolls as one page.
+ * Home (spec §10-§15): one grid of widgets (home/homeLayout.ts), each person's own choice of
+ * which show, in what order and at what size (Edit Home). A widget with nothing to show is left out.
  */
 export function HomePage() {
   return (
     <div className="jp-page__inner jp-home-page">
       <HomeDashboard />
-      <RecentModels />
-      <FavoritesRow />
-      <CollectionsRow />
-      <CategoryTiles />
     </div>
   );
 }

@@ -383,6 +383,8 @@ export interface PrintStatistics {
   filament: FilamentUse;
   /** The library's currency (ISO 4217). */
   currency: string;
+  /** The print calendar: the last 53 weeks by day (UTC), whatever the period. */
+  calendar: { day: string; printed: number; failed: number }[];
 }
 
 export interface FilamentUse {

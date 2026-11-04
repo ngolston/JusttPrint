@@ -9,6 +9,7 @@ import { formatDuration } from '../print/printStatus';
 import { formatDay, fromWeightInput, weightInputUnit } from '../units';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
+import { PrintCalendar } from '../stats/PrintCalendar';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
 
 const PERIODS = [
@@ -716,6 +717,8 @@ export function StatsPage() {
               </EmptyState>
             )}
           </Panel>
+
+          {stats.calendar && <PrintCalendar days={stats.calendar} />}
 
           <div className="jp-stats__grid">
             <Panel title="Top designers">

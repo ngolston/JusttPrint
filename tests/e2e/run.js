@@ -1175,6 +1175,80 @@ async function browserChecks(base, wsUrl, session) {
         )),
       JSON.stringify(attention)
     );
+    // Home's widgets (home/homeLayout.ts, HomeEditor.tsx): Edit Home, sizes, moving, adding, saved per person.
+    check(
+      'Tidy up lists the models without tags, for editors',
+      await page.waitForSelector(`#jp-home-tidy [data-attention="untagged"]:has-text("${attention.untagged} model")`, { timeout: 10000 }).then(
+        () => true,
+        () => false
+      )
+    );
+    await page.click('#jp-home-edit');
+    const editFrames = await page.waitForSelector('.jp-home-widgets.is-editing [data-widget="library"] .jp-widget__bar', { timeout: 5000 }).then(
+      () => true,
+      () => false
+    );
+    // An empty widget is shown while editing, and left out otherwise.
+    const emptyShown = await page.isVisible('[data-widget="up-next"]');
+    await page.selectOption('[data-widget="month"] .jp-widget__size', '2x1');
+    await page.focus('[data-widget="tidy-up"]');
+    const tidyFrom = await page.$$eval('.jp-home-widgets > .jp-widget', (list) => list.findIndex((el) => el.dataset.widget === 'tidy-up'));
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    const tidyTo = await page.$$eval('.jp-home-widgets > .jp-widget', (list) => list.findIndex((el) => el.dataset.widget === 'tidy-up'));
+    const kept = await page.evaluate(() => document.activeElement?.getAttribute('data-widget'));
+    await page.click('[data-widget="duplicates"] button[aria-label="Remove Duplicates found"]');
+    await page.click('#jp-home-add-widget-button');
+    await page.click('#jp-home-add-widget [data-add-widget="color-wall"]');
+    const addedListed = await page.isVisible('#jp-home-add-widget [data-add-widget="duplicates"]');
+    await page.click('#jp-home-add-widget button:has-text("Done")');
+    await page.click('#jp-home-done');
+    check(
+      'Edit Home: frames, sizes, the arrow keys, Remove and Add Widget',
+      editFrames &&
+        emptyShown &&
+        !(await page.isVisible('[data-widget="up-next"]')) &&
+        (await page.getAttribute('[data-widget="month"]', 'data-size')) === '2x1' &&
+        tidyTo === tidyFrom - 2 &&
+        kept === 'tidy-up' &&
+        addedListed &&
+        !(await page.$('[data-widget="duplicates"]')) &&
+        !!(await page.$('[data-widget="color-wall"]')),
+      JSON.stringify({ editFrames, emptyShown, tidyFrom, tidyTo, kept, addedListed })
+    );
+    const savedLayout = JSON.parse((await invoke(base, session, 'get-setting', ['homeLayout'])).result || '{}');
+    await page.reload();
+    check(
+      'the Home layout is saved and comes back after a reload',
+      savedLayout.items?.some((item) => item.id === 'month' && item.size === '2x1') &&
+        (await page.waitForSelector('[data-widget="color-wall"]', { state: 'attached', timeout: 15000 }).then(
+          () => true,
+          () => false
+        )) &&
+        (await page.getAttribute('[data-widget="month"]', 'data-size')) === '2x1',
+      JSON.stringify(savedLayout.items?.slice(0, 4))
+    );
+    await page.click('#jp-home-edit');
+    await page.click('#jp-home-reset');
+    await page.waitForSelector('dialog.jp-message-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await page.click('dialog.jp-message-dialog[open] button:has-text("Reset")').catch(() => {});
+    await page.click('#jp-home-done').catch(() => {});
+    check(
+      'Reset Layout puts Home back as it started',
+      await page
+        .waitForFunction(
+          () => !document.querySelector('[data-widget="color-wall"]') && document.querySelector('[data-widget="month"]')?.getAttribute('data-size') === '1x1',
+          null,
+          {
+            timeout: 5000
+          }
+        )
+        .then(
+          () => true,
+          () => false
+        )
+    );
+
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
     check(
       'Library shows the library without the dashboard',
@@ -5226,6 +5300,22 @@ async function browserChecks(base, wsUrl, session) {
             () => false
           )
       );
+      check(
+        "Home's Camera widget shows the Bambu printer's camera",
+        await page
+          .waitForFunction(
+            () => {
+              const img = document.querySelector('[data-widget="camera"] .jp-home-camera .jp-camera__img');
+              return !!img && !img.hidden && img.naturalWidth > 0 && /E2E Live P1S/.test(document.querySelector('[data-widget="camera"]')?.textContent || '');
+            },
+            null,
+            { timeout: 20000 * SLOW }
+          )
+          .then(
+            () => true,
+            () => false
+          )
+      );
       // The print finishes: logged by itself on the model, with its printer, plate and a camera picture; the bell says so.
       fakeBambu.report({ gcode_state: 'FINISH', mc_percent: 100, mc_remaining_time: 0 });
       const loggedPrint = await waitFor(
@@ -5570,6 +5660,21 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       )) && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true'
     );
+    // The welcome and the guide are solid: the page behind them never shows through their text and pictures.
+    const seeThrough = await fresh.evaluate(() =>
+      ['#welcome-message', '#quickstart-guide', '#quickstart-guide .guide-scroll-container']
+        .map((selector) => {
+          const element = document.querySelector(selector);
+          const color = element ? getComputedStyle(element).backgroundColor : 'missing';
+          const alpha = /rgba?\(([^)]+)\)/
+            .exec(color)?.[1]
+            .split(/[ ,/]+/)
+            .filter(Boolean)[3];
+          return alpha !== undefined && Number(alpha) < 1 ? `${selector} ${color}` : color === 'missing' ? `${selector} missing` : '';
+        })
+        .filter(Boolean)
+    );
+    check('the welcome and the Quick Start Guide are not see-through', seeThrough.length === 0, JSON.stringify(seeThrough));
     // The guide (src/web/QuickStartGuide.tsx): Next, the arrow keys, Back, and Finish on the last page.
     const guidePage = () => fresh.textContent('#guide-progress-text').catch(() => '');
     await fresh.click('#guide-next-button');
@@ -8113,6 +8218,19 @@ async function accountChecks(base, wsUrl, admin) {
     );
     if (elsewhere.result?.eventId) await invoke(base, admin, 'delete-print-event', [elsewhere.result.eventId]);
     await editorPage.waitForSelector('#jp-stats-tiles :text("75%")', { timeout: 15000 }).catch(() => {});
+    // The print calendar (stats/PrintCalendar.tsx): today has the prints logged above, a failed one among them.
+    const todayCell = await editorPage
+      .waitForSelector(`#jp-print-calendar [data-day="${new Date().toISOString().slice(0, 10)}"]`, { timeout: 10000 })
+      .then((cell) => cell.getAttribute('class'))
+      .catch(() => '');
+    check(
+      'the print calendar shows a year of days, today shaded with a failed print',
+      (await editorPage.$$eval('#jp-print-calendar [data-day]', (cells) => cells.length)) === 371 &&
+        /is-level-[1-4]/.test(todayCell || '') &&
+        /has-failed/.test(todayCell || '') &&
+        /prints? on 1 day in the last year/.test(await editorPage.textContent('#jp-calendar-summary')),
+      `${todayCell} ${await editorPage.textContent('#jp-calendar-summary').catch(() => '')}`
+    );
     check(
       'the prints chart is drawn with a legend',
       (await editorPage.isVisible('.jp-chart svg[aria-label="Prints per month by outcome"]')) &&

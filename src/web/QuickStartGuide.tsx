@@ -138,7 +138,7 @@ export function QuickStartGuide() {
     <dialog
       id="quickstart-guide"
       className="modal"
-      style={{ width: '80%', maxWidth: 1000, background: 'none' }}
+      style={{ width: '80%', maxWidth: 1000 }}
       tabIndex={-1}
       ref={dialogRef}
       aria-labelledby="guide-title"

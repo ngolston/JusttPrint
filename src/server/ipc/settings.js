@@ -39,7 +39,9 @@ const PER_USER_SETTING_KEYS = new Set([
   // QR Labels: the layout chosen for each label size.
   'labelLayouts',
   // The Filament page's widgets: which show, in what order.
-  'filamentWidgets'
+  'filamentWidgets',
+  // Home's widgets: which show, in what order and at what size (src/web/home/homeLayout.ts).
+  'homeLayout'
 ]);
 
 /** Server-wide settings any user may save: the update check. Everything else needs an admin. */
