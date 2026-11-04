@@ -2,6 +2,11 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [Unreleased]
+
+**Fixes:**
+- **The Quick Start Guide is no longer see-through.** On a first sign-in, the guide after the welcome let the page behind it show through its text and pictures. It is solid now, in light and dark, with a clearer Close button.
+
 ## [10.9.1] - 2026-11-03
 
 **Fixes:**
