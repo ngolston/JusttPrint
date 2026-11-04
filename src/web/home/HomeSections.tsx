@@ -207,7 +207,7 @@ export function ContinueKits() {
 
 // ---- Needs attention ------------------------------------------------------------------------
 
-const ATTENTION: Record<AttentionKey, { icon: LucideIcon; run: () => void }> = {
+export const ATTENTION: Record<AttentionKey, { icon: LucideIcon; run: () => void }> = {
   backup: { icon: DatabaseBackup, run: () => navigate('settings', 'backup') },
   maintenance: { icon: Wrench, run: () => navigate('printers') },
   unorganized: { icon: FolderInput, run: showUnorganized },

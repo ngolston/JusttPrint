@@ -131,3 +131,16 @@ test('print time (10.1): per month and printer, failed prints too, only prints w
     ]
   );
 });
+
+test('the print calendar has 53 weeks of days, whatever the period', () => {
+  const stats = printStatistics(createDb(), { months: 1, now: NOW });
+  const calendar = stats.calendar;
+  assert.strictEqual(calendar.length, 371);
+  assert.strictEqual(calendar[calendar.length - 1].day, '2026-10-15', 'ends today');
+  assert.strictEqual(calendar[0].day, '2025-10-10');
+  const day = (key) => calendar.find((d) => d.day === key);
+  assert.deepStrictEqual(day('2026-08-03'), { day: '2026-08-03', printed: 2, failed: 0 }, 'outside the one-month period, still on the calendar');
+  assert.deepStrictEqual(day('2026-09-01'), { day: '2026-09-01', printed: 0, failed: 1 });
+  assert.deepStrictEqual(day('2026-10-03'), { day: '2026-10-03', printed: 0, failed: 0 }, 'cancelled prints are left out');
+  assert.ok(!calendar.some((d) => d.day.startsWith('2024')), 'older than a year is left out');
+});
