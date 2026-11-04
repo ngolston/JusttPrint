@@ -5660,6 +5660,21 @@ async function browserChecks(base, wsUrl, session) {
         () => false
       )) && (await invoke(base, session, 'get-setting', ['hasRunBefore'])).result === 'true'
     );
+    // The welcome and the guide are solid: the page behind them never shows through their text and pictures.
+    const seeThrough = await fresh.evaluate(() =>
+      ['#welcome-message', '#quickstart-guide', '#quickstart-guide .guide-scroll-container']
+        .map((selector) => {
+          const element = document.querySelector(selector);
+          const color = element ? getComputedStyle(element).backgroundColor : 'missing';
+          const alpha = /rgba?\(([^)]+)\)/
+            .exec(color)?.[1]
+            .split(/[ ,/]+/)
+            .filter(Boolean)[3];
+          return alpha !== undefined && Number(alpha) < 1 ? `${selector} ${color}` : color === 'missing' ? `${selector} missing` : '';
+        })
+        .filter(Boolean)
+    );
+    check('the welcome and the Quick Start Guide are not see-through', seeThrough.length === 0, JSON.stringify(seeThrough));
     // The guide (src/web/QuickStartGuide.tsx): Next, the arrow keys, Back, and Finish on the last page.
     const guidePage = () => fresh.textContent('#guide-progress-text').catch(() => '');
     await fresh.click('#guide-next-button');
