@@ -10,6 +10,31 @@
 
 const MAX_MONTHS = 120;
 const TOP = 8;
+const DAY_MS = 24 * 3600 * 1000;
+// The print calendar: 53 weeks of days, so a full year of weeks always shows.
+const CALENDAR_DAYS = 53 * 7;
+
+/**
+ * Prints per day (UTC, as the log stores times) for the last CALENDAR_DAYS days up to `now`,
+ * whatever the period: [{ day: 'YYYY-MM-DD', printed, failed }], oldest first.
+ */
+function printCalendar(db, now = new Date()) {
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const days = Array.from({ length: CALENDAR_DAYS }, (_, i) => new Date(today - (CALENDAR_DAYS - 1 - i) * DAY_MS).toISOString().slice(0, 10));
+  const byDay = new Map(days.map((day) => [day, { day, printed: 0, failed: 0 }]));
+  if (tableExists(db, 'print_events')) {
+    for (const row of db
+      .prepare(
+        `SELECT substr(printed_at, 1, 10) AS day, outcome, SUM(quantity) AS n FROM print_events
+         WHERE printed_at >= ? AND outcome IN ('printed', 'failed') GROUP BY day, outcome`
+      )
+      .all(`${days[0]}T00:00:00.000Z`)) {
+      const bucket = byDay.get(row.day);
+      if (bucket) bucket[row.outcome] += Number(row.n) || 0;
+    }
+  }
+  return days.map((day) => byDay.get(day));
+}
 
 function tableExists(db, name) {
   return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
@@ -196,8 +221,10 @@ function printStatistics(db, { months = 12, now = new Date() } = {}) {
       // The last 30 days and 12 weeks, and cost per kg (docs/plan-10.1.md, Phase 7).
       recent: require('./filament-stats').recentFilament(db, now)
     },
-    currency: require('./filament-stats').currency(db)
+    currency: require('./filament-stats').currency(db),
+    // The print calendar on Statistics: the last year by day, whatever the period.
+    calendar: printCalendar(db, now)
   };
 }
 
-module.exports = { printStatistics, monthRange };
+module.exports = { printCalendar, printStatistics, monthRange };

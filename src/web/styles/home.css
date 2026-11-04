@@ -516,6 +516,16 @@
 /* Home in the Bento look (Phase 7 of docs/merge-10.md; home/HomeBento.tsx). */
 .jp-home-head {
   margin-bottom: var(--jp-space-5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--jp-space-3);
+}
+.jp-home-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
 }
 .jp-home-head__summary {
   margin: var(--jp-space-1) 0 0;
@@ -784,4 +794,208 @@
 .jp-home-tile__name:hover .jp-model-title,
 .jp-home-printers__row:hover .jp-home-printers__name {
   text-decoration: underline;
+}
+
+/* ---- Home's widgets (home/homeLayout.ts, home/HomeEditor.tsx) ---- */
+.jp-home-widgets {
+  margin-bottom: var(--jp-space-6);
+}
+.jp-widget {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--jp-radius-tile);
+}
+.jp-widget__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.jp-widget__body > * {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+/* A widget with nothing to say takes no room (outside Edit Home). */
+.jp-widget:not(.is-editing):has(> .jp-widget__body:empty) {
+  display: none;
+}
+@media (max-width: 900px) {
+  .jp-home-widgets > .jp-widget {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}
+.jp-home__edit-hint {
+  margin: calc(-1 * var(--jp-space-3)) 0 var(--jp-space-4);
+}
+.jp-widget.is-editing {
+  outline: 2px dashed var(--jp-border-strong);
+  outline-offset: 2px;
+  background: var(--jp-surface-1);
+}
+.jp-widget.is-editing:focus-visible {
+  outline: 2px solid var(--jp-accent);
+}
+.jp-widget.is-drop-target {
+  outline: 2px solid var(--jp-accent);
+  background: var(--jp-accent-soft);
+}
+.jp-widget.is-dragging {
+  opacity: 0.5;
+}
+.jp-widget.is-editing .jp-widget__body {
+  opacity: 0.85;
+  pointer-events: none;
+  max-height: 420px;
+  overflow: hidden;
+}
+.jp-widget.is-editing .jp-widget__body:empty::before {
+  content: 'Nothing to show right now';
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 120px;
+  color: var(--jp-text-3);
+  font-size: var(--jp-text-meta);
+}
+.jp-widget__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-1);
+  padding: var(--jp-space-1) var(--jp-space-2);
+  border-bottom: 1px solid var(--jp-border);
+}
+.jp-widget__grip {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--jp-radius-md);
+  color: var(--jp-text-2);
+  cursor: grab;
+}
+.jp-widget__grip:active {
+  cursor: grabbing;
+}
+.jp-widget__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: var(--jp-text-meta);
+}
+.jp-widget__size {
+  width: auto;
+  min-width: 0;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--jp-text-meta);
+}
+
+/* The widgets added in 10.10 (home/HomeWidgets.tsx). */
+.jp-home-camera__pick {
+  width: auto;
+  max-width: 50%;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--jp-text-meta);
+}
+.jp-home-camera .jp-camera {
+  flex: 1;
+}
+.jp-home-maintenance .is-due {
+  color: var(--jp-danger-text);
+}
+.jp-home-forgotten__model {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.jp-home-forgotten__model:hover {
+  background: transparent;
+  color: inherit;
+}
+.jp-home-forgotten__model:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: var(--jp-radius-md);
+}
+.jp-home-forgotten__picture {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface-2);
+}
+.jp-home-forgotten__picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.jp-home-forgotten__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.jp-home-forgotten__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2);
+  margin-top: auto;
+}
+.jp-home-quick__buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--jp-space-2);
+}
+.jp-home-quick__buttons .jp-btn {
+  justify-content: flex-start;
+}
+.jp-home-tidy__row {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.jp-home-tidy__row:hover {
+  background: transparent;
+  color: var(--jp-accent-text);
+}
+.jp-home-tidy__row:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+  border-radius: var(--jp-radius-md);
+}
+/* A narrow widget's frame: the handle and name on one line, the buttons under them. */
+.jp-widget.is-editing {
+  container-type: inline-size;
+}
+@container (max-width: 400px) {
+  .jp-widget__bar {
+    flex-wrap: wrap;
+  }
+  .jp-widget__name {
+    flex: 1 1 calc(100% - 40px);
+  }
+  .jp-widget__size {
+    flex: 1;
+  }
 }

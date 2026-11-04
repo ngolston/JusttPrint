@@ -393,6 +393,14 @@ export function FilamentPage({ section = '' }: { section?: string }) {
     setSearch('');
     requestAnimationFrame(() => document.getElementById('jp-filament-all')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   };
+  // From Home's widgets: #/filament/spool-<id> opens a spool, show-<filter> lists spools, shopping the reorder list.
+  useEffect(() => {
+    const spool = /^spool-(\d+)$/.exec(section);
+    if (spool) setOpenId(Number(spool[1]));
+    else if (section.startsWith('show-')) showFilter(section.slice(5) as SpoolFilter);
+    else if (section === 'shopping') setDialog({ kind: 'shopping' });
+    // showFilter, setOpenId and setDialog only set state.
+  }, [section]);
   // #/filament/place-<id> (a place's QR label): the spools in that place.
   useEffect(() => {
     const m = /^place-(\d+)$/.exec(section);
