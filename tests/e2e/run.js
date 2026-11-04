@@ -1249,6 +1249,39 @@ async function browserChecks(base, wsUrl, session) {
         )
     );
 
+    // A click outside a pop-up closes it, as Escape does (shell/outsideClose.ts): a message counts it as Cancel.
+    await page.click('#jp-home-edit');
+    await page.click('#jp-home-add-widget-button');
+    await page.waitForSelector('#jp-home-add-widget[open]', { timeout: 5000 }).catch(() => {});
+    const widgetDialogOpen = await page.isVisible('#jp-home-add-widget');
+    await page.mouse.click(4, 300);
+    const widgetDialogClosed = await page.waitForSelector('#jp-home-add-widget', { state: 'detached', timeout: 5000 }).then(
+      () => true,
+      () => false
+    );
+    await page.selectOption('[data-widget="month"] .jp-widget__size', '2x1');
+    await page.click('#jp-home-reset');
+    await page.waitForSelector('dialog.jp-message-dialog[open]', { timeout: 10000 }).catch(() => {});
+    await page.mouse.click(4, 300);
+    const messageClosed = await page.waitForSelector('dialog.jp-message-dialog[open]', { state: 'detached', timeout: 5000 }).then(
+      () => true,
+      () => false
+    );
+    const keptLayout = (await page.getAttribute('[data-widget="month"]', 'data-size')) === '2x1';
+    // A click inside stays open.
+    await page.click('#jp-home-add-widget-button');
+    await page.waitForSelector('#jp-home-add-widget[open]', { timeout: 5000 }).catch(() => {});
+    await page.click('#jp-home-add-widget .jp-meta, #jp-home-add-widget .jp-widgets__name');
+    const insideStays = await page.isVisible('#jp-home-add-widget');
+    await page.keyboard.press('Escape');
+    await page.selectOption('[data-widget="month"] .jp-widget__size', '1x1');
+    await page.click('#jp-home-done');
+    check(
+      'a click outside a pop-up closes it (a message as Cancel), a click inside does not',
+      widgetDialogOpen && widgetDialogClosed && messageClosed && keptLayout && insideStays,
+      JSON.stringify({ widgetDialogOpen, widgetDialogClosed, messageClosed, keptLayout, insideStays })
+    );
+
     await page.click('.jp-sidebar .jp-nav__row:has-text("Library")');
     check(
       'Library shows the library without the dashboard',
