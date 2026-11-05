@@ -6,17 +6,17 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 
 ## Finding your way around
 
-The sidebar on the left is a dark rail with five entries. Click a name to open its page; click **›** beside Models, Printing or Settings for a menu of the pages under it:
+The sidebar on the left is a dark rail with five entries. **Home** and **Filament** open their page; **Models**, **Printing** and **Settings** open a menu of the pages under them:
 
-| Entry | Opens | Its menu |
-|-------|-------|----------|
-| **Home** | Home | |
-| **Models** | Your models | **Collections**, **Categories**, **Tags**, **Duplicates** |
-| **Filament** | Your spools | |
-| **Printing** | **Printers** | **Queue**, **Printers**, **Statistics** |
-| **Settings** | Settings | **History** |
+| Entry | Opens |
+|-------|-------|
+| **Home** | Home |
+| **Models** | A menu: **All Models**, **Collections**, **Categories**, **Tags**, **Duplicates** |
+| **Filament** | Your spools |
+| **Printing** | A menu: **Queue**, **Printers**, **Statistics** |
+| **Settings** | A menu: **All Settings**, **History** |
 
-On a page from a menu, its name shows under the entry (for example **Models / Tags**). **☰** at the top shrinks the sidebar to its icons and back; the browser remembers which you chose. With icons only, clicking an icon opens its page and its menu. **Organize**, **Scan Library** and **AI Tagging** are under **Tools** on the Models page.
+On a page from a menu, its name shows under the entry (for example **Models / Tags**). **☰** at the top shrinks the sidebar to its icons and back; the browser remembers which you chose. With icons only, the icons do the same. **Organize**, **Scan Library** and **AI Tagging** are under **Tools** on the Models page.
 
 The top bar has the search box (**Ctrl/⌘ K** focuses it from anywhere) and the account menu, which shows who is logged in (**Change Password**, **Log Out**, and for admins **Users** and **JusttPrint Backend Access**). Each person sees only the pages their role can use (see [Users and roles](#users-and-roles)). Scan, thumbnail and other background progress shows at the bottom of the sidebar while it runs. **Library Storage** (how much space your models take, and how full their disk is) is at the top of **Settings**, and **Help** is the last Settings tab.
 
