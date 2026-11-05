@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, Play, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Play, Send, X } from 'lucide-react';
 import { printQueue, type FilamentCheckResult, type Printer, type QueueItem } from '../api';
 import { Button, IconButton } from '../components/Button';
 import { EditOnly } from '../components/EditOnly';
 import { FitBadge, type FilamentNeed } from '../components/Filament';
 import { cardTitle } from '../grid/ModelCard';
 import { showMessage } from '../page';
+import { loadSlicers, sendToSlicer } from '../slicer';
 
 /*
  * The print queue's rows (docs/merge-10.md, Phase 6): order, plate, printer and the filament
@@ -29,6 +30,26 @@ export function checkRows(check: FilamentCheckResult | null): FilamentNeed[] {
 export const plateLabel = (item: QueueItem) => (item.plate ? `Plate ${item.plate}` : item.plates.length > 1 ? 'All plates' : '');
 
 export const itemName = (item: QueueItem) => cardTitle({ filePath: item.model.filePath, fileName: item.model.fileName, title: item.model.title });
+
+/**
+ * Start an item: open its model in the slicer (OrcaSlicer when set up, else the first slicer), and
+ * move it to Printing now. Without a slicer, it asks first.
+ */
+async function startInSlicer(item: QueueItem) {
+  const slicers = await loadSlicers();
+  const slicer = slicers.find((s) => /orca/i.test(s.name)) || slicers[0];
+  if (slicer) await sendToSlicer([item.model.filePath], slicer);
+  else {
+    const answer = await showMessage('Start', 'No slicer is set up, so Start cannot open the model in one. Start it anyway?', [
+      'Start',
+      'Set Up a Slicer',
+      'Cancel'
+    ]);
+    if (answer === 'Set Up a Slicer') window.openSlicerSettings?.();
+    if (answer !== 'Start') return;
+  }
+  await printQueue.start(item.id);
+}
 
 /** One item of Up next: plate and printer pickers, its check, and what to do with it. */
 export function QueueRowControls({ item, index, count, printers }: { item: QueueItem; index: number; count: number; printers: Printer[] }) {
@@ -98,9 +119,26 @@ export function QueueRowControls({ item, index, count, printers }: { item: Queue
             onClick={() => void run(() => printQueue.move(item.id, index + 1))}
           />
         </span>
-        <Button size="sm" icon={Play} disabled={busy} onClick={() => void run(() => printQueue.start(item.id))}>
+        <Button
+          size="sm"
+          icon={Play}
+          disabled={busy}
+          title={`Open ${name} in the slicer and move it to Printing now`}
+          onClick={() => void run(() => startInSlicer(item))}
+        >
           Start
         </Button>
+        {printers.some((printer) => printer.connection_type === 'bambu') && (
+          <Button
+            size="sm"
+            icon={Send}
+            disabled={busy}
+            title={`Send ${name}'s sliced file to a Bambu Lab printer and start it`}
+            onClick={() => window.openSendToPrinter?.(item)}
+          >
+            Send
+          </Button>
+        )}
         <IconButton
           size="sm"
           icon={Copy}

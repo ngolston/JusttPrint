@@ -1,15 +1,25 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { CheckCircle2, ClipboardPen, Library, ListChecks, LoaderCircle, RotateCcw, Undo2 } from 'lucide-react';
-import { callAction, library, printQueue, printers as printerApi, prints, type PrintActivity, type Printer } from '../api';
+import { useCallback, useEffect, useState, type DragEvent, type ReactNode } from 'react';
+import { CheckCircle2, ClipboardPen, GripVertical, Library, ListChecks, LoaderCircle, RotateCcw, Undo2 } from 'lucide-react';
+import {
+  library,
+  printQueue,
+  printers as printerApi,
+  prints,
+  type PrintActivity,
+  type Printer,
+  type PrintingItem,
+  type QueueItem,
+  type QueueNeed
+} from '../api';
 import { checkRows, plateLabel, itemName, QueueRowControls } from '../queue/QueueParts';
-import { FilamentCheck } from '../components/Filament';
+import { ColorDot, FilamentCheck } from '../components/Filament';
 import { StatusBadge } from '../components/Badge';
-import { Button, IconButton } from '../components/Button';
+import { Button, IconButton, cx } from '../components/Button';
 import { EmptyState, Skeleton } from '../components/Panel';
 import { applyFilterChange } from '../filters/search';
 import { filterActions } from '../filters/store';
+import { formatDuration, formatGrams } from '../format';
 import { cardTitle } from '../grid/ModelCard';
-import type { GridModel } from '../grid/layout';
 import { timeAgo } from '../home/format';
 import { showModelDetails } from '../library/details';
 import { selection } from '../selection';
@@ -17,10 +27,11 @@ import { fetchPrimaryThumbnail } from '../thumbnails/cache';
 import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
+import { useCan } from '../session';
 
-const LIMIT = 200;
-const loadPrinting = () => callAction<GridModel[]>('get-models-filtered', { printed: 'printing', sortOption: 'name-asc', limit: LIMIT });
-// The print queue in its order, with plates, printers and each item's filament check (Phase 6).
+// What is printing (with when it started), the print queue in its order (plates, printers, print
+// times and each item's filament check), the printers, and the latest successful prints.
+const loadPrinting = () => printQueue.printing();
 const loadQueued = () => printQueue.list();
 const loadPrinters = () => printerApi.list().catch(() => [] as Printer[]);
 const loadCompleted = () => library.recentPrints(10, 'printed');
@@ -54,6 +65,42 @@ function Thumb({ filePath }: { filePath: string }) {
   return <span className="jp-queue__thumb">{src ? <img src={src} alt="" loading="lazy" /> : <img src="assets/3d.png" alt="" />}</span>;
 }
 
+/** Grams added up, or null when any filament's are not known. */
+const totalGrams = (needs: QueueNeed[]) =>
+  needs.length && needs.every((n) => Number(n.grams) > 0) ? needs.reduce((sum, n) => sum + Number(n.grams), 0) : null;
+
+/** The filaments a print needs: a dot for each color, and the grams. */
+function Needs({ needs }: { needs: QueueNeed[] }) {
+  if (!needs.length) return null;
+  const grams = totalGrams(needs);
+  const names = needs.map((n) => [n.material, n.grams ? formatGrams(n.grams) : ''].filter(Boolean).join(' ')).join(', ');
+  return (
+    <span className="jp-queue__needs" title={names}>
+      <span className="jp-queue__dots" aria-hidden="true">
+        {needs.slice(0, 6).map((need, index) => (
+          <ColorDot key={index} color={need.color || '#9aa4b4'} size={12} />
+        ))}
+      </span>
+      <span className="jp-sr-only">Filament: {names}.</span>
+      {grams !== null && <span aria-hidden="true">{formatGrams(grams)}</span>}
+    </span>
+  );
+}
+
+/** "Plate 2 · X1C · 1 h 20 min", the parts known. */
+const details = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(' · ');
+
+/** When a print should be done: "done about 3:40 PM" (or "should be done" once past). */
+function doneAt(startedAt: string | null, seconds: number | null): string {
+  if (!startedAt || !seconds) return '';
+  const end = new Date(startedAt).getTime() + seconds * 1000;
+  if (!Number.isFinite(end)) return '';
+  if (end < Date.now()) return 'should be done';
+  const sameDay = new Date(end).toDateString() === new Date().toDateString();
+  const time = new Date(end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `done about ${sameDay ? time : `${new Date(end).toLocaleDateString(undefined, { weekday: 'short' })} ${time}`}`;
+}
+
 function Row({
   filePath,
   name,
@@ -64,7 +111,7 @@ function Row({
 }: {
   filePath: string;
   name: string;
-  meta: string;
+  meta: ReactNode;
   lead?: ReactNode;
   status?: ReactNode;
   actions: ReactNode;
@@ -83,9 +130,7 @@ function Row({
   );
 }
 
-const modelMeta = (model: GridModel) => (typeof model.designer === 'string' ? model.designer : '');
-
-function Section({ id, title, count, children }: { id: string; title: string; count?: number; children: ReactNode }) {
+function Section({ id, title, count, summary, children }: { id: string; title: string; count?: number; summary?: string; children: ReactNode }) {
   return (
     <section className="jp-card jp-queue__section" aria-labelledby={id}>
       <header className="jp-card__header">
@@ -93,6 +138,7 @@ function Section({ id, title, count, children }: { id: string; title: string; co
           {title}
           {count ? <span className="jp-queue__count">{count}</span> : null}
         </h2>
+        {summary && <span className="jp-meta jp-queue__summary">{summary}</span>}
       </header>
       {children}
     </section>
@@ -106,16 +152,132 @@ const loading = (
   </div>
 );
 
+/** "4 h 10 min · 85 g" for the whole queue, or "… for 2 of 3" when some items do not say. */
+function queueTotals(items: QueueItem[]): string {
+  const timed = items.filter((item) => item.seconds);
+  const weighed = items.filter((item) => totalGrams(item.needs) !== null);
+  if (!timed.length && !weighed.length) return '';
+  const seconds = timed.reduce((sum, item) => sum + (item.seconds || 0), 0);
+  const grams = weighed.reduce((sum, item) => sum + (totalGrams(item.needs) || 0), 0);
+  const known = Math.max(timed.length, weighed.length);
+  return details(
+    seconds ? formatDuration(seconds) : null,
+    weighed.length ? formatGrams(grams) : null,
+    known < items.length ? `for ${known} of ${items.length}` : null
+  );
+}
+
 /**
- * The Print Queue (spec §43): Printing now, Up next (queued) and Completed (recent successful
- * prints). Models move with their print status; logging a print finishes one. No printer
- * connection, so no live progress (docs/redesign-5.md).
+ * Up next, in order. Editors drag a row by its handle to move it (the arrows do the same from the
+ * keyboard); the line shows where it goes.
+ */
+function UpNext({ queued, printers }: { queued: QueueItem[]; printers: Printer[] }) {
+  const canEdit = useCan('editor');
+  const [openCheck, setOpenCheck] = useState<number | null>(null);
+  const [armed, setArmed] = useState<number | null>(null);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
+
+  const endDrag = () => {
+    setArmed(null);
+    setDragging(null);
+    setDropAt(null);
+  };
+  const over = (event: DragEvent<HTMLLIElement>, index: number) => {
+    if (dragging === null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const box = event.currentTarget.getBoundingClientRect();
+    setDropAt(event.clientY < box.top + box.height / 2 ? index : index + 1);
+  };
+  const drop = async (event: DragEvent) => {
+    event.preventDefault();
+    const from = queued.findIndex((item) => item.id === dragging);
+    const at = dropAt;
+    endDrag();
+    if (from < 0 || at === null) return;
+    const to = at > from ? at - 1 : at;
+    if (to !== from) await printQueue.move(queued[from].id, to).catch(() => {});
+  };
+
+  return (
+    <ol className="jp-queue__list" aria-label="Up next" onDrop={(event) => void drop(event)}>
+      {queued.map((item, index) => (
+        <li
+          key={item.id}
+          className={cx(
+            'jp-queue__item',
+            dragging === item.id && 'is-dragging',
+            dropAt === index && dragging !== null && 'is-drop-before',
+            dropAt === index + 1 && index === queued.length - 1 && dragging !== null && 'is-drop-after'
+          )}
+          data-queue-id={item.id}
+          draggable={canEdit && armed === item.id}
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', String(item.id));
+            setDragging(item.id);
+          }}
+          onDragOver={(event) => over(event, index)}
+          onDragEnd={endDrag}
+        >
+          <div className="jp-queue__row">
+            {canEdit && (
+              <span
+                className="jp-queue__grip"
+                title="Drag to move"
+                aria-hidden="true"
+                onPointerDown={() => setArmed(item.id)}
+                onPointerUp={() => dragging === null && setArmed(null)}
+              >
+                <GripVertical size={16} />
+              </span>
+            )}
+            <span className="jp-queue__index" aria-hidden="true">
+              {index + 1}
+            </span>
+            <Thumb filePath={item.model.filePath} />
+            <button type="button" className="jp-queue__name" onClick={() => openModel(item.model.filePath)} title={`Show ${itemName(item)} in the library`}>
+              <span className="jp-queue__title">{itemName(item)}</span>
+              <span className="jp-queue__meta">
+                {details(plateLabel(item), item.printerName, item.seconds ? formatDuration(item.seconds) : null, item.model.designer)}
+                <Needs needs={item.needs} />
+              </span>
+            </button>
+            <span className="jp-queue__actions">
+              <QueueRowControls item={item} index={index} count={queued.length} printers={printers} />
+              {item.check && item.check.needs.length > 0 && (
+                <button
+                  type="button"
+                  className="jp-link jp-queue__check-toggle"
+                  aria-expanded={openCheck === item.id}
+                  onClick={() => setOpenCheck(openCheck === item.id ? null : item.id)}
+                >
+                  Filament
+                </button>
+              )}
+            </span>
+          </div>
+          {openCheck === item.id && item.check && (
+            <div className="jp-queue__check">
+              <FilamentCheck needs={checkRows(item.check)} label={`Filament for ${itemName(item)}`} />
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * The Print Queue (spec §43): Printing now (since when, until about when), Up next (queued, in
+ * order, with print time and filament; Start opens the model in the slicer) and Completed
+ * (recent successful prints). Logging a print finishes one.
  */
 export function QueuePage() {
-  const printing = useLibraryData(loadPrinting);
+  const printing = useLibraryData<PrintingItem[]>(loadPrinting);
   const queued = useLibraryData(loadQueued);
   const printerList = useLibraryData(loadPrinters) || [];
-  const [openCheck, setOpenCheck] = useState<number | null>(null);
   const completed = useLibraryData(loadCompleted);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -157,17 +319,27 @@ export function QueuePage() {
           </EmptyState>
         ) : (
           <ul className="jp-queue__list" aria-label="Printing now">
-            {printing.map((model) => (
+            {printing.map((item) => (
               <Row
-                key={model.filePath}
-                filePath={model.filePath}
-                name={cardTitle(model)}
-                meta={modelMeta(model)}
+                key={item.model.filePath}
+                filePath={item.model.filePath}
+                name={cardTitle(item.model)}
+                meta={
+                  <>
+                    {details(
+                      item.plate ? `Plate ${item.plate}` : null,
+                      item.printerName,
+                      item.startedAt ? `started ${timeAgo(item.startedAt)}` : null,
+                      doneAt(item.startedAt, item.seconds) || (item.seconds ? formatDuration(item.seconds) : null)
+                    )}
+                    <Needs needs={item.needs} />
+                  </>
+                }
                 status={<StatusBadge tone="accent">Printing</StatusBadge>}
                 actions={
                   <>
                     <EditOnly>
-                      <Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(model.filePath)}>
+                      <Button size="sm" variant="primary" icon={ClipboardPen} onClick={() => logPrint(item.model.filePath)}>
                         Log Print
                       </Button>
                     </EditOnly>
@@ -176,8 +348,8 @@ export function QueuePage() {
                         size="sm"
                         icon={Undo2}
                         label="Back to the queue"
-                        disabled={busy === model.filePath}
-                        onClick={() => run(model.filePath, 'queued')}
+                        disabled={busy === item.model.filePath}
+                        onClick={() => run(item.model.filePath, 'queued')}
                       />
                     </EditOnly>
                   </>
@@ -188,7 +360,7 @@ export function QueuePage() {
         )}
       </Section>
 
-      <Section id="jp-queue-next" title="Up next" count={queued?.length}>
+      <Section id="jp-queue-next" title="Up next" count={queued?.length} summary={queued ? queueTotals(queued) : undefined}>
         {!queued ? (
           loading
         ) : !queued.length ? (
@@ -205,45 +377,7 @@ export function QueuePage() {
             what the prints before it will use.
           </EmptyState>
         ) : (
-          <ol className="jp-queue__list" aria-label="Up next">
-            {queued.map((item, index) => (
-              <li key={item.id} className="jp-queue__item" data-queue-id={item.id}>
-                <div className="jp-queue__row">
-                  <span className="jp-queue__index" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <Thumb filePath={item.model.filePath} />
-                  <button
-                    type="button"
-                    className="jp-queue__name"
-                    onClick={() => openModel(item.model.filePath)}
-                    title={`Show ${itemName(item)} in the library`}
-                  >
-                    <span className="jp-queue__title">{itemName(item)}</span>
-                    <span className="jp-queue__meta">{[plateLabel(item), item.model.designer].filter(Boolean).join(' • ')}</span>
-                  </button>
-                  <span className="jp-queue__actions">
-                    <QueueRowControls item={item} index={index} count={queued.length} printers={printerList} />
-                    {item.check && item.check.needs.length > 0 && (
-                      <button
-                        type="button"
-                        className="jp-link jp-queue__check-toggle"
-                        aria-expanded={openCheck === item.id}
-                        onClick={() => setOpenCheck(openCheck === item.id ? null : item.id)}
-                      >
-                        Filament
-                      </button>
-                    )}
-                  </span>
-                </div>
-                {openCheck === item.id && item.check && (
-                  <div className="jp-queue__check">
-                    <FilamentCheck needs={checkRows(item.check)} label={`Filament for ${itemName(item)}`} />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
+          <UpNext queued={queued} printers={printerList} />
         )}
       </Section>
 
@@ -261,7 +395,7 @@ export function QueuePage() {
                 key={event.id}
                 filePath={event.filePath}
                 name={cardTitle({ filePath: event.filePath, fileName: event.fileName })}
-                meta={[timeAgo(event.at), event.printer].filter(Boolean).join(' • ')}
+                meta={details(timeAgo(event.at), event.printer)}
                 status={<StatusBadge tone="success">{event.quantity > 1 ? `Printed ×${event.quantity}` : 'Printed'}</StatusBadge>}
                 actions={
                   <EditOnly>

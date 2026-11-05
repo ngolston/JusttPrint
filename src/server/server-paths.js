@@ -214,6 +214,8 @@ const NETWORK_IPC_PATH_RULES = {
     [1, 'scanDir']
   ],
   'save-thumbnail': [[0, 'file']],
+  'get-send-options': [[0, 'file']],
+  'send-to-printer': [[1, 'file']],
   'trash-file': [[0, 'file']],
   'rename-model': [[0, 'file']],
   'set-model-categories': [[0, 'file']],

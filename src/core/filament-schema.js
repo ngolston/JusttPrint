@@ -222,6 +222,15 @@ const TABLES = [
     created_by INTEGER,
     created_at TEXT NOT NULL
   )`,
+  // A print started from the queue (src/core/print-queue.js): when, which plate, on which printer,
+  // and the sliced file sent to it, if any. Kept while the model is Printing.
+  `CREATE TABLE IF NOT EXISTS printing_now (
+    model_id INTEGER PRIMARY KEY REFERENCES models(id) ON DELETE CASCADE,
+    plate_index INTEGER,
+    printer_id INTEGER REFERENCES printers(id) ON DELETE SET NULL,
+    started_at TEXT NOT NULL,
+    sent_file TEXT
+  )`,
   // Grams set aside for a queued print, so "Ready to print" counts what earlier prints will use.
   `CREATE TABLE IF NOT EXISTS queue_spool_holds (
     queue_id INTEGER NOT NULL REFERENCES print_queue(id) ON DELETE CASCADE,

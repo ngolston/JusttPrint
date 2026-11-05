@@ -107,4 +107,100 @@ async function startFakeCamera({ host = '127.0.0.1', port, accessCode, jpeg }) {
   };
 }
 
-module.exports = { startFakeBambu, startFakeCamera };
+/**
+ * A fake printer's storage (src/server/bambu-ftps.js): FTP over TLS from the first byte, user
+ * bblp and the access code, a passive data connection that turns TLS after STOR, as a Bambu
+ * printer's. Keeps what was uploaded: files[name] is a Buffer.
+ */
+async function startFakeFtps({ host = '127.0.0.1', port = 0, accessCode, noCard = false }) {
+  const net = require('net');
+  const selfsigned = require('selfsigned');
+  const pems = await selfsigned.generate([{ name: 'commonName', value: 'bambu-e2e-ftps' }], { days: 1, keySize: 2048 });
+  const files = {};
+  const sockets = new Set();
+  const server = tls.createServer({ key: pems.private, cert: pems.cert }, (control) => {
+    sockets.add(control);
+    let user = '';
+    let signedIn = false;
+    /** @type {import('net').Server | null} */
+    let passive = null;
+    /** @type {import('net').Socket | null} */
+    let pending = null;
+    const reply = (line) => control.write(`${line}\r\n`);
+    reply('220 Bambu FTP ready');
+    let buffer = '';
+    control.on('data', (chunk) => {
+      buffer += chunk.toString();
+      let end;
+      while ((end = buffer.indexOf('\r\n')) >= 0) {
+        const line = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        const [verb, ...rest] = line.split(' ');
+        const arg = rest.join(' ');
+        const command = verb.toUpperCase();
+        if (command === 'USER') {
+          user = arg;
+          reply('331 Password required');
+        } else if (command === 'PASS') {
+          signedIn = user === 'bblp' && arg === accessCode;
+          reply(signedIn ? '230 Logged in' : '530 Login incorrect');
+        } else if (!signedIn) reply('530 Please log in');
+        else if (command === 'TYPE' || command === 'PBSZ' || command === 'PROT') reply('200 OK');
+        else if (command === 'PASV') {
+          passive = net.createServer((socket) => {
+            pending = socket;
+          });
+          passive.listen(0, host, () => {
+            const p = /** @type {import('net').AddressInfo} */ (passive.address()).port;
+            reply(`227 Entering Passive Mode (192,168,9,9,${Math.floor(p / 256)},${p % 256})`);
+          });
+        } else if (command === 'STOR') {
+          const name = arg.replace(/^\//, '');
+          // A P1 without a microSD card has nowhere to store it.
+          if (noCard) {
+            reply('553 Could not create file.');
+            if (pending) pending.destroy();
+            if (passive) passive.close();
+            passive = null;
+            pending = null;
+            continue;
+          }
+          const wait = () => {
+            if (!pending) return setTimeout(wait, 10);
+            reply('150 Opening data connection');
+            const data = new tls.TLSSocket(pending, { isServer: true, key: pems.private, cert: pems.cert });
+            const parts = [];
+            data.on('data', (part) => parts.push(part));
+            data.on('end', () => {
+              files[name] = Buffer.concat(parts);
+              data.end();
+              reply('226 Transfer complete');
+              if (passive) passive.close();
+              passive = null;
+              pending = null;
+            });
+            data.on('error', () => {});
+          };
+          wait();
+        } else if (command === 'QUIT') {
+          reply('221 Bye');
+          control.end();
+        } else reply('502 Not here');
+      }
+    });
+    control.on('close', () => sockets.delete(control));
+    control.on('error', () => {});
+  });
+  await new Promise((resolve) => server.listen(port, host, resolve));
+  return {
+    port: /** @type {import('net').AddressInfo} */ (server.address()).port,
+    files,
+    close: () =>
+      new Promise((resolve) => {
+        for (const socket of sockets) socket.destroy();
+        server.close(() => resolve());
+      })
+  };
+}
+
+module.exports = { startFakeBambu, startFakeCamera, startFakeFtps };

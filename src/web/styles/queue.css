@@ -96,12 +96,30 @@
   text-decoration: underline;
 }
 .jp-queue__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
   min-height: 18px;
   color: var(--jp-text-2);
   font-size: var(--jp-text-small);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* What a print needs: a dot per filament color and the grams. */
+.jp-queue__needs {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.jp-queue__dots {
+  display: inline-flex;
+  gap: 2px;
+}
+/* The queue's print time and grams, beside Up next. */
+.jp-queue__summary {
+  font-variant-numeric: tabular-nums;
 }
 .jp-queue__actions {
   display: flex;
@@ -150,4 +168,110 @@
   .jp-queue__check {
     padding-left: 0;
   }
+}
+
+/* Drag to reorder (pages/QueuePage.tsx UpNext): the handle, the row being moved and where it lands. */
+.jp-queue__grip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 32px;
+  border-radius: var(--jp-radius-sm);
+  color: var(--jp-text-3);
+  cursor: grab;
+  touch-action: none;
+}
+.jp-queue__grip:hover {
+  background: var(--jp-surface-hover);
+  color: var(--jp-text);
+}
+.jp-queue__item {
+  position: relative;
+}
+.jp-queue__item.is-dragging {
+  opacity: 0.45;
+}
+.jp-queue__item.is-drop-before::before,
+.jp-queue__item.is-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-accent);
+}
+.jp-queue__item.is-drop-before::before {
+  top: -2px;
+}
+.jp-queue__item.is-drop-after::after {
+  bottom: -2px;
+}
+
+/* Send to a printer (queue/SendToPrinter.tsx). */
+#send-to-printer-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.jp-send__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-3);
+}
+.jp-send__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.jp-send__trays {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  margin: 0;
+  padding: var(--jp-space-3);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+}
+.jp-send__trays legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.jp-send__tray {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: var(--jp-space-3);
+}
+.jp-send__filament {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-send__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jp-space-2) var(--jp-space-4);
+}
+.jp-send__checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.jp-send__note {
+  padding: var(--jp-space-3);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-info-soft);
+  color: var(--jp-text);
+  line-height: 1.5;
+}
+.jp-send__warning {
+  margin: 0;
+  color: var(--jp-warning-text);
+  font-size: var(--jp-text-meta);
+}
+.jp-send__error {
+  margin: var(--jp-space-3) 0 0;
+  color: var(--jp-danger-text);
 }
