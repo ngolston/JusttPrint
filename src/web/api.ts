@@ -1,5 +1,6 @@
 /**
- * Calls to the server's HTTP API: POST /api/actions/<name> with { args } (src/server/api.js).
+ * Calls to the server's HTTP API: POST /api/actions/<name> with { args } (src/server/api.js);
+ * reads made at once go together through POST /api/batch.
  * Each action the React screens use gets a typed function below.
  */
 
@@ -42,15 +43,21 @@ const SHARED_READS = new Set([
   'get-collections'
 ]);
 const SHARED_MS = 1500;
-const shared = new Map<string, { at: number; answer: Promise<unknown> }>();
+/** Answers kept for SHARED_READS, and any read while it is on its way (asked again, it waits for the same answer). */
+const shared = new Map<string, { at: number; answer: Promise<unknown>; pending: boolean }>();
 
 /** Forget the shared answers (something changed). */
 export function forgetSharedReads() {
   shared.clear();
 }
 
+/** Reads (get-…, getThumbnail), which can travel together in a batch. */
+const batchable = (name: string) => /^get/.test(name) && !changesData(name);
+
 export async function callAction<T>(name: string, ...args: unknown[]): Promise<T> {
-  if (!SHARED_READS.has(name)) {
+  if (!batchable(name)) {
+    // The reads asked for before go first, so a change never overtakes them.
+    flushReads();
     if (changesData(name)) shared.clear();
     return sendAction<T>(name, args);
   }
@@ -59,14 +66,138 @@ export async function callAction<T>(name: string, ...args: unknown[]): Promise<T
   const known = shared.get(key);
   // Each caller gets its own copy: one sorting or changing its list must not change another's.
   const copy = (answer: Promise<unknown>) => answer.then((value) => (value && typeof value === 'object' ? structuredClone(value) : value)) as Promise<T>;
-  if (known && now - known.at < SHARED_MS) return copy(known.answer);
-  const answer = sendAction<T>(name, args);
-  shared.set(key, { at: now, answer });
-  // A failed read is not kept.
-  answer.catch(() => {
-    if (shared.get(key)?.answer === answer) shared.delete(key);
-  });
+  if (known && (known.pending || (SHARED_READS.has(name) && now - known.at < SHARED_MS))) return copy(known.answer);
+  const answer = queueRead<T>(name, args);
+  const entry = { at: now, answer: answer as Promise<unknown>, pending: true };
+  shared.set(key, entry);
+  answer.then(
+    () => {
+      entry.pending = false;
+      // Only SHARED_READS are kept after they arrive.
+      if (!SHARED_READS.has(name) && shared.get(key) === entry) shared.delete(key);
+    },
+    () => {
+      // A failed read is not kept.
+      if (shared.get(key) === entry) shared.delete(key);
+    }
+  );
   return copy(answer);
+}
+
+// ---- Batches: the reads a page makes at once, in one request -----------------------------------
+
+/**
+ * Reads asked for in the same moment (one task of the page: all of Home's widgets as they mount,
+ * a page of thumbnails) go to the backend together (POST /api/batch, src/server/api.js), each
+ * answered as soon as it is done. They leave as soon as that task ends; only pictures wait a few
+ * milliseconds for the cards drawn after them. Behind a reverse proxy or a tunnel every request costs a round trip, so Home's widgets
+ * and their pictures load in a few requests instead of a hundred.
+ */
+const BATCH_MAX = 50;
+let flushQueued = false;
+/** Pictures wait a moment for the cards drawn just after them (nothing depends on their order). */
+const PICTURE_WAIT_MS = 10;
+let pictureTimer: ReturnType<typeof setTimeout> | null = null;
+interface QueuedRead {
+  name: string;
+  args: unknown[];
+  resolve: (value: unknown) => void;
+  reject: (error: unknown) => void;
+}
+let queued: QueuedRead[] = [];
+
+function queueRead<T>(name: string, args: unknown[]): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    queued.push({ name, args, resolve: resolve as (value: unknown) => void, reject });
+    if (queued.length >= BATCH_MAX) flushReads();
+    else if (name === 'getThumbnail') {
+      if (!flushQueued && !pictureTimer) pictureTimer = setTimeout(flushReads, PICTURE_WAIT_MS);
+    } else if (!flushQueued) {
+      flushQueued = true;
+      queueMicrotask(flushReads);
+    }
+  });
+}
+
+function flushReads() {
+  flushQueued = false;
+  if (pictureTimer) clearTimeout(pictureTimer);
+  pictureTimer = null;
+  const calls = queued;
+  queued = [];
+  if (calls.length === 1) sendAction(calls[0].name, calls[0].args).then(calls[0].resolve, calls[0].reject);
+  else if (calls.length > 1) void sendBatch(calls);
+}
+
+async function sendBatch(calls: QueuedRead[]) {
+  let response: Response;
+  try {
+    response = await fetch('/api/batch', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: clientHeaders(),
+      body: JSON.stringify({ calls: calls.map(({ name, args }) => ({ name, args })) })
+    });
+  } catch (error) {
+    // Cut off by the page going away: never settle, so no caller logs it.
+    if (!leaving) calls.forEach((call) => call.reject(error));
+    return;
+  }
+  if (response.status === 401) {
+    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+  }
+  if (!response.ok || !response.body) {
+    // A backend without batches: each call on its own.
+    if (response.status === 404) {
+      calls.forEach((call) => sendAction(call.name, call.args).then(call.resolve, call.reject));
+      return;
+    }
+    const failed = new ApiError(`HTTP ${response.status}`, response.status);
+    calls.forEach((call) => call.reject(failed));
+    return;
+  }
+  const settled = new Set<number>();
+  const answer = (line: string) => {
+    let data: { i?: number; result?: unknown; error?: string; status?: number };
+    try {
+      data = JSON.parse(line);
+    } catch {
+      return;
+    }
+    const at = Number(data.i);
+    const call = calls[at];
+    if (!call || settled.has(at)) return;
+    settled.add(at);
+    if (data.error !== undefined) call.reject(new ApiError(data.error, data.status ?? 500));
+    else call.resolve(data.result);
+  };
+  // One line per call, as each is done (empty lines keep the connection alive).
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let end: number;
+      while ((end = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, end);
+        buffer = buffer.slice(end + 1);
+        if (line.trim()) answer(line);
+      }
+    }
+    if (buffer.trim()) answer(buffer);
+  } catch (error) {
+    if (leaving) return;
+    calls.forEach((call, at) => {
+      if (!settled.has(at)) call.reject(error);
+    });
+    return;
+  }
+  const missing = new ApiError('No answer from the JusttPrint backend', 502);
+  calls.forEach((call, at) => {
+    if (!settled.has(at)) call.reject(missing);
+  });
 }
 
 /**

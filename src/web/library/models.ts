@@ -4,6 +4,7 @@
  */
 import { callAction } from '../api';
 import { setViewCount } from '../filters/counts';
+import { gridHasLoaded } from '../filters/search';
 import { getFilterState } from '../filters/store';
 import { bundleKey, dedupeModels, folderKey, normalizePath, type GridModel } from '../grid/layout';
 import { getGridView } from '../grid/view';
@@ -97,7 +98,8 @@ export function rebuildGrid() {
   const models = grid?.currentModels ? [...grid.currentModels] : null;
   if (grid) grid.currentModels = null;
   if (models?.length) showModels(models);
-  else window.performCombinedSearch?.();
+  // Before the grid's first load (startup/start.ts waits on other pages) there is nothing to lay out.
+  else if (gridHasLoaded()) window.performCombinedSearch?.();
 }
 
 /** Repaint the cards (after edits to the shown models in place). */

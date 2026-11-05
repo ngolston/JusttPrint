@@ -1,6 +1,6 @@
 'use strict';
 
-// The HTTP API route (api.js): roles, status codes, binary results, and keep-alive for long calls.
+// The HTTP API route (api.js): roles, status codes, binary results, keep-alive for long calls, and batches.
 const assert = require('assert');
 const express = require('express');
 const { ipcMain } = require('./runtime');
@@ -99,6 +99,54 @@ async function main() {
     assert.strictEqual(res.status, 200);
     text = await res.text();
     assert.deepStrictEqual(JSON.parse(text), { error: 'slow failure' });
+
+    // Batches: each call checked and answered as if alone, one JSON line each as it is done.
+    const batch = (calls, headers = {}) =>
+      fetch(`${base}/api/batch`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ calls }) });
+    /** The answer lines, by their place in the batch, and the order they came in. */
+    const lines = async (response) => {
+      const got = (await response.text())
+        .split('\n')
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line));
+      return { byIndex: Object.fromEntries(got.map(({ i, ...rest }) => [i, rest])), order: got.map((line) => line.i) };
+    };
+    res = await batch(
+      [
+        { name: 'get-stats', args: [] },
+        { name: 'get-default-ai-prompt', args: [] },
+        { name: 'get-gpu-info', args: [] },
+        { name: 'no-such-action', args: [] },
+        { name: 'get-stats', args: ['extra'] }
+      ],
+      { 'x-test-role': 'viewer' }
+    );
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('content-type'), 'application/x-ndjson');
+    let { byIndex, order } = await lines(res);
+    assert.deepStrictEqual(byIndex[0], { result: { totalModels: 4, args: [], mesh: [1.5, 2] } });
+    assert.strictEqual(byIndex[1].status, 403, 'roles are checked per call');
+    assert.match(byIndex[1].error, /Viewer accounts cannot do this/);
+    assert.deepStrictEqual(byIndex[2], { error: 'no GPU here', status: 500 });
+    assert.strictEqual(byIndex[3].status, 404);
+    assert.strictEqual(byIndex[4].status, 400, 'arguments are checked per call');
+    // An admin's binary result comes as base64.
+    ({ byIndex } = await lines(await batch([{ name: 'get-default-ai-prompt', args: [] }])));
+    assert.strictEqual(byIndex[0].result.__arrayBuffer, true);
+    assert.deepStrictEqual([...Buffer.from(byIndex[0].result.data, 'base64')], [0, 1, 2, 255]);
+    // A slow call does not hold up a quick one: the quick answer comes first.
+    ({ byIndex, order } = await lines(
+      await batch([
+        { name: 'benchmark-database', args: [] },
+        { name: 'get-stats', args: [] }
+      ])
+    ));
+    assert.deepStrictEqual(order, [1, 0], 'answers come as they are done');
+    assert.deepStrictEqual(byIndex[0], { error: 'slow failure', status: 500 });
+    assert.strictEqual((await batch([])).status, 400, 'an empty batch is refused');
+    assert.strictEqual((await batch(Array.from({ length: 51 }, () => ({ name: 'get-stats', args: [] })))).status, 400, 'at most 50 calls');
+    ({ byIndex } = await lines(await batch([{ name: 'get-stats', args: [] }], { 'x-test-role': 'none' })));
+    assert.strictEqual(byIndex[0].status, 403, 'no user, no call in a batch either');
   } finally {
     server.close();
   }
