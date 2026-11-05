@@ -69,6 +69,10 @@ const yieldToPage = () =>
 
 let generation = 0;
 let inProgress = false;
+let searched = false;
+
+/** Whether the grid has loaded once (startup/start.ts starts it; until then a redraw has nothing to lay out). */
+export const gridHasLoaded = () => searched;
 
 export interface SearchOptions {
   /** Run even while another search is loading (it replaces that one). */
@@ -85,6 +89,7 @@ export function applyFilterChange(change: () => void) {
 }
 
 export async function runSearch(options: SearchOptions = {}): Promise<void> {
+  searched = true;
   if (inProgress && !options.force) return;
   const grid = options.preserveScroll ? document.querySelector<HTMLElement & { currentModels?: Model[] }>('.file-grid') : null;
   // The grid scrolls with the page (grid/LibraryGrid.tsx).

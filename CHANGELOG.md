@@ -2,6 +2,15 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.15.0] - 2026-11-05
+
+Every page loads faster, most of all over the internet.
+
+**Changes:**
+- **Every page loads faster.** Pages now ask the JusttPrint backend for their widgets, settings and pictures together, in a few requests instead of dozens (Home: about 15 instead of about 100). Each answer still arrives as soon as it is ready. Over the internet (through Cloudflare or another proxy), Home's widgets show in under half the time they took.
+- **Other pages no longer wait for the Models grid.** Opened on any other page, JusttPrint loads your whole library in the background only after that page has loaded, or as soon as you open Models.
+- **Duplicates shows its pictures sooner.** Stored pictures load together; only the missing ones are still drawn a few at a time.
+
 ## [10.14.0] - 2026-11-05
 
 Models, Printing and Settings in the sidebar now open their menu, and you pick the page from it.

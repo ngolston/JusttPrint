@@ -45,7 +45,7 @@ export function keepOnly(selected: Set<string>, group: DuplicateGroup, keep: str
   return next;
 }
 
-/** Loads thumbnails a few at a time, newest request first, so scrolling stays responsive. */
+/** Draws missing thumbnails a few at a time, newest request first, so scrolling stays responsive. */
 const previewQueue = (() => {
   let running = 0;
   const waiting: (() => Promise<void>)[] = [];
@@ -65,21 +65,25 @@ const previewQueue = (() => {
   };
 })();
 
-async function loadPreview(filePath: string): Promise<string | null> {
+/** The stored thumbnail (asked for at once: the page's ask together, src/web/api.ts), or null. */
+async function storedPreview(filePath: string): Promise<string | null> {
   const stored = await dedup.thumbnail(filePath).catch(() => null);
-  if (stored && stored !== '3d.png' && stored.trim()) return stored;
-  // No stored thumbnail: draw one in this browser.
-  return (await makeThumbnail(filePath).catch(() => null))?.image ?? null;
+  return stored && stored !== '3d.png' && stored.trim() ? stored : null;
 }
 
 function Preview({ filePath }: { filePath: string }) {
   const [image, setImage] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     let live = true;
-    previewQueue(async () => {
+    void storedPreview(filePath).then((stored) => {
       if (!live) return;
-      const result = await loadPreview(filePath);
-      if (live) setImage(result);
+      if (stored) return setImage(stored);
+      // No stored thumbnail: draw one in this browser, a few at a time.
+      previewQueue(async () => {
+        if (!live) return;
+        const drawn = (await makeThumbnail(filePath).catch(() => null))?.image ?? null;
+        if (live) setImage(drawn);
+      });
     });
     return () => {
       live = false;
