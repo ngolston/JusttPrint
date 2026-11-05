@@ -62,7 +62,8 @@ export function DetailsPath() {
               {row.kind === 'file' ? (
                 <span className="path-tree-file">{row.label}</span>
               ) : (
-                <span
+                <button
+                  type="button"
                   className="path-tree-folder"
                   data-path={row.directory}
                   title="Show this folder in the library"
@@ -73,7 +74,7 @@ export function DetailsPath() {
                   }}
                 >
                   {row.label}
-                </span>
+                </button>
               )}
             </div>
           ))

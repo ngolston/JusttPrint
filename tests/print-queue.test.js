@@ -84,6 +84,47 @@ test('adding, moving, removing and starting', () => {
   assert.strictEqual(queue.removeFromQueue(db, 999), null);
 });
 
+test('printing now: when a started item began, its plate and printer, and what it needs', () => {
+  const db = fresh();
+  const a = model(db, 'a.3mf');
+  const b = model(db, 'b.3mf');
+  replacePlateFilaments(db, a, '3mf', [
+    { plate: 1, slot: 1, material: 'PLA', color: '#ff0000', grams: 12 },
+    { plate: 2, slot: 1, material: 'PLA', color: '#ff0000', grams: 30 },
+    { plate: 2, slot: 2, material: 'PETG', color: '#00ff00', grams: 5 }
+  ]);
+  const printer = Number(
+    db.prepare("INSERT INTO printers (nickname, created_at, updated_at) VALUES ('X1C', '2026-01-01', '2026-01-01')").run().lastInsertRowid
+  );
+  const qa = queue.addToQueue(db, a, { plate: 2, printerId: printer });
+  assert.deepStrictEqual(queue.listQueue(db)[0].needs, [
+    { material: 'PLA', color: '#ff0000', grams: 30 },
+    { material: 'PETG', color: '#00ff00', grams: 5 }
+  ]);
+  queue.startQueueItem(db, qa);
+  // b set to Printing elsewhere: no start time.
+  db.prepare("UPDATE models SET print_status = 'printing' WHERE id = ?").run(b);
+  const printing = queue.listPrinting(db);
+  assert.deepStrictEqual(
+    printing.map((p) => [p.model.fileName, p.plate, p.printerName, !!p.startedAt]),
+    [
+      ['b.3mf', null, null, false],
+      ['a.3mf', 2, 'X1C', true]
+    ]
+  );
+  assert.deepStrictEqual(
+    printing[1].needs.map((n) => n.grams),
+    [30, 5]
+  );
+  // Logged, so no longer Printing: it leaves printing now.
+  db.prepare("UPDATE models SET print_status = 'printed' WHERE id = ?").run(a);
+  assert.deepStrictEqual(
+    queue.listPrinting(db).map((p) => p.model.fileName),
+    ['b.3mf']
+  );
+  assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM printing_now').get().n, 0, 'its row is gone');
+});
+
 test('a plate must be one the model has; a printer must exist', () => {
   const db = fresh();
   const a = model(db, 'kit.3mf');

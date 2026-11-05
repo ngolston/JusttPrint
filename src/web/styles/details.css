@@ -482,11 +482,30 @@ body.jp-shell-on #model-details .details-name-field {
 #model-details #path-tree-container .path-tree-icon {
   display: none;
 }
+/* A folder of the path is a button (keyboard and screen readers), drawn as a link. */
+#model-details #path-tree-container button.path-tree-folder {
+  display: inline;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--jp-radius-sm);
+  background: none;
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+}
+#model-details #path-tree-container button.path-tree-folder:focus-visible {
+  outline: none;
+  box-shadow: var(--jp-focus-ring);
+}
 #model-details #path-tree-container .path-tree-folder {
   color: var(--jp-accent-text);
   cursor: pointer;
 }
 #model-details #path-tree-container .path-tree-folder:hover {
+  background: none;
   text-decoration: underline;
 }
 #model-details #path-tree-container .path-tree-file {

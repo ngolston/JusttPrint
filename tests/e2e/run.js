@@ -40,6 +40,8 @@ const HOST_FOR_SERVER = DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1';
 const SLOW = DOCKER_IMAGE ? 3 : 1;
 // The fake Bambu printer's camera (fake-bambu.js), told to the server (bambu-camera.js).
 let CAMERA_PORT = 0;
+/** The fake printer's storage (FTPS), for Send to a printer (src/server/bambu-send.js). */
+let FTPS_PORT = 0;
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME = process.env.CHROME_PATH || (fs.existsSync(MAC_CHROME) ? MAC_CHROME : '');
 
@@ -193,6 +195,7 @@ function startServer(port) {
       // Keep Move to Trash inside the work folder (the home trash is the fallback on a single-drive machine).
       XDG_DATA_HOME: path.join(WORK, 'share'),
       JUSTTPRINT_BAMBU_CAMERA_PORT: String(CAMERA_PORT),
+      JUSTTPRINT_BAMBU_FTPS_PORT: String(FTPS_PORT),
       ...(CHROME ? { JUSTTPRINT_CHROMIUM: CHROME } : {})
     }
   });
@@ -211,6 +214,7 @@ function startContainer(port, log) {
     STL_HOME: LIBRARY,
     XDG_DATA_HOME: path.join(WORK, 'share'),
     JUSTTPRINT_BAMBU_CAMERA_PORT: String(CAMERA_PORT),
+    JUSTTPRINT_BAMBU_FTPS_PORT: String(FTPS_PORT),
     PUID: String(process.getuid()),
     PGID: String(process.getgid()),
     ...(process.env.JUSTTPRINT_LOG_LEVEL ? { JUSTTPRINT_LOG_LEVEL: process.env.JUSTTPRINT_LOG_LEVEL } : {})
@@ -3630,8 +3634,10 @@ async function browserChecks(base, wsUrl, session) {
       () => false
     );
     await page.click('#whats-new-dialog[open] button:text-is("Got it")').catch(() => {});
-    // As if this account last saw 10.10.0: the next visit shows every version since, then not again.
-    await invoke(base, session, 'save-setting', ['whatsNewSeen', '10.10.0']);
+    // The released versions, newest first (CHANGELOG.md): as if this account last saw the third.
+    // The next visit shows the two since, then not again.
+    const released = [...fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map((m) => m[1]);
+    await invoke(base, session, 'save-setting', ['whatsNewSeen', released[2]]);
     await page.reload();
     const afterUpdate = await page.waitForSelector('#whats-new-dialog[open] .jp-whats-new__entry', { timeout: 30000 }).then(
       async () => page.$$eval('#whats-new-dialog .jp-whats-new__version', (list) => list.map((el) => el.textContent)),
@@ -3645,9 +3651,9 @@ async function browserChecks(base, wsUrl, session) {
     check(
       "What's New opens from Settings → Help, and once after an update with every version since the last seen",
       helpWhatsNew &&
-        afterUpdate.length >= 2 &&
-        afterUpdate.some((text) => text.startsWith('Version 10.11.0')) &&
-        !afterUpdate.some((text) => text.startsWith('Version 10.10.0')) &&
+        afterUpdate.length === 2 &&
+        afterUpdate[0].startsWith(`Version ${released[0]}`) &&
+        afterUpdate[1].startsWith(`Version ${released[1]}`) &&
         seenNow === require(path.join(ROOT, 'package.json')).version &&
         !shownAgain,
       JSON.stringify({ helpWhatsNew, afterUpdate, seenNow, shownAgain })
@@ -3824,13 +3830,22 @@ async function browserChecks(base, wsUrl, session) {
           () => false
         ))
     );
+    // Start opens the model in the slicer; with none set up it asks first (queue/QueueParts.tsx).
     await page.click(`${queuedRow} button:has-text("Start")`);
+    const noSlicer = await page.waitForSelector('dialog[open]:has-text("No slicer is set up") button:text-is("Start")', { timeout: 10000 }).catch(() => null);
+    if (noSlicer) await noSlicer.click();
     const startedRow = 'ul[aria-label="Printing now"] .jp-queue__row';
     const started = await page.waitForSelector(startedRow, { timeout: 10000 }).then(
       () => true,
       () => false
     );
-    check('Start moves it to Printing now', started && (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing');
+    check(
+      'Start asks when no slicer is set up, then moves it to Printing now, with when it started',
+      !!noSlicer &&
+        started &&
+        (await invoke(base, session, 'get-model', [queuedModel])).result?.print_status === 'printing' &&
+        /started/.test((await page.textContent(startedRow).catch(() => '')) || '')
+    );
     await page.click(`${startedRow} button[aria-label="Back to the queue"]`);
     await page.waitForSelector(queuedRow, { timeout: 10000 }).catch(() => {});
     await page.click(`${queuedRow} button[aria-label^="Remove"][aria-label$="from the queue"]`);
@@ -5537,6 +5552,63 @@ async function browserChecks(base, wsUrl, session) {
       ).catch(() => false);
       const after = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === liveSpool.id);
       check('a tray taken out of the AMS empties its slot; the spool stays', emptied === true && !!after && after.loaded.length === 0);
+
+      // Send to a printer (src/server/bambu-send.js): a queued sliced project goes to the fake
+      // printer's storage, then the print command names its plate; the item is printing.
+      const fakeFtps = await require('./fake-bambu').startFakeFtps({
+        host: DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1',
+        port: FTPS_PORT,
+        accessCode: 'e2e-live-code'
+      });
+      try {
+        // A real model (box.3mf) sliced: its plate 1 with G-code and what it uses.
+        const { zipSync, unzipSync, strToU8 } = require('fflate');
+        const slicedPath = path.join(liveDir, 'E2E Send Robot.gcode.3mf');
+        const project = unzipSync(new Uint8Array(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'library', 'Designer B', 'box.3mf'))));
+        project['Metadata/slice_info.config'] = strToU8(
+          '<config><plate><metadata key="index" value="1"/><metadata key="prediction" value="3600"/><metadata key="weight" value="12"/><filament id="1" type="PETG" color="#E05A1A" used_g="12"/></plate></config>'
+        );
+        project['Metadata/plate_1.gcode'] = strToU8('G28\n');
+        fs.writeFileSync(slicedPath, Buffer.from(zipSync(project)));
+        await invoke(base, session, 'scan-directory', [liveDir]);
+        await waitFor(
+          async () => (((await invoke(base, session, 'get-all-models')).result || []).some((m) => m.filePath === slicedPath) ? true : null),
+          30000 * SLOW,
+          'the sliced model'
+        );
+        const queuedSend = await invoke(base, session, 'add-to-queue', [slicedPath, { plate: 1 }]);
+        if (queuedSend.status !== 200) throw new Error(`add-to-queue: ${JSON.stringify(queuedSend)}`);
+        await page.evaluate(() => {
+          window.location.hash = '#/queue';
+        });
+        const row = '.jp-queue__item:has-text("E2E Send Robot")';
+        await page.click(`${row} button[title^="Send "]`, { timeout: 15000 * SLOW });
+        await page.waitForSelector('#send-to-printer-dialog[open] #send-to-printer-confirm:not([disabled])', { timeout: 15000 * SLOW });
+        const dialogText = await page.textContent('#send-to-printer-dialog');
+        await page.click('#send-to-printer-confirm');
+        const sentNote = await page.waitForSelector('dialog[open]:has-text("Sent to the printer") button', { timeout: 30000 * SLOW }).catch(() => null);
+        if (sentNote) await sentNote.click();
+        const command = fakeBambu.received.find((m) => m.type === 'publish' && m.payload && m.payload.print && m.payload.print.command === 'project_file');
+        const printingNow = ((await invoke(base, session, 'get-printing-now')).result || []).find((i) => i.model.filePath === slicedPath);
+        check(
+          'Send uploads a queued sliced project to a Bambu printer and starts its plate; it is printing now on that printer',
+          !!sentNote &&
+            /E2E Live P1S/.test(dialogText) &&
+            /Plate 1/.test(dialogText) &&
+            !!fakeFtps.files['E2E Send Robot.gcode.3mf'] &&
+            !!command &&
+            command.payload.print.param === 'Metadata/plate_1.gcode' &&
+            command.payload.print.url === 'file:///sdcard/E2E Send Robot.gcode.3mf' &&
+            printingNow?.printerName === 'E2E Live P1S' &&
+            printingNow?.sentFile === 'E2E Send Robot.gcode.3mf',
+          JSON.stringify({ sent: !!sentNote, files: Object.keys(fakeFtps.files), command: command?.payload?.print?.param, printingNow })
+        );
+        await invoke(base, session, 'set-print-status', [{ filePath: slicedPath, printStatus: 'unprinted' }]).catch(() => {});
+      } finally {
+        // A failed check must not leave the dialog over the next checks' pages.
+        await page.evaluate(() => /** @type {HTMLDialogElement | null} */ (document.getElementById('send-to-printer-dialog'))?.close()).catch(() => {});
+        await fakeFtps.close();
+      }
       await fakeBambu.close();
       await page.evaluate((id) => {
         window.location.hash = `#/printers/${id}`;
@@ -8681,6 +8753,7 @@ async function accountChecks(base, wsUrl, admin) {
 async function main() {
   const port = await freePort();
   CAMERA_PORT = await freePort();
+  FTPS_PORT = await freePort();
   const base = `http://127.0.0.1:${port}`;
   const wsUrl = `ws://127.0.0.1:${port}`;
   const server = startServer(port);

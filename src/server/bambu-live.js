@@ -7,8 +7,9 @@
  * temperatures for browsers ('printer-live'), its status in Printers, and its AMS slots kept in
  * line with the trays (src/core/printer-ams.js `syncFromPrinter`).
  *
- * It only reads. The one thing it sends is "pushall", the request for the printer's whole state;
- * no print job, no setting, nothing that moves the printer.
+ * On its own it only reads: what it sends is "pushall", the request for the printer's whole state.
+ * `command` is for the one thing that starts the printer, a print sent from the queue
+ * (bambu-send.js).
  */
 
 const { MqttClient } = require('./mqtt-client');
@@ -479,7 +480,24 @@ function createLive(deps) {
     return entry ? { host: entry.config.host, secret: entry.config.secret } : null;
   }
 
-  return { refresh, stop, list, cameraConfig, _entries: entries };
+  /**
+   * For sending a print (bambu-send.js): the followed printer's address, serial number, access
+   * code and what it is doing now, or null.
+   */
+  function target(printerId) {
+    const entry = entries.get(Number(printerId));
+    return entry ? { host: entry.config.host, serial: entry.config.serial, secret: entry.config.secret, summary: summarize(entry) } : null;
+  }
+
+  /** Send a command to a connected printer (its request topic). False when it is not connected. */
+  function command(printerId, payload) {
+    const entry = entries.get(Number(printerId));
+    if (!entry || !entry.connected || !entry.client) return false;
+    entry.client.publish(`device/${entry.config.serial}/request`, payload);
+    return true;
+  }
+
+  return { refresh, stop, list, cameraConfig, target, command, _entries: entries };
 }
 
 /** @type {ReturnType<typeof createLive> | null} */
@@ -512,4 +530,10 @@ const status = () => (live ? live.list() : []);
 /** For the camera: the followed printer's address and access code, or null. */
 const cameraConfig = (printerId) => (live ? live.cameraConfig(printerId) : null);
 
-module.exports = { start, stop, printersChanged, status, cameraConfig, createLive, summarize, amsFromReport, merge, parseAddress };
+/** For sending a print: the followed printer's connection and state, or null. */
+const target = (printerId) => (live ? live.target(printerId) : null);
+
+/** Send a command to a followed, connected printer; false when it is not. */
+const command = (printerId, payload) => (live ? live.command(printerId, payload) : false);
+
+module.exports = { start, stop, printersChanged, status, cameraConfig, target, command, createLive, summarize, amsFromReport, merge, parseAddress };

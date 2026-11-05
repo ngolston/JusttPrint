@@ -2,6 +2,21 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.16.0] - 2026-11-05
+
+A better Print Queue: send prints to a Bambu Lab printer, Start opens OrcaSlicer, more on each print, and drag to reorder.
+
+**Upgrade notes:**
+- **Send to a Bambu Lab printer.** To send prints from the Queue, the printer needs its address, serial number and access code in Printers (as for live status) and, on recent firmware, **LAN Only mode** and **Developer Mode** on (the printer's Settings → Network). A P1 or A1 also needs a microSD card in it (the file goes there). JusttPrint sends sliced files only: export them from OrcaSlicer with **Export plate sliced file** and save the `.gcode.3mf` next to the model.
+
+**Changes:**
+- **Send prints to a Bambu Lab printer.** **Send** on a queued model uploads its sliced project to the printer and starts the plate you choose, each filament from the AMS tray you pick (matched by color and material to start with). Printers that are busy or offline cannot be chosen. The model moves to Printing now on that printer.
+- **Start opens the model in OrcaSlicer.** Start on a queued model opens it in your slicer (OrcaSlicer when set up) and moves it to Printing now.
+- **More on each print.** Queue rows show the plate, printer, print time and filament (a dot per color and the grams), and Up next shows the time and grams of the whole queue. Printing now says when each print started and when it should be done.
+- **Drag to reorder the queue.** Drag a row by its handle; the arrows still work from the keyboard.
+- **Sliced files read well.** A model named "Robot Arm.gcode.3mf" shows as "Robot Arm".
+- **The folders of a model's path are buttons**, so the keyboard and screen readers reach them.
+
 ## [10.15.0] - 2026-11-05
 
 Every page loads faster, most of all over the internet.

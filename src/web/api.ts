@@ -1218,13 +1218,39 @@ export interface QueueItem {
   model: { id: number; filePath: string; fileName: string; title: string | null; designer: string | null; printStatus: string | null };
   /** The model's plates (from 1); empty when not known. */
   plates: number[];
+  /** What the plate (or every plate) needs, one entry per filament; empty when not known. */
+  needs: QueueNeed[];
+  /** Print time from the model's 3MF, or null when it does not say. */
+  seconds: number | null;
   /** Null when its filament is not known or there are no spools. */
   check: FilamentCheckResult | null;
+}
+
+/** One filament a queued or printing model needs. */
+export interface QueueNeed {
+  material: string | null;
+  color: string | null;
+  grams: number | null;
+}
+
+/** A model printing now (src/core/print-queue.js listPrinting). */
+export interface PrintingItem {
+  plate: number | null;
+  printerId: number | null;
+  printerName: string | null;
+  /** When the queue started it; null for a model set to Printing elsewhere. */
+  startedAt: string | null;
+  /** The sliced file sent to the printer, if any. */
+  sentFile: string | null;
+  model: QueueItem['model'];
+  needs: QueueNeed[];
+  seconds: number | null;
 }
 
 /** The print queue (docs/merge-10.md, Phase 6). */
 export const printQueue = {
   list: () => callAction<QueueItem[]>('get-print-queue'),
+  printing: () => callAction<PrintingItem[]>('get-printing-now'),
   add: (filePath: string, options: { plate?: number | null; printerId?: number | null } = {}) => callAction<number>('add-to-queue', filePath, options),
   update: (id: number, changes: { plate?: number | null; printerId?: number | null }) => callAction<unknown>('update-queue-item', id, changes),
   move: (id: number, toIndex: number) => callAction<unknown>('move-queue-item', id, toIndex),

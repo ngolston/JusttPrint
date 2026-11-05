@@ -337,6 +337,9 @@ export function cardTitle(model: GridModel): string {
   const title = typeof model.title === 'string' ? model.title.trim() : '';
   if (title) return title;
   const name = displayFileName(model);
+  // A sliced project (OrcaSlicer, Bambu Studio) is "Robot Arm.gcode.3mf": both endings go.
+  const sliced = /\.gcode\.3mf$/i.exec(name);
+  if (sliced && sliced.index > 0) return name.slice(0, sliced.index);
   const dot = name.lastIndexOf('.');
   return dot > 0 ? name.slice(0, dot) : name;
 }

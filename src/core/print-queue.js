@@ -110,7 +110,40 @@ function listQueue(db) {
       createdAt: row.created_at,
       model: { id: row.model_id, filePath: row.filePath, fileName: row.fileName, title: row.title, designer: row.designer, printStatus: row.print_status },
       plates: platesOf(getPlateFilaments(db, row.model_id)),
+      needs: needsOf(db, row.model_id, row.plate_index),
       check: checks.get(row.id) ?? null
+    }));
+}
+
+/** What a model's plate (null: every plate) needs, one entry per filament: { material, color, grams }. */
+function needsOf(db, modelId, plate) {
+  return needsFrom(getPlateFilaments(db, modelId), plate ?? null).map((need) => ({ material: need.material, color: need.color, grams: need.grams }));
+}
+
+/**
+ * What is printing now: every Printing model, with the plate, printer and start time of the print
+ * the queue started (null for one set to Printing elsewhere) and what it needs. Rows of models no
+ * longer Printing go.
+ */
+function listPrinting(db) {
+  db.prepare("DELETE FROM printing_now WHERE model_id NOT IN (SELECT id FROM models WHERE print_status = 'printing')").run();
+  return db
+    .prepare(
+      `SELECT m.id AS model_id, m.filePath, m.fileName, m.title, m.designer, m.print_status,
+        n.plate_index, n.printer_id, n.started_at, n.sent_file, p.nickname AS printer_name
+       FROM models m LEFT JOIN printing_now n ON n.model_id = m.id LEFT JOIN printers p ON p.id = n.printer_id
+       WHERE m.print_status = 'printing'
+       ORDER BY COALESCE(n.started_at, ''), m.fileName COLLATE NOCASE`
+    )
+    .all()
+    .map((row) => ({
+      plate: row.plate_index ?? null,
+      printerId: row.printer_id ?? null,
+      printerName: row.printer_name ?? null,
+      startedAt: row.started_at ?? null,
+      sentFile: row.sent_file ?? null,
+      model: { id: row.model_id, filePath: row.filePath, fileName: row.fileName, title: row.title, designer: row.designer, printStatus: row.print_status },
+      needs: needsOf(db, row.model_id, row.plate_index ?? null)
     }));
 }
 
@@ -205,13 +238,26 @@ function removeFromQueue(db, queueId) {
   return item.model_id;
 }
 
-/** Start an item: its model is Printing, and the item leaves the queue (Log Print finishes it). */
-function startQueueItem(db, queueId) {
-  const item = db.prepare('SELECT model_id FROM print_queue WHERE id = ?').get(queueId);
+/**
+ * Start an item: its model is Printing, and the item leaves the queue (Log Print finishes it).
+ * Printing now keeps when it started, its plate and printer (and the sliced file, when sent).
+ * @param {any} db
+ * @param {number} queueId
+ * @param {{ printerId?: number | null, plate?: number | null, sentFile?: string | null }} [options] the printer and plate it went to, when not the item's
+ */
+function startQueueItem(db, queueId, options = {}) {
+  const item = db.prepare('SELECT model_id, plate_index, printer_id FROM print_queue WHERE id = ?').get(queueId);
   if (!item) throw new Error('That queue item is gone');
   db.transaction(() => {
     db.prepare('DELETE FROM print_queue WHERE id = ?').run(queueId);
     db.prepare("UPDATE models SET print_status = 'printing' WHERE id = ?").run(item.model_id);
+    db.prepare('INSERT OR REPLACE INTO printing_now (model_id, plate_index, printer_id, started_at, sent_file) VALUES (?, ?, ?, ?, ?)').run(
+      item.model_id,
+      options.plate ?? item.plate_index,
+      options.printerId ?? item.printer_id,
+      now(),
+      options.sentFile ?? null
+    );
     renumber(db);
     recomputeHolds(db);
   })();
@@ -245,6 +291,7 @@ function moveModelItems(db, fromModelId, toModelId) {
 }
 
 module.exports = {
+  listPrinting,
   listQueue,
   addToQueue,
   updateQueueItem,
