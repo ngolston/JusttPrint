@@ -2,6 +2,13 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.14.0] - 2026-11-05
+
+Models, Printing and Settings in the sidebar now open their menu, and you pick the page from it.
+
+**Changes:**
+- **Models, Printing and Settings open their menu.** A click on one of them in the sidebar opens only its menu, not a page: choose **All Models**, **Printers** or **All Settings** there to open the page itself. Home and Filament still open their page. This works the same with the sidebar shrunk to icons.
+
 ## [10.13.0] - 2026-11-04
 
 A new sidebar with menus, a What's New window after every update, and everyone logs in again after an update.

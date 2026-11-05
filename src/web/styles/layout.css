@@ -34,8 +34,7 @@
   margin-bottom: var(--jp-space-2);
 }
 .jp-sidebar__toggle,
-.jp-nav__row,
-.jp-nav__fly {
+.jp-nav__row {
   width: auto;
   height: auto;
   margin: 0;
@@ -61,8 +60,7 @@
   background: var(--jp-rail-border);
 }
 .jp-sidebar__toggle:focus-visible,
-.jp-nav__row:focus-visible,
-.jp-nav__fly:focus-visible {
+.jp-nav__row:focus-visible {
   outline: none;
   box-shadow: var(--jp-focus-ring);
 }
@@ -200,25 +198,17 @@
   background: var(--jp-on-accent);
   color: var(--jp-accent);
 }
+/* An entry with a menu: › at the end of the row (small, in a corner, with icons only). */
 .jp-nav__has-menu {
-  display: none;
-}
-.jp-nav__fly {
-  display: grid;
-  place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
-  margin-right: 6px;
-  border-radius: var(--jp-radius-md);
+  margin-right: 2px;
+  opacity: 0.8;
 }
-.jp-nav__fly:hover,
-.jp-nav__item.is-flying .jp-nav__fly {
-  background: var(--jp-rail-border);
+.jp-nav__item.is-flying {
+  background: var(--jp-rail-2);
 }
-.jp-nav__item.is-active .jp-nav__fly:hover,
-.jp-nav__item.is-active.is-flying .jp-nav__fly {
-  background: rgba(30, 38, 51, 0.18);
+.jp-nav__item.is-active.is-flying {
+  background: var(--jp-accent-hover);
 }
 
 /* Icons only (☰, and always on tablets): names hidden, an icon also opens its menu. */
@@ -229,7 +219,6 @@ body.jp-shell-on.jp-nav-collapsed {
   justify-content: center;
 }
 .jp-sidebar.is-rail .jp-brand,
-.jp-sidebar.is-rail .jp-nav__fly,
 .jp-sidebar.is-rail .jp-jobs {
   display: none;
 }
@@ -256,10 +245,13 @@ body.jp-shell-on.jp-nav-collapsed {
   box-shadow: 0 0 0 2px var(--jp-rail);
 }
 .jp-sidebar.is-rail .jp-nav__has-menu {
-  display: block;
   position: absolute;
-  right: 7px;
-  bottom: 9px;
+  right: 6px;
+  bottom: 8px;
+  width: 10px;
+  height: 10px;
+  margin: 0;
+  stroke-width: 3;
   opacity: 0.75;
 }
 

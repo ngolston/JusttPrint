@@ -20,9 +20,9 @@ const PAGES: GuidePage[] = [
     content: (
       <>
         <p>
-          The sidebar on the left takes you everywhere: a name opens its page, and <strong>›</strong> shows the pages under it (☰ shrinks it to icons).{' '}
-          <strong>Models</strong> shows your models as cards, with tabs for <strong>All Models</strong>, <strong>Printed</strong>, <strong>Unprinted</strong>,{' '}
-          <strong>Queue</strong> and <strong>Favorites</strong>.
+          The sidebar on the left takes you everywhere: <strong>Models</strong>, <strong>Printing</strong> and <strong>Settings</strong> open a menu of their
+          pages (☰ shrinks it to icons). <strong>Models</strong> shows your models as cards, with tabs for <strong>All Models</strong>,{' '}
+          <strong>Printed</strong>, <strong>Unprinted</strong>, <strong>Queue</strong> and <strong>Favorites</strong>.
         </p>
         <p>
           JusttPrint scans your <strong>STL Home</strong> folders on its own. Add or change them under <strong>Settings → Scanning → STL Home</strong>, and use{' '}

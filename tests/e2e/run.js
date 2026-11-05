@@ -61,28 +61,33 @@ function check(name, ok, detail = '') {
 // The sidebar (src/web/shell/Sidebar.tsx): five rows; Models, Printing and Settings have a fly-out menu.
 const navRow = (label) => `#jp-sidebar .jp-nav__row[title="${label}"]`;
 const flyItem = (label) => `#jp-nav-flyout .jp-nav-flyout__item:has(.jp-nav-flyout__label:text-is("${label}"))`;
-/** Opens a row's fly-out menu (its ›) and picks a page in it: Models › Tags. */
+/** Opens a row's fly-out menu (a click on Models, Printing or Settings) and picks a page in it: Models › Tags. */
 async function navMenu(page, parent, child, { tap = false } = {}) {
-  const fly = `#jp-sidebar .jp-nav__item:has(.jp-nav__row[title="${parent}"]) .jp-nav__fly`;
-  await (tap ? page.tap(fly) : page.click(fly));
+  await (tap ? page.tap(navRow(parent)) : page.click(navRow(parent)));
   await (tap ? page.tap(flyItem(child)) : page.click(flyItem(child)));
+}
+/** Opens a sidebar entry's page: Home and Filament directly, the others from their menu. */
+async function goTo(page, label) {
+  const fromMenu = { Models: 'All Models', Printing: 'Printers', Settings: 'All Settings' }[label];
+  if (fromMenu) await navMenu(page, label, fromMenu);
+  else await page.click(navRow(label));
 }
 /** The pages in a row's fly-out menu (closed again after). */
 async function navMenuLabels(page, parent) {
-  await page.click(`#jp-sidebar .jp-nav__item:has(.jp-nav__row[title="${parent}"]) .jp-nav__fly`);
+  await page.click(navRow(parent));
   const labels = await page.$$eval('#jp-nav-flyout .jp-nav-flyout__label', (list) => list.map((el) => el.textContent));
   await page.keyboard.press('Escape');
   return labels;
 }
 /** Runs one of the Models page's Tools (Organize, Scan Library, AI Tagging); opens the Models page first. */
 async function modelTool(page, label) {
-  if (await page.isVisible('.jp-page')) await page.click(navRow('Models'));
+  if (await page.isVisible('.jp-page')) await goTo(page, 'Models');
   await page.click('#jp-tools-button');
   await page.click(`.jp-menu [role="menuitem"]:has-text("${label}")`);
 }
 /** The Tools menu's entries on the Models page ([] without the button). */
 async function toolLabels(page) {
-  if (await page.isVisible('.jp-page')) await page.click(navRow('Models'));
+  if (await page.isVisible('.jp-page')) await goTo(page, 'Models');
   if (!(await page.isVisible('#jp-tools-button').catch(() => false))) return [];
   await page.click('#jp-tools-button');
   const labels = await page.$$eval('.jp-menu [role="menuitem"]', (list) => list.map((el) => el.textContent.trim()));
@@ -1316,7 +1321,7 @@ async function browserChecks(base, wsUrl, session) {
       JSON.stringify({ widgetDialogOpen, widgetDialogClosed, messageClosed, keptLayout, insideStays })
     );
 
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+    await goTo(page, 'Models');
     check(
       'Models shows the library without the dashboard',
       (await page.waitForSelector('.jp-home-library', { state: 'detached', timeout: 5000 }).then(
@@ -3280,7 +3285,7 @@ async function browserChecks(base, wsUrl, session) {
     await invoke(base, session, 'save-tag', ['e2e-page-other']);
     await invoke(base, session, 'update-models-batch', [[{ filePath: taggedModel, tags: ['e2e-page-other'] }]]);
     // Made through the API, not this page: open the page again to read them.
-    await page.click(navRow('Models'));
+    await goTo(page, 'Models');
     await navMenu(page, 'Models', 'Tags');
     await page.waitForSelector(`${pageTagRow('e2e-page-other')} :text("1 model")`, { timeout: 10000 }).catch(() => {});
     await page.click(`${pageTagRow('e2e-page-renamed')} button[aria-label^="Rename"]`);
@@ -3337,7 +3342,7 @@ async function browserChecks(base, wsUrl, session) {
         )) &&
         !(await tagNamesNow()).includes(mergedName)
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+    await goTo(page, 'Models');
 
     // Parts Manager (React): add, step the quantity, edit, remove.
     const serverParts = async () => (await invoke(base, session, 'get-all-parts')).result || [];
@@ -3384,7 +3389,7 @@ async function browserChecks(base, wsUrl, session) {
         () => !document.querySelector('dialog.jp-add-filament, #filament-manager-dialog, #filament-filter') && !('openFilamentManager' in window)
       )
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+    await goTo(page, 'Models');
 
     // Printer Manager (React): add, edit, maintenance reminders and log, delete.
     const serverPrinters = async () => (await invoke(base, session, 'get-all-printers')).result || [];
@@ -3474,7 +3479,7 @@ async function browserChecks(base, wsUrl, session) {
         notes: null
       }
     ]);
-    await page.click(navRow('Printing'));
+    await goTo(page, 'Printing');
     const pageCard = '.jp-printer-card:has-text("E2E Page Printer")';
     check(
       'the Printers page lists the printer with its maintenance due',
@@ -3547,9 +3552,9 @@ async function browserChecks(base, wsUrl, session) {
     // Library Stats (React): counts match get-stats, and both charts draw.
     const serverStats = (await invoke(base, session, 'get-stats')).result || {};
     // Opened from Settings in the JusttPrint 5 shell (src/web/shell/AppShell.tsx, src/web/pages/SettingsPage.tsx).
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+    await goTo(page, 'Models');
     await page.waitForSelector('.jp-page', { state: 'detached', timeout: 5000 }).catch(() => {});
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Settings")');
+    await goTo(page, 'Settings');
     await page.waitForSelector('.jp-page h1:text-is("Settings")', { timeout: 5000 }).catch(() => {});
     check(
       'the sidebar opens Settings and marks it as the current page',
@@ -3559,19 +3564,25 @@ async function browserChecks(base, wsUrl, session) {
     );
     // The rail (src/web/shell/Sidebar.tsx): › opens a fly-out menu, Escape closes it and gives the focus back.
     const sidebarRows = await page.$$eval('#jp-sidebar .jp-nav__row', (list) => list.map((el) => el.getAttribute('title')));
+    const beforeMenu = page.url();
     const modelsMenu = await navMenuLabels(page, 'Models');
-    const escapeBack = await page.evaluate(() => !document.querySelector('#jp-nav-flyout') && !!document.activeElement?.matches('.jp-nav__fly'));
+    // A click on Models opens only its menu: the page stays.
+    const menuOnly = page.url() === beforeMenu;
+    const escapeBack = await page.evaluate(
+      () => !document.querySelector('#jp-nav-flyout') && !!document.activeElement?.matches('.jp-nav__row[title="Models"]')
+    );
     await navMenu(page, 'Models', 'Collections');
     await page.waitForSelector('.jp-page h1:text-is("Collections")', { timeout: 10000 }).catch(() => {});
     const hint = await page.textContent('#jp-sidebar .jp-nav__item.is-active .jp-nav__hint').catch(() => '');
     check(
-      'the sidebar has five rows, Models has its pages in a fly-out, and a page of it shows under Models',
+      'the sidebar has five rows, a click on Models opens only its menu, and a page of it shows under Models',
       JSON.stringify(sidebarRows) === JSON.stringify(['Home', 'Models', 'Filament', 'Printing', 'Settings']) &&
         JSON.stringify(modelsMenu) === JSON.stringify(['All Models', 'Collections', 'Categories', 'Tags', 'Duplicates']) &&
         escapeBack &&
+        menuOnly &&
         /#\/collections$/.test(page.url()) &&
         hint === 'Collections',
-      JSON.stringify({ sidebarRows, modelsMenu, escapeBack, url: page.url(), hint })
+      JSON.stringify({ sidebarRows, modelsMenu, escapeBack, menuOnly, url: page.url(), hint })
     );
     // ☰ shrinks it to icons, kept after a reload; an icon then opens its page and its menu.
     await page.click('#jp-nav-toggle');
@@ -3581,12 +3592,14 @@ async function browserChecks(base, wsUrl, session) {
       async () => Math.round((await page.locator('#jp-sidebar').boundingBox())?.width ?? 0),
       () => 0
     );
+    const railBefore = page.url();
     await page.click(navRow('Printing'));
     const railMenu = await page.waitForSelector(flyItem('Queue'), { timeout: 5000 }).then(
       () => true,
       () => false
     );
-    const railPage = /#\/printers$/.test(page.url());
+    // The icon opens only the menu: the page stays.
+    const railPage = page.url() === railBefore;
     await page.click(flyItem('Statistics'));
     const railPicked = await page.waitForSelector('.jp-page h1:text-is("Statistics")', { timeout: 10000 }).then(
       () => true,
@@ -3594,7 +3607,7 @@ async function browserChecks(base, wsUrl, session) {
     );
     await page.click('#jp-nav-toggle');
     check(
-      '☰ shrinks the sidebar to icons and keeps it so; an icon opens its page and its fly-out menu',
+      '☰ shrinks the sidebar to icons and keeps it so; an icon opens only its fly-out menu',
       railWidth === 80 && railMenu && railPage && railPicked && !(await page.isVisible('#jp-sidebar.is-rail')),
       JSON.stringify({ railWidth, railMenu, railPage, railPicked })
     );
@@ -3640,8 +3653,8 @@ async function browserChecks(base, wsUrl, session) {
       JSON.stringify({ helpWhatsNew, afterUpdate, seenNow, shownAgain })
     );
     // Back to Settings from Models, as before these checks (a later check goes Back to the library).
-    await page.click(navRow('Models'));
-    await page.click(navRow('Settings'));
+    await goTo(page, 'Models');
+    await goTo(page, 'Settings');
     await page.waitForSelector('#settings-tab-appearance[aria-selected="true"]', { timeout: 10000 }).catch(() => {});
     // Settings forms sit on the page (src/web/settings/EmbeddedDialog.tsx): the dialogs, opened in place.
     const formOpen = (selector) =>
@@ -3900,7 +3913,7 @@ async function browserChecks(base, wsUrl, session) {
         )) && (await page.isVisible('.jp-library-header .jp-tab[aria-selected="true"]:has-text("Queue")'))
     );
     await page.evaluate(() => window.clearAllLibraryFilters());
-    await page.click(navRow('Settings'));
+    await goTo(page, 'Settings');
     await page.waitForSelector('.jp-page .jp-storage', { timeout: 10000 }).catch(() => {});
     const storageText = await page.textContent('.jp-page .jp-storage').catch(() => '');
     check('the Settings page shows Library Storage', /Library Storage/.test(storageText) && /( of |in \d+ models)/.test(storageText), storageText);
@@ -5772,7 +5785,7 @@ async function browserChecks(base, wsUrl, session) {
       () => tablet.locator('#jp-sidebar').boundingBox(),
       () => null
     );
-    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 80 && !(await tablet.isVisible('#jp-sidebar .jp-nav__fly')));
+    check('a tablet shows the sidebar as an icon rail', !!rail && Math.round(rail.width) === 80 && (await tablet.isVisible('#jp-sidebar.is-rail')));
     const tabletCard = await tablet.waitForSelector('.file-grid .jp-model-card[data-filepath] .file-name', { timeout: 30000 }).catch(() => null);
     if (tabletCard) {
       // By locator: the grid may draw the card again before the click (slower machines).
@@ -6684,7 +6697,7 @@ async function browserChecks(base, wsUrl, session) {
         .catch(() => null);
       const done = doneDialog && /Cleared the New flag from/.test(await page.textContent('dialog[id^="browser-message-"][open]'));
       if (doneDialog) await doneDialog.click();
-      await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+      await goTo(page, 'Models');
       check(
         'Clear New Flag asks, clears the flag and says how many',
         !!askClear && !!done && !((await invoke(base, session, 'get-model', [flagged])).result || {}).isNew
@@ -6852,7 +6865,7 @@ async function browserChecks(base, wsUrl, session) {
       'Delete Selected removes the copy from disk and the list',
       !!confirmDedupDelete && copyGone && !fs.existsSync(dedupCopy) && fs.existsSync(dedupOriginal)
     );
-    await page.click('.jp-sidebar .jp-nav__row:has-text("Models")');
+    await goTo(page, 'Models');
     check(
       'leaving the page closes Duplicates',
       await page.waitForSelector('#dedup-page', { state: 'detached', timeout: 5000 }).then(

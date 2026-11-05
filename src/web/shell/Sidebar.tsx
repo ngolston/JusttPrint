@@ -67,21 +67,20 @@ const isCurrent = (item: NavItem, page: PageId) => item.page === page || !!item.
 function NavRow({
   item,
   page,
-  rail,
   flyOpen,
   badge,
   onFly
 }: {
   item: NavItem;
   page: PageId;
-  rail: boolean;
   flyOpen: boolean;
   badge: number;
-  onFly: (id: string, anchor: HTMLElement, toggle: boolean) => void;
+  onFly: (id: string | null, anchor?: HTMLElement) => void;
 }) {
   const row = useRef<HTMLLIElement>(null);
   const Icon = item.icon;
   const children = item.children ?? [];
+  const menu = children.length > 0;
   const current = isCurrent(item, page);
   // On a page of its menu, the row says which one (Models / Tags).
   const child = children.find((c) => c.page === page && c.page !== item.page);
@@ -91,12 +90,16 @@ function NavRow({
         type="button"
         className={cx('jp-nav__row', current && 'is-active')}
         aria-current={item.page === page ? 'page' : current ? 'true' : undefined}
+        aria-haspopup={menu ? 'menu' : undefined}
+        aria-expanded={menu ? flyOpen : undefined}
         title={item.label}
         onClick={() => {
-          if (item.page) navigate(item.page);
-          // Icons only: the icon also opens its menu (a second click closes it).
-          if (rail && children.length && row.current) onFly(item.id, row.current, true);
-          else onFly('', row.current!, false);
+          // An entry with a menu only opens its menu (a second click closes it); the others open their page.
+          if (menu) onFly(item.id, row.current ?? undefined);
+          else {
+            onFly(null);
+            if (item.page) navigate(item.page);
+          }
         }}
       >
         <Icon size={20} aria-hidden="true" />
@@ -109,21 +112,8 @@ function NavRow({
             {badge}
           </span>
         )}
-        {children.length > 0 && <ChevronRight size={10} strokeWidth={3} aria-hidden="true" className="jp-nav__has-menu" />}
+        {menu && <ChevronRight size={18} aria-hidden="true" className="jp-nav__has-menu" />}
       </button>
-      {children.length > 0 && (
-        <button
-          type="button"
-          className="jp-nav__fly"
-          aria-label={`${item.label} pages`}
-          title={`${item.label} pages`}
-          aria-haspopup="menu"
-          aria-expanded={flyOpen}
-          onClick={() => row.current && onFly(item.id, row.current, true)}
-        >
-          <ChevronRight size={18} aria-hidden="true" />
-        </button>
-      )}
     </li>
   );
 }
@@ -260,10 +250,11 @@ function NavFlyout({
 // ---- The sidebar -------------------------------------------------------------------------------
 
 /**
- * The sidebar: Home, Models, Filament, Printing and Settings on a dark rail. A name opens its page;
- * › opens a fly-out menu with the pages under it. ☰ shrinks it to icons (remembered in this
- * browser); then an icon opens its page and its menu. Tablets always show the icons; on phones it
- * is a drawer with the names. What runs in the background shows at the bottom.
+ * The sidebar: Home, Models, Filament, Printing and Settings on a dark rail. Home and Filament open
+ * their page; Models, Printing and Settings open a fly-out menu of the pages under them (All
+ * Models, Printers, All Settings among them). ☰ shrinks it to icons (remembered in this browser).
+ * Tablets always show the icons; on phones it is a drawer with the names. What runs in the
+ * background shows at the bottom.
  */
 export function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }) {
   const queue = useQueueCount();
@@ -284,18 +275,16 @@ export function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }
 
   const flyNow = useRef(fly);
   flyNow.current = fly;
-  // Escape gives the focus back to the row's › (or the icon, on the rail).
+  // Escape gives the focus back to the row.
   const closeFly = useCallback((focus: boolean) => {
     const open = flyNow.current;
     setFly(null);
-    if (!focus || !open) return;
-    const fly = open.anchor.querySelector<HTMLElement>('.jp-nav__fly');
-    (fly && fly.offsetParent ? fly : open.anchor.querySelector<HTMLElement>('.jp-nav__row'))?.focus();
+    if (focus && open) open.anchor.querySelector<HTMLElement>('.jp-nav__row')?.focus();
   }, []);
 
-  function onFly(id: string, anchor: HTMLElement, toggle: boolean) {
-    if (!toggle) return setFly(null);
-    setFly((open) => (open?.id === id ? null : { id, anchor }));
+  /** Opens a row's menu, or closes it when it is the one open (null: close any). */
+  function onFly(id: string | null, anchor?: HTMLElement) {
+    setFly((open) => (!id || !anchor || open?.id === id ? null : { id, anchor }));
   }
 
   const flying = fly && items.find((item) => item.id === fly.id);
@@ -332,7 +321,7 @@ export function Sidebar({ page, onClose }: { page: PageId; onClose: () => void }
         </div>
         <ul className="jp-nav">
           {items.map((item) => (
-            <NavRow key={item.id} item={item} page={page} rail={rail} flyOpen={fly?.id === item.id} badge={item.id === 'printing' ? queue : 0} onFly={onFly} />
+            <NavRow key={item.id} item={item} page={page} flyOpen={fly?.id === item.id} badge={item.id === 'printing' ? queue : 0} onFly={onFly} />
           ))}
         </ul>
         <div className="jp-jobs" ref={setJobs} />
