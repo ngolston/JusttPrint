@@ -4493,6 +4493,26 @@ async function browserChecks(base, wsUrl, session) {
         )
       );
       await invoke(base, session, 'save-setting', ['currency', 'USD']);
+      // Failure analysis (src/core/failure-analysis.js) and Export (src/server/exports.js).
+      const analysis = (await invoke(base, session, 'get-failure-analysis', [{ months: 0 }])).result || {};
+      const failuresPanel = analysis.failed ? await page.isVisible('.jp-failures') : true;
+      const workbook = (await invoke(base, session, 'export-data', [{ what: 'everything', months: 0 }])).result || {};
+      const historyCsv = (await invoke(base, session, 'export-data', [{ what: 'history', months: 0 }])).result || {};
+      const xlsxBytes = workbook.filePath ? fs.readFileSync(workbook.filePath) : Buffer.alloc(0);
+      const csvText = historyCsv.filePath ? fs.readFileSync(historyCsv.filePath, 'utf8') : '';
+      await page.click('#jp-stats-export');
+      const exportMenu = await page.isVisible('.jp-menu [role="menuitem"]:has-text("Everything (Excel)")');
+      await page.keyboard.press('Escape');
+      check(
+        'Statistics shows Failure analysis and exports the print history (CSV) and everything (Excel)',
+        typeof analysis.total === 'number' &&
+          failuresPanel &&
+          exportMenu &&
+          xlsxBytes.subarray(0, 2).toString() === 'PK' &&
+          /\.xlsx$/.test(workbook.name || '') &&
+          csvText.startsWith('\ufeffDate,Model,Designer,Outcome'),
+        JSON.stringify({ total: analysis.total, failed: analysis.failed, failuresPanel, exportMenu, workbook: workbook.name, csv: csvText.slice(0, 40) })
+      );
     } catch (error) {
       check('the Phase 10 checks ran to the end', false, error.message.split('\n')[0]);
     }
@@ -5452,6 +5472,21 @@ async function browserChecks(base, wsUrl, session) {
         liveShown && (await page.isVisible('.jp-printer-card:has-text("E2E Live P1S") .jp-live-badge:has-text("Printing 42%")')),
         liveShown ? '' : await page.textContent('#jp-printer-live-section').catch(() => 'no Live section')
       );
+      // Printer controls (src/server/bambu-control.js): Pause and the chamber light reach the printer.
+      const sentCommand = (match) => fakeBambu.received.find((m) => m.type === 'publish' && m.payload && match(m.payload));
+      await page.click('#jp-printer-live-section button[title="Pause the print"]', { timeout: 10000 * SLOW });
+      await page.click('#jp-printer-live-section button[title="Turn the chamber light on"]', { timeout: 10000 * SLOW });
+      const paused = await waitFor(async () => sentCommand((p) => p.print && p.print.command === 'pause') || null, 10000 * SLOW, 'pause').catch(() => null);
+      const lit = await waitFor(
+        async () => sentCommand((p) => p.system && p.system.command === 'ledctrl' && p.system.led_mode === 'on') || null,
+        10000 * SLOW,
+        'light'
+      ).catch(() => null);
+      check(
+        'the Live section pauses the print and turns the chamber light on, on the printer',
+        !!paused && !!lit && (await page.isVisible('#jp-printer-live-section select[aria-label="Print speed"]')),
+        JSON.stringify({ paused: !!paused, lit: !!lit })
+      );
       const slotFilled = await page
         .waitForSelector('.jp-loaded-slot:has-text("A1"):has-text("E2E Live Orange"):has-text("printing"):has-text("Printer: 80%")', { timeout: 15000 * SLOW })
         .then(
@@ -5553,6 +5588,55 @@ async function browserChecks(base, wsUrl, session) {
       const after = ((await invoke(base, session, 'get-spools', [{}])).result || []).find((sp) => sp.id === liveSpool.id);
       check('a tray taken out of the AMS empties its slot; the spool stays', emptied === true && !!after && after.loaded.length === 0);
 
+      // Failure detection (src/server/failure-detection.js): a stand-in for Obico's ML API that
+      // fetches the camera picture from JusttPrint, as the real one does; Set Up, then Test.
+      {
+        let fetched = null;
+        const fakeObico = await new Promise((resolve) => {
+          const server = require('http')
+            .createServer(async (req, res) => {
+              const url = new URL(req.url, 'http://x');
+              if (url.pathname === '/hc/') return res.end('ok');
+              const picture = await fetch(url.searchParams.get('img')).catch(() => null);
+              if (!picture || !picture.ok) {
+                res.statusCode = 400;
+                return res.end(JSON.stringify({ detections: [], message: 'could not fetch the picture' }));
+              }
+              fetched = Buffer.from(await picture.arrayBuffer());
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ detections: [['failure', 0.21, [10, 10, 5, 5]]] }));
+            })
+            .listen(0, DOCKER_IMAGE ? '0.0.0.0' : '127.0.0.1', () => resolve(server));
+        });
+        try {
+          const obicoPort = fakeObico.address().port;
+          await page.evaluate((id) => {
+            window.location.hash = `#/printers/${id}`;
+          }, livePrinter.id);
+          await page.click('#jp-detect-settings', { timeout: 15000 * SLOW });
+          await page.fill('#jp-detect-url', `http://${DOCKER_IMAGE ? 'host.docker.internal' : '127.0.0.1'}:${obicoPort}`);
+          await page.fill('#jp-detect-self', base);
+          await page.click('#jp-detect-test');
+          const answered = await page
+            .waitForSelector('#jp-detect-section [role="status"]:has-text("The detector answers")', { timeout: 30000 * SLOW })
+            .then((el) => el.textContent())
+            .catch(() => '');
+          const saved = (await invoke(base, session, 'get-failure-detection')).result || {};
+          check(
+            "Failure detection: Set Up and Test reach the detector, which gets the printer's camera picture from JusttPrint",
+            /E2E Live P1S's camera: 1 found, score 0\.21/.test(answered || '') &&
+              !!fetched &&
+              fetched.equals(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'camera.jpg'))) &&
+              saved.enabled === true &&
+              saved.autoPause === false,
+            JSON.stringify({ answered, fetched: fetched ? fetched.length : null, saved: { enabled: saved.enabled, autoPause: saved.autoPause } })
+          );
+        } finally {
+          await invoke(base, session, 'save-failure-detection', [{ enabled: false }]).catch(() => {});
+          fakeObico.close();
+        }
+      }
+
       // Send to a printer (src/server/bambu-send.js): a queued sliced project goes to the fake
       // printer's storage, then the print command names its plate; the item is printing.
       const fakeFtps = await require('./fake-bambu').startFakeFtps({
@@ -5603,7 +5687,109 @@ async function browserChecks(base, wsUrl, session) {
             printingNow?.sentFile === 'E2E Send Robot.gcode.3mf',
           JSON.stringify({ sent: !!sentNote, files: Object.keys(fakeFtps.files), command: command?.payload?.print?.param, printingNow })
         );
+        // Printed files (src/server/printed-files.js): the model page keeps the exact file, and Reprint sends it again.
         await invoke(base, session, 'set-print-status', [{ filePath: slicedPath, printStatus: 'unprinted' }]).catch(() => {});
+        await page.evaluate((file) => {
+          window.location.hash = `#/model/${encodeURIComponent(file)}`;
+        }, slicedPath);
+        const printedRow = '.jp-printed-files__item:has-text("E2E Live P1S"):has-text("Plate 1")';
+        const keptShown = await page.waitForSelector(printedRow, { timeout: 15000 * SLOW }).then(
+          () => true,
+          () => false
+        );
+        await page.click(`${printedRow} button:has-text("Reprint")`).catch(() => {});
+        await page.waitForSelector('#send-to-printer-dialog[open] #send-to-printer-confirm:not([disabled])', { timeout: 15000 * SLOW }).catch(() => {});
+        const asPrinted = /as printed/.test((await page.textContent('#send-to-printer-dialog').catch(() => '')) || '');
+        const before = fakeBambu.received.filter((m) => m.payload?.print?.command === 'project_file').length;
+        await page.click('#send-to-printer-confirm').catch(() => {});
+        const reprintNote = await page.waitForSelector('dialog[open]:has-text("Sent to the printer") button', { timeout: 30000 * SLOW }).catch(() => null);
+        if (reprintNote) await reprintNote.click();
+        const after = fakeBambu.received.filter((m) => m.payload?.print?.command === 'project_file').length;
+        check(
+          'the model page keeps the exact printed file, and Reprint sends that same file again',
+          keptShown && asPrinted && !!reprintNote && after === before + 1,
+          JSON.stringify({ keptShown, asPrinted, reprinted: !!reprintNote, before, after })
+        );
+        await invoke(base, session, 'set-print-status', [{ filePath: slicedPath, printStatus: 'unprinted' }]).catch(() => {});
+
+        // Files on the printer (src/server/printer-files.js): the sent file is there; delete it after asking.
+        await page.evaluate((id) => {
+          window.location.hash = `#/printers/${id}`;
+        }, livePrinter.id);
+        await page.click('#jp-printer-files-show', { timeout: 15000 * SLOW });
+        const fileRow = '#jp-printer-files-section .jp-printer-files__row:has-text("E2E Send Robot.gcode.3mf")';
+        const listed = await page.waitForSelector(fileRow, { timeout: 15000 * SLOW }).then(
+          () => true,
+          () => false
+        );
+        const folderListed = await page.isVisible('#jp-printer-files-section .jp-printer-files__row:has-text("timelapse")');
+        await page.click(`${fileRow} button[aria-label^="Delete"]`);
+        const confirmDelete = await page.waitForSelector('dialog[open] button:text-is("Delete")', { timeout: 10000 }).catch(() => null);
+        if (confirmDelete) await confirmDelete.click();
+        const deleted = await page.waitForSelector(fileRow, { state: 'detached', timeout: 15000 * SLOW }).then(
+          () => true,
+          () => false
+        );
+        check(
+          'Files on the printer lists its files and folders, and deletes one after asking',
+          listed && folderListed && !!confirmDelete && deleted && !fakeFtps.files['E2E Send Robot.gcode.3mf'],
+          JSON.stringify({ listed, folderListed, asked: !!confirmDelete, deleted, files: Object.keys(fakeFtps.files) })
+        );
+
+        // The sliced-files inbox (src/server/sliced-inbox.js): an export named like a model is filed
+        // beside it and queued; one no model matches waits until its model is chosen.
+        const inboxDir = path.join(WORK, 'sliced-inbox');
+        fs.mkdirSync(inboxDir, { recursive: true });
+        const dropSliced = (name) => {
+          const file = path.join(inboxDir, name);
+          fs.writeFileSync(file, Buffer.from(zipSync(project)));
+          const past = new Date(Date.now() - 60000);
+          fs.utimesSync(file, past, past);
+        };
+        try {
+          await page.evaluate(() => {
+            window.location.hash = '#/queue';
+          });
+          await page.fill('#jp-inbox-folder', inboxDir, { timeout: 15000 * SLOW });
+          await page.click('.jp-inbox__folder-form button[type="submit"]');
+          await page.waitForSelector('.jp-inbox button:has-text("Check Now")', { timeout: 15000 * SLOW });
+          dropSliced('E2E Live Benchy_PLA_1h2m.gcode.3mf');
+          await page.click('.jp-inbox button:has-text("Check Now")');
+          const filedShown = await page.waitForSelector('.jp-inbox__filed li:has-text("E2E Live Benchy_PLA_1h2m.gcode.3mf")', { timeout: 30000 * SLOW }).then(
+            () => true,
+            () => false
+          );
+          const queuedNow = ((await invoke(base, session, 'get-print-queue')).result || []).some((item) => item.model.filePath === liveModel);
+          check(
+            'the sliced-files inbox files an export named like a model beside it, and queues the model',
+            filedShown && queuedNow && fs.existsSync(path.join(liveDir, 'E2E Live Benchy_PLA_1h2m.gcode.3mf')) && !fs.readdirSync(inboxDir).length,
+            JSON.stringify({ filedShown, queuedNow, inbox: fs.readdirSync(inboxDir) })
+          );
+
+          dropSliced('Nothing Like It.gcode.3mf');
+          await page.click('.jp-inbox button:has-text("Check Now")');
+          const waitingRow = '.jp-inbox__item:has-text("Nothing Like It.gcode.3mf")';
+          const waits = await page.waitForSelector(waitingRow, { timeout: 30000 * SLOW }).then(
+            () => true,
+            () => false
+          );
+          await page.fill(`${waitingRow} input[type="search"]`, 'Live Benchy').catch(() => {});
+          await page.click(`${waitingRow} button:has-text("File under E2E Live Benchy")`, { timeout: 15000 * SLOW }).catch(() => {});
+          const filedNote = await page.waitForSelector('dialog[open]:has-text("Filed") button', { timeout: 15000 * SLOW }).catch(() => null);
+          if (filedNote) await filedNote.click();
+          check(
+            'a sliced file no model matches waits in the inbox, and is filed under the model chosen for it',
+            waits && !!filedNote && fs.existsSync(path.join(liveDir, 'Nothing Like It.gcode.3mf')),
+            JSON.stringify({ waits, filed: !!filedNote, inbox: fs.readdirSync(inboxDir) })
+          );
+        } finally {
+          await page.evaluate(() => /** @type {HTMLDialogElement | null} */ (document.querySelector('dialog[open]'))?.close()).catch(() => {});
+          await invoke(base, session, 'set-sliced-inbox-folder', ['']).catch(() => {});
+          for (const item of (await invoke(base, session, 'get-print-queue')).result || []) {
+            if (item.model.filePath.startsWith(liveDir)) await invoke(base, session, 'remove-from-queue', [item.id]).catch(() => {});
+          }
+          fs.rmSync(inboxDir, { recursive: true, force: true });
+        }
       } finally {
         // A failed check must not leave the dialog over the next checks' pages.
         await page.evaluate(() => /** @type {HTMLDialogElement | null} */ (document.getElementById('send-to-printer-dialog'))?.close()).catch(() => {});

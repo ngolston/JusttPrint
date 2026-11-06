@@ -28,6 +28,7 @@ import { useLibraryData } from '../shell/libraryData';
 import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { useCan } from '../session';
+import { SlicedInbox } from '../queue/SlicedInbox';
 
 // What is printing (with when it started), the print queue in its order (plates, printers, print
 // times and each item's filament check), the printers, and the latest successful prints.
@@ -380,6 +381,8 @@ export function QueuePage() {
           <UpNext queued={queued} printers={printerList} />
         )}
       </Section>
+
+      <SlicedInbox />
 
       <Section id="jp-queue-completed" title="Completed">
         {!completed ? (

@@ -21,7 +21,9 @@ const KINDS = {
   printFailed: 'A print failed',
   // From Bambu printers followed live (printer-jobs.js).
   printFinished: 'A print finished',
-  printPaused: 'A print paused'
+  printPaused: 'A print paused',
+  // From the failure detector watching the camera (failure-detection.js).
+  printFailing: 'A print looks like it is failing'
 };
 const CHANNELS = ['bell', 'email', 'discord'];
 const RUNS_OUT_DAYS = 7;

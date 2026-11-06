@@ -48,6 +48,8 @@ function closeDatabaseOnQuit() {
   require('./notifications').stop();
   require('./low-stock-alerts').stop();
   require('./bambu-live').stop();
+  require('./sliced-inbox').stop();
+  require('./failure-detection').stop();
   require('./bambu-camera').stop();
   require('./oversized-thumbnails').stop();
   downloadFiles.stop();
@@ -182,6 +184,10 @@ async function start() {
   require('./home-assistant').start();
   // Bambu Lab printers with an address and access code: live status over the LAN.
   require('./bambu-live').start();
+  // Sliced projects exported to the inbox folder: filed beside their models and queued.
+  require('./sliced-inbox').start();
+  // Camera pictures of prints checked for failures, when an admin set up a detector.
+  require('./failure-detection').start();
   // Photo files left by prints and models deleted while the server was down, or before 10.1.
   require('./photos').sweepSoon(60 * 1000);
   // What each 3MF's plates need, for the filament check (docs/merge-10.md, Phase 4).

@@ -39,6 +39,9 @@ services:
       # Then uncomment: - /mnt/network-share:/mnt/network-share:ro
       # Option 3: Mount local directory (if files are on the Docker host)
       # - /path/to/local/files:/mnt/models:ro
+      # Optional: the sliced-files inbox (Print Queue page): a folder OrcaSlicer exports sliced
+      # files to, outside the models folder; enter /mnt/sliced on the Queue page.
+      # - /path/to/sliced:/mnt/sliced
       # Optional: custom PEM files for Settings → HTTPS / SSL (custom mode) or JUSTTPRINT_TLS_*
       # Let's Encrypt / self-signed certs are written under this data volume (../data), not ../certs.
       # - ../certs:/certs:ro
@@ -135,6 +138,16 @@ services:
     #         - driver: nvidia
     #           count: all
     #           capabilities: [gpu]
+
+  # Optional: failure detection (a printer's page → Failure detection). Obico's ML API checks
+  # Bambu camera pictures for spaghetti; built from Obico's source (about 2 GB, the CPU is
+  # enough). In JusttPrint: Detector address http://obico-ml:3333, JusttPrint's address
+  # http://justtprint-server:5000.
+  # obico-ml:
+  #   build: https://github.com/TheSpaghettiDetective/obico-server.git#release:ml_api
+  #   container_name: obico-ml
+  #   restart: unless-stopped
+  #   command: bash -c "gunicorn --bind 0.0.0.0:3333 --workers 1 --timeout 120 wsgi"
 
 # Using bind mount instead of named volume for better control and persistence
 # Database is now stored in ../data directory on the host filesystem

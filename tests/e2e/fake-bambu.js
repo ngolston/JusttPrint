@@ -154,10 +154,10 @@ async function startFakeFtps({ host = '127.0.0.1', port = 0, accessCode, noCard 
             const p = /** @type {import('net').AddressInfo} */ (passive.address()).port;
             reply(`227 Entering Passive Mode (192,168,9,9,${Math.floor(p / 256)},${p % 256})`);
           });
-        } else if (command === 'STOR') {
+        } else if (command === 'STOR' || command === 'RETR' || command === 'LIST') {
           const name = arg.replace(/^\//, '');
           // A P1 without a microSD card has nowhere to store it.
-          if (noCard) {
+          if (command === 'STOR' && noCard) {
             reply('553 Could not create file.');
             if (pending) pending.destroy();
             if (passive) passive.close();
@@ -165,23 +165,51 @@ async function startFakeFtps({ host = '127.0.0.1', port = 0, accessCode, noCard 
             pending = null;
             continue;
           }
+          if (command === 'RETR' && !files[name]) {
+            reply('550 Failed to open file.');
+            continue;
+          }
           const wait = () => {
             if (!pending) return setTimeout(wait, 10);
             reply('150 Opening data connection');
             const data = new tls.TLSSocket(pending, { isServer: true, key: pems.private, cert: pems.cert });
-            const parts = [];
-            data.on('data', (part) => parts.push(part));
-            data.on('end', () => {
-              files[name] = Buffer.concat(parts);
-              data.end();
+            const done = () => {
               reply('226 Transfer complete');
               if (passive) passive.close();
               passive = null;
               pending = null;
-            });
+            };
             data.on('error', () => {});
+            if (command === 'STOR') {
+              const parts = [];
+              data.on('data', (part) => parts.push(part));
+              data.on('end', () => {
+                files[name] = Buffer.concat(parts);
+                data.end();
+                done();
+              });
+            } else {
+              data.once('secure', () => {
+                const body =
+                  command === 'RETR'
+                    ? files[name]
+                    : Buffer.from(
+                        Object.entries(files)
+                          .map(([file, bytes]) => `-rw-r--r--    1 root     root     ${String(bytes.length).padStart(8)} Nov 05 12:34 ${file}`)
+                          .concat(['drwxr-xr-x    2 root     root            0 Nov 01  2025 timelapse'])
+                          .join('\r\n') + '\r\n'
+                      );
+                data.end(body, done);
+              });
+            }
           };
           wait();
+        } else if (command === 'DELE') {
+          const name = arg.replace(/^\//, '');
+          if (files[name]) {
+            delete files[name];
+            reply('250 Delete operation successful.');
+          } else reply('550 Delete operation failed.');
         } else if (command === 'QUIT') {
           reply('221 Bye');
           control.end();

@@ -27,6 +27,8 @@ import { navigate } from '../shell/routes';
 import { EditOnly } from '../components/EditOnly';
 import { LoadedSection, LoadedStrip } from '../printers/LoadedFilament';
 import { LiveBadge, LiveSection } from '../printers/LiveStatus';
+import { PrinterFilesSection } from '../printers/PrinterFiles';
+import { FailureDetectionSection } from '../printers/FailureDetection';
 import { usePrinterLive } from '../printers/live';
 import { useCan } from '../session';
 import type { PrinterLive, PrinterLoads } from '../api';
@@ -203,6 +205,8 @@ function PrinterDetail({ printer, onDeleted, loads, live }: { printer: Printer; 
       </div>
 
       <LiveSection printer={printer} live={live} />
+      <FailureDetectionSection key={`detect-${printer.id}`} printer={printer} live={live} />
+      <PrinterFilesSection key={printer.id} printer={printer} live={live} />
 
       <LoadedSection printerId={printer.id} loads={loads} live={live} />
 

@@ -710,3 +710,98 @@
 .jp-calendar__legend .jp-meta + .jp-calendar__day.has-failed {
   margin-left: var(--jp-space-3);
 }
+
+/* Failure analysis (stats/FailureAnalysis.tsx). */
+.jp-failures__findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--jp-space-2);
+  margin: var(--jp-space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+.jp-failures__findings li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--jp-space-2);
+  padding: var(--jp-space-3);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-warning-soft);
+  color: var(--jp-text);
+}
+.jp-failures__findings svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--jp-warning-text);
+}
+.jp-failures__calm {
+  margin: var(--jp-space-3) 0;
+  color: var(--jp-text-2);
+}
+.jp-failures__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--jp-space-4) var(--jp-space-6);
+}
+.jp-failures__title {
+  margin: 0 0 var(--jp-space-2);
+  font-size: var(--jp-text-title);
+}
+.jp-failures__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--jp-text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.jp-failures__table thead th {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.jp-failures__table th[scope='row'] {
+  text-align: left;
+  font-weight: 600;
+}
+.jp-failures__table td,
+.jp-failures__table th[scope='row'] {
+  padding: 6px 6px 6px 0;
+  border-top: 1px solid var(--jp-border);
+}
+.jp-failures__table td {
+  text-align: right;
+  color: var(--jp-text-2);
+}
+.jp-failures__table tr.is-high th,
+.jp-failures__table tr.is-high td {
+  color: var(--jp-warning-text);
+  font-weight: 700;
+}
+.jp-failures__rate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--jp-space-2);
+  min-width: 120px;
+}
+.jp-failures__bar {
+  width: 70px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--jp-radius-pill);
+  background: var(--jp-surface-2);
+}
+.jp-failures__bar span {
+  display: block;
+  height: 100%;
+  background: var(--jp-danger);
+}
+
+/* The period and Export, beside the title. */
+.jp-stats__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-3);
+}

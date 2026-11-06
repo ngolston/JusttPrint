@@ -275,3 +275,81 @@
   margin: var(--jp-space-3) 0 0;
   color: var(--jp-danger-text);
 }
+
+/* The sliced-files inbox (queue/SlicedInbox.tsx). */
+.jp-inbox__header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.jp-inbox__setup,
+.jp-inbox__folder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 560px;
+}
+.jp-inbox__folder-actions {
+  display: flex;
+  gap: 8px;
+}
+.jp-inbox__list,
+.jp-inbox__filed,
+.jp-inbox__choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.jp-inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.jp-inbox__item {
+  border: 1px solid var(--jp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.jp-inbox__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.jp-inbox__choose {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.jp-inbox__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(100%, 360px);
+}
+.jp-inbox__search input {
+  flex: 1;
+}
+.jp-inbox__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.jp-inbox__filed {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-inbox__filed li {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}

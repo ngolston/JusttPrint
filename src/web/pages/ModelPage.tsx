@@ -22,6 +22,7 @@ import { navigate } from '../shell/routes';
 import { CategoryPlace } from './CategoriesPage';
 import { KitChecklist } from '../kits/KitChecklist';
 import { UploadVersionButton } from './ModelHistory';
+import { PrintedFiles } from '../print/PrintedFiles';
 import { ModelGallery } from '../media/ModelGallery';
 import { ModelMediaSection, YoutubeVideo } from '../media/ModelMediaSection';
 import { ModelUploadButton, useModelUpload } from '../media/ModelUpload';
@@ -934,6 +935,7 @@ export function ModelView({
         {fileList}
         {!online && <KitChecklist target={model.filePath} />}
         {history}
+        {!online && !inZip && <PrintedFiles filePath={model.filePath} />}
       </div>
     );
   }
@@ -1035,6 +1037,7 @@ export function ModelView({
           {pageDetails}
           {!online && <KitChecklist target={model.filePath} />}
           {history}
+          {!online && !inZip && <PrintedFiles filePath={model.filePath} />}
           {notes}
         </aside>
       </div>

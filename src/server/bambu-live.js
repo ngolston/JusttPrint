@@ -99,6 +99,13 @@ function amsFromReport(print) {
   return { units, external: vt && typeof vt === 'object' ? trayOf(vt, false) : undefined };
 }
 
+/** The chamber light from the report's lights_report: 'on', 'off', or null when it does not say. */
+function lightOf(print) {
+  const lights = Array.isArray(print && print.lights_report) ? print.lights_report : [];
+  const chamber = lights.find((light) => light && light.node === 'chamber_light');
+  return chamber && (chamber.mode === 'on' || chamber.mode === 'off') ? chamber.mode : null;
+}
+
 const STATES = {
   RUNNING: 'printing',
   PREPARE: 'printing',
@@ -172,6 +179,9 @@ function summarize(entry) {
     external: external ? { type: external.type, color: external.color } : null,
     // The printer's errors now, in plain words where Bambu's list has them (bambu-hms.js).
     errors: entry.connected ? require('./bambu-hms').errorsOf(print) : [],
+    // Its speed (1 Silent, 2 Standard, 3 Sport, 4 Ludicrous) and chamber light, for the controls (bambu-control.js).
+    speed: active ? num(print.spd_lvl) : null,
+    light: lightOf(print),
     updatedAt: entry.updatedAt
   };
 }
