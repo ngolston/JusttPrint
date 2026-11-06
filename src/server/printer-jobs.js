@@ -130,6 +130,12 @@ function createJobs(deps) {
     }
   }
 
+  /** The AMS units' humidity (%) on average, or null when the printer gives none in percent. */
+  function humidityOf(summary) {
+    const values = ((summary && summary.ams) || []).map((unit) => unit.humidity).filter((h) => typeof h === 'number' && h >= 0 && h <= 100);
+    return values.length ? Math.round(values.reduce((sum, h) => sum + h, 0) / values.length) : null;
+  }
+
   async function finished(entry, job, outcome, summary) {
     const db = deps.db();
     const row = printer(entry.printerId);
@@ -168,6 +174,15 @@ function createJobs(deps) {
         log(`could not log ${job.name}: ${error.message}`);
       }
       if (logged && logged.eventId) {
+        // The AMS humidity, for Failure analysis (src/core/failure-analysis.js).
+        const humidity = humidityOf(summary);
+        if (humidity !== null) {
+          try {
+            db.prepare('UPDATE print_events SET ams_humidity = ? WHERE id = ?').run(humidity, Number(logged.eventId));
+          } catch (_) {
+            /* before the column */
+          }
+        }
         try {
           const jpeg = await snapshot(row.id);
           if (jpeg)

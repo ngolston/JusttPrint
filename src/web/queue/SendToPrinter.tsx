@@ -8,7 +8,7 @@ import { itemName } from './QueueParts';
 
 declare global {
   interface Window {
-    openSendToPrinter?: (item: QueueItem) => void;
+    openSendToPrinter?: (item: QueueItem, options?: { printedFileId?: number }) => void;
   }
 }
 
@@ -127,13 +127,13 @@ export function SendToPrinterDialog() {
 
   useEffect(
     () =>
-      exposeGlobal('openSendToPrinter', (next: QueueItem) => {
+      exposeGlobal('openSendToPrinter', (next: QueueItem, extra?: { printedFileId?: number }) => {
         setItem(next);
         setOptions(null);
         setError(null);
         setSending(false);
         if (!dialogRef.current?.open) dialogRef.current?.showModal();
-        callAction<SendOptions>('get-send-options', next.model.filePath).then(
+        callAction<SendOptions>('get-send-options', next.model.filePath, extra?.printedFileId ?? null).then(
           (answer) => {
             setOptions(answer);
             const ready = answer.printers.filter((p) => p.ready);
@@ -174,15 +174,23 @@ export function SendToPrinterDialog() {
     setSending(true);
     setError(null);
     try {
-      const sent = await callAction<{ printer: string; file: string; plate: number }>('send-to-printer', item.id, file.filePath, {
-        printerId: printer.id,
-        plate: plate.index,
-        trays,
-        useAms: printer.ams.length > 0,
-        bedLeveling,
-        timelapse,
-        flowCalibration
-      });
+      // A kept copy (Reprint) is named by its id; the model's own file stands for it.
+      const printed = /^printed:(\d+)$/.exec(file.filePath);
+      const sent = await callAction<{ printer: string; file: string; plate: number }>(
+        'send-to-printer',
+        item.id,
+        printed ? item.model.filePath : file.filePath,
+        {
+          ...(printed ? { printedFileId: Number(printed[1]) } : {}),
+          printerId: printer.id,
+          plate: plate.index,
+          trays,
+          useAms: printer.ams.length > 0,
+          bedLeveling,
+          timelapse,
+          flowCalibration
+        }
+      );
       close();
       await showMessage('Sent to the printer', `${itemName(item)} (plate ${sent.plate}) is on ${sent.printer} and starts in a moment.`);
     } catch (failure) {

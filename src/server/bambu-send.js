@@ -114,9 +114,20 @@ function readiness(summary) {
  * the network with their state and AMS slots.
  * @param {any} db
  * @param {string} filePath
+ * @param {number | null} [printedFileId] a kept file to offer first (Reprint)
  */
-async function sendOptions(db, filePath) {
+async function sendOptions(db, filePath, printedFileId = null) {
   const files = await slicedFilesFor(filePath);
+  // Reprint: the exact file a print used before (printed-files.js), first.
+  if (printedFileId) {
+    const kept = require('./printed-files');
+    const stored = kept.printedFilePath(db, printedFileId);
+    const row = db.prepare('SELECT original_name, sent_at FROM printed_files WHERE id = ?').get(Number(printedFileId));
+    const plates = stored ? await slicedPlates(stored).catch(() => []) : [];
+    if (stored && row && plates.length) {
+      files.unshift({ filePath: `printed:${Number(printedFileId)}`, name: `${row.original_name} (as printed ${row.sent_at.slice(0, 10)})`, plates });
+    }
+  }
   const printers = db
     .prepare("SELECT id, nickname, model FROM printers WHERE connection_type = 'bambu' ORDER BY nickname COLLATE NOCASE")
     .all()
@@ -175,9 +186,56 @@ function amsMappingFor(plate, chosen) {
 }
 
 /**
+ * The command that starts a plate of a sliced project already on the printer (`path`, in its
+ * storage): which plate, where the file is, each filament's tray, and the options.
+ * @param {{ model: string | null, path: string, plate: { index: number, filaments: { slot: number }[] }, md5?: string, title?: string, hasAms: boolean, useAms?: boolean, trays?: Record<string, number>, bedLeveling?: boolean, timelapse?: boolean, flowCalibration?: boolean }} options
+ */
+function projectFileCommand(options) {
+  const useAms = options.useAms !== false && options.hasAms;
+  const name = options.path.replace(/^.*\//, '');
+  return {
+    print: {
+      sequence_id: String(Date.now() % 100000),
+      command: 'project_file',
+      param: `Metadata/plate_${options.plate.index}.gcode`,
+      url: printerFileUrl(options.model, options.path.replace(/^\/+/, '')),
+      subtask_name: String(options.title || name.replace(SLICED, '')).slice(0, 120),
+      md5: options.md5 || '',
+      project_id: '0',
+      profile_id: '0',
+      task_id: '0',
+      subtask_id: '0',
+      bed_type: 'auto',
+      timelapse: !!options.timelapse,
+      // Spelled both ways: firmware versions read one or the other.
+      bed_leveling: options.bedLeveling !== false,
+      bed_levelling: options.bedLeveling !== false,
+      flow_cali: !!options.flowCalibration,
+      vibration_cali: false,
+      layer_inspect: false,
+      use_ams: useAms,
+      ams_mapping: useAms ? amsMappingFor(options.plate, options.trays) : []
+    }
+  };
+}
+
+/** The plates of a sliced project from its bytes (a file on the printer, read through a temporary copy). */
+async function slicedPlatesOfBytes(bytes) {
+  const os = require('os');
+  const temp = path.join(os.tmpdir(), `justtprint-printer-${process.pid}-${Date.now()}.gcode.3mf`);
+  await fs.promises.writeFile(temp, bytes);
+  try {
+    return await slicedPlates(temp);
+  } finally {
+    await fs.promises.rm(temp, { force: true });
+  }
+}
+
+/**
  * Send a plate of a sliced project to a printer and start it.
  * @param {any} db
- * @param {{ printerId: number, filePath: string, plate: number, trays?: Record<string, number>, useAms?: boolean, bedLeveling?: boolean, timelapse?: boolean, flowCalibration?: boolean, title?: string }} options
+ * @param {{ printerId: number, filePath: string, fileName?: string, plate: number, trays?: Record<string, number>, useAms?: boolean, bedLeveling?: boolean, timelapse?: boolean, flowCalibration?: boolean, title?: string }} options
+ *   `fileName`: the name for the printer, when the file's own is not (a kept copy's).
  *   `trays`: for each filament slot of the plate, the tray it prints from (AMS unit × 4 + slot, or 254 for the holder).
  */
 async function sendPrint(db, options) {
@@ -193,7 +251,7 @@ async function sendPrint(db, options) {
   const plate = plates.find((p) => p.index === Number(options.plate));
   if (!plate) throw new Error(`This file has no sliced plate ${options.plate}`);
 
-  const remoteName = printerFileName(options.filePath);
+  const remoteName = printerFileName(options.fileName || options.filePath);
   // JUSTTPRINT_BAMBU_FTPS_PORT: a stand-in printer's port in the end-to-end checks.
   const port = Number(process.env.JUSTTPRINT_BAMBU_FTPS_PORT) || undefined;
   await uploadToPrinter({ host: followed.host, port, accessCode: followed.secret, localPath: options.filePath, remoteName });
@@ -202,33 +260,36 @@ async function sendPrint(db, options) {
     .update(await fs.promises.readFile(options.filePath))
     .digest('hex')
     .toUpperCase();
-  const useAms = options.useAms !== false && followed.summary.ams.length > 0;
-  const sent = live.command(printerId, {
-    print: {
-      sequence_id: String(Date.now() % 100000),
-      command: 'project_file',
-      param: `Metadata/plate_${plate.index}.gcode`,
-      url: printerFileUrl(printer.model, remoteName),
-      subtask_name: String(options.title || remoteName.replace(SLICED, '')).slice(0, 120),
+  const sent = live.command(
+    printerId,
+    projectFileCommand({
+      model: printer.model,
+      path: remoteName,
+      plate,
       md5,
-      project_id: '0',
-      profile_id: '0',
-      task_id: '0',
-      subtask_id: '0',
-      bed_type: 'auto',
-      timelapse: !!options.timelapse,
-      // Spelled both ways: firmware versions read one or the other.
-      bed_leveling: options.bedLeveling !== false,
-      bed_levelling: options.bedLeveling !== false,
-      flow_cali: !!options.flowCalibration,
-      vibration_cali: false,
-      layer_inspect: false,
-      use_ams: useAms,
-      ams_mapping: useAms ? amsMappingFor(plate, options.trays) : []
-    }
-  });
+      title: options.title,
+      hasAms: followed.summary.ams.length > 0,
+      useAms: options.useAms,
+      trays: options.trays,
+      bedLeveling: options.bedLeveling,
+      timelapse: options.timelapse,
+      flowCalibration: options.flowCalibration
+    })
+  );
   if (!sent) throw new Error(`${printer.nickname} went offline before the print could start; the file is on the printer`);
   return { printer: printer.nickname, file: remoteName, plate: plate.index };
 }
 
-module.exports = { slicedPlates, slicedFilesFor, sendOptions, sendPrint, amsMappingFor, printerFileName, printerFileUrl, readiness, HOLDER };
+module.exports = {
+  slicedPlates,
+  slicedPlatesOfBytes,
+  slicedFilesFor,
+  sendOptions,
+  sendPrint,
+  projectFileCommand,
+  amsMappingFor,
+  printerFileName,
+  printerFileUrl,
+  readiness,
+  HOLDER
+};

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Ban, BarChart3, CheckCircle2, CircleDot, CircleX, Clock, Coins, Database, FilePlus2, Printer, Table2 } from 'lucide-react';
-import { settings, statistics, type PrintStatistics } from '../api';
+import { Ban, BarChart3, CheckCircle2, ChevronDown, CircleDot, CircleX, Clock, Coins, Database, Download, FilePlus2, Printer, Table2 } from 'lucide-react';
+import { callAction, downloadUrl, settings, statistics, type PrintStatistics } from '../api';
+import { Menu } from '../components/Menu';
+import { showMessage } from '../page';
 import { Button } from '../components/Button';
 import { EmptyState, Panel, Skeleton, StatCard } from '../components/Panel';
 import { Tabs } from '../components/Tabs';
@@ -10,6 +12,7 @@ import { formatDay, fromWeightInput, weightInputUnit } from '../units';
 import { findMenuAction } from '../shell/menu';
 import { useLibraryData } from '../shell/libraryData';
 import { PrintCalendar } from '../stats/PrintCalendar';
+import { FailureAnalysis } from '../stats/FailureAnalysis';
 import { labelEvery, monthLabel, monthTitle, niceMax, percent, ticks } from '../stats/scale';
 
 const PERIODS = [
@@ -613,6 +616,46 @@ function StatsSkeleton() {
   );
 }
 
+/** Export (src/server/exports.js): write the file on the server, then download it. */
+async function exportData(what: 'history' | 'models' | 'everything', months: number) {
+  try {
+    const result = await callAction<{ filePath: string; name: string }>('export-data', { what, months });
+    const link = document.createElement('a');
+    link.href = downloadUrl(result.filePath);
+    link.download = result.name;
+    link.click();
+  } catch (error) {
+    await showMessage('Export', error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** Export: the print history and models as CSV, or everything as one Excel workbook (the period chosen). */
+function ExportMenu({ months }: { months: number }) {
+  return (
+    <Menu
+      label="Export"
+      items={[
+        { id: 'history', label: 'Print History (.csv)', onSelect: () => void exportData('history', months) },
+        { id: 'models', label: 'Models (.csv)', onSelect: () => void exportData('models', months) },
+        { id: 'everything', label: 'Everything (Excel)', onSelect: () => void exportData('everything', months) }
+      ]}
+      trigger={(props) => (
+        <button
+          type="button"
+          id="jp-stats-export"
+          className="jp-btn jp-btn--secondary jp-btn--md"
+          title="Download the print history, models and statistics"
+          {...props}
+        >
+          <Download size={16} aria-hidden="true" />
+          <span>Export</span>
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      )}
+    />
+  );
+}
+
 /**
  * Statistics (#/stats): prints per month, success rate, the designers, models and
  * printers printed most, and how the library grew. Only what the print log and library hold.
@@ -660,7 +703,10 @@ export function StatsPage() {
             {stats ? ` (${monthTitle(stats.from)} – ${monthTitle(stats.to)})` : ''}.
           </p>
         </div>
-        <Tabs<PeriodId> label="Period" items={PERIODS.map((p) => ({ id: p.id, label: p.label }))} value={period} onChange={setPeriod} />
+        <div className="jp-stats__header-actions">
+          <Tabs<PeriodId> label="Period" items={PERIODS.map((p) => ({ id: p.id, label: p.label }))} value={period} onChange={setPeriod} />
+          <ExportMenu months={Number(period)} />
+        </div>
       </header>
 
       {error && (
@@ -717,6 +763,8 @@ export function StatsPage() {
               </EmptyState>
             )}
           </Panel>
+
+          {anyPrints && <FailureAnalysis months={Number(period)} refresh={counts} />}
 
           {stats.calendar && <PrintCalendar days={stats.calendar} />}
 

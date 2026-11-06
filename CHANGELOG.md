@@ -2,6 +2,23 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.17.0] - 2026-11-05
+
+Control your Bambu Lab printer from JusttPrint, have sliced files filed and queued by themselves, and let JusttPrint watch prints for failures.
+
+**Upgrade notes:**
+- **Sliced-files inbox.** To use it, an admin chooses a folder on the Print Queue page (outside your STL Home folders). With Docker, mount that folder into the container first; `docker/docker-compose.yml` has a line for it. Then export sliced files from OrcaSlicer into it.
+- **Failure detection** needs Obico's detector running next to JusttPrint (the Guide and `docker/docker-compose.yml` have the lines). It is off until an admin sets it up on a printer's page, and it only alerts until you turn on the pause.
+
+**Changes:**
+- **Control your Bambu Lab printer.** A printer's Live section has **Pause**, **Resume** and **Stop** (after asking), the print speed (Silent, Standard, Sport, Ludicrous) and the chamber light. Home's Printing now has Pause, Resume and Stop too.
+- **Files on the printer.** **Show Files** on a printer's page lists what is on its microSD card. **Print** starts a sliced project (choose the plate) or G-code already there, without sending it again, and the bin deletes old ones.
+- **Every print keeps its exact file.** A print sent from the queue keeps the sliced file it used, with its settings (profiles, layer height, walls, infill, supports, temperatures). The model page lists them under **Printed files**, with how each print went. **Reprint** sends that same file again; **Download** saves it.
+- **Failure analysis.** Statistics shows what failed prints had in common (printer, material, brand, AMS humidity, print length, time of day), and says in words which ones fail clearly more often. JusttPrint now keeps the AMS humidity of prints a Bambu printer logs by itself.
+- **Export to CSV and Excel.** **Export** on Statistics downloads the print history or models as CSV, or everything in one Excel workbook.
+- **Sliced-files inbox.** Export sliced files from OrcaSlicer into one folder, and JusttPrint files each one beside its model and adds the model to the queue, ready to Send. It matches them by name (OrcaSlicer's plate, filament and time endings are ignored); a file it cannot match waits on the Queue page for you to choose its model. An admin chooses the folder at **Sliced files inbox** on the Queue page.
+- **Failure detection.** While a Bambu Lab printer prints, JusttPrint can check its camera for spaghetti with Obico's free detection model, running in a container next to JusttPrint, and alert everyone when a print looks like it is failing (**A print looks like it is failing** in My alerts). It only alerts until you turn on **Pause the print**. Set it up on a printer's page under **Failure detection**; the Guide has the Docker Compose lines.
+
 ## [10.16.0] - 2026-11-05
 
 A better Print Queue: send prints to a Bambu Lab printer, Start opens OrcaSlicer, more on each print, and drag to reorder.

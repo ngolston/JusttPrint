@@ -519,3 +519,112 @@ button.jp-loaded-slot:focus-visible {
   gap: 4px;
   align-items: center;
 }
+
+/* Printer controls (printers/LiveStatus.tsx PrinterControls): pause, resume, stop, speed, light. */
+.jp-live__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-2);
+}
+.jp-live__controls.is-compact {
+  margin-left: auto;
+  gap: 4px;
+}
+.jp-live__speed.jp-input {
+  width: auto;
+  height: 32px;
+  font-size: var(--jp-text-meta);
+}
+.jp-live__stop {
+  color: var(--jp-danger-text);
+}
+
+/* Files on the printer (printers/PrinterFiles.tsx). */
+.jp-printer-files__start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jp-space-3);
+}
+.jp-printer-files__path {
+  display: flex;
+  align-items: center;
+  gap: var(--jp-space-2);
+  margin-bottom: var(--jp-space-2);
+}
+.jp-printer-files__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jp-printer-files__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--jp-space-3);
+  padding: 6px 0;
+}
+.jp-printer-files__row + .jp-printer-files__row {
+  border-top: 1px solid var(--jp-border);
+}
+.jp-printer-files__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-printer-files__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Failure detection (printers/FailureDetection.tsx). */
+.jp-detect__status,
+.jp-detect__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.jp-detect__form {
+  max-width: 560px;
+  margin-top: 8px;
+  gap: 12px;
+}
+.jp-detect__line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.jp-detect__hint {
+  font-weight: 400;
+}
+.jp-detect__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.jp-detect__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jp-detect__actions {
+  display: flex;
+  gap: 8px;
+}
+.jp-detect__picture {
+  margin: 0;
+  max-width: 420px;
+}
+.jp-detect__picture img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--jp-border);
+}

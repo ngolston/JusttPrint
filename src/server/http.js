@@ -160,11 +160,14 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   require('./label-pages').registerLabelPages(expressApp);
   // OrcaSlicer downloads models through short-lived per-file addresses (slicer-links.js).
   registerSlicerFileRoutes(expressApp);
+  // The failure detector downloads each camera picture through a short-lived address (failure-detection.js).
+  require('./failure-detection').registerFrameRoutes(expressApp);
   expressApp.use(auth.requireAuth);
   registerApiRoutes(expressApp);
   require('./photos').registerPhotoRoutes(expressApp);
   // A Bambu printer's camera picture (bambu-camera.js), for anyone signed in.
   require('./bambu-camera').registerCameraRoutes(expressApp);
+  require('./failure-detection').registerPictureRoutes(expressApp);
 
   // MCP tools change anything (the API token is an admin); Puter AI requests come from AI tagging.
   expressApp.use('/mcp', requireRole('admin'));

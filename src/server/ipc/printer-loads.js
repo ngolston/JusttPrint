@@ -25,3 +25,21 @@ ipcMain.handle('import-bambu-printers', async () => {
 });
 // Bambu Lab live status over the LAN (bambu-live.js): state, progress, temperatures, AMS trays.
 ipcMain.handle('get-printer-live', () => require('../bambu-live').status());
+// Pause, resume, stop, speed and the chamber light of a Bambu Lab printer (src/server/bambu-control.js).
+// The files on a Bambu Lab printer's storage (src/server/printer-files.js).
+ipcMain.handle('get-printer-files', (event, printerId, dir) => require('../printer-files').listPrinterFiles(database.db, Number(printerId), dir || '/'));
+ipcMain.handle('get-printer-file-plates', (event, printerId, filePath) =>
+  require('../printer-files').printerFilePlates(database.db, Number(printerId), String(filePath))
+);
+ipcMain.handle('print-printer-file', (event, printerId, filePath, choices) =>
+  require('../printer-files').printPrinterFile(database.db, Number(printerId), String(filePath), choices || {})
+);
+ipcMain.handle('delete-printer-file', (event, printerId, filePath) =>
+  require('../printer-files').deletePrinterFile(database.db, Number(printerId), String(filePath))
+);
+ipcMain.handle('control-printer', (event, printerId, action, value) => require('../bambu-control').controlPrinter(Number(printerId), String(action), value));
+
+// Failure detection (src/server/failure-detection.js): the detector's settings and each print it watches.
+ipcMain.handle('get-failure-detection', () => require('../failure-detection').publicConfig());
+ipcMain.handle('save-failure-detection', (event, config) => require('../failure-detection').saveConfig(config));
+ipcMain.handle('test-failure-detection', (event, printerId) => require('../failure-detection').testDetector(printerId ? Number(printerId) : null));

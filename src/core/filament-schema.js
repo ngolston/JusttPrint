@@ -231,6 +231,34 @@ const TABLES = [
     started_at TEXT NOT NULL,
     sent_file TEXT
   )`,
+  // The exact sliced file each print sent from the queue used (src/server/printed-files.js): a
+  // copy in the data folder, its plate and printer, and the project's main settings (JSON).
+  `CREATE TABLE IF NOT EXISTS printed_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_id INTEGER NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+    printer_id INTEGER REFERENCES printers(id) ON DELETE SET NULL,
+    plate_index INTEGER,
+    stored_name TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    size INTEGER,
+    settings TEXT,
+    sent_at TEXT NOT NULL
+  )`,
+  // Sliced files dropped in the inbox folder (src/server/sliced-inbox.js): each one filed beside
+  // its model and queued, or waiting for someone to choose the model.
+  `CREATE TABLE IF NOT EXISTS sliced_inbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_name TEXT NOT NULL,
+    size INTEGER,
+    modified_ms INTEGER,
+    status TEXT NOT NULL,
+    model_id INTEGER REFERENCES models(id) ON DELETE SET NULL,
+    filed_path TEXT,
+    queued INTEGER NOT NULL DEFAULT 0,
+    message TEXT,
+    seen_at TEXT NOT NULL,
+    filed_at TEXT
+  )`,
   // Grams set aside for a queued print, so "Ready to print" counts what earlier prints will use.
   `CREATE TABLE IF NOT EXISTS queue_spool_holds (
     queue_id INTEGER NOT NULL REFERENCES print_queue(id) ON DELETE CASCADE,
@@ -349,6 +377,8 @@ const COLUMNS = [
   ['print_events', 'file_name', 'TEXT'],
   ['print_events', 'duration_seconds', 'INTEGER'],
   ['print_events', 'started_at', 'TEXT'],
+  // The AMS humidity (%) when a Bambu printer's print ended (printer-jobs.js), for Failure analysis.
+  ['print_events', 'ams_humidity', 'REAL'],
   ['print_events', 'filament_used_g', 'REAL'],
   ['print_events', 'source_ref', 'TEXT'],
   // An uploaded photo (photos/<kind>/<name>, src/server/photos.js); photo_url stays for a link (10.1).

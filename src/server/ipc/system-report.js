@@ -47,6 +47,16 @@ ipcMain.handle('get-print-statistics', async (event, options) =>
   require('../../core/print-stats').printStatistics(database.db, { months: options && options.months != null ? Number(options.months) : 12 })
 );
 
+// Failure analysis on the Statistics page (src/core/failure-analysis.js): { months } as above.
+ipcMain.handle('get-failure-analysis', async (event, options) => {
+  const months = options && options.months != null ? Number(options.months) : 12;
+  const since = months > 0 ? new Date(Date.now() - months * 30.44 * 86400000).toISOString() : null;
+  return require('../../core/failure-analysis').failureAnalysis(database.db, { since });
+});
+
+// Export from Statistics (src/server/exports.js): history or models as CSV, everything as Excel.
+ipcMain.handle('export-data', (event, options) => require('../exports').writeExport(database.db, options || {}));
+
 ipcMain.handle('get-stats', async () => {
   try {
     // Total model count

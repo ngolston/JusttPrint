@@ -27,16 +27,57 @@ ipcMain.handle('start-queue-item', (event, id) => queue.startQueueItem(database.
 
 // Send to a Bambu Lab printer (src/server/bambu-send.js): the sliced projects and printers to
 // choose from, then upload a plate, start it, and move the item to Printing now.
-ipcMain.handle('get-send-options', (event, filePath) => require('../bambu-send').sendOptions(database.db, String(filePath || '')));
+ipcMain.handle('get-send-options', (event, filePath, printedFileId) =>
+  require('../bambu-send').sendOptions(database.db, String(filePath || ''), printedFileId ? Number(printedFileId) : null)
+);
+// `filePath`: a sliced project in the library; with options.printedFileId, the kept copy of one
+// printed before (Reprint) is sent instead. Every sent file is kept (printed-files.js).
 ipcMain.handle('send-to-printer', async (event, queueId, filePath, options) => {
   const db = database.db;
-  const item = db.prepare('SELECT q.id, m.title, m.fileName FROM print_queue q JOIN models m ON m.id = q.model_id WHERE q.id = ?').get(Number(queueId));
+  const kept = require('../printed-files');
+  const item = db
+    .prepare('SELECT q.id, q.model_id, m.title, m.fileName FROM print_queue q JOIN models m ON m.id = q.model_id WHERE q.id = ?')
+    .get(Number(queueId));
   if (!item) throw new Error('That queue item is gone');
   const title = (item.title && item.title.trim()) || String(item.fileName || '').replace(/(\.gcode)?\.[^.]+$/i, '');
-  const sent = await require('../bambu-send').sendPrint(db, { ...(options || {}), filePath: String(filePath || ''), title });
+  let file = String(filePath || '');
+  let fileName;
+  if (options && options.printedFileId) {
+    const stored = kept.printedFilePath(db, options.printedFileId);
+    const row = db.prepare('SELECT model_id, original_name FROM printed_files WHERE id = ?').get(Number(options.printedFileId));
+    if (!stored || !row || row.model_id !== item.model_id) throw new Error('That printed file is no longer kept');
+    file = stored;
+    fileName = row.original_name;
+  }
+  const sent = await require('../bambu-send').sendPrint(db, { ...(options || {}), filePath: file, fileName, title });
   queue.startQueueItem(db, item.id, { printerId: Number(options.printerId), plate: sent.plate, sentFile: sent.file });
+  try {
+    await kept.keepPrintedFile(db, { modelId: item.model_id, printerId: Number(options.printerId), plate: sent.plate, filePath: file });
+  } catch (error) {
+    console.warn('[Send] Could not keep a copy of the printed file:', error.message);
+  }
   return sent;
+});
+// A model's printed files (printed-files.js), and one to download.
+ipcMain.handle('get-printed-files', (event, filePath) => require('../printed-files').listPrintedFiles(database.db, modelId(filePath)));
+ipcMain.handle('download-printed-file', async (event, id) => {
+  const kept = require('../printed-files');
+  const stored = kept.printedFilePath(database.db, Number(id));
+  const row = database.db.prepare('SELECT original_name FROM printed_files WHERE id = ?').get(Number(id));
+  if (!stored || !row) throw new Error('That printed file is no longer kept');
+  const target = require('../download-files').newDownloadPath('printed', 'gcode.3mf');
+  await require('fs').promises.copyFile(stored, target);
+  return { filePath: target, name: row.original_name };
 });
 
 // Home's This month tile (src/core/month-summary.js).
 ipcMain.handle('get-month-summary', () => require('../../core/month-summary').monthSummary(database.db));
+
+// The sliced-files inbox (src/server/sliced-inbox.js): sliced projects exported to a folder are
+// filed beside their models and queued; the ones no model matches wait for a choice.
+ipcMain.handle('get-sliced-inbox', () => require('../sliced-inbox').inboxStatus(database.db));
+ipcMain.handle('find-models-by-name', (event, text) => require('../sliced-inbox').findModels(database.db, text));
+ipcMain.handle('set-sliced-inbox-folder', (event, folder) => require('../sliced-inbox').setInboxFolder(database.db, folder));
+ipcMain.handle('check-sliced-inbox', () => require('../sliced-inbox').checkInbox(database.db));
+ipcMain.handle('file-sliced-inbox', (event, id, filePath) => require('../sliced-inbox').fileWaiting(database.db, Number(id), String(filePath || '')));
+ipcMain.handle('ignore-sliced-inbox', (event, id) => require('../sliced-inbox').ignoreWaiting(database.db, Number(id)));

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Camera, CameraOff, ExternalLink, Flame, Layers, Thermometer, Timer } from 'lucide-react';
-import type { Printer, PrinterLive } from '../api';
+import { AlertTriangle, Camera, CameraOff, ExternalLink, Flame, Layers, Lightbulb, LightbulbOff, Pause, Play, Square, Thermometer, Timer } from 'lucide-react';
+import { printers as printerApi, type Printer, type PrinterLive } from '../api';
+import { EditOnly } from '../components/EditOnly';
+import { showMessage } from '../page';
 import { StatusBadge } from '../components/Badge';
 import { ProgressBar } from '../components/Panel';
 import { openModel } from '../home/HomeSections';
@@ -10,7 +12,8 @@ import { liveLabel, liveTone, minutesText } from './live';
 
 /*
  * Bambu Lab live status over the LAN (src/server/bambu-live.js): a badge on a printer's tile, its
- * job and temperatures on its page, and printers printing now on Home. Only read from the printer.
+ * job and temperatures on its page, and printers printing now on Home; for editors, the controls
+ * (pause, resume, stop, speed, chamber light; src/server/bambu-control.js).
  */
 
 /** Printing 37%, Idle, Offline. */
@@ -50,6 +53,100 @@ function ProgressLine({ live }: { live: PrinterLive }) {
       {live.progress !== null && <ProgressBar value={live.progress} label="Print progress" tone={live.state === 'paused' ? 'warning' : 'accent'} />}
       {parts.length > 0 && <span className="jp-meta jp-live__progress-text">{parts.join(' · ')}</span>}
     </>
+  );
+}
+
+const SPEEDS: [number, string][] = [
+  [1, 'Silent'],
+  [2, 'Standard'],
+  [3, 'Sport'],
+  [4, 'Ludicrous']
+];
+
+/**
+ * Pause or Resume, Stop (after asking), the speed and the chamber light. `compact`: icon buttons
+ * only (Home's Printing now).
+ */
+export function PrinterControls({ printerName, live, compact = false }: { printerName: string; live: PrinterLive; compact?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  if (!live.connected) return null;
+  const active = live.state === 'printing' || live.state === 'paused';
+  const run = async (action: 'pause' | 'resume' | 'stop' | 'speed' | 'light', value?: number | string) => {
+    if (action === 'stop') {
+      const answer = await showMessage('Stop the print', `Stop ${live.job || 'the print'} on ${printerName}? It cannot be resumed.`, ['Stop', 'Keep Printing']);
+      if (answer !== 'Stop') return;
+    }
+    setBusy(true);
+    try {
+      await printerApi.control(live.printerId, action, value);
+    } catch (error) {
+      await showMessage(printerName, error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const lightOn = live.light === 'on';
+  return (
+    <EditOnly>
+      <span className={cx('jp-live__controls', compact && 'is-compact')} role="group" aria-label={`Control ${printerName}`}>
+        {live.state === 'printing' && (
+          <button type="button" className="jp-btn jp-btn--secondary jp-btn--sm" disabled={busy} onClick={() => void run('pause')} title="Pause the print">
+            <Pause size={14} aria-hidden="true" />
+            {!compact && <span>Pause</span>}
+            {compact && <span className="jp-sr-only">Pause</span>}
+          </button>
+        )}
+        {live.state === 'paused' && (
+          <button type="button" className="jp-btn jp-btn--primary jp-btn--sm" disabled={busy} onClick={() => void run('resume')} title="Resume the print">
+            <Play size={14} aria-hidden="true" />
+            {!compact && <span>Resume</span>}
+            {compact && <span className="jp-sr-only">Resume</span>}
+          </button>
+        )}
+        {active && (
+          <button
+            type="button"
+            className="jp-btn jp-btn--secondary jp-btn--sm jp-live__stop"
+            disabled={busy}
+            onClick={() => void run('stop')}
+            title="Stop the print"
+          >
+            <Square size={14} aria-hidden="true" />
+            {!compact && <span>Stop</span>}
+            {compact && <span className="jp-sr-only">Stop</span>}
+          </button>
+        )}
+        {active && !compact && (
+          <select
+            className="jp-input jp-live__speed"
+            aria-label="Print speed"
+            value={live.speed ?? ''}
+            disabled={busy}
+            onChange={(event) => void run('speed', Number(event.target.value))}
+          >
+            {live.speed === null && <option value="">Speed</option>}
+            {SPEEDS.map(([level, label]) => (
+              <option key={level} value={level}>
+                {label}
+              </option>
+            ))}
+          </select>
+        )}
+        {!compact && (
+          <button
+            type="button"
+            className="jp-btn jp-btn--secondary jp-btn--sm"
+            aria-pressed={lightOn}
+            disabled={busy}
+            onClick={() => void run('light', lightOn ? 'off' : 'on')}
+            title={lightOn ? 'Turn the chamber light off' : 'Turn the chamber light on'}
+          >
+            {lightOn ? <Lightbulb size={14} aria-hidden="true" /> : <LightbulbOff size={14} aria-hidden="true" />}
+            <span>Light</span>
+          </button>
+        )}
+      </span>
+    </EditOnly>
   );
 }
 
@@ -180,6 +277,7 @@ export function LiveSection({ printer, live }: { printer: Printer; live: Printer
       ) : (
         <div className="jp-live__body">
           <Errors live={live} />
+          <PrinterControls printerName={printer.nickname} live={live} />
           {cameraOn && <CameraView printerId={printer.id} />}
           {(active || live.job) && (
             <div className="jp-live__job-row">
@@ -227,6 +325,7 @@ export function LivePrintingRows({ printers, live }: { printers: Printer[] | nul
                 {printer?.nickname || 'Printer'}
               </button>
               <LiveBadge live={entry} />
+              <PrinterControls printerName={printer?.nickname || 'the printer'} live={entry} compact />
             </span>
             <span className="jp-live-row__body">
               <CameraView printerId={entry.printerId} every={5000} small />

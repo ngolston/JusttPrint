@@ -867,6 +867,10 @@ export interface PrinterLive {
   external: { type: string | null; color: string | null } | null;
   /** The printer's errors now (bambu-hms.js): its code, the text Bambu gives it, a page about it. */
   errors: { code: string; text: string | null; url: string }[];
+  /** While printing: 1 Silent, 2 Standard, 3 Sport, 4 Ludicrous. */
+  speed: number | null;
+  /** The chamber light, when the printer says. */
+  light: 'on' | 'off' | null;
   updatedAt: string | null;
 }
 
@@ -945,7 +949,10 @@ export const printers = {
   /** Bambu Lab cloud: the signed-in account's printers, added to Printers (admin). */
   importBambu: () => callAction<{ created: number; updated: number; unchanged: number; total: number }>('import-bambu-printers'),
   /** Bambu Lab live status (LAN), one entry per printer followed. */
-  live: () => callAction<PrinterLive[]>('get-printer-live')
+  live: () => callAction<PrinterLive[]>('get-printer-live'),
+  /** Pause, resume, stop, speed (1–4) or light ('on' / 'off'), src/server/bambu-control.js. */
+  control: (printerId: number, action: 'pause' | 'resume' | 'stop' | 'speed' | 'light', value?: number | string) =>
+    callAction<{ ok: boolean }>('control-printer', printerId, action, value ?? null)
 };
 
 /** A place spools are kept (src/core/storage-locations.js). */
@@ -1256,6 +1263,70 @@ export const printQueue = {
   move: (id: number, toIndex: number) => callAction<unknown>('move-queue-item', id, toIndex),
   remove: (id: number) => callAction<unknown>('remove-from-queue', id),
   start: (id: number) => callAction<unknown>('start-queue-item', id)
+};
+
+/** A model to choose for a sliced file (src/server/sliced-inbox.js). */
+export interface ModelChoice {
+  filePath: string;
+  name: string;
+}
+/** A sliced file in the inbox: filed beside its model, or waiting for one to be chosen. */
+export interface InboxItem {
+  id: number;
+  fileName: string;
+  status: 'waiting' | 'filed';
+  message: string | null;
+  queued: boolean;
+  at: string;
+  model: ModelChoice | null;
+  suggestions: ModelChoice[];
+}
+export interface InboxStatus {
+  folder: string;
+  error: string | null;
+  items: InboxItem[];
+}
+
+/** The sliced-files inbox (Print Queue page). */
+export const slicedInbox = {
+  status: () => callAction<InboxStatus>('get-sliced-inbox'),
+  setFolder: (folder: string) => callAction<{ folder: string }>('set-sliced-inbox-folder', folder),
+  check: () => callAction<{ filed: number; waiting: number }>('check-sliced-inbox'),
+  file: (id: number, filePath: string) => callAction<{ model: ModelChoice; queued: number }>('file-sliced-inbox', id, filePath),
+  ignore: (id: number) => callAction<unknown>('ignore-sliced-inbox', id),
+  findModels: (text: string) => callAction<ModelChoice[]>('find-models-by-name', text)
+};
+
+/** One print the failure detector watches (src/server/failure-detection.js). */
+export interface DetectionWatch {
+  printerId: number;
+  pictures: number;
+  score: number | null;
+  level: 'warming' | 'ok' | 'warning' | 'failing';
+  warmingUp: boolean;
+  checkedAt: string | null;
+  error: string | null;
+  alertedAt: string | null;
+  paused: boolean;
+  flagged: boolean;
+}
+export interface FailureDetection {
+  enabled: boolean;
+  url: string;
+  selfUrl: string;
+  intervalSeconds: number;
+  sensitivity: 'low' | 'medium' | 'high';
+  autoPause: boolean;
+  printers: number[] | null;
+  tokenSet: boolean;
+  watching: DetectionWatch[];
+}
+
+export const failureDetection = {
+  get: () => callAction<FailureDetection>('get-failure-detection'),
+  save: (config: Partial<Omit<FailureDetection, 'watching' | 'tokenSet'>> & { token?: string }) =>
+    callAction<FailureDetection>('save-failure-detection', config),
+  test: (printerId?: number | null) => callAction<{ ok: boolean; detections: number; score: number }>('test-failure-detection', printerId ?? null)
 };
 
 /** Home's This month (src/core/month-summary.js). */
