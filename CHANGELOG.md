@@ -2,7 +2,7 @@
 
 All notable changes contributed via pull request are documented in this file.
 
-## [Unreleased]
+## [10.18.0] - 2026-11-08
 
 Fixes and speed-ups sent in by a JusttPrint user, Lupolima. Thank you!
 
