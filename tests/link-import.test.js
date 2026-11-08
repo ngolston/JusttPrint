@@ -61,8 +61,8 @@ async function main() {
   );
   assert.deepStrictEqual(found.unsupported, ['https://example.com/model/1']);
   assert.strictEqual(found.skipped, 0);
-  const many = findModelLinks(Array.from({ length: 205 }, (_, i) => `https://www.printables.com/model/${i + 1}`).join('\n'));
-  assert.strictEqual(many.links.length, 200);
+  const many = findModelLinks(Array.from({ length: 605 }, (_, i) => `https://www.printables.com/model/${i + 1}`).join('\n'));
+  assert.strictEqual(many.links.length, 600);
   assert.strictEqual(many.skipped, 5);
 
   assert.strictEqual(fallbackName(parseModelLink('https://www.printables.com/model/3161-3d-benchy')), '3d Benchy');

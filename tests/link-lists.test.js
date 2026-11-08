@@ -57,6 +57,13 @@ async function main() {
     // A collection: its details, then its models (favorites/<id>/designs, as MakerWorld answers it).
     if (u.pathname === '/v1/design-service/favorites/9') return json({ id: 9, title: 'Parametric', creator: { name: 'SemiAmateur' } });
     if (u.pathname === '/v1/design-service/favorites/9/designs') return json({ total: 2, hits: [{ id: 1 }, { id: 2 }] });
+    // A big collection (346 models, page by page).
+    if (u.pathname === '/v1/design-service/favorites/12') return json({ id: 12, title: 'Big' });
+    if (u.pathname === '/v1/design-service/favorites/12/designs') {
+      const offset = Number(u.searchParams.get('offset'));
+      const ids = Array.from({ length: 346 }, (_, i) => 5000 + i).slice(offset, offset + 50);
+      return json({ total: 346, hits: ids.map((id) => ({ id })) });
+    }
     if (u.pathname === '/v1/design-service/favorites/10') return json({ id: 10, title: 'Empty' });
     if (u.pathname === '/v1/design-service/favorites/10/designs') return json({ total: 0, hits: [] });
     if (u.pathname === '/v1/design-service/favorites/11') return json({ code: 404 }, 404);
@@ -77,6 +84,9 @@ async function main() {
   const collection = await listModelLinks('https://makerworld.com/en/collections/9-x', { fetchImpl: world });
   assert.deepStrictEqual(collection.links, ['https://makerworld.com/en/models/1', 'https://makerworld.com/en/models/2']);
   assert.strictEqual(collection.title, 'Collection "Parametric" by SemiAmateur');
+  const big = await listModelLinks('https://makerworld.com/en/collections/12-big', { fetchImpl: world });
+  assert.strictEqual(big.links.length, 346, 'a collection of 346 models comes whole (up to 600 links)');
+  assert.strictEqual(new Set(big.links).size, 346);
   await assert.rejects(listModelLinks('https://makerworld.com/en/collections/10', { fetchImpl: world }), /no models in this collection/);
   await assert.rejects(listModelLinks('https://makerworld.com/en/collections/11', { fetchImpl: world }), /has no collection 11/);
 

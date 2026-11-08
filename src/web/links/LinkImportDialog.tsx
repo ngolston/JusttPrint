@@ -576,7 +576,7 @@ export function LinkImportDialog() {
         <p className="jp-meta jp-links__unsupported" id="jp-links-unsupported">
           {unsupported.length > 0 &&
             `Not a model link, left out: ${unsupported.slice(0, 3).join(', ')}${unsupported.length > 3 ? ` and ${unsupported.length - 3} more` : ''}.`}
-          {skipped > 0 && ` Up to 200 links at a time: ${skipped} left out.`}
+          {skipped > 0 && ` Up to 600 links at a time: ${skipped} left out.`}
         </p>
       )}
       <p className="jp-upload__summary" role="status" id="jp-links-summary">

@@ -169,8 +169,8 @@ async function thingiverseList(list, fetchImpl) {
 
 /**
  * The model links of a designer or collection link: { url, title, links, total } (`links` at most
- * 200; `total` how many there are, when the site says). `options.uid` is a MakerWorld designer's id
- * when it is known (the MakerWorld section).
+ * MAX_LINKS; `total` how many there are, when the site says). `options.uid` is a MakerWorld
+ * designer's id when it is known (the MakerWorld section).
  */
 async function listModelLinks(raw, { fetchImpl = httpsFetch, uid = null } = {}) {
   const list = parseListLink(raw);
