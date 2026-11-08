@@ -162,7 +162,6 @@ export function shownProfiles(profiles: MakerWorldProfile[], downloads: ProfileD
   return downloaded.length ? downloaded : numbered;
 }
 
-/** Window event: a model's site details were edited in this browser (the Edit dialog). */
 /**
  * Upload files one after another, going on past a file the library refuses (a README or a picture
  * from a downloaded archive): the others still go into the model's folder and become one model with
@@ -185,6 +184,7 @@ export async function uploadEach<F>(
   return { added, skipped };
 }
 
+/** Window event: a model's site details were edited in this browser (the Edit dialog). */
 export const SITE_DETAILS_CHANGED = 'jp-site-details-changed';
 
 export const getSiteDetails = (url: string, refresh = false) => callAction<SiteDetailsResult | null>('get-site-details', url, refresh);
