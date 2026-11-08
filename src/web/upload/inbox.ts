@@ -94,13 +94,22 @@ function setInfo(info: UploadFolderInfo) {
   if (before !== info.uploadFolder) (window as unknown as { gridHost?: { rebuild?: () => void } }).gridHost?.rebuild?.();
 }
 
+/**
+ * The run to show when a page opens: only one still going. The server keeps the last run after it
+ * ends, so a finished one would show its message again on every page load; how it ended is in the
+ * notifications.
+ */
+export function runOnLoad(run: OrganizeRun | null): OrganizeRun | null {
+  return run && run.running ? run : null;
+}
+
 /** Load once, then follow the server: settings saved, scans and moves (the count), and the run. */
 function startFollowing() {
   if (started) return;
   started = true;
   void reloadUploadFolder();
   void callAction<OrganizeRun | null>('get-organize-uploads')
-    .then((run) => set({ run }))
+    .then((run) => set({ run: runOnLoad(run) }))
     .catch(() => {});
   const soon = () => {
     window.clearTimeout(reloadTimer);

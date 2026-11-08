@@ -2,6 +2,16 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.18.0] - 2026-11-08
+
+Fixes and speed-ups sent in by a JusttPrint user, Lupolima. Thank you!
+
+**Changes:**
+- **Add Downloaded Files no longer leaves duplicate models.** In the MakerWorld download dialog, a file the library refuses (such as a README) used to stop the rest, and the files added before it became separate models next to the online one. Now JusttPrint skips the refused file, adds the others to the model, and tells you which files were left out and why.
+- **Faster with big libraries.** After each thumbnail job, JusttPrint no longer rewrites every model in folders that have a cover. On large libraries, especially on a Raspberry Pi, this used to slow the whole site down while downloads ran.
+- **The "Organize finished" notice shows once.** It no longer comes back every time you open a page after a run ends. How the run ended is still in your notifications.
+- **More file types: OpenSCAD, FreeCAD, SketchUp and SolidWorks** (.scad, .fcstd, .skp, .sldprt, .sldasm). Like the other extra types, turn them on in **Settings → Scanning → File Types**.
+
 ## [10.17.0] - 2026-11-05
 
 Control your Bambu Lab printer from JusttPrint, have sliced files filed and queued by themselves, and let JusttPrint watch prints for failures.

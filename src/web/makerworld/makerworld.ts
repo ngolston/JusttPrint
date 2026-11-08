@@ -162,6 +162,28 @@ export function shownProfiles(profiles: MakerWorldProfile[], downloads: ProfileD
   return downloaded.length ? downloaded : numbered;
 }
 
+/**
+ * Upload files one after another, going on past a file the library refuses (a README or a picture
+ * from a downloaded archive): the others still go into the model's folder and become one model with
+ * the online one. Answers the names given to the uploaded files and why each refused one was skipped.
+ */
+export async function uploadEach<F>(
+  files: F[],
+  upload: (file: F) => Promise<{ fileName: string }>,
+  nameOf: (file: F) => string
+): Promise<{ added: string[]; skipped: { name: string; reason: string }[] }> {
+  const added: string[] = [];
+  const skipped: { name: string; reason: string }[] = [];
+  for (const file of files) {
+    try {
+      added.push((await upload(file)).fileName);
+    } catch (error) {
+      skipped.push({ name: nameOf(file), reason: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return { added, skipped };
+}
+
 /** Window event: a model's site details were edited in this browser (the Edit dialog). */
 export const SITE_DETAILS_CHANGED = 'jp-site-details-changed';
 
