@@ -9,7 +9,7 @@ import { exposeGlobal, onServerEvent } from '../page';
 import { formatBytes } from '../shell/Storage';
 import { navigate } from '../shell/routes';
 import { MakerWorldAccountNote } from './MakerWorldAccountNote';
-import { accountStatus, type MakerWorldDetails, type ProfileDownload } from './makerworld';
+import { accountStatus, uploadEach, type MakerWorldDetails, type ProfileDownload } from './makerworld';
 import { mediaLine } from '../media/media';
 import { ProfileChecklist } from './ProfileChecklist';
 
@@ -161,20 +161,26 @@ export function MakerWorldDownloadDialog() {
     try {
       const info = await uploads.info();
       const { folder: target } = await callAction<{ folder: string }>('makerworld-prepare-folder', { url: details.url, folder });
-      const added: string[] = [];
-      for (const file of chosen) {
-        const uploaded = await uploadFile(file, target, {
-          chunkBytes: info.chunkBytes,
-          onProgress: (fraction) => setProgress({ label: file.name, received: fraction * file.size, total: file.size })
-        });
-        added.push(uploaded.fileName);
+      const { added, skipped } = await uploadEach(
+        chosen,
+        (file) =>
+          uploadFile(file, target, {
+            chunkBytes: info.chunkBytes,
+            onProgress: (fraction) => setProgress({ label: file.name, received: fraction * file.size, total: file.size })
+          }),
+        (file) => file.name
+      );
+      const notAdded = skipped.length ? ` Not added: ${skipped.map((file) => file.reason).join('; ')}.` : '';
+      if (!added.length) {
+        setSummary(`Adding the files failed.${notAdded}`);
+        return;
       }
       const result = await callAction<{ folder: string; inLibrary: number; mainFile: string | null }>('makerworld-add-files', {
         url: details.url,
         folder: target,
         files: added
       });
-      setSummary(`Added ${chosen.length === 1 ? chosen[0].name : `${chosen.length} files`} into ${result.folder}.`);
+      setSummary(`Added ${added.length === 1 ? added[0] : `${added.length} files`} into ${result.folder}.${notAdded}`);
       setDone(true);
       setBlocked(false);
       await runSearch({ force: true, preserveScroll: true });

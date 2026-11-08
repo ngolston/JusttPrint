@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, gcodeSummary, linkParts, makerWorldUrl, shownProfiles, siteModelUrl, type MakerWorldProfile } from './makerworld';
+import {
+  formatDuration,
+  formatGrams,
+  gcodeSummary,
+  linkParts,
+  makerWorldUrl,
+  shownProfiles,
+  siteModelUrl,
+  uploadEach,
+  type MakerWorldProfile
+} from './makerworld';
 
 describe('MakerWorld in the details panel', () => {
   it('offers only the downloaded print profiles once there are some', () => {
@@ -52,5 +62,30 @@ describe('MakerWorld in the details panel', () => {
     );
     expect(gcodeSummary({ printer: null, material: 'PETG', seconds: null, grams: null, layerHeight: null, nozzle: null })).toBe('PETG');
     expect(gcodeSummary({ printer: null, material: null, seconds: null, grams: null, layerHeight: null, nozzle: null })).toBe('');
+  });
+});
+
+describe('Adding files downloaded in the browser', () => {
+  it('keeps going past a file the library refuses, so the rest still become one model', async () => {
+    const tried: string[] = [];
+    const upload = async (name: string) => {
+      tried.push(name);
+      if (name.endsWith('.txt')) throw new Error(`${name}: pictures, videos and documents go into a model's folder`);
+      return { fileName: name };
+    };
+    const { added, skipped } = await uploadEach(['a.3mf', 'README.txt', 'b.stl'], upload, (name) => name);
+    expect(tried).toEqual(['a.3mf', 'README.txt', 'b.stl']);
+    expect(added).toEqual(['a.3mf', 'b.stl']);
+    expect(skipped).toEqual([{ name: 'README.txt', reason: "README.txt: pictures, videos and documents go into a model's folder" }]);
+  });
+
+  it('adds nothing when every file is refused', async () => {
+    const { added, skipped } = await uploadEach(
+      ['notes.txt'],
+      async () => Promise.reject(new Error('refused')),
+      (name) => name
+    );
+    expect(added).toEqual([]);
+    expect(skipped).toEqual([{ name: 'notes.txt', reason: 'refused' }]);
   });
 });
