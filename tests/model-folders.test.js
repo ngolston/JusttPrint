@@ -229,6 +229,32 @@ async function main() {
       .get(renamedShelf.filePath)
       .thumbnail.startsWith(`data:image/png;base64,${PNG.toString('base64').slice(0, 10)}`)
   );
+  // The cover already first: putting it back writes nothing.
+  const changes = () => database.db.prepare('SELECT total_changes() AS n').get().n;
+  const before = changes();
+  mf.reapplyAllCovers();
+  assert.strictEqual(changes(), before, 'reapplying covers that are already first must not rewrite the models');
+  // Checked once, a file is not read again while its thumbnails and the cover keep their size.
+  const shelfThumb = () => database.db.prepare('SELECT thumbnail FROM models WHERE filePath = ?').get(renamedShelf.filePath).thumbnail;
+  const sameSize = 'x'.repeat(Buffer.byteLength(shelfThumb()));
+  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(sameSize, renamedShelf.filePath);
+  mf.reapplyAllCovers();
+  assert.strictEqual(shelfThumb(), sameSize, 'same size as when checked: not read again');
+  // Another size (a render, a picture added): checked again, the cover goes first.
+  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run('data:image/png;base64,OTHER', renamedShelf.filePath);
+  mf.reapplyAllCovers();
+  assert.ok(shelfThumb().startsWith(`data:image/png;base64,${PNG.toString('base64').slice(0, 10)}`) && shelfThumb().endsWith('::data:image/png;base64,OTHER'));
+  // Files whose only picture is the cover (they still need a 3D render): the same answer with the size checked first.
+  const shelfCover = database.db.prepare('SELECT cover_thumbnail FROM model_folders WHERE cover_thumbnail IS NOT NULL').get().cover_thumbnail;
+  const onlyCover = () =>
+    database.db
+      .prepare(`SELECT filePath FROM models WHERE 0 ${mf.onlyCoverSql()}`)
+      .all()
+      .map((r) => r.filePath);
+  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(shelfCover, renamedShelf.filePath);
+  assert.ok(onlyCover().includes(renamedShelf.filePath), 'only the cover');
+  database.db.prepare('UPDATE models SET thumbnail = ? WHERE filePath = ?').run(`${shelfCover}::data:image/png;base64,OTHER`, renamedShelf.filePath);
+  assert.ok(!onlyCover().includes(renamedShelf.filePath), 'the cover and another picture');
 
   // --- Moved outside JusttPrint: found again by its name or its pictures ---
   const elsewhere = path.join(lib, 'Moved');
