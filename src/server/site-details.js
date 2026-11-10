@@ -564,9 +564,11 @@ function makeModelFolder(parent, details) {
       return candidate;
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
-      // A model folder still empty (made for files whose upload was refused): use it, so the
-      // next try does not leave it behind next to a "Name (2)".
-      if (require('./model-folders').isModelFolder(candidate) && fs.readdirSync(candidate).length === 0) return candidate;
+      // A model folder still without files (made for files whose upload was refused, or holding
+      // only the hidden piece file of an upload that stopped partway): use it, so the next try
+      // does not leave it behind next to a "Name (2)".
+      const { TEMP_SUFFIX } = require('./upload-sessions');
+      if (require('./model-folders').isModelFolder(candidate) && fs.readdirSync(candidate).every((name) => name.endsWith(TEMP_SUFFIX))) return candidate;
     }
   }
   throw new Error('Could not make a folder for the model');

@@ -481,6 +481,14 @@ async function main() {
   const plain = path.join(other, 'Plain');
   fs.mkdirSync(plain);
   assert.strictEqual(path.basename(siteDetails.makeModelFolder(other, { title: 'Plain' })), 'Plain (2)', 'an empty folder that is not a model folder is not');
+  // An upload that stopped partway leaves its hidden piece file there (kept a day to resume): the
+  // folder still has no files, so the next try uses it instead of making "Name (2)".
+  const { TEMP_SUFFIX } = require('../src/server/upload-sessions');
+  const stopped = siteDetails.makeModelFolder(other, { title: 'Marilyn' });
+  fs.writeFileSync(path.join(stopped, `.03e29fb79155af8a${TEMP_SUFFIX}`), 'part of a file');
+  assert.strictEqual(siteDetails.makeModelFolder(other, { title: 'Marilyn' }), stopped, 'a folder with only a stopped upload is used again');
+  fs.writeFileSync(path.join(stopped, 'head.stl'), 'solid x\nendsolid');
+  assert.strictEqual(path.basename(siteDetails.makeModelFolder(other, { title: 'Marilyn' })), 'Marilyn (2)', 'with a file next to it, it is not');
 
   // One file: renamed after the model, with its extension; a model the watcher added moves with it.
   const single = fs.mkdtempSync(path.join(library, 'single-'));
