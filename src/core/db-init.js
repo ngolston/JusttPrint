@@ -748,6 +748,24 @@ function backupBeforeVersion10() {
   }
 }
 
+/**
+ * A full integrity check reads the whole database file on the server's own thread, and the server
+ * answers nothing while it runs: 13 minutes on a 20 GB library on a Raspberry Pi (quick_check takes
+ * as long, it reads every page too). So it is not run at every start, only on the start after the server stopped on a "database
+ * is damaged" error, marked by this file next to the database.
+ */
+const integrityMarkPath = () => `${getDatabasePath()}.check`;
+
+/** Marks the database for a full check on the next start when the error says it is damaged. */
+function markForIntegrityCheck(error) {
+  if (!/^SQLITE_(CORRUPT|NOTADB)/.test(String(error?.code))) return;
+  try {
+    fs.writeFileSync(integrityMarkPath(), `${new Date().toISOString()} ${error.code}: ${error.message}\n`);
+  } catch (writeError) {
+    console.error('[Database] Could not mark the database for a check on the next start:', writeError.message);
+  }
+}
+
 function verifyDatabaseIntegrity() {
   try {
     console.debug('Verifying database integrity...');
@@ -756,9 +774,23 @@ function verifyDatabaseIntegrity() {
     const foreignKeysEnabled = database.db.pragma('foreign_keys');
     console.debug(`Foreign keys enabled: ${foreignKeysEnabled}`);
 
-    // Run integrity check
-    const integrityCheck = database.db.pragma('integrity_check');
-    console.debug(`Integrity check result: ${JSON.stringify(integrityCheck)}`);
+    const mark = integrityMarkPath();
+    if (fs.existsSync(mark)) {
+      console.warn(`[Database] Checking the whole database after this error (the server answers nothing meanwhile): ${fs.readFileSync(mark, 'utf8').trim()}`);
+      let problems;
+      try {
+        problems = database.db.pragma('integrity_check', { simple: false }).map((row) => row.integrity_check);
+      } catch (error) {
+        problems = [error.message]; // too damaged for the check to finish
+      }
+      if (problems.length === 1 && problems[0] === 'ok') {
+        console.log('[Database] Integrity check: ok');
+        fs.rmSync(mark, { force: true });
+      } else {
+        // The mark stays: the database is checked again on every start until a backup is restored.
+        console.error(`[Database] Integrity check found damage, restore a backup: ${problems.slice(0, 20).join('; ')}`);
+      }
+    }
 
     repairModelTagsTable();
 
@@ -769,4 +801,4 @@ function verifyDatabaseIntegrity() {
   }
 }
 
-module.exports = { initializeDatabase, verifyDatabaseIntegrity, removeFilamentData };
+module.exports = { initializeDatabase, verifyDatabaseIntegrity, markForIntegrityCheck, removeFilamentData };
