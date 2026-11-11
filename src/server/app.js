@@ -9,7 +9,7 @@ const path = require('path');
 const { version } = require('../../package.json');
 const database = require('../core/database');
 const { getDatabasePath } = require('../core/db-path');
-const { initializeDatabase, verifyDatabaseIntegrity } = require('../core/db-init');
+const { initializeDatabase, verifyDatabaseIntegrity, markForIntegrityCheck } = require('../core/db-init');
 const { cleanupExtractTempDirectory, ensureExtractTempDir } = require('../core/extract-temp');
 const { applyDockerEnvSettingIfNeeded, applyEnvSettings, applyStlHomeEnvIfNeeded, applyStlHomeExcludeEnvIfNeeded } = require('../core/env-settings-apply');
 const { app } = require('./runtime');
@@ -34,6 +34,9 @@ const downloadFiles = require('./download-files');
 const { scheduleBackgroundHashGeneration } = require('./ipc/hashes');
 const { requestThumbnailJobCancel } = require('./ipc/thumbnails');
 require('./ipc/server-access');
+
+// A server stopped by a "database is damaged" error checks the whole database on its next start.
+process.on('uncaughtExceptionMonitor', markForIntegrityCheck);
 
 let databaseClosedOnQuit = false;
 
