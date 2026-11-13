@@ -30,6 +30,7 @@ const { purgeOversizedThumbnails } = require('./thumbnail-cleanup');
 const gridThumbnails = require('./grid-thumbnails');
 const { startServerStlHomeScans, startWatching, stopWatching } = require('./stl-home');
 const autoBackup = require('./auto-backup');
+const { checkpointAndClose } = require('../core/db-open');
 const downloadFiles = require('./download-files');
 const { scheduleBackgroundHashGeneration } = require('./ipc/hashes');
 const { requestThumbnailJobCancel } = require('./ipc/thumbnails');
@@ -69,11 +70,11 @@ function closeDatabaseOnQuit() {
   }
   try {
     if (database.db && database.db.open) {
-      database.db.pragma('wal_checkpoint(TRUNCATE)');
-      database.db.close();
       // A plain copy is consistent only after the checkpoint and close.
-      fs.copyFileSync(getDatabasePath(), path.join(app.getPath('userData'), 'backup_justtprint.db'));
-      console.log('[Quit] Database closed and backed up.');
+      if (checkpointAndClose(database.db)) {
+        fs.copyFileSync(getDatabasePath(), path.join(app.getPath('userData'), 'backup_justtprint.db'));
+        console.log('[Quit] Database closed and backed up.');
+      }
     }
   } catch (error) {
     console.error('[Quit] Closing the database:', error);

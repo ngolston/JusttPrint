@@ -3,7 +3,7 @@
 const database = require('./database');
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+const { openLibraryDatabase } = require('./db-open');
 const { deriveBundleFromFilePath } = require('./bundle-keys');
 const printEvents = require('./print-events');
 const printerManager = require('./printer-manager');
@@ -28,7 +28,7 @@ function initializeDatabase() {
     }
 
     // Initialize database
-    database.db = new Database(dbPath);
+    database.db = openLibraryDatabase(dbPath);
 
     // Enable foreign keys
     database.db.pragma('foreign_keys = ON');

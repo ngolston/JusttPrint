@@ -2,7 +2,7 @@
 
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
-const Database = require('better-sqlite3');
+const { openLibraryDatabase } = require('../../core/db-open');
 const printEvents = require('../../core/print-events');
 const { buildFolderForest } = require('../../core/folder-tree-lib');
 const { parseExcludePathList, readStlHomeDirectories } = require('../../core/library-paths');
@@ -555,7 +555,7 @@ const clearNewFlagsHandler = async () => {
   try {
     if (!database.db || !database.db.open) {
       const dbPath = getDatabasePath();
-      database.db = new Database(dbPath);
+      database.db = openLibraryDatabase(dbPath);
     }
     const result = database.db.prepare('UPDATE models SET isNew = 0 WHERE isNew = 1').run();
     return { success: true, cleared: result.changes || 0 };

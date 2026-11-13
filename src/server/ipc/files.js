@@ -6,7 +6,7 @@ const database = require('../../core/database');
 const { ipcMain, shell } = require('../runtime');
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+const { openLibraryDatabase } = require('../../core/db-open');
 const { isUrlModel, parseZipPath, assertContainerPath } = require('../../core/library-paths');
 const { cleanupExtractTempFile } = require('../../core/extract-temp');
 const { deleteModelJunctionRows } = require('../../core/models');
@@ -117,7 +117,7 @@ const purgeModelsHandler = async (event, options = {}) => {
       // Check if database is open, if not reopen it
       if (!database.db.open) {
         const dbPath = getDatabasePath();
-        database.db = new Database(dbPath);
+        database.db = openLibraryDatabase(dbPath);
       }
 
       try {
