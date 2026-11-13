@@ -3,7 +3,7 @@
 const database = require('../../core/database');
 const { ipcMain } = require('../runtime');
 const fs = require('fs');
-const Database = require('better-sqlite3');
+const { makeSingleFile, openLibraryDatabase } = require('../../core/db-open');
 const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
@@ -20,6 +20,7 @@ ipcMain.handle('backup-database', async () => {
 
     // SQLite's online backup: the database stays open, so other requests keep working.
     await require('../activity').backupDatabase(database.db, backupPath, 'Making a backup');
+    makeSingleFile(backupPath);
 
     return { success: true, filePath: backupPath };
   } catch (error) {
@@ -44,11 +45,21 @@ async function restoreFromCheckedFile(uploadPath) {
             .prepare(`SELECT key, value FROM settings WHERE key IN (${[...SECRET_SETTING_KEYS].map(() => '?').join(', ')})`)
             .all(...SECRET_SETTING_KEYS)
         : [];
-    if (database.db && database.db.open) database.db.close();
-    await fs.promises.copyFile(dbPath, `${dbPath}.before-restore`);
-    for (const suffix of ['-wal', '-shm']) await fs.promises.rm(dbPath + suffix, { force: true });
+    // Copied from the open database: with WAL, recent writes can still be in the -wal file
+    // (removed below), and a connection from outside keeps closing from emptying it.
+    if (database.db && database.db.open) {
+      const partial = `${dbPath}.before-restore.partial`;
+      await fs.promises.rm(partial, { force: true });
+      await database.db.backup(partial);
+      makeSingleFile(partial);
+      await fs.promises.rename(partial, `${dbPath}.before-restore`);
+      database.db.pragma('wal_checkpoint(TRUNCATE)');
+      database.db.close();
+    } else await fs.promises.copyFile(dbPath, `${dbPath}.before-restore`);
+    // Also what checking an upload in WAL mode leaves next to it (read-only: nothing is in them).
+    for (const file of [dbPath, uploadPath]) for (const suffix of ['-wal', '-shm']) await fs.promises.rm(file + suffix, { force: true });
     await fs.promises.rename(uploadPath, dbPath);
-    database.db = new Database(dbPath);
+    database.db = openLibraryDatabase(dbPath);
     database.db.pragma('foreign_keys = ON');
     const keepLogin = database.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     for (const row of serverLogin) keepLogin.run(row.key, row.value);
@@ -60,7 +71,7 @@ async function restoreFromCheckedFile(uploadPath) {
     console.error('Restore error:', error);
     await fs.promises.rm(uploadPath, { force: true });
     try {
-      database.db = new Database(dbPath);
+      if (!database.db || !database.db.open) database.db = openLibraryDatabase(dbPath);
     } catch (reopenError) {
       console.error('Error reopening database:', reopenError);
     }
