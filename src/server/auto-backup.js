@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const database = require('../core/database');
-const { checkBackupFile } = require('../core/backup-check');
+const { checkBackupFileAsync } = require('../core/backup-check');
 const { ENV_SETTINGS } = require('../core/env-settings');
 const { getSettingValueOr, persistSetting } = require('../core/settings');
 const { app } = require('./runtime');
@@ -178,7 +178,7 @@ function runBackup(reason = 'manual') {
       const partial = target + PARTIAL_SUFFIX;
       try {
         await require('./activity').backupDatabase(database.db, partial, 'Backing up the library');
-        checkBackupFile(partial);
+        await checkBackupFileAsync(partial);
         await fs.promises.rename(partial, target);
       } catch (error) {
         await fs.promises.rm(partial, { force: true });

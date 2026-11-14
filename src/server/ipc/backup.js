@@ -7,7 +7,7 @@ const Database = require('better-sqlite3');
 const { getDatabasePath } = require('../../core/db-path');
 const { SECRET_SETTING_KEYS } = require('../server-auth');
 const { saveModel } = require('./models');
-const { checkBackupFile } = require('../../core/backup-check');
+const { checkBackupFileAsync } = require('../../core/backup-check');
 const { ensureFilamentSchema } = require('../../core/filament-schema');
 const autoBackup = require('../auto-backup');
 const downloadFiles = require('../download-files');
@@ -80,7 +80,7 @@ ipcMain.handle('restore-database', async (event, /** @type {{ base64?: string } 
   const uploadPath = `${getDatabasePath()}.restore-upload`;
   try {
     await fs.promises.writeFile(uploadPath, Buffer.from(payload.base64, 'base64'));
-    checkBackupFile(uploadPath);
+    await checkBackupFileAsync(uploadPath);
   } catch (error) {
     await fs.promises.rm(uploadPath, { force: true });
     console.error('Restore refused:', error.message);
@@ -111,7 +111,7 @@ ipcMain.handle('restore-auto-backup', async (event, name) => {
   const uploadPath = `${getDatabasePath()}.restore-upload`;
   try {
     await fs.promises.copyFile(backupFile.path, uploadPath);
-    checkBackupFile(uploadPath);
+    await checkBackupFileAsync(uploadPath);
   } catch (error) {
     await fs.promises.rm(uploadPath, { force: true });
     console.error('Restore refused:', error.message);
