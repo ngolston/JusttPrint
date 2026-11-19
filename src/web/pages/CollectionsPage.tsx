@@ -13,7 +13,7 @@ import { askText, onServerEvent, showMessage } from '../page';
 import { effectiveStatus, type PrintModel } from '../print/printStatus';
 import { selection } from '../selection';
 import { navigate } from '../shell/routes';
-import { fetchPrimaryThumbnail } from '../thumbnails/cache';
+import { cachedThumbnail, fetchPrimaryThumbnail } from '../thumbnails/cache';
 import { whenNearView } from '../thumbnails/near-view';
 import { currentSearch, showSavedSearch } from '../filters/savedSearches';
 
@@ -34,7 +34,8 @@ function useReload(load: () => void) {
 }
 
 function Thumb({ filePath }: { filePath: string | null }) {
-  const [src, setSrc] = useState<string | null>(null);
+  // A picture already in the cache shows at once, without waiting for the card to come near the view.
+  const [src, setSrc] = useState<string | null>(() => (filePath && cachedThumbnail(filePath)) || null);
   const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
     if (!filePath || !image.current) return undefined;
