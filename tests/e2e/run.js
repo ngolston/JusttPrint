@@ -2387,8 +2387,10 @@ async function browserChecks(base, wsUrl, session) {
         ]
       ]);
       await page.evaluate(() => window.libraryFilters.reloadOptions());
-      await page.waitForSelector('#designer-select option[value="E2E Sidebar Designer"]', { state: 'attached', timeout: 10000 }).catch(() => {});
       await openFilters();
+      // The long lists draw their values only while focused (src/web/components/LongSelect.tsx).
+      await page.focus('#designer-select');
+      await page.waitForSelector('#designer-select option[value="E2E Sidebar Designer"]', { state: 'attached', timeout: 10000 }).catch(() => {});
       await page.selectOption('#designer-select', 'E2E Sidebar Designer');
       const byDesigner = await waitShown([other]);
       check(
@@ -2414,6 +2416,7 @@ async function browserChecks(base, wsUrl, session) {
       await page.click('#search-add-or-btn');
       const awaitingHint = await page.isVisible('#search-boolean-hint');
       await openFilters();
+      await page.focus('#designer-select');
       await page.selectOption('#designer-select', 'E2E Sidebar Designer');
       const orResult = await waitShown([cardPath, other]);
       check(
@@ -2464,8 +2467,10 @@ async function browserChecks(base, wsUrl, session) {
       check('scrolling the library leaves the tabs and filters pinned under the top bar', !!pinned, JSON.stringify(pinned));
       await page.evaluate(() => window.scrollTo(0, 0));
       await openFilters();
+      await page.focus('#tag-filter');
       await page.selectOption('#tag-filter', 'e2e-s1');
       const oneTag = await waitShown([other, third]);
+      await page.focus('#tag-filter');
       await page.selectOption('#tag-filter', 'e2e-s2');
       const bothTags = await waitShown([third]);
       check(
@@ -2558,10 +2563,13 @@ async function browserChecks(base, wsUrl, session) {
         'multi designer'
       ).catch(() => false);
       check('multi-edit sets a new designer on every selected model', multiDesigner === true);
+      await page.focus('#multi-tag-select');
       await page.selectOption('#multi-tag-select', 'e2e-model-tag');
       const hasTag = (m) => (m.tags || []).some((t) => (t.name || t) === 'e2e-model-tag');
       const tagOnBoth = await waitFor(async () => ((await pairModels()).every(hasTag) ? true : null), 10000, 'multi tag').catch(() => false);
       check('multi-edit adds a tag to every selected model', tagOnBoth === true);
+      await page.waitForSelector('#multi-tag-remove-select:not([disabled])', { timeout: 10000 }).catch(() => {});
+      await page.focus('#multi-tag-remove-select');
       await page.waitForSelector('#multi-tag-remove-select option[value="e2e-model-tag"]', { state: 'attached', timeout: 10000 }).catch(() => {});
       await page.selectOption('#multi-tag-remove-select', 'e2e-model-tag').catch(() => {});
       const confirmRemoveTag = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Yes")', { timeout: 10000 }).catch(() => null);

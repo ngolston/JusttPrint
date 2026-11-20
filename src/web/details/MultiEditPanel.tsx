@@ -8,6 +8,7 @@ import { useCanDeleteFiles } from '../session';
 import { STATUSES, STATUS_LABELS } from '../print/printStatus';
 import { Button } from '../components/Button';
 import { pickFromList, type ListField } from '../components/ListPicker';
+import { LongSelect } from '../components/LongSelect';
 import { MergeDialog } from './MergeDialog';
 
 type Field = 'designer' | 'title' | 'license' | 'source' | 'tags';
@@ -334,15 +335,10 @@ export function MultiEditPanel() {
     <div className="jp-multi__row">
       <label htmlFor={id}>{title}</label>
       <div className="jp-multi__control">
-        <select id={id} value={picked[field]} onChange={(e) => pickValue(field, e.target.value)}>
+        <LongSelect id={id} value={picked[field]} onChange={(e) => pickValue(field, e.target.value)} items={values}>
           <option value="">{empty}</option>
-          {values.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
           {picked[field] && !values.includes(picked[field]) && <option value={picked[field]}>{picked[field]}</option>}
-        </select>
+        </LongSelect>
         {listButton(`Search existing ${PROMPTS[field]}s`, async () => {
           const v = await pickFromList(list);
           if (v) await pickValue(field, v);
@@ -484,14 +480,9 @@ export function MultiEditPanel() {
           <div className="jp-multi__row">
             <label htmlFor="multi-tag-select">Add</label>
             <div className="jp-multi__control">
-              <select id="multi-tag-select" className="jp-multi__picker" value="" onChange={(e) => addTag(e.target.value)}>
+              <LongSelect id="multi-tag-select" className="jp-multi__picker" value="" onChange={(e) => addTag(e.target.value)} items={options.tags}>
                 <option value="">Add a tag…</option>
-                {options.tags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              </LongSelect>
               {listButton('Search existing tags', async () => addTag(await pickFromList('tag')))}
               {addButton('New tag', addNewTag, 'multi-add-tag')}
             </div>
@@ -499,20 +490,16 @@ export function MultiEditPanel() {
           <div className="jp-multi__row">
             <label htmlFor="multi-tag-remove-select">Remove</label>
             <div className="jp-multi__control">
-              <select
+              <LongSelect
                 id="multi-tag-remove-select"
                 className="jp-multi__picker"
                 value=""
                 disabled={!onSelected.tags.length}
                 onChange={(e) => removeTag(e.target.value)}
+                items={onSelected.tags}
               >
                 <option value="">{onSelected.tags.length ? 'Remove a tag…' : 'None to remove'}</option>
-                {onSelected.tags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              </LongSelect>
               {listButton('Search tags to remove from the selection', async () => removeTag(await pickFromList('tag', true)))}
             </div>
           </div>

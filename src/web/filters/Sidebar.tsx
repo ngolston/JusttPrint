@@ -7,6 +7,7 @@ import { exposeGlobal } from '../page';
 import { applyFilterChange, getSearchStatus, labels, onReloadOptions, runSearch, subscribeSearchStatus } from './search';
 import { filterActions, getFilterState, subscribeFilters } from './store';
 import { pickFromList } from '../components/ListPicker';
+import { LongSelect } from '../components/LongSelect';
 import { useCan } from '../session';
 import { saveCurrentSearch } from './savedSearches';
 
@@ -432,22 +433,18 @@ function FilterControls({ container, options }: { container: HTMLElement; option
       <div className="form-group">
         <label htmlFor={id}>{label}</label>
         <div className="dropdown-with-list">
-          <select
+          <LongSelect
             id={id}
             value={current}
             disabled={loading}
             className={disabledClass}
             onChange={(e) => applyFilterChange(() => filterActions.setValue(kind, e.target.value))}
+            items={values}
           >
             <option value="">{all}</option>
             <option value="__none__">None</option>
-            {values.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
             {current && current !== '__none__' && !values.includes(current) && <option value={current}>{current}</option>}
-          </select>
+          </LongSelect>
           {listButton(field, listTitle, (v) => filterActions.setValue(kind, v))}
         </div>
       </div>
@@ -569,7 +566,7 @@ function FilterControls({ container, options }: { container: HTMLElement; option
         <label htmlFor="tag-filter">Tags</label>
         <div className="dropdown-with-list">
           <div className="tags-input-container">
-            <select
+            <LongSelect
               id="tag-filter"
               value=""
               disabled={loading}
@@ -578,12 +575,12 @@ function FilterControls({ container, options }: { container: HTMLElement; option
                 const v = e.target.value;
                 if (v) applyFilterChange(() => filterActions.addValue('tags', v));
               }}
+              items={options.tags}
+              optionValue={(t) => t.name}
+              optionLabel={(t) => `${t.name} (${t.count})`}
             >
               <option value="">All Tags</option>
-              {options.tags.map((t) => (
-                <option key={t.name} value={t.name}>{`${t.name} (${t.count})`}</option>
-              ))}
-            </select>
+            </LongSelect>
           </div>
           {listButton('tag', 'Search existing tags', (v) => filterActions.addValue('tags', v))}
         </div>
