@@ -33,6 +33,10 @@ export function LongSelect<T = string>({
   ...rest
 }: LongSelectProps<T>) {
   const [open, setOpen] = useState(false);
+  // Disabling the focused select (a filter is disabled while its search runs) takes the focus
+  // away during React's commit, when React drops events: onBlur never comes, and the whole list
+  // would stay drawn. A disabled select cannot have the focus, so it closes.
+  if (open && rest.disabled) setOpen(false);
   const value = typeof rest.value === 'string' ? rest.value : '';
   return (
     <select

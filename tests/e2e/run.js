@@ -2569,7 +2569,7 @@ async function browserChecks(base, wsUrl, session) {
       const tagOnBoth = await waitFor(async () => ((await pairModels()).every(hasTag) ? true : null), 10000, 'multi tag').catch(() => false);
       check('multi-edit adds a tag to every selected model', tagOnBoth === true);
       await page.waitForSelector('#multi-tag-remove-select:not([disabled])', { timeout: 10000 }).catch(() => {});
-      await page.focus('#multi-tag-remove-select').catch(() => {});
+      await page.focus('#multi-tag-remove-select');
       await page.waitForSelector('#multi-tag-remove-select option[value="e2e-model-tag"]', { state: 'attached', timeout: 10000 }).catch(() => {});
       await page.selectOption('#multi-tag-remove-select', 'e2e-model-tag').catch(() => {});
       const confirmRemoveTag = await page.waitForSelector('dialog[id^="browser-message-"][open] button:text-is("Yes")', { timeout: 10000 }).catch(() => null);
