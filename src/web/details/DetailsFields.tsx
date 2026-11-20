@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { libraryValues, tags as tagApi } from '../api';
 import { askText, exposeGlobal } from '../page';
 import { pickFromList, type ListField } from '../components/ListPicker';
+import { LongSelect } from '../components/LongSelect';
 import { useCan } from '../session';
 
 /** The model the details panel shows (only the fields this section edits are typed). */
@@ -190,20 +191,16 @@ export function DetailsFields() {
       <div className="form-group" key={field}>
         <label htmlFor={IDS[field]}>{LABELS[field].label}</label>
         <div className="designer-input-container">
-          <select
+          <LongSelect
             id={IDS[field]}
             className={field === 'license' ? 'form-control' : undefined}
             value={value}
             disabled={!model || !canEdit}
             onChange={(event) => save(field, event.target.value)}
+            items={values}
           >
             <option value="">{canEdit ? LABELS[field].empty : '—'}</option>
-            {values.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          </LongSelect>
           {canEdit && (
             <>
               <button
@@ -288,7 +285,7 @@ export function DetailsFields() {
         <div className="tags-container">
           {canEdit && (
             <div className="tags-input-container">
-              <select
+              <LongSelect
                 id="tag-select"
                 aria-label="Add a tag"
                 value=""
@@ -296,16 +293,10 @@ export function DetailsFields() {
                 onChange={(event) => {
                   if (event.target.value) addTag(event.target.value);
                 }}
+                items={options.tags.filter((tag) => !tags.includes(tag))}
               >
                 <option value="">Select a tag...</option>
-                {options.tags
-                  .filter((tag) => !tags.includes(tag))
-                  .map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-              </select>
+              </LongSelect>
               <button
                 type="button"
                 className="list-button icon-button"
