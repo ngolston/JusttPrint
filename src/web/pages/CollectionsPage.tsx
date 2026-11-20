@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, FolderHeart, Library, Pencil, Plus, Search, Share2, Trash2, X } from 'lucide-react';
 import { collections, type CollectionDetail, type CollectionModel, type CollectionSummary } from '../api';
 import { StatusBadge, printStatusInfo } from '../components/Badge';
@@ -13,7 +13,8 @@ import { askText, onServerEvent, showMessage } from '../page';
 import { effectiveStatus, type PrintModel } from '../print/printStatus';
 import { selection } from '../selection';
 import { navigate } from '../shell/routes';
-import { fetchPrimaryThumbnail } from '../thumbnails/cache';
+import { cachedThumbnail, fetchPrimaryThumbnail } from '../thumbnails/cache';
+import { whenNearView } from '../thumbnails/near-view';
 import { currentSearch, showSavedSearch } from '../filters/savedSearches';
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -33,21 +34,27 @@ function useReload(load: () => void) {
 }
 
 function Thumb({ filePath }: { filePath: string | null }) {
-  const [src, setSrc] = useState<string | null>(null);
+  // A picture already in the cache shows at once, without waiting for the card to come near the view.
+  const [src, setSrc] = useState<string | null>(() => (filePath && cachedThumbnail(filePath)) || null);
+  const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    if (!filePath) return undefined;
+    if (!filePath || !image.current) return undefined;
     let live = true;
-    fetchPrimaryThumbnail(filePath).then(
-      (thumb) => {
-        if (live) setSrc(thumb);
-      },
-      () => {}
+    // Asked for when the card comes near the view: a collection can hold hundreds of models.
+    const stop = whenNearView(image.current, () =>
+      fetchPrimaryThumbnail(filePath).then(
+        (thumb) => {
+          if (live) setSrc(thumb);
+        },
+        () => {}
+      )
     );
     return () => {
       live = false;
+      stop();
     };
   }, [filePath]);
-  return <img src={src || 'assets/3d.png'} alt="" loading="lazy" />;
+  return <img ref={image} src={src || 'assets/3d.png'} alt="" loading="lazy" />;
 }
 
 async function newCollection() {
