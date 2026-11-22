@@ -147,6 +147,12 @@ class FakeJusttPrint(http.server.BaseHTTPRequestHandler):
             return self._send(200, {"models": [] if offset else [gear], "total": 1, "offset": offset})
         if path == "/api/orca/spools":
             return self._send(200, {"spools": [{"id": 1, "name": "White PLA", "material": "PLA", "colors": ["#ffffff"], "remaining": 100, "initial": 1000}]})
+        if path == "/api/orca/models/3":
+            return self._send(200, {"model": {"id": 3, "name": "Gear", "designer": "Ana", "history": [], "page": "#/model/%2Fm%2FGear.3mf"}})
+        if path == "/api/orca/models/4":
+            return self._send(404, {"error": "That model is not in the library any more"})
+        if path == "/api/orca/spools/1":
+            return self._send(200, {"spool": {"id": 1, "name": "White PLA", "remaining": 100, "weighings": [], "page": "#/filament"}})
         if path == "/api/orca/models/3/open":
             return self._send(200, {"modelId": 3, "links": [{"name": "Gear.3mf", "path": "/api/slicer-file/tok/Gear.3mf"}]})
         if path == "/api/orca/filament-check":
@@ -339,10 +345,10 @@ class PageTests(WithServer):
         self.connect()
         self.page.on_message({"type": "search", "q": "gear"})
         self.assertEqual(self.posted("models")[-1]["models"][0]["name"], "Gear")
-        # The library tab asks for a page at a time, with its filter and sort.
-        self.page.on_message({"type": "models", "q": "", "status": "printed", "sort": "name", "offset": 30, "limit": 30})
+        # The library tab asks for a page at a time (tagged, so a new search drops old answers), with its filter and sort.
+        self.page.on_message({"type": "models", "q": "", "status": "printed", "sort": "name", "offset": 30, "limit": 30, "seq": 4})
         page = self.posted("models")[-1]
-        self.assertEqual((page["models"], page["total"], page["offset"]), ([], 1, 30))
+        self.assertEqual((page["models"], page["total"], page["offset"], page["seq"]), ([], 1, 30, 4))
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(FakeJusttPrint.calls[-1][1]).query)
         self.assertEqual((query["status"], query["sort"], query["offset"]), (["printed"], ["name"], ["30"]))
         self.page.on_message({"type": "open", "id": 3, "name": "Gear"})
@@ -350,6 +356,21 @@ class PageTests(WithServer):
         self.assertEqual(self.jp.STATE["opened_model"], {"id": 3, "name": "Gear"})
         self.assertEqual(self.posted("opened")[-1]["id"], 3)
         self.assertEqual(self.posted("state")[-1]["opened_model"]["id"], 3)
+
+    def test_details_of_a_model_and_a_spool(self):
+        self.connect()
+        self.page.on_message({"type": "model", "id": 3})
+        self.assertEqual(self.posted("model")[-1]["model"]["designer"], "Ana")
+        self.page.on_message({"type": "spool", "id": 1})
+        self.assertEqual(self.posted("spool")[-1]["spool"]["remaining"], 100)
+        self.page.on_message({"type": "model", "id": 4})
+        self.assertIn("not in the library", self.posted("toast")[-1]["text"])
+        # Its page on the website, and its own web link, open in the browser; nothing else does.
+        self.page.on_message({"type": "open-link", "page": "#/model/%2Fm%2FGear.3mf"})
+        self.page.on_message({"type": "open-link", "url": "https://www.printables.com/model/1"})
+        self.page.on_message({"type": "open-link", "url": "file:///etc/passwd"})
+        self.page.on_message({"type": "open-link", "page": "/api/orca/plugin.py"})
+        self.assertEqual(self.opened, [self.address + "/#/model/%2Fm%2FGear.3mf", "https://www.printables.com/model/1"])
 
     def test_the_filament_tab_lists_the_spools(self):
         self.connect()

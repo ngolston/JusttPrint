@@ -338,6 +338,14 @@ class Client:
         query = {"q": query, "sort": sort, "status": status, "offset": int(offset or 0), "limit": int(limit or 30)}
         return self.request("GET", "/api/orca/models", query)
 
+    def model(self, model_id):
+        """One model with what the website's Model Details shows, its pictures and print history."""
+        return self.request("GET", f"/api/orca/models/{int(model_id)}")["model"]
+
+    def spool(self, spool_id):
+        """One spool with what the website's spool window shows."""
+        return self.request("GET", f"/api/orca/spools/{int(spool_id)}")["spool"]
+
     def printers(self):
         return self.request("GET", "/api/orca/printers")["printers"]
 
@@ -462,7 +470,6 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
 .card .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.opened { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.more { display: flex; justify-content: center; margin-top: 14px; }
 
 /* Spools */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -529,6 +536,38 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
 .choice .txt { flex: 1; min-width: 0; } .choice .txt div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .choice.current { border-color: var(--accent); }
 
+/* Details window (a model or a spool) */
+#details { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 15; padding: 20px; }
+#details.on { display: flex; }
+#details .box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: min(760px, 100%); max-height: 100%; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+#details .head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+#details .head b { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#details .content { overflow: auto; padding: 14px; }
+.detail { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 16px; }
+@media (max-width: 560px) { .detail { grid-template-columns: 1fr; } }
+.detail .side { display: grid; gap: 10px; align-content: start; }
+.detail .hero { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2) center / contain no-repeat; display: flex; align-items: center; justify-content: center; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+.thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.thumbs button { width: 44px; height: 44px; padding: 0; border-radius: 6px; background: var(--panel-2) center / cover no-repeat; }
+.thumbs button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.detail .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.props { display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px; align-items: baseline; }
+.props > span:nth-child(odd) { color: var(--muted); font-size: 12px; }
+.props > span:nth-child(even) { overflow-wrap: anywhere; }
+.props .stars { color: var(--warn); letter-spacing: 1px; }
+.detail h4 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.detail .text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.log li { display: grid; grid-template-columns: 100px 1fr; gap: 10px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); font-size: 12px; }
+.log li .muted { grid-column: 2; }
+.dots { display: inline-flex; gap: 4px; vertical-align: -2px; margin-right: 6px; }
+.dots i { width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--border); display: inline-block; }
+.big-disc { width: 84px; height: 84px; } .big-disc::after { inset: 28px; }
+.spool-head { display: flex; gap: 14px; align-items: center; }
+.spool-head .left { font-size: 22px; font-weight: 650; }
+.detail .photo { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+.card, .spool { cursor: pointer; }
+
 /* Settings */
 .form { max-width: 560px; }
 .form label.field { display: block; margin: 12px 0 4px; font-weight: 600; }
@@ -576,7 +615,6 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
     </div>
     <p class="summary" id="lib-summary"></p>
     <div class="grid" id="grid"></div>
-    <div class="more"><button id="more" hidden>Show more</button></div>
     <div id="lib-empty"></div>
   </section>
 
@@ -662,13 +700,19 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
   <div class="foot"><button id="picker-empty">Empty this slot</button><button id="picker-cancel">Cancel</button></div>
 </div></div>
 
+<div id="details"><div class="box" role="dialog" aria-modal="true" aria-labelledby="details-title">
+  <div class="head"><b id="details-title"></b><button id="details-close" title="Close (Esc)">Close</button></div>
+  <div class="content" id="details-body"></div>
+</div></div>
+
 <div id="toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const send = (msg) => orca.postMessage(msg);
-const PAGE_SIZE = 30;
-const ui = { tab: 'library', q: '', status: '', sort: 'newest', models: [], total: 0, loading: false,
+// The server sends up to 60 at a time; the page asks for the next one until it has them all.
+const PAGE_SIZE = 60;
+const ui = { tab: 'library', q: '', status: '', sort: 'newest', models: [], total: 0, loading: false, seq: 0,
   spools: null, sq: '', material: '', ssort: 'material', state: null, printers: null, picking: null, matched: new Set(), lastSliceKey: null, opening: null };
 
 let toastTimer = null;
@@ -717,20 +761,21 @@ document.body.addEventListener('click', (e) => { const b = e.target.closest('but
 // --- Library ---
 function loadModels(append) {
   if (!connected()) return renderModels();
+  if (!append) ui.seq += 1; // a new search or filter: answers to the old one are dropped
   ui.loading = true; renderModels();
-  send({ type: 'models', q: ui.q, status: ui.status, sort: ui.sort, offset: append ? ui.models.length : 0, limit: PAGE_SIZE });
+  send({ type: 'models', q: ui.q, status: ui.status, sort: ui.sort, offset: append ? ui.models.length : 0, limit: PAGE_SIZE, seq: ui.seq });
 }
 function renderModels() {
   const grid = $('grid'), opened = ui.state && ui.state.opened_model;
   if (!connected()) {
-    grid.innerHTML = ''; $('lib-summary').textContent = ''; $('more').hidden = true;
+    grid.innerHTML = ''; $('lib-summary').textContent = '';
     $('lib-empty').innerHTML = emptyBox('Connect to JusttPrint', 'Enter your server address and an API key to see your library here.', ['settings', 'Open Settings']);
     return;
   }
   grid.innerHTML = ui.models.map((m) => {
     const status = m.printStatus && m.printStatus !== 'unprinted' ? `<span class="badge status ${esc(m.printStatus)}">${esc(m.printStatus)}</span>` : '';
     const opening = ui.opening === m.id;
-    return `<div class="card${opened && opened.id === m.id ? ' opened' : ''}" data-id="${m.id}" title="Double-click to open on the plate">
+    return `<div class="card${opened && opened.id === m.id ? ' opened' : ''}" data-id="${m.id}" title="Click for details, double-click to open on the plate">
       <div class="pic" style="${m.thumbnail ? `background-image:url('${m.thumbnail}')` : ''}">
         ${m.thumbnail ? '' : `<span class="none">${esc(m.fileType.toUpperCase())}</span>`}
         <span class="badge type">${esc(m.fileType)}</span>${status}
@@ -743,9 +788,7 @@ function renderModels() {
     </div>`;
   }).join('');
   $('lib-summary').innerHTML = ui.loading && !ui.models.length ? '<span class="spinner"></span> Loading your library…'
-    : ui.total ? `${ui.models.length} of ${ui.total} model${ui.total === 1 ? '' : 's'}${ui.q ? ` matching “${esc(ui.q)}”` : ''}` : '';
-  $('more').hidden = ui.models.length >= ui.total;
-  $('more').disabled = ui.loading; $('more').textContent = ui.loading ? 'Loading…' : `Show more (${ui.total - ui.models.length} left)`;
+    : ui.total ? `${ui.loading ? '<span class="spinner"></span> ' : ''}${ui.models.length < ui.total ? `${ui.models.length} of ` : ''}${ui.total} model${ui.total === 1 ? '' : 's'}${ui.q ? ` matching “${esc(ui.q)}”` : ''}` : '';
   $('lib-empty').innerHTML = !ui.loading && !ui.models.length
     ? emptyBox('No models found', ui.q || ui.status ? 'Try another search or filter.' : 'Models OrcaSlicer can open (STL, 3MF, OBJ, STEP…) show here.') : '';
   count('n-models', ui.total || null);
@@ -763,9 +806,14 @@ $('status-chips').onclick = (e) => {
   ui.status = b.dataset.status; document.querySelectorAll('#status-chips .chip').forEach((c) => c.classList.toggle('on', c === b)); loadModels(false);
 };
 $('sort').onchange = () => { ui.sort = $('sort').value; loadModels(false); };
-$('more').onclick = () => loadModels(true);
-$('grid').onclick = (e) => { const b = e.target.closest('button[data-open]'); if (b) openModel(Number(b.dataset.open)); };
-$('grid').ondblclick = (e) => { const c = e.target.closest('.card'); if (c) openModel(Number(c.dataset.id)); };
+// A click shows the model's details; a double-click (or Open on plate) puts it on the plate.
+let clickTimer = null;
+$('grid').onclick = (e) => {
+  const b = e.target.closest('button[data-open]'); if (b) return openModel(Number(b.dataset.open));
+  const c = e.target.closest('.card'); if (!c) return;
+  clearTimeout(clickTimer); clickTimer = setTimeout(() => showDetails('model', Number(c.dataset.id)), 250);
+};
+$('grid').ondblclick = (e) => { const c = e.target.closest('.card'); if (c) { clearTimeout(clickTimer); openModel(Number(c.dataset.id)); } };
 
 // --- Filament ---
 function loadSpools() { if (!connected()) return renderSpools(); send({ type: 'spools' }); $('spool-summary').innerHTML = '<span class="spinner"></span> Loading your spools…'; }
@@ -794,7 +842,7 @@ function renderSpools() {
   $('spools').innerHTML = shown.map((s) => {
     const level = isLow(s), pct = s.initial ? Math.max(0, Math.min(100, (s.remaining / s.initial) * 100)) : 0;
     const held = s.remaining - s.available;
-    return `<div class="spool${ui.matched.has(s.id) ? ' match' : ''}" title="${esc(s.colors.join(' '))}">
+    return `<div class="spool${ui.matched.has(s.id) ? ' match' : ''}" data-id="${s.id}" title="Click for details">
       <div class="disc" style="background:${paint(s.colors)}"></div>
       <div class="info">
         <div class="name">${esc(s.name)}${s.loaded ? '<span class="tag loaded">Loaded</span>' : ''}${level ? `<span class="tag low">${level === 'out' ? 'empty' : 'low'}</span>` : ''}</div>
@@ -814,6 +862,99 @@ $('sq').oninput = () => { clearTimeout(spoolTimer); spoolTimer = setTimeout(() =
 $('material-chips').onclick = (e) => { const b = e.target.closest('button[data-material]'); if (b) { ui.material = b.dataset.material; renderSpools(); } };
 $('ssort').onchange = () => { ui.ssort = $('ssort').value; renderSpools(); };
 $('srefresh').onclick = loadSpools;
+$('spools').onclick = (e) => { const c = e.target.closest('.spool[data-id]'); if (c) showDetails('spool', Number(c.dataset.id)); };
+
+// --- Details window ---
+const OUTCOMES = { printed: 'Printed', failed: 'Failed', cancelled: 'Cancelled' };
+const STATUS_NAMES = { unprinted: 'Not printed', want: 'Want', queued: 'Queued', printing: 'Printing', printed: 'Printed', failed: 'Failed' };
+// A date alone ("2026-02-01") is that day here, not midnight UTC.
+function day(v) { const t = String(v || '').replace(' ', 'T'); const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(t) ? t + 'T12:00:00' : t); return v && !isNaN(d) ? d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : ''; }
+function bytes(n) { return !n ? '' : n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB'; }
+function duration(sec) { if (!sec) return ''; const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
+function money(n, code) { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: code || 'USD' }).format(n); } catch (_) { return String(n); } }
+function props(rows) { return `<div class="props">${rows.filter((r) => r && r[1] !== '' && r[1] != null).map(([l, v]) => `<span>${esc(l)}</span><span>${v}</span>`).join('')}</div>`; }
+function dots(colors) { return colors && colors.length ? `<span class="dots">${colors.map((c) => `<i style="background:${esc(c)}"></i>`).join('')}</span>` : ''; }
+function link(text, attrs) { return `<button class="link" ${attrs}>${esc(text)}</button>`; }
+
+function showDetails(kind, id) {
+  if (!connected()) return;
+  ui.details = { kind, id, item: null };
+  $('details-title').textContent = kind === 'model' ? ((ui.models.find((m) => m.id === id) || {}).name || 'Model') : ((ui.spools || []).find((s) => s.id === id) || {}).name || 'Spool';
+  $('details-body').innerHTML = '<p class="summary"><span class="spinner"></span> Loading…</p>';
+  $('details').classList.add('on');
+  send({ type: kind, id });
+}
+function closeDetails() { ui.details = null; $('details').classList.remove('on'); }
+$('details-close').onclick = closeDetails;
+$('details').onclick = (e) => {
+  if (e.target === $('details')) return closeDetails();
+  const t = e.target.closest('[data-pic]');
+  if (t) { $('details-hero').style.backgroundImage = `url('${ui.details.item.pictures[Number(t.dataset.pic)]}')`; document.querySelectorAll('.thumbs button').forEach((b) => b.classList.toggle('on', b === t)); return; }
+  const page = e.target.closest('[data-page]'); if (page) return send({ type: 'open-link', page: page.dataset.page });
+  const url = e.target.closest('[data-url]'); if (url) return send({ type: 'open-link', url: url.dataset.url });
+  const open = e.target.closest('[data-plate]'); if (open) { closeDetails(); showTab('library'); return openModel(Number(open.dataset.plate)); }
+};
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('details').classList.contains('on')) closeDetails(); });
+
+function renderModelDetails(m) {
+  const pics = m.pictures || [];
+  const source = m.source ? (/^https?:\/\//i.test(m.source) ? link(m.source.replace(/^https?:\/\/(www\.)?/i, ''), `data-url="${esc(m.source)}" title="${esc(m.source)}"`) : esc(m.source)) : '—';
+  const stars = m.rating ? `<span class="stars" title="${m.rating} of 5">${'★'.repeat(m.rating)}${'☆'.repeat(5 - m.rating)}</span>` : '—';
+  const printed = m.printCount ? `${m.printCount}×${m.lastPrinted ? `, last ${esc(day(m.lastPrinted))}` : ''}` : '';
+  const history = (m.history || []).map((e) => `<li><span>${esc(day(e.printedAt))}</span><span><b>${esc(OUTCOMES[e.outcome] || e.outcome)}</b>${e.quantity > 1 ? ` ×${e.quantity}` : ''}${e.printer ? ` · ${esc(e.printer)}` : ''}${e.duration ? ` · ${esc(duration(e.duration))}` : ''}${(e.spools || []).length ? ` · ${e.spools.map((s) => `${dots(s.color ? [s.color] : [])}${esc(s.name)} ${grams(s.grams)}`).join(', ')}` : ''}</span>${e.notes ? `<span class="muted">${esc(e.notes)}</span>` : ''}</li>`).join('');
+  return `<div class="detail">
+    <div class="side">
+      <div class="hero" id="details-hero" style="${pics[0] ? `background-image:url('${pics[0]}')` : ''}">${pics[0] ? '' : esc(m.fileType.toUpperCase())}</div>
+      ${pics.length > 1 ? `<div class="thumbs">${pics.map((p, i) => `<button data-pic="${i}" class="${i ? '' : 'on'}" style="background-image:url('${p}')" title="Picture ${i + 1}"></button>`).join('')}</div>` : ''}
+      <div class="actions"><button class="primary" data-plate="${m.id}">Open on plate</button><button data-page="${esc(m.page)}" title="The model's page on the JusttPrint website">Open in JusttPrint</button></div>
+    </div>
+    <div>
+      ${props([
+        ['File', esc(m.fileName)], ['Format', esc(m.fileType.toUpperCase())], ['Size', esc(bytes(m.size)) || '—'],
+        ['Print status', esc(STATUS_NAMES[m.printStatus] || m.printStatus)], ['Printed', printed], ['Rating', stars],
+        ['Favorite', m.favorite ? '♥ Yes' : ''], ['Designer', esc(m.designer || '—')], ['Source', source], ['License', esc(m.license || '—')],
+        ['Tags', m.tags.length ? m.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join(' ') : '—'],
+        ['Category', esc(m.category || '—')], ['Subcategory', esc(m.subcategory || '')], ['Folder', esc(m.folder)], ['Added', esc(day(m.dateAdded)) || '—']])}
+      ${m.description ? `<h4>Description</h4><div class="text">${esc(m.description)}</div>` : ''}
+      ${m.notes ? `<h4>Notes</h4><div class="text">${esc(m.notes)}</div>` : ''}
+      <h4>Print history</h4>${history ? `<ul class="log">${history}</ul>` : '<div class="muted">Not printed yet.</div>'}
+    </div>
+  </div>`;
+}
+
+function renderSpoolDetails(s) {
+  const level = isLow(s), pct = s.initial ? Math.max(0, Math.min(100, (s.remaining / s.initial) * 100)) : 0;
+  const held = s.remaining - s.available;
+  const where = s.loadedIn.length ? s.loadedIn.join(', ') : s.place || (s.status === 'archived' ? 'Archived' : 'No place');
+  const forecast = s.forecast ? (() => { const d = Math.round(s.forecast.daysLeft); return `${d < 1 ? 'Runs out today' : d === 1 ? 'Runs out in about a day' : `Runs out in about ${d} days`} (${esc(day(s.forecast.runsOut))}) at ${s.forecast.perDay < 1 ? 'under 1 g' : grams(s.forecast.perDay)} a day`; })() : '';
+  const weighings = s.weighings.map((w) => `<li><span>${esc(day(w.at))}</span><span><b>${grams(w.grams)}</b></span>${w.notes ? `<span class="muted">${esc(w.notes)}</span>` : ''}</li>`).join('');
+  const dryings = s.dryings.map((d) => `<li><span>${esc(day(d.at))}</span><span><b>${esc(d.temp)} °C · ${esc(d.hours)} h</b>${d.finished ? '' : ' · running'}${d.humidityBefore != null || d.humidityAfter != null ? ` · ${esc(d.humidityBefore ?? '?')}% → ${esc(d.humidityAfter ?? '?')}%` : ''}</span></li>`).join('');
+  return `<div class="detail">
+    <div class="side">
+      <div class="spool-head"><div class="disc big-disc" style="background:${paint(s.colors)}"></div>
+        <div><div class="left">${grams(s.remaining)}</div><div class="muted">of ${grams(s.initial)} · ${esc(where)}</div></div></div>
+      <div class="bar ${level}"><i style="width:${pct.toFixed(1)}%"></i></div>
+      ${forecast ? `<div class="muted">${forecast}</div>` : ''}
+      ${s.drying ? `<div class="warn">Drying at ${esc(s.drying.temp)} °C for ${esc(s.drying.hours)} h, since ${esc(day(s.drying.startedAt))}</div>` : ''}
+      ${s.photo ? `<img class="photo" src="${s.photo}" alt="">` : ''}
+      <div class="actions"><button data-page="${esc(s.page)}" title="The Filament page on the JusttPrint website">Open in JusttPrint</button></div>
+    </div>
+    <div>
+      ${props([
+        ['Place', esc(s.place || (s.loadedIn.length ? '' : 'No place'))], ['In printer', esc(s.loadedIn.join(', '))],
+        ['Held for the queue', held > 0 ? grams(held) : ''], ['Brand', esc(s.brand || '')],
+        ['Material', esc([s.material, s.materialType].filter(Boolean).join(' · '))],
+        ['Color', s.colors.length ? `${dots(s.colors)}${esc(s.colorName || s.colors.join(', '))}` : ''], ['Filament', esc(s.profile || '')],
+        ['Nozzle', esc(s.printTemp || '')], ['Bed', esc(s.bedTemp || '')], ['Drying', esc(s.dryingTemp || '')],
+        ['Empty spool', s.emptySpool != null ? grams(s.emptySpool) : ''], ['Price', s.price != null ? esc(money(s.price, s.currency)) : ''],
+        ['Shop', esc(s.supplier || '')], ['Bought', esc(day(s.bought))], ['Lot', esc(s.lot || '')], ['Added', esc(day(s.added))],
+        ['Last used', esc(day(s.lastUsed))], ['Product', s.productUrl ? link('Product page', `data-url="${esc(s.productUrl)}" title="${esc(s.productUrl)}"`) : '']])}
+      ${s.notes ? `<h4>Notes</h4><div class="text">${esc(s.notes)}</div>` : ''}
+      ${weighings ? `<h4>Weighings</h4><ul class="log">${weighings}</ul>` : ''}
+      ${dryings ? `<h4>Drying</h4><ul class="log">${dryings}</ul>` : ''}
+    </div>
+  </div>`;
+}
 
 // --- Printers ---
 function slotTile(where, label, spool, tray) {
@@ -984,14 +1125,21 @@ orca.onMessage((m) => {
   if (!m || !m.type) return;
   if (m.type === 'state') renderState(m);
   else if (m.type === 'models') {
+    if (m.seq != null && m.seq !== ui.seq) return;
     ui.loading = false;
     ui.models = m.offset ? ui.models.concat(m.models) : m.models; ui.total = m.total == null ? ui.models.length : m.total;
     renderModels();
+    if (m.models.length && ui.models.length < ui.total) loadModels(true);
+  } else if (m.type === 'model' || m.type === 'spool') {
+    const item = m[m.type];
+    if (!ui.details || ui.details.kind !== m.type || !item || item.id !== ui.details.id) return;
+    ui.details.item = item; $('details-title').textContent = item.name;
+    $('details-body').innerHTML = m.type === 'model' ? renderModelDetails(item) : renderSpoolDetails(item);
   } else if (m.type === 'spools') { ui.spools = m.spools; renderSpools(); renderPicker(); }
   else if (m.type === 'printers') { ui.printers = m.printers; renderPrinters(); }
   else if (m.type === 'check') renderCheck(m.result);
   else if (m.type === 'opened') { ui.opening = null; renderModels(); }
-  else if (m.type === 'toast') { if (m.level === 'error') { ui.loading = false; $('check-busy').hidden = true; renderModels(); } toast(m.text, m.level); }
+  else if (m.type === 'toast') { if (m.level === 'error') { if (ui.details && !ui.details.item) closeDetails(); ui.loading = false; $('check-busy').hidden = true; renderModels(); } toast(m.text, m.level); }
 });
 send({ type: 'ready' });
 // New exports and saves are noticed on other threads; ask now and then (and auto-send from here).
@@ -1102,6 +1250,12 @@ if orca is not None:
                     self._models(data)
                 elif kind == "spools":
                     self.post_message({"type": "spools", "spools": self._client().spools()})
+                elif kind == "model":
+                    self.post_message({"type": "model", "model": self._client().model(data.get("id"))})
+                elif kind == "spool":
+                    self.post_message({"type": "spool", "spool": self._client().spool(data.get("id"))})
+                elif kind == "open-link":
+                    self._open_link(data)
                 elif kind == "printers":
                     self.post_message({"type": "printers", "printers": self._client().printers()})
                 elif kind == "load-spool":
@@ -1199,7 +1353,21 @@ if orca is not None:
                 data.get("limit") or 30,
             )
             models = page.get("models", [])
-            self.post_message({"type": "models", "models": models, "total": page.get("total", len(models)), "offset": page.get("offset", 0)})
+            self.post_message(
+                {"type": "models", "models": models, "total": page.get("total", len(models)), "offset": page.get("offset", 0), "seq": data.get("seq")}
+            )
+
+        def _open_link(self, data):
+            """Open a page of the JusttPrint website ("#/model/…") or a model's web link in the browser."""
+            page, url = str(data.get("page") or ""), str(data.get("url") or "")
+            if page.startswith("#/"):
+                url = self._client().server.rstrip("/") + "/" + page
+            elif not url.lower().startswith(("http://", "https://")):
+                return
+            try:
+                open_with_system(url)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise JusttPrintError(f"Could not open the browser: {error}") from error
 
         def _open(self, model_id, name):
             client = self._client()
