@@ -47,8 +47,8 @@ export default [
   },
   js.configs.recommended,
   {
-    // Node, CommonJS: the server, shared core code, scripts, tests and the helper.
-    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'helper/**/*.js'],
+    // Node, CommonJS: the server, shared core code, scripts, tests, the helper and the OrcaSlicer plugin's test runner.
+    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'helper/**/*.js', 'orca-plugin/**/*.js'],
     ignores: ['src/web/public/**'],
     languageOptions: {
       ecmaVersion: 2024,

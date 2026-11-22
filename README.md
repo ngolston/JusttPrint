@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 10.18.0**
+**Version 10.19.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -51,6 +51,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
 - **MCP server** so AI agents can search and update your library, add models from links, and work with your spools, the filament check, the queue and what a print costs
 - **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
+- **JusttPrint plugin for OrcaSlicer**: a JusttPrint tab in OrcaSlicer to browse your library and open models on the plate, see all your spools, load them into your printers, take each print's filament off the spools, check the project's filament against them, and send sliced files (filed and queued) and projects back
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
 
@@ -311,7 +312,7 @@ To build the image yourself from a clone of this repository, run from the projec
 docker build -f docker/Dockerfile -t justtprint:latest .
 ```
 
-or build and start it with `docker compose -f docker/docker-compose.yml up -d --build` (it keeps `data` and `models` in the project folder). `npm start` runs the server without Docker (Node 22). The server is in `src/server` and `src/core`, the web UI in `src/web` (its static page in `src/web/public`), the scripts both use in `src/shared`, and the Docker files in `docker/`.
+or build and start it with `docker compose -f docker/docker-compose.yml up -d --build` (it keeps `data` and `models` in the project folder). `npm start` runs the server without Docker (Node 22). The server is in `src/server` and `src/core`, the web UI in `src/web` (its static page in `src/web/public`), the scripts both use in `src/shared`, the OrcaSlicer plugin in `orca-plugin/` (`justtprint.py`, with its tests; the server's routes for it are `src/server/orca-plugin.js`), and the Docker files in `docker/`.
 
 ## Upgrading to 10.0
 

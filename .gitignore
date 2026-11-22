@@ -46,3 +46,7 @@ web-build/
 
 # macOS Finder
 .DS_Store
+
+# Python caches (the OrcaSlicer plugin tests)
+__pycache__/
+*.pyc

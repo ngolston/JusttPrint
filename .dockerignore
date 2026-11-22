@@ -76,6 +76,9 @@ tests/
 .claude/
 demos/
 *.test.js
+orca-plugin/test_*.py
+**/__pycache__
+**/*.pyc
 
 # Local databases from before the rename
 printventory.db
