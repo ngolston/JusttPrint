@@ -158,6 +158,28 @@ test('the routes', async () => {
       [benchy]
     );
 
+    // One model's details: what the website's Model Details shows, its pictures and print history.
+    db.prepare("INSERT INTO print_events (model_id, printed_at, outcome, quantity, notes, created_at) VALUES (?, '2026-02-01', 'printed', 2, 'Nice', ?)").run(
+      benchy,
+      t
+    );
+    r = await get(`/api/orca/models/${gear}`);
+    assert.strictEqual(r.status, 200);
+    assert.deepStrictEqual(
+      [r.body.model.name, r.body.model.designer, r.body.model.fileType, r.body.model.size, r.body.model.pictures, r.body.model.history],
+      ['Gear', 'Ana', '3mf', 4, ['data:image/png;base64,AAAA'], []]
+    );
+    assert.strictEqual(r.body.model.page, `#/model/${encodeURIComponent(path.join(library, 'Gear', 'Gear.3mf'))}`);
+    r = await get(`/api/orca/models/${benchy}`);
+    assert.deepStrictEqual(
+      r.body.model.history.map((e) => [e.printedAt, e.outcome, e.quantity, e.notes]),
+      [['2026-02-01', 'printed', 2, 'Nice']]
+    );
+    r = await get('/api/orca/models/3');
+    assert.strictEqual(r.status, 404, 'a link-only model has no details here');
+    r = await get('/api/orca/models/999');
+    assert.match(r.body.error, /not in the library/);
+
     // Spools for the Filament tab: not archived, with colors, brand and grams.
     r = await get('/api/orca/spools', { 'x-test-role': 'viewer' });
     assert.strictEqual(r.status, 200);
@@ -168,6 +190,18 @@ test('the routes', async () => {
         ['White PLA', null, ['#ffffff'], 100, 100, 'active']
       ]
     );
+
+    // One spool's details, as the website's spool window shows them.
+    r = await get('/api/orca/spools/2', { 'x-test-role': 'viewer' });
+    assert.strictEqual(r.status, 200);
+    assert.deepStrictEqual(
+      [r.body.spool.name, r.body.spool.brand, r.body.spool.colors, r.body.spool.remaining, r.body.spool.initial, r.body.spool.currency, r.body.spool.page],
+      ['Galaxy PETG', 'Prusament', ['#112233', '#445566'], 950, 1000, 'USD', '#/filament']
+    );
+    r = await get('/api/orca/spools/1');
+    assert.deepStrictEqual(r.body.spool.loadedIn, ['MK4 · A1']);
+    r = await get('/api/orca/spools/999');
+    assert.strictEqual(r.status, 404);
 
     r = await get('/api/orca/models?q=ana');
     assert.deepStrictEqual(

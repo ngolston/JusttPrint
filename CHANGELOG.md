@@ -2,6 +2,19 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.20.0] - 2026-11-22
+
+The OrcaSlicer plugin shows your whole library, and the details of any model or spool you click.
+
+**Changes:**
+- **Details in the OrcaSlicer plugin.** Click a model in the **Library** view to see what the website shows about it: its pictures, file, size, print status, rating, designer, source, license, tags, category, folder, description, notes and print history. Click a spool in the **Filament** view for grams left and when it runs out, where it is, brand, colors, temperatures, price, shop, notes, photo, weighings and drying. **Open in JusttPrint** opens the page on the website in your browser. Double-click a model to put it on the plate, as before.
+
+**Fixes:**
+- **OrcaSlicer plugin: the Library view shows all your models.** It no longer stops after 30 with a **Show more** button; it keeps loading until every model is there.
+
+**Upgrade notes:**
+- To get these, download the plugin again from **Settings → Slicer** and reinstall it in OrcaSlicer (**Plugins → Install local plugin**).
+
 ## [10.19.0] - 2026-11-22
 
 JusttPrint now has a plugin for OrcaSlicer: your library, your spools and your printers in a tab inside the slicer.

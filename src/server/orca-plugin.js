@@ -8,7 +8,9 @@
  *   GET  /api/orca/hello                        -> { version, username, role, slicedInbox, uploadFolder }
  *   GET  /api/orca/models?q=&sort=&status=&offset=&limit=
  *                                               -> { models: [{ id, name, fileName, designer, fileType, printStatus, printCount, thumbnail }], total, offset }
+ *   GET  /api/orca/models/:id                   -> { model }  (modelDetail: what the website's Model Details shows, pictures, print history)
  *   GET  /api/orca/spools                       -> { spools: [{ id, name, brand, material, colors, initial, remaining, available, status, where, loaded }] }
+ *   GET  /api/orca/spools/:id                   -> { spool }  (spoolDetail: what the website's spool window shows)
  *   POST /api/orca/models/:id/open              -> { links: [{ name, path }] }   (OrcaSlicer opens base + path)
  *   POST /api/orca/filament-check { needs }     -> filament-check.js checkNeeds: { ready, missing, needs }
  *   GET  /api/orca/printers                     -> { printers: [{ id, name, model, serial, logsItself, direct, units: [{ slots: [{ id, label, spool, tray }] }] }] }
@@ -163,6 +165,156 @@ function searchModels(db, query, limit, options = {}) {
     };
   });
   return { models, total, offset };
+}
+
+/** Run `fn`; `fallback` when it throws (a table a JusttPrint version or a test database lacks). */
+function maybe(fn, fallback) {
+  try {
+    return fn();
+  } catch (_) {
+    return fallback;
+  }
+}
+
+const MAX_PICTURES = 6;
+
+/**
+ * One model for the plugin's details window: what the website's Model Details shows (file,
+ * format, size, print status, rating, designer, source, license, tags, category, folder, added),
+ * its description and notes, its pictures and its print history. Null when there is none.
+ */
+function modelDetail(db, id) {
+  const row = db.prepare("SELECT * FROM models WHERE id = ? AND filePath NOT LIKE 'url::%'").get(id);
+  if (!row) return null;
+  const { parseThumbnails } = require('../core/thumbnails');
+  let pictures = parseThumbnails(row.thumbnail || '').filter((p) => typeof p === 'string' && p.startsWith('data:image'));
+  if (!pictures.length) {
+    const grid = maybe(() => require('./grid-thumbnails').gridImage(row.filePath, () => row.thumbnail || null), null);
+    if (typeof grid === 'string' && grid.startsWith('data:image')) pictures = [grid];
+  }
+  const tags = maybe(
+    () =>
+      db
+        .prepare('SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ? ORDER BY lower(t.name)')
+        .all(row.id)
+        .map((t) => t.name),
+    []
+  );
+  const categories = maybe(() => require('../core/categories').modelCategoryNames(row.id), []);
+  const history = maybe(() => require('../core/print-events').getPrintEvents(db, row.id), []).slice(0, 50);
+  let size = Number(row.size) || 0;
+  if (!size) size = maybe(() => fs.statSync(row.filePath).size, 0);
+  return {
+    id: row.id,
+    name: row.title || row.fileName.replace(/\.[^.]+$/, ''),
+    fileName: row.fileName,
+    folder: path.dirname(row.filePath),
+    fileType: path.extname(row.fileName).slice(1).toLowerCase(),
+    size: size || null,
+    designer: row.designer || null,
+    source: row.source || null,
+    license: row.license || null,
+    description: row.description || null,
+    notes: row.notes || null,
+    rating: Math.max(0, Math.min(5, Math.round(Number(row.rating) || 0))),
+    favorite: !!row.favorite,
+    printStatus: row.print_status || 'unprinted',
+    printCount: Number(row.print_count) || 0,
+    lastPrinted: row.last_printed_at || null,
+    dateAdded: row.dateAdded || null,
+    tags,
+    category: categories[0] || null,
+    subcategory: categories[1] || null,
+    pictures: pictures.slice(0, MAX_PICTURES),
+    history: history.map((e) => ({
+      id: e.id,
+      printedAt: e.printed_at,
+      outcome: e.outcome,
+      quantity: Number(e.quantity) || 1,
+      notes: e.notes || null,
+      printer: e.printer_nickname || null,
+      duration: Number(e.duration_seconds) || null,
+      spools: (e.spools || []).map((s) => ({ name: s.name, color: s.color || null, grams: Math.round((Number(s.grams) || 0) * 10) / 10 }))
+    })),
+    // The model's page on the website (opened in the browser from the plugin).
+    page: `#/model/${encodeURIComponent(row.filePath)}`
+  };
+}
+
+/** A spool's photo as a data URL the plugin can show (it has no browser sign-in), or null. */
+function spoolPhoto(spool) {
+  if (spool.photo_file) {
+    return maybe(() => {
+      const { dirFor } = require('./photos');
+      const file = path.join(dirFor('spool'), path.basename(spool.photo_file));
+      if (fs.statSync(file).size > 3 * 1024 * 1024) return null;
+      const ext = path.extname(file).slice(1).toLowerCase();
+      const type = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext];
+      return type ? `data:${type};base64,${fs.readFileSync(file).toString('base64')}` : null;
+    }, null);
+  }
+  return null;
+}
+
+/**
+ * One spool for the plugin's details window, as the website's spool window shows it: grams left,
+ * where it is, brand, material, colors, the filament's temperatures, price and shop, its
+ * weighings and drying, and when it runs out. Null when there is none.
+ */
+function spoolDetail(db, id) {
+  const spool = require('../core/spools').getSpool(db, id);
+  if (!spool) return null;
+  const held = maybe(
+    () =>
+      require('../core/filament-check')
+        .availableSpools(db)
+        .find((s) => s.id === spool.id),
+    null
+  );
+  const colors = [spool.color_hex, spool.color_hex_2, spool.color_hex_3, spool.color_hex_4].filter((c) => /^#[0-9a-f]{6}$/i.test(String(c || '')));
+  const range = (min, max) => (min && max && min !== max ? `${min}–${max} °C` : min || max ? `${min || max} °C` : null);
+  return {
+    id: spool.id,
+    name: spool.display_name,
+    brand: spool.brand_name || null,
+    material: spool.material || null,
+    materialType: spool.material_type || null,
+    colors,
+    colorName: spool.color_name || null,
+    profile: spool.profile_name || null,
+    status: spool.status,
+    initial: Math.round(Number(spool.initial_weight) || 0),
+    remaining: Math.round(Number(spool.remaining) || 0),
+    available: held ? Math.round(held.available) : Math.round(Number(spool.remaining) || 0),
+    emptySpool: spool.spool_weight === null || spool.spool_weight === undefined ? null : Math.round(Number(spool.spool_weight)),
+    place: spool.location_name || null,
+    loadedIn: spool.loaded.map((p) => p.label),
+    printTemp: range(spool.profile_print_temp_min, spool.profile_print_temp_max),
+    bedTemp: range(spool.profile_bed_temp_min, spool.profile_bed_temp_max),
+    dryingTemp: spool.profile_drying_temp ? `${spool.profile_drying_temp} °C${spool.profile_drying_hours ? `, ${spool.profile_drying_hours} h` : ''}` : null,
+    price: spool.purchase_price === null || spool.purchase_price === undefined ? null : Number(spool.purchase_price),
+    currency: require('../core/filament-stats').currency(db),
+    supplier: spool.supplier || null,
+    bought: spool.purchase_date || null,
+    lot: spool.lot_nr || null,
+    added: spool.registered_at || null,
+    lastUsed: spool.last_used_at || null,
+    productUrl: spool.product_url || null,
+    notes: spool.notes || null,
+    photo: spoolPhoto(spool),
+    forecast: spool.forecast || null,
+    drying: spool.drying ? { temp: spool.drying.drying_temp, hours: spool.drying.target_hours, startedAt: spool.drying.started_at } : null,
+    weighings: spool.weighings.slice(0, 10).map((w) => ({ at: w.logged_at, grams: Math.round(Number(w.net_weight) || 0), notes: w.notes || null })),
+    dryings: spool.dryings.slice(0, 10).map((d) => ({
+      at: d.started_at,
+      temp: d.drying_temp,
+      hours: d.target_hours,
+      finished: !!d.finished_at,
+      humidityBefore: d.humidity_before ?? null,
+      humidityAfter: d.humidity_after ?? null
+    })),
+    page: '#/filament'
+  };
 }
 
 /**
@@ -453,6 +605,24 @@ function registerOrcaPluginRoutes(expressApp, { requireRole, db = () => database
     route(() => ({ spools: listSpools(db()) }))
   );
 
+  expressApp.get(
+    '/api/orca/spools/:id',
+    route((req) => {
+      const spool = Number.isInteger(Number(req.params.id)) ? spoolDetail(db(), Number(req.params.id)) : null;
+      if (!spool) throw httpError(404, 'That spool is not in JusttPrint any more');
+      return { spool };
+    })
+  );
+
+  expressApp.get(
+    '/api/orca/models/:id',
+    route((req) => {
+      const model = Number.isInteger(Number(req.params.id)) ? modelDetail(db(), Number(req.params.id)) : null;
+      if (!model) throw httpError(404, 'That model is not in the library any more');
+      return { model };
+    })
+  );
+
   expressApp.post(
     '/api/orca/models/:id/open',
     route((req) => {
@@ -597,4 +767,4 @@ function registerOrcaPluginRoutes(expressApp, { requireRole, db = () => database
   });
 }
 
-module.exports = { registerOrcaPluginRoutes, needsFrom, plainName, searchModels, listSpools, listPrinters };
+module.exports = { registerOrcaPluginRoutes, needsFrom, plainName, searchModels, modelDetail, listSpools, spoolDetail, listPrinters };
