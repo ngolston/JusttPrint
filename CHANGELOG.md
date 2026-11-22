@@ -2,6 +2,17 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.19.0] - 2026-11-22
+
+JusttPrint now has a plugin for OrcaSlicer: your library, your spools and your printers in a tab inside the slicer.
+
+**Changes:**
+- **JusttPrint plugin for OrcaSlicer.** Download it from **Settings → Slicer**, install it in OrcaSlicer (**Plugins → Install local plugin**), then enter your JusttPrint address and an API key (**Settings → Authentication → API keys**) in the tab's Settings. A **JusttPrint** tab then shows your whole library (search, filter by printed or not, sort) and opens any model on the plate, lists all your spools with their colors, grams left and where they are, checks the project's filament (and, after slicing, the grams) against your spools, sends each sliced file to the Sliced files inbox to be filed and queued, and saves the project to the Upload folder. When OrcaSlicer sends a print, its filament comes off your spools (with **Undo**), and the **Printers** view lets you load spools into each printer's AMS slots and holder.
+
+**Upgrade notes:**
+- Nothing to do unless you want the plugin. It needs an OrcaSlicer build with plugins (newer than 2.4.2, or a nightly). To send files back and take filament off your spools, the API key needs the Editor role; sending sliced files also needs the Sliced files inbox folder (Queue page).
+- For a Bambu Lab printer to be recognised when you print from OrcaSlicer, give it its serial number on JusttPrint's Printers page; otherwise pick the printer in the tab's **Printers** view.
+
 ## [10.18.0] - 2026-11-08
 
 Fixes and speed-ups sent in by a JusttPrint user, Lupolima. Thank you!

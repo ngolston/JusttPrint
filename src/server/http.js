@@ -173,6 +173,8 @@ function startHttpServer(port = 5000, localhostOnly = false, options = {}) {
   expressApp.use('/mcp', requireRole('admin'));
   expressApp.use('/api/puter-ai', requireRole('editor'));
   registerUploadRoutes(expressApp, { requireRole });
+  // The JusttPrint plugin for OrcaSlicer (orca-plugin/justtprint.py), signed in with an API key.
+  require('./orca-plugin').registerOrcaPluginRoutes(expressApp, { requireRole });
 
   expressApp.use(express.json({ limit: '50mb' }));
   registerMcpRoutes(expressApp, getMcpToolContext());

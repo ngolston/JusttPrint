@@ -269,8 +269,15 @@
 #slicer-dialog .slicer-list-actions .full-width-button {
   flex: 0 0 auto;
 }
-#slicer-helper-install .full-width-button {
+#slicer-helper-install .full-width-button,
+#orca-plugin-download .full-width-button {
   margin-top: var(--jp-space-2);
+}
+/* The plugin download is a link that looks like the buttons beside it. */
+#orca-plugin-download a.full-width-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 /* AI Configuration: the prompt editor's buttons sit under it, on the left. */

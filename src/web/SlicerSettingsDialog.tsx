@@ -247,6 +247,17 @@ export function SlicerSettingsDialog() {
           Download helper for this JusttPrint backend
         </button>
       </div>
+      <div id="orca-plugin-download">
+        <p className="setting-description">
+          <strong>JusttPrint plugin for OrcaSlicer</strong> adds a JusttPrint tab to OrcaSlicer: search your library and open a model on the plate, check the
+          project&apos;s filament against your spools, and send sliced files and projects back. It needs an OrcaSlicer build with plugins (newer than 2.4.2, or
+          a nightly). In OrcaSlicer: <strong>Plugins → Browse plugins → Install local plugin</strong>, choose the file, then enter this address and an API key
+          (Settings → Authentication → API keys) in its tab.
+        </p>
+        <a id="download-orca-plugin" className="full-width-button" href="/api/orca/plugin.py" download="justtprint.py">
+          Download the OrcaSlicer plugin
+        </a>
+      </div>
     </ModalDialog>
   );
 }
