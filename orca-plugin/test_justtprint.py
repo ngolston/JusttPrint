@@ -111,6 +111,7 @@ class FakeJusttPrint(http.server.BaseHTTPRequestHandler):
     """Answers the plugin routes the way src/server/orca-plugin.js does."""
 
     calls = []
+    server_version = "10.21.0"
 
     def log_message(self, *args):
         pass
@@ -139,7 +140,16 @@ class FakeJusttPrint(http.server.BaseHTTPRequestHandler):
             return self._send(401, {"error": "Login required"})
         path = self.path.split("?")[0]
         if path == "/api/orca/hello":
-            return self._send(200, {"version": "10.19.0", "username": "ace", "role": "editor", "slicedInbox": True, "uploadFolder": True})
+            return self._send(
+                200,
+                {"version": FakeJusttPrint.server_version, "pluginVersion": "9.9.0", "username": "ace", "role": "editor", "slicedInbox": True, "uploadFolder": True},
+            )
+        if path == "/api/orca/plugin.py":
+            raw = b'PLUGIN_VERSION = "9.9.0"\n'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            return self.wfile.write(raw)
         if path == "/api/orca/models":
             q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             gear = {"id": 3, "name": "Gear", "fileName": "Gear.3mf", "designer": None, "fileType": "3mf", "thumbnail": None}
@@ -147,6 +157,16 @@ class FakeJusttPrint(http.server.BaseHTTPRequestHandler):
             return self._send(200, {"models": [] if offset else [gear], "total": 1, "offset": offset})
         if path == "/api/orca/spools":
             return self._send(200, {"spools": [{"id": 1, "name": "White PLA", "material": "PLA", "colors": ["#ffffff"], "remaining": 100, "initial": 1000}]})
+        if path == "/api/orca/filters":
+            return self._send(200, {"tags": [{"name": "gears", "count": 1}], "categories": [], "favorites": 0})
+        if path in ("/api/orca/models/3/edit", "/api/orca/models/3/log-print"):
+            sent = json.loads(body)
+            return self._send(200, {"model": {"id": 3, "name": "Gear", "rating": sent.get("rating", 0), "history": [], "page": "#/model/x"}})
+        if path in ("/api/orca/spools/1/weigh", "/api/orca/spools/1/drying"):
+            sent = json.loads(body)
+            if sent.get("weight") == -1:
+                return self._send(400, {"error": "Enter what the scale shows (grams)"})
+            return self._send(200, {"spool": {"id": 1, "name": "White PLA", "remaining": sent.get("weight", 100), "weighings": [], "page": "#/filament"}})
         if path == "/api/orca/models/3":
             return self._send(200, {"model": {"id": 3, "name": "Gear", "designer": "Ana", "history": [], "page": "#/model/%2Fm%2FGear.3mf"}})
         if path == "/api/orca/models/4":
@@ -194,6 +214,16 @@ class HelperTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("justtprint_plain", os.path.join(HERE, "justtprint.py"))
         cls.jp = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.jp)
+
+    def test_versions(self):
+        self.assertTrue(self.jp.is_newer("10.20.0", "10.9.3"))
+        self.assertFalse(self.jp.is_newer("1.3.0", "1.3.0"))
+        self.assertFalse(self.jp.is_newer("dev", "1.0.0"))
+        self.assertEqual(self.jp.version_notices({"version": self.jp.MIN_SERVER_VERSION, "pluginVersion": self.jp.PLUGIN_VERSION}), {})
+        self.assertEqual(self.jp.version_notices({"version": "10.18.0"}), {"serverTooOld": self.jp.MIN_SERVER_VERSION})
+        # The header OrcaSlicer reads and the constant the server reads agree.
+        with open(self.jp.__file__, encoding="utf-8") as f:
+            self.assertIn(f'# version = "{self.jp.PLUGIN_VERSION}"', f.read())
 
     def test_server_addresses(self):
         self.assertEqual(self.jp.normalize_server("nas.local:5000"), "http://nas.local:5000")
@@ -356,6 +386,86 @@ class PageTests(WithServer):
         self.assertEqual(self.jp.STATE["opened_model"], {"id": 3, "name": "Gear"})
         self.assertEqual(self.posted("opened")[-1]["id"], 3)
         self.assertEqual(self.posted("state")[-1]["opened_model"]["id"], 3)
+
+    def test_a_newer_plugin_on_the_server_is_offered_and_downloaded(self):
+        self.connect()
+        connection = self.posted("state")[-1]["connection"]
+        self.assertEqual((connection["pluginUpdate"], connection["pluginVersion"]), ("9.9.0", self.jp.PLUGIN_VERSION))
+        self.assertNotIn("serverTooOld", connection)
+        with tempfile.TemporaryDirectory() as tmp:
+            self.jp.downloads_folder = lambda: tmp
+            # Someone else's justtprint.py is kept; an older plugin of ours would be replaced.
+            with open(os.path.join(tmp, "justtprint.py"), "w") as f:
+                f.write("my notes")
+            self.page.on_message({"type": "download-plugin"})
+            path = self.posted("plugin-downloaded")[-1]["path"]
+            self.assertEqual(path, os.path.join(tmp, "justtprint-9.9.0.py"))
+            with open(path, "rb") as f:
+                self.assertEqual(f.read(), b'PLUGIN_VERSION = "9.9.0"\n')
+            self.assertEqual(self.opened, [tmp])
+            os.remove(os.path.join(tmp, "justtprint.py"))
+            self.page.on_message({"type": "download-plugin"})
+            self.assertEqual(self.posted("plugin-downloaded")[-1]["path"], os.path.join(tmp, "justtprint.py"))
+            self.page.on_message({"type": "download-plugin"})
+            self.assertEqual(self.posted("plugin-downloaded")[-1]["path"], os.path.join(tmp, "justtprint.py"), "our own plugin file is replaced")
+
+    def test_a_server_too_old_for_the_plugin_is_named(self):
+        FakeJusttPrint.server_version = "10.19.0"
+        try:
+            self.connect()
+        finally:
+            FakeJusttPrint.server_version = "10.21.0"
+        self.assertEqual(self.posted("state")[-1]["connection"]["serverTooOld"], self.jp.MIN_SERVER_VERSION)
+        # A route the old server lacks says to update it.
+        self.page.on_message({"type": "spool", "id": 5})
+        self.assertIn("Update JusttPrint to", self.posted("toast")[-1]["text"])
+
+    def test_filters_and_changes_from_the_details_window(self):
+        self.connect()
+        self.page.on_message({"type": "filters"})
+        self.assertEqual(self.posted("filters")[-1]["tags"], [{"name": "gears", "count": 1}])
+        self.page.on_message({"type": "models", "favorite": True, "tag": "gears", "category": 7, "offset": 0, "limit": 60})
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(FakeJusttPrint.calls[-1][1]).query)
+        self.assertEqual((query["favorite"], query["tag"], query["category"]), (["1"], ["gears"], ["7"]))
+        self.page.on_message({"type": "models", "offset": 0, "limit": 60})
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(FakeJusttPrint.calls[-1][1]).query)
+        self.assertNotIn("favorite", query)
+
+        # Only the fields the page names are sent.
+        self.page.on_message({"type": "edit-model", "id": 3, "rating": 4, "ignored": "x"})
+        self.assertEqual(json.loads(FakeJusttPrint.calls[-1][3]), {"rating": 4})
+        answer = self.posted("model")[-1]
+        self.assertEqual((answer["model"]["rating"], answer["edited"]), (4, True))
+        self.page.on_message({"type": "log-print", "id": 3, "outcome": "failed", "quantity": 2, "notes": "Warped", "printerId": 1})
+        self.assertEqual(json.loads(FakeJusttPrint.calls[-1][3]), {"outcome": "failed", "quantity": 2, "notes": "Warped", "printerId": 1})
+        self.assertEqual(self.posted("toast")[-1]["text"], "Print logged")
+
+        self.page.on_message({"type": "weigh", "id": 1, "weight": 700, "withSpool": False})
+        self.assertEqual(self.posted("spool")[-1]["spool"]["remaining"], 700)
+        self.assertEqual(self.posted("toast")[-1]["text"], "Weighed: 700 g left")
+        self.assertTrue(self.posted("spools"), "the Filament list is loaded again")
+        self.page.on_message({"type": "weigh", "id": 1, "weight": -1})
+        self.assertEqual((self.posted("toast")[-1]["text"], self.posted("toast")[-1]["level"]), ("Enter what the scale shows (grams)", "error"))
+        self.page.on_message({"type": "drying", "id": 1, "action": "start", "temp": 65, "hours": 4})
+        self.assertEqual(json.loads(FakeJusttPrint.calls[-2][3]), {"action": "start", "temp": 65, "hours": 4})
+        self.assertEqual(self.posted("toast")[-1]["text"], "Drying started")
+
+    def test_the_view_is_remembered(self):
+        self.connect()
+        view = {"tab": "filament", "q": "gear", "sort": "name", "favorite": 1, "category": 4, "tag": "x" * 500, "status": "lost", "project": True, "evil": "y"}
+        self.page.on_message({"type": "save-view", "view": view})
+        saved = json.loads(self.page.config)["view"]
+        self.assertEqual(saved, {"tab": "filament", "q": "gear", "sort": "name", "favorite": True, "category": 4, "tag": "x" * 200, "project": True})
+        self.assertEqual(json.loads(self.page.config)["api_key"], "jpk_good", "the other settings stay")
+        self.page.on_message({"type": "ready"})
+        self.assertEqual(self.posted("state")[-1]["settings"]["view"], saved)
+        self.assertEqual(self.jp.clean_view({"category": True, "tab": 3}), {}, "True is not a category id; 3 is not a tab")
+
+    def test_the_project_filaments(self):
+        self.connect()
+        self.page.on_message({"type": "project-filaments"})
+        self.assertEqual(self.posted("project-filaments")[-1]["type"], "project-filaments")
+        self.assertIsInstance(self.posted("project-filaments")[-1]["needs"], list)
 
     def test_details_of_a_model_and_a_spool(self):
         self.connect()

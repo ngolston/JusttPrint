@@ -2,6 +2,23 @@
 
 All notable changes contributed via pull request are documented in this file.
 
+## [10.21.0] - 2026-11-22
+
+The OrcaSlicer plugin can now change things, filter your library, and tells you when a newer version of it is out.
+
+**Changes:**
+- **Change things from the OrcaSlicer plugin.** In a model's details: set its print status, rating and favorite, edit its notes, and log a print. In a spool's details: weigh it, start or finish drying, and load it into a printer. These need an API key with the Editor role; with a Viewer key the details stay read-only.
+- **Filter the plugin's Library** by your favorites, a tag or a category (a category includes its subcategories), next to the print status.
+- **The plugin's Library loads as you scroll**, a page at a time, instead of every model at once. It starts faster with a large library.
+- **Spools for this project.** **This project** in the plugin's Filament view shows only spools of the materials the open project uses, closest color first, and marks the ones close to a filament's color (**Filament 1**).
+- **Print photos in the plugin.** A model's print history shows the photos of each print; click one to see it large.
+- **The plugin remembers where you were**: its tab, searches, filters and sorts come back the next time you open OrcaSlicer.
+- **Keyboard in the plugin**: arrow keys move between models or spools, Enter opens the details, Shift+Enter puts a model on the plate, / jumps to the search, Esc closes.
+- **Plugin updates in OrcaSlicer.** When your JusttPrint server offers a newer plugin than the one installed, the JusttPrint tab says so under its tabs. **Download** saves it to your Downloads folder and opens that folder; install it as before (Plugins, Browse plugins, Install local plugin). When your server is too old for the plugin, the tab says which JusttPrint version to update to.
+
+**Upgrade notes:**
+- Update the server first, then install the plugin once more from **Settings → Slicer** (plugin 1.3.0). Later updates are then offered in the tab itself.
+
 ## [10.20.0] - 2026-11-22
 
 The OrcaSlicer plugin shows your whole library, and the details of any model or spool you click.

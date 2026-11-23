@@ -6,7 +6,7 @@
 # name = "JusttPrint"
 # description = "Your JusttPrint library in OrcaSlicer: open models on the plate, check your spools, send sliced files and projects back."
 # author = "JusttPrint"
-# version = "1.2.0"
+# version = "1.3.0"
 # ///
 """JusttPrint for OrcaSlicer.
 
@@ -48,7 +48,10 @@ try:
 except ImportError:  # Outside OrcaSlicer (the tests): only the helpers below are used.
     orca = None
 
-PLUGIN_VERSION = "1.2.0"
+# Keep in step with the version in the header above; the server offers this file and reads it here.
+PLUGIN_VERSION = "1.3.0"
+# The oldest JusttPrint this plugin works fully with (filters and changes from the details windows came in 10.21.0).
+MIN_SERVER_VERSION = "10.21.0"
 TIMEOUT = 30
 UPLOAD_TIMEOUT = 300
 HEAD_BYTES = 256 * 1024
@@ -65,6 +68,35 @@ DEFAULT_SETTINGS = {
     # The JusttPrint printer this OrcaSlicer prints on, when OrcaSlicer does not say (its device id).
     "printer_id": None,
 }
+# What the tab remembers between OrcaSlicer sessions (its tab, searches, filters and sorts), and how.
+VIEW_FIELDS = {
+    "tab": ("library", "filament", "printers", "print", "settings"),
+    "q": str, "status": ("", "unprinted", "queued", "printed"), "sort": ("newest", "oldest", "name"),
+    "favorite": bool, "tag": str, "category": int,
+    "sq": str, "material": str, "ssort": ("material", "color", "most", "least"), "project": bool,
+}
+
+
+def clean_view(view):
+    """The view fields the page sent, checked: unknown keys and bad values are left out, text kept short."""
+    out = {}
+    for key, kind in VIEW_FIELDS.items():
+        value = (view or {}).get(key) if isinstance(view, dict) else None
+        if value is None:
+            continue
+        if isinstance(kind, tuple):
+            if value in kind:
+                out[key] = value
+        elif kind is bool:
+            out[key] = bool(value)
+        elif kind is int:
+            if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < 2**31:
+                out[key] = value
+        elif isinstance(value, str):
+            out[key] = value[:200]
+    return out
+
+
 # A file changed this recently may still be being written.
 SETTLE_SECONDS = 3
 
@@ -266,6 +298,49 @@ class JusttPrintError(Exception):
     pass
 
 
+def version_key(text):
+    """(10, 20, 0) for "10.20.0"; None when it is not a version."""
+    parts = str(text or "").strip().split("-")[0].split(".")
+    try:
+        return tuple(int(p) for p in parts) if parts and all(p.isdigit() for p in parts) else None
+    except ValueError:
+        return None
+
+
+def is_newer(version, than):
+    """Whether `version` is newer than `than` (False when either is not a version)."""
+    a, b = version_key(version), version_key(than)
+    return bool(a and b and a > b)
+
+
+def version_notices(hello):
+    """What the tab says about versions after connecting: a newer plugin on the server, or a server too old for this plugin."""
+    notices = {}
+    if is_newer(hello.get("pluginVersion"), PLUGIN_VERSION):
+        notices["pluginUpdate"] = hello["pluginVersion"]
+    if is_newer(MIN_SERVER_VERSION, hello.get("version")):
+        notices["serverTooOld"] = MIN_SERVER_VERSION
+    return notices
+
+
+def downloads_folder():
+    """Where a downloaded plugin goes: the Downloads folder, else the home folder."""
+    home = os.path.expanduser("~")
+    downloads = os.path.join(home, "Downloads")
+    return downloads if os.path.isdir(downloads) else home
+
+
+def plugin_save_path(folder, version):
+    """justtprint.py in `folder`, replacing an older JusttPrint plugin there but no other file."""
+    path = os.path.join(folder, "justtprint.py")
+    try:
+        with open(path, "rb") as f:
+            ours = b"PLUGIN_VERSION = " in f.read(HEAD_BYTES)
+    except OSError:
+        return path
+    return path if ours else os.path.join(folder, f"justtprint-{version}.py")
+
+
 class Client:
     """JusttPrint's plugin routes (src/server/orca-plugin.js), signed in with an API key."""
 
@@ -321,7 +396,9 @@ class Client:
         if response.status == 401:
             raise JusttPrintError("JusttPrint did not accept the API key. Make a new one in JusttPrint and paste it in Settings.")
         if response.status == 404 and data is None:
-            raise JusttPrintError("This JusttPrint server has no plugin support yet. Update JusttPrint.")
+            if path.startswith("/api/orca/hello"):
+                raise JusttPrintError("This JusttPrint server has no plugin support yet. Update JusttPrint.")
+            raise JusttPrintError(f"Your JusttPrint server is too old for this. Update JusttPrint to {MIN_SERVER_VERSION} or newer.")
         if response.status >= 400:
             message = data.get("error") if isinstance(data, dict) else None
             raise JusttPrintError(message or f"JusttPrint answered {response.status}")
@@ -333,10 +410,49 @@ class Client:
     def hello(self):
         return self.request("GET", "/api/orca/hello")
 
-    def models(self, query="", sort="newest", status="", offset=0, limit=30):
-        """A page of the library: {"models": [...], "total": int, "offset": int}."""
+    def download_plugin(self):
+        """The plugin file the server offers (bytes)."""
+        conn = self._connection(TIMEOUT)
+        try:
+            conn.request("GET", "/api/orca/plugin.py", headers={"Authorization": "Bearer " + self.api_key, "User-Agent": f"JusttPrint-OrcaSlicer/{PLUGIN_VERSION}"})
+            response = conn.getresponse()
+            raw = response.read()
+        except (OSError, http.client.HTTPException) as error:
+            raise JusttPrintError(f"Could not reach JusttPrint at {self.server}: {error}") from error
+        finally:
+            conn.close()
+        if response.status != 200 or b"PLUGIN_VERSION = " not in raw:
+            raise JusttPrintError(f"Could not download the plugin from JusttPrint (HTTP {response.status})")
+        return raw
+
+    def models(self, query="", sort="newest", status="", offset=0, limit=30, favorite=False, tag="", category=None):
+        """A page of the library: {"models": [...], "total": int, "offset": int}. favorite, tag and category narrow it."""
         query = {"q": query, "sort": sort, "status": status, "offset": int(offset or 0), "limit": int(limit or 30)}
+        if favorite:
+            query["favorite"] = 1
+        if tag:
+            query["tag"] = tag
+        if category:
+            query["category"] = int(category)
         return self.request("GET", "/api/orca/models", query)
+
+    def filters(self):
+        """What the Library can be filtered by: {"tags": [...], "categories": [...], "favorites": int}."""
+        return self.request("GET", "/api/orca/filters")
+
+    def edit_model(self, model_id, changes):
+        """Change printStatus, rating, favorite or notes; answers the model's details."""
+        return self.request("POST", f"/api/orca/models/{int(model_id)}/edit", body=changes)["model"]
+
+    def log_print(self, model_id, outcome="printed", quantity=1, notes="", printer_id=None):
+        body = {"outcome": outcome, "quantity": int(quantity or 1), "notes": notes, "printerId": printer_id}
+        return self.request("POST", f"/api/orca/models/{int(model_id)}/log-print", body=body)["model"]
+
+    def weigh_spool(self, spool_id, weight, with_spool=True):
+        return self.request("POST", f"/api/orca/spools/{int(spool_id)}/weigh", body={"weight": weight, "withSpool": bool(with_spool)})["spool"]
+
+    def drying(self, spool_id, action, temp=None, hours=None):
+        return self.request("POST", f"/api/orca/spools/{int(spool_id)}/drying", body={"action": action, "temp": temp, "hours": hours})["spool"]
 
     def model(self, model_id):
         """One model with what the website's Model Details shows, its pictures and print history."""
@@ -567,6 +683,33 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
 .spool-head .left { font-size: 22px; font-weight: 650; }
 .detail .photo { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
 .card, .spool { cursor: pointer; }
+.card:focus-visible, .spool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shots { grid-column: 2; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.shot { width: 56px; height: 56px; padding: 0; border-radius: 6px; background: var(--panel-2) center / cover no-repeat; }
+#lightbox { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.85); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px; cursor: zoom-out; }
+#lightbox.on { display: flex; }
+#lightbox img { max-width: 100%; max-height: calc(100% - 40px); border-radius: 8px; }
+#lightbox div { color: #fff; }
+.project { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 10px; font-size: 12px; }
+.project .pneed { display: inline-flex; gap: 5px; align-items: center; padding: 3px 8px; border-radius: 12px; background: var(--panel-2); }
+.tag.like { background: rgba(0,150,136,.2); color: var(--accent); }
+.edit { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+.edit .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.edit input[type=number] { width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); }
+.edit input[type=text], .edit select { flex: 1; min-width: 120px; }
+.detail textarea { width: 100%; min-height: 80px; resize: vertical; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); font: inherit; color: inherit; }
+.rate { display: inline-flex; }
+.rate button { border: none; background: none; padding: 0 2px; font-size: 17px; line-height: 1; color: var(--muted); }
+.rate button.on { color: var(--warn); }
+button.fav.on { color: #e5484d; border-color: #e5484d; }
+.props select { padding: 3px 6px; }
+
+/* Version notice, under the tabs */
+#notice { flex: none; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(0,150,136,.12); }
+#notice[hidden] { display: none; }
+#notice.caution { background: rgba(255,179,0,.14); }
+#notice .what { flex: 1; min-width: 200px; }
+#notice code { font: 12px ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
 
 /* Settings */
 .form { max-width: 560px; }
@@ -597,6 +740,8 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
   <span id="conn" class="pill" title="Settings">Not connected</span>
 </header>
 
+<div id="notice" hidden></div>
+
 <main>
   <section class="view on" id="view-library">
     <div class="toolbar">
@@ -607,6 +752,9 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
         <button class="chip" data-status="queued">Queued</button>
         <button class="chip" data-status="printed">Printed</button>
       </div>
+      <button class="chip" id="fav" title="Only your favorites">♥ Favorites</button>
+      <select id="tag" title="Tag" hidden></select>
+      <select id="category" title="Category" hidden></select>
       <select id="sort" title="Sort">
         <option value="newest">Newest first</option>
         <option value="oldest">Oldest first</option>
@@ -615,6 +763,7 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
     </div>
     <p class="summary" id="lib-summary"></p>
     <div class="grid" id="grid"></div>
+    <div id="lib-more" class="summary" style="text-align:center;margin-top:12px"></div>
     <div id="lib-empty"></div>
   </section>
 
@@ -622,6 +771,7 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
     <div class="stats" id="stats"></div>
     <div class="toolbar">
       <input id="sq" class="search" type="search" placeholder="Search spools by name, brand or material">
+      <button class="chip" id="project-chip" title="Only spools of the open project's materials, closest color first">This project</button>
       <div class="chips" id="material-chips"></div>
       <select id="ssort" title="Sort">
         <option value="material">Material</option>
@@ -632,6 +782,7 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
       <button id="srefresh" title="Load the spools again">Refresh</button>
     </div>
     <p class="summary" id="spool-summary"></p>
+    <div class="project" id="project-needs" hidden></div>
     <div class="spools" id="spools"></div>
     <div id="spool-empty"></div>
   </section>
@@ -705,14 +856,16 @@ main { flex: 1; overflow: auto; padding: 14px 16px 60px; }
   <div class="content" id="details-body"></div>
 </div></div>
 
+<div id="lightbox" title="Click or press Esc to close"><img id="lightbox-img" alt=""><div id="lightbox-caption"></div></div>
+
 <div id="toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const send = (msg) => orca.postMessage(msg);
-// The server sends up to 60 at a time; the page asks for the next one until it has them all.
+// The server sends up to 60 at a time; the next page is asked for when the end of the list comes near.
 const PAGE_SIZE = 60;
-const ui = { tab: 'library', q: '', status: '', sort: 'newest', models: [], total: 0, loading: false, seq: 0,
+const ui = { tab: 'library', q: '', status: '', sort: 'newest', models: [], total: 0, loading: false, seq: 0, viewRestored: false, project: false, projectNeeds: null, favorite: false, tag: '', category: 0, filters: null,
   spools: null, sq: '', material: '', ssort: 'material', state: null, printers: null, picking: null, matched: new Set(), lastSliceKey: null, opening: null };
 
 let toastTimer = null;
@@ -746,36 +899,87 @@ function hue(hex) {
 }
 
 // --- Tabs ---
-function showTab(tab) {
+function markTab(tab) {
   ui.tab = tab;
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === 'view-' + tab));
+}
+function showTab(tab) {
+  markTab(tab);
+  saveView();
+  if (tab === 'filament' && ui.project) send({ type: 'project-filaments' });
   if (tab === 'filament' && ui.spools === null && connected()) loadSpools();
   if (tab === 'library' && !ui.models.length && connected()) loadModels(false);
+  if (tab === 'library') maybeMore();
   if (tab === 'printers' && connected()) { send({ type: 'printers' }); if (ui.spools === null) loadSpools(); }
 }
 $('tabs').onclick = (e) => { const b = e.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); };
 $('conn').onclick = () => showTab('settings');
 document.body.addEventListener('click', (e) => { const b = e.target.closest('button[data-go]'); if (b) showTab(b.dataset.go); });
 
+// --- The view is remembered with the plugin's settings: tab, searches, filters, sorts ---
+let viewTimer = null;
+function saveView() {
+  if (!ui.viewRestored) return;
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(() => send({ type: 'save-view', view: { tab: ui.tab, q: ui.q, status: ui.status, sort: ui.sort, favorite: ui.favorite, tag: ui.tag,
+    category: ui.category, sq: ui.sq, material: ui.material, ssort: ui.ssort, project: ui.project } }), 600);
+}
+function restoreView(v) {
+  ui.q = v.q || ''; ui.status = v.status || ''; ui.sort = v.sort || 'newest'; ui.favorite = !!v.favorite; ui.tag = v.tag || ''; ui.category = v.category || 0;
+  ui.sq = v.sq || ''; ui.material = v.material || ''; ui.ssort = v.ssort || 'material'; ui.project = !!v.project;
+  $('q').value = ui.q; $('sort').value = ui.sort; $('sq').value = ui.sq; $('ssort').value = ui.ssort;
+  document.querySelectorAll('#status-chips .chip').forEach((c) => c.classList.toggle('on', c.dataset.status === ui.status));
+  $('project-chip').classList.toggle('on', ui.project);
+  renderFilters();
+  if (v.tab && v.tab !== 'settings') markTab(v.tab);
+  ui.viewRestored = true;
+}
+
 // --- Library ---
 function loadModels(append) {
   if (!connected()) return renderModels();
-  if (!append) ui.seq += 1; // a new search or filter: answers to the old one are dropped
+  if (!append) { ui.seq += 1; saveView(); } // a new search or filter: answers to the old one are dropped
   ui.loading = true; renderModels();
-  send({ type: 'models', q: ui.q, status: ui.status, sort: ui.sort, offset: append ? ui.models.length : 0, limit: PAGE_SIZE, seq: ui.seq });
+  send({ type: 'models', q: ui.q, status: ui.status, sort: ui.sort, favorite: ui.favorite, tag: ui.tag, category: ui.category,
+    offset: append ? ui.models.length : 0, limit: PAGE_SIZE, seq: ui.seq });
 }
+// The next page when the end of the list is within a screen of view (on scroll, and after each page).
+function maybeMore() {
+  if (ui.tab !== 'library' || ui.loading || !connected() || ui.models.length >= ui.total) return;
+  const main = document.querySelector('main');
+  if ($('lib-more').getBoundingClientRect().top < main.getBoundingClientRect().bottom + main.clientHeight) loadModels(true);
+}
+document.querySelector('main').addEventListener('scroll', maybeMore, { passive: true });
+window.addEventListener('resize', maybeMore);
+function renderFilters() {
+  const f = ui.filters;
+  $('fav').classList.toggle('on', ui.favorite);
+  $('fav').hidden = !f || (!f.favorites && !ui.favorite);
+  const tags = f ? f.tags : [];
+  if (ui.tag && !tags.some((t) => t.name === ui.tag)) tags.unshift({ name: ui.tag, count: 0 });
+  $('tag').hidden = !tags.length;
+  $('tag').innerHTML = '<option value="">All tags</option>' + tags.map((t) => `<option value="${esc(t.name)}"${t.name === ui.tag ? ' selected' : ''}>${esc(t.name)} (${t.count})</option>`).join('');
+  const cats = f ? f.categories : [];
+  $('category').hidden = !cats.length;
+  $('category').innerHTML = '<option value="0">All categories</option>' + cats.map((c) => `<option value="${c.id}"${c.id === ui.category ? ' selected' : ''}>${esc(c.name)} (${c.count})</option>`
+    + c.subcategories.map((x) => `<option value="${x.id}"${x.id === ui.category ? ' selected' : ''}>&nbsp;&nbsp;&nbsp;${esc(x.name)} (${x.count})</option>`).join('')).join('');
+}
+$('fav').onclick = () => { ui.favorite = !ui.favorite; renderFilters(); loadModels(false); };
+$('tag').onchange = () => { ui.tag = $('tag').value; loadModels(false); };
+$('category').onchange = () => { ui.category = Number($('category').value) || 0; loadModels(false); };
 function renderModels() {
   const grid = $('grid'), opened = ui.state && ui.state.opened_model;
   if (!connected()) {
-    grid.innerHTML = ''; $('lib-summary').textContent = '';
+    grid.innerHTML = ''; $('lib-summary').textContent = ''; $('lib-more').textContent = '';
     $('lib-empty').innerHTML = emptyBox('Connect to JusttPrint', 'Enter your server address and an API key to see your library here.', ['settings', 'Open Settings']);
     return;
   }
+  const focused = focusedId(grid, '.card');
   grid.innerHTML = ui.models.map((m) => {
     const status = m.printStatus && m.printStatus !== 'unprinted' ? `<span class="badge status ${esc(m.printStatus)}">${esc(m.printStatus)}</span>` : '';
     const opening = ui.opening === m.id;
-    return `<div class="card${opened && opened.id === m.id ? ' opened' : ''}" data-id="${m.id}" title="Click for details, double-click to open on the plate">
+    return `<div class="card${opened && opened.id === m.id ? ' opened' : ''}" data-id="${m.id}" tabindex="0" title="Click or Enter for details; double-click or Shift+Enter to open on the plate">
       <div class="pic" style="${m.thumbnail ? `background-image:url('${m.thumbnail}')` : ''}">
         ${m.thumbnail ? '' : `<span class="none">${esc(m.fileType.toUpperCase())}</span>`}
         <span class="badge type">${esc(m.fileType)}</span>${status}
@@ -788,9 +992,12 @@ function renderModels() {
     </div>`;
   }).join('');
   $('lib-summary').innerHTML = ui.loading && !ui.models.length ? '<span class="spinner"></span> Loading your library…'
-    : ui.total ? `${ui.loading ? '<span class="spinner"></span> ' : ''}${ui.models.length < ui.total ? `${ui.models.length} of ` : ''}${ui.total} model${ui.total === 1 ? '' : 's'}${ui.q ? ` matching “${esc(ui.q)}”` : ''}` : '';
+    : ui.total ? `${ui.total} model${ui.total === 1 ? '' : 's'}${ui.q ? ` matching “${esc(ui.q)}”` : ''}` : '';
+  refocus(grid, '.card', focused);
+  $('lib-more').innerHTML = ui.models.length && ui.models.length < ui.total
+    ? (ui.loading ? '<span class="spinner"></span> Loading more…' : `${ui.models.length} of ${ui.total} shown · scroll for more`) : '';
   $('lib-empty').innerHTML = !ui.loading && !ui.models.length
-    ? emptyBox('No models found', ui.q || ui.status ? 'Try another search or filter.' : 'Models OrcaSlicer can open (STL, 3MF, OBJ, STEP…) show here.') : '';
+    ? emptyBox('No models found', ui.q || ui.status || ui.favorite || ui.tag || ui.category ? 'Try another search or filter.' : 'Models OrcaSlicer can open (STL, 3MF, OBJ, STEP…) show here.') : '';
   count('n-models', ui.total || null);
 }
 function openModel(id) {
@@ -813,6 +1020,25 @@ $('grid').onclick = (e) => {
   const c = e.target.closest('.card'); if (!c) return;
   clearTimeout(clickTimer); clickTimer = setTimeout(() => showDetails('model', Number(c.dataset.id)), 250);
 };
+// Keys: arrows move between cards, Enter opens the details, Shift+Enter puts the model on the plate.
+function focusedId(container, selector) { const el = document.activeElement; return el && el.matches && el.matches(selector) && container.contains(el) ? el.dataset.id : null; }
+function refocus(container, selector, id) { if (id == null) return; const el = container.querySelector(`${selector}[data-id="${id}"]`); if (el) el.focus({ preventScroll: true }); }
+function moveFocus(container, selector, e) {
+  const items = [...container.querySelectorAll(selector)], i = items.indexOf(document.activeElement);
+  if (i < 0) return false;
+  const top = items[0].offsetTop; let cols = items.findIndex((el) => el.offsetTop !== top); if (cols < 1) cols = items.length;
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols, Home: -i, End: items.length - 1 - i }[e.key];
+  if (step === undefined) return false;
+  e.preventDefault();
+  const next = items[Math.max(0, Math.min(items.length - 1, i + step))];
+  next.focus(); next.scrollIntoView({ block: 'nearest' });
+  return true;
+}
+$('grid').onkeydown = (e) => {
+  if (moveFocus($('grid'), '.card', e)) return maybeMore();
+  const c = e.target.classList && e.target.classList.contains('card') ? e.target : null;
+  if (c && e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) openModel(Number(c.dataset.id)); else showDetails('model', Number(c.dataset.id)); }
+};
 $('grid').ondblclick = (e) => { const c = e.target.closest('.card'); if (c) { clearTimeout(clickTimer); openModel(Number(c.dataset.id)); } };
 
 // --- Filament ---
@@ -834,18 +1060,26 @@ function renderSpools() {
   if (ui.material && !materials.includes(ui.material)) ui.material = '';
   $('material-chips').innerHTML = materials.length > 1 ? ['', ...materials].map((m) => `<button class="chip${ui.material === m ? ' on' : ''}" data-material="${esc(m)}">${esc(m || 'All')}</button>`).join('') : '';
   const words = ui.sq.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = all.filter((s) => (!ui.material || (s.material || 'Other') === ui.material)
+  const needs = ui.project ? ui.projectNeeds : null;
+  $('project-needs').hidden = !ui.project;
+  $('project-needs').innerHTML = !ui.project ? '' : needs === null ? '<span class="spinner"></span> Reading the project…'
+    : needs.length ? '<span class="muted">This project:</span>' + needs.map((n) => `<span class="pneed">${dots(n.color ? [n.color] : [])}${n.slot}: ${esc(n.material || '?')}${n.grams ? ` · ${grams(n.grams)}` : ''}</span>`).join('')
+    : '<span class="muted">This project has no filaments yet: choose them in OrcaSlicer, then Refresh.</span>';
+  const shown = all.filter((s) => (!ui.project || (needs && nearestNeed(s))) && (!ui.material || (s.material || 'Other') === ui.material)
     && words.every((w) => [s.name, s.brand, s.material, s.materialType, s.where].join(' ').toLowerCase().includes(w)));
   const by = { material: (a, b) => (a.material || '~').localeCompare(b.material || '~') || hue(a.colors[0]) - hue(b.colors[0]),
     color: (a, b) => hue(a.colors[0]) - hue(b.colors[0]), most: (a, b) => b.remaining - a.remaining, least: (a, b) => a.remaining - b.remaining };
-  shown.sort(by[ui.ssort] || by.material);
+  shown.sort(ui.project && needs ? (a, b) => nearestNeed(a).d - nearestNeed(b).d || b.remaining - a.remaining : by[ui.ssort] || by.material);
+  saveView();
+  const focused = focusedId($('spools'), '.spool');
   $('spools').innerHTML = shown.map((s) => {
     const level = isLow(s), pct = s.initial ? Math.max(0, Math.min(100, (s.remaining / s.initial) * 100)) : 0;
     const held = s.remaining - s.available;
-    return `<div class="spool${ui.matched.has(s.id) ? ' match' : ''}" data-id="${s.id}" title="Click for details">
+    const like = ui.project ? nearestNeed(s) : null;
+    return `<div class="spool${ui.matched.has(s.id) ? ' match' : ''}" data-id="${s.id}" tabindex="0" title="Click or Enter for details">
       <div class="disc" style="background:${paint(s.colors)}"></div>
       <div class="info">
-        <div class="name">${esc(s.name)}${s.loaded ? '<span class="tag loaded">Loaded</span>' : ''}${level ? `<span class="tag low">${level === 'out' ? 'empty' : 'low'}</span>` : ''}</div>
+        <div class="name">${esc(s.name)}${like && like.close ? `<span class="tag like" title="Close to the color of filament ${like.need.slot} in this project">Filament ${like.need.slot}</span>` : ''}${s.loaded ? '<span class="tag loaded">Loaded</span>' : ''}${level ? `<span class="tag low">${level === 'out' ? 'empty' : 'low'}</span>` : ''}</div>
         <div class="sub">${esc([s.brand, s.material, s.materialType].filter(Boolean).join(' · ') || 'No details')}</div>
         <div class="bar ${level}"><i style="width:${pct.toFixed(1)}%"></i></div>
         <div class="grams"><span><b>${grams(s.remaining)}</b> <span class="muted">of ${grams(s.initial)}</span></span>
@@ -853,16 +1087,78 @@ function renderSpools() {
       </div>
     </div>`;
   }).join('');
+  refocus($('spools'), '.spool', focused);
   $('spool-summary').textContent = ui.spools ? (shown.length === all.length ? `${all.length} spool${all.length === 1 ? '' : 's'}` : `${shown.length} of ${all.length} spools`) + (ui.matched.size ? ' · highlighted: picked for this print' : '') : '';
   $('spool-empty').innerHTML = ui.spools && !all.length ? emptyBox('No spools yet', 'Add your spools in JusttPrint (Filament) to see them here and check prints against them.')
-    : ui.spools && !shown.length ? emptyBox('No spools match', 'Try another search or material.') : '';
+    : ui.spools && !shown.length && !(ui.project && needs === null) ? emptyBox('No spools match', ui.project ? 'None of your spools is a material this project uses.' : 'Try another search or material.') : '';
 }
 let spoolTimer = null;
 $('sq').oninput = () => { clearTimeout(spoolTimer); spoolTimer = setTimeout(() => { ui.sq = $('sq').value.trim(); renderSpools(); }, 150); };
 $('material-chips').onclick = (e) => { const b = e.target.closest('button[data-material]'); if (b) { ui.material = b.dataset.material; renderSpools(); } };
 $('ssort').onchange = () => { ui.ssort = $('ssort').value; renderSpools(); };
-$('srefresh').onclick = loadSpools;
+$('srefresh').onclick = () => { loadSpools(); if (ui.project) send({ type: 'project-filaments' }); };
+$('spools').onkeydown = (e) => {
+  if (moveFocus($('spools'), '.spool', e)) return;
+  const c = e.target.classList && e.target.classList.contains('spool') ? e.target : null;
+  if (c && e.key === 'Enter') { e.preventDefault(); showDetails('spool', Number(c.dataset.id)); }
+};
+// "/" jumps to the search of the Library or Filament view.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select') || document.querySelector('#details.on, #picker.on, #lightbox.on')) return;
+  const box = ui.tab === 'library' ? $('q') : ui.tab === 'filament' ? $('sq') : null;
+  if (box) { e.preventDefault(); box.focus(); box.select(); }
+});
+
+// --- This project: spools of the open project's materials, closest color first ---
+const norm = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function rgb(hex) { const m = /^#?([0-9a-f]{6})/i.exec(hex || ''); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function colorDistance(a, b) { const x = rgb(a), y = rgb(b); return x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) : 999; }
+/** The project's filament this spool is the material of, with how close its color is (close: under 60 of 441). */
+function nearestNeed(s) {
+  let best = null;
+  for (const need of ui.projectNeeds || []) {
+    if (!need.material || norm(need.material) !== norm(s.material)) continue;
+    const d = Math.min(...(s.colors.length ? s.colors : [null]).map((c) => colorDistance(c, need.color)));
+    if (!best || d < best.d) best = { need, d };
+  }
+  return best && { ...best, close: best.d < 60 };
+}
+$('project-chip').onclick = () => {
+  ui.project = !ui.project; $('project-chip').classList.toggle('on', ui.project);
+  if (ui.project) send({ type: 'project-filaments' });
+  renderSpools();
+};
 $('spools').onclick = (e) => { const c = e.target.closest('.spool[data-id]'); if (c) showDetails('spool', Number(c.dataset.id)); };
+
+// --- Version notice: a newer plugin on the server, or a server too old for this plugin ---
+function renderNotice() {
+  const c = ui.state && ui.state.connection, el = $('notice');
+  const hidden = ui.noticeHidden === (c && (c.pluginUpdate || c.serverTooOld));
+  if (!c || !c.ok || hidden || !(c.pluginUpdate || c.serverTooOld)) { el.hidden = true; return; }
+  el.hidden = false;
+  if (c.pluginUpdate && ui.downloaded) {
+    el.className = '';
+    el.innerHTML = `<div class="what"><b>Plugin ${esc(c.pluginUpdate)} saved</b> to <code>${esc(ui.downloaded)}</code>. Install it as before: in OrcaSlicer, Plugins, Browse plugins, Install local plugin, and choose this file.</div><button data-notice="hide">OK</button>`;
+  } else if (c.pluginUpdate) {
+    el.className = '';
+    el.innerHTML = `<div class="what"><b>A newer JusttPrint plugin is available:</b> ${esc(c.pluginUpdate)} (you have ${esc(c.pluginVersion)}).</div><button class="primary" data-notice="download">Download</button><button data-notice="hide">Later</button>`;
+  } else {
+    el.className = 'caution';
+    el.innerHTML = `<div class="what"><b>Update JusttPrint on your server</b> to ${esc(c.serverTooOld)} or newer (it runs ${esc(c.version)}). Until then, some parts of this tab (filters, details, changes) do not work.</div><button data-notice="hide">OK</button>`;
+  }
+}
+$('notice').onclick = (e) => {
+  const b = e.target.closest('button[data-notice]'); if (!b) return;
+  const c = ui.state.connection;
+  if (b.dataset.notice === 'download') { b.disabled = true; b.textContent = 'Downloading…'; send({ type: 'download-plugin' }); }
+  else { ui.noticeHidden = c.pluginUpdate || c.serverTooOld; renderNotice(); }
+};
+
+// --- A print photo, large ---
+function closeLightbox() { $('lightbox').classList.remove('on'); $('lightbox-img').removeAttribute('src'); }
+$('lightbox').onclick = closeLightbox;
+// Esc closes the photo first, not the window under it.
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('lightbox').classList.contains('on')) { e.stopPropagation(); closeLightbox(); } }, true);
 
 // --- Details window ---
 const OUTCOMES = { printed: 'Printed', failed: 'Failed', cancelled: 'Cancelled' };
@@ -876,15 +1172,35 @@ function props(rows) { return `<div class="props">${rows.filter((r) => r && r[1]
 function dots(colors) { return colors && colors.length ? `<span class="dots">${colors.map((c) => `<i style="background:${esc(c)}"></i>`).join('')}</span>` : ''; }
 function link(text, attrs) { return `<button class="link" ${attrs}>${esc(text)}</button>`; }
 
+function canEdit() { const c = ui.state && ui.state.connection; return !!(c && c.ok && (c.role === 'editor' || c.role === 'admin')); }
+/** Show the window's item again (after a change, or a failed one), keeping where it was scrolled to. */
+function renderDetails() {
+  const d = ui.details; if (!d || !d.item) return;
+  const body = $('details-body'), top = body.scrollTop;
+  $('details-title').textContent = d.item.name;
+  body.innerHTML = d.kind === 'model' ? renderModelDetails(d.item) : renderSpoolDetails(d.item);
+  body.scrollTop = top;
+}
+/** Send a change from the details window; its buttons wait until the answer (or an error) comes. */
+function change(msg) {
+  document.querySelectorAll('#details-body button, #details-body select, #details-body input, #details-body textarea').forEach((el) => { el.disabled = true; });
+  send({ ...msg, id: ui.details.id });
+}
 function showDetails(kind, id) {
   if (!connected()) return;
+  if (kind === 'spool' && !ui.printers && canEdit()) send({ type: 'printers' });
   ui.details = { kind, id, item: null };
   $('details-title').textContent = kind === 'model' ? ((ui.models.find((m) => m.id === id) || {}).name || 'Model') : ((ui.spools || []).find((s) => s.id === id) || {}).name || 'Spool';
   $('details-body').innerHTML = '<p class="summary"><span class="spinner"></span> Loading…</p>';
   $('details').classList.add('on');
+  $('details-close').focus();
   send({ type: kind, id });
 }
-function closeDetails() { ui.details = null; $('details').classList.remove('on'); }
+function closeDetails() {
+  const was = ui.details; ui.details = null; $('details').classList.remove('on');
+  // Back to the card or spool it was opened from (keyboard users carry on there).
+  if (was) refocus(was.kind === 'model' ? $('grid') : $('spools'), was.kind === 'model' ? '.card' : '.spool', was.id);
+}
 $('details-close').onclick = closeDetails;
 $('details').onclick = (e) => {
   if (e.target === $('details')) return closeDetails();
@@ -893,30 +1209,61 @@ $('details').onclick = (e) => {
   const page = e.target.closest('[data-page]'); if (page) return send({ type: 'open-link', page: page.dataset.page });
   const url = e.target.closest('[data-url]'); if (url) return send({ type: 'open-link', url: url.dataset.url });
   const open = e.target.closest('[data-plate]'); if (open) { closeDetails(); showTab('library'); return openModel(Number(open.dataset.plate)); }
+  const shot = e.target.closest('[data-shot]');
+  if (shot) { $('lightbox-img').src = shot.dataset.shot; $('lightbox-caption').textContent = shot.dataset.caption; $('lightbox').classList.add('on'); return; }
+  const b = e.target.closest('button[data-do]'); if (!b || b.disabled) return;
+  const item = ui.details.item, what = b.dataset.do;
+  if (what === 'rate') change({ type: 'edit-model', rating: Number(b.dataset.n) === item.rating ? 0 : Number(b.dataset.n) });
+  else if (what === 'fav') change({ type: 'edit-model', favorite: !item.favorite });
+  else if (what === 'notes') change({ type: 'edit-model', notes: $('d-notes').value });
+  else if (what === 'log') change({ type: 'log-print', outcome: $('d-outcome').value, quantity: Number($('d-qty').value) || 1, printerId: Number($('d-printer').value) || null, notes: $('d-lognotes').value });
+  else if (what === 'weigh') {
+    const g = Number($('d-weight').value); if (!$('d-weight').value || !(g >= 0)) return toast('Enter what the scale shows, in grams', 'error');
+    change({ type: 'weigh', weight: g, withSpool: $('d-withspool').checked });
+  } else if (what === 'dry-start') change({ type: 'drying', action: 'start', temp: Number($('d-drytemp').value) || null, hours: Number($('d-dryhours').value) || null });
+  else if (what === 'dry-finish') change({ type: 'drying', action: 'finish' });
+  else if (what === 'load') {
+    const v = $('d-slot').value; if (!v) return;
+    const [k, n] = v.split(':');
+    change({ type: 'load-spool', spoolId: item.id, ...(k === 's' ? { slotId: Number(n) } : { printerId: Number(n) }) });
+    send({ type: 'spool', id: item.id });
+  }
 };
+$('details').onchange = (e) => { if (e.target.id === 'd-status') change({ type: 'edit-model', printStatus: e.target.value }); };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('details').classList.contains('on')) closeDetails(); });
 
 function renderModelDetails(m) {
   const pics = m.pictures || [];
   const source = m.source ? (/^https?:\/\//i.test(m.source) ? link(m.source.replace(/^https?:\/\/(www\.)?/i, ''), `data-url="${esc(m.source)}" title="${esc(m.source)}"`) : esc(m.source)) : '—';
-  const stars = m.rating ? `<span class="stars" title="${m.rating} of 5">${'★'.repeat(m.rating)}${'☆'.repeat(5 - m.rating)}</span>` : '—';
+  const edit = canEdit();
+  const stars = edit ? `<span class="rate" title="Rating">${[1, 2, 3, 4, 5].map((n) => `<button data-do="rate" data-n="${n}" class="${n <= m.rating ? 'on' : ''}" title="${n} star${n === 1 ? '' : 's'}${n === m.rating ? ' (click again to clear)' : ''}">${n <= m.rating ? '★' : '☆'}</button>`).join('')}</span>`
+    : m.rating ? `<span class="stars" title="${m.rating} of 5">${'★'.repeat(m.rating)}${'☆'.repeat(5 - m.rating)}</span>` : '—';
+  const status = edit ? `<select id="d-status">${Object.entries(STATUS_NAMES).map(([k, v]) => `<option value="${k}"${k === m.printStatus ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>`
+    : esc(STATUS_NAMES[m.printStatus] || m.printStatus);
+  const printers = (ui.printers || []).map((p) => `<option value="${p.id}"${ui.state && ui.state.settings.printer_id === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+  const logForm = edit ? `<h4>Log a print</h4><div class="edit">
+      <div class="row"><select id="d-outcome"><option value="printed">Printed</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select>
+        <input id="d-qty" type="number" min="1" max="1000" value="1" title="How many"><select id="d-printer"><option value="">No printer</option>${printers}</select></div>
+      <div class="row"><input id="d-lognotes" type="text" placeholder="Notes (optional)"><button class="primary" data-do="log">Log print</button></div></div>` : '';
   const printed = m.printCount ? `${m.printCount}×${m.lastPrinted ? `, last ${esc(day(m.lastPrinted))}` : ''}` : '';
-  const history = (m.history || []).map((e) => `<li><span>${esc(day(e.printedAt))}</span><span><b>${esc(OUTCOMES[e.outcome] || e.outcome)}</b>${e.quantity > 1 ? ` ×${e.quantity}` : ''}${e.printer ? ` · ${esc(e.printer)}` : ''}${e.duration ? ` · ${esc(duration(e.duration))}` : ''}${(e.spools || []).length ? ` · ${e.spools.map((s) => `${dots(s.color ? [s.color] : [])}${esc(s.name)} ${grams(s.grams)}`).join(', ')}` : ''}</span>${e.notes ? `<span class="muted">${esc(e.notes)}</span>` : ''}</li>`).join('');
+  const history = (m.history || []).map((e) => `<li><span>${esc(day(e.printedAt))}</span><span><b>${esc(OUTCOMES[e.outcome] || e.outcome)}</b>${e.quantity > 1 ? ` ×${e.quantity}` : ''}${e.printer ? ` · ${esc(e.printer)}` : ''}${e.duration ? ` · ${esc(duration(e.duration))}` : ''}${(e.spools || []).length ? ` · ${e.spools.map((s) => `${dots(s.color ? [s.color] : [])}${esc(s.name)} ${grams(s.grams)}`).join(', ')}` : ''}</span>${e.notes ? `<span class="muted">${esc(e.notes)}</span>` : ''}${(e.photos || []).length ? `<span class="shots">${e.photos.map((p) => `<button class="shot" data-shot="${esc(p.src)}" data-caption="${esc(p.caption || '')}" style="background-image:url('${esc(p.src)}')" title="${esc(p.caption || 'Print photo')}"></button>`).join('')}</span>` : ''}</li>`).join('');
   return `<div class="detail">
     <div class="side">
       <div class="hero" id="details-hero" style="${pics[0] ? `background-image:url('${pics[0]}')` : ''}">${pics[0] ? '' : esc(m.fileType.toUpperCase())}</div>
       ${pics.length > 1 ? `<div class="thumbs">${pics.map((p, i) => `<button data-pic="${i}" class="${i ? '' : 'on'}" style="background-image:url('${p}')" title="Picture ${i + 1}"></button>`).join('')}</div>` : ''}
-      <div class="actions"><button class="primary" data-plate="${m.id}">Open on plate</button><button data-page="${esc(m.page)}" title="The model's page on the JusttPrint website">Open in JusttPrint</button></div>
+      <div class="actions"><button class="primary" data-plate="${m.id}">Open on plate</button>${edit ? `<button class="fav${m.favorite ? ' on' : ''}" data-do="fav" title="${m.favorite ? 'Remove from favorites' : 'Add to favorites'}">${m.favorite ? '♥ Favorite' : '♡ Favorite'}</button>` : ''}<button data-page="${esc(m.page)}" title="The model's page on the JusttPrint website">Open in JusttPrint</button></div>
     </div>
     <div>
       ${props([
         ['File', esc(m.fileName)], ['Format', esc(m.fileType.toUpperCase())], ['Size', esc(bytes(m.size)) || '—'],
-        ['Print status', esc(STATUS_NAMES[m.printStatus] || m.printStatus)], ['Printed', printed], ['Rating', stars],
-        ['Favorite', m.favorite ? '♥ Yes' : ''], ['Designer', esc(m.designer || '—')], ['Source', source], ['License', esc(m.license || '—')],
+        ['Print status', status], ['Printed', printed], ['Rating', stars],
+        ['Favorite', !edit && m.favorite ? '♥ Yes' : ''], ['Designer', esc(m.designer || '—')], ['Source', source], ['License', esc(m.license || '—')],
         ['Tags', m.tags.length ? m.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join(' ') : '—'],
         ['Category', esc(m.category || '—')], ['Subcategory', esc(m.subcategory || '')], ['Folder', esc(m.folder)], ['Added', esc(day(m.dateAdded)) || '—']])}
       ${m.description ? `<h4>Description</h4><div class="text">${esc(m.description)}</div>` : ''}
-      ${m.notes ? `<h4>Notes</h4><div class="text">${esc(m.notes)}</div>` : ''}
+      ${edit ? `<h4>Notes</h4><textarea id="d-notes" placeholder="Your notes on this model">${esc(m.notes || '')}</textarea><div class="actions" style="margin-top:6px"><button data-do="notes">Save notes</button></div>`
+        : m.notes ? `<h4>Notes</h4><div class="text">${esc(m.notes)}</div>` : ''}
+      ${logForm}
       <h4>Print history</h4>${history ? `<ul class="log">${history}</ul>` : '<div class="muted">Not printed yet.</div>'}
     </div>
   </div>`;
@@ -928,6 +1275,19 @@ function renderSpoolDetails(s) {
   const where = s.loadedIn.length ? s.loadedIn.join(', ') : s.place || (s.status === 'archived' ? 'Archived' : 'No place');
   const forecast = s.forecast ? (() => { const d = Math.round(s.forecast.daysLeft); return `${d < 1 ? 'Runs out today' : d === 1 ? 'Runs out in about a day' : `Runs out in about ${d} days`} (${esc(day(s.forecast.runsOut))}) at ${s.forecast.perDay < 1 ? 'under 1 g' : grams(s.forecast.perDay)} a day`; })() : '';
   const weighings = s.weighings.map((w) => `<li><span>${esc(day(w.at))}</span><span><b>${grams(w.grams)}</b></span>${w.notes ? `<span class="muted">${esc(w.notes)}</span>` : ''}</li>`).join('');
+  const edit = canEdit() && s.status !== 'archived';
+  const slots = [];
+  for (const p of ui.printers || []) {
+    slots.push([`p:${p.id}`, `${p.name} · Holder`, p.direct]);
+    for (const u of p.units) for (const slot of u.slots) slots.push([`s:${slot.id}`, `${p.name} · ${slot.label}`, slot.spool]);
+  }
+  const loadForm = !edit ? '' : !ui.printers ? '<div class="muted">Loading your printers…</div>' : !slots.length ? '<div class="muted">No printers in JusttPrint.</div>'
+    : `<div class="row"><select id="d-slot"><option value="">Choose a slot…</option>${slots.map(([v, label, sp]) => `<option value="${v}"${sp && sp.id === s.id ? ' disabled' : ''}>${esc(label)}${sp ? (sp.id === s.id ? ' (this spool)' : ` (has ${esc(sp.name)})`) : ' (empty)'}</option>`).join('')}</select><button data-do="load">Load</button></div>`;
+  const tools = edit ? `<h4>Weigh</h4><div class="edit">
+      <div class="row"><input id="d-weight" type="number" min="0" step="1" placeholder="grams"><label class="row" title="${s.emptySpool == null ? 'Enter the empty spool weight in JusttPrint first' : 'The scale shows the spool with its filament'}" style="flex:1"><input id="d-withspool" type="checkbox"${s.emptySpool != null ? ' checked' : ' disabled'}> with the spool${s.emptySpool != null ? ` (${grams(s.emptySpool)} empty)` : ''}</label><button class="primary" data-do="weigh">Weigh</button></div></div>
+    <h4>Drying</h4><div class="edit">${s.drying ? `<div class="row"><span style="flex:1">Drying since ${esc(day(s.drying.startedAt))}</span><button data-do="dry-finish">Finish drying</button></div>`
+      : `<div class="row"><input id="d-drytemp" type="number" min="20" max="150" value="${esc((s.dryingDefaults || {}).temp || '')}" title="°C" placeholder="°C"> °C <input id="d-dryhours" type="number" min="0.25" max="200" step="0.25" value="${esc((s.dryingDefaults || {}).hours || '')}" title="Hours" placeholder="h"> h <span style="flex:1"></span><button data-do="dry-start">Start drying</button></div>`}</div>
+    <h4>Load into a printer</h4><div class="edit">${loadForm}</div>` : '';
   const dryings = s.dryings.map((d) => `<li><span>${esc(day(d.at))}</span><span><b>${esc(d.temp)} °C · ${esc(d.hours)} h</b>${d.finished ? '' : ' · running'}${d.humidityBefore != null || d.humidityAfter != null ? ` · ${esc(d.humidityBefore ?? '?')}% → ${esc(d.humidityAfter ?? '?')}%` : ''}</span></li>`).join('');
   return `<div class="detail">
     <div class="side">
@@ -950,6 +1310,7 @@ function renderSpoolDetails(s) {
         ['Shop', esc(s.supplier || '')], ['Bought', esc(day(s.bought))], ['Lot', esc(s.lot || '')], ['Added', esc(day(s.added))],
         ['Last used', esc(day(s.lastUsed))], ['Product', s.productUrl ? link('Product page', `data-url="${esc(s.productUrl)}" title="${esc(s.productUrl)}"`) : '']])}
       ${s.notes ? `<h4>Notes</h4><div class="text">${esc(s.notes)}</div>` : ''}
+      ${tools}
       ${weighings ? `<h4>Weighings</h4><ul class="log">${weighings}</ul>` : ''}
       ${dryings ? `<h4>Drying</h4><ul class="log">${dryings}</ul>` : ''}
     </div>
@@ -1095,6 +1456,7 @@ $('project').onclick = () => send({ type: 'save-project' });
 function renderState(s) {
   const was = connected();
   ui.state = s;
+  if (!ui.viewRestored) restoreView(s.settings.view || {});
   if (document.activeElement && !document.activeElement.closest('#view-settings')) {
     $('server').value = s.settings.server || '';
     $('auto').checked = !!s.settings.auto_send;
@@ -1109,14 +1471,15 @@ function renderState(s) {
   $('conn-detail').hidden = !c;
   $('conn-detail').className = 'status-line ' + (c && c.ok ? 'ok' : 'bad');
   $('conn-detail').textContent = c && c.ok ? `Connected to ${s.settings.server} as ${c.username} (${c.role}).${c.slicedInbox ? '' : ' Choose the Sliced inbox folder in JusttPrint (Print Queue) to send sliced files.'}` : (c && c.error) || '';
-  if (!was && connected()) { loadModels(false); if (ui.tab === 'filament') loadSpools(); send({ type: 'printers' }); }
+  if (!was && connected()) { send({ type: 'filters' }); if (ui.project) send({ type: 'project-filaments' }); loadModels(false); if (ui.tab === 'filament') loadSpools(); send({ type: 'printers' }); }
   if (!connected()) { ui.models = []; ui.total = 0; renderModels(); renderSpools(); if (!c && ui.tab === 'library') showTab('settings'); }
   else renderModels();
+  renderNotice();
   renderPrint();
   if (ui.printers) renderPrinters();
   // A new slice: check it at once.
   const key = s.last_slice ? JSON.stringify(s.last_slice.filaments) : null;
-  if (key && key !== ui.lastSliceKey && connected()) runCheck();
+  if (key && key !== ui.lastSliceKey && connected()) { runCheck(); if (ui.project) send({ type: 'project-filaments' }); }
   ui.lastSliceKey = key;
 }
 $('save').onclick = () => send({ type: 'save-settings', server: $('server').value, api_key: $('key').value, auto_send: $('auto').checked, verify_tls: $('tls').checked, export_folder: $('folder').value, take_off: $('takeoff').checked });
@@ -1129,17 +1492,31 @@ orca.onMessage((m) => {
     ui.loading = false;
     ui.models = m.offset ? ui.models.concat(m.models) : m.models; ui.total = m.total == null ? ui.models.length : m.total;
     renderModels();
-    if (m.models.length && ui.models.length < ui.total) loadModels(true);
+    if (m.models.length) maybeMore();
   } else if (m.type === 'model' || m.type === 'spool') {
     const item = m[m.type];
     if (!ui.details || ui.details.kind !== m.type || !item || item.id !== ui.details.id) return;
-    ui.details.item = item; $('details-title').textContent = item.name;
-    $('details-body').innerHTML = m.type === 'model' ? renderModelDetails(item) : renderSpoolDetails(item);
-  } else if (m.type === 'spools') { ui.spools = m.spools; renderSpools(); renderPicker(); }
-  else if (m.type === 'printers') { ui.printers = m.printers; renderPrinters(); }
+    ui.details.item = item; renderDetails();
+    if (m.edited) {
+      // The card shows the new print status and count; a change that takes it out of the filter shows on the next search.
+      const card = ui.models.find((x) => x.id === item.id);
+      if (card) { card.printStatus = item.printStatus; card.printCount = item.printCount; renderModels(); }
+      if ('favorite' in item && ui.filters) send({ type: 'filters' });
+    }
+  } else if (m.type === 'filters') {
+    ui.filters = m;
+    // A remembered tag or category that is gone: show everything again.
+    const gone = (ui.tag && !m.tags.some((t) => t.name === ui.tag)) || (ui.category && !m.categories.some((c) => c.id === ui.category || c.subcategories.some((x) => x.id === ui.category)));
+    if (gone) { ui.tag = ''; ui.category = 0; }
+    renderFilters();
+    if (gone) loadModels(false);
+  } else if (m.type === 'project-filaments') { ui.projectNeeds = m.needs || []; renderSpools(); }
+  else if (m.type === 'spools') { ui.spools = m.spools; renderSpools(); renderPicker(); }
+  else if (m.type === 'printers') { ui.printers = m.printers; renderPrinters(); if (ui.details && ui.details.kind === 'spool') renderDetails(); }
   else if (m.type === 'check') renderCheck(m.result);
+  else if (m.type === 'plugin-downloaded') { ui.downloaded = m.path; renderNotice(); }
   else if (m.type === 'opened') { ui.opening = null; renderModels(); }
-  else if (m.type === 'toast') { if (m.level === 'error') { if (ui.details && !ui.details.item) closeDetails(); ui.loading = false; $('check-busy').hidden = true; renderModels(); } toast(m.text, m.level); }
+  else if (m.type === 'toast') { if (m.level === 'error') { if (ui.details && !ui.details.item) closeDetails(); ui.loading = false; $('check-busy').hidden = true; renderModels(); } if (m.level === 'error') { renderNotice(); renderDetails(); } toast(m.text, m.level); }
 });
 send({ type: 'ready' });
 // New exports and saves are noticed on other threads; ask now and then (and auto-send from here).
@@ -1213,6 +1590,7 @@ if orca is not None:
                     "export_folder": s.get("export_folder", ""),
                     "take_off": s.get("take_off", True),
                     "printer_id": s.get("printer_id"),
+                    "view": s.get("view") or {},
                 },
                 "connection": self._connection,
                 "last_slice": STATE["last_slice"],
@@ -1228,7 +1606,7 @@ if orca is not None:
         def _connect(self):
             try:
                 hello = self._client().hello()
-                self._connection = {"ok": True, **hello}
+                self._connection = {"ok": True, **hello, **version_notices(hello), "pluginVersion": PLUGIN_VERSION}
             except JusttPrintError as error:
                 self._connection = {"ok": False, "error": str(error)}
             return self._connection
@@ -1256,6 +1634,30 @@ if orca is not None:
                     self.post_message({"type": "spool", "spool": self._client().spool(data.get("id"))})
                 elif kind == "open-link":
                     self._open_link(data)
+                elif kind == "save-view":
+                    s = self._settings()
+                    view = clean_view(data.get("view"))
+                    if view != s.get("view"):
+                        s["view"] = view
+                        self.save_config(json.dumps(s))
+                elif kind == "project-filaments":
+                    self.post_message({"type": "project-filaments", "needs": self._project_needs()})
+                elif kind == "filters":
+                    self.post_message({"type": "filters", **self._client().filters()})
+                elif kind == "edit-model":
+                    self._edit_model(data)
+                elif kind == "log-print":
+                    model = self._client().log_print(data.get("id"), data.get("outcome") or "printed", data.get("quantity") or 1, str(data.get("notes") or ""), data.get("printerId"))
+                    self.post_message({"type": "model", "model": model, "edited": True})
+                    self._toast("Print logged")
+                elif kind == "weigh":
+                    spool = self._client().weigh_spool(data.get("id"), data.get("weight"), data.get("withSpool", True))
+                    self._spool_changed(spool, f"Weighed: {round(spool.get('remaining', 0))} g left")
+                elif kind == "drying":
+                    spool = self._client().drying(data.get("id"), data.get("action"), data.get("temp"), data.get("hours"))
+                    self._spool_changed(spool, "Drying started" if data.get("action") == "start" else "Drying finished")
+                elif kind == "download-plugin":
+                    self._download_plugin()
                 elif kind == "printers":
                     self.post_message({"type": "printers", "printers": self._client().printers()})
                 elif kind == "load-spool":
@@ -1351,11 +1753,44 @@ if orca is not None:
                 str(data.get("status") or ""),
                 data.get("offset") or 0,
                 data.get("limit") or 30,
+                bool(data.get("favorite")),
+                str(data.get("tag") or ""),
+                data.get("category") or None,
             )
             models = page.get("models", [])
             self.post_message(
                 {"type": "models", "models": models, "total": page.get("total", len(models)), "offset": page.get("offset", 0), "seq": data.get("seq")}
             )
+
+        def _edit_model(self, data):
+            changes = {k: data[k] for k in ("printStatus", "rating", "favorite", "notes") if k in data}
+            model = self._client().edit_model(data.get("id"), changes)
+            self.post_message({"type": "model", "model": model, "edited": True})
+            if "notes" in changes:
+                self._toast("Notes saved")
+
+        def _spool_changed(self, spool, text):
+            """A spool changed from its details window: show it, and the list, again."""
+            self.post_message({"type": "spool", "spool": spool})
+            self.post_message({"type": "spools", "spools": self._client().spools()})
+            self._toast(text)
+
+        def _download_plugin(self):
+            """Save the server's plugin into Downloads, show it, and tell the page how to install it."""
+            raw = self._client().download_plugin()
+            version = (self._connection or {}).get("pluginUpdate") or "new"
+            path = plugin_save_path(downloads_folder(), version)
+            try:
+                with open(path, "wb") as f:
+                    f.write(raw)
+            except OSError as error:
+                raise JusttPrintError(f"Could not save the plugin to {path}: {error}") from error
+            log(f"Saved plugin {version} to {path}")
+            self.post_message({"type": "plugin-downloaded", "path": path})
+            try:
+                open_with_system(os.path.dirname(path))
+            except (OSError, subprocess.SubprocessError):
+                pass  # the page says where it is
 
         def _open_link(self, data):
             """Open a page of the JusttPrint website ("#/model/…") or a model's web link in the browser."""
@@ -1440,7 +1875,8 @@ if orca is not None:
             self._push_state()
             self.post_message({"type": "spools", "spools": self._client().spools()})
 
-        def _check(self):
+        def _project_needs(self):
+            """The open project's filaments (material, color, slot), with the last slice's grams."""
             presets = []
             colors = None
             try:
@@ -1449,7 +1885,10 @@ if orca is not None:
                 colors = bundle.full_config_value("filament_colour")
             except Exception:  # noqa: BLE001 - before the GUI is ready, or an older API
                 pass
-            needs = needs_from_presets(presets, STATE["last_slice"], colors)
+            return needs_from_presets(presets, STATE["last_slice"], colors)
+
+        def _check(self):
+            needs = self._project_needs()
             if not needs:
                 raise JusttPrintError("No filaments to check: choose filaments for the project, or slice it")
             log(f"Filament check: {needs}")

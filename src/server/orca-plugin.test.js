@@ -30,7 +30,12 @@ const db = new Database(':memory:');
 db.exec(`
   CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
   CREATE TABLE models (id INTEGER PRIMARY KEY AUTOINCREMENT, filePath TEXT, fileName TEXT, title TEXT, designer TEXT, print_status TEXT,
-    print_count INTEGER DEFAULT 0, dateAdded TEXT, thumbnail TEXT, last_printed_at TEXT, printed INTEGER DEFAULT 0);
+    print_count INTEGER DEFAULT 0, dateAdded TEXT, thumbnail TEXT, last_printed_at TEXT, printed INTEGER DEFAULT 0,
+    favorite INTEGER DEFAULT 0, rating INTEGER DEFAULT 0, notes TEXT);
+  CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT);
+  CREATE TABLE model_tags (model_id INTEGER, tag_id INTEGER);
+  CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT, keywords TEXT, position INTEGER DEFAULT 0, parent_id INTEGER);
+  CREATE TABLE model_categories (model_id INTEGER, category_id INTEGER, source TEXT DEFAULT 'manual');
   CREATE TABLE print_events (id INTEGER PRIMARY KEY, model_id INTEGER, printed_at TEXT, outcome TEXT, quantity INTEGER DEFAULT 1, notes TEXT, created_at TEXT);
 `);
 const log = console.log;
@@ -127,6 +132,10 @@ test('the routes', async () => {
     assert.strictEqual(r.body.username, 'ace');
     assert.strictEqual(r.body.slicedInbox, false);
     assert.ok(r.body.version);
+    // The plugin file's own version, so the plugin can say when a newer one is offered; it matches the file's header.
+    const pluginSource = fs.readFileSync(path.join(__dirname, '..', '..', 'orca-plugin', 'justtprint.py'), 'utf8');
+    assert.match(r.body.pluginVersion, /^\d+\.\d+\.\d+$/);
+    assert.ok(pluginSource.includes(`# version = "${r.body.pluginVersion}"`), 'PLUGIN_VERSION and the header version agree');
 
     // Search: newest first, by name, title or designer; link-only models and archives OrcaSlicer cannot open left out.
     r = await get('/api/orca/models');
@@ -175,10 +184,97 @@ test('the routes', async () => {
       r.body.model.history.map((e) => [e.printedAt, e.outcome, e.quantity, e.notes]),
       [['2026-02-01', 'printed', 2, 'Nice']]
     );
+    // Its print photos come as data URLs (the plugin has no browser sign-in); a missing file is left out.
+    const photos = require('./photos');
+    const dirFor = photos.dirFor;
+    photos.dirFor = (kind) => path.join(dir, 'photos', kind);
+    try {
+      fs.mkdirSync(photos.dirFor('print'), { recursive: true });
+      fs.writeFileSync(path.join(photos.dirFor('print'), 'p1.png'), Buffer.from('png'));
+      const eventId = db.prepare('SELECT id FROM print_events WHERE model_id = ?').get(benchy).id;
+      const addPhoto = db.prepare("INSERT INTO print_event_photos (event_id, file_path, caption, created_at) VALUES (?, ?, ?, '2026-02-01')");
+      addPhoto.run(eventId, 'p1.png', 'On the bed');
+      addPhoto.run(eventId, 'gone.png', null);
+      r = await get(`/api/orca/models/${benchy}`);
+      assert.deepStrictEqual(r.body.model.history[0].photos, [
+        { src: `data:image/png;base64,${Buffer.from('png').toString('base64')}`, caption: 'On the bed' }
+      ]);
+    } finally {
+      photos.dirFor = dirFor;
+    }
     r = await get('/api/orca/models/3');
     assert.strictEqual(r.status, 404, 'a link-only model has no details here');
     r = await get('/api/orca/models/999');
     assert.match(r.body.error, /not in the library/);
+
+    // Filters: tags, categories (a subcategory counts for its category) and favorites, then searching by them.
+    db.exec(`INSERT INTO tags (id, name) VALUES (1, 'gears'), (2, 'boats'), (3, 'unused');
+      INSERT INTO model_tags VALUES (${gear}, 1), (${benchy}, 2);
+      INSERT INTO categories (id, name, position, parent_id) VALUES (901, 'JP Mechanical', 0, NULL), (902, 'JP Gears', 0, 901), (903, 'JP Toys', 1, NULL);
+      INSERT INTO model_categories (model_id, category_id) VALUES (${gear}, 902), (${benchy}, 903);
+      UPDATE models SET favorite = 1 WHERE id = ${clip};`);
+    r = await get('/api/orca/filters', { 'x-test-role': 'viewer' });
+    assert.deepStrictEqual(r.body, {
+      tags: [
+        { name: 'boats', count: 1 },
+        { name: 'gears', count: 1 }
+      ],
+      categories: [
+        { id: 901, name: 'JP Mechanical', count: 1, subcategories: [{ id: 902, name: 'JP Gears', count: 1 }] },
+        { id: 903, name: 'JP Toys', count: 1, subcategories: [] }
+      ],
+      favorites: 1
+    });
+    const names = async (q) => (await get(`/api/orca/models?${q}`)).body.models.map((m) => m.name);
+    assert.deepStrictEqual(await names('favorite=1'), ['Cable Clip']);
+    assert.deepStrictEqual(await names('tag=GEARS'), ['Gear']);
+    assert.deepStrictEqual(await names('category=901'), ['Gear'], 'a category finds the models of its subcategories');
+    assert.deepStrictEqual(await names('category=902'), ['Gear']);
+    assert.deepStrictEqual(await names('category=903&tag=gears'), []);
+
+    // Edits from the details window go through the handlers the browser uses (here stand-ins), editors only.
+    const handlers = require('./runtime').ipcMain._handlers;
+    const seen = [];
+    handlers.set('save-model', async (event, payload) => {
+      seen.push(['save-model', event.user.username, payload]);
+      db.prepare('UPDATE models SET rating = coalesce(?, rating), favorite = coalesce(?, favorite), notes = coalesce(?, notes) WHERE filePath = ?').run(
+        payload.rating ?? null,
+        payload.favorite === undefined ? null : Number(payload.favorite),
+        payload.notes ?? null,
+        payload.filePath
+      );
+    });
+    handlers.set('set-print-status', async (event, payload) => {
+      seen.push(['set-print-status', payload.printStatus]);
+      db.prepare('UPDATE models SET print_status = ? WHERE id = ?').run(payload.printStatus, payload.modelId);
+    });
+    handlers.set('log-print-event', async (event, payload) => {
+      seen.push(['log-print-event', payload.outcome, payload.quantity, payload.notes, payload.printerId]);
+    });
+    try {
+      r = await post(`/api/orca/models/${gear}/edit`, { rating: 4, favorite: true, notes: 'Use 0.2', printStatus: 'queued' });
+      assert.strictEqual(r.status, 200);
+      assert.deepStrictEqual([r.body.model.rating, r.body.model.favorite, r.body.model.notes, r.body.model.printStatus], [4, true, 'Use 0.2', 'queued']);
+      assert.deepStrictEqual(seen[0], ['set-print-status', 'queued']);
+      assert.deepStrictEqual(seen[1], [
+        'save-model',
+        'ace',
+        { filePath: path.join(library, 'Gear', 'Gear.3mf'), tags: ['gears'], rating: 4, favorite: true, notes: 'Use 0.2' }
+      ]);
+      assert.strictEqual((await post(`/api/orca/models/${gear}/edit`, { rating: 9 })).status, 400);
+      assert.strictEqual((await post(`/api/orca/models/${gear}/edit`, { printStatus: 'lost' })).status, 400);
+      assert.strictEqual((await post(`/api/orca/models/${gear}/edit`, { rating: 1 }, { 'x-test-role': 'viewer' })).status, 403);
+      assert.strictEqual((await post('/api/orca/models/999/edit', { rating: 1 })).status, 404);
+
+      r = await post(`/api/orca/models/${gear}/log-print`, { outcome: 'failed', quantity: 2, notes: 'Warped', printerId: mk3 });
+      assert.strictEqual(r.status, 200);
+      assert.deepStrictEqual(seen[seen.length - 1], ['log-print-event', 'failed', 2, 'Warped', Number(mk3)]);
+      assert.strictEqual((await post(`/api/orca/models/${gear}/log-print`, { outcome: 'great' })).status, 400);
+      assert.strictEqual((await post(`/api/orca/models/${gear}/log-print`, { printerId: 999 })).status, 400);
+    } finally {
+      for (const name of ['save-model', 'set-print-status', 'log-print-event']) handlers.delete(name);
+    }
+    db.prepare("UPDATE models SET print_status = 'unprinted', favorite = 0 WHERE id = ?").run(gear);
 
     // Spools for the Filament tab: not archived, with colors, brand and grams.
     r = await get('/api/orca/spools', { 'x-test-role': 'viewer' });
@@ -202,6 +298,20 @@ test('the routes', async () => {
     assert.deepStrictEqual(r.body.spool.loadedIn, ['MK4 · A1']);
     r = await get('/api/orca/spools/999');
     assert.strictEqual(r.status, 404);
+
+    // Weigh and dry a spool from its details window (editors).
+    r = await post('/api/orca/spools/2/weigh', { weight: 700, withSpool: false });
+    assert.deepStrictEqual([r.status, r.body.spool.remaining, r.body.spool.weighings.length], [200, 700, 1]);
+    r = await post('/api/orca/spools/2/weigh', { weight: 700 });
+    assert.match(r.body.error, /empty spool/, 'weighing with the spool needs its empty weight');
+    assert.strictEqual((await post('/api/orca/spools/2/weigh', { weight: 700, withSpool: false }, { 'x-test-role': 'viewer' })).status, 403);
+    r = await post('/api/orca/spools/2/drying', { action: 'start', temp: 65, hours: 4 });
+    assert.deepStrictEqual([r.status, r.body.spool.drying && r.body.spool.drying.temp], [200, 65]);
+    assert.match((await post('/api/orca/spools/2/drying', { action: 'start', temp: 65, hours: 4 })).body.error, /already drying/);
+    r = await post('/api/orca/spools/2/drying', { action: 'finish', humidityAfter: 12 });
+    assert.deepStrictEqual([r.body.spool.drying, r.body.spool.dryings[0].humidityAfter], [null, 12]);
+    assert.match((await post('/api/orca/spools/2/drying', { action: 'finish' })).body.error, /not drying/);
+    db.prepare('UPDATE spools SET used_weight = 50 WHERE id = 2').run();
 
     r = await get('/api/orca/models?q=ana');
     assert.deepStrictEqual(
