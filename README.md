@@ -2,7 +2,7 @@
 
 <img src="docs/images/logo-wordmark.png" alt="JusttPrint: your 3D printing library" width="560">
 
-**Version 10.20.0**
+**Version 10.21.0**
 
 JusttPrint is a self-hosted web app for your 3D printing model collection. It runs in Docker on a NAS, home server or PC, and you use it from any browser on your network, including phones and tablets.
 
@@ -51,7 +51,7 @@ JusttPrint is a self-hosted web app for your 3D printing model collection. It ru
 - **AI tagging** with OpenAI, Claude, Gemini, Puter or a local server such as Ollama; runs keep going in the background, with progress in every browser
 - **MCP server** so AI agents can search and update your library, add models from links, and work with your spools, the filament check, the queue and what a print costs
 - **Open in OrcaSlicer** with one click, nothing to install besides OrcaSlicer; other slicers through a small helper on your computer
-- **JusttPrint plugin for OrcaSlicer**: a JusttPrint tab in OrcaSlicer to browse your whole library and open models on the plate, see all your spools, see the details of any model or spool (as on the website), load them into your printers, take each print's filament off the spools, check the project's filament against them, and send sliced files (filed and queued) and projects back
+- **JusttPrint plugin for OrcaSlicer**: a JusttPrint tab in OrcaSlicer to browse your whole library and open models on the plate, see all your spools, see the details of any model or spool (as on the website) and change them (print status, rating, notes, Log print, weigh, dry, load into a printer), filter by favorites, tags and categories, see which spools suit the open project, get told about plugin updates, load them into your printers, take each print's filament off the spools, check the project's filament against them, and send sliced files (filed and queued) and projects back
 - **Backup and restore** of the library database from the browser, and **automatic backups** on a schedule
 - **Print Roulette** to pick a random model
 

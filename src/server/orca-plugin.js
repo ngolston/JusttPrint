@@ -5,10 +5,15 @@
  * signs in with a person's API key (`Authorization: Bearer jpk_…`), so these are mounted after
  * requireAuth and act as that person, with their role:
  *
- *   GET  /api/orca/hello                        -> { version, username, role, slicedInbox, uploadFolder }
- *   GET  /api/orca/models?q=&sort=&status=&offset=&limit=
+ *   GET  /api/orca/hello                        -> { version, pluginVersion, username, role, slicedInbox, uploadFolder }
+ *   GET  /api/orca/models?q=&sort=&status=&favorite=&tag=&category=&offset=&limit=
  *                                               -> { models: [{ id, name, fileName, designer, fileType, printStatus, printCount, thumbnail }], total, offset }
  *   GET  /api/orca/models/:id                   -> { model }  (modelDetail: what the website's Model Details shows, pictures, print history)
+ *   GET  /api/orca/filters                      -> { tags: [{ name, count }], categories: [{ id, name, count, subcategories }], favorites }
+ *   POST /api/orca/models/:id/edit { printStatus, rating, favorite, notes }  -> { model }  (editors)
+ *   POST /api/orca/models/:id/log-print { outcome, quantity, notes, printerId }  -> { model }  (editors)
+ *   POST /api/orca/spools/:id/weigh { weight, withSpool }  -> { spool }  (editors)
+ *   POST /api/orca/spools/:id/drying { action: start | finish, temp, hours, humidityAfter }  -> { spool }  (editors)
  *   GET  /api/orca/spools                       -> { spools: [{ id, name, brand, material, colors, initial, remaining, available, status, where, loaded }] }
  *   GET  /api/orca/spools/:id                   -> { spool }  (spoolDetail: what the website's spool window shows)
  *   POST /api/orca/models/:id/open              -> { links: [{ name, path }] }   (OrcaSlicer opens base + path)
@@ -47,6 +52,22 @@ const MAX_RESULTS = 60;
 const MAX_NEEDS = 32;
 /** What OrcaSlicer opens on the plate: other files (archives, pictures, CAD it cannot read) are left out of the search. */
 const SLICER_TYPES = ['.stl', '.3mf', '.obj', '.amf', '.step', '.stp', '.svg'];
+
+/** The version of the plugin file this server offers (its PLUGIN_VERSION line), or null. Read again when the file changes. */
+/** @type {{ mtimeMs: number, version: string | null }} */
+let pluginVersionCache = { mtimeMs: -1, version: null };
+function pluginVersion() {
+  try {
+    const { mtimeMs } = fs.statSync(PLUGIN_FILE);
+    if (mtimeMs !== pluginVersionCache.mtimeMs) {
+      const match = /^PLUGIN_VERSION = "([^"]+)"/m.exec(fs.readFileSync(PLUGIN_FILE, 'utf8'));
+      pluginVersionCache = { mtimeMs, version: match ? match[1] : null };
+    }
+    return pluginVersionCache.version;
+  } catch (_) {
+    return null;
+  }
+}
 
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
@@ -105,7 +126,8 @@ const STATUSES = ['unprinted', 'queued', 'printing', 'printed'];
  * @param {any} db
  * @param {string} query
  * @param {number} limit
- * @param {{ offset?: number, sort?: string, status?: string }} [options]
+ * @param {{ offset?: number, sort?: string, status?: string, favorite?: boolean, tag?: string, category?: number }} [options]
+ *   favorite: favorites only; tag: models with that tag (its name); category: models in that category or one of its subcategories (its id).
  */
 function searchModels(db, query, limit, options = {}) {
   const { gridImage } = require('./grid-thumbnails');
@@ -129,6 +151,15 @@ function searchModels(db, query, limit, options = {}) {
     // A model nobody marked yet counts as not printed.
     where.push(options.status === 'unprinted' ? "coalesce(m.print_status, 'unprinted') = 'unprinted'" : 'm.print_status = ?');
     if (options.status !== 'unprinted') params.push(options.status);
+  }
+  if (options.favorite) where.push('m.favorite = 1');
+  if (options.tag) {
+    where.push('m.id IN (SELECT mt.model_id FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE t.name = ? COLLATE NOCASE)');
+    params.push(String(options.tag));
+  }
+  if (Number.isInteger(options.category) && Number(options.category) > 0) {
+    where.push('m.id IN (SELECT mc.model_id FROM model_categories mc JOIN categories c ON c.id = mc.category_id WHERE c.id = ? OR c.parent_id = ?)');
+    params.push(Number(options.category), Number(options.category));
   }
   try {
     where.push(require('../core/model-parts').notPartSql(db));
@@ -167,6 +198,180 @@ function searchModels(db, query, limit, options = {}) {
   return { models, total, offset };
 }
 
+/**
+ * What the Library view can filter by: tags and categories (with their subcategories), each with
+ * how many models OrcaSlicer can open have it, and how many favorites there are. Empty ones are left out.
+ */
+function libraryFilters(db) {
+  const opens = `(${SLICER_TYPES.map(() => 'lower(m.fileName) LIKE ?').join(' OR ')}) AND m.filePath NOT LIKE 'url::%'`;
+  const exts = SLICER_TYPES.map((ext) => `%${ext}`);
+  const notPart = maybe(() => ` AND ${require('../core/model-parts').notPartSql(db)}`, '');
+  const tags = maybe(
+    () =>
+      db
+        .prepare(
+          `SELECT t.name, COUNT(*) AS count FROM tags t JOIN model_tags mt ON mt.tag_id = t.id JOIN models m ON m.id = mt.model_id
+           WHERE ${opens}${notPart} GROUP BY t.id ORDER BY lower(t.name)`
+        )
+        .all(...exts),
+    []
+  );
+  const rows = maybe(
+    () =>
+      db
+        .prepare(
+          `SELECT c.id, c.name, c.parent_id AS parentId, c.position,
+             (SELECT COUNT(DISTINCT m.id) FROM model_categories mc JOIN categories x ON x.id = mc.category_id JOIN models m ON m.id = mc.model_id
+              WHERE (x.id = c.id OR x.parent_id = c.id) AND ${opens}${notPart}) AS count
+           FROM categories c ORDER BY c.position, lower(c.name)`
+        )
+        .all(...exts),
+    []
+  );
+  const categories = rows
+    .filter((c) => !c.parentId && c.count)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      count: c.count,
+      subcategories: rows.filter((x) => x.parentId === c.id && x.count).map((x) => ({ id: x.id, name: x.name, count: x.count }))
+    }));
+  const favorites = maybe(() => db.prepare(`SELECT COUNT(*) AS n FROM models m WHERE m.favorite = 1 AND ${opens}${notPart}`).get(...exts).n, 0);
+  return { tags, categories, favorites };
+}
+
+/** The model a request names (:id), or a 404. */
+function modelOf(req, db) {
+  const id = Number(req.params.id);
+  const model = Number.isInteger(id) ? db.prepare("SELECT id, filePath FROM models WHERE id = ? AND filePath NOT LIKE 'url::%'").get(id) : null;
+  if (!model) throw httpError(404, 'That model is not in the library any more');
+  return model;
+}
+
+/** Call the handler the browser uses (so its side effects happen: history, other browsers told), else `fallback` (tests). */
+async function viaHandler(name, req, args, fallback) {
+  const handler = ipcHandler(name);
+  return handler ? handler(asEvent(req), ...args) : fallback();
+}
+
+const PRINT_STATUSES = ['unprinted', 'want', 'queued', 'printing', 'printed', 'failed'];
+
+/**
+ * Change a model from the plugin's details window: { printStatus, rating, favorite, notes }, any
+ * of them. Answers the model's details again.
+ */
+async function editModel(req, db) {
+  const model = modelOf(req, db);
+  const body = req.body || {};
+  if (body.printStatus !== undefined) {
+    if (!PRINT_STATUSES.includes(body.printStatus)) throw httpError(400, `A print status is one of ${PRINT_STATUSES.join(', ')}`);
+    const payload = { modelId: model.id, filePath: model.filePath, printStatus: body.printStatus };
+    await viaHandler('set-print-status', req, [payload], () => require('../core/print-events').setPrintStatus(db, payload));
+  }
+  /** @type {Record<string, any>} */
+  const fields = {};
+  if (body.rating !== undefined) {
+    const rating = Number(body.rating);
+    if (!Number.isInteger(rating) || rating < 0 || rating > 5) throw httpError(400, 'A rating is 0 to 5 stars');
+    fields.rating = rating;
+  }
+  if (body.favorite !== undefined) fields.favorite = !!body.favorite;
+  if (body.notes !== undefined) {
+    if (body.notes !== null && typeof body.notes !== 'string') throw httpError(400, 'Notes are text');
+    if (body.notes && body.notes.length > 20000) throw httpError(400, 'Notes are at most 20,000 characters');
+    fields.notes = body.notes || '';
+  }
+  if (Object.keys(fields).length) {
+    // save-model sets the tags it is given, so the model's own go with it.
+    const tags = maybe(
+      () =>
+        db
+          .prepare('SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?')
+          .all(model.id)
+          .map((t) => t.name),
+      []
+    );
+    const payload = { filePath: model.filePath, tags, ...fields };
+    await viaHandler('save-model', req, [payload], () => {
+      const sets = Object.keys(fields).map((k) => `${k} = ?`);
+      const values = Object.values(fields).map((v) => (typeof v === 'boolean' ? Number(v) : v === '' ? null : v));
+      db.prepare(`UPDATE models SET ${sets.join(', ')} WHERE id = ?`).run(...values, model.id);
+    });
+  }
+  console.log(
+    `[Orca plugin] ${req.user.username} changed ${model.filePath}: ${[...(body.printStatus !== undefined ? ['print status'] : []), ...Object.keys(fields)].join(', ')}`
+  );
+  return { model: modelDetail(db, model.id) };
+}
+
+const OUTCOMES = ['printed', 'failed', 'cancelled'];
+
+/** Log a print of a model from the details window: { outcome, quantity, notes, printerId }. Answers its details again. */
+async function logPrint(req, db) {
+  const model = modelOf(req, db);
+  const body = req.body || {};
+  const outcome = body.outcome === undefined ? 'printed' : body.outcome;
+  if (!OUTCOMES.includes(outcome)) throw httpError(400, `An outcome is one of ${OUTCOMES.join(', ')}`);
+  const quantity = body.quantity === undefined ? 1 : Number(body.quantity);
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) throw httpError(400, 'How many: 1 to 1000');
+  const printerId = Number(body.printerId) || null;
+  if (printerId && !maybe(() => db.prepare('SELECT 1 FROM printers WHERE id = ?').get(printerId), null))
+    throw httpError(400, 'That printer is not in JusttPrint');
+  const payload = {
+    modelId: model.id,
+    filePath: model.filePath,
+    outcome,
+    quantity,
+    printerId,
+    notes: typeof body.notes === 'string' ? body.notes.slice(0, 5000) : ''
+  };
+  await viaHandler('log-print-event', req, [payload], () => require('../core/print-events').logPrintEvent(db, payload));
+  console.log(`[Orca plugin] ${req.user.username} logged a print of ${model.filePath}: ${outcome} ×${quantity}`);
+  return { model: modelDetail(db, model.id) };
+}
+
+/** The spool a request names (:id), or a 404. */
+function spoolIdOf(req, db) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || !db.prepare('SELECT 1 FROM spools WHERE id = ?').get(id)) throw httpError(404, 'That spool is not in JusttPrint any more');
+  return id;
+}
+
+/** Weigh a spool: { weight (grams the scale shows), withSpool (default true) }. Answers its details again. */
+async function weighSpool(req, db) {
+  const id = spoolIdOf(req, db);
+  const body = req.body || {};
+  const weighing = { weight: body.weight, withSpool: body.withSpool !== false, notes: typeof body.notes === 'string' ? body.notes : null };
+  try {
+    await viaHandler('weigh-spool', req, [id, weighing], () => require('../core/spools').weighSpool(db, id, weighing));
+  } catch (error) {
+    throw httpError(400, error.message);
+  }
+  return { spool: spoolDetail(db, id) };
+}
+
+/** Start drying a spool ({ action: 'start', temp, hours }) or finish ({ action: 'finish', humidityAfter }). Answers its details again. */
+async function drying(req, db) {
+  const id = spoolIdOf(req, db);
+  const body = req.body || {};
+  try {
+    if (body.action === 'start') {
+      const session = { drying_temp: body.temp, target_hours: body.hours };
+      await viaHandler('start-drying', req, [id, session], () => require('../core/drying').startDrying(db, id, session));
+    } else if (body.action === 'finish') {
+      const open = db.prepare('SELECT id FROM drying_sessions WHERE spool_id = ? AND finished_at IS NULL').get(id);
+      if (!open) throw new Error('This spool is not drying');
+      const result = { humidity_after: body.humidityAfter };
+      await viaHandler('finish-drying', req, [open.id, result], () => require('../core/drying').finishDrying(db, open.id, result));
+    } else {
+      throw new Error("Say whether to 'start' or 'finish' drying");
+    }
+  } catch (error) {
+    throw httpError(error.status || 400, error.message);
+  }
+  return { spool: spoolDetail(db, id) };
+}
+
 /** Run `fn`; `fallback` when it throws (a table a JusttPrint version or a test database lacks). */
 function maybe(fn, fallback) {
   try {
@@ -202,6 +407,22 @@ function modelDetail(db, id) {
   );
   const categories = maybe(() => require('../core/categories').modelCategoryNames(row.id), []);
   const history = maybe(() => require('../core/print-events').getPrintEvents(db, row.id), []).slice(0, 50);
+  // The plugin has no browser sign-in, so the print photos go as data URLs.
+  let photosLeft = MAX_PRINT_PHOTOS;
+  const photosOf = (/** @type {any} */ e) =>
+    (e.photos || [])
+      .map((/** @type {any} */ p) => {
+        if (photosLeft <= 0) return null;
+        const data = photoData(
+          'print',
+          String(p.url || '')
+            .split('/')
+            .pop()
+        );
+        if (data) photosLeft -= 1;
+        return data ? { src: data, caption: p.caption || null } : null;
+      })
+      .filter(Boolean);
   let size = Number(row.size) || 0;
   if (!size) size = maybe(() => fs.statSync(row.filePath).size, 0);
   return {
@@ -234,7 +455,8 @@ function modelDetail(db, id) {
       notes: e.notes || null,
       printer: e.printer_nickname || null,
       duration: Number(e.duration_seconds) || null,
-      spools: (e.spools || []).map((s) => ({ name: s.name, color: s.color || null, grams: Math.round((Number(s.grams) || 0) * 10) / 10 }))
+      spools: (e.spools || []).map((s) => ({ name: s.name, color: s.color || null, grams: Math.round((Number(s.grams) || 0) * 10) / 10 })),
+      photos: photosOf(e)
     })),
     // The model's page on the website (opened in the browser from the plugin).
     page: `#/model/${encodeURIComponent(row.filePath)}`
@@ -243,18 +465,23 @@ function modelDetail(db, id) {
 
 /** A spool's photo as a data URL the plugin can show (it has no browser sign-in), or null. */
 function spoolPhoto(spool) {
-  if (spool.photo_file) {
-    return maybe(() => {
-      const { dirFor } = require('./photos');
-      const file = path.join(dirFor('spool'), path.basename(spool.photo_file));
-      if (fs.statSync(file).size > 3 * 1024 * 1024) return null;
-      const ext = path.extname(file).slice(1).toLowerCase();
-      const type = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext];
-      return type ? `data:${type};base64,${fs.readFileSync(file).toString('base64')}` : null;
-    }, null);
-  }
-  return null;
+  return spool.photo_file ? photoData('spool', spool.photo_file) : null;
 }
+
+/** A photo JusttPrint keeps (photos.js: 'spool', 'print', …) as a data URL, or null (missing, too big, not a picture). */
+function photoData(kind, name) {
+  return maybe(() => {
+    const { dirFor } = require('./photos');
+    const file = path.join(dirFor(kind), path.basename(String(name)));
+    if (fs.statSync(file).size > 3 * 1024 * 1024) return null;
+    const ext = path.extname(file).slice(1).toLowerCase();
+    const type = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext];
+    return type ? `data:${type};base64,${fs.readFileSync(file).toString('base64')}` : null;
+  }, null);
+}
+
+/** At most this many print photos go with a model's details (the newest prints' first). */
+const MAX_PRINT_PHOTOS = 12;
 
 /**
  * One spool for the plugin's details window, as the website's spool window shows it: grams left,
@@ -292,6 +519,8 @@ function spoolDetail(db, id) {
     printTemp: range(spool.profile_print_temp_min, spool.profile_print_temp_max),
     bedTemp: range(spool.profile_bed_temp_min, spool.profile_bed_temp_max),
     dryingTemp: spool.profile_drying_temp ? `${spool.profile_drying_temp} °C${spool.profile_drying_hours ? `, ${spool.profile_drying_hours} h` : ''}` : null,
+    // The filament's own drying settings, to fill in the Dry form.
+    dryingDefaults: { temp: Number(spool.profile_drying_temp) || null, hours: Number(spool.profile_drying_hours) || null },
     price: spool.purchase_price === null || spool.purchase_price === undefined ? null : Number(spool.purchase_price),
     currency: require('../core/filament-stats').currency(db),
     supplier: spool.supplier || null,
@@ -587,7 +816,8 @@ function registerOrcaPluginRoutes(expressApp, { requireRole, db = () => database
       } catch (_) {
         uploadFolder = '';
       }
-      return { version, username: req.user.username, role: req.user.role, slicedInbox: !!sliced, uploadFolder: !!uploadFolder };
+      // pluginVersion: the plugin tells people when this server offers a newer one.
+      return { version, pluginVersion: pluginVersion(), username: req.user.username, role: req.user.role, slicedInbox: !!sliced, uploadFolder: !!uploadFolder };
     })
   );
 
@@ -595,9 +825,49 @@ function registerOrcaPluginRoutes(expressApp, { requireRole, db = () => database
     '/api/orca/models',
     route((req) => {
       const limit = Math.max(1, Math.min(MAX_RESULTS, Number(req.query.limit) || 30));
-      const { sort, status, offset } = req.query;
-      return searchModels(db(), String(req.query.q || ''), limit, { sort: String(sort || ''), status: String(status || ''), offset: Number(offset) || 0 });
+      const { sort, status, offset, favorite, tag, category } = req.query;
+      return searchModels(db(), String(req.query.q || ''), limit, {
+        sort: String(sort || ''),
+        status: String(status || ''),
+        offset: Number(offset) || 0,
+        favorite: favorite === '1' || favorite === 'true',
+        tag: tag ? String(tag) : '',
+        category: Number(category) || 0
+      });
     })
+  );
+
+  expressApp.get(
+    '/api/orca/filters',
+    route(() => libraryFilters(db()))
+  );
+
+  expressApp.post(
+    '/api/orca/models/:id/edit',
+    editor,
+    json,
+    route((req) => editModel(req, db()))
+  );
+
+  expressApp.post(
+    '/api/orca/models/:id/log-print',
+    editor,
+    json,
+    route((req) => logPrint(req, db()))
+  );
+
+  expressApp.post(
+    '/api/orca/spools/:id/weigh',
+    editor,
+    json,
+    route((req) => weighSpool(req, db()))
+  );
+
+  expressApp.post(
+    '/api/orca/spools/:id/drying',
+    editor,
+    json,
+    route((req) => drying(req, db()))
   );
 
   expressApp.get(
@@ -767,4 +1037,4 @@ function registerOrcaPluginRoutes(expressApp, { requireRole, db = () => database
   });
 }
 
-module.exports = { registerOrcaPluginRoutes, needsFrom, plainName, searchModels, modelDetail, listSpools, spoolDetail, listPrinters };
+module.exports = { registerOrcaPluginRoutes, needsFrom, plainName, pluginVersion, searchModels, modelDetail, listSpools, spoolDetail, listPrinters };
